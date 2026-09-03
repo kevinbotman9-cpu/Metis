@@ -14,7 +14,7 @@
     "test": "jest",
     "lint": "eslint packages planes bench infrastructure",
     "dev": "docker-compose up",
-    "compile": "node -r ts-node/register packages/compiler/src/cli.ts"
+    "compile": "node compile.js"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",

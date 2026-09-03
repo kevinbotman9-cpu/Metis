@@ -8,14 +8,21 @@ yarn-error.log*
 dist/
 build/
 *.tsbuildinfo
-**/*.js
-**/*.js.map
-**/*.d.ts
-**/*.d.ts.map
-src/**/*.js
-src/**/*.js.map
-src/**/*.d.ts
-src/**/*.d.ts.map
+packages/*/src/**/*.js
+packages/*/src/**/*.js.map
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.d.ts.map
+planes/*/src/**/*.js
+planes/*/src/**/*.js.map
+planes/*/src/**/*.d.ts
+planes/*/src/**/*.d.ts.map
+bench/*/src/**/*.js
+bench/*/src/**/*.js.map
+bench/*/src/**/*.d.ts
+bench/*/src/**/*.d.ts.map
+
+# Generated artifacts
+compiled.json
 
 # IDE
 .vscode/
