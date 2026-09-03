@@ -1,0 +1,578 @@
+openapi: 3.1.0
+info:
+  title: METIS Execution Plane API
+  version: 2.0.0
+  description: |
+    AI-native decision platform API.
+    Execution plane: deterministic strategy execution, artifact registry, approval workflow.
+  contact:
+    name: METIS Team
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development
+  - url: https://metis.example.com/api
+    description: Production
+
+components:
+  schemas:
+    CompiledArtifact:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Artifact ID
+        version:
+          type: string
+          description: Semantic version
+        metadata:
+          type: object
+          properties:
+            id:
+              type: string
+            version:
+              type: string
+            tenantId:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            createdBy:
+              type: string
+            signature:
+              type: string
+        dirSchema:
+          type: object
+          description: Decision Intermediate Representation
+        costManifest:
+          type: object
+          properties:
+            computeNodes:
+              type: integer
+            modelInvocations:
+              type: array
+              items:
+                type: string
+            externalCalls:
+              type: integer
+            estimatedP95LatencyMs:
+              type: number
+        signature:
+          type: string
+
+    DecisionTrace:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Decision trace ID
+        decisionId:
+          type: string
+        tenantId:
+          type: string
+        artifactVersion:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        candidateSet:
+          type: array
+          items:
+            type: object
+        eliminations:
+          type: array
+          items:
+            type: object
+        scores:
+          type: object
+        arbitration:
+          type: object
+        constraints:
+          type: array
+          items:
+            type: object
+        timings:
+          type: object
+          additionalProperties:
+            type: number
+
+    ChangeRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        artifactId:
+          type: string
+        version:
+          type: string
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [draft, pending, approved, rejected, active, rolled_back]
+        autonomyTier:
+          type: integer
+          enum: [1, 2, 3]
+        reason:
+          type: string
+        proposedChanges:
+          type: object
+        approvals:
+          type: array
+          items:
+            type: object
+        rejections:
+          type: array
+          items:
+            type: object
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
+
+paths:
+  /artifacts/{tenantId}/{strategyName}:
+    post:
+      summary: Publish a compiled artifact
+      operationId: publishArtifact
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: strategyName
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompiledArtifact'
+      responses:
+        '201':
+          description: Artifact published
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  artifactId:
+                    type: string
+        '400':
+          description: Invalid artifact
+
+    get:
+      summary: Get an artifact (active version or specific)
+      operationId: getArtifact
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: strategyName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: query
+          schema:
+            type: string
+          description: Specific version (optional, defaults to active)
+      responses:
+        '200':
+          description: Artifact found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompiledArtifact'
+        '404':
+          description: Artifact not found
+
+  /artifacts/{tenantId}/{strategyName}/versions:
+    get:
+      summary: List all versions of an artifact
+      operationId: listVersions
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: strategyName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of versions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  versions:
+                    type: array
+                    items:
+                      type: string
+
+  /artifacts/{tenantId}/{strategyName}/promote:
+    post:
+      summary: Promote a version to active (blue/green)
+      operationId: promoteVersion
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: strategyName
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                version:
+                  type: string
+      responses:
+        '200':
+          description: Version promoted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /artifacts/{tenantId}/{strategyName}/rollback:
+    post:
+      summary: Rollback to previous version
+      operationId: rollbackVersion
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: strategyName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Version rolled back
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  version:
+                    type: string
+
+  /artifacts/{tenantId}/{strategyName}/audit:
+    get:
+      summary: Get artifact audit log
+      operationId: getAuditLog
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: strategyName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Audit log
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  audit:
+                    type: array
+                    items:
+                      type: object
+
+  /decisions/search:
+    post:
+      summary: Search decisions with filtering
+      operationId: searchDecisions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenantId:
+                  type: string
+                dateFrom:
+                  type: string
+                  format: date-time
+                dateTo:
+                  type: string
+                  format: date-time
+                action:
+                  type: string
+                segment:
+                  type: string
+                limit:
+                  type: integer
+                  default: 50
+                cursor:
+                  type: string
+      responses:
+        '200':
+          description: Decisions matching query
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decisions:
+                    type: array
+                    items:
+                      type: object
+                  nextCursor:
+                    type: string
+
+  /decisions/{decisionId}/trace:
+    get:
+      summary: Get a decision's trace (audit record)
+      operationId: getDecisionTrace
+      parameters:
+        - name: decisionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Decision trace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionTrace'
+        '404':
+          description: Decision not found
+
+  /decisions/{decisionId}/replay:
+    post:
+      summary: Replay a historical decision (prove determinism)
+      operationId: replayDecision
+      parameters:
+        - name: decisionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                artifactVersion:
+                  type: string
+      responses:
+        '200':
+          description: Replayed decision
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  original:
+                    type: object
+                  replayed:
+                    type: object
+                  identical:
+                    type: boolean
+
+  /change-requests:
+    post:
+      summary: Create a change request
+      operationId: createChangeRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                artifactId:
+                  type: string
+                version:
+                  type: string
+                reason:
+                  type: string
+                proposedChanges:
+                  type: object
+      responses:
+        '201':
+          description: Change request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequest'
+
+  /change-requests/{requestId}:
+    get:
+      summary: Get a change request
+      operationId: getChangeRequest
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Change request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequest'
+
+  /change-requests/{requestId}/approve:
+    post:
+      summary: Approve a change request
+      operationId: approveChangeRequest
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Request approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /change-requests/{requestId}/reject:
+    post:
+      summary: Reject a change request
+      operationId: rejectChangeRequest
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Request rejected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /simulations:
+    post:
+      summary: Simulate a strategy against a population
+      operationId: simulateStrategy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                artifactId:
+                  type: string
+                version:
+                  type: string
+                populationSize:
+                  type: integer
+      responses:
+        '200':
+          description: Simulation results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  distribution:
+                    type: object
+                  funnel:
+                    type: array
+                  bias:
+                    type: object
+
+  /counterfactuals:
+    post:
+      summary: Find minimal input changes that flip outcome
+      operationId: getCounterfactual
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decisionId:
+                  type: string
+                targetOutcome:
+                  type: string
+      responses:
+        '200':
+          description: Counterfactual explanation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inputDiff:
+                    type: object
+                  newOutcome:
+                    type: string
