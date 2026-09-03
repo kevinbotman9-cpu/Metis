@@ -1,8 +1,9 @@
 'use client';
 
-import type { Metadata } from 'next';
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
+import { ThemeProvider } from '@/components/theme-provider';
+import { AuthProvider } from '@/components/auth-provider';
 import './globals.css';
 
 // MSW initialization in browser
@@ -17,36 +18,41 @@ if (typeof window !== 'undefined') {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 10,
     },
   },
 });
 
 function RootLayoutContent({ children }: { children: ReactNode }) {
-  useEffect(() => {
-    // Set initial theme based on system preference
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  const [mounted, setMounted] = useState(false);
 
-    // Show mock mode banner if enabled
+  useEffect(() => {
+    setMounted(true);
+
+    // Log mock mode
     if (process.env.NEXT_PUBLIC_USE_MSW === 'true') {
-      console.log('%c🔧 MOCK MODE ENABLED', 'color: #FFA500; font-weight: bold; font-size: 16px;');
-      console.log('%cAll API calls are mocked via MSW. Real backend not available.', 'color: #FFA500;');
+      console.log('%c🔧 MOCK MODE', 'color: #FFA500; font-weight: bold;');
+      console.log('All API calls use MSW mocks. See docs/gaps.md for status.');
     }
   }, []);
 
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return null;
+  }
+
   return (
-    <html lang="en" className="light">
+    <html lang="en">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta httpEquiv="X-UA-Compatible" content="ie=edge" />
       </head>
       <body className="bg-base-100 text-base-900">
         <QueryClientProvider client={queryClient}>
-          {/* TODO: Auth context provider */}
-          {/* TODO: Theme provider */}
-          {children}
+          <ThemeProvider defaultColorScheme="light" defaultDensity="comfortable">
+            <AuthProvider>{children}</AuthProvider>
+          </ThemeProvider>
         </QueryClientProvider>
       </body>
     </html>

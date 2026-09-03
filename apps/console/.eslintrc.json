@@ -1,0 +1,16 @@
+{
+  "extends": [
+    "next/core-web-vitals",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "rules": {
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "CallExpression[callee.object.name='cn'] > Literal[value=/^(#|rgb|hsl|bg-|text-)/]",
+        "message": "Do not use literal colors in cn(). Use CSS custom properties instead (e.g., 'bg-[var(--accent)]')."
+      }
+    ],
+    "@next/next/no-html-link-for-pages": "off"
+  }
+}
