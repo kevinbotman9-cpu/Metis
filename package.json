@@ -7,7 +7,8 @@
     "packages/*",
     "planes/*",
     "infrastructure/*",
-    "bench/*"
+    "bench/*",
+    "apps/*"
   ],
   "scripts": {
     "build": "tsc --build",
