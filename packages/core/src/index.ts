@@ -17,10 +17,6 @@ const packageSchema = JSON.parse(
 
 const ajv = new Ajv();
 
-// Compile validators
-const validateDIR = ajv.compile(dirSchema);
-const validatePackageManifest = ajv.compile(packageSchema);
-
 /**
  * Validates a Decision Intermediate Representation (DIR) against the schema
  */
@@ -28,22 +24,22 @@ export function validateDirectionIntermediateRepresentation(dir: unknown): {
   valid: boolean;
   errors: string[];
 } {
-  const valid = validateDIR(dir);
-  const errors = valid ? [] : (validateDIR.errors || []).map((e) => `${e.dataPath}: ${e.message}`);
+  const validator = ajv.compile(dirSchema);
+  const valid = validator(dir) as boolean;
+  const errors = valid ? [] : (validator.errors || []).map((e: any) => `${e.instancePath}: ${e.message}`);
   return { valid, errors };
 }
 
 /**
  * Validates a package manifest against the schema
  */
-export function validatePackageManifest(manifest: unknown): {
+export function validatePackageManifestSchema(manifest: unknown): {
   valid: boolean;
   errors: string[];
 } {
-  const valid = validatePackageManifest(manifest);
-  const errors = valid
-    ? []
-    : (validatePackageManifest.errors || []).map((e) => `${e.dataPath}: ${e.message}`);
+  const validator = ajv.compile(packageSchema);
+  const valid = validator(manifest) as boolean;
+  const errors = valid ? [] : (validator.errors || []).map((e: any) => `${e.instancePath}: ${e.message}`);
   return { valid, errors };
 }
 
@@ -88,8 +84,3 @@ export function isCoreNodeType(type: string): boolean {
  * Export schemas for external use
  */
 export { dirSchema, packageSchema };
-
-/**
- * Export validators
- */
-export { validateDIR, validatePackageManifest };

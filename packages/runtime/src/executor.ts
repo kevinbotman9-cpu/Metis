@@ -78,7 +78,7 @@ export async function execute(
 
   // Execute nodes in topological order
   const visitedNodes = new Set<string>();
-  const nodeOutputs: Record<string, any> = {};
+  const nodeOutputs: Record<string, { winner?: string; candidates?: any[] }> = {};
 
   try {
     // Start from entry node
@@ -114,12 +114,16 @@ export async function execute(
     decisionId: trace.decisionId,
     decision: {
       winner,
-      candidates: trace.candidateSet,
+      candidates: trace.candidateSet.map((c) => ({
+        actionId: c.actionId,
+        score: c.score || 0,
+        features: {},
+      })),
     },
     trace,
     cost: {
       computeMs: totalMs,
-      modelServingMs: 0, // Would be populated in Phase 1
+      modelServingMs: 0,
       dataEgressBytes: 0,
       totalMs,
     },

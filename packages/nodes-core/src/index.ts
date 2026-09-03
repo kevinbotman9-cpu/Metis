@@ -393,4 +393,4 @@ export function getRegisteredNodeTypes(): string[] {
   return Object.keys(NODE_REGISTRY);
 }
 
-export { SourceNode, FilterNode, SetPropertyNode, ScoreModelNode, ArbitrateNode, ConstraintNode, ExplainAnnotateNode, SwitchNode };
+// Exports already at top of file via class declarations

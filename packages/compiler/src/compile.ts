@@ -3,7 +3,7 @@
  */
 
 import type { CompiledArtifact, DecisionIR, Tenant, ArtifactMetadata } from '@metis/types';
-import { validateDirectionIntermediateRepresentation } from '@metis/core';
+import { validateDirectionIntermediateRepresentation, validatePackageManifestSchema } from '@metis/core';
 import { typeCheck } from './typecheck';
 import { resolveVersions } from './resolver';
 import { analyzeCost } from './costAnalyzer';
