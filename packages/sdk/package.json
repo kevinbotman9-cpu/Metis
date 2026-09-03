@@ -1,0 +1,14 @@
+{
+  "name": "@metis/sdk",
+  "version": "0.0.1",
+  "description": "METIS SDK - package authoring SDK, typed contracts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@metis/types": "*",
+    "@metis/core": "*"
+  }
+}

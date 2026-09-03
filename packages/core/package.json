@@ -1,0 +1,14 @@
+{
+  "name": "@metis/core",
+  "version": "0.0.1",
+  "description": "METIS core - DIR schema, package manifest, core node types",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@metis/types": "*",
+    "ajv": "^8.12.0"
+  }
+}

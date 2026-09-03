@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "METIS Package Manifest Schema",
+  "description": "Manifest for METIS packages (extensible components)",
+  "type": "object",
+  "required": ["id", "kind", "version", "apiVersion"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique package identifier in reverse-domain notation",
+      "pattern": "^[a-z0-9]+([.-][a-z0-9]+)*$"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable package name"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of this package",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "apiVersion": {
+      "type": "string",
+      "description": "API version this package targets",
+      "enum": ["metis/v1"]
+    },
+    "kind": {
+      "type": "string",
+      "description": "Kind of package",
+      "enum": [
+        "node",
+        "channel",
+        "model-provider",
+        "industry-pack",
+        "regulatory-pack",
+        "ui-panel",
+        "theme",
+        "agent",
+        "connector"
+      ]
+    },
+    "provides": {
+      "type": "array",
+      "description": "Capabilities this package provides",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requires": {
+      "type": "object",
+      "description": "Dependencies on other packages",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "extensionPoints": {
+      "type": "object",
+      "description": "Extension points this package defines",
+      "additionalProperties": {
+        "type": "object"
+      }
+    },
+    "entryPoint": {
+      "type": "string",
+      "description": "Main entry point for this package (file path or module name)"
+    },
+    "signature": {
+      "type": "string",
+      "description": "Cryptographic signature of this manifest"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata",
+      "properties": {
+        "author": { "type": "string" },
+        "license": { "type": "string" },
+        "repository": { "type": "string" },
+        "homepage": { "type": "string" }
+      }
+    }
+  }
+}

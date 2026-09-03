@@ -1,0 +1,9 @@
+{
+  "name": "@metis/datasets",
+  "version": "0.0.1",
+  "description": "METIS synthetic datasets for testing and benchmarking",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc"
+  }
+}

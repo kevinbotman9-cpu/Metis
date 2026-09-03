@@ -1,0 +1,14 @@
+{
+  "name": "@metis/nodes-core",
+  "version": "0.0.1",
+  "description": "METIS core node types - source, filter, score, arbitrate, etc.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@metis/types": "*",
+    "@metis/core": "*"
+  }
+}

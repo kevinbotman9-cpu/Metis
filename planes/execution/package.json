@@ -1,0 +1,22 @@
+{
+  "name": "@metis/execution-plane",
+  "version": "0.0.1",
+  "description": "METIS execution plane - API server, artifact registry, feature store client",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@metis/types": "*",
+    "@metis/compiler": "*",
+    "@metis/runtime": "*",
+    "@metis/trace": "*",
+    "express": "^4.18.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.0"
+  }
+}

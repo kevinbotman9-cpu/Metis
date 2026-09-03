@@ -1,0 +1,20 @@
+{
+  "name": "@metis/compiler",
+  "version": "0.0.1",
+  "description": "METIS compiler - type checking, version resolution, cost analysis",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "metis-compile": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@metis/types": "*",
+    "@metis/core": "*",
+    "@metis/nodes-core": "*",
+    "ajv": "^8.12.0",
+    "semver": "^7.5.0"
+  }
+}
