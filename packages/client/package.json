@@ -1,0 +1,19 @@
+{
+  "name": "@metis/client",
+  "version": "2.0.0",
+  "description": "METIS API client — generated from OpenAPI spec",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "generate": "echo 'Generated from OpenAPI spec'",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@metis/types": "*",
+    "typescript": "^5.0.0"
+  }
+}

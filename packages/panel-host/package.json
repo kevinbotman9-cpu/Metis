@@ -1,0 +1,23 @@
+{
+  "name": "@metis/panel-host",
+  "version": "2.0.0",
+  "description": "METIS panel host — runtime for third-party UI panels with security model",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@metis/types": "*",
+    "@metis/client": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
