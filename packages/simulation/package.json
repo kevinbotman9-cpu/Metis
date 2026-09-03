@@ -1,0 +1,10 @@
+{
+  "name": "@metis/simulation",
+  "version": "1.0.0",
+  "description": "METIS simulation engine - distribution test, what-if, value finder, bias gate",
+  "main": "dist/index.js",
+  "dependencies": {
+    "@metis/types": "*",
+    "@metis/runtime": "*"
+  }
+}

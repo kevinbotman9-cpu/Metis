@@ -1,0 +1,19 @@
+{
+  "name": "@metis/console",
+  "version": "2.0.0",
+  "description": "METIS console - Web UI for strategy authoring and monitoring (Phase 2+)",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc && echo 'Phase 2: React/TypeScript frontend builds here'",
+    "start": "echo 'Phase 2: Next.js/React server starts here'",
+    "dev": "echo 'Phase 2: Dev server with HMR'"
+  },
+  "dependencies": {
+    "@metis/types": "*",
+    "@metis/trace": "*"
+  },
+  "devDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@metis/compliance",
+  "version": "4.0.0",
+  "description": "METIS compliance - SOC 2, GDPR, AI Act, FCA Consumer Duty (Phase 4)",
+  "main": "dist/index.js",
+  "dependencies": {
+    "@metis/types": "*",
+    "@metis/trace": "*"
+  }
+}
