@@ -29,11 +29,14 @@ export function AppShell({ children }: AppShellProps) {
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto px-3 py-4">
             <div className="space-y-1">
+              <NavLink href="/" icon="🏠">
+                Home
+              </NavLink>
               <NavLink href="/strategies" icon="📋">
                 Strategies
               </NavLink>
-              <NavLink href="/decisions" icon="🎯">
-                Decisions
+              <NavLink href="/decisions" icon="🔍">
+                Decisions (Search)
               </NavLink>
               <NavLink href="/approvals" icon="✓">
                 Approvals

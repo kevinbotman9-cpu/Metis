@@ -146,10 +146,30 @@ export const handlers = [
   }),
 
   // === Decision Search & Trace ===
-  http.post('/api/decisions/search', () => {
-    const decisions = Array.from({ length: 10 }, (_, i) => {
-      const id = `dec_${Math.random().toString(36).slice(2)}`;
-      return mockDecision(id);
+  http.post('/api/decisions/search', ({ request }) => {
+    const body = request.clone().json();
+    const decisions = Array.from({ length: 15 }, (_, i) => {
+      const id = `dec_${Math.random().toString(36).slice(2, 10)}`;
+      const ts = new Date(
+        Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000
+      ).toISOString();
+      return {
+        id,
+        artifactId: 'test-strategy',
+        tenantId: 'telco-uk',
+        customerId: `cust_${Math.random().toString(36).slice(2, 8)}`,
+        timestamp: ts,
+        decision: {
+          winner: ['upsell_5g', 'upsell_data', 'retention', 'suppress'][
+            Math.floor(Math.random() * 4)
+          ],
+          candidates: [
+            { id: 'upsell_5g', score: 0.87 },
+            { id: 'upsell_data', score: 0.62 },
+            { id: 'retention', score: 0.45 },
+          ],
+        },
+      };
     });
 
     return HttpResponse.json({
