@@ -5,6 +5,8 @@
 ```
 Integration          6 passed  - author -> compile -> execute -> replay
 Determinism         30 passed  - packages/runtime, byte-identical replay
+Conformance         69 passed  - ADR-003 corpus, TypeScript reference
+Conformance (JVM)    2 passed  - engines/kotlin, same corpus, 58 cases compared
 Compiler            40 passed  - packages/compiler
 Performance          5 passed  - bench/harness, the p95 < 50ms gate
 Unit (Vitest)       38 passed  - apps/console
@@ -12,7 +14,7 @@ E2E (Playwright)   104 passed  - 21 contract, 18 axe, 7 skipped by design
 Typecheck           clean
 Lint                0 errors   - root and console, which are separate configs
                    ---
-                    223 tests
+                    294 tests, two languages
 ```
 
 The console was linted by nobody until 2026-09-04: `apps/console/.eslintrc.json`
@@ -81,6 +83,8 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | Bundle budget | MISSING | The definition of done says route bundle size is checked in CI. Nothing checks it. |
 | Skip link | BUILT | First tab stop on every page. axe passes WCAG 2.4.1 on the strength of a `<main>` landmark alone, so an E2E test asserts the tab order instead. |
 | Performance gate | BUILT | `bench/harness`, run by `npm test` and CI. p95 measured with `performance.now()` against seeded, reproducible workloads. |
+| Canonical serialisation | BUILT | Specified normatively in ADR-003, with a 67-case corpus generated from the reference. Both the TypeScript and Kotlin implementations are tested against it, so the determinism claim is a property of a specification rather than of one file. |
+| Second engine (JVM) | PARTIAL | `engines/kotlin` implements canonicalisation and hashing only, and agrees byte-for-byte. Policy evaluation, arbitration and the trace are still TypeScript. |
 
 ---
 
@@ -177,6 +181,12 @@ Worth recording, because each was invisible by eye:
   this harness runs on one core.
 - **No WASM hot path.** The engine is plain TypeScript. The numbers above are
   what that costs; the plan's sub-50ms target does not currently need more.
+- **Only the serialisation is ported.** `engines/kotlin` proves the hashing
+  contract is portable; the engine's own semantics - policy evaluation, scope
+  resolution, arbitration, the elimination cascade - are specified only by the
+  TypeScript implementation. Extending the corpus from values to whole
+  decisions (artifact + catalogue + request in, chain hash out) is what would
+  make a full second engine a bounded piece of work rather than a rewrite.
 - **Seventeen of nineteen packages have no tests.** Only `compiler` and `runtime`
   do. `packages-system` (package signing), `simulation`, `adaptive-models`,
   `compliance`, `panel-host` and `nodes-core` are single files carrying explicit
