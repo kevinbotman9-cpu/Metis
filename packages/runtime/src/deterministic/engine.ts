@@ -21,7 +21,7 @@ import type {
   Lever,
   PolicyScope,
 } from '@metis/core/domain';
-import { canonicalise, hash, shortHash, seededUnitInterval } from './canonical';
+import { canonicalise, hash, seededUnitInterval } from './canonical';
 import type {
   ExecArtifact,
   ExecNode,
@@ -466,16 +466,22 @@ export function execute(
     winnerPropositionId: winnerProposition?.id ?? null,
   };
 
+  // One hash, used twice. `shortHash` is a prefix of `hash`, so computing both
+  // canonicalised and sha256'd the entire decision twice per call — and at 400
+  // candidates that object carries a score and an elimination entry for every
+  // one of them. Serialisation and hashing were 71% of execution time.
+  const chainHash = hash(decision);
+
   return {
     // Content-addressed: the same decision computed twice carries the same id.
-    id: `dec_${shortHash(decision, 16)}`,
+    id: `dec_${chainHash.slice(0, 16)}`,
     decision,
     measured: {
       timingsByNode,
       totalMs: round(Date.now() - startedAt, 3),
       executedAt: new Date().toISOString(),
     },
-    chainHash: hash(decision),
+    chainHash,
   };
 }
 
