@@ -1,15 +1,20 @@
 {
   "name": "@metis/harness",
   "version": "0.0.1",
-  "description": "METIS load harness - latency, throughput, cost measurement",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "description": "METIS load harness - latency and throughput against the deterministic engine",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "scripts": {
-    "build": "tsc",
-    "run": "node dist/index.js"
+    "bench": "tsx src/run.ts",
+    "test": "vitest run --config ./vitest.config.ts"
   },
   "dependencies": {
-    "@metis/types": "*",
+    "@metis/core": "*",
+    "@metis/datasets": "*",
     "@metis/runtime": "*"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.13",
+    "vitest": "^1.0.0"
   }
 }

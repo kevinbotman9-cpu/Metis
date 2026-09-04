@@ -1,166 +1,171 @@
 /**
- * Load Harness - Latency, throughput, and cost measurement
+ * Load harness: latency and throughput for the deterministic engine.
+ *
+ * This replaces a version that could not have worked. It measured each request
+ * with `Date.now()` — millisecond resolution against a decision that takes
+ * about 0.17ms, so every recorded latency was 0 or 1 and the p95 gate passed
+ * on a histogram of zeroes. It also called `execute(artifact, request)`, a
+ * signature the engine has not had since the deterministic rewrite, so it
+ * would not have compiled against the code it claimed to measure.
+ *
+ * The gate here is absolute (p95 under 50ms) rather than a ratio, which is
+ * defensible only because the margin is enormous: the engine runs roughly 300x
+ * inside the budget. If CI noise ever moves this number, that is the news.
+ * The scaling invariant — that per-decision cost does not grow with catalogue
+ * size — is asserted separately in packages/runtime, where it belongs.
  */
 
-import type { CompiledArtifact, DecisionRequest } from '@metis/types';
 import { execute } from '@metis/runtime';
+import type { CatalogueSnapshot, ExecArtifact, DecisionRequest } from '@metis/runtime/deterministic/types';
 
-export interface LoadTest {
-  name: string;
-  description: string;
-  requestsPerSecond: number;
-  durationSeconds: number;
-  requestGenerator: (index: number) => DecisionRequest;
-}
-
-export interface LatencyHistogram {
+export interface Percentiles {
   p50: number;
-  p75: number;
   p95: number;
   p99: number;
-  max: number;
   min: number;
+  max: number;
   mean: number;
 }
 
-export interface HarnessResult {
-  test: LoadTest;
-  totalRequests: number;
-  successfulRequests: number;
-  failedRequests: number;
-  latencies: LatencyHistogram;
-  throughput: number; // requests per second
-  totalDurationMs: number;
+export interface ScenarioResult {
+  name: string;
+  decisions: number;
+  /** Per-decision latency in milliseconds. */
+  latency: Percentiles;
+  /** Decisions per second, single-threaded. */
+  throughput: number;
+  wallMs: number;
+  /** How many decisions returned an offer, as a sanity check on the workload. */
+  offered: number;
 }
 
-/**
- * Run a load test against a compiled artifact
- */
-export async function runLoadTest(
-  artifact: CompiledArtifact,
-  test: LoadTest
-): Promise<HarnessResult> {
-  const startTime = Date.now();
-  const latencies: number[] = [];
-  let successCount = 0;
-  let failureCount = 0;
+export interface Scenario {
+  name: string;
+  artifact: ExecArtifact;
+  catalogue: CatalogueSnapshot;
+  request: (index: number) => DecisionRequest;
+  decisions: number;
+  /** Untimed decisions first, so JIT warm-up lands outside the measurement. */
+  warmup?: number;
+}
 
-  const endTime = startTime + test.durationSeconds * 1000;
-  let requestIndex = 0;
+/** Nearest-rank percentile. No interpolation; the sample is large enough. */
+function percentile(sorted: number[], fraction: number): number {
+  if (sorted.length === 0) return 0;
+  const rank = Math.min(sorted.length - 1, Math.ceil(fraction * sorted.length) - 1);
+  return sorted[Math.max(0, rank)];
+}
 
-  console.log(`\n=== Load Test: ${test.name} ===`);
-  console.log(`${test.description}`);
-  console.log(`Target: ${test.requestsPerSecond} req/s for ${test.durationSeconds}s\n`);
+export function runScenario(scenario: Scenario): ScenarioResult {
+  const { artifact, catalogue, request } = scenario;
+  const warmup = scenario.warmup ?? Math.min(500, scenario.decisions);
 
-  while (Date.now() < endTime) {
-    const batchStartTime = Date.now();
-
-    // Generate requests for this batch
-    const batchSize = Math.ceil(test.requestsPerSecond / 10); // 10 batches per second
-    const promises: Promise<void>[] = [];
-
-    for (let i = 0; i < batchSize; i++) {
-      const request = test.requestGenerator(requestIndex++);
-
-      promises.push(
-        (async () => {
-          const reqStartTime = Date.now();
-          try {
-            await execute(artifact, request);
-            const latency = Date.now() - reqStartTime;
-            latencies.push(latency);
-            successCount++;
-          } catch (error) {
-            failureCount++;
-          }
-        })()
-      );
-    }
-
-    await Promise.all(promises);
-
-    // Throttle to maintain target rate
-    const batchDuration = Date.now() - batchStartTime;
-    const targetBatchDuration = (1000 / test.requestsPerSecond) * batchSize;
-    const sleepDuration = Math.max(0, targetBatchDuration - batchDuration);
-    if (sleepDuration > 0) {
-      await new Promise((r) => setTimeout(r, sleepDuration));
-    }
+  for (let i = 0; i < warmup; i++) {
+    execute(artifact, catalogue, request(i));
   }
 
-  const totalDurationMs = Date.now() - startTime;
+  const latencies = new Float64Array(scenario.decisions);
+  let offered = 0;
 
-  // Calculate histogram
-  latencies.sort((a, b) => a - b);
-  const histogram: LatencyHistogram = {
-    p50: latencies[Math.floor(latencies.length * 0.5)],
-    p75: latencies[Math.floor(latencies.length * 0.75)],
-    p95: latencies[Math.floor(latencies.length * 0.95)],
-    p99: latencies[Math.floor(latencies.length * 0.99)],
-    max: latencies[latencies.length - 1],
-    min: latencies[0],
-    mean: latencies.reduce((a, b) => a + b, 0) / latencies.length,
-  };
-
-  const result: HarnessResult = {
-    test,
-    totalRequests: successCount + failureCount,
-    successfulRequests: successCount,
-    failedRequests: failureCount,
-    latencies: histogram,
-    throughput: (successCount / totalDurationMs) * 1000,
-    totalDurationMs,
-  };
-
-  return result;
-}
-
-/**
- * Print harness results
- */
-export function printResults(result: HarnessResult): void {
-  console.log('=== Results ===');
-  console.log(`Total Requests: ${result.totalRequests}`);
-  console.log(`Successful: ${result.successfulRequests}`);
-  console.log(`Failed: ${result.failedRequests}`);
-  console.log(`Success Rate: ${((result.successfulRequests / result.totalRequests) * 100).toFixed(2)}%\n`);
-
-  console.log('Latency (ms):');
-  console.log(`  Min:  ${result.latencies.min.toFixed(2)}`);
-  console.log(`  P50:  ${result.latencies.p50.toFixed(2)}`);
-  console.log(`  P75:  ${result.latencies.p75.toFixed(2)}`);
-  console.log(`  P95:  ${result.latencies.p95.toFixed(2)}`);
-  console.log(`  P99:  ${result.latencies.p99.toFixed(2)}`);
-  console.log(`  Max:  ${result.latencies.max.toFixed(2)}\n`);
-
-  console.log(`Throughput: ${result.throughput.toFixed(2)} req/s`);
-  console.log(`Total Duration: ${(result.totalDurationMs / 1000).toFixed(2)}s\n`);
-
-  // Gate check
-  if (result.latencies.p95 <= 50) {
-    console.log('✓ PASS: P95 latency under 50ms');
-  } else {
-    console.log(`✗ FAIL: P95 latency ${result.latencies.p95.toFixed(2)}ms exceeds budget (50ms)`);
+  const wallStart = performance.now();
+  for (let i = 0; i < scenario.decisions; i++) {
+    const req = request(i);
+    // performance.now() is sub-microsecond here; Date.now() is not, which is
+    // the whole reason the previous harness measured nothing.
+    const started = performance.now();
+    const trace = execute(artifact, catalogue, req);
+    latencies[i] = performance.now() - started;
+    if (trace.decision.winner) offered++;
   }
-}
+  const wallMs = performance.now() - wallStart;
 
-/**
- * Create a standard load test scenario
- */
-export function createSteadyStateTest(_artifact: CompiledArtifact): LoadTest {
+  const sorted = Array.from(latencies).sort((a, b) => a - b);
+  const sum = sorted.reduce((a, b) => a + b, 0);
+
   return {
-    name: 'Steady State',
-    description: 'Constant 100 requests per second for 30 seconds',
-    requestsPerSecond: 100,
-    durationSeconds: 30,
-    requestGenerator: (index: number) => ({
-      tenantId: 'test',
-      strategyName: 'strategy',
-      customerId: `customer_${index % 10000}`,
-      context: {
-        segment: ['premium', 'standard', 'budget'][index % 3],
-        active: true,
-      },
-    }),
+    name: scenario.name,
+    decisions: scenario.decisions,
+    latency: {
+      p50: percentile(sorted, 0.5),
+      p95: percentile(sorted, 0.95),
+      p99: percentile(sorted, 0.99),
+      min: sorted[0] ?? 0,
+      max: sorted[sorted.length - 1] ?? 0,
+      mean: sum / (sorted.length || 1),
+    },
+    throughput: (scenario.decisions / wallMs) * 1000,
+    wallMs,
+    offered,
   };
+}
+
+export interface Budget {
+  /** The platform's stated latency promise. Applies to every scenario. */
+  p95Ms: number;
+  /**
+   * Decisions per second a single core must sustain, or null to measure
+   * without gating.
+   *
+   * The plan's "1000 req/s" is a service-level claim; this harness is
+   * single-threaded, so it measures per-core capacity. Holding a stress
+   * scenario to a service-level number would be comparing two different
+   * things, and the honest response to that is to say so rather than to
+   * quietly widen the threshold.
+   */
+  throughputPerSecond: number | null;
+}
+
+/** The Phase 0 gate, for a realistic workload. */
+export const BUDGET: Budget = {
+  p95Ms: 50,
+  throughputPerSecond: 1000,
+};
+
+export interface GateVerdict {
+  passed: boolean;
+  failures: string[];
+}
+
+export function checkGate(result: ScenarioResult, budget: Budget = BUDGET): GateVerdict {
+  const failures: string[] = [];
+
+  if (result.latency.p95 > budget.p95Ms) {
+    failures.push(
+      `p95 ${result.latency.p95.toFixed(3)}ms exceeds the ${budget.p95Ms}ms budget`
+    );
+  }
+  if (
+    budget.throughputPerSecond !== null &&
+    result.throughput < budget.throughputPerSecond
+  ) {
+    failures.push(
+      `throughput ${result.throughput.toFixed(0)}/s per core is under the ` +
+        `${budget.throughputPerSecond}/s claimed`
+    );
+  }
+  // A workload where nothing is ever offered would run fast and prove nothing:
+  // the arbitration and scoring nodes would barely execute.
+  if (result.offered === 0) {
+    failures.push('no decision returned an offer — the workload is not exercising arbitration');
+  }
+
+  return { passed: failures.length === 0, failures };
+}
+
+export function formatResult(result: ScenarioResult, budget: Budget = BUDGET): string {
+  const { latency: l } = result;
+  const gate = checkGate(result, budget);
+  const pct = ((l.p95 / budget.p95Ms) * 100).toFixed(1);
+
+  return [
+    `${result.name}`,
+    `  decisions   ${result.decisions.toLocaleString('en-GB')} (${result.offered.toLocaleString('en-GB')} offered)`,
+    `  latency ms  p50 ${l.p50.toFixed(3)}  p95 ${l.p95.toFixed(3)}  p99 ${l.p99.toFixed(3)}  max ${l.max.toFixed(3)}`,
+    `  throughput  ${result.throughput.toFixed(0)}/s per core` +
+      (budget.throughputPerSecond === null ? ' (measured, not gated)' : ''),
+    `  budget      p95 is ${pct}% of ${budget.p95Ms}ms`,
+    gate.passed
+      ? `  PASS`
+      : `  FAIL\n${gate.failures.map((f) => `    - ${f}`).join('\n')}`,
+  ].join('\n');
 }

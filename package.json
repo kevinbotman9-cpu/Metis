@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "build": "tsc --build",
-    "test": "npm run test:integration && npm run test:runtime && npm run test:compiler && npm run test:console",
+    "test": "npm run test:integration && npm run test:runtime && npm run test:compiler && npm run test:bench && npm run test:console",
     "lint": "eslint packages planes bench --ext .ts",
     "dev": "docker-compose up",
     "compile": "node compile.js",
@@ -20,7 +20,9 @@
     "test:runtime": "npm --prefix packages/runtime run test",
     "test:console": "npm --prefix apps/console run test",
     "test:integration": "vitest run --config ./vitest.config.ts",
-    "test:compiler": "npm --prefix packages/compiler run test"
+    "test:compiler": "npm --prefix packages/compiler run test",
+    "test:bench": "npm --prefix bench/harness run test",
+    "bench": "npm --prefix bench/harness run bench"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

@@ -1,156 +1,237 @@
 /**
- * METIS Synthetic Dataset Generator - Phase 3
- * Generate realistic 10M+ customer datasets for scale testing
+ * Synthetic workloads for the load harness.
+ *
+ * Two things had to change from the original generator:
+ *
+ *   1. It used `Math.random()`, so "same seed, same data" — which the Phase 0
+ *      plan states as a requirement — was never true. A benchmark that draws a
+ *      different population each run cannot tell a regression from a reroll.
+ *   2. It produced its own `Customer` and `Decision` shapes, which nothing
+ *      executes. The engine takes a `CatalogueSnapshot`, an `ExecArtifact` and
+ *      `DecisionRequest`s, so that is what this builds.
+ *
+ * Scale is a parameter. The console's fixtures are fixed at eleven
+ * propositions, which is the right size for a UI and the wrong size for
+ * measuring how cost scales with the catalogue.
  */
 
-export interface Customer {
-  customerId: string;
-  segment: string;
-  tenure: number;
-  ltv: number;
-  active: boolean;
-  churnRisk: number;
+import { seededUnitInterval } from '@metis/runtime';
+import type {
+  CatalogueSnapshot,
+  DecisionRequest,
+  ExecArtifact,
+} from '@metis/runtime/deterministic/types';
+import type {
+  ArbitrationConfig,
+  ContactPolicy,
+  EngagementPolicy,
+  Lever,
+  Proposition,
+} from '@metis/core/domain';
+
+const CHANNELS = ['web', 'email', 'sms', 'push', 'outbound_call'] as const;
+const SEGMENTS = ['premium', 'standard', 'budget'] as const;
+
+/** Deterministic pick from a list. */
+function pick<T>(list: readonly T[], salt: string, index: number): T {
+  return list[Math.floor(seededUnitInterval(salt, index, 'pick') * list.length)];
 }
 
-export interface Decision {
-  decisionId: string;
-  customerId: string;
-  timestamp: string;
-  action: string;
-  outcome: boolean;
-  channel: string;
+export interface WorkloadOptions {
+  /** How many propositions in the catalogue. */
+  propositions?: number;
+  /** How many engagement policies each proposition is scoped by. */
+  policies?: number;
+  /** How many distinct customers the requests are drawn from. */
+  customers?: number;
 }
 
-/**
- * Generate synthetic customer population (Phase 3: 10M+)
- */
-export function generateCustomers(count: number): Customer[] {
-  const customers: Customer[] = [];
-  const segments = ['premium', 'standard', 'budget'];
-
-  for (let i = 0; i < count; i++) {
-    const segment = segments[i % segments.length];
-    const tenure = Math.floor(Math.random() * 120); // 0-120 months
-    const baseLTV = segment === 'premium' ? 5000 : segment === 'standard' ? 2000 : 500;
-    const ltv = baseLTV * (1 + tenure / 60); // Increases with tenure
-
-    customers.push({
-      customerId: `cust_${String(i).padStart(10, '0')}`,
-      segment,
-      tenure,
-      ltv,
-      active: Math.random() > 0.2, // 80% active
-      churnRisk: Math.random() * (tenure < 12 ? 0.4 : 0.1), // Higher for new customers
-    });
-  }
-
-  return customers;
+export interface Workload {
+  artifact: ExecArtifact;
+  catalogue: CatalogueSnapshot;
+  /** Request `i`, generated on demand so a million of them cost nothing. */
+  request: (index: number) => DecisionRequest;
+  label: string;
 }
 
-/**
- * Generate synthetic interaction history (Phase 3: 24M+ interactions)
- */
-export function generateInteractionHistory(
-  customers: Customer[],
-  decisionsPerCustomer: number = 100
-): Decision[] {
-  const decisions: Decision[] = [];
-  const actions = ['upgrade', 'discount', 'support', 'cross-sell', 'none'];
-  const channels = ['web', 'app', 'email', 'sms', 'push'];
-
-  let decisionId = 0;
-
-  for (const customer of customers) {
-    for (let i = 0; i < decisionsPerCustomer; i++) {
-      const action = actions[Math.floor(Math.random() * actions.length)];
-      // Outcome correlated with LTV and action relevance
-      const baseOutcomeRate = customer.ltv / 5000;
-      const actionBoost = action === 'upgrade' ? 0.2 : action === 'discount' ? 0.15 : 0;
-      const outcome = Math.random() < baseOutcomeRate + actionBoost;
-
-      decisions.push({
-        decisionId: `dec_${String(decisionId++).padStart(10, '0')}`,
-        customerId: customer.customerId,
-        timestamp: new Date(
-          Date.now() - Math.random() * 24 * 30 * 60 * 60 * 1000
-        ).toISOString(), // Last 30 days
-        action,
-        outcome,
-        channel: channels[Math.floor(Math.random() * channels.length)],
-      });
-    }
-  }
-
-  return decisions;
-}
-
-/**
- * Generate realistic skew (Pareto distribution)
- * 80% of value from 20% of customers (typical telco pattern)
- */
-export function applyParetoSkew(customers: Customer[]): Customer[] {
-  // Sort by LTV
-  customers.sort((a, b) => b.ltv - a.ltv);
-
-  // Top 20% get 80% of "high-value" treatment
-  const top20 = Math.ceil(customers.length * 0.2);
-  for (let i = 0; i < top20; i++) {
-    customers[i].segment = 'premium';
-    customers[i].ltv *= 2;
-  }
-
-  return customers;
-}
-
-/**
- * Add seasonality to interaction history
- */
-export function addSeasonality(decisions: Decision[]): Decision[] {
-  return decisions.map((d) => {
-    const date = new Date(d.timestamp);
-    const month = date.getMonth();
-
-    // Peak during holiday season (Nov-Dec) and summer (Jun-Jul)
-    const isSeason = [11, 12, 5, 6].includes(month);
-    if (isSeason && Math.random() > 0.1) {
-      // 90% of holiday decisions get better outcomes
-      d.outcome = true;
-    }
-
-    return d;
-  });
-}
-
-/**
- * Generate Phase 3 dataset
- */
-export function generatePhase3Dataset(customerCount: number = 1000000): {
-  customers: Customer[];
-  decisions: Decision[];
-  metadata: { timestamp: string; customerCount: number; decisionCount: number };
-} {
-  console.log(`Generating synthetic dataset: ${customerCount.toLocaleString()} customers...`);
-
-  const startTime = Date.now();
-
-  // Generate customers
-  let customers = generateCustomers(customerCount);
-  customers = applyParetoSkew(customers);
-
-  // Generate decisions
-  const decisions = generateInteractionHistory(customers, 100);
-  addSeasonality(decisions);
-
-  const duration = (Date.now() - startTime) / 1000;
-  console.log(`✓ Generated ${customerCount.toLocaleString()} customers and ${decisions.length.toLocaleString()} decisions in ${duration.toFixed(1)}s`);
+function proposition(index: number): Proposition {
+  const price = 500 + Math.floor(seededUnitInterval('price', index, 'p') * 9500);
+  const cost = Math.floor(price * (0.2 + seededUnitInterval('cost', index, 'c') * 0.4));
 
   return {
-    customers,
-    decisions,
-    metadata: {
-      timestamp: new Date().toISOString(),
-      customerCount,
-      decisionCount: decisions.length,
+    id: `prop_bench_${index}`,
+    groupId: `grp_${index % 5}`,
+    issueId: `iss_${index % 3}`,
+    name: `Bench proposition ${index}`,
+    key: `bench_${index}`,
+    description: 'A synthetic offer, sized like a real one so hashing is honest.',
+    status: 'active',
+    financials: {
+      price: { amount: price, currency: 'GBP' },
+      cost: { amount: cost, currency: 'GBP' },
+      expectedMargin: { amount: price - cost, currency: 'GBP' },
+      termMonths: 24,
+      oneOff: false,
+    },
+    validity: { startsAt: '2020-01-01T00:00:00.000Z', endsAt: null },
+    lever: 0.8 + seededUnitInterval('lever', index, 'l') * 0.6,
+    policyIds: [],
+    treatmentIds: [`treat_bench_${index}`],
+    tags: ['bench'],
+    createdAt: '2020-01-01T00:00:00.000Z',
+    updatedAt: '2020-01-01T00:00:00.000Z',
+    updatedBy: 'bench',
+  };
+}
+
+function engagementPolicy(index: number): EngagementPolicy {
+  const kinds = ['eligibility', 'applicability', 'suitability'] as const;
+  return {
+    id: `pol_bench_${index}`,
+    name: `Bench policy ${index}`,
+    kind: kinds[index % kinds.length],
+    description: 'Synthetic policy over a customer attribute.',
+    // Thresholds vary so the cascade actually eliminates different candidates
+    // per request, rather than every decision taking the same branch.
+    conditions: [
+      {
+        field: 'tenureMonths',
+        operator: 'gte',
+        value: Math.floor(seededUnitInterval('tenure', index, 'th') * 24),
+      },
+    ],
+    scope: { level: 'tenant', targetId: null },
+    active: true,
+    createdAt: '2020-01-01T00:00:00.000Z',
+    updatedAt: '2020-01-01T00:00:00.000Z',
+  };
+}
+
+export function buildWorkload(options: WorkloadOptions = {}): Workload {
+  const propositionCount = options.propositions ?? 40;
+  const policyCount = options.policies ?? 6;
+  const customerCount = options.customers ?? 10_000;
+
+  const propositions = Array.from({ length: propositionCount }, (_, i) => proposition(i));
+  const engagementPolicies = Array.from({ length: policyCount }, (_, i) => engagementPolicy(i));
+
+  // Every proposition is scoped by a couple of policies, so the filter nodes
+  // have real work to do rather than passing everything through.
+  for (const [i, p] of propositions.entries()) {
+    p.policyIds = [
+      engagementPolicies[i % policyCount].id,
+      engagementPolicies[(i + 1) % policyCount].id,
+    ];
+  }
+
+  const contactPolicies: ContactPolicy[] = [
+    {
+      id: 'contact_bench_frequency',
+      name: 'Bench frequency cap',
+      description: 'At most three contacts per channel per week.',
+      channel: null,
+      maxContacts: 3,
+      period: 'week',
+      cooldownDaysAfterReject: 14,
+      scope: { level: 'tenant', targetId: null },
+      active: true,
+    },
+  ];
+
+  const arbitration: ArbitrationConfig = {
+    id: 'arb_bench',
+    tenantId: 'bench',
+    weights: { propensity: 1, value: 1, lever: 1, context: 0.5 },
+    formula: 'P^wP x V^wV x L^wL x C^wC',
+    updatedAt: '2020-01-01T00:00:00.000Z',
+    updatedBy: 'bench',
+  };
+
+  const levers: Lever[] = [
+    {
+      id: 'lever_bench',
+      name: 'Bench lever',
+      scope: { level: 'tenant', targetId: null },
+      value: 1.1,
+      reason: 'Synthetic',
+      validity: null,
+      updatedAt: '2020-01-01T00:00:00.000Z',
+      updatedBy: 'bench',
+    },
+  ];
+
+  const artifact: ExecArtifact = {
+    id: 'art_bench',
+    version: '1.0.0',
+    tenantId: 'bench',
+    nodes: [
+      { id: 'n_source', type: 'source', label: 'Candidate set' },
+      {
+        id: 'n_eligibility',
+        type: 'filter',
+        label: 'Eligibility',
+        policyIds: engagementPolicies.filter((p) => p.kind === 'eligibility').map((p) => p.id),
+      },
+      {
+        id: 'n_applicability',
+        type: 'filter',
+        label: 'Applicability',
+        policyIds: engagementPolicies.filter((p) => p.kind === 'applicability').map((p) => p.id),
+      },
+      {
+        id: 'n_contact',
+        type: 'constraint',
+        label: 'Contact policy',
+        contactPolicyIds: contactPolicies.map((p) => p.id),
+      },
+      {
+        id: 'n_score',
+        type: 'score-model',
+        label: 'Propensity',
+        model: { id: 'model_bench_propensity', version: '3.1.0' },
+      },
+      { id: 'n_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+    ],
+    edges: [
+      { from: 'n_source', to: 'n_eligibility' },
+      { from: 'n_eligibility', to: 'n_applicability' },
+      { from: 'n_applicability', to: 'n_contact' },
+      { from: 'n_contact', to: 'n_score' },
+      { from: 'n_score', to: 'n_arbitrate' },
+    ],
+    candidateKeys: propositions.map((p) => p.key),
+    packageVersions: { '@metis/nodes-core': '2.0.0' },
+  };
+
+  return {
+    label: `${propositionCount} propositions, ${policyCount} policies`,
+    artifact,
+    catalogue: { propositions, engagementPolicies, contactPolicies, arbitration, levers },
+    request: (index: number): DecisionRequest => {
+      const customer = index % customerCount;
+      return {
+        tenantId: 'bench',
+        customerId: `cust_bench_${customer}`,
+        channel: pick(CHANNELS, 'channel', index),
+        placement: 'bench_placement',
+        // An input, never the system clock: replay has to land on the same
+        // validity windows as the original.
+        occurredAt: '2026-06-01T12:00:00.000Z',
+        input: {
+          segment: pick(SEGMENTS, 'segment', customer),
+          tenureMonths: Math.floor(seededUnitInterval('tenure', customer, 'req') * 60),
+          creditScore: 300 + Math.floor(seededUnitInterval('credit', customer, 'req') * 550),
+          monthlySpend: Math.floor(seededUnitInterval('spend', customer, 'req') * 12000),
+          active: seededUnitInterval('active', customer, 'req') > 0.2,
+        },
+        contactHistory: {
+          channel: pick(CHANNELS, 'channel', index),
+          withinPeriod: {
+            week: Math.floor(seededUnitInterval('contacts', index, 'w') * 3),
+          },
+        },
+        consent: { marketing: true, profiling: true, thirdParty: false },
+      };
     },
   };
 }

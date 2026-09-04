@@ -1,9 +1,11 @@
 {
   "name": "@metis/datasets",
   "version": "0.0.1",
-  "description": "METIS synthetic datasets for testing and benchmarking",
-  "main": "dist/index.js",
-  "scripts": {
-    "build": "tsc"
+  "description": "METIS synthetic workloads - deterministic, scale-parameterised",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@metis/core": "*",
+    "@metis/runtime": "*"
   }
 }
