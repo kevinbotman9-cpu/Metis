@@ -4,14 +4,15 @@
 
 ```
 Integration          6 passed  - author -> compile -> execute -> replay
-Determinism         30 passed  - packages/runtime, the Phase 0 gate
+Determinism         30 passed  - packages/runtime, byte-identical replay
 Compiler            40 passed  - packages/compiler
+Performance          5 passed  - bench/harness, the p95 < 50ms gate
 Unit (Vitest)       38 passed  - apps/console
-E2E (Playwright)   103 passed  - 21 contract, 18 axe, 7 skipped by design
+E2E (Playwright)   104 passed  - 21 contract, 18 axe, 7 skipped by design
 Typecheck           clean
 Lint                0 errors   - root and console, which are separate configs
                    ---
-                    217 tests
+                    223 tests
 ```
 
 The console was linted by nobody until 2026-09-04: `apps/console/.eslintrc.json`
@@ -78,6 +79,8 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | Notifications | BUILT | Pending approvals and guardrail stops, merged, breaches first. |
 | i18n | MISSING | The definition of done names `/packages/i18n/messages.json`. There is no such file. `packages/i18n` is a 55-line stub with ~20 keys that nothing imports; every string is inline in JSX. |
 | Bundle budget | MISSING | The definition of done says route bundle size is checked in CI. Nothing checks it. |
+| Skip link | BUILT | First tab stop on every page. axe passes WCAG 2.4.1 on the strength of a `<main>` landmark alone, so an E2E test asserts the tab order instead. |
+| Performance gate | BUILT | `bench/harness`, run by `npm test` and CI. p95 measured with `performance.now()` against seeded, reproducible workloads. |
 
 ---
 
@@ -160,17 +163,20 @@ Worth recording, because each was invisible by eye:
 - **Search facets are fixed per surface.** They map to query parameters the
   endpoint understands rather than being derived from the data.
 - **No visual regression testing.** axe covers accessibility, not appearance.
-- **No skip link.** WCAG 2.4.1 is Level A. axe's `bypass` rule passes because the
-  page has a `<main>` landmark, so the suite is green while roughly sixteen tab
-  stops sit ahead of the content on every page. The header band made this worse.
 - **axe cannot see focus-indicator contrast.** The header band's ring failed
   SC 1.4.11 at 2.36:1 in light mode through a green suite; arithmetic caught it,
   not a test. Anything painted on a surface outside the neutral ramp needs the
   contrast checked by hand.
-- **The load harness never runs.** `bench/harness` and `bench/datasets` exist -
-  322 lines between them - with no npm script, no test and no CI step. The Phase 0
-  gate of p95 < 50ms at 1000 req/s is **not** enforced anywhere. What is enforced
-  is a scaling-invariant test in `packages/runtime`, which is a weaker claim.
+- **Throughput does not hold at large candidate sets on one core.** Measured
+  single-threaded: 5,213 decisions/s at 10 candidates, 2,140/s at 40, and 249/s
+  at 400. The latency promise holds everywhere with two orders of magnitude of
+  room (p95 of 7.5ms at the worst size), but sustaining the plan's 1000 req/s
+  with a 400-candidate catalogue needs four cores, or a strategy that narrows
+  candidates before scoring. The stress scenario reports throughput without
+  gating it, because "1000 req/s" is a horizontally scaled service claim and
+  this harness runs on one core.
+- **No WASM hot path.** The engine is plain TypeScript. The numbers above are
+  what that costs; the plan's sub-50ms target does not currently need more.
 - **Seventeen of nineteen packages have no tests.** Only `compiler` and `runtime`
   do. `packages-system` (package signing), `simulation`, `adaptive-models`,
   `compliance`, `panel-host` and `nodes-core` are single files carrying explicit
