@@ -295,6 +295,12 @@ export interface DecisionTrace {
   constraintsApplied: string[];
   consentState: ConsentState;
   treatmentId?: string | null;
+  /** Which connector supplied which input field. Reproducible. */
+  sourceBindings?: SourceBinding[];
+  /** What the integrations did on the wire. Measured, so absent on a
+replayed trace - replay calls no connectors.
+ */
+  sourceCalls?: SourceCall[];
   /** sha256 over the reproducible half of the decision */
   chainHash: string;
   inputSnapshotHash: string;
@@ -423,6 +429,8 @@ export interface DirNode {
   description: string;
   estimatedMs: number;
   policyIds?: string[];
+  /** Connectors a source node draws on. Their latency joins the critical path. */
+  connectorIds?: string[];
   model?: {
     id: string;
     /** Pinned. An unpinned model fails compilation. */
@@ -440,6 +448,62 @@ export interface DirEdge {
   source: string;
   target: string;
   label?: string;
+}
+
+/** One field a connector supplies, and where it lives in the response. */
+export interface FieldBinding {
+  /** The name the field takes in the decision input */
+  field: string;
+  /** Dotted path into the connector's response payload */
+  path: string;
+  type: "string" | "number" | "boolean";
+  /** Used when the connector fails and its failure mode is `default` */
+  defaultValue?: string | number | boolean;
+}
+
+/** A configured route to data the platform does not hold. Used at decision
+time: a strategy's source node names the connectors it needs, resolution
+fetches them before execution, and the values land in the input the
+engine hashes. Replay never calls a connector - it replays against the
+recorded snapshot.
+ */
+export interface Connector {
+  id: string;
+  name: string;
+  kind: "rest" | "feature-store" | "static";
+  description: string;
+  /** Endpoint, feature-store namespace, or empty for `static` */
+  target: string;
+  /** Declared, not measured. The compiler adds it to the critical path, so
+a connector that cannot fit the latency budget fails compilation
+rather than failing in production.
+ */
+  declaredP95Ms: number;
+  timeoutMs: number;
+  onFailure: "fail" | "omit" | "default";
+  /** 0 disables caching. Caching is measured, never hashed. */
+  cacheTtlSeconds: number;
+  provides: FieldBinding[];
+  active: boolean;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+/** Which connector supplied a field. Reproducible; part of the hashed decision. */
+export interface SourceBinding {
+  field: string;
+  connectorId: string;
+  nodeId: string;
+}
+
+/** What an integration actually did. Measured; never hashed, absent on replay. */
+export interface SourceCall {
+  connectorId: string;
+  ms: number;
+  cacheHit: boolean;
+  outcome: "ok" | "timeout" | "error" | "skipped";
+  fields: string[];
+  detail?: string;
 }
 
 /** A strategy as the console lists and renders it. Distinct from
@@ -597,6 +661,13 @@ export const OPERATIONS = {
     queryParams: ['status'],
     statuses: ['200'],
   },
+  listConnectors: {
+    method: 'GET',
+    path: '/connectors/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['200'],
+  },
   listContactPolicies: {
     method: 'GET',
     path: '/contact-policies/{tenantId}',
@@ -702,6 +773,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '403'],
   },
+  updateConnector: {
+    method: 'PUT',
+    path: '/connectors/{tenantId}/{connectorId}',
+    pathParams: ['tenantId', 'connectorId'],
+    queryParams: [],
+    statuses: ['200', '403'],
+  },
   updateProposition: {
     method: 'PUT',
     path: '/propositions/{tenantId}/{propositionId}',
@@ -801,6 +879,11 @@ export type ListChangeRequestsResponse = {
   total: number;
 };
 
+/** Configured integrations */
+export type ListConnectorsResponse = {
+  connectors: Connector[];
+};
+
 /** Frequency caps and cooldowns */
 export type ListContactPoliciesResponse = {
   policies: ContactPolicy[];
@@ -890,6 +973,10 @@ export type UpdateArbitrationConfigRequest = {
 export type UpdateAutonomySettingResponse = AutonomySetting;
 export type UpdateAutonomySettingRequest = AutonomySetting;
 
+/** Activate, deactivate or retune a connector */
+export type UpdateConnectorResponse = Connector;
+export type UpdateConnectorRequest = Connector;
+
 /** Update a proposition */
 export type UpdatePropositionResponse = Proposition;
 export type UpdatePropositionRequest = Proposition;
@@ -914,6 +1001,7 @@ export interface ResponseOf {
   listAuditEvents: ListAuditEventsResponse;
   listAutonomySettings: ListAutonomySettingsResponse;
   listChangeRequests: ListChangeRequestsResponse;
+  listConnectors: ListConnectorsResponse;
   listContactPolicies: ListContactPoliciesResponse;
   listEngagementPolicies: ListEngagementPoliciesResponse;
   listPropositions: ListPropositionsResponse;
@@ -929,5 +1017,6 @@ export interface ResponseOf {
   simulateStrategy: SimulateStrategyResponse;
   updateArbitrationConfig: UpdateArbitrationConfigResponse;
   updateAutonomySetting: UpdateAutonomySettingResponse;
+  updateConnector: UpdateConnectorResponse;
   updateProposition: UpdatePropositionResponse;
 }

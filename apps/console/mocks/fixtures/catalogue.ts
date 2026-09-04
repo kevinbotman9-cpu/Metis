@@ -20,6 +20,7 @@ import type {
   Lever,
   AutonomySetting,
   AgentActivity,
+  Connector,
 } from '@metis/core/domain';
 
 /** Fixed clock so timestamps are stable across runs. */
@@ -1230,6 +1231,111 @@ export interface FixtureUser {
   tenantId: string;
 }
 
+
+// ---------------------------------------------------------------------------
+// Integrations
+//
+// Configured once here, and actually used at decision time: the strategies in
+// ./artifacts.ts name these on their source nodes, and ./engine.ts resolves
+// them before executing. Their values land in the hashed input snapshot, so a
+// decision that used the bureau replays exactly as well as one that did not.
+// ---------------------------------------------------------------------------
+
+export const connectors: Connector[] = [
+  {
+    id: 'conn_billing_ledger',
+    name: 'Billing ledger',
+    kind: 'feature-store',
+    description:
+      'Current balance, arrears and rolling spend, pre-computed nightly and served from the online store.',
+    target: 'featurestore://telco-uk/billing',
+    declaredP95Ms: 3,
+    timeoutMs: 25,
+    onFailure: 'fail',
+    cacheTtlSeconds: 300,
+    provides: [
+      { field: 'monthlySpend', path: 'billing.rollingSpendPence', type: 'number' },
+      { field: 'arrearsDays', path: 'billing.arrearsDays', type: 'number' },
+      { field: 'inGoodStanding', path: 'billing.goodStanding', type: 'boolean' },
+    ],
+    active: true,
+    updatedAt: '2026-07-14T09:20:00.000Z',
+    updatedBy: 'marcus.webb@telco.example',
+  },
+  {
+    id: 'conn_network_usage',
+    name: 'Network usage',
+    kind: 'feature-store',
+    description: 'Rolling 30-day data, voice and roaming usage from the mediation platform.',
+    target: 'featurestore://telco-uk/usage',
+    declaredP95Ms: 4,
+    timeoutMs: 25,
+    onFailure: 'omit',
+    cacheTtlSeconds: 900,
+    provides: [
+      { field: 'dataUsageGb', path: 'usage.dataGb', type: 'number' },
+      { field: 'roamingDays', path: 'usage.roamingDays', type: 'number' },
+      { field: 'tenureMonths', path: 'account.tenureMonths', type: 'number' },
+    ],
+    active: true,
+    updatedAt: '2026-07-14T09:22:00.000Z',
+    updatedBy: 'marcus.webb@telco.example',
+  },
+  {
+    id: 'conn_consent_registry',
+    name: 'Consent registry',
+    kind: 'rest',
+    description:
+      'Marketing and profiling consent of record. Defaults closed on failure, because assuming consent is the one mistake with a regulator attached.',
+    target: 'https://consent.telco.example/v2/subject',
+    declaredP95Ms: 12,
+    timeoutMs: 40,
+    onFailure: 'default',
+    cacheTtlSeconds: 60,
+    provides: [
+      { field: 'marketingConsent', path: 'consent.marketing', type: 'boolean', defaultValue: false },
+      { field: 'profilingConsent', path: 'consent.profiling', type: 'boolean', defaultValue: false },
+    ],
+    active: true,
+    updatedAt: '2026-08-02T14:05:00.000Z',
+    updatedBy: 'priya.natarajan@telco.example',
+  },
+  {
+    id: 'conn_credit_bureau',
+    name: 'Credit bureau',
+    kind: 'rest',
+    description:
+      'Full bureau file. Configured, and deliberately not wired into any live strategy: at 180ms it cannot be called synchronously inside a 50ms budget, and the compiler says so rather than letting it fail in production.',
+    target: 'https://bureau.example/v1/file',
+    declaredP95Ms: 180,
+    timeoutMs: 400,
+    onFailure: 'fail',
+    cacheTtlSeconds: 86400,
+    provides: [
+      { field: 'creditScore', path: 'file.score', type: 'number' },
+      { field: 'creditBand', path: 'file.band', type: 'string' },
+    ],
+    active: true,
+    updatedAt: '2026-08-19T11:40:00.000Z',
+    updatedBy: 'marcus.webb@telco.example',
+  },
+  {
+    id: 'conn_device_catalogue',
+    name: 'Device catalogue',
+    kind: 'rest',
+    description: 'Handset stock and lead times. Not yet activated pending contract sign-off.',
+    target: 'https://devices.telco.example/v1/stock',
+    declaredP95Ms: 30,
+    timeoutMs: 100,
+    onFailure: 'omit',
+    cacheTtlSeconds: 600,
+    provides: [{ field: 'deviceInStock', path: 'stock.available', type: 'boolean' }],
+    active: false,
+    updatedAt: '2026-08-28T16:10:00.000Z',
+    updatedBy: 'sarah.chen@telco.example',
+  },
+];
+
 export const users: FixtureUser[] = [
   {
     id: 'usr_sarah',
@@ -1285,6 +1391,7 @@ export const users: FixtureUser[] = [
       'request:changes',
       'edit:arbitration',
       'edit:autonomy',
+      'edit:integrations',
       'admin:settings',
     ],
     tenantId: 'telco-uk',

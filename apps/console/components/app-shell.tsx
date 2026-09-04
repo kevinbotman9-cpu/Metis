@@ -41,6 +41,7 @@ const NAV: NavSection[] = [
       { href: '/strategies', label: 'Strategies', permission: 'view:strategies' },
       { href: '/decisions', label: 'Decisions', permission: 'view:decisions' },
       { href: '/simulations', label: 'Simulations' },
+      { href: '/integrations', label: 'Integrations' },
     ],
   },
   {

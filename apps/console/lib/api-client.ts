@@ -30,6 +30,9 @@ import type {
   Proposition as PropositionDto,
   PropositionDetail as PropositionDetailDto,
   ReplayResult as ReplayResultDto,
+  Connector as ConnectorDto,
+  SourceBinding as SourceBindingDto,
+  SourceCall as SourceCallDto,
   Taxonomy as TaxonomyDto,
   Treatment as TreatmentDto,
 } from '@metis/client';
@@ -202,6 +205,16 @@ export const apiClient = {
   getAuditLog: (limit = 100) =>
     apiCall<{ events: AuditEventDto[]; total: number }>('/audit', { query: { limit } }),
 
+  // --- Integrations -------------------------------------------------------
+  listConnectors: (tenantId: string = TENANT) =>
+    apiCall<{ connectors: ConnectorDto[] }>(`/connectors/${tenantId}`),
+
+  updateConnector: (connector: ConnectorDto, tenantId: string = TENANT) =>
+    apiCall<ConnectorDto>(`/connectors/${tenantId}/${connector.id}`, {
+      method: 'PUT',
+      body: connector,
+    }),
+
   // --- Strategies ---------------------------------------------------------
   listArtifacts: (tenantId: string = TENANT) =>
     apiCall<{ artifacts: ArtifactSummaryDto[] }>(`/artifacts/${tenantId}`),
@@ -247,6 +260,9 @@ export type {
   ReplayResultDto,
   TaxonomyDto,
   TreatmentDto,
+  ConnectorDto,
+  SourceBindingDto,
+  SourceCallDto,
 };
 
 /** Query parameters for searchDecisions, matching the spec's declared set. */

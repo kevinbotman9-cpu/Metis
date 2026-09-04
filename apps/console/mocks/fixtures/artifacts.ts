@@ -27,6 +27,14 @@ export interface DirNode {
   estimatedMs: number;
   /** Engagement policy IDs this node evaluates, where relevant. */
   policyIds?: string[];
+  /**
+   * Connectors a source node draws on.
+   *
+   * The engine never calls them: resolution runs before execution and the
+   * values arrive in the request input. What this drives is the compiler's
+   * critical path, and the provenance recorded in the trace.
+   */
+  connectorIds?: string[];
   /** Pinned model version for score nodes. */
   model?: { id: string; version: string };
   /** Arbitration formula for arbitrate nodes. */
@@ -81,6 +89,7 @@ export const artifacts: ArtifactSummary[] = [
       {
         id: 'source_customer',
         type: 'source',
+        connectorIds: ['conn_billing_ledger', 'conn_network_usage', 'conn_consent_registry'],
         label: 'Customer profile',
         description:
           'Loads the customer record, plan, consent state and 90 days of interaction history from the online feature store.',
@@ -174,6 +183,7 @@ export const artifacts: ArtifactSummary[] = [
       {
         id: 'source_session',
         type: 'source',
+        connectorIds: ['conn_consent_registry'],
         label: 'Session context',
         description:
           'Anonymous session signals plus the customer record when the visitor is signed in.',
@@ -231,6 +241,7 @@ export const artifacts: ArtifactSummary[] = [
       {
         id: 'source_contracts',
         type: 'source',
+        connectorIds: ['conn_billing_ledger', 'conn_network_usage'],
         label: 'Contract and churn signals',
         description: 'Contract end dates, PAC requests and churn model output.',
         estimatedMs: 6.4,

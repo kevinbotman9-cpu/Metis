@@ -11,8 +11,9 @@
  * are measurements and are not.
  */
 
-import { treatments } from './catalogue';
+import { treatments, connectors } from './catalogue';
 import { generated, type GeneratedDecision } from './engine';
+import type { SourceBinding, SourceCall } from '@metis/core/domain';
 
 export interface EliminationStep {
   nodeId: string;
@@ -48,6 +49,16 @@ export interface TraceRecord extends DecisionRecord {
   constraintsApplied: string[];
   consentState: { marketing: boolean; profiling: boolean; thirdParty: boolean };
   treatmentId: string | null;
+  /** Which connector supplied which field. Reproducible. */
+  sourceBindings: SourceBinding[];
+  /**
+   * What the integrations did on the wire.
+   *
+   * Reconstructed here from the connector's declared latency, because the
+   * corpus records resolution rather than performing it. On the live decision
+   * path these are measured. Either way they stay out of the hash.
+   */
+  sourceCalls: SourceCall[];
   /** sha256 over the reproducible half of the decision. */
   chainHash: string;
   inputSnapshotHash: string;
@@ -63,6 +74,33 @@ function resolveTreatment(propositionId: string | null, channel: string): string
   // No treatment for the winning channel is a real condition the console
   // surfaces, so fall back rather than inventing one.
   return treatments.find((t) => t.propositionId === propositionId && t.active)?.id ?? null;
+}
+
+/**
+ * The call record for a set of bindings.
+ *
+ * The 5,000-decision corpus is built synchronously and records what resolution
+ * produced rather than performing it, so latency here comes from the
+ * connector's own declaration rather than a stopwatch. Stated plainly because
+ * a measured-looking number that was not measured is worse than none.
+ */
+function sourceCallsFor(bindings: SourceBinding[]): SourceCall[] {
+  const byConnector = new Map<string, string[]>();
+  for (const b of bindings) {
+    byConnector.set(b.connectorId, [...(byConnector.get(b.connectorId) ?? []), b.field]);
+  }
+  return [...byConnector.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([connectorId, fields]) => {
+      const connector = connectors.find((c) => c.id === connectorId);
+      return {
+        connectorId,
+        ms: connector?.declaredP95Ms ?? 0,
+        cacheHit: (connector?.cacheTtlSeconds ?? 0) > 0,
+        outcome: 'ok' as const,
+        fields: fields.sort(),
+      };
+    });
 }
 
 function toTrace({ trace }: GeneratedDecision): TraceRecord {
@@ -87,6 +125,8 @@ function toTrace({ trace }: GeneratedDecision): TraceRecord {
     constraintsApplied: d.constraintsApplied,
     consentState: d.consentState,
     treatmentId: resolveTreatment(d.winnerPropositionId, d.channel),
+    sourceBindings: d.sourceBindings,
+    sourceCalls: sourceCallsFor(d.sourceBindings),
     chainHash: trace.chainHash,
     inputSnapshotHash: d.inputSnapshotHash,
   };

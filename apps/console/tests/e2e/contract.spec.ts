@@ -100,9 +100,11 @@ async function resolveParams(api: APIRequestContext, token: string) {
   const decisions = await json('/api/decisions/search?limit=1');
   const changeRequests = await json('/api/change-requests');
   const artifacts = await json('/api/artifacts/telco-uk');
+  const connectors = await json('/api/connectors/telco-uk');
 
   return {
     tenantId: 'telco-uk',
+    connectorId: connectors.connectors[0].id,
     propositionId: taxonomy.propositions[0].id,
     decisionId: decisions.decisions[0].id,
     requestId: changeRequests.changeRequests[0].id,
@@ -127,6 +129,7 @@ const SAFE_TO_CALL: Record<string, unknown | undefined> = {
  * That is what stops a `proposed` marker being dropped without anyone noticing.
  */
 const COVERED_BY_WRITE_SUITES = new Set([
+  'updateConnector',
   'createProposition',
   'updateProposition',
   'updateArbitrationConfig',
@@ -185,6 +188,12 @@ test.describe('OpenAPI contract', () => {
     const callable = op.method === 'GET' || op.id in SAFE_TO_CALL;
 
     test(`${op.id} is served and matches its schema`, async ({ request }) => {
+      // Skip before building the URL. The other way round, a mutating
+      // operation with an unresolved path parameter fails on the fixture
+      // lookup rather than skipping, which reports a missing test fixture as
+      // if the endpoint were broken.
+      test.skip(!callable, `${op.id} mutates state; covered by a write suite`);
+
       const url =
         '/api' +
         op.path.replace(/\{(\w+)\}/g, (_, name: string) => {
@@ -192,8 +201,6 @@ test.describe('OpenAPI contract', () => {
           expect(value, `no fixture value for path parameter "${name}"`).toBeTruthy();
           return encodeURIComponent(value);
         });
-
-      test.skip(!callable, `${op.id} mutates state; covered by a write suite`);
 
       const body = SAFE_TO_CALL[op.id];
       const res = await request.fetch(url, {

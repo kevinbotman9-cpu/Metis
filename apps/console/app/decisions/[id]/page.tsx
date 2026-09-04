@@ -438,6 +438,53 @@ function TraceView({ decisionId }: { decisionId: string }) {
             </CardBody>
           </Card>
 
+          {(trace.sourceBindings?.length ?? 0) > 0 && (
+            <Card>
+              <CardHeader
+                title="Where the data came from"
+                description="Fields fetched from an integration when this decision was made. The values are inside the input snapshot above, not stored here — a trace can be kept without keeping the customer data it was made from."
+              />
+              <CardBody>
+                <ul className="space-y-2">
+                  {(trace.sourceBindings ?? []).map((b) => {
+                    const call = trace.sourceCalls?.find((c) => c.connectorId === b.connectorId);
+                    return (
+                      <li
+                        key={`${b.field}-${b.connectorId}`}
+                        className="flex items-baseline justify-between gap-3 border-b border-border pb-2 last:border-0 last:pb-0"
+                      >
+                        <div className="min-w-0">
+                          <span className="font-mono text-label text-content">{b.field}</span>
+                          <span className="ml-2 text-label text-content-muted">
+                            via {b.connectorId}
+                          </span>
+                          <div className="font-mono text-[0.6875rem] text-content-subtle">
+                            at node {b.nodeId}
+                          </div>
+                        </div>
+                        {call && (
+                          <div className="shrink-0 text-right">
+                            <Badge tone={call.outcome === 'ok' ? 'pass' : 'block'}>
+                              {call.outcome}
+                            </Badge>
+                            <div className="tnum text-[0.6875rem] text-content-subtle">
+                              {call.ms}ms {call.cacheHit ? 'cached' : 'live'}
+                            </div>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="mt-3 text-label text-content-subtle">
+                  Replay does not call these again. It re-executes against the recorded
+                  snapshot, which is why a decision that used an integration reproduces as
+                  exactly as one that did not.
+                </p>
+              </CardBody>
+            </Card>
+          )}
+
           {show('regulator', 'analyst', 'business') && (
             <Card>
               <CardHeader

@@ -200,6 +200,10 @@ export async function GET(req: Request, { params }: Ctx) {
       return json({ events: store.auditEvents.slice(0, limit), total: store.auditEvents.length });
     }
 
+    case 'connectors': {
+      return json({ connectors: store.connectors });
+    }
+
     case 'artifacts': {
       if (rest[1]) {
         const artifact = store.artifacts.find((a) => a.id === rest[1]);
@@ -433,6 +437,38 @@ export async function PUT(req: Request, { params }: Ctx) {
         summary: `Arbitration weights set to ${store.arbitration.formula}`,
       });
       return json(store.arbitration);
+    }
+
+    case 'connectors': {
+      // Integrations decide what a decision can see, so editing one is a
+      // governed action, not a preference.
+      if (!user.permissions.includes('edit:integrations')) return forbidden('edit:integrations');
+      const body = (await req.json().catch(() => ({}))) as Partial<
+        (typeof store.connectors)[number]
+      >;
+      const connector = store.connectors.find((c) => c.id === rest[1]);
+      if (!connector) return notFound(`No connector ${rest[1]}`);
+
+      const before = { active: connector.active, cacheTtlSeconds: connector.cacheTtlSeconds };
+      if (typeof body.active === 'boolean') connector.active = body.active;
+      if (typeof body.cacheTtlSeconds === 'number') {
+        connector.cacheTtlSeconds = body.cacheTtlSeconds;
+      }
+      if (typeof body.onFailure === 'string') connector.onFailure = body.onFailure;
+      connector.updatedAt = new Date().toISOString();
+      connector.updatedBy = user.email;
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'ConnectorChanged',
+        scope: `connector:${connector.id}`,
+        summary:
+          `${connector.name}: active ${before.active} to ${connector.active}, ` +
+          `cache ${before.cacheTtlSeconds}s to ${connector.cacheTtlSeconds}s`,
+        changeRequestId: null,
+      });
+      return json(connector);
     }
 
     case 'autonomy': {

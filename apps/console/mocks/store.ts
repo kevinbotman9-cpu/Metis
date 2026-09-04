@@ -21,6 +21,7 @@ import {
   levers as seedLevers,
   autonomySettings as seedAutonomy,
   agentActivity as seedActivity,
+  connectors as seedConnectors,
   users as seedUsers,
 } from './fixtures/catalogue';
 import { artifacts as seedArtifacts, type ArtifactSummary } from './fixtures/artifacts';
@@ -42,6 +43,7 @@ type Store = {
   levers: typeof seedLevers;
   autonomy: typeof seedAutonomy;
   activity: typeof seedActivity;
+  connectors: typeof seedConnectors;
   users: typeof seedUsers;
   artifacts: ArtifactSummary[];
   changeRequests: ChangeRequestRecord[];
@@ -62,6 +64,7 @@ function seed(): Store {
     levers: clone(seedLevers),
     autonomy: clone(seedAutonomy),
     activity: clone(seedActivity),
+    connectors: clone(seedConnectors),
     users: clone(seedUsers),
     artifacts: clone(seedArtifacts),
     changeRequests: clone(seedChangeRequests),

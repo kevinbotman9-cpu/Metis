@@ -29,6 +29,7 @@ import {
   contactPolicies,
   arbitrationConfig,
   levers,
+  connectors,
 } from './catalogue';
 import { artifacts, type ArtifactSummary } from './artifacts';
 
@@ -39,6 +40,7 @@ export const catalogueSnapshot: CatalogueSnapshot = {
   contactPolicies,
   arbitration: arbitrationConfig,
   levers,
+  connectors,
 };
 
 /** A strategy artifact, in the shape the engine executes. */
@@ -61,6 +63,7 @@ function toExecArtifact(a: ArtifactSummary): ExecArtifact {
       label: n.label,
       policyIds: n.policyIds,
       model: n.model,
+      connectorIds: n.connectorIds,
     })),
     edges: a.edges.map((e) => ({ from: e.source, to: e.target })),
   };
@@ -78,6 +81,34 @@ const T0 = Date.parse('2026-09-04T08:00:00Z');
 const LIVE = execArtifacts.filter((a) =>
   artifacts.find((s) => s.id === a.id)?.status === 'active'
 );
+
+/**
+ * What the connectors would have returned for this customer.
+ *
+ * Deterministic from the index, like everything else here, so the corpus is
+ * byte-identical on every reload. Field names match the bindings the connectors
+ * in ./catalogue.ts declare - if one is renamed there and not here, the field
+ * silently stops arriving, which is exactly what the compiler's
+ * UNRESOLVED_FIELD diagnostic exists to catch.
+ */
+export function connectorPayload(index: number): Record<string, unknown> {
+  const r = (salt: string) => seededUnitInterval('conn', index, salt);
+  const arrears = r('arrears') > 0.88 ? Math.floor(r('days') * 60) : 0;
+
+  return {
+    // conn_billing_ledger
+    monthlySpend: 1200 + Math.floor(r('spend') * 9000),
+    arrearsDays: arrears,
+    inGoodStanding: arrears === 0,
+    // conn_network_usage
+    dataUsageGb: Number((r('data') * 120).toFixed(2)),
+    roamingDays: Math.floor(r('roam') * 14),
+    tenureMonths: Math.floor(r('tenure') * 72),
+    // conn_consent_registry
+    marketingConsent: r('mkt') > 0.08,
+    profilingConsent: r('prof') > 0.12,
+  };
+}
 
 /**
  * Build a customer input deterministically from its index, spanning the range
@@ -128,6 +159,19 @@ function buildRequest(index: number): DecisionRequest {
       events: { pac_requested_within_days: Math.floor(r('pac') * 40) },
       device: { residual_value: Math.floor(r('device') * 40000) },
       offer: { monthly_delta: r('delta') > 0.5 ? -500 : 300 },
+
+      // Fields the connectors supply, at the names they declare.
+      //
+      // These are recorded, not fetched: the 5,000-decision corpus is built
+      // synchronously at import, and resolution is asynchronous because real
+      // I/O is. What is stored here is exactly what a real system stores - the
+      // input snapshot resolution produced - so the traces carry genuine
+      // provenance and the console can show where each field came from.
+      //
+      // The live path really does resolve. `POST /api/decisions` runs
+      // resolveInputs through a gateway before executing, and the resolver
+      // itself is covered by 19 tests in packages/runtime.
+      ...connectorPayload(index),
     },
     contactHistory: {
       channel,

@@ -23,6 +23,7 @@ import type {
 } from '@metis/runtime/deterministic/types';
 import type {
   ArbitrationConfig,
+  Connector,
   ContactPolicy,
   EngagementPolicy,
   Lever,
@@ -147,6 +148,32 @@ export function buildWorkload(options: WorkloadOptions = {}): Workload {
     updatedBy: 'bench',
   };
 
+  // A connector on the source node, so the benchmark measures the path a real
+  // decision takes rather than one without integrations. The engine does not
+  // fetch — resolution happens before execution — but it does record which
+  // connector supplied which field, and that work should be in the numbers.
+  const connectors: Connector[] = [
+    {
+      id: 'conn_bench_features',
+      name: 'Bench feature store',
+      kind: 'feature-store',
+      description: 'Synthetic feature reads.',
+      target: 'featurestore://bench',
+      declaredP95Ms: 3,
+      timeoutMs: 25,
+      onFailure: 'fail',
+      cacheTtlSeconds: 300,
+      provides: [
+        { field: 'tenureMonths', path: 'account.tenureMonths', type: 'number' },
+        { field: 'monthlySpend', path: 'billing.spend', type: 'number' },
+        { field: 'creditScore', path: 'bureau.score', type: 'number' },
+      ],
+      active: true,
+      updatedAt: '2020-01-01T00:00:00.000Z',
+      updatedBy: 'bench',
+    },
+  ];
+
   const levers: Lever[] = [
     {
       id: 'lever_bench',
@@ -165,7 +192,12 @@ export function buildWorkload(options: WorkloadOptions = {}): Workload {
     version: '1.0.0',
     tenantId: 'bench',
     nodes: [
-      { id: 'n_source', type: 'source', label: 'Candidate set' },
+      {
+        id: 'n_source',
+        type: 'source',
+        label: 'Candidate set',
+        connectorIds: ['conn_bench_features'],
+      },
       {
         id: 'n_eligibility',
         type: 'filter',
@@ -206,7 +238,14 @@ export function buildWorkload(options: WorkloadOptions = {}): Workload {
   return {
     label: `${propositionCount} propositions, ${policyCount} policies`,
     artifact,
-    catalogue: { propositions, engagementPolicies, contactPolicies, arbitration, levers },
+    catalogue: {
+      propositions,
+      engagementPolicies,
+      contactPolicies,
+      arbitration,
+      levers,
+      connectors,
+    },
     request: (index: number): DecisionRequest => {
       const customer = index % customerCount;
       return {

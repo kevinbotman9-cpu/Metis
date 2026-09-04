@@ -5,16 +5,17 @@
 ```
 Integration          6 passed  - author -> compile -> execute -> replay
 Determinism         30 passed  - packages/runtime, byte-identical replay
+Integrations        19 passed  - resolution, failure modes, replay isolation
 Conformance         69 passed  - ADR-003 corpus, TypeScript reference
 Conformance (JVM)    2 passed  - engines/kotlin, same corpus, 58 cases compared
 Compiler            40 passed  - packages/compiler
-Performance          5 passed  - bench/harness, the p95 < 50ms gate
+Performance          6 passed  - bench/harness, the p95 < 50ms gate
 Unit (Vitest)       38 passed  - apps/console
-E2E (Playwright)   104 passed  - 21 contract, 18 axe, 7 skipped by design
+E2E (Playwright)   112 passed  - 22 contract, 19 axe, 8 skipped by design
 Typecheck           clean
 Lint                0 errors   - root and console, which are separate configs
                    ---
-                    294 tests, two languages
+                    322 tests, two languages
 ```
 
 The console was linted by nobody until 2026-09-04: `apps/console/.eslintrc.json`
@@ -49,6 +50,7 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | `/agentic` | BUILT | L0–L4 ladder, per-scope guardrails, editable level, agent activity feed. |
 | `/audit` | BUILT | Append-only log, filterable by actor type. Every write lands here. |
 | `/settings` | BUILT | Account, roles, permissions, appearance, environment. |
+| `/integrations` | BUILT | Configured connectors, what each supplies, declared latency against the budget, and activate/deactivate gated on `edit:integrations`. |
 | `/simulations` | PARTIAL | Shows simulations attached to change requests. Ad-hoc simulation is **not built**, and the page says so. |
 
 ---
@@ -84,6 +86,7 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | Skip link | BUILT | First tab stop on every page. axe passes WCAG 2.4.1 on the strength of a `<main>` landmark alone, so an E2E test asserts the tab order instead. |
 | Performance gate | BUILT | `bench/harness`, run by `npm test` and CI. p95 measured with `performance.now()` against seeded, reproducible workloads. |
 | Canonical serialisation | BUILT | Specified normatively in ADR-003, with a 67-case corpus generated from the reference. Both the TypeScript and Kotlin implementations are tested against it, so the determinism claim is a property of a specification rather than of one file. |
+| Integrations | BUILT | Connectors are configured once and used at decision time. Resolution runs before the deterministic core and its output is hashed into the input snapshot, so replay re-executes against what was fetched then and never calls a connector again. The compiler adds declared connector latency to the critical path. |
 | Second engine (JVM) | PARTIAL | `engines/kotlin` implements canonicalisation and hashing only, and agrees byte-for-byte. Policy evaluation, arbitration and the trace are still TypeScript. |
 
 ---
@@ -181,6 +184,15 @@ Worth recording, because each was invisible by eye:
   this harness runs on one core.
 - **No WASM hot path.** The engine is plain TypeScript. The numbers above are
   what that costs; the plan's sub-50ms target does not currently need more.
+- **The 5,000-decision corpus records resolution rather than performing it.**
+  It is built synchronously at import and resolution is asynchronous, so the
+  connector-supplied fields are written into the input the way a real system
+  writes an input snapshot. The resolver itself is covered by 19 tests, and the
+  live decision path really does call it. Latency shown on those fixture traces
+  is the connector's declared p95, not a measurement, and is labelled as such.
+- **`bench/*` is outside every working typecheck.** Its missing `connectors`
+  field was caught by a failing benchmark rather than by the compiler. See the
+  build-system gaps in docs/gaps.md.
 - **Only the serialisation is ported.** `engines/kotlin` proves the hashing
   contract is portable; the engine's own semantics - policy evaluation, scope
   resolution, arbitration, the elimination cascade - are specified only by the

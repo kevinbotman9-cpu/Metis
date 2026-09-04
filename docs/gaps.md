@@ -31,6 +31,18 @@ Run `node scripts/validate-spec.mjs` for the current count.
 
 ---
 
+## Build-system gaps
+
+Not platform APIs, but the same kind of problem: a check that appears to run
+and does not.
+
+| Gap | Registered | Notes |
+|---|---|---|
+| **Project references do not build** | 2026-09-04 | `tsc --build` fails on pre-existing Phase 0 files: `packages/compiler/src/compile.ts` imports `@metis/types` and `@metis/core` across `rootDir` boundaries, and `packages/nodes-core` no longer exports `CORE_NODE_TYPES`. Until this is fixed the per-package tsconfigs cannot be used for typechecking. |
+| **The root typecheck checks zero files** | 2026-09-04 | The root tsconfig has `"include": []` and only references, and `tsc --noEmit -p` does not build references. CI now also runs the console's typecheck, which resolves `@metis/core`, `@metis/runtime` and `@metis/compiler` through path aliases and is what actually covers them. `bench/*` is still outside every working typecheck — the missing `connectors` field on its catalogue was caught by a failing benchmark, not by the compiler. |
+
+---
+
 ## Proposed operations in the spec
 
 These are declared, generate client types, and are exempt from the contract

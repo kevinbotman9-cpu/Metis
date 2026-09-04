@@ -25,8 +25,24 @@ jobs:
         run: npm ci
         working-directory: .
 
-      - name: Typecheck
+      # The root tsconfig has `"include": []` and only project references, and
+      # `tsc --noEmit -p` does not build references — so this step checked zero
+      # files. Kept, because it still catches a malformed root config, but it
+      # is not the check that matters.
+      - name: Typecheck (root config)
         run: npx tsc --noEmit -p tsconfig.json
+
+      # This is the one with real coverage. The console resolves @metis/core,
+      # @metis/runtime and @metis/compiler through path aliases, so its
+      # typecheck is what actually type-checks those packages today. It caught
+      # the CatalogueSnapshot change that the root step slept through.
+      #
+      # The per-package tsconfigs have rootDir and include problems that make
+      # `tsc --build` fail on pre-existing Phase 0 files; registered in
+      # docs/gaps.md rather than papered over here.
+      - name: Typecheck (console and the packages it uses)
+        run: npx tsc --noEmit
+        working-directory: apps/console
 
       - name: Lint
         run: npm run lint

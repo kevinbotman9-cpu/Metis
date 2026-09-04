@@ -16,6 +16,7 @@ const PAGES = [
   { path: '/arbitration', name: 'arbitration' },
   { path: '/strategies', name: 'strategies' },
   { path: '/decisions', name: 'decisions' },
+  { path: '/integrations', name: 'integrations' },
   { path: '/approvals', name: 'approvals' },
   { path: '/approvals/cr_0042', name: 'change request' },
   { path: '/agentic', name: 'agentic' },

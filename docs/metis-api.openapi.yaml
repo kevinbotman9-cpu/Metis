@@ -654,6 +654,18 @@ components:
           $ref: '#/components/schemas/ConsentState'
         treatmentId:
           type: [string, 'null']
+        sourceBindings:
+          type: array
+          description: Which connector supplied which input field. Reproducible.
+          items:
+            $ref: '#/components/schemas/SourceBinding'
+        sourceCalls:
+          type: array
+          description: |
+            What the integrations did on the wire. Measured, so absent on a
+            replayed trace - replay calls no connectors.
+          items:
+            $ref: '#/components/schemas/SourceCall'
         chainHash:
           type: string
           description: sha256 over the reproducible half of the decision
@@ -923,6 +935,11 @@ components:
           type: array
           items:
             type: string
+        connectorIds:
+          type: array
+          description: Connectors a source node draws on. Their latency joins the critical path.
+          items:
+            type: string
         model:
           type: object
           required: [id, version]
@@ -954,6 +971,110 @@ components:
         target:
           type: string
         label:
+          type: string
+
+    FieldBinding:
+      type: object
+      description: One field a connector supplies, and where it lives in the response.
+      required: [field, path, type]
+      properties:
+        field:
+          type: string
+          description: The name the field takes in the decision input
+        path:
+          type: string
+          description: Dotted path into the connector's response payload
+        type:
+          type: string
+          enum: [string, number, boolean]
+        defaultValue:
+          description: Used when the connector fails and its failure mode is `default`
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+
+    Connector:
+      type: object
+      description: |
+        A configured route to data the platform does not hold. Used at decision
+        time: a strategy's source node names the connectors it needs, resolution
+        fetches them before execution, and the values land in the input the
+        engine hashes. Replay never calls a connector - it replays against the
+        recorded snapshot.
+      required:
+        [id, name, kind, description, target, declaredP95Ms, timeoutMs, onFailure,
+         cacheTtlSeconds, provides, active, updatedAt, updatedBy]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [rest, feature-store, static]
+        description:
+          type: string
+        target:
+          type: string
+          description: Endpoint, feature-store namespace, or empty for `static`
+        declaredP95Ms:
+          type: number
+          description: |
+            Declared, not measured. The compiler adds it to the critical path, so
+            a connector that cannot fit the latency budget fails compilation
+            rather than failing in production.
+        timeoutMs:
+          type: number
+        onFailure:
+          type: string
+          enum: [fail, omit, default]
+        cacheTtlSeconds:
+          type: integer
+          description: 0 disables caching. Caching is measured, never hashed.
+        provides:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldBinding'
+        active:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+
+    SourceBinding:
+      type: object
+      description: Which connector supplied a field. Reproducible; part of the hashed decision.
+      required: [field, connectorId, nodeId]
+      properties:
+        field:
+          type: string
+        connectorId:
+          type: string
+        nodeId:
+          type: string
+
+    SourceCall:
+      type: object
+      description: What an integration actually did. Measured; never hashed, absent on replay.
+      required: [connectorId, ms, cacheHit, outcome, fields]
+      properties:
+        connectorId:
+          type: string
+        ms:
+          type: number
+        cacheHit:
+          type: boolean
+        outcome:
+          type: string
+          enum: [ok, timeout, error, skipped]
+        fields:
+          type: array
+          items:
+            type: string
+        detail:
           type: string
 
     ArtifactSummary:
@@ -1655,6 +1776,53 @@ paths:
                       $ref: '#/components/schemas/AuditEvent'
                   total:
                     type: integer
+
+  /connectors/{tenantId}:
+    get:
+      summary: Configured integrations
+      operationId: listConnectors
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Connectors
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connectors]
+                properties:
+                  connectors:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Connector'
+
+  /connectors/{tenantId}/{connectorId}:
+    put:
+      summary: Activate, deactivate or retune a connector
+      operationId: updateConnector
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: connectorId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Connector'
+      responses:
+        '200':
+          description: Updated, and written to the audit log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connector'
+        '403':
+          description: Caller lacks edit:integrations
 
   # ---------------------------------------------------------------------------
   # Strategies as the console reads them
