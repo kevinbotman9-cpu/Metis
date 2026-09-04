@@ -2,6 +2,10 @@
 const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
+  // The dev overlay injects its own focusable elements ahead of the page, which
+  // makes the real tab order untestable: the skip link was the fourth stop
+  // rather than the first. Errors are still surfaced without it.
+  devIndicators: false,
   typescript: {
     tsconfigPath: './tsconfig.json',
   },

@@ -17,13 +17,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import yaml from 'js-yaml';
+import { load } from 'js-yaml';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SPEC = path.resolve(here, '../../docs/metis-api.openapi.yaml');
 const OUT = path.resolve(here, 'src/generated.ts');
 
-const spec = yaml.load(fs.readFileSync(SPEC, 'utf8'));
+const spec = load(fs.readFileSync(SPEC, 'utf8'));
 
 // --- Types ------------------------------------------------------------------
 

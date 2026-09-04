@@ -24,6 +24,38 @@ test.describe('header band', () => {
     await expect(page.getByText('Only one tenant is provisioned')).toBeHidden();
   });
 
+  test('the first tab stop skips the chrome and reaches the content', async ({ page }) => {
+    await page.goto('/decisions');
+    // Tab before hydration settles is swallowed, and the assertion below would
+    // then be measuring the navigation rather than the tab order.
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+    // Concealed until focused. `sr-only` clips to a 1px box rather than using
+    // display:none, so it stays in the tab order — which is the whole point,
+    // and also why toBeHidden() is the wrong assertion here.
+    const skip = page.getByRole('link', { name: 'Skip to content' });
+    const clipped = await skip.boundingBox();
+    expect(clipped?.width, 'skip link should be clipped before focus').toBeLessThan(4);
+
+    await page.keyboard.press('Tab');
+    await expect(skip).toBeFocused();
+    const shown = await skip.boundingBox();
+    expect(shown?.width, 'skip link should be readable once focused').toBeGreaterThan(60);
+
+    await page.keyboard.press('Enter');
+    await expect(page.locator('main')).toBeFocused();
+
+    // The point of the link: the next tab stop is inside the content, not the
+    // eleventh item in the sidebar.
+    await page.keyboard.press('Tab');
+    const focused = page.locator(':focus');
+    await expect(focused).toHaveCount(1);
+    expect(
+      await focused.evaluate((el) => Boolean(el.closest('main'))),
+      'focus left the main region after skipping'
+    ).toBe(true);
+  });
+
   test('every header panel closes on Escape', async ({ page }) => {
     await page.getByRole('button', { name: /Notifications/ }).click();
     const notifications = page.getByRole('group', { name: 'Needs attention' });

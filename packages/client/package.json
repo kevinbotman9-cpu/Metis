@@ -9,7 +9,7 @@
     "build": "tsc"
   },
   "devDependencies": {
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^5.4.1",
     "typescript": "^5.0.0"
   }
 }

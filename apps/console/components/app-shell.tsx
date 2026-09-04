@@ -116,6 +116,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-chrome">
       {/*
+        WCAG 2.4.1. Between the band and the sidebar there are around sixteen
+        tab stops before the content starts, on every page. axe passes this
+        rule on the strength of the <main> landmark alone, so nothing in the
+        suite was going to tell us: the E2E test below it is the check.
+      */}
+      {/*
+        Every visual utility is scoped to :focus. `sr-only` zeroes padding, but
+        a bare `px-3` wins the cascade and leaves a 24px-wide invisible target
+        sitting in the corner.
+      */}
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-accent focus:px-3 focus:py-2 focus:text-body focus:font-medium focus:text-on-accent"
+      >
+        Skip to content
+      </a>
+
+      {/*
         One band across the whole top, above the sidebar rather than beside it.
         Spanning the full width gives the product a frame, and gives the tools
         that apply everywhere — search, notifications, tenant, environment — a
@@ -386,7 +404,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1 overflow-y-auto rounded-tl-xl border-l border-t border-border bg-page">
+        <main
+          id="main"
+          tabIndex={-1}
+          className="min-w-0 flex-1 overflow-y-auto rounded-tl-xl border-l border-t border-border bg-page outline-none"
+        >
           {children}
         </main>
       </div>
