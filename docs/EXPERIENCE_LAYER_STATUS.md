@@ -6,8 +6,9 @@
 Integration          6 passed  - author -> compile -> execute -> replay
 Determinism         30 passed  - packages/runtime, byte-identical replay
 Integrations        19 passed  - resolution, failure modes, replay isolation
-Conformance         69 passed  - ADR-003 corpus, TypeScript reference
-Conformance (JVM)    2 passed  - engines/kotlin, same corpus, 58 cases compared
+Conformance         92 passed  - ADR-003 value corpus + 22-decision corpus
+Conformance (JVM)    4 passed  - engines/kotlin, same corpora, 58 values
+                                 and 22 decisions compared
 Compiler            40 passed  - packages/compiler
 Performance          6 passed  - bench/harness, the p95 < 50ms gate
 Unit (Vitest)       38 passed  - apps/console
@@ -15,7 +16,7 @@ E2E (Playwright)   112 passed  - 22 contract, 19 axe, 8 skipped by design
 Typecheck           clean
 Lint                0 errors   - root and console, which are separate configs
                    ---
-                    322 tests, two languages
+                    345 tests, two languages
 ```
 
 The console was linted by nobody until 2026-09-04: `apps/console/.eslintrc.json`
@@ -87,7 +88,7 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | Performance gate | BUILT | `bench/harness`, run by `npm test` and CI. p95 measured with `performance.now()` against seeded, reproducible workloads. |
 | Canonical serialisation | BUILT | Specified normatively in ADR-003, with a 67-case corpus generated from the reference. Both the TypeScript and Kotlin implementations are tested against it, so the determinism claim is a property of a specification rather than of one file. |
 | Integrations | BUILT | Connectors are configured once and used at decision time. Resolution runs before the deterministic core and its output is hashed into the input snapshot, so replay re-executes against what was fetched then and never calls a connector again. The compiler adds declared connector latency to the critical path. |
-| Second engine (JVM) | PARTIAL | `engines/kotlin` implements canonicalisation and hashing only, and agrees byte-for-byte. Policy evaluation, arbitration and the trace are still TypeScript. |
+| Second engine (JVM) | BUILT | `engines/kotlin` implements canonicalisation, hashing and the decision engine, and agrees with the reference on all 58 value cases and all 22 decisions. Integration resolution, replay and the compiler are not ported - resolution is I/O and sits outside the deterministic core by design, and replay is `execute` plus a hash comparison. |
 
 ---
 
@@ -193,12 +194,16 @@ Worth recording, because each was invisible by eye:
 - **`bench/*` is outside every working typecheck.** Its missing `connectors`
   field was caught by a failing benchmark rather than by the compiler. See the
   build-system gaps in docs/gaps.md.
-- **Only the serialisation is ported.** `engines/kotlin` proves the hashing
-  contract is portable; the engine's own semantics - policy evaluation, scope
-  resolution, arbitration, the elimination cascade - are specified only by the
-  TypeScript implementation. Extending the corpus from values to whole
-  decisions (artifact + catalogue + request in, chain hash out) is what would
-  make a full second engine a bounded piece of work rather than a rewrite.
+- **The decision corpus is 22 cases, not a proof.** It covers the rules a
+  reimplementation is most likely to get wrong - tie-breaks, scope resolution,
+  the neutral-score rule, contact-policy scoping, the service exemption - and it
+  bites: injecting a wrong neutral score fails 13 of 22 with field-level diffs.
+  It does not cover every path, and it does not currently distinguish
+  `StrictMath.pow` from `Math.pow`, which ADR-003 §4a is explicit about.
+- **Two engines is now a maintenance obligation.** A change to arbitration or
+  the trace shape has to land in both, or CI goes red in the Kotlin job. That is
+  the intended cost: it is what stops the semantics drifting back into being
+  whatever one directory of TypeScript happens to do.
 - **Seventeen of nineteen packages have no tests.** Only `compiler` and `runtime`
   do. `packages-system` (package signing), `simulation`, `adaptive-models`,
   `compliance`, `panel-host` and `nodes-core` are single files carrying explicit

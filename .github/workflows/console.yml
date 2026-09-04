@@ -114,8 +114,8 @@ jobs:
       - name: The conformance corpus matches the reference
         run: |
           npm run corpus
-          if ! git diff --exit-code --stat docs/conformance/canonical-corpus.json; then
-            echo "::error::conformance corpus is stale. Run: npm run corpus"
+          if ! git diff --exit-code --stat docs/conformance/; then
+            echo "::error::a conformance corpus is stale. Run: npm run corpus"
             exit 1
           fi
 
@@ -144,6 +144,9 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Canonical serialisation conformance (Kotlin)
+      # Both suites: the value corpus (how a value hashes) and the decision
+      # corpus (what a decision is). Passing both is what makes a chain hash
+      # mean the same thing in either engine.
+      - name: Conformance (Kotlin engine)
         run: ./gradlew test --no-daemon
         working-directory: engines/kotlin
