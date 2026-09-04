@@ -28,7 +28,6 @@ const OUTCOME_TONE: Record<string, 'pass' | 'block' | 'hold' | 'info' | 'neutral
 function Home() {
   const { user } = useAuth();
 
-  const taxonomy = useQuery({ queryKey: ['taxonomy'], queryFn: () => apiClient.getTaxonomy() });
   const decisions = useQuery({
     queryKey: ['decisions', 'overview'],
     // The whole set, not a page of it: the strip reports totals, and a headline
@@ -48,7 +47,6 @@ function Home() {
     queryFn: () => apiClient.listArtifacts(),
   });
 
-  const props = taxonomy.data?.propositions ?? [];
   const decs = decisions.data?.decisions ?? [];
   const crs = changeRequests.data?.changeRequests ?? [];
   const pending = crs.filter((c) => c.status === 'pending');

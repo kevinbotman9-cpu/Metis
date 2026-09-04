@@ -60,6 +60,16 @@
   --info: 55 108 176;
   --info-subtle: 232 240 250;
 
+  /* Application header.
+     A saturated band across the top, deliberately outside the neutral ramp and
+     identical in both themes: it is the frame, not content. White measures
+     13.5:1 on the burgundy end, so everything on it clears AA comfortably. */
+  --header-from: 88 20 52;
+  --header-via: 71 19 62;
+  --header-to: 45 18 72;
+  --on-header: 255 255 255;
+  --header-border: 122 44 84;
+
   /* Brand panel.
      A fixed, saturated surface that does not follow the light/dark ramp - it is
      the same in both themes, the way a printed cover is. White measures 9.0:1

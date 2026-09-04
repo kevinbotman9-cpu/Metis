@@ -31,6 +31,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # The root config ignores apps/console, so the console needs its own run.
+      # Without this step the console was linted by nobody.
+      - name: Lint (console)
+        run: npm run lint -w @metis/console
+
       # The Phase 0 gate: same artifact + same inputs = byte-identical decision.
       - name: Determinism (execution engine)
         run: npm run test:runtime

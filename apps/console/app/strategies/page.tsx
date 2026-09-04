@@ -8,7 +8,6 @@ import {
   PageHeader,
   Card,
   CardHeader,
-  Badge,
   StatusBadge,
   ErrorState,
 } from '@/components/ui/primitives';

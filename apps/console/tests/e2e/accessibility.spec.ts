@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { login, ACCOUNTS } from './helpers';
+import { login, ACCOUNTS, openAccountPanel } from './helpers';
 
 /**
  * WCAG 2.2 AA, per the definition of done. Runs against real rendered pages in
@@ -51,6 +51,7 @@ test.describe('accessibility', () => {
     }
 
     test('dark theme has no contrast violations', async ({ page }) => {
+      await openAccountPanel(page, /Marcus Webb/);
       await page.getByRole('group', { name: 'Colour scheme' }).getByText('Dark').click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 

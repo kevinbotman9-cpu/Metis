@@ -15,7 +15,6 @@ import {
   StatusBadge,
   Metric,
   Input,
-  Field,
   ErrorState,
   PermissionDenied,
 } from '@/components/ui/primitives';
@@ -44,7 +43,9 @@ function PropositionsView() {
 
   const issues = data?.issues ?? [];
   const groups = data?.groups ?? [];
-  const all = data?.propositions ?? [];
+  // Memoised so the empty-array fallback keeps a stable identity between
+  // renders; otherwise every render invalidates the filter below.
+  const all = useMemo(() => data?.propositions ?? [], [data]);
 
   const filtered = useMemo(() => {
     let rows = all;

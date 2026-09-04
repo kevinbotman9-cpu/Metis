@@ -48,6 +48,13 @@ module.exports = {
           to: rgb('brand-to'),
         },
         'on-brand': rgb('on-brand'),
+        header: {
+          from: rgb('header-from'),
+          via: rgb('header-via'),
+          to: rgb('header-to'),
+          border: rgb('header-border'),
+        },
+        'on-header': rgb('on-header'),
         pass: { DEFAULT: rgb('pass'), subtle: rgb('pass-subtle') },
         block: { DEFAULT: rgb('block'), subtle: rgb('block-subtle') },
         hold: { DEFAULT: rgb('hold'), subtle: rgb('hold-subtle') },

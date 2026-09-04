@@ -9,7 +9,6 @@ import {
   Card,
   CardHeader,
   Badge,
-  Metric,
   ErrorState,
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';

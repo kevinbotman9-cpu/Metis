@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, resetStore, ACCOUNTS } from './helpers';
+import { login, resetStore, ACCOUNTS, openAccountPanel } from './helpers';
 
 test.describe('role-based access', () => {
   test('hides the audit log from an account without view:audit', async ({ page }) => {
@@ -108,6 +108,7 @@ test.describe('appearance', () => {
   test('theme and density persist across navigation', async ({ page }) => {
     await login(page, ACCOUNTS.sarah);
 
+    await openAccountPanel(page, /Sarah Chen/);
     await page.getByRole('group', { name: 'Colour scheme' }).getByText('Dark').click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 

@@ -19,7 +19,7 @@ import {
   EmptyState,
 } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
-import { apiClient, ApiError, type TraceDto } from '@/lib/api-client';
+import { apiClient, ApiError } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
 
 const AUDIENCES = [

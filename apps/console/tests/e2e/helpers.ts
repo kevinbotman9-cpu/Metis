@@ -18,6 +18,18 @@ export async function login(page: Page, email: string) {
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
 }
 
+/**
+ * Open the account panel in the header band.
+ *
+ * Appearance controls live here rather than on the band itself: they are a
+ * once-a-month choice, and the band is reserved for the tools people use on
+ * every page.
+ */
+export async function openAccountPanel(page: Page, name: string | RegExp) {
+  await page.getByRole('button', { name }).click();
+  await expect(page.getByRole('group', { name: 'Colour scheme' })).toBeVisible();
+}
+
 /** Restore seed data. The store is process-wide, so writes leak between specs. */
 export async function resetStore(page: Page) {
   const res = await page.request.post('/api/_test/reset');

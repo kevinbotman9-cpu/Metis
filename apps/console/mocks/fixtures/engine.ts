@@ -86,7 +86,6 @@ const LIVE = execArtifacts.filter((a) =>
 function buildRequest(index: number): DecisionRequest {
   const r = (salt: string) => seededUnitInterval('req', index, salt);
 
-  const artifact = LIVE[index % LIVE.length];
   const channels = ['web', 'email', 'sms', 'push', 'outbound_call'];
   const channel = channels[Math.floor(r('channel') * channels.length)];
   const placements: Record<string, string> = {

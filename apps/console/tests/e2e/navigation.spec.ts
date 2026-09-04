@@ -94,7 +94,7 @@ test.describe('authentication', () => {
   test('signing out returns to login and protects the app again', async ({ page }) => {
     await login(page, ACCOUNTS.sarah);
     await page.getByRole('button', { name: /Sarah Chen/ }).click();
-    await page.getByRole('menuitem', { name: 'Sign out' }).click();
+    await page.getByRole('button', { name: 'Sign out' }).click();
 
     await expect(page).toHaveURL(/\/login/);
     await page.goto('/audit');

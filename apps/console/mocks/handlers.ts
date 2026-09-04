@@ -35,7 +35,7 @@ function userFromAuthHeader(request: Request) {
 }
 
 function publicUser(u: (typeof users)[number]) {
-  const { password, ...rest } = u;
+  const { password: _password, ...rest } = u;
   return rest;
 }
 
