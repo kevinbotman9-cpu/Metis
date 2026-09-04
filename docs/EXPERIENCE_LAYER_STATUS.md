@@ -55,7 +55,7 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | Vitest | BUILT | 31 tests: autonomy resolution, money formatting, fixture referential integrity. |
 | Playwright | BUILT | 52 tests: navigation, auth, decisions, RBAC, persistence, appearance. |
 | axe-core | BUILT | 14 pages, light and dark. Zero violations at WCAG 2.2 AA. |
-| Storybook | BUILT | Button, primitives, DataTable, canvas node. Theme and density are toolbar globals covering all four axes. |
+| Storybook | BUILT | 22 stories across Button, primitives, DataTable and the canvas node. Theme and density are toolbar globals, so all four axes are one click apart. Builds clean. |
 
 ---
 
@@ -96,3 +96,9 @@ Worth recording, because each was invisible by eye:
   autonomy model would record.
 - **One browser.** Playwright runs Chromium only.
 - **No visual regression testing.** axe covers accessibility, not appearance.
+- **Storybook runs on react-vite, not `@storybook/nextjs`.** Storybook 7 could not
+  boot at all here: `@storybook/nextjs` resolves `next/config`, which Next.js 16
+  removed, and the v7 renderer calls `ReactDOM.unmountComponentAtNode`, removed
+  in React 19. Upgraded to Storybook 8.6 and switched to the plain React builder,
+  which these presentational stories do not need Next for. A story that ever needs
+  `next/image` or the app router will need that revisited.
