@@ -3,16 +3,21 @@
 **Last verified:** 2026-09-04 by an automated suite, not by eye.
 
 ```
-Integration         6 passed   - author -> compile -> execute -> replay
-Determinism        30 passed   - packages/runtime, the Phase 0 gate
-Compiler           40 passed   - packages/compiler
-Unit (Vitest)      38 passed   - apps/console
-E2E (Playwright)   65 passed   - includes 18 axe checks, 0 WCAG 2.2 AA violations
-Typecheck          clean
-Lint                0 errors
-                  ---
-                   179 tests, one runner
+Integration          6 passed  - author -> compile -> execute -> replay
+Determinism         30 passed  - packages/runtime, the Phase 0 gate
+Compiler            40 passed  - packages/compiler
+Unit (Vitest)       38 passed  - apps/console
+E2E (Playwright)   103 passed  - 21 contract, 18 axe, 7 skipped by design
+Typecheck           clean
+Lint                0 errors   - root and console, which are separate configs
+                   ---
+                    217 tests
 ```
+
+The console was linted by nobody until 2026-09-04: `apps/console/.eslintrc.json`
+had no `"root": true`, so ESLint cascaded to the repo config, whose
+`ignorePatterns` excludes `apps/console`. Every file was silently skipped, in CI
+too. Fixing it surfaced eight real errors. The workflow now runs both configs.
 
 Legend: **BUILT** = runs, and a test asserts it · **PARTIAL** = usable, with a
 stated gap · **MISSING** = not started.
@@ -67,7 +72,12 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | Execution engine | BUILT | `packages/runtime/src/deterministic`. Byte-identical across 100 runs; replay compares chain hashes. |
 | Compiler | BUILT | `packages/compiler/src/strategy`. Validates the graph, pins versions and models, computes the critical path, and refuses anything the runtime could not execute safely. |
 | Engine-backed data | BUILT | The console's 60 decisions are real engine output, not fixtures. Replay re-executes. |
-| Storybook | BUILT | 22 stories across Button, primitives, DataTable and the canvas node. Theme and density are toolbar globals, so all four axes are one click apart. Builds clean. |
+| Storybook | PARTIAL | 5 story files - Button, primitives, DataTable, SmartSearch, the canvas node. Theme and density are toolbar globals, so all four axes are one click apart. **No stories for AppShell, CommandPalette, Notifications, HealthSummary, CompileReport or Breadcrumbs**, which the definition of done requires. |
+| API contract | BUILT | `packages/client` is generated from `docs/metis-api.openapi.yaml`; the console compiles against those types, so a spec change it has not absorbed is a compile error. `contract.spec.ts` asserts the other direction: every operation not marked `proposed` is served and returns what the spec declares. CI fails if the generated client is stale. |
+| Global search | BUILT | Cmd/Ctrl+K over pages, propositions, strategies and all 5,000 decisions. |
+| Notifications | BUILT | Pending approvals and guardrail stops, merged, breaches first. |
+| i18n | MISSING | The definition of done names `/packages/i18n/messages.json`. There is no such file. `packages/i18n` is a 55-line stub with ~20 keys that nothing imports; every string is inline in JSX. |
+| Bundle budget | MISSING | The definition of done says route bundle size is checked in CI. Nothing checks it. |
 
 ---
 
@@ -150,6 +160,27 @@ Worth recording, because each was invisible by eye:
 - **Search facets are fixed per surface.** They map to query parameters the
   endpoint understands rather than being derived from the data.
 - **No visual regression testing.** axe covers accessibility, not appearance.
+- **No skip link.** WCAG 2.4.1 is Level A. axe's `bypass` rule passes because the
+  page has a `<main>` landmark, so the suite is green while roughly sixteen tab
+  stops sit ahead of the content on every page. The header band made this worse.
+- **axe cannot see focus-indicator contrast.** The header band's ring failed
+  SC 1.4.11 at 2.36:1 in light mode through a green suite; arithmetic caught it,
+  not a test. Anything painted on a surface outside the neutral ramp needs the
+  contrast checked by hand.
+- **The load harness never runs.** `bench/harness` and `bench/datasets` exist -
+  322 lines between them - with no npm script, no test and no CI step. The Phase 0
+  gate of p95 < 50ms at 1000 req/s is **not** enforced anywhere. What is enforced
+  is a scaling-invariant test in `packages/runtime`, which is a weaker claim.
+- **Seventeen of nineteen packages have no tests.** Only `compiler` and `runtime`
+  do. `packages-system` (package signing), `simulation`, `adaptive-models`,
+  `compliance`, `panel-host` and `nodes-core` are single files carrying explicit
+  `Phase N` stubs. Composability, regulatory packs and panel extensibility are
+  the differentiation claims in the plan, and none of them execute.
+- **No database.** `docker-compose.yml` declares postgres, eventstore, redis and
+  clickhouse; `infrastructure/docker`, `k8s` and `migrations` are empty
+  directories; nothing connects to any of them.
+- **Three of five planned ADRs exist.** Missing: DIR schema design, event
+  sourcing, performance budgets.
 - **Storybook runs on react-vite, not `@storybook/nextjs`.** Storybook 7 could not
   boot at all here: `@storybook/nextjs` resolves `next/config`, which Next.js 16
   removed, and the v7 renderer calls `ReactDOM.unmountComponentAtNode`, removed

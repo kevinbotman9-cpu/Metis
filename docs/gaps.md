@@ -2,61 +2,76 @@
 
 **Purpose:** Track what the console needs that the platform has not yet built.
 
-When the console team reaches a feature that requires a platform API that doesn't exist:
-1. Add an entry to this file with the operation ID and brief rationale
-2. Add a contract to the OpenAPI spec as a proposed operation
-3. Generate a mock in MSW
-4. Build the console feature against the mock
-5. Mark this file with the week the gap was registered and the estimated impact
+When the console reaches a feature that requires a platform API that doesn't exist:
 
-The gap file is the backlog handed to the platform team. Do not remove items; mark them as resolved when the platform ships.
+1. Add the operation to `docs/metis-api.openapi.yaml` marked `x-metis-status: proposed`
+2. Add an entry to this file with the operation ID and rationale
+3. Mock it in the development store; **do not stub inside a component**
+4. Mark it resolved here when the platform ships it
 
----
+Since 2026-09-04 the spec is enforced rather than aspirational:
+`packages/client` is generated from it, the console compiles against those
+types, and `apps/console/tests/e2e/contract.spec.ts` asserts that every
+operation *not* marked `proposed` is actually served and returns what the spec
+says it returns. So this file can no longer quietly disagree with the spec —
+but it can still disagree with reality about things the spec does not cover,
+which is what the notes below are for.
 
-## Blocking Console Progress (High Priority)
-
-### OpenAPI Spec Generation
-
-| Operation | Console Impact | Platform Status | Registered | Notes |
-|-----------|--------|--------|------------|-------|
-| `generateOpenAPISpec` | Blocks U0 entirely | MISSING | Week 1 | Build a generator that reads `planes/execution/src/**/*.ts` and emits OpenAPI 3.1. Extracts JSDoc + TypeScript types. |
-
-**Action:** Generate spec from existing TypeScript code. Start with artifact registry endpoints (publish, getArtifact, listVersions, promoteVersion, rollbackVersion, getAuditLog).
+Run `node scripts/validate-spec.mjs` for the current count.
 
 ---
 
-## U0 Blocking Gaps (Truth & Contracts)
+## Status at a glance
 
-None yet, pending OpenAPI spec generation.
-
----
-
-## U2 Blocking Gaps (Trace Explorer — Demo-Critical)
-
-| Operation | Console Impact | Platform Status | Registered | Notes |
-|-----------|--------|--------|------------|-------|
-| `searchDecisions` | Decision search (filter, virtualise 100k+ rows) | MISSING | Week 1 | Query by date range, action, outcome, rule fired, node, segment, channel. Must return paginated results with cursor. |
-| `getDecisionTrace` | Trace explorer + five renderers | MISSING | Week 1 | Fetch a DecisionTrace by decision_id. Returns full trace with all node eliminations, scores, arbitration ranking, constraints applied. |
-| `replayDecision` | Replay surface ("Prove it" demo) | MISSING | Week 1 | Re-execute a historical decision. Takes decision_id + artifact version. Returns DecisionResponse. Assert byte-identical to original. |
-| `getTraceAuditLog` | Compliance audit view | MISSING | Week 1 | Fetch all changes to traces (immutable after write, but metadata changes). For tamper detection. |
-
-**Impact:** Cannot build the single strongest demo surface (compliance officer replaying a decision) without these APIs.
+| | Operations |
+|---|---|
+| Built, served, and contract-tested | 26 |
+| Declared and marked `proposed` | 8 |
+| Wanted but not yet in the spec | see persona sections below |
 
 ---
 
-## U3 Blocking Gaps (Author & Prove)
+## Proposed operations in the spec
 
-| Operation | Console Impact | Platform Status | Registered | Notes |
-|-----------|--------|--------|------------|-------|
-| `compileStrategy` | Compile panel + cost manifest | BUILT | Week 1 | CLI exists (`npm run compile`). Need to expose as HTTP API + wire to OpenAPI spec. |
-| `simulateStrategy` | Simulation workbench | MISSING | Week 2 | Given a compiled artifact + population sample, run all decisions through it. Return aggregated outcomes (distribution, funnel, bias metrics). |
-| `getCounterfactual` | Counterfactual explorer | MISSING | Week 2 | Given a decision_id + outcome, find minimal input changes that flip the result. Return diff. |
-| `createChangeRequest` | Change request workflow | MISSING | Week 2 | Propose a new strategy version. Returns request_id + approval state. |
-| `getChangeRequest` | Change request detail view | MISSING | Week 2 | Fetch change request + attached diff + simulated impact + bias results + cost delta. |
-| `approveChangeRequest` | Approval quorum | MISSING | Week 2 | Approve a change request (requires role check). Audit who approved, when. |
-| `publishStrategy` | Publish endpoint | BUILT | Week 1 | Exists in artifact registry. Need to wire to OpenAPI spec. |
+These are declared, generate client types, and are exempt from the contract
+test by their `proposed` marker. Nothing serves them.
 
-**Impact:** Canvas editing and approval workflow cannot progress without simulate + counterfactual.
+| Operation | Console impact | Registered | Notes |
+|---|---|---|---|
+| `publishArtifact` | Publishing a compiled strategy | Week 1 | Registry exists as an in-memory class in `planes/execution/src/registry.ts` with no HTTP layer and no tests. |
+| `getArtifact` | Fetching an immutable compiled artifact | Week 1 | Distinct from `getArtifactSummary`, which is what the console reads today. |
+| `listVersions` | Version history | Week 1 | |
+| `promoteVersion` | Blue/green promotion | Week 1 | |
+| `rollbackVersion` | One-click rollback | Week 1 | The demo claim "one click rolls back instantly" is not yet true. |
+| `getRegistryAuditLog` | Publish and promotion history per strategy | Week 1 | Separate from `/audit`, which is the console's own append-only log and *is* built. |
+| `simulateStrategy` | Ad-hoc simulation | Week 2 | `/simulations` says plainly that this is not built and shows only simulations attached to change requests. |
+| `getCounterfactual` | "What would have changed the outcome" | Week 2 | No UI yet. |
+
+---
+
+## Resolved
+
+| Operation | Resolved | Notes |
+|---|---|---|
+| `generateOpenAPISpec` | 2026-09-04 | Inverted. The spec is hand-authored and is the source of truth; `packages/client` is generated *from* it, and CI fails if the two disagree. Generating the spec from code would have made the implementation authoritative, which is backwards for a contract. |
+| `searchDecisions` | 2026-09-04 | GET with query parameters, not POST — search state lives in the URL. 5,000 decisions, virtualised. |
+| `getDecisionTrace` | 2026-09-04 | Real engine output. The `DecisionTrace` schema in the spec now matches what the engine emits. |
+| `replayDecision` | 2026-09-04 | Re-executes and compares chain hashes. Contract-tested. |
+| `createChangeRequest` / `getChangeRequest` | 2026-09-04 | |
+| `approveChangeRequest` / `rejectChangeRequest` | 2026-09-04 | Approval applies the diff and writes to the audit log. Permission-gated server-side, not just in the UI. |
+| `getTaxonomy`, `listPropositions`, `getProposition`, `listTreatments` | 2026-09-04 | Offer catalogue, Issue › Group › Proposition. |
+| `listEngagementPolicies`, `listContactPolicies` | 2026-09-04 | |
+| `getArbitrationConfig` / `updateArbitrationConfig` | 2026-09-04 | |
+| `listAutonomySettings` / `updateAutonomySetting` | 2026-09-04 | |
+| `listAgentActivity` | 2026-09-04 | Fixture data — no agent is running. The *shape* is real; the activity is not. |
+| `listChangeRequests`, `listAuditEvents`, `listArtifacts`, `getArtifactSummary` | 2026-09-04 | These were **served but missing from the spec entirely** until the contract work. |
+| `login` / `getSession` | 2026-09-04 | Development identity only. No real identity provider. |
+
+**Caveat that applies to every row above.** "Resolved" means the console has a
+working endpoint with an enforced contract. It is served by
+`apps/console/app/api/[...path]/route.ts` over an in-memory store that resets
+when the process restarts. The execution plane does not serve any of them.
+When it does, the contract is already written and the tests already exist.
 
 ---
 
@@ -127,19 +142,12 @@ None yet, pending OpenAPI spec generation.
 
 ---
 
-## Resolved Gaps
-
-| Operation | Resolved In | Notes |
-|-----------|------------|-------|
-| (None yet) | — | —  |
-
----
-
 ## Notes for Platform Team
 
-1. **Prioritize OpenAPI spec generation** (Week 1). Everything blocks on this.
-2. **Prioritize trace APIs** (Week 1–2). The demo (Compliance Officer replaying a decision) cannot happen without these.
-3. **Simulation + counterfactual** (Week 2–3) unblocks the approval workflow and the architect personas.
+1. **The artifact registry** is the highest-value gap. Compilation is not enforced on publish
+   today — the console shows the compiler's verdict but nothing blocks promoting a strategy
+   that fails to compile. That gate belongs in the registry.
+2. **Simulation + counterfactual** (Week 2–3) unblocks ad-hoc simulation and the architect personas.
 4. **Persona surfaces** (Week 4+) can run in parallel once U1–U3 are stable.
 5. **Every gap entry should have an operationId in the spec** so the console can reference it by name, not by description.
 
@@ -158,7 +166,7 @@ None yet, pending OpenAPI spec generation.
 
 ---
 
-**Last reviewed:** 2026-09-03
+**Last reviewed:** 2026-09-04
 
 ---
 
