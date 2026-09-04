@@ -425,3 +425,32 @@ describe('model-free arbitration', () => {
     expect(s.value).toBeGreaterThan(0);
   });
 });
+
+describe('hot path cost', () => {
+  it('does not re-hash the catalogue on every decision', () => {
+    // Regression guard: hashing the whole catalogue per decision is
+    // O(catalogue) work in the hot path and dominated execution entirely,
+    // 1.5ms per decision of which almost all was re-hashing identical data.
+    const N = 500;
+    const started = performance.now();
+    for (let i = 0; i < N; i++) {
+      execute(artifact, catalogue, { ...request, customerId: `cust_${i}` });
+    }
+    const perDecision = (performance.now() - started) / N;
+
+    // Generous ceiling: the point is to catch a return to O(catalogue),
+    // not to pin an exact number on shared CI hardware.
+    expect(perDecision).toBeLessThan(1);
+  });
+
+  it('still records a correct and stable catalogue hash', () => {
+    const a = execute(artifact, catalogue, request);
+    const b = execute(artifact, catalogue, request);
+    expect(a.decision.catalogueSnapshotHash).toBe(b.decision.catalogueSnapshotHash);
+
+    // A different catalogue must still hash differently, or the memo is wrong.
+    const changed = { ...catalogue, levers: [...catalogue.levers] };
+    const c = execute(artifact, { ...changed, arbitration: { ...catalogue.arbitration, formula: 'other' } }, request);
+    expect(c.decision.catalogueSnapshotHash).not.toBe(a.decision.catalogueSnapshotHash);
+  });
+});

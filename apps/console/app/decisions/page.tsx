@@ -9,26 +9,53 @@ import {
   PageHeader,
   Card,
   CardHeader,
-  CardBody,
   Badge,
   Metric,
-  Input,
-  Select,
-  Field,
   ErrorState,
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
-import { Button } from '@/components/ui/button';
+import {
+  SmartSearch,
+  chipsToQuery,
+  type Facet,
+  type FilterChip,
+} from '@/components/ui/smart-search';
 import { apiClient, type DecisionDto } from '@/lib/api-client';
+
+/**
+ * The facets the decision store can actually narrow on.
+ *
+ * Everything here maps to a query parameter the search endpoint understands;
+ * offering a filter the backend ignores would be worse than offering none.
+ */
+const FACETS: Facet[] = [
+  { key: 'customerId', label: 'Customer', hint: 'partial id match' },
+  {
+    key: 'channel',
+    label: 'Channel',
+    options: [
+      { value: 'web', label: 'Web' },
+      { value: 'email', label: 'Email' },
+      { value: 'sms', label: 'SMS' },
+      { value: 'push', label: 'Push' },
+      { value: 'outbound_call', label: 'Outbound call' },
+    ],
+  },
+  {
+    key: 'outcome',
+    label: 'Outcome',
+    options: [
+      { value: 'offered', label: 'Offer made' },
+      { value: 'suppressed', label: 'Suppressed' },
+    ],
+  },
+  { key: 'action', label: 'Action', hint: 'exact proposition key' },
+];
 
 function DecisionsView() {
   const router = useRouter();
-  const [filters, setFilters] = useState({
-    customerId: '',
-    channel: '',
-    outcome: '',
-    action: '',
-  });
+  const [chips, setChips] = useState<FilterChip[]>([]);
+  const filters = chipsToQuery(chips);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['decisions', filters],
@@ -38,7 +65,7 @@ function DecisionsView() {
         channel: filters.channel || undefined,
         outcome: filters.outcome || undefined,
         action: filters.action || undefined,
-        limit: 200,
+        limit: 5000,
       }),
   });
 
@@ -149,69 +176,16 @@ function DecisionsView() {
         <Metric label="Avg latency" value={`${avgLatency}ms`} sub="SLA 50ms" tone="accent" />
       </div>
 
-      <Card>
-        <CardHeader
-          title="Search"
-          description="Filters apply immediately."
-          actions={
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setFilters({ customerId: '', channel: '', outcome: '', action: '' })}
-            >
-              Reset
-            </Button>
-          }
+      <div className="mb-stack">
+        <SmartSearch
+          facets={FACETS}
+          chips={chips}
+          onChange={setChips}
+          placeholder="Search by customer, or filter by channel, outcome or action"
         />
-        <CardBody>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label="Customer ID" htmlFor="f-cust">
-              <Input
-                id="f-cust"
-                placeholder="cust_…"
-                value={filters.customerId}
-                onChange={(e) => setFilters({ ...filters, customerId: e.target.value })}
-              />
-            </Field>
-            <Field label="Channel" htmlFor="f-chan">
-              <Select
-                id="f-chan"
-                value={filters.channel}
-                onChange={(e) => setFilters({ ...filters, channel: e.target.value })}
-              >
-                <option value="">All channels</option>
-                <option value="web">Web</option>
-                <option value="email">Email</option>
-                <option value="sms">SMS</option>
-                <option value="push">Push</option>
-                <option value="outbound_call">Outbound call</option>
-              </Select>
-            </Field>
-            <Field label="Outcome" htmlFor="f-out">
-              <Select
-                id="f-out"
-                value={filters.outcome}
-                onChange={(e) => setFilters({ ...filters, outcome: e.target.value })}
-              >
-                <option value="">Any outcome</option>
-                <option value="offered">Offer made</option>
-                <option value="suppressed">Suppressed</option>
-              </Select>
-            </Field>
-            <Field label="Action" htmlFor="f-act">
-              <Input
-                id="f-act"
-                placeholder="e.g. upsell_5g"
-                value={filters.action}
-                onChange={(e) => setFilters({ ...filters, action: e.target.value })}
-              />
-            </Field>
-          </div>
-        </CardBody>
-      </Card>
+      </div>
 
-      <div className="mt-stack">
-        <Card>
+      <Card>
           <CardHeader
             title={`Results${data ? ` · ${data.total}` : ''}`}
             description="Select a row to open its trace."
@@ -230,12 +204,11 @@ function DecisionsView() {
               defaultSort={{ key: 'timestamp', dir: 'desc' }}
               onRowClick={(d) => router.push(`/decisions/${d.id}`)}
               emptyTitle="No decisions match these filters"
-              emptyDescription="Widen the date range or clear a filter."
+              emptyDescription="Remove a filter chip to widen the search."
               caption="Decision search results"
             />
           )}
-        </Card>
-      </div>
+      </Card>
     </PageBody>
   );
 }

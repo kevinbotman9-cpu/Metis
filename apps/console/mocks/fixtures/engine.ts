@@ -156,8 +156,16 @@ export interface GeneratedDecision {
   artifact: ExecArtifact;
 }
 
-/** 60 real executions. Enough for search, filtering and paging to mean something. */
-export const generated: GeneratedDecision[] = Array.from({ length: 60 }, (_, i) => {
+/**
+ * Real executions, at a volume the console has to cope with rather than a
+ * token sample: a virtualised grid, a search that has to narrow something, and
+ * latency percentiles that mean anything all need thousands of rows.
+ *
+ * At ~0.17ms per decision this costs well under a second, paid once at import.
+ */
+const DECISION_COUNT = 5000;
+
+export const generated: GeneratedDecision[] = Array.from({ length: DECISION_COUNT }, (_, i) => {
   const request = buildRequest(i);
   const artifact = LIVE[i % LIVE.length];
   return { trace: execute(artifact, catalogueSnapshot, request), request, artifact };

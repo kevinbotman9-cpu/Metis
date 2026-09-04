@@ -4,13 +4,14 @@
 
 ```
 Integration         6 passed   - author -> compile -> execute -> replay
-Determinism        28 passed   - packages/runtime, the Phase 0 gate
+Determinism        30 passed   - packages/runtime, the Phase 0 gate
 Compiler           40 passed   - packages/compiler
 Unit (Vitest)      38 passed   - apps/console
-E2E (Playwright)   57 passed   - includes 18 axe checks, 0 WCAG 2.2 AA violations
+E2E (Playwright)   65 passed   - includes 18 axe checks, 0 WCAG 2.2 AA violations
 Typecheck          clean
+Lint                0 errors
                   ---
-                   169 tests, one runner
+                   179 tests, one runner
 ```
 
 Legend: **BUILT** = runs, and a test asserts it · **PARTIAL** = usable, with a
@@ -33,7 +34,7 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | `/arbitration` | BUILT | P × V × L × C weight editor; publishing persists and is audited. |
 | `/strategies` | BUILT | Artifact list with compile status per strategy. |
 | `/strategies/[id]` | BUILT | Compiler verdict with remedies, DIR canvas (read-only), node inspector. |
-| `/decisions` | BUILT | 60 decisions, filters, sortable grid. |
+| `/decisions` | BUILT | 5,000 engine-executed decisions in a virtualised grid, unified search with filter chips. |
 | `/decisions/[id]` | BUILT | Real cascade from the engine, score composition, chain hash, replay that re-executes and compares hashes. |
 | `/approvals` | BUILT | Change request queue, agent vs person provenance. |
 | `/approvals/[id]` | BUILT | Diff, bias-gated simulation, approve/reject — applies the diff on approval. |
@@ -52,7 +53,10 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | Persistence | BUILT | In-memory store, process-lifetime. Writes are audited. `POST /api/_test/reset` restores the seed. |
 | Design tokens | BUILT | RGB-channel custom properties. Dark mode is a token swap. |
 | Density | BUILT | compact / comfortable drive row height, padding and type scale. |
-| Data grid | BUILT | Sortable, keyboard-operable rows, responsive column hiding. |
+| Data grid | BUILT | Windowed above 80 rows: 5,000 decisions render ~30 DOM rows. Sortable, keyboard-operable, responsive column hiding. |
+| Search | BUILT | One box with facet suggestions and dismissible chips, replacing a labelled input per parameter. |
+| Breadcrumbs | BUILT | On every detail route, above the title. |
+| Typography | BUILT | Inter, self-hosted by next/font so nothing leaves the machine. |
 | Loading / empty / error / permission-denied | BUILT | Shared primitives on every data surface. |
 | Canvas | PARTIAL | Read-only. Node positions are authored, not laid out — a layout algorithm needs design review. |
 | Dev API | BUILT | `app/api/[...path]/route.ts` over the store. |
@@ -113,6 +117,10 @@ Worth recording, because each was invisible by eye:
 13. **A project reference to a directory that was never created.** The root
     tsconfig referenced `planes/authoring`, which has no tsconfig, breaking any
     tool that walks the reference graph.
+14. **The engine re-hashed the entire catalogue on every decision.** O(catalogue)
+    work in the hot path, and almost all of the 1.5ms per decision was hashing
+    identical data. Memoised on snapshot identity: 0.17ms, 8.6x faster, with a
+    regression test so it cannot come back.
 
 ---
 
@@ -136,6 +144,11 @@ Worth recording, because each was invisible by eye:
 - **Agent activity is fixture data.** No agent is running; the feed shows what the
   autonomy model would record.
 - **One browser.** Playwright runs Chromium only.
+- **Virtualisation assumes uniform row height** within a table, measured from the
+  first row. True for every current grid; a table with variable-height rows would
+  need per-row measurement.
+- **Search facets are fixed per surface.** They map to query parameters the
+  endpoint understands rather than being derived from the data.
 - **No visual regression testing.** axe covers accessibility, not appearance.
 - **Storybook runs on react-vite, not `@storybook/nextjs`.** Storybook 7 could not
   boot at all here: `@storybook/nextjs` resolves `next/config`, which Next.js 16

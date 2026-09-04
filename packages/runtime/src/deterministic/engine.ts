@@ -204,6 +204,25 @@ export function topologicalOrder(artifact: ExecArtifact): ExecNode[] {
  */
 const SERVICE_EXEMPT_THRESHOLD = 50;
 
+/**
+ * The catalogue snapshot hash, memoised per snapshot object.
+ *
+ * Hashing the whole catalogue on every decision is O(catalogue) work in the hot
+ * path: with a few thousand propositions it dominated execution entirely
+ * (1.5ms per decision, almost all of it re-hashing identical data). The
+ * snapshot is immutable for the life of a request batch, so caching on object
+ * identity is safe, and a WeakMap lets the entry go when the snapshot does.
+ */
+const catalogueHashes = new WeakMap<CatalogueSnapshot, string>();
+
+function catalogueHash(catalogue: CatalogueSnapshot): string {
+  const cached = catalogueHashes.get(catalogue);
+  if (cached !== undefined) return cached;
+  const computed = hash(catalogue);
+  catalogueHashes.set(catalogue, computed);
+  return computed;
+}
+
 const KIND_LABEL = {
   eligibility: 'Eligibility',
   applicability: 'Applicability',
@@ -435,7 +454,7 @@ export function execute(
     channel: request.channel,
     placement: request.placement,
     inputSnapshotHash: hash(request.input),
-    catalogueSnapshotHash: hash(catalogue),
+    catalogueSnapshotHash: catalogueHash(catalogue),
     packageVersions: artifact.packageVersions,
     candidateKeys: artifact.candidateKeys,
     eliminations,

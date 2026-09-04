@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { useAuth } from '@/components/auth-provider';
 import {
   PageBody,
@@ -98,9 +99,13 @@ function ChangeRequestDetail({ id }: { id: string }) {
     <PageBody>
       <PageHeader
         breadcrumb={
-          <Link href="/approvals" className="text-label text-accent hover:underline">
-            ← Approvals
-          </Link>
+          <Breadcrumbs
+            items={[
+              { label: 'Governance' },
+              { label: 'Approvals', href: '/approvals' },
+              { label: cr.id },
+            ]}
+          />
         }
         title={
           <span className="flex flex-wrap items-center gap-2">

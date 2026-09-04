@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import {
   PageBody,
   PageHeader,
@@ -93,9 +94,13 @@ function TraceView({ decisionId }: { decisionId: string }) {
     <PageBody>
       <PageHeader
         breadcrumb={
-          <Link href="/decisions" className="text-label text-accent hover:underline">
-            ← Decisions
-          </Link>
+          <Breadcrumbs
+            items={[
+              { label: 'Decisioning' },
+              { label: 'Decisions', href: '/decisions' },
+              { label: trace.id },
+            ]}
+          />
         }
         title={
           <span className="flex items-center gap-2">

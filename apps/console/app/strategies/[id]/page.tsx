@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import {
   PageBody,
   PageHeader,
@@ -197,9 +198,13 @@ function StrategyDetail({ artifactId }: { artifactId: string }) {
     <PageBody>
       <PageHeader
         breadcrumb={
-          <Link href="/strategies" className="text-label text-accent hover:underline">
-            ← Strategies
-          </Link>
+          <Breadcrumbs
+            items={[
+              { label: 'Decisioning' },
+              { label: 'Strategies', href: '/strategies' },
+              { label: artifact.name },
+            ]}
+          />
         }
         title={
           <span className="flex flex-wrap items-center gap-2">

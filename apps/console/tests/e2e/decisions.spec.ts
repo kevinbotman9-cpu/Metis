@@ -19,14 +19,14 @@ test.describe('decision search and trace', () => {
 
     const firstId = await rows.nth(1).locator('td').first().innerText();
     await page.reload();
-    const afterReload = await page.getByRole('row').nth(1).locator('td').first().innerText();
+    const afterReload = await page.locator('tr[data-row]').first().locator('td').first().innerText();
 
     // IDs were once Math.random() at module scope; they changed on every load.
     expect(afterReload).toBe(firstId);
   });
 
   test('opens the trace for the decision that was clicked', async ({ page }) => {
-    const row = page.getByRole('row').nth(1);
+    const row = page.locator('tr[data-row]').first();
     const id = (await row.locator('td').first().innerText()).trim();
     await row.click();
 
@@ -37,7 +37,7 @@ test.describe('decision search and trace', () => {
   test('renders a different trace for a different decision', async ({ page }) => {
     const readTrace = async (rowIndex: number) => {
       await page.goto('/decisions');
-      const row = page.getByRole('row').nth(rowIndex);
+      const row = page.locator('tr[data-row]').nth(rowIndex);
       const id = (await row.locator('td').first().innerText()).trim();
       await row.click();
       await expect(page.getByRole('heading', { level: 1 })).toContainText(id);
@@ -45,8 +45,8 @@ test.describe('decision search and trace', () => {
       return { id, customer };
     };
 
-    const first = await readTrace(1);
-    const second = await readTrace(2);
+    const first = await readTrace(0);
+    const second = await readTrace(1);
 
     expect(second.id).not.toBe(first.id);
     // The whole bug: two decisions showing identical content.
@@ -54,7 +54,7 @@ test.describe('decision search and trace', () => {
   });
 
   test('replays a decision and reports it identical', async ({ page }) => {
-    await page.getByRole('row').nth(1).click();
+    await page.locator('tr[data-row]').first().click();
 
     // The chain hash shown on the trace is what a replay has to reproduce.
     const storedHash = (await page.getByText(/^[0-9a-f]{64}$/).first().innerText()).trim();
@@ -71,7 +71,7 @@ test.describe('decision search and trace', () => {
   });
 
   test('shows the chain hash as the evidence behind the decision id', async ({ page }) => {
-    const row = page.getByRole('row').nth(1);
+    const row = page.locator('tr[data-row]').first();
     const id = (await row.locator('td').first().innerText()).trim();
     await row.click();
 
@@ -83,7 +83,7 @@ test.describe('decision search and trace', () => {
   });
 
   test('switches the trace audience', async ({ page }) => {
-    await page.getByRole('row').nth(1).click();
+    await page.locator('tr[data-row]').first().click();
 
     await page.getByRole('button', { name: 'Regulator' }).click();
     await expect(page.getByRole('button', { name: 'Regulator' })).toHaveAttribute(
@@ -99,12 +99,15 @@ test.describe('decision search and trace', () => {
   });
 
   test('filters to suppressed decisions and shows why nothing went out', async ({ page }) => {
-    await page.getByLabel('Outcome').selectOption('suppressed');
+    const box = page.getByRole('combobox', { name: 'Search and filter' });
+    await box.fill('outcome:suppressed');
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Outcome: Suppressed')).toBeVisible();
 
-    const firstOutcome = page.getByRole('row').nth(1).getByText('no offer');
-    await expect(firstOutcome).toBeVisible();
+    const firstRow = page.locator('tr[data-row]').first();
+    await expect(firstRow.getByText('no offer')).toBeVisible();
 
-    await page.getByRole('row').nth(1).click();
+    await firstRow.click();
     await expect(page.getByRole('heading', { level: 1 })).toContainText('no offer');
     await expect(page.getByText(/decision returned no offer/)).toBeVisible();
   });
@@ -112,7 +115,7 @@ test.describe('decision search and trace', () => {
   test('sorts by latency', async ({ page }) => {
     await page.getByRole('button', { name: /Latency/ }).click();
     const cells = await page
-      .getByRole('row')
+      .locator('tr[data-row]')
       .locator('td:last-child')
       .allInnerTexts();
     const values = cells.map((c) => parseFloat(c));

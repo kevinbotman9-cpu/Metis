@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import {
   PageBody,
   PageHeader,
@@ -124,9 +125,13 @@ function PropositionDetail({ propositionId }: { propositionId: string }) {
     <PageBody>
       <PageHeader
         breadcrumb={
-          <Link href="/propositions" className="text-label text-accent hover:underline">
-            ← Propositions
-          </Link>
+          <Breadcrumbs
+            items={[
+              { label: 'Offers' },
+              { label: 'Propositions', href: '/propositions' },
+              { label: p.name },
+            ]}
+          />
         }
         title={
           <span className="flex flex-wrap items-center gap-2">

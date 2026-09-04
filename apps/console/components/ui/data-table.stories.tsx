@@ -97,3 +97,21 @@ export const Empty: Story = {
     emptyDescription: 'Widen the date range or clear a filter.',
   },
 };
+
+/**
+ * Above the virtualisation threshold only the visible window is in the DOM,
+ * so the grid stays responsive at the volumes the decision store reaches.
+ */
+export const Virtualised: Story = {
+  args: {
+    ...Default.args,
+    rows: Array.from({ length: 5000 }, (_, i) => ({
+      id: `dec_${i.toString(16).padStart(16, '0')}`,
+      customer: `cust_${(880000 + i * 137).toString(36)}`,
+      channel: ['web', 'email', 'sms', 'push', 'outbound_call'][i % 5],
+      winner: i % 3 === 0 ? null : ['upsell_5g', 'acq_fibre_900', 'retention_offer'][i % 3],
+      latency: Number((5 + (i % 200) / 10).toFixed(1)),
+    })),
+    onRowClick: undefined,
+  },
+};
