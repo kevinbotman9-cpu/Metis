@@ -13,6 +13,17 @@
 
 export { execute, replay, diff, topologicalOrder } from './deterministic/engine';
 export { canonicalise, hash, shortHash, seededUnitInterval } from './deterministic/canonical';
+export {
+  resolveInputs,
+  requiredConnectors,
+  IntegrationError,
+} from './integration/resolve';
+export type {
+  IntegrationGateway,
+  IntegrationCache,
+  ResolutionContext,
+  ResolvedInput,
+} from './integration/resolve';
 export type {
   ExecArtifact,
   ExecNode,

@@ -441,3 +441,100 @@ export function formatMoney(m: Money): string {
   const symbol = m.currency === 'GBP' ? '£' : m.currency === 'USD' ? '$' : '€';
   return `${symbol}${(m.amount / 100).toFixed(2)}`;
 }
+
+// ---------------------------------------------------------------------------
+// Integrations
+//
+// A connector is a configured route to data the platform does not hold. Once
+// configured it is used at decision time: a strategy's source node names the
+// connectors it needs, resolution fetches them before execution, and the values
+// land in the request input that the engine hashes.
+//
+// The ordering matters and is the whole design. Integrations are I/O, and I/O
+// is not reproducible: the bureau that answered in 40ms today may be down in
+// six months, and it will certainly not return the same credit score. So they
+// run *outside* the deterministic core. What the core sees is a snapshot, which
+// it hashes into `inputSnapshotHash`. Replay never calls a connector; it
+// replays against the recorded snapshot. That is what makes an integrated
+// decision as reproducible as one with no integrations at all.
+// ---------------------------------------------------------------------------
+
+/** How a connector reaches its data. */
+export type ConnectorKind =
+  /** HTTP call to an external system. */
+  | 'rest'
+  /** Low-latency read from the online feature store. */
+  | 'feature-store'
+  /** Fixed values, for a field the tenant supplies as configuration. */
+  | 'static';
+
+/**
+ * What a connector does when it fails or times out.
+ *
+ * `fail` is the honest default for anything a policy depends on: a decision
+ * made without a field the eligibility rules need is not a decision, it is a
+ * guess. `omit` and `default` exist because some fields genuinely are optional,
+ * but choosing them is a statement that the decision is still valid without the
+ * field, and the trace records that it happened.
+ */
+export type ConnectorFailureMode = 'fail' | 'omit' | 'default';
+
+/** One field this connector supplies, and where it lives in the response. */
+export interface FieldBinding {
+  /**
+   * The name the field takes in the decision input, and therefore the name
+   * policies and score nodes reference.
+   */
+  field: string;
+  /** Dotted path into the connector's response payload. */
+  path: string;
+  type: 'string' | 'number' | 'boolean';
+  /** Used when the connector fails and its failure mode is `default`. */
+  defaultValue?: string | number | boolean;
+}
+
+export interface Connector {
+  id: string;
+  name: string;
+  kind: ConnectorKind;
+  description: string;
+  /** Endpoint, feature-store namespace, or empty for `static`. */
+  target: string;
+  /**
+   * Declared p95, in milliseconds.
+   *
+   * Not measured — declared, by whoever configured the connector. The compiler
+   * adds it to the critical path, so a 200ms bureau call fails compilation
+   * against a 50ms budget rather than failing in production at 3am. If the
+   * declaration is a lie, the budget is a lie, and that is a conversation to
+   * have with the integration owner at design time.
+   */
+  declaredP95Ms: number;
+  timeoutMs: number;
+  onFailure: ConnectorFailureMode;
+  /** 0 disables caching. Caching is a measured concern, never a hashed one. */
+  cacheTtlSeconds: number;
+  provides: FieldBinding[];
+  active: boolean;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+/** Which connector was configured to supply a field. Reproducible. */
+export interface SourceBinding {
+  field: string;
+  connectorId: string;
+  nodeId: string;
+}
+
+/** What actually happened on the wire. Measured, never hashed. */
+export interface SourceCall {
+  connectorId: string;
+  ms: number;
+  cacheHit: boolean;
+  outcome: 'ok' | 'timeout' | 'error' | 'skipped';
+  /** Fields this call put into the input. */
+  fields: string[];
+  /** Present when the call did not succeed. */
+  detail?: string;
+}

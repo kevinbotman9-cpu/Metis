@@ -20,6 +20,7 @@ import type {
   PolicyCondition,
   Lever,
   PolicyScope,
+  SourceBinding,
 } from '@metis/core/domain';
 import { canonicalise, hash, seededUnitInterval } from './canonical';
 import type {
@@ -239,6 +240,8 @@ export function execute(
 
   const byKey = new Map(catalogue.propositions.map((p) => [p.key, p]));
   const policyById = new Map(catalogue.engagementPolicies.map((p) => [p.id, p]));
+  const connectorById = new Map((catalogue.connectors ?? []).map((c) => [c.id, c]));
+  const sourceBindings: SourceBinding[] = [];
 
   // Initial candidate set, in artifact order so it is reproducible.
   let candidates: Proposition[] = artifact.candidateKeys
@@ -269,16 +272,39 @@ export function execute(
 
     switch (node.type) {
       case 'source': {
+        // Record which connector was configured to supply which field. The
+        // engine does not fetch anything: `resolveInputs` already ran, outside
+        // the deterministic core, and the values are in request.input. This is
+        // provenance, derived from the artifact and the catalogue, and it is
+        // reproducible for exactly that reason.
+        for (const connectorId of node.connectorIds ?? []) {
+          const connector = connectorById.get(connectorId);
+          if (!connector || !connector.active) continue;
+          for (const binding of connector.provides) {
+            if (!(binding.field in request.input)) continue;
+            sourceBindings.push({ field: binding.field, connectorId, nodeId: node.id });
+          }
+        }
+
         // Validity and status are intrinsic to the candidate set: a retired or
         // out-of-window proposition was never really a candidate.
         candidates = before.filter(
           (p) => p.status === 'active' && withinValidity(p, request.occurredAt)
         );
+
+        const sourced = node.connectorIds?.length
+          ? ` Fields from ${node.connectorIds.length} connector(s): ${sourceBindings
+              .filter((b) => b.nodeId === node.id)
+              .map((b) => b.field)
+              .join(', ') || 'none resolved'}.`
+          : '';
+
         record(
           node,
-          candidates.length === before.length
+          (candidates.length === before.length
             ? `Loaded profile for ${request.customerId}. All ${before.length} candidates are active and in their validity window.`
-            : `Loaded profile for ${request.customerId}. Removed ${before.length - candidates.length} candidate(s) that were retired, paused or outside their validity window.`,
+            : `Loaded profile for ${request.customerId}. Removed ${before.length - candidates.length} candidate(s) that were retired, paused or outside their validity window.`) +
+            sourced,
           before,
           candidates
         );
@@ -455,6 +481,12 @@ export function execute(
     placement: request.placement,
     inputSnapshotHash: hash(request.input),
     catalogueSnapshotHash: catalogueHash(catalogue),
+    sourceBindings: [...sourceBindings].sort(
+      (a, b) =>
+        a.field.localeCompare(b.field) ||
+        a.connectorId.localeCompare(b.connectorId) ||
+        a.nodeId.localeCompare(b.nodeId)
+    ),
     packageVersions: artifact.packageVersions,
     candidateKeys: artifact.candidateKeys,
     eliminations,

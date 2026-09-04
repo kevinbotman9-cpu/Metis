@@ -23,6 +23,7 @@ import type {
   ContactPolicy,
   ArbitrationConfig,
   PolicyScope,
+  Connector,
 } from '@metis/core/domain';
 import {
   type Diagnostic,
@@ -52,6 +53,8 @@ export interface StrategyNode {
   label: string;
   policyIds?: string[];
   model?: { id: string; version: string };
+  /** Connectors a source node draws on. Their latency joins the critical path. */
+  connectorIds?: string[];
   /** Worst-case contribution to latency, in milliseconds. */
   estimatedMs: number;
 }
@@ -86,6 +89,19 @@ export interface CompileContext {
    * than guessed at.
    */
   knownScopeTargets?: { issues: string[]; groups: string[] };
+  /**
+   * Configured integrations. Omitted means the tenant has none, and a strategy
+   * naming a connector is then rejected rather than assumed to be fine.
+   */
+  connectors?: Connector[];
+  /**
+   * Fields the caller guarantees on every request, e.g. the channel and
+   * placement an inbound integration always sends.
+   *
+   * Omitted disables the UNRESOLVED_FIELD check entirely rather than guessing:
+   * a check that fires on every strategy is one nobody reads.
+   */
+  requestFields?: string[];
   tenant: { id: string; latencyBudgetMs: number; maxNodes: number };
 }
 
@@ -173,14 +189,34 @@ function hasCycle(source: StrategySource, g: Graph): boolean {
 }
 
 /** Longest path to each node, following the DAG. Branches run in parallel. */
-function criticalPath(source: StrategySource, g: Graph): number {
+/**
+ * What a node costs, including the integrations it waits on.
+ *
+ * Connectors on one node are fetched concurrently, so the node waits for the
+ * slowest rather than the sum — the same assumption `resolveInputs` makes when
+ * it runs them through Promise.all. Getting this wrong in either direction
+ * matters: summing would reject strategies that are actually fine, and ignoring
+ * connectors entirely would let a 180ms bureau call through a 50ms budget and
+ * fail in production instead.
+ */
+function nodeCost(node: StrategyNode | undefined, connectors: Map<string, Connector>): number {
+  if (!node) return 0;
+  const own = node.estimatedMs ?? 0;
+  const attached = (node.connectorIds ?? [])
+    .map((id) => connectors.get(id))
+    .filter((c): c is Connector => Boolean(c) && c!.active)
+    .map((c) => c.declaredP95Ms);
+  return own + (attached.length > 0 ? Math.max(...attached) : 0);
+}
+
+function criticalPath(source: StrategySource, g: Graph, connectors: Map<string, Connector>): number {
   const memo = new Map<string, number>();
   const cost = (id: string): number => {
     const cached = memo.get(id);
     if (cached !== undefined) return cached;
     // Guard against being called on a cyclic graph.
     memo.set(id, 0);
-    const self = g.byId.get(id)?.estimatedMs ?? 0;
+    const self = nodeCost(g.byId.get(id), connectors);
     const next = g.outgoing.get(id) ?? [];
     const total = self + (next.length > 0 ? Math.max(...next.map(cost)) : 0);
     memo.set(id, total);
@@ -256,6 +292,7 @@ export function compileStrategy(
 
   const propositionByKey = new Map(ctx.propositions.map((p) => [p.key, p]));
   const policyIds = new Set(ctx.engagementPolicies.map((p) => p.id));
+  const connectorLookup = new Map((ctx.connectors ?? []).map((c) => [c.id, c]));
 
   // --- Structure ---------------------------------------------------------
 
@@ -376,6 +413,53 @@ export function compileStrategy(
             `Node '${n.id}' references engagement policy '${id}', which does not exist.` +
               didYouMean(id, policyIds),
             'Reference an existing policy, or create it first.',
+            n.id
+          )
+        );
+      }
+    }
+
+    // --- Integrations ----------------------------------------------------
+    for (const id of n.connectorIds ?? []) {
+      const connector = connectorLookup.get(id);
+      if (!connector) {
+        d.push(
+          error(
+            'UNKNOWN_CONNECTOR',
+            `Node '${n.id}' names connector '${id}', which is not configured.` +
+              didYouMean(id, new Set(connectorLookup.keys())),
+            'Configure the integration first, or the fields it supplies will be missing at decision time.',
+            n.id
+          )
+        );
+        continue;
+      }
+      if (!connector.active) {
+        d.push(
+          warning(
+            'CONNECTOR_INACTIVE',
+            `Node '${n.id}' names connector '${connector.name}', which is configured but not active.`,
+            'Its fields will be absent, and any policy depending on them will not evaluate. Activate it or remove the reference.',
+            n.id
+          )
+        );
+      }
+      if (connector.declaredP95Ms > ctx.tenant.latencyBudgetMs) {
+        d.push(
+          error(
+            'CONNECTOR_EXCEEDS_BUDGET',
+            `Connector '${connector.name}' declares a p95 of ${connector.declaredP95Ms}ms, which alone exceeds the ${ctx.tenant.latencyBudgetMs}ms budget.`,
+            'No strategy can call this synchronously and stay inside the budget. Pre-compute the field, cache it, or raise the budget.',
+            n.id
+          )
+        );
+      }
+      if (connector.onFailure === 'fail' && connector.cacheTtlSeconds === 0) {
+        d.push(
+          warning(
+            'CONNECTOR_NO_FALLBACK',
+            `Connector '${connector.name}' fails the decision on error and caches nothing.`,
+            'Every outage becomes a decision outage. Consider a cache TTL, or a default for the fields it supplies.',
             n.id
           )
         );
@@ -523,11 +607,88 @@ export function compileStrategy(
     }
   }
 
+  // --- Fields ------------------------------------------------------------
+
+  // The check integrations exist for: a policy reading `creditScore` when no
+  // connector supplies it and no caller promises it will never fire, and the
+  // engine cannot tell "the rule failed" from "the field was never there".
+  // Numeric comparisons on a missing value are false, so the offer is silently
+  // suppressed for every customer and nothing looks broken.
+  {
+    const suppliedFields = new Set<string>();
+    for (const n of source.nodes) {
+      for (const id of n.connectorIds ?? []) {
+        const connector = connectorLookup.get(id);
+        if (!connector?.active) continue;
+        for (const b of connector.provides) suppliedFields.add(b.field);
+      }
+    }
+
+    // Fields the caller always supplies on the request. Declared per tenant,
+    // because the console and an inbound channel promise different things.
+    for (const f of ctx.requestFields ?? []) suppliedFields.add(f);
+
+    // Two connectors claiming the same field is ambiguous: which value wins
+    // depends on resolution order, and a decision that depends on that is not
+    // reproducible in any useful sense.
+    const claims = new Map<string, string[]>();
+    for (const n of source.nodes) {
+      for (const id of n.connectorIds ?? []) {
+        const connector = connectorLookup.get(id);
+        if (!connector?.active) continue;
+        for (const b of connector.provides) {
+          claims.set(b.field, [...(claims.get(b.field) ?? []), connector.name]);
+        }
+      }
+    }
+    for (const [field, owners] of [...claims.entries()].sort()) {
+      if (owners.length > 1) {
+        d.push(
+          error(
+            'FIELD_SUPPLIED_TWICE',
+            `Field '${field}' is supplied by ${owners.length} connectors: ${owners.sort().join(', ')}.`,
+            'Which value wins would depend on which call returned first. Remove one binding.'
+          )
+        );
+      }
+    }
+
+    // Only checked when the tenant has told us what the caller supplies;
+    // otherwise every field would look unresolved and the diagnostic would be
+    // noise, which is how a useful check gets ignored.
+    if (ctx.requestFields) {
+      const referenced = new Map<string, string>();
+      for (const n of source.nodes) {
+        for (const id of n.policyIds ?? []) {
+          const policy = ctx.engagementPolicies.find((p) => p.id === id);
+          for (const c of policy?.conditions ?? []) {
+            // Only the root of a dotted path can be supplied by a connector.
+            referenced.set(c.field.split('.')[0], n.id);
+          }
+        }
+      }
+      for (const [field, nodeId] of [...referenced.entries()].sort()) {
+        if (!suppliedFields.has(field)) {
+          d.push(
+            error(
+              'UNRESOLVED_FIELD',
+              `Policies on node '${nodeId}' read '${field}', which no connector supplies and the caller does not promise.` +
+                didYouMean(field, suppliedFields),
+              'A missing field fails every comparison silently, so the rule suppresses everything and looks like it is working.',
+              nodeId
+            )
+          );
+        }
+      }
+    }
+  }
+
   // --- Cost --------------------------------------------------------------
 
-  const pathMs = cyclic ? 0 : Number(criticalPath(source, g).toFixed(3));
+  const connectorById = new Map((ctx.connectors ?? []).map((c) => [c.id, c]));
+  const pathMs = cyclic ? 0 : Number(criticalPath(source, g, connectorById).toFixed(3));
   const worstCaseMs = Number(
-    source.nodes.reduce((sum, n) => sum + n.estimatedMs, 0).toFixed(3)
+    source.nodes.reduce((sum, n) => sum + nodeCost(n, connectorById), 0).toFixed(3)
   );
   const modelInvocations = source.nodes
     .filter((n) => SCORE_TYPES.includes(n.type) && n.model)

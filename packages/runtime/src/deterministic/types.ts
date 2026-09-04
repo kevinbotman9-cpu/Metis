@@ -19,6 +19,9 @@ import type {
   ContactPolicy,
   ArbitrationConfig,
   Lever,
+  Connector,
+  SourceBinding,
+  SourceCall,
 } from '@metis/core/domain';
 
 /** Node kinds the engine can execute. Mirrors what the canvas renders. */
@@ -42,6 +45,15 @@ export interface ExecNode {
   model?: { id: string; version: string };
   /** Contact policies this node enforces, for constraint nodes. */
   contactPolicyIds?: string[];
+  /**
+   * Connectors this node draws on, for source nodes.
+   *
+   * The engine never calls them - `resolveInputs` does, before execution, and
+   * the values arrive in `request.input`. What the engine does with these is
+   * record which connector was configured to supply which field, so the trace
+   * can answer "where did this credit score come from".
+   */
+  connectorIds?: string[];
 }
 
 export interface ExecEdge {
@@ -74,6 +86,15 @@ export interface CatalogueSnapshot {
   contactPolicies: ContactPolicy[];
   arbitration: ArbitrationConfig;
   levers: Lever[];
+  /**
+   * Configured integrations.
+   *
+   * Part of the snapshot, and therefore part of the catalogue hash: changing a
+   * connector's field mapping changes what decisions see, so it has to change
+   * the hash too. A connector list that lived outside the snapshot would let
+   * the same hash describe two different decisions.
+   */
+  connectors: Connector[];
 }
 
 export interface DecisionRequest {
@@ -122,6 +143,20 @@ export interface DeterministicDecision {
   placement: string;
   inputSnapshotHash: string;
   catalogueSnapshotHash: string;
+  /**
+   * Which connector was configured to supply which input field.
+   *
+   * Reproducible, so it belongs in the hashed half: it is derived from the
+   * artifact and the catalogue snapshot, both already pinned. It is redundant
+   * in the strict sense and kept anyway, because "the credit score came from
+   * the bureau connector, at this node" is precisely the question a compliance
+   * officer asks, and reconstructing it from two other hashes is not an answer.
+   *
+   * The *values* are not here. They are in the input snapshot, which is hashed
+   * but never stored, so a trace can be kept without keeping the customer data
+   * it was made from.
+   */
+  sourceBindings: SourceBinding[];
   packageVersions: Record<string, string>;
   candidateKeys: string[];
   eliminations: EliminationStep[];
@@ -138,6 +173,17 @@ export interface Measurements {
   timingsByNode: Record<string, number>;
   totalMs: number;
   executedAt: string;
+  /**
+   * What the integrations actually did: latency, cache hits, failures.
+   *
+   * Measured by definition, and so kept well away from the hash. Whether the
+   * bureau answered from cache in 2ms or from the wire in 180ms changes nothing
+   * about what was decided, and a replay six months later must not be judged
+   * against today's cache state.
+   *
+   * Absent on a replayed trace, because replay calls no connectors.
+   */
+  sourceCalls?: SourceCall[];
 }
 
 export interface DecisionTrace {
