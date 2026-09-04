@@ -62,6 +62,12 @@ jobs:
         run: npm run test:compiler
         working-directory: .
 
+      # Nothing that fails to compile can enter the registry, so nothing that
+      # fails to compile can be promoted to an environment.
+      - name: Registry
+        run: npm run test:registry
+        working-directory: .
+
       # The Phase 0 performance gate, which the plan says runs on every commit
       # and until now ran nowhere: the harness had no script, no test and no
       # step, and measured a 0.17ms operation with Date.now().

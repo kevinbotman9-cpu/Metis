@@ -50,16 +50,8 @@ test by their `proposed` marker. Nothing serves them.
 
 | Operation | Console impact | Registered | Notes |
 |---|---|---|---|
-| `publishArtifact` | Publishing a compiled strategy | Week 1 | Registry exists as an in-memory class in `planes/execution/src/registry.ts` with no HTTP layer and no tests. |
-| `getArtifact` | Fetching an immutable compiled artifact | Week 1 | Distinct from `getArtifactSummary`, which is what the console reads today. |
-| `listVersions` | Version history | Week 1 | |
-| `promoteVersion` | Blue/green promotion | Week 1 | |
-| `rollbackVersion` | One-click rollback | Week 1 | The demo claim "one click rolls back instantly" is not yet true. |
-| `getRegistryAuditLog` | Publish and promotion history per strategy | Week 1 | Separate from `/audit`, which is the console's own append-only log and *is* built. |
 | `simulateStrategy` | Ad-hoc simulation | Week 2 | `/simulations` says plainly that this is not built and shows only simulations attached to change requests. |
 | `getCounterfactual` | "What would have changed the outcome" | Week 2 | No UI yet. |
-
----
 
 ## Resolved
 
@@ -78,6 +70,9 @@ test by their `proposed` marker. Nothing serves them.
 | `listAgentActivity` | 2026-09-04 | Fixture data — no agent is running. The *shape* is real; the activity is not. |
 | `listChangeRequests`, `listAuditEvents`, `listArtifacts`, `getArtifactSummary` | 2026-09-04 | These were **served but missing from the spec entirely** until the contract work. |
 | `login` / `getSession` | 2026-09-04 | Development identity only. No real identity provider. |
+| `publishArtifact`, `promoteVersion`, `rollbackVersion` | 2026-09-04 | The artifact registry. Publishing compiles first and refuses errors; publishing does not activate; versions are immutable. |
+| `getRegistryEntry`, `listRegistryStrategies`, `listRegistryEvents` | 2026-09-04 | Versions, environment state, and the append-only log including refusals. |
+| `executeDecision` | 2026-09-04 | Served by two implementations — the console's development store and the JVM service — held to the same 60 chain hashes. |
 
 **Caveat that applies to every row above.** "Resolved" means the console has a
 working endpoint with an enforced contract. It is served by
@@ -156,10 +151,13 @@ When it does, the contract is already written and the tests already exist.
 
 ## Notes for Platform Team
 
-1. **The artifact registry** is the highest-value gap. Compilation is not enforced on publish
-   today — the console shows the compiler's verdict but nothing blocks promoting a strategy
-   that fails to compile. That gate belongs in the registry.
-2. **Simulation + counterfactual** (Week 2–3) unblocks ad-hoc simulation and the architect personas.
+1. **Durable storage for the registry.** `packages/registry` enforces the rules — compilation
+   on publish, immutable versions, publish separate from promote, an append-only log — behind a
+   `RegistryStore` interface with one in-memory implementation. Until a PostgreSQL one exists,
+   the immutability guarantee holds only for the life of a process.
+2. **An authoring surface.** Versions are published through the API; the console can promote and
+   roll back but cannot draft a new version. The registry is ahead of the editor.
+3. **Simulation + counterfactual** (Week 2–3) unblocks ad-hoc simulation and the architect personas.
 4. **Persona surfaces** (Week 4+) can run in parallel once U1–U3 are stable.
 5. **Every gap entry should have an operationId in the spec** so the console can reference it by name, not by description.
 

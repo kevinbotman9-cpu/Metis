@@ -22,6 +22,7 @@ import {
   engagementPolicies,
   contactPolicies,
   arbitrationConfig,
+  connectors,
 } from './catalogue';
 import { artifacts, type ArtifactSummary } from './artifacts';
 
@@ -41,10 +42,18 @@ export const compileContext: CompileContext = {
     issues: issues.map((i) => i.id),
     groups: groups.map((g) => g.id),
   },
+  connectors,
   tenant: { id: 'telco-uk', latencyBudgetMs: 50, maxNodes: 100 },
 };
 
-function toSource(a: ArtifactSummary): StrategySource {
+/**
+ * A strategy as authored, from the console's view of it.
+ *
+ * Exported because the registry publishes from this shape: what the console
+ * shows and what the registry compiles must be the same source, or the
+ * compiler's verdict on screen is about something else.
+ */
+export function toSource(a: ArtifactSummary): StrategySource {
   return {
     id: a.id,
     version: a.activeVersion,
@@ -57,6 +66,9 @@ function toSource(a: ArtifactSummary): StrategySource {
       label: n.label,
       policyIds: n.policyIds,
       model: n.model,
+      // Connector latency joins the critical path, so a source without this
+      // compiles against a budget that ignores its integrations.
+      connectorIds: n.connectorIds,
       estimatedMs: n.estimatedMs,
     })),
     edges: a.edges.map((e) => ({ from: e.source, to: e.target })),

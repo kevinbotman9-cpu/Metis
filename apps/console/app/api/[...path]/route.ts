@@ -17,7 +17,8 @@ import { NextResponse } from 'next/server';
 import { store, resetStore, recordAudit } from '@/mocks/store';
 import { findTrace, decisions } from '@/mocks/fixtures/decisions';
 import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
-import { compilations, findCompilation } from '@/mocks/fixtures/compiled';
+import { compilations, findCompilation, compileContext } from '@/mocks/fixtures/compiled';
+import type { StrategySource } from '@metis/compiler/strategy';
 import {
   replay as replayDecision,
   execute as executeDecision,
@@ -213,6 +214,36 @@ export async function GET(req: Request, { params }: Ctx) {
       return json({ connectors: store.connectors });
     }
 
+    case 'registry': {
+      const tenantId = rest[0];
+      if (!tenantId) return notFound();
+
+      // GET /registry/{tenant}/events
+      if (rest[1] === 'events') {
+        return json({
+          events: store.registry.events({
+            tenantId,
+            strategyName: q.get('strategyName') ?? undefined,
+            limit: Number(q.get('limit') || 100),
+          }),
+        });
+      }
+
+      // GET /registry/{tenant}/{strategy}
+      if (rest[1]) {
+        const versions = store.registry.versions(tenantId, rest[1]);
+        if (versions.length === 0) return notFound(`No strategy ${rest[1]} in the registry`);
+        return json({
+          strategyName: rest[1],
+          versions,
+          environments: store.registry.environments(tenantId, rest[1]),
+        });
+      }
+
+      // GET /registry/{tenant}
+      return json({ strategies: store.registry.strategies(tenantId) });
+    }
+
     case 'artifacts': {
       if (rest[1]) {
         const artifact = store.artifacts.find((a) => a.id === rest[1]);
@@ -404,6 +435,112 @@ export async function POST(req: Request, { params }: Ctx) {
     }
 
     // Test-only: restore seed state between E2E specs.
+    case 'registry': {
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+
+      const tenantId = rest[0];
+      const strategyName = rest[1];
+      if (!tenantId || !strategyName) return notFound();
+
+      // POST /registry/{tenant}/{strategy}/promote
+      if (rest[2] === 'promote' || rest[2] === 'rollback') {
+        if (!user.permissions.includes('promote:strategies')) {
+          return forbidden('promote:strategies');
+        }
+        const body = (await req.json().catch(() => ({}))) as {
+          version?: string;
+          environment?: string;
+        };
+        if (!body.environment) {
+          return json({ error: 'bad_request', message: 'Missing required field: environment' }, 400);
+        }
+
+        try {
+          const state =
+            rest[2] === 'promote'
+              ? store.registry.promote(
+                  tenantId,
+                  strategyName,
+                  body.version ?? '',
+                  body.environment,
+                  user.email,
+                  new Date().toISOString()
+                )
+              : store.registry.rollback(
+                  tenantId,
+                  strategyName,
+                  body.environment,
+                  user.email,
+                  new Date().toISOString()
+                );
+
+          recordAudit({
+            actor: user.email,
+            actorType: 'human',
+            eventType: rest[2] === 'promote' ? 'VersionPromoted' : 'VersionRolledBack',
+            scope: `strategy:${strategyName}`,
+            summary:
+              rest[2] === 'promote'
+                ? `Promoted ${strategyName} ${body.version} to ${body.environment}`
+                : `Rolled ${strategyName} in ${body.environment} back to ${state.activeVersion}`,
+            changeRequestId: null,
+          });
+
+          return json(state);
+        } catch (e) {
+          const err = e as { code?: string; message?: string };
+          // A version that was never published is a 404; everything else the
+          // registry refuses is a conflict with the current state.
+          const status = err.code === 'UNKNOWN_VERSION' ? 404 : 409;
+          return json({ error: err.code ?? 'registry_error', message: err.message }, status);
+        }
+      }
+
+      // POST /registry/{tenant}/{strategy} — publish
+      if (!user.permissions.includes('publish:strategies')) {
+        return forbidden('publish:strategies');
+      }
+      const body = (await req.json().catch(() => ({}))) as {
+        version?: string;
+        source?: StrategySource;
+      };
+      if (!body.version) {
+        return json({ error: 'bad_request', message: 'Missing required field: version' }, 400);
+      }
+      if (!body.source) {
+        return json({ error: 'bad_request', message: 'Missing required field: source' }, 400);
+      }
+
+      const outcome = store.registry.publish(
+        {
+          tenantId,
+          strategyName,
+          version: body.version,
+          source: body.source,
+          actor: user.email,
+          occurredAt: new Date().toISOString(),
+        },
+        compileContext
+      );
+
+      if (outcome.status !== 'rejected') {
+        recordAudit({
+          actor: user.email,
+          actorType: 'human',
+          eventType: 'ArtifactPublished',
+          scope: `strategy:${strategyName}`,
+          summary: `${outcome.status === 'published' ? 'Published' : 'Republished (unchanged)'} ${strategyName} ${body.version}`,
+          changeRequestId: null,
+        });
+      }
+
+      // 409, not 400: the request was well-formed and the registry refused it
+      // on its own rules. A caller retrying the identical payload gets the
+      // identical answer, which 4xx-with-a-body is the right shape for.
+      return json(outcome, outcome.status === 'rejected' ? 409 : 201);
+    }
+
     case '_test': {
       if (rest[0] !== 'reset') return notFound();
       if (process.env.NODE_ENV === 'production') return notFound();

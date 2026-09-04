@@ -18,49 +18,51 @@ servers:
 
 components:
   schemas:
-    CompiledArtifact:
+    CompiledStrategy:
       type: object
+      description: |
+        What the compiler emits. Distinct from ArtifactSummary, which is how the
+        console renders a strategy: this is the immutable, executable form the
+        registry stores and the engine runs.
+      required:
+        [id, version, tenantId, nodes, edges, candidateKeys, packageVersions,
+         costManifest, artifactHash, compiledAt]
       properties:
         id:
           type: string
-          description: Artifact ID
         version:
           type: string
-          description: Semantic version
-        metadata:
-          type: object
-          properties:
-            id:
-              type: string
-            version:
-              type: string
-            tenantId:
-              type: string
-            createdAt:
-              type: string
-              format: date-time
-            createdBy:
-              type: string
-            signature:
-              type: string
-        dirSchema:
-          type: object
-          description: Decision Intermediate Representation
-        costManifest:
-          type: object
-          properties:
-            computeNodes:
-              type: integer
-            modelInvocations:
-              type: array
-              items:
-                type: string
-            externalCalls:
-              type: integer
-            estimatedP95LatencyMs:
-              type: number
-        signature:
+        tenantId:
           type: string
+        nodes:
+          type: array
+          items:
+            type: object
+        edges:
+          type: array
+          items:
+            type: object
+        candidateKeys:
+          type: array
+          items:
+            type: string
+        packageVersions:
+          type: object
+          description: Exact versions, locked at compile time so a replay is reproducible.
+          additionalProperties:
+            type: string
+        costManifest:
+          $ref: '#/components/schemas/CostManifest'
+        artifactHash:
+          type: string
+          description: |
+            sha256 over everything above. Excludes compiledAt, so two
+            compilations of the same source produce the same hash - which is
+            what lets the registry treat a republish as a no-op.
+        compiledAt:
+          type: string
+          format: date-time
+          description: Metadata, not part of the hash.
 
     Money:
       type: object
@@ -972,6 +974,111 @@ components:
           type: string
         label:
           type: string
+
+    PublishedVersion:
+      type: object
+      description: One immutable version in the registry.
+      required: [strategyName, version, artifact, publishedAt, publishedBy, warnings]
+      properties:
+        strategyName:
+          type: string
+        version:
+          type: string
+        artifact:
+          $ref: '#/components/schemas/CompiledStrategy'
+        publishedAt:
+          type: string
+          format: date-time
+        publishedBy:
+          type: string
+        warnings:
+          type: array
+          description: |
+            Kept with the version rather than discarded on success. A strategy
+            that published near its latency budget is a different thing to
+            explain in six months than one that published clean.
+          items:
+            $ref: '#/components/schemas/Diagnostic'
+
+    EnvironmentState:
+      type: object
+      description: What an environment is running, and what rollback returns to.
+      required: [environment, activeVersion, previousVersion, promotedAt, promotedBy]
+      properties:
+        environment:
+          type: string
+        activeVersion:
+          type: [string, 'null']
+        previousVersion:
+          type: [string, 'null']
+          description: Null when there is nothing to roll back to.
+        promotedAt:
+          type: [string, 'null']
+        promotedBy:
+          type: [string, 'null']
+
+    PublishOutcome:
+      type: object
+      description: |
+        The result of a publish. `published` stored a new version, `unchanged`
+        found byte-identical content already there, and `rejected` stored
+        nothing - either the strategy did not compile, or the version already
+        holds different content.
+      required: [status, diagnostics]
+      properties:
+        status:
+          type: string
+          enum: [published, unchanged, rejected]
+        reason:
+          type: string
+          enum: [compilation, immutable]
+          description: Present when status is `rejected`.
+        artifact:
+          oneOf:
+            - $ref: '#/components/schemas/CompiledStrategy'
+            - type: 'null'
+        diagnostics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Diagnostic'
+        existingHash:
+          type: string
+          description: Present when refused as immutable.
+        attemptedHash:
+          type: string
+          description: Present when refused as immutable.
+
+    RegistryEvent:
+      type: object
+      description: One entry in the registry's append-only log.
+      required: [seq, at, actor, type, tenantId, strategyName, version, summary]
+      properties:
+        seq:
+          type: integer
+          description: Monotonic. The order is a fact, not a sort key.
+        at:
+          type: string
+          format: date-time
+        actor:
+          type: string
+        type:
+          type: string
+          enum: [ArtifactPublished, PublishRejected, VersionPromoted, VersionRolledBack]
+        tenantId:
+          type: string
+        strategyName:
+          type: string
+        version:
+          type: string
+        environment:
+          type: string
+        summary:
+          type: string
+        diagnostics:
+          type: array
+          description: Present on PublishRejected.
+          items:
+            $ref: '#/components/schemas/Diagnostic'
 
     FieldBinding:
       type: object
@@ -1949,78 +2056,70 @@ paths:
   # yet, so the contract test skips them by design: it asserts that everything
   # NOT in this section is live, which is what stops the list from rotting.
   # ---------------------------------------------------------------------------
-  /registry/{tenantId}/{strategyName}:
-    post:
-      summary: Publish a compiled artifact version
-      operationId: publishArtifact
-      x-metis-status: proposed
-      parameters:
-        - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/StrategyName'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CompiledArtifact'
-      responses:
-        '201':
-          description: Published
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CompiledArtifact'
-        '400':
-          description: Artifact failed compilation
-
+  /registry/{tenantId}:
     get:
-      summary: Fetch a compiled artifact
-      operationId: getArtifact
-      x-metis-status: proposed
+      summary: Strategies in the registry
+      operationId: listRegistryStrategies
       parameters:
         - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/StrategyName'
-        - name: version
-          in: query
-          schema:
-            type: string
       responses:
         '200':
-          description: The compiled artifact
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CompiledArtifact'
-        '404':
-          description: No such artifact
-
-  /registry/{tenantId}/{strategyName}/versions:
-    get:
-      summary: List published versions
-      operationId: listVersions
-      x-metis-status: proposed
-      parameters:
-        - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/StrategyName'
-      responses:
-        '200':
-          description: Versions, newest first
+          description: Registered strategy names
           content:
             application/json:
               schema:
                 type: object
-                required: [versions]
+                required: [strategies]
                 properties:
-                  versions:
+                  strategies:
                     type: array
                     items:
                       type: string
 
-  /registry/{tenantId}/{strategyName}/promote:
+  /registry/{tenantId}/{strategyName}:
+    get:
+      summary: Published versions and where each is running
+      operationId: getRegistryEntry
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/StrategyName'
+      responses:
+        '200':
+          description: Versions and environment state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [strategyName, versions, environments]
+                properties:
+                  strategyName:
+                    type: string
+                  versions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PublishedVersion'
+                  environments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EnvironmentState'
+        '404':
+          description: No such strategy in the registry
+
     post:
-      summary: Promote a version between environments
-      operationId: promoteVersion
-      x-metis-status: proposed
+      summary: Publish a version
+      description: |
+        Compiles first. A strategy with compilation errors is refused and
+        nothing is stored, so it cannot be promoted and cannot reach execution.
+        The refusal is recorded: an audit that only shows what succeeded cannot
+        answer whether anyone tried to ship something.
+
+        Publishing does not activate. A published version sits in the registry
+        until it is promoted to an environment.
+
+        Republishing byte-identical content under the same version is a no-op
+        and returns `unchanged`. Different content under a published version is
+        refused: a version is bound to an artifact hash.
+      operationId: publishArtifact
       parameters:
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/StrategyName'
@@ -2030,57 +2129,123 @@ paths:
           application/json:
             schema:
               type: object
-              required: [version, to]
+              required: [version, source]
               properties:
                 version:
                   type: string
-                to:
-                  type: string
+                source:
+                  type: object
+                  description: The strategy as authored, before compilation.
       responses:
-        '200':
-          description: Promoted
+        '201':
+          description: Published, or unchanged if the content was already there
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CompiledArtifact'
+                $ref: '#/components/schemas/PublishOutcome'
+        '409':
+          description: Refused - compilation errors, or the version holds different content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishOutcome'
+        '403':
+          description: Caller lacks publish:strategies
 
-  /registry/{tenantId}/{strategyName}/rollback:
+  /registry/{tenantId}/{strategyName}/promote:
     post:
-      summary: Roll back to the previous active version
-      operationId: rollbackVersion
-      x-metis-status: proposed
+      summary: Point an environment at a published version
+      operationId: promoteVersion
       parameters:
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/StrategyName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version, environment]
+              properties:
+                version:
+                  type: string
+                environment:
+                  type: string
+      responses:
+        '200':
+          description: Promoted, and written to the registry log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentState'
+        '404':
+          description: That version was never published
+        '409':
+          description: That version is already active in this environment
+        '403':
+          description: Caller lacks promote:strategies
+
+  /registry/{tenantId}/{strategyName}/rollback:
+    post:
+      summary: Return an environment to the version it ran before
+      description: |
+        The rollback becomes the new active version and the version it replaced
+        becomes the rollback target, so rolling back twice returns to where you
+        started rather than walking backwards through history.
+      operationId: rollbackVersion
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/StrategyName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [environment]
+              properties:
+                environment:
+                  type: string
       responses:
         '200':
           description: Rolled back
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CompiledArtifact'
+                $ref: '#/components/schemas/EnvironmentState'
+        '409':
+          description: Nothing to roll back to
+        '403':
+          description: Caller lacks promote:strategies
 
-  /registry/{tenantId}/{strategyName}/audit:
+  /registry/{tenantId}/events:
     get:
-      summary: Publish and promotion history for one strategy
-      operationId: getRegistryAuditLog
-      x-metis-status: proposed
+      summary: The registry's append-only log
+      description: |
+        Publishes, promotions, rollbacks and refusals, newest first. Ordered by
+        sequence rather than timestamp: two events can share a timestamp, and
+        the sequence is what makes the order a fact.
+      operationId: listRegistryEvents
       parameters:
         - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/StrategyName'
+        - name: strategyName
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Limit'
       responses:
         '200':
-          description: Registry audit entries
+          description: Events, newest first
           content:
             application/json:
               schema:
                 type: object
-                required: [entries]
+                required: [events]
                 properties:
-                  entries:
+                  events:
                     type: array
                     items:
-                      type: object
+                      $ref: '#/components/schemas/RegistryEvent'
 
   /simulations:
     post:

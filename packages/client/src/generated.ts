@@ -11,28 +11,27 @@
 
 // --- Schemas ----------------------------------------------------------------
 
-export interface CompiledArtifact {
-  /** Artifact ID */
-  id?: string;
-  /** Semantic version */
-  version?: string;
-  metadata?: {
-    id?: string;
-    version?: string;
-    tenantId?: string;
-    createdAt?: string;
-    createdBy?: string;
-    signature?: string;
-  };
-  /** Decision Intermediate Representation */
-  dirSchema?: Record<string, unknown>;
-  costManifest?: {
-    computeNodes?: number;
-    modelInvocations?: string[];
-    externalCalls?: number;
-    estimatedP95LatencyMs?: number;
-  };
-  signature?: string;
+/** What the compiler emits. Distinct from ArtifactSummary, which is how the
+console renders a strategy: this is the immutable, executable form the
+registry stores and the engine runs.
+ */
+export interface CompiledStrategy {
+  id: string;
+  version: string;
+  tenantId: string;
+  nodes: Record<string, unknown>[];
+  edges: Record<string, unknown>[];
+  candidateKeys: string[];
+  /** Exact versions, locked at compile time so a replay is reproducible. */
+  packageVersions: Record<string, string>;
+  costManifest: CostManifest;
+  /** sha256 over everything above. Excludes compiledAt, so two
+compilations of the same source produce the same hash - which is
+what lets the registry treat a republish as a no-op.
+ */
+  artifactHash: string;
+  /** Metadata, not part of the hash. */
+  compiledAt: string;
 }
 
 export interface Money {
@@ -450,6 +449,63 @@ export interface DirEdge {
   label?: string;
 }
 
+/** One immutable version in the registry. */
+export interface PublishedVersion {
+  strategyName: string;
+  version: string;
+  artifact: CompiledStrategy;
+  publishedAt: string;
+  publishedBy: string;
+  /** Kept with the version rather than discarded on success. A strategy
+that published near its latency budget is a different thing to
+explain in six months than one that published clean.
+ */
+  warnings: Diagnostic[];
+}
+
+/** What an environment is running, and what rollback returns to. */
+export interface EnvironmentState {
+  environment: string;
+  activeVersion: string | null;
+  /** Null when there is nothing to roll back to. */
+  previousVersion: string | null;
+  promotedAt: string | null;
+  promotedBy: string | null;
+}
+
+/** The result of a publish. `published` stored a new version, `unchanged`
+found byte-identical content already there, and `rejected` stored
+nothing - either the strategy did not compile, or the version already
+holds different content.
+ */
+export interface PublishOutcome {
+  status: "published" | "unchanged" | "rejected";
+  /** Present when status is `rejected`. */
+  reason?: "compilation" | "immutable";
+  artifact?: CompiledStrategy | null;
+  diagnostics: Diagnostic[];
+  /** Present when refused as immutable. */
+  existingHash?: string;
+  /** Present when refused as immutable. */
+  attemptedHash?: string;
+}
+
+/** One entry in the registry's append-only log. */
+export interface RegistryEvent {
+  /** Monotonic. The order is a fact, not a sort key. */
+  seq: number;
+  at: string;
+  actor: string;
+  type: "ArtifactPublished" | "PublishRejected" | "VersionPromoted" | "VersionRolledBack";
+  tenantId: string;
+  strategyName: string;
+  version: string;
+  environment?: string;
+  summary: string;
+  /** Present on PublishRejected. */
+  diagnostics?: Diagnostic[];
+}
+
 /** One field a connector supplies, and where it lives in the response. */
 export interface FieldBinding {
   /** The name the field takes in the decision input */
@@ -570,13 +626,6 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200'],
   },
-  getArtifact: {
-    method: 'GET',
-    path: '/registry/{tenantId}/{strategyName}',
-    pathParams: ['tenantId', 'strategyName'],
-    queryParams: ['version'],
-    statuses: ['200', '404'],
-  },
   getArtifactSummary: {
     method: 'GET',
     path: '/artifacts/{tenantId}/{artifactId}',
@@ -612,12 +661,12 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '404'],
   },
-  getRegistryAuditLog: {
+  getRegistryEntry: {
     method: 'GET',
-    path: '/registry/{tenantId}/{strategyName}/audit',
+    path: '/registry/{tenantId}/{strategyName}',
     pathParams: ['tenantId', 'strategyName'],
     queryParams: [],
-    statuses: ['200'],
+    statuses: ['200', '404'],
   },
   getSession: {
     method: 'GET',
@@ -696,17 +745,24 @@ export const OPERATIONS = {
     queryParams: ['issueId', 'groupId', 'status', 'q'],
     statuses: ['200'],
   },
+  listRegistryEvents: {
+    method: 'GET',
+    path: '/registry/{tenantId}/events',
+    pathParams: ['tenantId'],
+    queryParams: ['strategyName', 'limit'],
+    statuses: ['200'],
+  },
+  listRegistryStrategies: {
+    method: 'GET',
+    path: '/registry/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['200'],
+  },
   listTreatments: {
     method: 'GET',
     path: '/treatments/{tenantId}/{propositionId}',
     pathParams: ['tenantId', 'propositionId'],
-    queryParams: [],
-    statuses: ['200'],
-  },
-  listVersions: {
-    method: 'GET',
-    path: '/registry/{tenantId}/{strategyName}/versions',
-    pathParams: ['tenantId', 'strategyName'],
     queryParams: [],
     statuses: ['200'],
   },
@@ -722,14 +778,14 @@ export const OPERATIONS = {
     path: '/registry/{tenantId}/{strategyName}/promote',
     pathParams: ['tenantId', 'strategyName'],
     queryParams: [],
-    statuses: ['200'],
+    statuses: ['200', '403', '404', '409'],
   },
   publishArtifact: {
     method: 'POST',
     path: '/registry/{tenantId}/{strategyName}',
     pathParams: ['tenantId', 'strategyName'],
     queryParams: [],
-    statuses: ['201', '400'],
+    statuses: ['201', '403', '409'],
   },
   rejectChangeRequest: {
     method: 'POST',
@@ -750,7 +806,7 @@ export const OPERATIONS = {
     path: '/registry/{tenantId}/{strategyName}/rollback',
     pathParams: ['tenantId', 'strategyName'],
     queryParams: [],
-    statuses: ['200'],
+    statuses: ['200', '403', '409'],
   },
   searchDecisions: {
     method: 'GET',
@@ -841,9 +897,6 @@ export type GetArbitrationConfigResponse = {
   levers: Lever[];
 };
 
-/** Fetch a compiled artifact */
-export type GetArtifactResponse = CompiledArtifact;
-
 /** One strategy, with its graph and full compiler output */
 export type GetArtifactSummaryResponse = ArtifactSummary;
 
@@ -870,9 +923,11 @@ export type GetDecisionTraceResponse = DecisionTrace;
 /** A proposition with its treatments, policies and effective autonomy */
 export type GetPropositionResponse = PropositionDetail;
 
-/** Publish and promotion history for one strategy */
-export type GetRegistryAuditLogResponse = {
-  entries: Record<string, unknown>[];
+/** Published versions and where each is running */
+export type GetRegistryEntryResponse = {
+  strategyName: string;
+  versions: PublishedVersion[];
+  environments: EnvironmentState[];
 };
 
 /** Resolve the current session */
@@ -931,14 +986,19 @@ export type ListPropositionsResponse = {
   total: number;
 };
 
+/** The registry's append-only log */
+export type ListRegistryEventsResponse = {
+  events: RegistryEvent[];
+};
+
+/** Strategies in the registry */
+export type ListRegistryStrategiesResponse = {
+  strategies: string[];
+};
+
 /** Treatments for a proposition, one per channel */
 export type ListTreatmentsResponse = {
   treatments: Treatment[];
-};
-
-/** List published versions */
-export type ListVersionsResponse = {
-  versions: string[];
 };
 
 /** Exchange credentials for a session token */
@@ -951,16 +1011,20 @@ export type LoginRequest = {
   password: string;
 };
 
-/** Promote a version between environments */
-export type PromoteVersionResponse = CompiledArtifact;
+/** Point an environment at a published version */
+export type PromoteVersionResponse = EnvironmentState;
 export type PromoteVersionRequest = {
   version: string;
-  to: string;
+  environment: string;
 };
 
-/** Publish a compiled artifact version */
-export type PublishArtifactResponse = CompiledArtifact;
-export type PublishArtifactRequest = CompiledArtifact;
+/** Publish a version */
+export type PublishArtifactResponse = PublishOutcome;
+export type PublishArtifactRequest = {
+  version: string;
+  /** The strategy as authored, before compilation. */
+  source: Record<string, unknown>;
+};
 
 /** Reject a change request */
 export type RejectChangeRequestResponse = ChangeRequest;
@@ -971,8 +1035,11 @@ export type RejectChangeRequestRequest = {
 /** Re-execute a historical decision and compare it to the original */
 export type ReplayDecisionResponse = ReplayResult;
 
-/** Roll back to the previous active version */
-export type RollbackVersionResponse = CompiledArtifact;
+/** Return an environment to the version it ran before */
+export type RollbackVersionResponse = EnvironmentState;
+export type RollbackVersionRequest = {
+  environment: string;
+};
 
 /** Search decisions */
 export type SearchDecisionsResponse = {
@@ -1019,13 +1086,12 @@ export interface ResponseOf {
   createProposition: CreatePropositionResponse;
   executeDecision: ExecuteDecisionResponse;
   getArbitrationConfig: GetArbitrationConfigResponse;
-  getArtifact: GetArtifactResponse;
   getArtifactSummary: GetArtifactSummaryResponse;
   getChangeRequest: GetChangeRequestResponse;
   getCounterfactual: GetCounterfactualResponse;
   getDecisionTrace: GetDecisionTraceResponse;
   getProposition: GetPropositionResponse;
-  getRegistryAuditLog: GetRegistryAuditLogResponse;
+  getRegistryEntry: GetRegistryEntryResponse;
   getSession: GetSessionResponse;
   getTaxonomy: GetTaxonomyResponse;
   listAgentActivity: ListAgentActivityResponse;
@@ -1037,8 +1103,9 @@ export interface ResponseOf {
   listContactPolicies: ListContactPoliciesResponse;
   listEngagementPolicies: ListEngagementPoliciesResponse;
   listPropositions: ListPropositionsResponse;
+  listRegistryEvents: ListRegistryEventsResponse;
+  listRegistryStrategies: ListRegistryStrategiesResponse;
   listTreatments: ListTreatmentsResponse;
-  listVersions: ListVersionsResponse;
   login: LoginResponse;
   promoteVersion: PromoteVersionResponse;
   publishArtifact: PublishArtifactResponse;

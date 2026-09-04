@@ -109,6 +109,8 @@ async function resolveParams(api: APIRequestContext, token: string) {
     decisionId: decisions.decisions[0].id,
     requestId: changeRequests.changeRequests[0].id,
     artifactId: artifacts.artifacts[0].id,
+    // The registry keys strategies by the artifact id they were published under.
+    strategyName: artifacts.artifacts[0].id,
   } as Record<string, string>;
 }
 
@@ -156,6 +158,11 @@ const SAFE_TO_CALL: Record<string, unknown | undefined> = {
  */
 const COVERED_BY_WRITE_SUITES = new Set([
   'updateConnector',
+  // Registry writes: publishing, promoting and rolling back all mutate the
+  // registry, and registry.spec.ts covers them with the reset discipline.
+  'publishArtifact',
+  'promoteVersion',
+  'rollbackVersion',
   'createProposition',
   'updateProposition',
   'updateArbitrationConfig',

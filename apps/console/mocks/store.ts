@@ -25,6 +25,8 @@ import {
   users as seedUsers,
 } from './fixtures/catalogue';
 import { artifacts as seedArtifacts, type ArtifactSummary } from './fixtures/artifacts';
+import { compileContext, toSource } from './fixtures/compiled';
+import { ArtifactRegistry, InMemoryRegistryStore } from '@metis/registry';
 import {
   changeRequests as seedChangeRequests,
   auditEvents as seedAuditEvents,
@@ -48,11 +50,22 @@ type Store = {
   artifacts: ArtifactSummary[];
   changeRequests: ChangeRequestRecord[];
   auditEvents: AuditEvent[];
+  /**
+   * The artifact registry.
+   *
+   * Held alongside the rest of the development store and reset with it, so an
+   * E2E spec that publishes a version does not leak it into the next one.
+   */
+  registryStore: InMemoryRegistryStore;
+  registry: ArtifactRegistry;
 };
 
 function seed(): Store {
   // Deep clone so mutations never write back through to the fixture modules.
   const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+  const registryStore = new InMemoryRegistryStore();
+  const registry = new ArtifactRegistry(registryStore);
+  seedRegistry(registry);
   return {
     issues: clone(seedIssues),
     groups: clone(seedGroups),
@@ -69,7 +82,43 @@ function seed(): Store {
     artifacts: clone(seedArtifacts),
     changeRequests: clone(seedChangeRequests),
     auditEvents: clone(seedAuditEvents),
+    registryStore,
+    registry,
   };
+}
+
+/**
+ * Put the fixture strategies through the real publish path.
+ *
+ * Not inserted directly: they are compiled and either accepted or refused,
+ * exactly as a publish from the console would be. One of the fixtures does not
+ * compile, so the seeded registry starts with a rejection in its log — which is
+ * the honest starting state for a console whose home page already reports one
+ * strategy as blocked.
+ *
+ * Accepted versions are promoted to `production`, because the console's
+ * decisions were generated from them and it would be odd to show a strategy as
+ * running while the registry says nothing is active.
+ */
+function seedRegistry(registry: ArtifactRegistry): void {
+  const at = '2026-08-01T09:00:00.000Z';
+  for (const artifact of seedArtifacts) {
+    const outcome = registry.publish(
+      {
+        tenantId: 'telco-uk',
+        strategyName: artifact.id,
+        version: artifact.activeVersion,
+        source: toSource(artifact),
+        actor: artifact.updatedBy,
+        occurredAt: at,
+      },
+      compileContext
+    );
+
+    if (outcome.status === 'published' && artifact.status === 'active') {
+      registry.promote('telco-uk', artifact.id, artifact.activeVersion, 'production', artifact.updatedBy, at);
+    }
+  }
 }
 
 const GLOBAL_KEY = Symbol.for('metis.dev.store');

@@ -31,6 +31,10 @@ import type {
   PropositionDetail as PropositionDetailDto,
   ReplayResult as ReplayResultDto,
   Connector as ConnectorDto,
+  PublishedVersion as PublishedVersionDto,
+  EnvironmentState as EnvironmentStateDto,
+  PublishOutcome as PublishOutcomeDto,
+  RegistryEvent as RegistryEventDto,
   SourceBinding as SourceBindingDto,
   SourceCall as SourceCallDto,
   Taxonomy as TaxonomyDto,
@@ -215,6 +219,36 @@ export const apiClient = {
       body: connector,
     }),
 
+  // --- Registry -----------------------------------------------------------
+  getRegistryEntry: (strategyName: string, tenantId: string = TENANT) =>
+    apiCall<{
+      strategyName: string;
+      versions: PublishedVersionDto[];
+      environments: EnvironmentStateDto[];
+    }>(`/registry/${tenantId}/${strategyName}`),
+
+  listRegistryEvents: (
+    filters: { strategyName?: string; limit?: number } = {},
+    tenantId: string = TENANT
+  ) => apiCall<{ events: RegistryEventDto[] }>(`/registry/${tenantId}/events`, { query: filters }),
+
+  promoteVersion: (
+    strategyName: string,
+    version: string,
+    environment: string,
+    tenantId: string = TENANT
+  ) =>
+    apiCall<EnvironmentStateDto>(`/registry/${tenantId}/${strategyName}/promote`, {
+      method: 'POST',
+      body: { version, environment },
+    }),
+
+  rollbackVersion: (strategyName: string, environment: string, tenantId: string = TENANT) =>
+    apiCall<EnvironmentStateDto>(`/registry/${tenantId}/${strategyName}/rollback`, {
+      method: 'POST',
+      body: { environment },
+    }),
+
   // --- Strategies ---------------------------------------------------------
   listArtifacts: (tenantId: string = TENANT) =>
     apiCall<{ artifacts: ArtifactSummaryDto[] }>(`/artifacts/${tenantId}`),
@@ -261,6 +295,10 @@ export type {
   TaxonomyDto,
   TreatmentDto,
   ConnectorDto,
+  PublishedVersionDto,
+  EnvironmentStateDto,
+  PublishOutcomeDto,
+  RegistryEventDto,
   SourceBindingDto,
   SourceCallDto,
 };

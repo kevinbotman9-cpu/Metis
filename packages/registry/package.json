@@ -1,0 +1,17 @@
+{
+  "name": "@metis/registry",
+  "version": "2.0.0",
+  "description": "METIS artifact registry — immutable, versioned, compilation-gated",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run --config ./vitest.config.ts"
+  },
+  "dependencies": {
+    "@metis/compiler": "*",
+    "@metis/core": "*"
+  },
+  "devDependencies": {
+    "vitest": "^1.0.0"
+  }
+}

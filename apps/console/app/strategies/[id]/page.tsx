@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { DirCanvas } from '@/components/canvas/dir-canvas';
 import { CompileReport } from '@/components/compile-report';
+import { RegistryPanel } from '@/components/registry-panel';
 import { apiClient, ApiError, type DirNodeDto } from '@/lib/api-client';
 import type { DirNode, DirEdge } from '@/mocks/fixtures/artifacts';
 import { cn } from '@/lib/cn';
@@ -349,6 +350,8 @@ function StrategyDetail({ artifactId }: { artifactId: string }) {
               </Link>
             </CardBody>
           </Card>
+
+          <RegistryPanel strategyName={artifact.id} />
         </div>
       </div>
     </PageBody>

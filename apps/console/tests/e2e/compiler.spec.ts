@@ -31,8 +31,10 @@ test.describe('compiler output in the console', () => {
 
     await expect(page.getByText('Blocked.')).toBeVisible();
 
-    // The specific defect, not a generic failure.
-    await expect(page.getByText('NO_ARBITRATION')).toBeVisible();
+    // The specific defect, not a generic failure. Exact, because the registry
+    // log on the same page also names the codes in its refusal summary — which
+    // is the compilation gate working, not a duplicate.
+    await expect(page.getByText('NO_ARBITRATION', { exact: true })).toBeVisible();
     await expect(
       page.getByText('The strategy has no arbitrate node, so it can never select a winner.')
     ).toBeVisible();
@@ -41,7 +43,7 @@ test.describe('compiler output in the console', () => {
     await expect(page.getByText('Add an arbitrate node as the final step.')).toBeVisible();
 
     // The undeliverable-offer check, which the propositions page also surfaces.
-    await expect(page.getByText('NO_DELIVERABLE_TREATMENT')).toBeVisible();
+    await expect(page.getByText('NO_DELIVERABLE_TREATMENT', { exact: true })).toBeVisible();
   });
 
   test('shows a passing strategy with its pinned versions and cost', async ({ page }) => {
@@ -55,9 +57,11 @@ test.describe('compiler output in the console', () => {
     await expect(page.getByText(/@metis\/nodes-core@1\.4\.0/)).toBeVisible();
     await expect(page.getByText(/adm_accept_v4@4\.2\.0/)).toBeVisible();
 
-    // Critical path against budget, not the sum of every node.
+    // Critical path against budget, not the sum of every node — and it now
+    // includes the connectors the source node waits on, which is why this is
+    // 23.9ms rather than the 11.9ms it was before integrations existed.
     await expect(page.getByText('Critical path')).toBeVisible();
-    await expect(page.getByText(/11\.9ms \/ 50ms/)).toBeVisible();
+    await expect(page.getByText(/23\.9ms \/ 50ms/)).toBeVisible();
   });
 
   test('surfaces the missing-score warning that made a strategy return nothing', async ({
@@ -65,7 +69,11 @@ test.describe('compiler output in the console', () => {
   }) => {
     await page.goto('/strategies/inbound-web-offers');
 
-    await expect(page.getByText('ARBITRATION_MISSING_SCORE')).toBeVisible();
-    await expect(page.getByText(/no scoring node runs before it/)).toBeVisible();
+    await expect(page.getByText('ARBITRATION_MISSING_SCORE', { exact: true })).toBeVisible();
+    // Twice on this page now: once in the compile report, once in the warnings
+    // the registry kept with the published version. Both should say it — a
+    // version that shipped with a warning is a different thing to explain later
+    // than one that shipped clean.
+    await expect(page.getByText(/no scoring node runs before it/)).toHaveCount(2);
   });
 });
