@@ -16,6 +16,7 @@
     "lint": "eslint packages planes bench --ext .ts",
     "dev": "docker-compose up",
     "compile": "node compile.js",
+    "generate": "npm run generate -w @metis/client",
     "test:runtime": "npm --prefix packages/runtime run test",
     "test:console": "npm --prefix apps/console run test",
     "test:integration": "vitest run --config ./vitest.config.ts",
@@ -24,6 +25,7 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "ajv": "^8.20.0",
+    "js-yaml": "^4.1.0",
     "eslint": "^8.40.0",
     "ts-node": "^10.9.0",
     "typescript": "^5.0.0"

@@ -62,79 +62,6 @@ components:
         signature:
           type: string
 
-    DecisionTrace:
-      type: object
-      properties:
-        id:
-          type: string
-          description: Decision trace ID
-        decisionId:
-          type: string
-        tenantId:
-          type: string
-        artifactVersion:
-          type: string
-        timestamp:
-          type: string
-          format: date-time
-        candidateSet:
-          type: array
-          items:
-            type: object
-        eliminations:
-          type: array
-          items:
-            type: object
-        scores:
-          type: object
-        arbitration:
-          type: object
-        constraints:
-          type: array
-          items:
-            type: object
-        timings:
-          type: object
-          additionalProperties:
-            type: number
-
-    ChangeRequest:
-      type: object
-      properties:
-        id:
-          type: string
-        artifactId:
-          type: string
-        version:
-          type: string
-        createdBy:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
-        status:
-          type: string
-          enum: [draft, pending, approved, rejected, active, rolled_back]
-        autonomyTier:
-          type: integer
-          enum: [1, 2, 3]
-        reason:
-          type: string
-        proposedChanges:
-          type: object
-        approvals:
-          type: array
-          items:
-            type: object
-        rejections:
-          type: array
-          items:
-            type: object
-
-    # -------------------------------------------------------------------------
-    # CDH proposition taxonomy
-    # -------------------------------------------------------------------------
-
     Money:
       type: object
       required: [amount, currency]
@@ -148,7 +75,14 @@ components:
 
     Issue:
       type: object
-      required: [id, name, key]
+      required:
+        - id
+        - name
+        - key
+        - description
+        - sortOrder
+        - createdAt
+        - updatedAt
       properties:
         id: { type: string }
         name: { type: string }
@@ -162,7 +96,15 @@ components:
 
     Group:
       type: object
-      required: [id, issueId, name, key]
+      required:
+        - id
+        - issueId
+        - name
+        - key
+        - description
+        - sortOrder
+        - createdAt
+        - updatedAt
       properties:
         id: { type: string }
         issueId: { type: string }
@@ -175,6 +117,9 @@ components:
 
     ValidityWindow:
       type: object
+      required:
+        - startsAt
+        - endsAt
       properties:
         startsAt: { type: string, format: date }
         endsAt:
@@ -184,6 +129,12 @@ components:
 
     PropositionFinancials:
       type: object
+      required:
+        - price
+        - cost
+        - expectedMargin
+        - termMonths
+        - oneOff
       properties:
         price: { $ref: "#/components/schemas/Money" }
         cost: { $ref: "#/components/schemas/Money" }
@@ -193,7 +144,23 @@ components:
 
     Proposition:
       type: object
-      required: [id, groupId, issueId, name, key, status]
+      required:
+        - id
+        - groupId
+        - issueId
+        - name
+        - key
+        - description
+        - status
+        - financials
+        - validity
+        - lever
+        - policyIds
+        - treatmentIds
+        - tags
+        - createdAt
+        - updatedAt
+        - updatedBy
       properties:
         id: { type: string }
         groupId: { type: string }
@@ -226,7 +193,16 @@ components:
 
     Treatment:
       type: object
-      required: [id, propositionId, name, channel, content]
+      required:
+        - id
+        - propositionId
+        - name
+        - channel
+        - content
+        - active
+        - locale
+        - createdAt
+        - updatedAt
       properties:
         id: { type: string }
         propositionId: { type: string }
@@ -249,7 +225,9 @@ components:
 
     PolicyScope:
       type: object
-      required: [level]
+      required:
+        - level
+        - targetId
       properties:
         level:
           type: string
@@ -260,7 +238,10 @@ components:
 
     PolicyCondition:
       type: object
-      required: [field, operator]
+      required:
+        - field
+        - operator
+        - value
       properties:
         field:
           type: string
@@ -273,7 +254,16 @@ components:
 
     EngagementPolicy:
       type: object
-      required: [id, name, kind, conditions, scope]
+      required:
+        - id
+        - name
+        - kind
+        - description
+        - conditions
+        - scope
+        - active
+        - createdAt
+        - updatedAt
       properties:
         id: { type: string }
         name: { type: string }
@@ -294,7 +284,16 @@ components:
 
     ContactPolicy:
       type: object
-      required: [id, name, maxContacts, period, scope]
+      required:
+        - id
+        - name
+        - description
+        - channel
+        - maxContacts
+        - period
+        - cooldownDaysAfterReject
+        - scope
+        - active
       properties:
         id: { type: string }
         name: { type: string }
@@ -317,13 +316,24 @@ components:
 
     ArbitrationConfig:
       type: object
-      required: [id, tenantId, weights]
+      required:
+        - id
+        - tenantId
+        - weights
+        - formula
+        - updatedAt
+        - updatedBy
       properties:
         id: { type: string }
         tenantId: { type: string }
         weights:
           type: object
           description: Exponent weights for Priority = P^wP x V^wV x L^wL x C^wC
+          required:
+            - propensity
+            - value
+            - lever
+            - context
           properties:
             propensity: { type: number }
             value: { type: number }
@@ -335,7 +345,15 @@ components:
 
     Lever:
       type: object
-      required: [id, name, scope, value]
+      required:
+        - id
+        - name
+        - scope
+        - value
+        - reason
+        - validity
+        - updatedAt
+        - updatedBy
       properties:
         id: { type: string }
         name: { type: string }
@@ -357,6 +375,14 @@ components:
 
     AutonomyGuardrails:
       type: object
+      required:
+        - maxBlastRadiusPct
+        - allowedChangeTypes
+        - maxLeverDelta
+        - maxBudgetDelta
+        - protectedAttributes
+        - requireSimulationPass
+        - biasGateThreshold
       properties:
         maxBlastRadiusPct:
           type: number
@@ -386,7 +412,14 @@ components:
 
     AutonomySetting:
       type: object
-      required: [id, scope, level, guardrails]
+      required:
+        - id
+        - scope
+        - level
+        - guardrails
+        - rationale
+        - updatedAt
+        - updatedBy
       properties:
         id: { type: string }
         scope: { $ref: "#/components/schemas/PolicyScope" }
@@ -405,7 +438,17 @@ components:
 
     AgentActivity:
       type: object
-      required: [id, timestamp, agentId, level, changeType, outcome]
+      required:
+        - id
+        - timestamp
+        - agentId
+        - level
+        - scope
+        - changeType
+        - summary
+        - outcome
+        - guardrailBreached
+        - changeRequestId
       properties:
         id: { type: string }
         timestamp: { type: string, format: date-time }
@@ -439,7 +482,13 @@ components:
 
     AuthUser:
       type: object
-      required: [id, email, name, roles, permissions]
+      required:
+        - id
+        - email
+        - name
+        - roles
+        - permissions
+        - tenantId
       properties:
         id: { type: string }
         email: { type: string, format: email }
@@ -453,6 +502,545 @@ components:
           type: array
           items: { type: string }
         tenantId: { type: string }
+    Elimination:
+      type: object
+      description: One node's verdict on the candidate set, in execution order.
+      required: [nodeId, nodeType, reason, eliminated, survived]
+      properties:
+        nodeId:
+          type: string
+        nodeType:
+          type: string
+        reason:
+          type: string
+        eliminated:
+          type: array
+          items:
+            type: string
+        survived:
+          type: array
+          items:
+            type: string
+
+    ScoreBreakdown:
+      type: object
+      description: The four arbitration terms and the priority they produce.
+      required: [propensity, value, lever, context, priority]
+      properties:
+        propensity:
+          type: number
+        value:
+          type: number
+        lever:
+          type: number
+        context:
+          type: number
+        priority:
+          type: number
+
+    ConsentState:
+      type: object
+      required: [marketing, profiling, thirdParty]
+      properties:
+        marketing:
+          type: boolean
+        profiling:
+          type: boolean
+        thirdParty:
+          type: boolean
+
+    Decision:
+      type: object
+      description: A decision as it appears in search results, without the trace.
+      required:
+        [id, artifactId, artifactVersion, tenantId, customerId, timestamp, channel,
+         placement, winner, winnerPropositionId, candidateCount, totalMs]
+      properties:
+        id:
+          type: string
+        artifactId:
+          type: string
+        artifactVersion:
+          type: string
+        tenantId:
+          type: string
+        customerId:
+          type: string
+          description: Pseudonymised customer reference
+        timestamp:
+          type: string
+          format: date-time
+        channel:
+          type: string
+        placement:
+          type: string
+        winner:
+          type: [string, 'null']
+          description: Action key of the winning candidate, or null if suppressed
+        winnerPropositionId:
+          type: [string, 'null']
+        candidateCount:
+          type: integer
+        totalMs:
+          type: number
+
+    DecisionTrace:
+      type: object
+      description: |
+        A decision plus the full reasoning behind it. Everything here except
+        `timings` is reproducible: `chainHash` covers only that reproducible
+        half, which is what makes replay a byte-comparison rather than a
+        judgement call.
+      required:
+        [id, artifactId, artifactVersion, tenantId, customerId, timestamp, channel,
+         placement, winner, winnerPropositionId, candidateCount, totalMs,
+         eliminations, scores, arbitration, timings, constraintsApplied,
+         consentState, chainHash, inputSnapshotHash]
+      properties:
+        id:
+          type: string
+        artifactId:
+          type: string
+        artifactVersion:
+          type: string
+        tenantId:
+          type: string
+        customerId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        channel:
+          type: string
+        placement:
+          type: string
+        winner:
+          type: [string, 'null']
+        winnerPropositionId:
+          type: [string, 'null']
+        candidateCount:
+          type: integer
+        totalMs:
+          type: number
+        eliminations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Elimination'
+        scores:
+          type: object
+          description: Score breakdown per candidate action key
+          additionalProperties:
+            $ref: '#/components/schemas/ScoreBreakdown'
+        arbitration:
+          type: object
+          required: [formula, winner, runnerUp]
+          properties:
+            formula:
+              type: string
+            winner:
+              type: [string, 'null']
+            runnerUp:
+              type: [string, 'null']
+        timings:
+          type: object
+          description: Measured, not reproducible. Excluded from the chain hash.
+          additionalProperties:
+            type: number
+        constraintsApplied:
+          type: array
+          items:
+            type: string
+        consentState:
+          $ref: '#/components/schemas/ConsentState'
+        treatmentId:
+          type: [string, 'null']
+        chainHash:
+          type: string
+          description: sha256 over the reproducible half of the decision
+        inputSnapshotHash:
+          type: string
+
+    ReplayResult:
+      type: object
+      description: The outcome of re-executing a historical decision.
+      required:
+        [identical, decisionId, replayedAt, artifactVersion, originalWinner,
+         replayedWinner, originalChainHash, replayedChainHash, diff]
+      properties:
+        identical:
+          type: boolean
+          description: True when the two chain hashes match exactly
+        decisionId:
+          type: string
+        replayedAt:
+          type: string
+          format: date-time
+        artifactVersion:
+          type: string
+        originalWinner:
+          type: [string, 'null']
+        replayedWinner:
+          type: [string, 'null']
+        originalChainHash:
+          type: string
+        replayedChainHash:
+          type: string
+        diff:
+          type: array
+          description: Empty when identical is true
+          items:
+            type: object
+            required: [path]
+            properties:
+              path:
+                type: string
+              original: {}
+              replayed: {}
+
+    Taxonomy:
+      type: object
+      description: The whole offer catalogue - Issue > Group > Proposition.
+      required: [issues, groups, propositions]
+      properties:
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/Issue'
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/Group'
+        propositions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Proposition'
+
+    PropositionDetail:
+      type: object
+      description: A proposition with everything needed to render its page.
+      required: [proposition, treatments, policies, autonomy]
+      properties:
+        proposition:
+          $ref: '#/components/schemas/Proposition'
+        treatments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Treatment'
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/EngagementPolicy'
+        autonomy:
+          oneOf:
+            - $ref: '#/components/schemas/AutonomySetting'
+            - type: 'null'
+          description: Effective autonomy for this scope, or null if none resolves
+
+    ChangeRequestSimulation:
+      type: object
+      required: [ran, passed, populationSize, projectedMarginDelta, biasRatio, notes]
+      properties:
+        ran:
+          type: boolean
+        passed:
+          type: boolean
+        populationSize:
+          type: integer
+        projectedMarginDelta:
+          type: string
+        biasRatio:
+          type: number
+          description: Ratio between best and worst treated group. 1.0 is parity.
+        notes:
+          type: string
+
+    ChangeRequest:
+      type: object
+      description: A proposed change awaiting approval, from a person or an agent.
+      required:
+        [id, title, description, status, autonomyTier, requestedBy, requestedAt,
+         decidedBy, decidedAt, decisionReason, targetScope, changeType, diff, simulation]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected, withdrawn]
+        autonomyTier:
+          type: integer
+          enum: [1, 2, 3]
+        requestedBy:
+          type: string
+        requestedAt:
+          type: string
+          format: date-time
+        decidedBy:
+          type: [string, 'null']
+        decidedAt:
+          type: [string, 'null']
+        decisionReason:
+          type: [string, 'null']
+        targetScope:
+          $ref: '#/components/schemas/PolicyScope'
+        changeType:
+          type: string
+        diff:
+          type: array
+          items:
+            type: object
+            required: [field, before, after]
+            properties:
+              field:
+                type: string
+              before:
+                type: string
+              after:
+                type: string
+        simulation:
+          oneOf:
+            - $ref: '#/components/schemas/ChangeRequestSimulation'
+            - type: 'null'
+
+    AuditEvent:
+      type: object
+      description: One entry in the append-only log. Every write produces one.
+      required: [id, timestamp, actor, actorType, eventType, scope, summary, changeRequestId]
+      properties:
+        id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        actor:
+          type: string
+        actorType:
+          type: string
+          enum: [human, agent, system]
+        eventType:
+          type: string
+        scope:
+          type: string
+        summary:
+          type: string
+        changeRequestId:
+          type: [string, 'null']
+
+    Diagnostic:
+      type: object
+      description: One compiler finding, with the remedy where there is one.
+      required: [severity, code, message]
+      properties:
+        severity:
+          type: string
+          enum: [error, warning]
+        code:
+          type: string
+        at:
+          type: string
+          description: Node id the finding attaches to
+        message:
+          type: string
+        remedy:
+          type: string
+
+    CostManifest:
+      type: object
+      description: What the compiler predicts this strategy will cost to run.
+      required:
+        [nodeCount, criticalPathMs, worstCaseMs, modelInvocations, latencyBudgetMs, withinBudget]
+      properties:
+        nodeCount:
+          type: integer
+        criticalPathMs:
+          type: number
+          description: Longest path through the DAG, not the sum of all nodes
+        worstCaseMs:
+          type: number
+        modelInvocations:
+          type: array
+          items:
+            type: object
+            required: [nodeId, model]
+            properties:
+              nodeId:
+                type: string
+              model:
+                type: string
+        latencyBudgetMs:
+          type: number
+        withinBudget:
+          type: boolean
+
+    CompileResult:
+      type: object
+      required: [ok, diagnostics, artifact]
+      properties:
+        ok:
+          type: boolean
+        diagnostics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Diagnostic'
+        artifact:
+          oneOf:
+            - type: object
+              required: [packageVersions, artifactHash, compiledAt, costManifest]
+              properties:
+                packageVersions:
+                  type: object
+                  additionalProperties:
+                    type: string
+                artifactHash:
+                  type: string
+                compiledAt:
+                  type: string
+                  format: date-time
+                costManifest:
+                  $ref: '#/components/schemas/CostManifest'
+            - type: 'null'
+          description: Null when compilation failed
+
+    DirNode:
+      type: object
+      description: One node in a decision graph.
+      required: [id, type, label, description, estimatedMs, position]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        estimatedMs:
+          type: number
+        policyIds:
+          type: array
+          items:
+            type: string
+        model:
+          type: object
+          required: [id, version]
+          properties:
+            id:
+              type: string
+            version:
+              type: string
+              description: Pinned. An unpinned model fails compilation.
+        formula:
+          type: string
+        position:
+          type: object
+          required: [x, y]
+          properties:
+            x:
+              type: number
+            y:
+              type: number
+
+    DirEdge:
+      type: object
+      required: [id, source, target]
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+        target:
+          type: string
+        label:
+          type: string
+
+    ArtifactSummary:
+      type: object
+      description: |
+        A strategy as the console lists and renders it. Distinct from
+        CompiledArtifact, which is the registry's immutable executable form.
+      required:
+        [id, name, description, activeVersion, versions, nodeCount,
+         estimatedP95LatencyMs, status, candidateKeys, nodes, edges, updatedAt, updatedBy]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        activeVersion:
+          type: string
+        versions:
+          type: array
+          items:
+            type: string
+        nodeCount:
+          type: integer
+        estimatedP95LatencyMs:
+          type: number
+        status:
+          type: string
+        candidateKeys:
+          type: array
+          items:
+            type: string
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DirNode'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/DirEdge'
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+        compileOk:
+          type: [boolean, 'null']
+          description: Compile summary. Present on the list endpoint.
+        errorCount:
+          type: integer
+        warningCount:
+          type: integer
+        compilation:
+          oneOf:
+            - $ref: '#/components/schemas/CompileResult'
+            - type: 'null'
+          description: Full compiler output. Present on the detail endpoint.
+
+  parameters:
+    TenantId:
+      name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+    StrategyName:
+      name: strategyName
+      in: path
+      required: true
+      schema:
+        type: string
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      description: Maximum rows to return. The response total is unpaged.
+      schema:
+        type: integer
+        minimum: 1
+        default: 50
+
   securitySchemes:
     bearerAuth:
       type: http
@@ -464,796 +1052,13 @@ security:
   - bearerAuth: []
 
 paths:
-  /artifacts/{tenantId}/{strategyName}:
-    post:
-      summary: Publish a compiled artifact
-      operationId: publishArtifact
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: strategyName
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CompiledArtifact'
-      responses:
-        '201':
-          description: Artifact published
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  artifactId:
-                    type: string
-        '400':
-          description: Invalid artifact
-
-    get:
-      summary: Get an artifact (active version or specific)
-      operationId: getArtifact
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: strategyName
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: version
-          in: query
-          schema:
-            type: string
-          description: Specific version (optional, defaults to active)
-      responses:
-        '200':
-          description: Artifact found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CompiledArtifact'
-        '404':
-          description: Artifact not found
-
-  /artifacts/{tenantId}/{strategyName}/versions:
-    get:
-      summary: List all versions of an artifact
-      operationId: listVersions
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: strategyName
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: List of versions
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  versions:
-                    type: array
-                    items:
-                      type: string
-
-  /artifacts/{tenantId}/{strategyName}/promote:
-    post:
-      summary: Promote a version to active (blue/green)
-      operationId: promoteVersion
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: strategyName
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                version:
-                  type: string
-      responses:
-        '200':
-          description: Version promoted
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-
-  /artifacts/{tenantId}/{strategyName}/rollback:
-    post:
-      summary: Rollback to previous version
-      operationId: rollbackVersion
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: strategyName
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Version rolled back
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  version:
-                    type: string
-
-  /artifacts/{tenantId}/{strategyName}/audit:
-    get:
-      summary: Get artifact audit log
-      operationId: getAuditLog
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: strategyName
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Audit log
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  audit:
-                    type: array
-                    items:
-                      type: object
-
-  /decisions/search:
-    post:
-      summary: Search decisions with filtering
-      operationId: searchDecisions
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                tenantId:
-                  type: string
-                dateFrom:
-                  type: string
-                  format: date-time
-                dateTo:
-                  type: string
-                  format: date-time
-                action:
-                  type: string
-                segment:
-                  type: string
-                limit:
-                  type: integer
-                  default: 50
-                cursor:
-                  type: string
-      responses:
-        '200':
-          description: Decisions matching query
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  decisions:
-                    type: array
-                    items:
-                      type: object
-                  nextCursor:
-                    type: string
-
-  /decisions/{decisionId}/trace:
-    get:
-      summary: Get a decision's trace (audit record)
-      operationId: getDecisionTrace
-      parameters:
-        - name: decisionId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Decision trace
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DecisionTrace'
-        '404':
-          description: Decision not found
-
-  /decisions/{decisionId}/replay:
-    post:
-      summary: Replay a historical decision (prove determinism)
-      operationId: replayDecision
-      parameters:
-        - name: decisionId
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                artifactVersion:
-                  type: string
-      responses:
-        '200':
-          description: Replayed decision
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  original:
-                    type: object
-                  replayed:
-                    type: object
-                  identical:
-                    type: boolean
-
-  /change-requests:
-    post:
-      summary: Create a change request
-      operationId: createChangeRequest
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                artifactId:
-                  type: string
-                version:
-                  type: string
-                reason:
-                  type: string
-                proposedChanges:
-                  type: object
-      responses:
-        '201':
-          description: Change request created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ChangeRequest'
-
-  /change-requests/{requestId}:
-    get:
-      summary: Get a change request
-      operationId: getChangeRequest
-      parameters:
-        - name: requestId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Change request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ChangeRequest'
-
-  /change-requests/{requestId}/approve:
-    post:
-      summary: Approve a change request
-      operationId: approveChangeRequest
-      parameters:
-        - name: requestId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Request approved
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-
-  /change-requests/{requestId}/reject:
-    post:
-      summary: Reject a change request
-      operationId: rejectChangeRequest
-      parameters:
-        - name: requestId
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                reason:
-                  type: string
-      responses:
-        '200':
-          description: Request rejected
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-
-  /simulations:
-    post:
-      summary: Simulate a strategy against a population
-      operationId: simulateStrategy
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                artifactId:
-                  type: string
-                version:
-                  type: string
-                populationSize:
-                  type: integer
-      responses:
-        '200':
-          description: Simulation results
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  distribution:
-                    type: object
-                  funnel:
-                    type: array
-                  bias:
-                    type: object
-
-  /counterfactuals:
-    post:
-      summary: Find minimal input changes that flip outcome
-      operationId: getCounterfactual
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                decisionId:
-                  type: string
-                targetOutcome:
-                  type: string
-      responses:
-        '200':
-          description: Counterfactual explanation
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  inputDiff:
-                    type: object
-                  newOutcome:
-                    type: string
-
   # ---------------------------------------------------------------------------
-  # Proposition hierarchy (CDH taxonomy)
+  # Auth
   # ---------------------------------------------------------------------------
-
-  /taxonomy/{tenantId}:
-    get:
-      operationId: getTaxonomy
-      summary: Full Issue > Group > Proposition tree for the offer catalogue
-      tags: [propositions]
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200":
-          description: Taxonomy tree
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  issues:
-                    type: array
-                    items: { $ref: "#/components/schemas/Issue" }
-                  groups:
-                    type: array
-                    items: { $ref: "#/components/schemas/Group" }
-                  propositions:
-                    type: array
-                    items: { $ref: "#/components/schemas/Proposition" }
-
-  /propositions/{tenantId}:
-    get:
-      operationId: listPropositions
-      summary: List propositions with filtering
-      tags: [propositions]
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: issueId
-          in: query
-          schema: { type: string }
-        - name: groupId
-          in: query
-          schema: { type: string }
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [draft, active, paused, retired]
-        - name: q
-          in: query
-          description: Free-text search across name, key and tags
-          schema: { type: string }
-      responses:
-        "200":
-          description: Matching propositions
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  propositions:
-                    type: array
-                    items: { $ref: "#/components/schemas/Proposition" }
-                  total: { type: integer }
-    post:
-      operationId: createProposition
-      summary: Create a proposition
-      tags: [propositions]
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/Proposition" }
-      responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Proposition" }
-
-  /propositions/{tenantId}/{propositionId}:
-    get:
-      operationId: getProposition
-      summary: Fetch one proposition with its treatments and policies
-      tags: [propositions]
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: propositionId
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200":
-          description: Proposition detail
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  proposition: { $ref: "#/components/schemas/Proposition" }
-                  treatments:
-                    type: array
-                    items: { $ref: "#/components/schemas/Treatment" }
-                  policies:
-                    type: array
-                    items: { $ref: "#/components/schemas/EngagementPolicy" }
-                  autonomy: { $ref: "#/components/schemas/AutonomySetting" }
-        "404":
-          description: Not found
-    put:
-      operationId: updateProposition
-      summary: Update a proposition
-      tags: [propositions]
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: propositionId
-          in: path
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/Proposition" }
-      responses:
-        "200":
-          description: Updated
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Proposition" }
-
-  /treatments/{tenantId}/{propositionId}:
-    get:
-      operationId: listTreatments
-      summary: Channel treatments for a proposition
-      tags: [propositions]
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: propositionId
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200":
-          description: Treatments
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  treatments:
-                    type: array
-                    items: { $ref: "#/components/schemas/Treatment" }
-
-  # ---------------------------------------------------------------------------
-  # Engagement, contact policy and arbitration
-  # ---------------------------------------------------------------------------
-
-  /engagement-policies/{tenantId}:
-    get:
-      operationId: listEngagementPolicies
-      summary: Eligibility, applicability and suitability rules
-      tags: [policies]
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: kind
-          in: query
-          schema:
-            type: string
-            enum: [eligibility, applicability, suitability]
-      responses:
-        "200":
-          description: Policies
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  policies:
-                    type: array
-                    items: { $ref: "#/components/schemas/EngagementPolicy" }
-
-  /contact-policies/{tenantId}:
-    get:
-      operationId: listContactPolicies
-      summary: Suppression and contact-frequency rules
-      tags: [policies]
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200":
-          description: Contact policies
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  policies:
-                    type: array
-                    items: { $ref: "#/components/schemas/ContactPolicy" }
-
-  /arbitration/{tenantId}:
-    get:
-      operationId: getArbitrationConfig
-      summary: Arbitration formula weights and active levers
-      tags: [arbitration]
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200":
-          description: Arbitration configuration
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  config: { $ref: "#/components/schemas/ArbitrationConfig" }
-                  levers:
-                    type: array
-                    items: { $ref: "#/components/schemas/Lever" }
-    put:
-      operationId: updateArbitrationConfig
-      summary: Update arbitration weights
-      tags: [arbitration]
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/ArbitrationConfig" }
-      responses:
-        "200":
-          description: Updated
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ArbitrationConfig" }
-
-  # ---------------------------------------------------------------------------
-  # Agentic AI autonomy (spec now, UI in P4)
-  # ---------------------------------------------------------------------------
-
-  /autonomy/{tenantId}:
-    get:
-      operationId: listAutonomySettings
-      summary: Autonomy levels and guardrails by scope
-      tags: [agentic]
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200":
-          description: Autonomy settings; most specific scope wins at resolution
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  settings:
-                    type: array
-                    items: { $ref: "#/components/schemas/AutonomySetting" }
-    put:
-      operationId: updateAutonomySetting
-      summary: Set the autonomy level and guardrails for a scope
-      tags: [agentic]
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/AutonomySetting" }
-      responses:
-        "200":
-          description: Updated
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/AutonomySetting" }
-
-  /agent-activity/{tenantId}:
-    get:
-      operationId: listAgentActivity
-      summary: Feed of agent suggestions, proposals and auto-applied changes
-      tags: [agentic]
-      parameters:
-        - name: tenantId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: outcome
-          in: query
-          schema:
-            type: string
-            enum: [suggested, proposed, auto_applied, reverted, blocked]
-        - name: limit
-          in: query
-          schema: { type: integer, default: 50 }
-      responses:
-        "200":
-          description: Activity feed, newest first
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  activity:
-                    type: array
-                    items: { $ref: "#/components/schemas/AgentActivity" }
-
-  # ---------------------------------------------------------------------------
-  # Authentication
-  # ---------------------------------------------------------------------------
-
   /auth/login:
     post:
-      operationId: login
       summary: Exchange credentials for a session token
-      tags: [auth]
+      operationId: login
       security: []
       requestBody:
         required: true
@@ -1263,34 +1068,840 @@ paths:
               type: object
               required: [email, password]
               properties:
-                email: { type: string, format: email }
-                password: { type: string, format: password }
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
       responses:
-        "200":
+        '200':
           description: Authenticated
           content:
             application/json:
               schema:
                 type: object
+                required: [token, user]
                 properties:
-                  token: { type: string }
-                  user: { $ref: "#/components/schemas/AuthUser" }
-        "401":
-          description: Invalid credentials
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/AuthUser'
+        '401':
+          description: Wrong email or password
 
   /auth/session:
     get:
+      summary: Resolve the current session
       operationId: getSession
-      summary: Resolve the current session from the bearer token
-      tags: [auth]
       responses:
-        "200":
-          description: Current user
+        '200':
+          description: The signed-in user
           content:
             application/json:
               schema:
                 type: object
+                required: [user]
                 properties:
-                  user: { $ref: "#/components/schemas/AuthUser" }
-        "401":
-          description: No valid session
+                  user:
+                    $ref: '#/components/schemas/AuthUser'
+        '401':
+          description: No valid session. The only status that clears the token.
+
+  # ---------------------------------------------------------------------------
+  # Offer catalogue
+  # ---------------------------------------------------------------------------
+  /taxonomy/{tenantId}:
+    get:
+      summary: The whole offer taxonomy in one call
+      operationId: getTaxonomy
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Issues, groups and propositions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Taxonomy'
+
+  /propositions/{tenantId}:
+    get:
+      summary: List propositions, filtered
+      operationId: listPropositions
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: issueId
+          in: query
+          schema:
+            type: string
+        - name: groupId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, active, paused, retired]
+        - name: q
+          in: query
+          description: Free-text match on name, key or tag
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Matching propositions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [propositions, total]
+                properties:
+                  propositions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Proposition'
+                  total:
+                    type: integer
+
+    post:
+      summary: Create a proposition
+      operationId: createProposition
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Proposition'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proposition'
+        '403':
+          description: Caller lacks edit:propositions
+
+  /propositions/{tenantId}/{propositionId}:
+    get:
+      summary: A proposition with its treatments, policies and effective autonomy
+      operationId: getProposition
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: propositionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Proposition detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropositionDetail'
+        '404':
+          description: No such proposition
+
+    put:
+      summary: Update a proposition
+      operationId: updateProposition
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: propositionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Proposition'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proposition'
+        '403':
+          description: Caller lacks edit:propositions
+
+  /treatments/{tenantId}/{propositionId}:
+    get:
+      summary: Treatments for a proposition, one per channel
+      operationId: listTreatments
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: propositionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Treatments
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [treatments]
+                properties:
+                  treatments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Treatment'
+
+  # ---------------------------------------------------------------------------
+  # Engagement policy, contact policy, arbitration
+  # ---------------------------------------------------------------------------
+  /engagement-policies/{tenantId}:
+    get:
+      summary: Eligibility, applicability and suitability policies
+      operationId: listEngagementPolicies
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: kind
+          in: query
+          schema:
+            type: string
+            enum: [eligibility, applicability, suitability]
+      responses:
+        '200':
+          description: Policies
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [policies]
+                properties:
+                  policies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EngagementPolicy'
+
+  /contact-policies/{tenantId}:
+    get:
+      summary: Frequency caps and cooldowns
+      operationId: listContactPolicies
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Contact policies
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [policies]
+                properties:
+                  policies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ContactPolicy'
+
+  /arbitration/{tenantId}:
+    get:
+      summary: Arbitration weights and the levers in force
+      operationId: getArbitrationConfig
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Config and levers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [config, levers]
+                properties:
+                  config:
+                    $ref: '#/components/schemas/ArbitrationConfig'
+                  levers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Lever'
+
+    put:
+      summary: Publish new arbitration weights
+      operationId: updateArbitrationConfig
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [weights]
+              properties:
+                weights:
+                  type: object
+                  required: [propensity, value, lever, context]
+                  properties:
+                    propensity:
+                      type: number
+                    value:
+                      type: number
+                    lever:
+                      type: number
+                    context:
+                      type: number
+      responses:
+        '200':
+          description: Published, and written to the audit log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArbitrationConfig'
+        '403':
+          description: Caller lacks edit:arbitration
+
+  # ---------------------------------------------------------------------------
+  # Agentic AI
+  # ---------------------------------------------------------------------------
+  /autonomy/{tenantId}:
+    get:
+      summary: Autonomy settings, most specific scope wins at resolution time
+      operationId: listAutonomySettings
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [settings]
+                properties:
+                  settings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AutonomySetting'
+
+    put:
+      summary: Change an autonomy level or its guardrails
+      operationId: updateAutonomySetting
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutonomySetting'
+      responses:
+        '200':
+          description: Updated, and written to the audit log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutonomySetting'
+        '403':
+          description: Caller lacks edit:autonomy
+
+  /agent-activity/{tenantId}:
+    get:
+      summary: What the agents did, and what the guardrails stopped
+      operationId: listAgentActivity
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: outcome
+          in: query
+          schema:
+            type: string
+            enum: [suggested, proposed, auto_applied, reverted, blocked]
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Activity, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [activity]
+                properties:
+                  activity:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AgentActivity'
+
+  # ---------------------------------------------------------------------------
+  # Decisions and traces
+  # ---------------------------------------------------------------------------
+  /decisions/search:
+    get:
+      summary: Search decisions
+      description: |
+        GET rather than POST: the console keeps search state in the URL, so a
+        filtered view has to be linkable and back-button-able.
+      operationId: searchDecisions
+      parameters:
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: channel
+          in: query
+          schema:
+            type: string
+        - name: customerId
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: outcome
+          in: query
+          schema:
+            type: string
+            enum: [offered, suppressed]
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Matching decisions, plus the unpaged total
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [decisions, total]
+                properties:
+                  decisions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Decision'
+                  total:
+                    type: integer
+                    description: Matches before the limit, not the page size
+
+  /decisions/{decisionId}/trace:
+    get:
+      summary: The full reasoning behind one decision
+      operationId: getDecisionTrace
+      parameters:
+        - name: decisionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Trace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionTrace'
+        '404':
+          description: No such decision
+
+  /decisions/{decisionId}/replay:
+    post:
+      summary: Re-execute a historical decision and compare it to the original
+      operationId: replayDecision
+      parameters:
+        - name: decisionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: |
+            The replay outcome. `identical` is the claim the platform is making;
+            when it is false, `diff` says exactly where reproduction broke.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayResult'
+        '404':
+          description: No such decision
+
+  # ---------------------------------------------------------------------------
+  # Governance
+  # ---------------------------------------------------------------------------
+  /change-requests:
+    get:
+      summary: The approval queue
+      operationId: listChangeRequests
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected, withdrawn]
+      responses:
+        '200':
+          description: Change requests, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [changeRequests, total]
+                properties:
+                  changeRequests:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChangeRequest'
+                  total:
+                    type: integer
+
+    post:
+      summary: Propose a change
+      operationId: createChangeRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeRequest'
+      responses:
+        '201':
+          description: Created, pending approval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequest'
+
+  /change-requests/{requestId}:
+    get:
+      summary: A change request with its diff and simulation
+      operationId: getChangeRequest
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: Change request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequest'
+        '404':
+          description: No such change request
+
+  /change-requests/{requestId}/approve:
+    post:
+      summary: Approve a change request, applying its diff
+      operationId: approveChangeRequest
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: Approved. The diff is applied and the decision audited.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequest'
+        '403':
+          description: Caller lacks approve:changes
+
+  /change-requests/{requestId}/reject:
+    post:
+      summary: Reject a change request
+      operationId: rejectChangeRequest
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Rejected, with the reason recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequest'
+        '403':
+          description: Caller lacks approve:changes
+
+  /audit:
+    get:
+      summary: The append-only log of every write
+      operationId: listAuditEvents
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Events, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events, total]
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEvent'
+                  total:
+                    type: integer
+
+  # ---------------------------------------------------------------------------
+  # Strategies as the console reads them
+  # ---------------------------------------------------------------------------
+  /artifacts/{tenantId}:
+    get:
+      summary: List strategies with their compile status
+      operationId: listArtifacts
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Strategies
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [artifacts]
+                properties:
+                  artifacts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ArtifactSummary'
+
+  /artifacts/{tenantId}/{artifactId}:
+    get:
+      summary: One strategy, with its graph and full compiler output
+      operationId: getArtifactSummary
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: artifactId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Strategy detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactSummary'
+        '404':
+          description: No such strategy
+
+  # ---------------------------------------------------------------------------
+  # PROPOSED - registered in docs/gaps.md, not built.
+  #
+  # These are the platform contracts the console will need. Nothing serves them
+  # yet, so the contract test skips them by design: it asserts that everything
+  # NOT in this section is live, which is what stops the list from rotting.
+  # ---------------------------------------------------------------------------
+  /registry/{tenantId}/{strategyName}:
+    post:
+      summary: Publish a compiled artifact version
+      operationId: publishArtifact
+      x-metis-status: proposed
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/StrategyName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompiledArtifact'
+      responses:
+        '201':
+          description: Published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompiledArtifact'
+        '400':
+          description: Artifact failed compilation
+
+    get:
+      summary: Fetch a compiled artifact
+      operationId: getArtifact
+      x-metis-status: proposed
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/StrategyName'
+        - name: version
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The compiled artifact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompiledArtifact'
+        '404':
+          description: No such artifact
+
+  /registry/{tenantId}/{strategyName}/versions:
+    get:
+      summary: List published versions
+      operationId: listVersions
+      x-metis-status: proposed
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/StrategyName'
+      responses:
+        '200':
+          description: Versions, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [versions]
+                properties:
+                  versions:
+                    type: array
+                    items:
+                      type: string
+
+  /registry/{tenantId}/{strategyName}/promote:
+    post:
+      summary: Promote a version between environments
+      operationId: promoteVersion
+      x-metis-status: proposed
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/StrategyName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version, to]
+              properties:
+                version:
+                  type: string
+                to:
+                  type: string
+      responses:
+        '200':
+          description: Promoted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompiledArtifact'
+
+  /registry/{tenantId}/{strategyName}/rollback:
+    post:
+      summary: Roll back to the previous active version
+      operationId: rollbackVersion
+      x-metis-status: proposed
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/StrategyName'
+      responses:
+        '200':
+          description: Rolled back
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompiledArtifact'
+
+  /registry/{tenantId}/{strategyName}/audit:
+    get:
+      summary: Publish and promotion history for one strategy
+      operationId: getRegistryAuditLog
+      x-metis-status: proposed
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/StrategyName'
+      responses:
+        '200':
+          description: Registry audit entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [entries]
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      type: object
+
+  /simulations:
+    post:
+      summary: Run a population through a compiled strategy
+      operationId: simulateStrategy
+      x-metis-status: proposed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [artifactId, populationSize]
+              properties:
+                artifactId:
+                  type: string
+                version:
+                  type: string
+                populationSize:
+                  type: integer
+      responses:
+        '200':
+          description: Aggregated outcomes, distribution and bias metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequestSimulation'
+
+  /counterfactuals:
+    post:
+      summary: Find the smallest input change that flips a decision
+      operationId: getCounterfactual
+      x-metis-status: proposed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decisionId]
+              properties:
+                decisionId:
+                  type: string
+                targetWinner:
+                  type: string
+      responses:
+        '200':
+          description: The minimal diff, or none if the outcome cannot be flipped
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [found, changes]
+                properties:
+                  found:
+                    type: boolean
+                  changes:
+                    type: array
+                    items:
+                      type: object
+                      required: [field, from, to]
+                      properties:
+                        field:
+                          type: string
+                        from: {}
+                        to: {}

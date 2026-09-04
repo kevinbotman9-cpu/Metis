@@ -52,6 +52,15 @@ const FACETS: Facet[] = [
   { key: 'action', label: 'Action', hint: 'exact proposition key' },
 ];
 
+/**
+ * Chips are free text, so `outcome:banana` is reachable by typing. The spec
+ * declares two values; anything else is dropped rather than sent, which is why
+ * this narrows instead of casting.
+ */
+function asOutcome(value: string | undefined): 'offered' | 'suppressed' | undefined {
+  return value === 'offered' || value === 'suppressed' ? value : undefined;
+}
+
 function DecisionsView() {
   const router = useRouter();
   const [chips, setChips] = useState<FilterChip[]>([]);
@@ -63,7 +72,7 @@ function DecisionsView() {
       apiClient.searchDecisions({
         customerId: filters.customerId || undefined,
         channel: filters.channel || undefined,
-        outcome: filters.outcome || undefined,
+        outcome: asOutcome(filters.outcome),
         action: filters.action || undefined,
         limit: 5000,
       }),

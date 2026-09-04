@@ -77,33 +77,22 @@ jobs:
         with:
           node-version: 20
 
-      # The spec is the contract between console and execution plane. A version
-      # that does not parse would let the two drift apart silently.
+      - name: Install
+        run: npm ci
+
+      # The spec is the contract between the console and the execution plane.
+      # Structure first: refs resolve, ids are unique, nothing is unreachable.
       - name: Validate the OpenAPI spec
+        run: node scripts/validate-spec.mjs
+
+      # packages/client is generated from the spec and committed. If these
+      # disagree, someone hand-edited the client or changed the spec without
+      # regenerating - either way the types the console compiles against are
+      # no longer the contract.
+      - name: The generated client matches the spec
         run: |
-          npm install --no-save js-yaml
-          node -e "
-            const yaml = require('js-yaml');
-            const fs = require('fs');
-            const doc = yaml.load(fs.readFileSync('docs/metis-api.openapi.yaml', 'utf8'));
-            const ops = Object.values(doc.paths)
-              .flatMap((p) => Object.values(p))
-              .filter((o) => o && o.operationId);
-            const ids = ops.map((o) => o.operationId);
-            if (new Set(ids).size !== ids.length) throw new Error('duplicate operationId');
-
-            // Every \$ref must resolve, or the generated client will be wrong.
-            const schemas = new Set(Object.keys(doc.components.schemas));
-            const refs = [];
-            JSON.stringify(doc, (k, v) => {
-              if (k === '\$ref' && typeof v === 'string') refs.push(v);
-              return v;
-            });
-            const missing = refs
-              .filter((r) => r.startsWith('#/components/schemas/'))
-              .map((r) => r.split('/').pop())
-              .filter((n) => !schemas.has(n));
-            if (missing.length) throw new Error('unresolved \$ref: ' + [...new Set(missing)].join(', '));
-
-            console.log('spec ok:', Object.keys(doc.paths).length, 'paths,', ops.length, 'operations,', schemas.size, 'schemas');
-          "
+          npm run generate
+          if ! git diff --exit-code --stat packages/client/src/generated.ts; then
+            echo "::error::packages/client is stale. Run: npm run generate"
+            exit 1
+          fi

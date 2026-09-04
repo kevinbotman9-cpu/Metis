@@ -1,59 +1,118 @@
 /**
- * METIS API Client
- * GENERATED from OpenAPI spec
+ * The METIS API client.
  *
- * Do not edit by hand. Regenerate via:
- *   npm run generate
+ * Types and the operation table are generated from `docs/metis-api.openapi.yaml`
+ * into `./generated`. This file is the small hand-written part: URL building,
+ * transport and error shape. It has no per-endpoint code, so an endpoint cannot
+ * be added here without adding it to the spec first.
  *
- * This file is a placeholder. The real client is generated from
- * the execution plane's OpenAPI specification.
+ * `packages/client` used to be a placeholder whose `generate` script echoed a
+ * string. It is now the reason the spec cannot silently drift from the API.
  */
 
-export interface ApiClient {
-  artifacts: ArtifactService;
-  decisions: DecisionService;
-  approvals: ApprovalService;
-  simulations: SimulationService;
+import {
+  OPERATIONS,
+  type OperationId,
+  type ResponseOf,
+} from './generated';
+
+export * from './generated';
+
+export interface RequestOptions {
+  /** Values for the operation's `{placeholders}`. */
+  path?: Record<string, string>;
+  query?: Record<string, string | number | boolean | undefined>;
+  body?: unknown;
+  signal?: AbortSignal;
 }
 
-export interface ArtifactService {
-  // Artifact registry operations
-  publishArtifact: (artifact: any) => Promise<any>;
-  getArtifact: (id: string, version?: string) => Promise<any>;
-  listVersions: (id: string) => Promise<any[]>;
-  promoteVersion: (id: string, version: string, to: string) => Promise<any>;
-  rollbackVersion: (id: string) => Promise<any>;
-  getAuditLog: (id: string) => Promise<any[]>;
+export interface ClientOptions {
+  baseUrl: string;
+  /** Returns the bearer token, or null when signed out. */
+  getToken?: () => string | null;
+  /** Injectable for tests and for server-side use. */
+  fetch?: typeof globalThis.fetch;
 }
 
-export interface DecisionService {
-  // Decision execution and query
-  searchDecisions: (query: any) => Promise<any>;
-  getDecision: (id: string) => Promise<any>;
-  getTrace: (id: string) => Promise<any>;
-  replayDecision: (id: string, artifactVersion?: string) => Promise<any>;
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly operationId: OperationId,
+    readonly url: string,
+    message: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
 }
 
-export interface ApprovalService {
-  // Change request workflow
-  createChangeRequest: (request: any) => Promise<any>;
-  getChangeRequest: (id: string) => Promise<any>;
-  approveChangeRequest: (id: string) => Promise<any>;
-  rejectChangeRequest: (id: string, reason: string) => Promise<any>;
+/**
+ * Build the URL for an operation.
+ *
+ * Exported because the contract test walks every operation and needs the same
+ * URL the client would produce, without making the call through it.
+ */
+export function buildPath(
+  operationId: OperationId,
+  params: Record<string, string> = {}
+): string {
+  const op = OPERATIONS[operationId];
+  return op.path.replace(/\{(\w+)\}/g, (_, name: string) => {
+    const value = params[name];
+    if (value === undefined) {
+      throw new Error(`${operationId}: missing path parameter "${name}"`);
+    }
+    return encodeURIComponent(value);
+  });
 }
 
-export interface SimulationService {
-  // Simulation and what-if analysis
-  simulateStrategy: (artifact: any, population: any) => Promise<any>;
-  getCounterfactual: (decisionId: string, targetOutcome: string) => Promise<any>;
+export function createClient(options: ClientOptions) {
+  const doFetch = options.fetch ?? globalThis.fetch;
+  const baseUrl = options.baseUrl.replace(/\/$/, '');
+
+  async function call<Id extends OperationId>(
+    operationId: Id,
+    request: RequestOptions = {}
+  ): Promise<ResponseOf[Id]> {
+    const op = OPERATIONS[operationId];
+    const url = new URL(baseUrl + buildPath(operationId, request.path ?? {}));
+
+    for (const [key, value] of Object.entries(request.query ?? {})) {
+      if (value !== undefined && value !== '') {
+        url.searchParams.set(key, String(value));
+      }
+    }
+
+    const token = options.getToken?.();
+    const res = await doFetch(url.toString(), {
+      method: op.method,
+      headers: {
+        ...(request.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: request.body === undefined ? undefined : JSON.stringify(request.body),
+      signal: request.signal,
+    });
+
+    if (!res.ok) {
+      // The body may carry a useful message, or may not be JSON at all.
+      let detail = res.statusText;
+      try {
+        const parsed = await res.json();
+        if (parsed && typeof parsed.error === 'string') detail = parsed.error;
+      } catch {
+        // Keep statusText.
+      }
+      throw new ApiError(res.status, operationId, url.toString(), detail);
+    }
+
+    // No operation declares a 204 today, but a client that throws on an
+    // empty body would be a worse failure than one that returns nothing.
+    if (res.status === 204) return undefined as unknown as ResponseOf[Id];
+    return (await res.json()) as ResponseOf[Id];
+  }
+
+  return { call, buildPath };
 }
 
-export function createClient(_baseUrl: string, _token?: string): ApiClient {
-  throw new Error(
-    'Client not yet generated. Generate from OpenAPI spec via: npm run generate'
-  );
-}
-
-export default {
-  createClient,
-};
+export type MetisClient = ReturnType<typeof createClient>;

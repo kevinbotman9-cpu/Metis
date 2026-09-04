@@ -3,6 +3,9 @@
 import { ReactNode, createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { apiClient, TOKEN_KEY, ApiError, type AuthUserDto } from '@/lib/api-client';
 
+/** The roles the spec declares. Derived, so the enum lives in one place. */
+export type Role = AuthUserDto['roles'][number];
+
 interface AuthContextType {
   user: AuthUserDto | null;
   /** True until the initial session probe resolves. Guards must wait on this. */
@@ -11,7 +14,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   hasPermission: (permission: string) => boolean;
-  hasRole: (role: string) => boolean;
+  hasRole: (role: Role) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -87,7 +90,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user]
   );
 
-  const hasRole = useCallback((role: string) => Boolean(user?.roles.includes(role)), [user]);
+  // Typed to the spec's role enum: a mistyped role used to compile and just
+  // return false, hiding a whole surface from whoever it was gating.
+  const hasRole = useCallback(
+    (role: Role) => Boolean(user?.roles.includes(role)),
+    [user]
+  );
 
   return (
     <AuthContext.Provider
