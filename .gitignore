@@ -89,3 +89,8 @@ apps/console/storybook-static/
 
 # MCP plugin logs
 logs/
+
+# Playwright output. The root run misfires here when a command is invoked
+# from the wrong directory; apps/console has its own ignore.
+test-results/
+playwright-report/
