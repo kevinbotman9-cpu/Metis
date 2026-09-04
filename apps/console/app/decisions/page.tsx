@@ -1,161 +1,249 @@
 'use client';
 
 import { useState } from 'react';
-import { AppShell } from '@/components/app-shell';
-import { MockBanner } from '@/components/mock-banner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { RequireAuth } from '@/components/require-auth';
+import {
+  PageBody,
+  PageHeader,
+  Card,
+  CardHeader,
+  CardBody,
+  Badge,
+  Metric,
+  Input,
+  Select,
+  Field,
+  ErrorState,
+} from '@/components/ui/primitives';
+import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
+import { apiClient, type DecisionDto } from '@/lib/api-client';
 
-// Mock decisions - using real data since MSW doesn't work server-side
-const MOCK_DECISIONS = Array.from({ length: 15 }, (_, i) => ({
-  id: `dec_${Math.random().toString(36).slice(2, 8)}`,
-  artifactId: 'test-strategy',
-  tenantId: 'telco-uk',
-  customerId: `cust_${Math.random().toString(36).slice(2, 6)}`,
-  timestamp: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-  decision: {
-    winner: ['upsell_5g', 'upsell_data', 'retention', 'suppress'][Math.floor(Math.random() * 4)],
-    candidates: [
-      { id: 'upsell_5g', score: 0.87 },
-      { id: 'upsell_data', score: 0.62 },
-      { id: 'retention', score: 0.45 },
-    ],
-  },
-}));
-
-export default function DecisionsPage() {
+function DecisionsView() {
+  const router = useRouter();
   const [filters, setFilters] = useState({
-    dateFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    dateTo: new Date().toISOString().split('T')[0],
+    customerId: '',
+    channel: '',
+    outcome: '',
     action: '',
   });
 
-  const filteredDecisions = MOCK_DECISIONS.filter(d => {
-    if (filters.action && d.decision.winner !== filters.action) return false;
-    return true;
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['decisions', filters],
+    queryFn: () =>
+      apiClient.searchDecisions({
+        customerId: filters.customerId || undefined,
+        channel: filters.channel || undefined,
+        outcome: filters.outcome || undefined,
+        action: filters.action || undefined,
+        limit: 200,
+      }),
   });
 
+  const rows = data?.decisions ?? [];
+  const offered = rows.filter((d) => d.winner).length;
+  const suppressed = rows.length - offered;
+  const avgLatency =
+    rows.length > 0
+      ? (rows.reduce((sum, d) => sum + d.totalMs, 0) / rows.length).toFixed(1)
+      : '—';
+
+  const columns: Column<DecisionDto>[] = [
+    {
+      key: 'id',
+      header: 'Decision',
+      width: 'w-44',
+      sortValue: (d) => d.id,
+      cell: (d) => <span className="font-mono text-label text-accent">{d.id}</span>,
+    },
+    {
+      key: 'timestamp',
+      header: 'When',
+      width: 'w-40',
+      sortValue: (d) => d.timestamp,
+      cell: (d) => (
+        <span className="tnum text-content-muted">
+          {new Date(d.timestamp).toLocaleString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+        </span>
+      ),
+    },
+    {
+      key: 'customerId',
+      header: 'Customer',
+      width: 'w-32',
+      sortValue: (d) => d.customerId,
+      cell: (d) => <span className="font-mono text-label">{d.customerId}</span>,
+    },
+    {
+      key: 'channel',
+      header: 'Channel',
+      width: 'w-32',
+      sortValue: (d) => d.channel,
+      cell: (d) => <Badge tone="outline">{d.channel.replace('_', ' ')}</Badge>,
+    },
+    {
+      key: 'winner',
+      header: 'Outcome',
+      sortValue: (d) => d.winner ?? 'zzz',
+      cell: (d) =>
+        d.winner ? (
+          <Badge tone="pass">{d.winner}</Badge>
+        ) : (
+          <Badge tone="block">no offer</Badge>
+        ),
+    },
+    {
+      key: 'candidateCount',
+      header: 'Candidates',
+      align: 'right',
+      width: 'w-24',
+      secondary: true,
+      sortValue: (d) => d.candidateCount,
+      cell: (d) => <span className="text-content-muted">{d.candidateCount}</span>,
+    },
+    {
+      key: 'artifactVersion',
+      header: 'Artifact',
+      width: 'w-24',
+      secondary: true,
+      sortValue: (d) => d.artifactVersion,
+      cell: (d) => <span className="font-mono text-label text-content-muted">{d.artifactVersion}</span>,
+    },
+    {
+      key: 'totalMs',
+      header: 'Latency',
+      align: 'right',
+      width: 'w-24',
+      sortValue: (d) => d.totalMs,
+      cell: (d) => (
+        <span className={d.totalMs > 20 ? 'text-hold' : 'text-content-muted'}>
+          {d.totalMs.toFixed(1)}ms
+        </span>
+      ),
+    },
+  ];
+
   return (
-    <>
-      <MockBanner />
-      <AppShell>
-        <div className="p-8 space-y-6 max-w-6xl">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-base-900 mb-2">Decision Search</h1>
-            <p className="text-lg text-base-600">
-              Find, inspect, and audit every decision made by METIS
-            </p>
+    <PageBody>
+      <PageHeader
+        title="Decisions"
+        description="Every decision the platform made, with the full reasoning trace behind it. Open one to see why the winner won and to prove the result reproduces."
+      />
+
+      <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Metric label="Decisions" value={rows.length} sub="in the current filter" />
+        <Metric label="Offer made" value={offered} tone="pass" />
+        <Metric
+          label="Suppressed"
+          value={suppressed}
+          tone={suppressed > 0 ? 'hold' : 'neutral'}
+          sub="policy or consent"
+        />
+        <Metric label="Avg latency" value={`${avgLatency}ms`} sub="SLA 50ms" tone="accent" />
+      </div>
+
+      <Card>
+        <CardHeader
+          title="Search"
+          description="Filters apply immediately."
+          actions={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setFilters({ customerId: '', channel: '', outcome: '', action: '' })}
+            >
+              Reset
+            </Button>
+          }
+        />
+        <CardBody>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="Customer ID" htmlFor="f-cust">
+              <Input
+                id="f-cust"
+                placeholder="cust_…"
+                value={filters.customerId}
+                onChange={(e) => setFilters({ ...filters, customerId: e.target.value })}
+              />
+            </Field>
+            <Field label="Channel" htmlFor="f-chan">
+              <Select
+                id="f-chan"
+                value={filters.channel}
+                onChange={(e) => setFilters({ ...filters, channel: e.target.value })}
+              >
+                <option value="">All channels</option>
+                <option value="web">Web</option>
+                <option value="email">Email</option>
+                <option value="sms">SMS</option>
+                <option value="push">Push</option>
+                <option value="outbound_call">Outbound call</option>
+              </Select>
+            </Field>
+            <Field label="Outcome" htmlFor="f-out">
+              <Select
+                id="f-out"
+                value={filters.outcome}
+                onChange={(e) => setFilters({ ...filters, outcome: e.target.value })}
+              >
+                <option value="">Any outcome</option>
+                <option value="offered">Offer made</option>
+                <option value="suppressed">Suppressed</option>
+              </Select>
+            </Field>
+            <Field label="Action" htmlFor="f-act">
+              <Input
+                id="f-act"
+                placeholder="e.g. upsell_5g"
+                value={filters.action}
+                onChange={(e) => setFilters({ ...filters, action: e.target.value })}
+              />
+            </Field>
           </div>
+        </CardBody>
+      </Card>
 
-          {/* Filters Card */}
-          <Card className="border-base-300">
-            <CardHeader className="border-b border-base-300 pb-4">
-              <CardTitle className="text-lg">Search Filters</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="grid grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-base-900 mb-2">
-                    From Date
-                  </label>
-                  <Input
-                    type="date"
-                    value={filters.dateFrom}
-                    onChange={(e) =>
-                      setFilters({ ...filters, dateFrom: e.target.value })
-                    }
-                    className="border-base-300"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-base-900 mb-2">
-                    To Date
-                  </label>
-                  <Input
-                    type="date"
-                    value={filters.dateTo}
-                    onChange={(e) =>
-                      setFilters({ ...filters, dateTo: e.target.value })
-                    }
-                    className="border-base-300"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-base-900 mb-2">
-                    Action
-                  </label>
-                  <Input
-                    placeholder="All actions"
-                    value={filters.action}
-                    onChange={(e) =>
-                      setFilters({ ...filters, action: e.target.value })
-                    }
-                    className="border-base-300"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="mt-stack">
+        <Card>
+          <CardHeader
+            title={`Results${data ? ` · ${data.total}` : ''}`}
+            description="Select a row to open its trace."
+          />
+          {error ? (
+            <ErrorState
+              description={(error as Error).message}
+              onRetry={() => refetch()}
+            />
+          ) : (
+            <DataTable
+              columns={columns}
+              rows={rows}
+              rowKey={(d) => d.id}
+              isLoading={isLoading}
+              defaultSort={{ key: 'timestamp', dir: 'desc' }}
+              onRowClick={(d) => router.push(`/decisions/${d.id}`)}
+              emptyTitle="No decisions match these filters"
+              emptyDescription="Widen the date range or clear a filter."
+              caption="Decision search results"
+            />
+          )}
+        </Card>
+      </div>
+    </PageBody>
+  );
+}
 
-          {/* Results */}
-          <Card className="border-base-300">
-            <CardHeader className="border-b border-base-300 pb-4 flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">
-                Decisions Found: {filteredDecisions.length}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-3">
-                {filteredDecisions.map((decision) => (
-                  <Link key={decision.id} href={`/decisions/${decision.id}`}>
-                    <div className="p-4 rounded-lg border border-base-300 hover:border-accent hover:bg-base-100 transition-all cursor-pointer group">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="text-sm font-mono text-accent font-semibold group-hover:text-accent">
-                            {decision.id}
-                          </p>
-                          <div className="flex flex-wrap gap-3 mt-2">
-                            <span className="text-xs text-base-600">
-                              📅 {new Date(decision.timestamp).toLocaleString()}
-                            </span>
-                            <Badge variant="pass" className="text-xs">
-                              ✓ {decision.decision.winner}
-                            </Badge>
-                            <span className="text-xs text-base-600">
-                              👤 {decision.customerId}
-                            </span>
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="default"
-                          className="ml-4 whitespace-nowrap"
-                        >
-                          View Trace →
-                        </Button>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Info */}
-          <div className="bg-base-100 border border-base-300 rounded-lg p-6">
-            <p className="text-sm text-base-600 mb-2">
-              <strong>💡 How it works:</strong> Click any decision to see the complete reasoning trace, replay it to verify byte-identical reproducibility, and export cryptographic evidence for compliance.
-            </p>
-            <p className="text-sm text-base-600">
-              <strong>🔐 Auditability:</strong> Every decision is immutable, linked to its artifact version, and carries chain-hash verification for tamper detection.
-            </p>
-          </div>
-        </div>
-      </AppShell>
-    </>
+export default function DecisionsPage() {
+  return (
+    <RequireAuth>
+      <DecisionsView />
+    </RequireAuth>
   );
 }

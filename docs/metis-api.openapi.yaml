@@ -131,11 +131,334 @@ components:
           items:
             type: object
 
+    # -------------------------------------------------------------------------
+    # CDH proposition taxonomy
+    # -------------------------------------------------------------------------
+
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: integer
+          description: Minor units, e.g. pence. 3500 = 35.00
+        currency:
+          type: string
+          enum: [GBP, USD, EUR]
+
+    Issue:
+      type: object
+      required: [id, name, key]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        key:
+          type: string
+          description: URL-safe stable key, e.g. "retention"
+        description: { type: string }
+        sortOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Group:
+      type: object
+      required: [id, issueId, name, key]
+      properties:
+        id: { type: string }
+        issueId: { type: string }
+        name: { type: string }
+        key: { type: string }
+        description: { type: string }
+        sortOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ValidityWindow:
+      type: object
+      properties:
+        startsAt: { type: string, format: date }
+        endsAt:
+          type: [string, "null"]
+          format: date
+          description: null means open-ended
+
+    PropositionFinancials:
+      type: object
+      properties:
+        price: { $ref: "#/components/schemas/Money" }
+        cost: { $ref: "#/components/schemas/Money" }
+        expectedMargin: { $ref: "#/components/schemas/Money" }
+        termMonths: { type: integer }
+        oneOff: { type: boolean }
+
+    Proposition:
+      type: object
+      required: [id, groupId, issueId, name, key, status]
+      properties:
+        id: { type: string }
+        groupId: { type: string }
+        issueId:
+          type: string
+          description: Denormalised from the group for tree and breadcrumb rendering
+        name: { type: string }
+        key: { type: string }
+        description: { type: string }
+        status:
+          type: string
+          enum: [draft, active, paused, retired]
+        financials: { $ref: "#/components/schemas/PropositionFinancials" }
+        validity: { $ref: "#/components/schemas/ValidityWindow" }
+        lever:
+          type: number
+          description: Business priority multiplier. 1.0 is neutral.
+        policyIds:
+          type: array
+          items: { type: string }
+        treatmentIds:
+          type: array
+          items: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+
+    Treatment:
+      type: object
+      required: [id, propositionId, name, channel, content]
+      properties:
+        id: { type: string }
+        propositionId: { type: string }
+        name: { type: string }
+        channel:
+          type: string
+          enum: [email, sms, web, push, outbound_call]
+        content:
+          type: object
+          description: Channel-specific content; shape is discriminated by channel
+          additionalProperties: true
+        active: { type: boolean }
+        locale: { type: string, example: en-GB }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    # -------------------------------------------------------------------------
+    # Engagement and contact policy
+    # -------------------------------------------------------------------------
+
+    PolicyScope:
+      type: object
+      required: [level]
+      properties:
+        level:
+          type: string
+          enum: [tenant, issue, group, proposition]
+        targetId:
+          type: [string, "null"]
+          description: null when level is tenant
+
+    PolicyCondition:
+      type: object
+      required: [field, operator]
+      properties:
+        field:
+          type: string
+          description: Dotted path into the customer data model
+          example: customer.age
+        operator:
+          type: string
+          enum: [eq, ne, gt, gte, lt, lte, in, not_in, contains, exists, not_exists]
+        value: {}
+
+    EngagementPolicy:
+      type: object
+      required: [id, name, kind, conditions, scope]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        kind:
+          type: string
+          enum: [eligibility, applicability, suitability]
+          description: >-
+            eligibility = can we offer it; applicability = should we now;
+            suitability = is it right for this customer
+        description: { type: string }
+        conditions:
+          type: array
+          items: { $ref: "#/components/schemas/PolicyCondition" }
+        scope: { $ref: "#/components/schemas/PolicyScope" }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ContactPolicy:
+      type: object
+      required: [id, name, maxContacts, period, scope]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        channel:
+          type: [string, "null"]
+          enum: [email, sms, web, push, outbound_call, null]
+          description: null applies to every channel
+        maxContacts: { type: integer }
+        period:
+          type: string
+          enum: [day, week, month]
+        cooldownDaysAfterReject: { type: integer }
+        scope: { $ref: "#/components/schemas/PolicyScope" }
+        active: { type: boolean }
+
+    # -------------------------------------------------------------------------
+    # Arbitration
+    # -------------------------------------------------------------------------
+
+    ArbitrationConfig:
+      type: object
+      required: [id, tenantId, weights]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        weights:
+          type: object
+          description: Exponent weights for Priority = P^wP x V^wV x L^wL x C^wC
+          properties:
+            propensity: { type: number }
+            value: { type: number }
+            lever: { type: number }
+            context: { type: number }
+        formula: { type: string }
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+
+    Lever:
+      type: object
+      required: [id, name, scope, value]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        scope: { $ref: "#/components/schemas/PolicyScope" }
+        value:
+          type: number
+          description: Multiplier. 1.0 is neutral.
+        reason: { type: string }
+        validity:
+          oneOf:
+            - { $ref: "#/components/schemas/ValidityWindow" }
+            - { type: "null" }
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+
+    # -------------------------------------------------------------------------
+    # Agentic AI autonomy
+    # -------------------------------------------------------------------------
+
+    AutonomyGuardrails:
+      type: object
+      properties:
+        maxBlastRadiusPct:
+          type: number
+          minimum: 0
+          maximum: 100
+        allowedChangeTypes:
+          type: array
+          items:
+            type: string
+            enum:
+              - lever_adjust
+              - treatment_copy
+              - policy_edit
+              - proposition_create
+              - proposition_retire
+              - strategy_edit
+              - arbitration_weights
+        maxLeverDelta:
+          type: number
+          description: Fraction. 0.1 permits +/-10%.
+        maxBudgetDelta: { $ref: "#/components/schemas/Money" }
+        protectedAttributes:
+          type: array
+          items: { type: string }
+        requireSimulationPass: { type: boolean }
+        biasGateThreshold: { type: number }
+
+    AutonomySetting:
+      type: object
+      required: [id, scope, level, guardrails]
+      properties:
+        id: { type: string }
+        scope: { $ref: "#/components/schemas/PolicyScope" }
+        level:
+          type: string
+          enum: [L0, L1, L2, L3, L4]
+          description: >-
+            L0 Observe, L1 Assist, L2 Propose, L3 Bounded, L4 Autonomous.
+            Resolved most-specific-first: proposition > group > issue > tenant.
+        guardrails: { $ref: "#/components/schemas/AutonomyGuardrails" }
+        rationale:
+          type: string
+          description: Why this scope was granted this level. Required for audit.
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+
+    AgentActivity:
+      type: object
+      required: [id, timestamp, agentId, level, changeType, outcome]
+      properties:
+        id: { type: string }
+        timestamp: { type: string, format: date-time }
+        agentId: { type: string }
+        level:
+          type: string
+          enum: [L0, L1, L2, L3, L4]
+        scope: { $ref: "#/components/schemas/PolicyScope" }
+        changeType:
+          type: string
+          enum:
+            - lever_adjust
+            - treatment_copy
+            - policy_edit
+            - proposition_create
+            - proposition_retire
+            - strategy_edit
+            - arbitration_weights
+        summary: { type: string }
+        outcome:
+          type: string
+          enum: [suggested, proposed, auto_applied, reverted, blocked]
+        guardrailBreached:
+          type: [string, "null"]
+        changeRequestId:
+          type: [string, "null"]
+
+    # -------------------------------------------------------------------------
+    # Auth
+    # -------------------------------------------------------------------------
+
+    AuthUser:
+      type: object
+      required: [id, email, name, roles, permissions]
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        name: { type: string }
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [architect, marketer, compliance, analyst, operator, admin]
+        permissions:
+          type: array
+          items: { type: string }
+        tenantId: { type: string }
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
 
 security:
   - bearerAuth: []
@@ -576,3 +899,398 @@ paths:
                     type: object
                   newOutcome:
                     type: string
+
+  # ---------------------------------------------------------------------------
+  # Proposition hierarchy (CDH taxonomy)
+  # ---------------------------------------------------------------------------
+
+  /taxonomy/{tenantId}:
+    get:
+      operationId: getTaxonomy
+      summary: Full Issue > Group > Proposition tree for the offer catalogue
+      tags: [propositions]
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Taxonomy tree
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  issues:
+                    type: array
+                    items: { $ref: "#/components/schemas/Issue" }
+                  groups:
+                    type: array
+                    items: { $ref: "#/components/schemas/Group" }
+                  propositions:
+                    type: array
+                    items: { $ref: "#/components/schemas/Proposition" }
+
+  /propositions/{tenantId}:
+    get:
+      operationId: listPropositions
+      summary: List propositions with filtering
+      tags: [propositions]
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: issueId
+          in: query
+          schema: { type: string }
+        - name: groupId
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, active, paused, retired]
+        - name: q
+          in: query
+          description: Free-text search across name, key and tags
+          schema: { type: string }
+      responses:
+        "200":
+          description: Matching propositions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  propositions:
+                    type: array
+                    items: { $ref: "#/components/schemas/Proposition" }
+                  total: { type: integer }
+    post:
+      operationId: createProposition
+      summary: Create a proposition
+      tags: [propositions]
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Proposition" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Proposition" }
+
+  /propositions/{tenantId}/{propositionId}:
+    get:
+      operationId: getProposition
+      summary: Fetch one proposition with its treatments and policies
+      tags: [propositions]
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: propositionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Proposition detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  proposition: { $ref: "#/components/schemas/Proposition" }
+                  treatments:
+                    type: array
+                    items: { $ref: "#/components/schemas/Treatment" }
+                  policies:
+                    type: array
+                    items: { $ref: "#/components/schemas/EngagementPolicy" }
+                  autonomy: { $ref: "#/components/schemas/AutonomySetting" }
+        "404":
+          description: Not found
+    put:
+      operationId: updateProposition
+      summary: Update a proposition
+      tags: [propositions]
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: propositionId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Proposition" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Proposition" }
+
+  /treatments/{tenantId}/{propositionId}:
+    get:
+      operationId: listTreatments
+      summary: Channel treatments for a proposition
+      tags: [propositions]
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: propositionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Treatments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  treatments:
+                    type: array
+                    items: { $ref: "#/components/schemas/Treatment" }
+
+  # ---------------------------------------------------------------------------
+  # Engagement, contact policy and arbitration
+  # ---------------------------------------------------------------------------
+
+  /engagement-policies/{tenantId}:
+    get:
+      operationId: listEngagementPolicies
+      summary: Eligibility, applicability and suitability rules
+      tags: [policies]
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: kind
+          in: query
+          schema:
+            type: string
+            enum: [eligibility, applicability, suitability]
+      responses:
+        "200":
+          description: Policies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policies:
+                    type: array
+                    items: { $ref: "#/components/schemas/EngagementPolicy" }
+
+  /contact-policies/{tenantId}:
+    get:
+      operationId: listContactPolicies
+      summary: Suppression and contact-frequency rules
+      tags: [policies]
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Contact policies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policies:
+                    type: array
+                    items: { $ref: "#/components/schemas/ContactPolicy" }
+
+  /arbitration/{tenantId}:
+    get:
+      operationId: getArbitrationConfig
+      summary: Arbitration formula weights and active levers
+      tags: [arbitration]
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Arbitration configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config: { $ref: "#/components/schemas/ArbitrationConfig" }
+                  levers:
+                    type: array
+                    items: { $ref: "#/components/schemas/Lever" }
+    put:
+      operationId: updateArbitrationConfig
+      summary: Update arbitration weights
+      tags: [arbitration]
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ArbitrationConfig" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ArbitrationConfig" }
+
+  # ---------------------------------------------------------------------------
+  # Agentic AI autonomy (spec now, UI in P4)
+  # ---------------------------------------------------------------------------
+
+  /autonomy/{tenantId}:
+    get:
+      operationId: listAutonomySettings
+      summary: Autonomy levels and guardrails by scope
+      tags: [agentic]
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Autonomy settings; most specific scope wins at resolution
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  settings:
+                    type: array
+                    items: { $ref: "#/components/schemas/AutonomySetting" }
+    put:
+      operationId: updateAutonomySetting
+      summary: Set the autonomy level and guardrails for a scope
+      tags: [agentic]
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AutonomySetting" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AutonomySetting" }
+
+  /agent-activity/{tenantId}:
+    get:
+      operationId: listAgentActivity
+      summary: Feed of agent suggestions, proposals and auto-applied changes
+      tags: [agentic]
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: outcome
+          in: query
+          schema:
+            type: string
+            enum: [suggested, proposed, auto_applied, reverted, blocked]
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+      responses:
+        "200":
+          description: Activity feed, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activity:
+                    type: array
+                    items: { $ref: "#/components/schemas/AgentActivity" }
+
+  # ---------------------------------------------------------------------------
+  # Authentication
+  # ---------------------------------------------------------------------------
+
+  /auth/login:
+    post:
+      operationId: login
+      summary: Exchange credentials for a session token
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  user: { $ref: "#/components/schemas/AuthUser" }
+        "401":
+          description: Invalid credentials
+
+  /auth/session:
+    get:
+      operationId: getSession
+      summary: Resolve the current session from the bearer token
+      tags: [auth]
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/AuthUser" }
+        "401":
+          description: No valid session

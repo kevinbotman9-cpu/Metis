@@ -2,272 +2,454 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { AppShell } from '@/components/app-shell';
-import { MockBanner } from '@/components/mock-banner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useParams } from 'next/navigation';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { RequireAuth } from '@/components/require-auth';
+import {
+  PageBody,
+  PageHeader,
+  Card,
+  CardHeader,
+  CardBody,
+  Badge,
+  Metric,
+  LoadingState,
+  ErrorState,
+  EmptyState,
+} from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { MOCK_TRACE } from './trace-demo';
+import { apiClient, ApiError, type TraceDto } from '@/lib/api-client';
+import { cn } from '@/lib/cn';
 
-export default function DecisionDetailPage({ params }: { params: { id: string } }) {
-  const [audience, setAudience] = useState('Customer');
-  const [replayResult, setReplayResult] = useState<string | null>(null);
+const AUDIENCES = [
+  { key: 'customer', label: 'Customer', blurb: 'Plain language, no internal identifiers.' },
+  { key: 'business', label: 'Business', blurb: 'Value, levers and commercial outcome.' },
+  { key: 'analyst', label: 'Analyst', blurb: 'Full score composition and elimination detail.' },
+  { key: 'engineer', label: 'Engineer', blurb: 'Node IDs, timings and artifact version.' },
+  { key: 'regulator', label: 'Regulator', blurb: 'Policies applied, consent state and evidence.' },
+] as const;
 
-  const audiences = ['Customer', 'Business', 'Analyst', 'Engineer', 'Regulator'];
+type AudienceKey = (typeof AUDIENCES)[number]['key'];
+
+function TraceView({ decisionId }: { decisionId: string }) {
+  const [audience, setAudience] = useState<AudienceKey>('analyst');
+
+  const { data: trace, isLoading, error, refetch } = useQuery({
+    queryKey: ['trace', decisionId],
+    queryFn: () => apiClient.getDecisionTrace(decisionId),
+    retry: false,
+  });
+
+  const replay = useMutation({
+    mutationFn: () => apiClient.replayDecision(decisionId),
+  });
+
+  if (isLoading) {
+    return (
+      <PageBody>
+        <LoadingState label="Loading trace" />
+      </PageBody>
+    );
+  }
+
+  if (error) {
+    const notFound = error instanceof ApiError && error.status === 404;
+    return (
+      <PageBody>
+        <PageHeader
+          title="Decision trace"
+          breadcrumb={
+            <Link href="/decisions" className="text-label text-accent hover:underline">
+              ← Decisions
+            </Link>
+          }
+        />
+        {notFound ? (
+          <Card>
+            <EmptyState
+              title={`No decision with ID ${decisionId}`}
+              description="It may have been outside the retention window, or the link may be stale."
+              action={
+                <Link href="/decisions">
+                  <Button variant="primary">Back to decision search</Button>
+                </Link>
+              }
+            />
+          </Card>
+        ) : (
+          <ErrorState description={(error as Error).message} onRetry={() => refetch()} />
+        )}
+      </PageBody>
+    );
+  }
+
+  if (!trace) return null;
+
+  const ranked = Object.entries(trace.scores).sort((a, b) => b[1].priority - a[1].priority);
+  const maxPriority = ranked[0]?.[1].priority ?? 1;
+  const show = (...keys: AudienceKey[]) => keys.includes(audience);
 
   return (
-    <>
-      <MockBanner />
-      <AppShell>
-        <div className="p-8 space-y-6 max-w-5xl">
-          {/* Header with Back Button */}
-          <div className="mb-8">
-            <Link href="/decisions" className="inline-block mb-4">
-              <Button variant="ghost" size="sm" className="hover:bg-base-200">
-                ← Back to Decisions
-              </Button>
-            </Link>
-            <h1 className="text-4xl font-bold text-base-900 mb-2">Decision Trace</h1>
-            <p className="text-lg text-base-600">
-              Complete, immutable audit record for decision {MOCK_TRACE.id}
-            </p>
-          </div>
+    <PageBody>
+      <PageHeader
+        breadcrumb={
+          <Link href="/decisions" className="text-label text-accent hover:underline">
+            ← Decisions
+          </Link>
+        }
+        title={
+          <span className="flex items-center gap-2">
+            <span className="font-mono text-base">{trace.id}</span>
+            {trace.winner ? (
+              <Badge tone="pass">{trace.winner}</Badge>
+            ) : (
+              <Badge tone="block">no offer</Badge>
+            )}
+          </span>
+        }
+        description="Immutable record of what the platform decided and why."
+        actions={
+          <>
+            <Button variant="secondary" size="sm">
+              Export PDF
+            </Button>
+            <Button variant="secondary" size="sm">
+              Export JSON
+            </Button>
+          </>
+        }
+      />
 
-          {/* Metadata Card */}
-          <Card className="border-base-300 bg-base-100/50">
-            <CardHeader className="border-b border-base-300 pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Decision Metadata</CardTitle>
-                <span className="text-xs text-state-pass font-semibold">✓ VERIFIED</span>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="grid grid-cols-2 gap-8">
-                <div>
-                  <p className="text-xs font-semibold text-base-600 mb-1">Decision ID</p>
-                  <p className="text-sm font-mono text-accent break-all">{MOCK_TRACE.id}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-base-600 mb-1">Timestamp</p>
-                  <p className="text-sm">
-                    {new Date(MOCK_TRACE.timestamp).toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-base-600 mb-1">Artifact Version</p>
-                  <p className="text-sm font-mono">{MOCK_TRACE.artifactVersion}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-base-600 mb-1">Tenant</p>
-                  <p className="text-sm">{MOCK_TRACE.tenantId}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Audience selector */}
+      <div className="mb-stack flex flex-wrap items-center gap-2">
+        <span className="text-label uppercase tracking-wide text-content-subtle">
+          Explain for
+        </span>
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Trace audience">
+          {AUDIENCES.map((a) => (
+            <button
+              key={a.key}
+              onClick={() => setAudience(a.key)}
+              aria-pressed={audience === a.key}
+              className={cn(
+                'rounded border px-2 py-1 text-label font-medium transition-colors',
+                audience === a.key
+                  ? 'border-accent bg-accent text-white'
+                  : 'border-border text-content-muted hover:bg-surface-sunken'
+              )}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+        <span className="text-label text-content-subtle">
+          {AUDIENCES.find((a) => a.key === audience)?.blurb}
+        </span>
+      </div>
 
-          {/* Audience Toggle */}
-          <div className="flex gap-2 items-center flex-wrap">
-            <span className="text-sm font-semibold text-base-900">View for:</span>
-            <div className="flex gap-2 flex-wrap">
-              {audiences.map((aud) => (
-                <button
-                  key={aud}
-                  onClick={() => setAudience(aud)}
-                  className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                    audience === aud
-                      ? 'bg-accent text-white'
-                      : 'bg-base-300 text-base-900 hover:bg-base-400'
-                  }`}
-                >
-                  {aud}
-                </button>
-              ))}
-            </div>
-          </div>
+      <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Metric
+          label="Latency"
+          value={`${trace.totalMs.toFixed(1)}ms`}
+          tone={trace.totalMs > 20 ? 'hold' : 'pass'}
+          sub="SLA 50ms"
+        />
+        <Metric label="Candidates" value={trace.candidateCount} sub="entered arbitration" />
+        <Metric label="Channel" value={trace.channel.replace('_', ' ')} sub={trace.placement} />
+        <Metric label="Artifact" value={trace.artifactVersion} sub={trace.artifactId} />
+      </div>
 
-          {/* Elimination Cascade */}
-          <Card className="border-base-300">
-            <CardHeader className="border-b border-base-300 pb-4">
-              <CardTitle className="text-lg">Elimination Cascade</CardTitle>
-              <p className="text-xs text-base-600 mt-1">
-                Step-by-step decision flow showing which candidates survived filtering
-              </p>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                {MOCK_TRACE.eliminations.map((step, idx) => (
-                  <div key={idx} className="relative">
-                    {idx < MOCK_TRACE.eliminations.length - 1 && (
-                      <div className="absolute left-5 top-12 w-0.5 h-8 bg-base-300" />
-                    )}
-                    <div className="flex gap-4">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center font-semibold text-sm">
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1 p-4 rounded-lg border border-base-300 bg-white hover:border-accent transition-colors">
-                        <p className="font-mono text-sm text-accent font-semibold">
-                          {step.nodeId}
-                        </p>
-                        <p className="text-sm text-base-700 mt-2">{step.reason}</p>
-                        {step.eliminated.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-3">
+      <div className="grid gap-stack lg:grid-cols-[1.4fr_1fr]">
+        <div className="space-y-stack">
+          {/* Cascade */}
+          <Card>
+            <CardHeader
+              title="Elimination cascade"
+              description="Each node in order, and what it removed."
+            />
+            <CardBody>
+              <ol className="space-y-0">
+                {trace.eliminations.map((step, i) => {
+                  const last = i === trace.eliminations.length - 1;
+                  const removed = step.eliminated.length;
+                  return (
+                    <li key={step.nodeId} className="relative flex gap-3 pb-4 last:pb-0">
+                      {!last && (
+                        <span
+                          aria-hidden
+                          className="absolute left-[0.6875rem] top-6 h-[calc(100%-1rem)] w-px bg-border"
+                        />
+                      )}
+                      <span
+                        className={cn(
+                          'z-10 mt-0.5 flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-full text-[0.625rem] font-semibold',
+                          removed > 0
+                            ? 'bg-block-subtle text-block'
+                            : 'bg-pass-subtle text-pass'
+                        )}
+                      >
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-baseline gap-2">
+                          <span className="font-mono text-label font-medium text-accent">
+                            {step.nodeId}
+                          </span>
+                          {show('engineer', 'analyst') && (
+                            <Badge tone="outline">{step.nodeType}</Badge>
+                          )}
+                          <span className="text-label text-content-subtle">
+                            {step.survived.length} survived
+                          </span>
+                        </div>
+                        <p className="mt-1 text-body text-content-muted">{step.reason}</p>
+                        {removed > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
                             {step.eliminated.map((e) => (
-                              <Badge key={e} variant="block" className="text-xs">
-                                ✕ {e}
+                              <Badge key={e} tone="block">
+                                {e}
                               </Badge>
                             ))}
                           </div>
                         )}
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
+                    </li>
+                  );
+                })}
+              </ol>
+            </CardBody>
           </Card>
 
-          {/* Score Composition */}
-          <Card className="border-base-300">
-            <CardHeader className="border-b border-base-300 pb-4">
-              <CardTitle className="text-lg">Score Composition</CardTitle>
-              <p className="text-xs text-base-600 mt-1">
-                How each candidate was scored against the decision formula
-              </p>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                {Object.entries(MOCK_TRACE.scores)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([action, score]) => (
-                    <div key={action}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold text-base-900">
-                          {action}
-                        </span>
-                        <span className="text-sm font-mono text-accent font-bold">
-                          {(score * 100).toFixed(1)}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-base-300 rounded-full h-3 overflow-hidden">
-                        <div
-                          className="bg-gradient-to-r from-accent to-state-pass h-3 rounded-full transition-all"
-                          style={{ width: `${score * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Arbitration Result */}
-          <Card className="border-2 border-state-pass bg-state-pass/5">
-            <CardHeader className="border-b border-state-pass pb-4">
-              <CardTitle className="text-lg text-state-pass">Arbitration Result</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-6">
-              <div>
-                <p className="text-xs font-semibold text-base-600 mb-2">Ranking Formula</p>
-                <div className="p-3 rounded bg-white border border-base-300 font-mono text-sm text-base-900">
-                  {MOCK_TRACE.arbitration.formula}
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-base-600 mb-3">Selected Action</p>
-                <Badge variant="pass" className="text-base px-4 py-2">
-                  ✓ {MOCK_TRACE.arbitration.winner}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Replay Section */}
-          <Card className="border-base-300">
-            <CardHeader className="border-b border-base-300 pb-4">
-              <CardTitle className="text-lg">Verify Determinism</CardTitle>
-              <p className="text-xs text-base-600 mt-1">
-                Re-execute this decision with identical inputs to prove reproducibility
-              </p>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                <Button
-                  onClick={() => setReplayResult('✓ IDENTICAL')}
-                  size="lg"
-                  variant="default"
-                  className="w-full text-lg font-semibold"
-                >
-                  ▶ Replay This Decision
-                </Button>
-                {replayResult && (
-                  <div className="p-4 rounded-lg bg-state-pass/10 border-2 border-state-pass">
-                    <p className="text-lg font-bold text-state-pass">{replayResult}</p>
-                    <p className="text-xs text-base-700 mt-2">
-                      Decision output matches historical trace exactly. Same inputs + same
-                      artifact version = byte-identical result (determinism guaranteed).
-                    </p>
-                  </div>
+          {/* Scores */}
+          {show('analyst', 'business', 'engineer') && (
+            <Card>
+              <CardHeader
+                title="Score composition"
+                description={trace.arbitration.formula}
+              />
+              <CardBody>
+                {ranked.length === 0 ? (
+                  <EmptyState
+                    title="No candidate reached scoring"
+                    description="Every candidate was removed before arbitration."
+                  />
+                ) : (
+                  <table className="w-full text-body">
+                    <thead>
+                      <tr className="border-b border-border text-label uppercase tracking-wide text-content-subtle">
+                        <th className="py-1.5 text-left font-semibold">Action</th>
+                        <th className="py-1.5 text-right font-semibold">P</th>
+                        <th className="py-1.5 text-right font-semibold">V</th>
+                        <th className="py-1.5 text-right font-semibold">L</th>
+                        <th className="py-1.5 text-right font-semibold">C</th>
+                        <th className="py-1.5 text-right font-semibold">Priority</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ranked.map(([action, s], i) => (
+                        <tr key={action} className="border-b border-border/60">
+                          <td className="py-2">
+                            <div className="flex items-center gap-2">
+                              {i === 0 && trace.winner === action ? (
+                                <Badge tone="pass">winner</Badge>
+                              ) : null}
+                              <span className="font-medium">{action}</span>
+                            </div>
+                            <div
+                              className="mt-1 h-1 rounded-full bg-accent/70"
+                              style={{ width: `${(s.priority / maxPriority) * 100}%` }}
+                              aria-hidden
+                            />
+                          </td>
+                          <td className="tnum py-2 text-right text-content-muted">
+                            {s.propensity.toFixed(3)}
+                          </td>
+                          <td className="tnum py-2 text-right text-content-muted">
+                            {s.value.toFixed(3)}
+                          </td>
+                          <td className="tnum py-2 text-right text-content-muted">
+                            {s.lever.toFixed(2)}
+                          </td>
+                          <td className="tnum py-2 text-right text-content-muted">
+                            {s.context.toFixed(3)}
+                          </td>
+                          <td className="tnum py-2 text-right font-semibold">
+                            {s.priority.toFixed(4)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
-              </div>
-            </CardContent>
+              </CardBody>
+            </Card>
+          )}
+
+          {/* Timings */}
+          {show('engineer', 'analyst') && (
+            <Card>
+              <CardHeader title="Execution timings" description="Per-node latency." />
+              <CardBody>
+                <ul className="space-y-2">
+                  {Object.entries(trace.timings).map(([node, ms]) => (
+                    <li key={node} className="flex items-center gap-3">
+                      <span className="w-44 shrink-0 font-mono text-label text-accent">
+                        {node}
+                      </span>
+                      <span className="h-1.5 flex-1 rounded-full bg-surface-sunken">
+                        <span
+                          className="block h-1.5 rounded-full bg-accent"
+                          style={{ width: `${(ms / trace.totalMs) * 100}%` }}
+                        />
+                      </span>
+                      <span className="tnum w-14 text-right text-content-muted">
+                        {ms.toFixed(1)}ms
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-3 flex justify-between border-t border-border pt-2 text-body font-semibold">
+                  <span>Total</span>
+                  <span className="tnum text-pass">{trace.totalMs.toFixed(1)}ms</span>
+                </div>
+              </CardBody>
+            </Card>
+          )}
+        </div>
+
+        {/* Right rail */}
+        <div className="space-y-stack">
+          <Card>
+            <CardHeader
+              title="Determinism"
+              description="Re-execute against the stored artifact version."
+            />
+            <CardBody>
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full"
+                onClick={() => replay.mutate()}
+                disabled={replay.isPending}
+              >
+                {replay.isPending ? 'Replaying…' : 'Replay this decision'}
+              </Button>
+
+              {replay.isError && (
+                <p role="alert" className="mt-3 rounded border border-block/40 bg-block-subtle px-3 py-2 text-body text-block">
+                  Replay failed: {(replay.error as Error).message}
+                </p>
+              )}
+
+              {replay.data && (
+                <div
+                  className={cn(
+                    'mt-3 rounded border px-3 py-2',
+                    replay.data.identical
+                      ? 'border-pass/40 bg-pass-subtle'
+                      : 'border-block/40 bg-block-subtle'
+                  )}
+                >
+                  <p
+                    className={cn(
+                      'text-body font-semibold',
+                      replay.data.identical ? 'text-pass' : 'text-block'
+                    )}
+                  >
+                    {replay.data.identical ? 'Identical' : 'Diverged'}
+                  </p>
+                  <p className="mt-1 text-label text-content-muted">
+                    Replayed against artifact {replay.data.artifactVersion}. Original winner{' '}
+                    <span className="font-mono">{replay.data.originalWinner ?? 'none'}</span>,
+                    replayed winner{' '}
+                    <span className="font-mono">{replay.data.replayedWinner ?? 'none'}</span>.
+                  </p>
+                </div>
+              )}
+            </CardBody>
           </Card>
 
-          {/* Execution Timings */}
-          <Card className="border-base-300">
-            <CardHeader className="border-b border-base-300 pb-4">
-              <CardTitle className="text-lg">Execution Timings</CardTitle>
-              <p className="text-xs text-base-600 mt-1">
-                Per-node latency breakdown (SLA: &lt;50ms total)
-              </p>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-3">
-                {Object.entries(MOCK_TRACE.timings).map(([node, ms]) => (
-                  <div key={node} className="flex justify-between items-center">
-                    <span className="text-sm font-mono text-accent">{node}</span>
-                    <div className="flex-1 mx-4 bg-base-300 rounded h-2">
-                      <div
-                        className="bg-accent rounded h-2"
-                        style={{ width: `${(ms / 15) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-mono font-semibold text-base-900">
-                      {ms.toFixed(1)}ms
-                    </span>
+          <Card>
+            <CardHeader title="Metadata" />
+            <CardBody>
+              <dl className="space-y-2 text-body">
+                {[
+                  ['Decision ID', trace.id, true],
+                  ['Customer', trace.customerId, true],
+                  ['Timestamp', new Date(trace.timestamp).toLocaleString('en-GB'), false],
+                  ['Tenant', trace.tenantId, false],
+                  ['Artifact', `${trace.artifactId} ${trace.artifactVersion}`, true],
+                  ['Placement', trace.placement, true],
+                ].map(([label, value, mono]) => (
+                  <div key={String(label)} className="flex justify-between gap-3">
+                    <dt className="shrink-0 text-content-subtle">{label}</dt>
+                    <dd className={cn('truncate text-right', mono && 'font-mono text-label')}>
+                      {String(value)}
+                    </dd>
                   </div>
                 ))}
-                <div className="border-t border-base-300 pt-3 mt-3 flex justify-between">
-                  <span className="font-semibold text-base-900">Total Latency</span>
-                  <span className="font-mono font-bold text-state-pass text-lg">
-                    {Object.values(MOCK_TRACE.timings)
-                      .reduce((a, b) => a + b, 0)
-                      .toFixed(1)}
-                    ms
-                  </span>
-                </div>
-              </div>
-            </CardContent>
+              </dl>
+            </CardBody>
           </Card>
 
-          {/* Export Section */}
-          <Card className="border-base-300">
-            <CardHeader className="border-b border-base-300 pb-4">
-              <CardTitle className="text-lg">Export Evidence</CardTitle>
-              <p className="text-xs text-base-600 mt-1">
-                Download cryptographically signed proof for compliance audits
-              </p>
-            </CardHeader>
-            <CardContent className="pt-6 flex gap-3 flex-wrap">
-              <Button variant="secondary" size="sm" className="flex items-center gap-2">
-                📄 Export as PDF
-              </Button>
-              <Button variant="secondary" size="sm" className="flex items-center gap-2">
-                ⬇️ Download JSON
-              </Button>
-            </CardContent>
-          </Card>
+          {show('regulator', 'analyst', 'business') && (
+            <Card>
+              <CardHeader
+                title="Consent and policy"
+                description="What governed this decision."
+              />
+              <CardBody>
+                <p className="mb-2 text-label uppercase tracking-wide text-content-subtle">
+                  Consent state
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {Object.entries(trace.consentState).map(([k, v]) => (
+                    <Badge key={k} tone={v ? 'pass' : 'block'}>
+                      {k}: {v ? 'granted' : 'withheld'}
+                    </Badge>
+                  ))}
+                </div>
+
+                <p className="mb-2 mt-4 text-label uppercase tracking-wide text-content-subtle">
+                  Contact policies applied
+                </p>
+                <ul className="space-y-1">
+                  {trace.constraintsApplied.map((c) => (
+                    <li key={c} className="font-mono text-label text-content-muted">
+                      {c}
+                    </li>
+                  ))}
+                </ul>
+
+                {trace.treatmentId && (
+                  <>
+                    <p className="mb-2 mt-4 text-label uppercase tracking-wide text-content-subtle">
+                      Treatment delivered
+                    </p>
+                    <Link
+                      href={`/propositions/${trace.winnerPropositionId}`}
+                      className="font-mono text-label text-accent hover:underline"
+                    >
+                      {trace.treatmentId}
+                    </Link>
+                  </>
+                )}
+              </CardBody>
+            </Card>
+          )}
         </div>
-      </AppShell>
-    </>
+      </div>
+    </PageBody>
+  );
+}
+
+export default function DecisionDetailPage() {
+  const params = useParams();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
+
+  return (
+    <RequireAuth>
+      {id ? <TraceView decisionId={id} /> : null}
+    </RequireAuth>
   );
 }

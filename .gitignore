@@ -73,3 +73,6 @@ clickhouse_data/
 # Logs
 logs/
 *.log
+
+# Next.js build output
+apps/console/.next/

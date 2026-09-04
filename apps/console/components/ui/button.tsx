@@ -1,48 +1,39 @@
-import { forwardRef } from 'react';
+'use client';
+
+import { forwardRef, type ButtonHTMLAttributes } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/cn';
 
-const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
+const button = cva(
+  'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        default:
-          'bg-accent text-white hover:bg-opacity-90 focus-visible:ring-offset-base-100',
+        primary: 'bg-accent text-white hover:bg-accent-hover',
         secondary:
-          'bg-base-300 text-base-900 hover:bg-base-400 focus-visible:ring-offset-base-100',
-        ghost:
-          'hover:bg-base-200 text-base-900 focus-visible:ring-offset-base-100',
-        destructive:
-          'bg-state-block text-white hover:bg-opacity-90 focus-visible:ring-offset-base-100',
+          'border border-border bg-surface text-content hover:bg-surface-sunken',
+        ghost: 'text-content-muted hover:bg-surface-sunken hover:text-content',
+        danger: 'bg-block text-white hover:opacity-90',
+        link: 'text-accent underline-offset-4 hover:underline p-0 h-auto',
       },
       size: {
-        sm: 'h-8 px-3 text-sm',
-        md: 'h-10 px-4 text-base',
-        lg: 'h-12 px-6 text-lg',
+        sm: 'h-7 px-2 text-label',
+        md: 'h-8 px-3 text-body',
+        lg: 'h-10 px-4 text-body',
+        icon: 'h-8 w-8 p-0',
       },
     },
-    defaultVariants: {
-      variant: 'default',
-      size: 'md',
-    },
+    defaultVariants: { variant: 'secondary', size: 'md' },
   }
 );
 
-interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {}
+export interface ButtonProps
+  extends ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof button> {}
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, ...props }, ref) => (
-    <button
-      className={cn(buttonVariants({ variant, size, className }))}
-      ref={ref}
-      {...props}
-    />
+    <button ref={ref} className={cn(button({ variant, size }), className)} {...props} />
   )
 );
-
 Button.displayName = 'Button';
-
-export { Button, buttonVariants };

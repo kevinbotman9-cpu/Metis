@@ -84,3 +84,6 @@ export function isCoreNodeType(type: string): boolean {
  * Export schemas for external use
  */
 export { dirSchema, packageSchema };
+
+// CDH proposition taxonomy, policies, arbitration and agentic autonomy
+export * from "./domain";

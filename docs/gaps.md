@@ -159,3 +159,39 @@ None yet, pending OpenAPI spec generation.
 ---
 
 **Last reviewed:** 2026-09-03
+
+---
+
+## Registered 2026-09-04 — CDH domain model and agentic autonomy
+
+Added to the OpenAPI spec as proposed operations. The execution plane has built none of them;
+the console runs against the development fixture store.
+
+| Operation | Needed for | Platform status |
+|---|---|---|
+| `getTaxonomy` | Issue › Group › Proposition tree | Not built |
+| `listPropositions` / `getProposition` | Offer catalogue and detail | Not built |
+| `createProposition` / `updateProposition` | Authoring offers | Not built — writes are echoed, not persisted |
+| `listTreatments` | Per-channel content | Not built |
+| `listEngagementPolicies` | Eligibility / applicability / suitability | Not built |
+| `listContactPolicies` | Suppression and frequency caps | Not built |
+| `getArbitrationConfig` / `updateArbitrationConfig` | P × V × L × C weights | Not built |
+| `listAutonomySettings` / `updateAutonomySetting` | Agentic autonomy per scope | Not built |
+| `listAgentActivity` | Agent activity feed | Not built |
+| `login` / `getSession` | Authentication | Not built — no real identity provider yet |
+
+### Still outstanding from earlier
+
+- `simulateStrategy` — ad-hoc simulation. `/simulations` states plainly that this is not built
+  and shows only simulations attached to change requests.
+- `getCounterfactual` — minimal-input-change explanations. No UI yet.
+
+### Notes for the platform team
+
+- **Money is minor units.** `Money.amount` is an integer in pence to avoid float drift.
+- **Autonomy resolution is most-specific-first**: proposition › group › issue › tenant. The
+  reference implementation is `resolveAutonomy()` in `packages/core/src/domain.ts`.
+- **`issueId` on `Proposition` is denormalised** from its group, for tree and breadcrumb
+  rendering without a second lookup.
+- **A proposition with no active treatment cannot be delivered.** The console flags this; the
+  compiler should reject promoting a strategy whose candidate set includes one.

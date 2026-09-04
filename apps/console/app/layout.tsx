@@ -19,7 +19,7 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta httpEquiv="X-UA-Compatible" content="ie=edge" />
       </head>
-      <body className="bg-base-100 text-base-900">
+      <body className="bg-page text-content">
         <RootLayoutClient>{children}</RootLayoutClient>
       </body>
     </html>

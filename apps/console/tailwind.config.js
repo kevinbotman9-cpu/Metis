@@ -1,25 +1,86 @@
+/**
+ * Tailwind is a thin mapping onto the CSS custom properties in globals.css.
+ * Colours resolve through rgb(var(--token) / <alpha-value>) so opacity
+ * modifiers (bg-accent/10) work and dark mode is a token swap, not a variant.
+ *
+ * Never add a literal colour here — add a token to globals.css first.
+ */
+
+const rgb = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
     './app/**/*.{js,ts,jsx,tsx}',
     './components/**/*.{js,ts,jsx,tsx}',
+    './lib/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
     extend: {
       colors: {
-        'state-pass': '#1E7A4E',
-        'state-block': '#B23A3A',
-        'state-hold': '#A66B00',
-        'base-900': '#14171C',
-        'base-800': '#2D2E33',
-        'base-700': '#464849',
-        'base-600': '#68696E',
-        'base-500': '#8B8C91',
-        'base-400': '#AEAFB4',
-        'base-300': '#D1D2D7',
-        'base-200': '#E8EAED',
-        'base-100': '#F5F6F8',
-        'accent': '#2563C7',
+        page: rgb('page'),
+        surface: {
+          DEFAULT: rgb('surface'),
+          raised: rgb('surface-raised'),
+          sunken: rgb('surface-sunken'),
+        },
+        border: {
+          DEFAULT: rgb('border'),
+          strong: rgb('border-strong'),
+        },
+        content: {
+          DEFAULT: rgb('text'),
+          muted: rgb('text-muted'),
+          subtle: rgb('text-subtle'),
+          inverse: rgb('text-inverse'),
+        },
+        accent: {
+          DEFAULT: rgb('accent'),
+          hover: rgb('accent-hover'),
+          subtle: rgb('accent-subtle'),
+        },
+        pass: { DEFAULT: rgb('pass'), subtle: rgb('pass-subtle') },
+        block: { DEFAULT: rgb('block'), subtle: rgb('block-subtle') },
+        hold: { DEFAULT: rgb('hold'), subtle: rgb('hold-subtle') },
+        info: { DEFAULT: rgb('info'), subtle: rgb('info-subtle') },
+        l0: rgb('l0'),
+        l1: rgb('l1'),
+        l2: rgb('l2'),
+        l3: rgb('l3'),
+        l4: rgb('l4'),
+      },
+      borderColor: {
+        DEFAULT: rgb('border'),
+      },
+      spacing: {
+        cell: 'var(--cell-x)',
+        'cell-y': 'var(--cell-y)',
+        card: 'var(--card-p)',
+        stack: 'var(--stack)',
+      },
+      height: {
+        row: 'var(--row-h)',
+      },
+      minHeight: {
+        row: 'var(--row-h)',
+      },
+      fontSize: {
+        body: 'var(--text-body)',
+        label: 'var(--text-label)',
+      },
+      fontFamily: {
+        sans: 'var(--font-sans)',
+        mono: 'var(--font-mono)',
+      },
+      borderRadius: {
+        sm: 'var(--radius-sm)',
+        DEFAULT: 'var(--radius)',
+        lg: 'var(--radius-lg)',
+      },
+      boxShadow: {
+        sm: 'var(--shadow-sm)',
+        DEFAULT: 'var(--shadow)',
+        lg: 'var(--shadow-lg)',
       },
     },
   },

@@ -1,18 +1,13 @@
 'use client';
 
-import { ReactNode, createContext, useContext, useState } from 'react';
-
-interface AuthUser {
-  id: string;
-  email: string;
-  name: string;
-  roles: string[];
-  permissions: string[];
-}
+import { ReactNode, createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { apiClient, TOKEN_KEY, ApiError, type AuthUserDto } from '@/lib/api-client';
 
 interface AuthContextType {
-  user: AuthUser | null;
+  user: AuthUserDto | null;
+  /** True until the initial session probe resolves. Guards must wait on this. */
   isLoading: boolean;
+  error: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   hasPermission: (permission: string) => boolean;
@@ -21,58 +16,84 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<AuthUserDto | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<AuthUser | null>({
-    id: 'user_mock_001',
-    email: 'demo@company.com',
-    name: 'Demo User',
-    roles: ['architect', 'admin'],
-    permissions: ['publish:strategies', 'approve:changes', 'view:audit'],
-  });
-  const [isLoading, setIsLoading] = useState(false);
+  // Restore the session from a stored token on first mount.
+  useEffect(() => {
+    let cancelled = false;
 
-  const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    // Mock auth: accept any non-empty credentials
-    if (email && password) {
-      setUser({
-        id: 'user_' + Math.random().toString(36).slice(2),
-        email,
-        name: email.split('@')[0],
-        roles: ['architect'],
-        permissions: ['publish:strategies', 'view:audit'],
-      });
+    async function restore() {
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!token) {
+        if (!cancelled) setIsLoading(false);
+        return;
+      }
+      try {
+        const { user: restored } = await apiClient.getSession();
+        if (!cancelled) setUser(restored);
+      } catch {
+        localStorage.removeItem(TOKEN_KEY);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
     }
-    setIsLoading(false);
-  };
 
-  const logout = () => {
+    // MSW registers its worker asynchronously; a session probe fired before the
+    // worker is listening would fall through to the network and 404. Retry once
+    // on the next tick rather than logging the user out spuriously.
+    const timer = setTimeout(restore, 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const { token, user: authed } = await apiClient.login(email, password);
+      localStorage.setItem(TOKEN_KEY, token);
+      setUser(authed);
+    } catch (e) {
+      const message =
+        e instanceof ApiError
+          ? e.message
+          : 'Could not reach the authentication service.';
+      setError(message);
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY);
     setUser(null);
-  };
+    setError(null);
+  }, []);
 
-  const hasPermission = (permission: string) => {
-    return user?.permissions.includes(permission) ?? false;
-  };
+  const hasPermission = useCallback(
+    (permission: string) => Boolean(user?.permissions.includes(permission)),
+    [user]
+  );
 
-  const hasRole = (role: string) => {
-    return user?.roles.includes(role) ?? false;
-  };
+  const hasRole = useCallback((role: string) => Boolean(user?.roles.includes(role)), [user]);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, hasPermission, hasRole }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, error, login, logout, hasPermission, hasRole }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
+  return ctx;
 }

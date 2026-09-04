@@ -2,102 +2,234 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design Tokens */
+/* ---------------------------------------------------------------------------
+   Design tokens
+
+   Colours are stored as bare RGB channels so Tailwind can compose them with
+   opacity modifiers: rgb(var(--surface) / <alpha-value>) makes bg-surface/50
+   work. Never write a literal colour in app code — add a token here instead.
+   --------------------------------------------------------------------------- */
+
 :root {
-  --base-900: #14171C;
-  --base-800: #2D2E33;
-  --base-700: #464849;
-  --base-600: #68696E;
-  --base-500: #8B8C91;
-  --base-400: #AEAFB4;
-  --base-300: #D1D2D7;
-  --base-200: #E8EAED;
-  --base-100: #F5F6F8;
+  /* Neutral ramp. Light theme: 50 is the page, 900 is the strongest text. */
+  --n-50: 250 251 252;
+  --n-100: 244 246 248;
+  --n-150: 237 240 244;
+  --n-200: 227 231 237;
+  --n-300: 205 212 222;
+  --n-400: 156 166 181;
+  --n-500: 111 123 141;
+  --n-600: 84 96 114;
+  --n-700: 60 71 87;
+  --n-800: 35 43 56;
+  --n-900: 17 23 33;
 
-  --state-pass: #1E7A4E;
-  --state-block: #B23A3A;
-  --state-hold: #A66B00;
+  /* Semantic surfaces */
+  --page: var(--n-100);
+  --surface: 255 255 255;
+  --surface-raised: 255 255 255;
+  --surface-sunken: var(--n-150);
+  --border: var(--n-300);
+  --border-strong: var(--n-400);
 
-  --accent: #2563C7;
+  /* Text */
+  --text: var(--n-900);
+  --text-muted: var(--n-600);
+  --text-subtle: var(--n-500);
+  --text-inverse: 255 255 255;
 
-  --spacing-xs: 0.25rem;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-  --spacing-xl: 2rem;
-  --spacing-2xl: 3rem;
+  /* Brand + state */
+  --accent: 37 99 199;
+  --accent-hover: 29 78 160;
+  --accent-subtle: 232 240 252;
+  --pass: 21 122 78;
+  --pass-subtle: 226 244 235;
+  --block: 178 58 58;
+  --block-subtle: 253 232 232;
+  --hold: 166 107 0;
+  --hold-subtle: 253 243 224;
+  --info: 55 108 176;
+  --info-subtle: 232 240 250;
 
-  --radius: 0.375rem;
+  /* Autonomy ladder — L0 coolest, L4 warmest */
+  --l0: 111 123 141;
+  --l1: 55 108 176;
+  --l2: 37 99 199;
+  --l3: 166 107 0;
+  --l4: 178 58 58;
+
+  /* Density: comfortable is the default */
+  --row-h: 2.75rem;
+  --cell-y: 0.625rem;
+  --cell-x: 0.875rem;
+  --card-p: 1.25rem;
+  --stack: 1.25rem;
+  --text-body: 0.875rem;
+  --text-label: 0.75rem;
+
+  /* Shape and elevation */
   --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
+  --radius: 0.375rem;
   --radius-lg: 0.5rem;
+  --shadow-sm: 0 1px 2px 0 rgb(17 23 33 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(17 23 33 / 0.08), 0 1px 2px -1px rgb(17 23 33 / 0.06);
+  --shadow-lg: 0 8px 24px -6px rgb(17 23 33 / 0.14);
 
-  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: ui-monospace, 'Cascadia Code', monospace;
-
-  --line-height-tight: 1.25;
-  --line-height-normal: 1.5;
-  --line-height-relaxed: 1.75;
-
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, monospace;
 }
 
+/* Compact density — tightens rows and padding without changing colour. */
+:root[data-density='compact'] {
+  --row-h: 2.125rem;
+  --cell-y: 0.3125rem;
+  --cell-x: 0.625rem;
+  --card-p: 0.875rem;
+  --stack: 0.75rem;
+  --text-body: 0.8125rem;
+  --text-label: 0.6875rem;
+}
+
+/* Dark theme — invert the ramp, keep semantic names stable. */
+:root[data-theme='dark'] {
+  --n-50: 13 17 24;
+  --n-100: 17 23 33;
+  --n-150: 22 29 40;
+  --n-200: 30 39 52;
+  --n-300: 45 57 74;
+  --n-400: 71 86 107;
+  --n-500: 113 129 152;
+  --n-600: 153 167 186;
+  --n-700: 191 202 216;
+  --n-800: 223 230 238;
+  --n-900: 243 246 250;
+
+  --page: var(--n-50);
+  --surface: var(--n-100);
+  --surface-raised: var(--n-150);
+  --surface-sunken: var(--n-200);
+  --border: var(--n-300);
+  --border-strong: var(--n-400);
+
+  --text: var(--n-900);
+  --text-muted: var(--n-600);
+  --text-subtle: var(--n-500);
+
+  --accent: 96 155 255;
+  --accent-hover: 130 176 255;
+  --accent-subtle: 24 42 70;
+  --pass: 74 190 133;
+  --pass-subtle: 18 46 35;
+  --block: 240 120 120;
+  --block-subtle: 60 26 26;
+  --hold: 226 168 62;
+  --hold-subtle: 56 41 12;
+  --info: 118 168 226;
+  --info-subtle: 22 38 58;
+
+  --l0: 113 129 152;
+  --l1: 118 168 226;
+  --l2: 96 155 255;
+  --l3: 226 168 62;
+  --l4: 240 120 120;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.5), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 8px 24px -6px rgb(0 0 0 / 0.6);
+}
+
+/* Follow the OS only when the user has not chosen explicitly. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --base-900: #F5F6F8;
-    --base-800: #E8EAED;
-    --base-700: #D1D2D7;
-    --base-600: #AEAFB4;
-    --base-500: #8B8C91;
-    --base-400: #68696E;
-    --base-300: #464849;
-    --base-200: #2D2E33;
-    --base-100: #14171C;
+  :root:not([data-theme='light']):not([data-theme='dark']) {
+    --n-50: 13 17 24;
+    --n-100: 17 23 33;
+    --n-150: 22 29 40;
+    --n-200: 30 39 52;
+    --n-300: 45 57 74;
+    --n-400: 71 86 107;
+    --n-500: 113 129 152;
+    --n-600: 153 167 186;
+    --n-700: 191 202 216;
+    --n-800: 223 230 238;
+    --n-900: 243 246 250;
+
+    --page: var(--n-50);
+    --surface: var(--n-100);
+    --surface-raised: var(--n-150);
+    --surface-sunken: var(--n-200);
+    --border: var(--n-300);
+    --border-strong: var(--n-400);
+    --text: var(--n-900);
+    --text-muted: var(--n-600);
+    --text-subtle: var(--n-500);
+    --accent: 96 155 255;
+    --accent-hover: 130 176 255;
+    --accent-subtle: 24 42 70;
+    --pass: 74 190 133;
+    --pass-subtle: 18 46 35;
+    --block: 240 120 120;
+    --block-subtle: 60 26 26;
+    --hold: 226 168 62;
+    --hold-subtle: 56 41 12;
+    --info: 118 168 226;
+    --info-subtle: 22 38 58;
   }
 }
 
-:root[data-theme='dark'] {
-  --base-900: #F5F6F8;
-  --base-800: #E8EAED;
-  --base-700: #D1D2D7;
-  --base-600: #AEAFB4;
-  --base-500: #8B8C91;
-  --base-400: #68696E;
-  --base-300: #464849;
-  --base-200: #2D2E33;
-  --base-100: #14171C;
-}
-
 * {
-  margin: 0;
-  padding: 0;
   box-sizing: border-box;
 }
 
-html {
-  color-scheme: light dark;
-  scroll-behavior: smooth;
+html,
+body {
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  background-color: var(--base-100);
-  color: var(--base-900);
+  background-color: rgb(var(--page));
+  color: rgb(var(--text));
   font-family: var(--font-sans);
-  font-size: 1rem;
-  line-height: var(--line-height-normal);
+  font-size: var(--text-body);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Tabular figures everywhere numbers are compared down a column. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid rgb(var(--accent));
   outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Thin, unobtrusive scrollbars that respect the theme. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--border-strong)) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--border-strong));
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -110,7 +242,7 @@ body {
     background: white;
     color: black;
   }
-  a {
-    text-decoration: underline;
+  .no-print {
+    display: none !important;
   }
 }

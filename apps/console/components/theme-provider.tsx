@@ -1,52 +1,80 @@
 'use client';
 
-import { ReactNode, createContext, useContext, useEffect, useState } from 'react';
+import {
+  type ReactNode,
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from 'react';
 
-type ColorScheme = 'light' | 'dark';
-type Density = 'compact' | 'comfortable';
+export type ColorScheme = 'light' | 'dark';
+export type Density = 'compact' | 'comfortable';
 
 interface ThemeContextType {
   colorScheme: ColorScheme;
   density: Density;
-  setColorScheme: (scheme: ColorScheme) => void;
-  setDensity: (density: Density) => void;
+  setColorScheme: (s: ColorScheme) => void;
+  setDensity: (d: Density) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-interface ThemeProviderProps {
-  children: ReactNode;
-  defaultColorScheme?: ColorScheme;
-  defaultDensity?: Density;
-}
+const SCHEME_KEY = 'metis.theme.scheme';
+const DENSITY_KEY = 'metis.theme.density';
 
 export function ThemeProvider({
   children,
   defaultColorScheme = 'light',
   defaultDensity = 'comfortable',
-}: ThemeProviderProps) {
-  const [colorScheme, setColorScheme] = useState<ColorScheme>(defaultColorScheme);
-  const [density, setDensity] = useState<Density>(defaultDensity);
+}: {
+  children: ReactNode;
+  defaultColorScheme?: ColorScheme;
+  defaultDensity?: Density;
+}) {
+  const [colorScheme, setSchemeState] = useState<ColorScheme>(defaultColorScheme);
+  const [density, setDensityState] = useState<Density>(defaultDensity);
 
+  // Read persisted preferences after mount so server and client markup agree.
   useEffect(() => {
-    // Load from localStorage
-    const savedScheme = localStorage.getItem('theme-color-scheme') as ColorScheme | null;
-    const savedDensity = localStorage.getItem('theme-density') as Density | null;
-
-    if (savedScheme) setColorScheme(savedScheme);
-    if (savedDensity) setDensity(savedDensity);
+    try {
+      const s = localStorage.getItem(SCHEME_KEY) as ColorScheme | null;
+      const d = localStorage.getItem(DENSITY_KEY) as Density | null;
+      if (s === 'light' || s === 'dark') setSchemeState(s);
+      if (d === 'compact' || d === 'comfortable') setDensityState(d);
+    } catch {
+      // Private mode or blocked storage — defaults are fine.
+    }
   }, []);
 
+  // The tokens in globals.css key off these attributes.
   useEffect(() => {
-    // Apply to DOM
-    const root = document.documentElement;
-    root.setAttribute('data-theme', colorScheme);
-    root.setAttribute('data-density', density);
+    document.documentElement.setAttribute('data-theme', colorScheme);
+    document.documentElement.style.colorScheme = colorScheme;
+  }, [colorScheme]);
 
-    // Save to localStorage
-    localStorage.setItem('theme-color-scheme', colorScheme);
-    localStorage.setItem('theme-density', density);
-  }, [colorScheme, density]);
+  useEffect(() => {
+    document.documentElement.setAttribute('data-density', density);
+  }, [density]);
+
+  const setColorScheme = useCallback((s: ColorScheme) => {
+    setSchemeState(s);
+    try {
+      localStorage.setItem(SCHEME_KEY, s);
+    } catch {
+      // Ignore: the in-memory value still applies for this session.
+    }
+  }, []);
+
+  const setDensity = useCallback((d: Density) => {
+    setDensityState(d);
+    try {
+      localStorage.setItem(DENSITY_KEY, d);
+    } catch {
+      // Ignore.
+    }
+  }, []);
 
   return (
     <ThemeContext.Provider value={{ colorScheme, density, setColorScheme, setDensity }}>
@@ -56,9 +84,7 @@ export function ThemeProvider({
 }
 
 export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within ThemeProvider');
-  }
-  return context;
+  const ctx = useContext(ThemeContext);
+  if (!ctx) throw new Error('useTheme must be used within a ThemeProvider');
+  return ctx;
 }
