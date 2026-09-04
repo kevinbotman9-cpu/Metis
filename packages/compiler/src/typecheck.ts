@@ -22,7 +22,7 @@ export interface TypeCheckResult {
 export function typeCheck(
   dir: DecisionIR,
   tenantConfig: Tenant,
-  dataModel: Record<string, any>
+  _dataModel: Record<string, any>
 ): TypeCheckResult {
   const errors: TypeCheckError[] = [];
 

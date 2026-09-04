@@ -36,6 +36,16 @@ jobs:
         run: npm run test:runtime
         working-directory: .
 
+      # Nothing reaches the runtime that the compiler would have rejected.
+      - name: Compiler
+        run: npm run test:compiler
+        working-directory: .
+
+      # The seam between the planes: author -> compile -> execute -> replay.
+      - name: Integration
+        run: npm run test:integration
+        working-directory: .
+
       - name: Unit tests
         run: npm test
 

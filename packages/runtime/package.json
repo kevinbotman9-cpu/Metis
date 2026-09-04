@@ -1,7 +1,7 @@
 {
   "name": "@metis/runtime",
   "version": "0.0.1",
-  "description": "METIS runtime - Compiled decision engine (WASM + orchestrator)",
+  "description": "METIS runtime - deterministic decision engine",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -9,8 +9,6 @@
     "test": "vitest run --config ./vitest.config.ts"
   },
   "dependencies": {
-    "@metis/types": "*",
-    "@metis/nodes-core": "*",
-    "@metis/trace": "*"
+    "@metis/core": "*"
   }
 }

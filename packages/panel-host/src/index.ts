@@ -50,18 +50,18 @@ export interface CapabilityBridge {
   setThemeTokens: (tokens: Record<string, string>) => void;
 }
 
-export function createCapabilityBridge(options: CapabilityBridgeOptions): CapabilityBridge {
+export function createCapabilityBridge(_options: CapabilityBridgeOptions): CapabilityBridge {
   return {
-    fetch: async (operationId: string, params?: Record<string, any>) => {
+    fetch: async (_operationId: string, _params?: Record<string, any>) => {
       // Check if panel has scope for this operation
       // If not, return permission denied
       // Otherwise, call the API on behalf of the panel
       throw new Error('Not implemented');
     },
-    setAuthToken: (token: string) => {
+    setAuthToken: (_token: string) => {
       // Internal only
     },
-    setThemeTokens: (tokens: Record<string, string>) => {
+    setThemeTokens: (_tokens: Record<string, string>) => {
       // Inject into panel context
     },
   };

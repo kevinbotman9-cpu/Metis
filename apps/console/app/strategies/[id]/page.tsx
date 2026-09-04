@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
 import { DirCanvas } from '@/components/canvas/dir-canvas';
+import { CompileReport } from '@/components/compile-report';
 import { apiClient, ApiError, type DirNodeDto } from '@/lib/api-client';
 import type { DirNode, DirEdge } from '@/mocks/fixtures/artifacts';
 import { cn } from '@/lib/cn';
@@ -236,6 +237,10 @@ function StrategyDetail({ artifactId }: { artifactId: string }) {
           sub="propositions in scope"
         />
         <Metric label="Versions" value={artifact.versions.length} sub="all replayable" />
+      </div>
+
+      <div className="mb-stack">
+        <CompileReport compilation={artifact.compilation ?? null} />
       </div>
 
       <div className="grid gap-stack lg:grid-cols-[1fr_340px]">

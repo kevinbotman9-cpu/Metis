@@ -3,8 +3,6 @@
  * Extensibility framework for node types, channels, models, themes
  */
 
-import * as crypto from 'crypto';
-
 export interface MetisPackage {
   id: string;
   name: string;

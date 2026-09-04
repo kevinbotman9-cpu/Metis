@@ -12,21 +12,19 @@
   ],
   "scripts": {
     "build": "tsc --build",
-    "test": "jest",
-    "lint": "eslint packages planes bench infrastructure",
+    "test": "npm run test:integration && npm run test:runtime && npm run test:compiler && npm run test:console",
+    "lint": "eslint packages planes bench --ext .ts",
     "dev": "docker-compose up",
     "compile": "node compile.js",
     "test:runtime": "npm --prefix packages/runtime run test",
     "test:console": "npm --prefix apps/console run test",
-    "test:all": "npm run test:runtime && npm run test:console"
+    "test:integration": "vitest run --config ./vitest.config.ts",
+    "test:compiler": "npm --prefix packages/compiler run test"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.0",
     "@types/node": "^20.0.0",
     "ajv": "^8.20.0",
     "eslint": "^8.40.0",
-    "jest": "^29.5.0",
-    "ts-jest": "^29.1.0",
     "ts-node": "^10.9.0",
     "typescript": "^5.0.0"
   }

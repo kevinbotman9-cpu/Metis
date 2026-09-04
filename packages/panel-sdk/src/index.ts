@@ -14,7 +14,7 @@
  *     return (
  *       <div>
  *         <h2>{manifest.name}</h2>
- *         {/* Panel UI here */}
+ *         {/* Panel UI here *\/}
  *       </div>
  *     );
  *   }

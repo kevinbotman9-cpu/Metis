@@ -26,7 +26,7 @@ function StrategiesView() {
   });
 
   const rows = data?.artifacts ?? [];
-  const overBudget = rows.filter((a) => a.estimatedP95LatencyMs > 50).length;
+  const failing = rows.filter((a) => a.compileOk === false).length;
 
   const columns: Column<ArtifactSummaryDto>[] = [
     {
@@ -60,6 +60,24 @@ function StrategiesView() {
       width: 'w-24',
       sortValue: (a) => a.status,
       cell: (a) => <StatusBadge status={a.status} />,
+    },
+    {
+      key: 'compile',
+      header: 'Compiles',
+      width: 'w-36',
+      sortValue: (a) => (a.compileOk === false ? 0 : a.warningCount ? 1 : 2),
+      cell: (a) =>
+        a.compileOk === false ? (
+          <Badge tone="block">
+            {a.errorCount} error{a.errorCount === 1 ? '' : 's'}
+          </Badge>
+        ) : a.warningCount ? (
+          <Badge tone="hold">
+            {a.warningCount} warning{a.warningCount === 1 ? '' : 's'}
+          </Badge>
+        ) : (
+          <Badge tone="pass">clean</Badge>
+        ),
     },
     {
       key: 'nodes',
@@ -134,10 +152,10 @@ function StrategiesView() {
           tone="hold"
         />
         <Metric
-          label="Over latency budget"
-          value={overBudget}
-          tone={overBudget > 0 ? 'block' : 'pass'}
-          sub="budget 50ms"
+          label="Failing compilation"
+          value={failing}
+          tone={failing > 0 ? 'block' : 'pass'}
+          sub="cannot be published"
         />
       </div>
 

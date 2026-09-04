@@ -2,7 +2,7 @@
  * Cost Analyzer - Predict worst-case latency and cost
  */
 
-import type { DecisionIR, CostEstimate, Tenant, IRNode } from '@metis/types';
+import type { DecisionIR, CostEstimate, Tenant } from '@metis/types';
 import { createNode } from '@metis/nodes-core';
 
 export interface CostAnalysisResult {
@@ -17,7 +17,7 @@ export interface CostAnalysisResult {
 export function analyzeCost(
   dir: DecisionIR,
   tenantConfig: Tenant,
-  nodeRegistry?: Record<string, any>
+  _nodeRegistry?: Record<string, any>
 ): CostAnalysisResult {
   const violations: string[] = [];
   let totalLatencyMs = 0;

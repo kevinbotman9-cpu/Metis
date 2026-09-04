@@ -17,23 +17,23 @@ export interface TraceRendererProps {
 }
 
 // Placeholder for the five renderers
-export function renderForCustomer(props: TraceRendererProps): React.ReactNode {
+export function renderForCustomer(_props: TraceRendererProps): React.ReactNode {
   return null; // TODO: Customer renderer
 }
 
-export function renderForBusiness(props: TraceRendererProps): React.ReactNode {
+export function renderForBusiness(_props: TraceRendererProps): React.ReactNode {
   return null; // TODO: Business renderer
 }
 
-export function renderForAnalyst(props: TraceRendererProps): React.ReactNode {
+export function renderForAnalyst(_props: TraceRendererProps): React.ReactNode {
   return null; // TODO: Analyst renderer
 }
 
-export function renderForEngineer(props: TraceRendererProps): React.ReactNode {
+export function renderForEngineer(_props: TraceRendererProps): React.ReactNode {
   return null; // TODO: Engineer renderer
 }
 
-export function renderForRegulator(props: TraceRendererProps): React.ReactNode {
+export function renderForRegulator(_props: TraceRendererProps): React.ReactNode {
   return null; // TODO: Regulator renderer
 }
 

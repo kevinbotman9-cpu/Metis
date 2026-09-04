@@ -5,11 +5,7 @@
 import * as crypto from 'crypto';
 import type {
   DecisionTrace,
-  DecisionResponse,
-  TraceCandidate,
-  TraceElimination,
-  TraceScore,
-} from '@metis/types';
+  } from '@metis/types';
 
 /**
  * Create a new DecisionTrace

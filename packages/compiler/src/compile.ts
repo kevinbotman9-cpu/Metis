@@ -2,8 +2,8 @@
  * Main Compiler - Ties together type checking, version resolution, cost analysis
  */
 
-import type { CompiledArtifact, DecisionIR, Tenant, ArtifactMetadata } from '@metis/types';
-import { validateDirectionIntermediateRepresentation, validatePackageManifestSchema } from '@metis/core';
+import type { CompiledArtifact, DecisionIR, Tenant } from '@metis/types';
+import { validateDirectionIntermediateRepresentation } from '@metis/core';
 import { typeCheck } from './typecheck';
 import { resolveVersions } from './resolver';
 import { analyzeCost } from './costAnalyzer';

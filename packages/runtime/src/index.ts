@@ -1,21 +1,16 @@
 /**
- * METIS Runtime - Execution Engine
+ * METIS Runtime - deterministic execution engine.
  *
- * Two executors live here for now:
+ * Given the same artifact, catalogue snapshot and request, `execute` produces a
+ * byte-identical decision. `replay` re-runs a stored decision and compares the
+ * reproducible half. tests/determinism.test.ts fails the build if either stops
+ * holding.
  *
- *   ./deterministic - the current engine. Reproducible by construction, and
- *                     covered by tests/determinism.test.ts.
- *   ./executor      - the original Phase 0 executor. Retained because the
- *                     compiler integration test still drives it, but it is NOT
- *                     replay-safe: it stamps crypto.randomUUID() and Date.now()
- *                     into the trace it hashes, so two runs of the same
- *                     decision never match. Do not build on it.
+ * The Phase 0 executor that used to live beside this was removed: it stamped
+ * crypto.randomUUID() and Date.now() into the trace it hashed, so replay could
+ * never have worked, and nothing depended on it.
  */
 
-export { execute as executeLegacy } from './executor';
-export type { DecisionRequest as LegacyDecisionRequest, DecisionResponse } from '@metis/types';
-
-// The deterministic core.
 export { execute, replay, diff, topologicalOrder } from './deterministic/engine';
 export { canonicalise, hash, shortHash, seededUnitInterval } from './deterministic/canonical';
 export type {

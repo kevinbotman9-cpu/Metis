@@ -17,6 +17,7 @@ import { NextResponse } from 'next/server';
 import { store, resetStore, recordAudit } from '@/mocks/store';
 import { findTrace, decisions } from '@/mocks/fixtures/decisions';
 import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
+import { compilations, findCompilation } from '@/mocks/fixtures/compiled';
 import { replay as replayDecision } from '@metis/runtime/deterministic/engine';
 
 type Ctx = { params: Promise<{ path: string[] }> };
@@ -202,9 +203,22 @@ export async function GET(req: Request, { params }: Ctx) {
     case 'artifacts': {
       if (rest[1]) {
         const artifact = store.artifacts.find((a) => a.id === rest[1]);
-        return artifact ? json(artifact) : notFound(`No strategy ${rest[1]}`);
+        if (!artifact) return notFound(`No strategy ${rest[1]}`);
+        // The compiler's verdict travels with the strategy: a console that
+        // hides it is no better than not compiling at all.
+        return json({ ...artifact, compilation: findCompilation(artifact.id)?.result ?? null });
       }
-      return json({ artifacts: store.artifacts });
+      return json({
+        artifacts: store.artifacts.map((a) => {
+          const result = compilations.find((c) => c.artifactId === a.id)?.result;
+          return {
+            ...a,
+            compileOk: result?.ok ?? null,
+            errorCount: result?.diagnostics.filter((x) => x.severity === 'error').length ?? 0,
+            warningCount: result?.diagnostics.filter((x) => x.severity === 'warning').length ?? 0,
+          };
+        }),
+      });
     }
 
     default:

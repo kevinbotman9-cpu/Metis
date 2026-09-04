@@ -3,8 +3,6 @@
  * Implementations of the 14+ core decision nodes
  */
 
-import type { IRNode } from '@metis/types';
-
 /**
  * Abstract base class for all node types
  */
@@ -74,7 +72,7 @@ export class SourceNode extends BaseNode {
     };
   }
 
-  async execute(inputs: Record<string, unknown>) {
+  async execute(_inputs: Record<string, unknown>) {
     // In Phase 0, this is a stub. Phase 1 connects to feature store.
     return {
       data: {},
@@ -111,8 +109,8 @@ export class FilterNode extends BaseNode {
     return { estimatedMs: 1, externalCalls: 0 };
   }
 
-  async execute(inputs: Record<string, unknown>) {
-    const rule = this.config.rule as string;
+  async execute(_inputs: Record<string, unknown>) {
+    const _rule = this.config.rule as string;
     // In real implementation, would evaluate rule against inputs
     return {
       pass: true,
@@ -191,7 +189,7 @@ export class ScoreModelNode extends BaseNode {
     };
   }
 
-  async execute(inputs: Record<string, unknown>) {
+  async execute(_inputs: Record<string, unknown>) {
     // Stub: would call model provider
     return {
       score: 0.5,

@@ -2,7 +2,9 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "ESNext",
-    "lib": ["ES2020"],
+    "lib": [
+      "ES2020"
+    ],
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -17,23 +19,48 @@
     "moduleResolution": "node",
     "baseUrl": "./",
     "paths": {
-      "@metis/*": ["packages/*/src"],
-      "@planes/*": ["planes/*/src"],
-      "@bench/*": ["bench/*/src"]
+      "@metis/*": [
+        "packages/*/src"
+      ],
+      "@planes/*": [
+        "planes/*/src"
+      ],
+      "@bench/*": [
+        "bench/*/src"
+      ]
     }
   },
   "include": [],
   "references": [
-    { "path": "packages/types" },
-    { "path": "packages/core" },
-    { "path": "packages/compiler" },
-    { "path": "packages/runtime" },
-    { "path": "packages/trace" },
-    { "path": "packages/nodes-core" },
-    { "path": "packages/sdk" },
-    { "path": "planes/execution" },
-    { "path": "planes/authoring" },
-    { "path": "bench/harness" },
-    { "path": "bench/datasets" }
+    {
+      "path": "packages/types"
+    },
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/compiler"
+    },
+    {
+      "path": "packages/runtime"
+    },
+    {
+      "path": "packages/trace"
+    },
+    {
+      "path": "packages/nodes-core"
+    },
+    {
+      "path": "packages/sdk"
+    },
+    {
+      "path": "planes/execution"
+    },
+    {
+      "path": "bench/harness"
+    },
+    {
+      "path": "bench/datasets"
+    }
   ]
 }

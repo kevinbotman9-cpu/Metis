@@ -17,6 +17,10 @@ export default defineConfig({
         __dirname,
         '../../packages/runtime/src/deterministic'
       ),
+      '@metis/compiler/strategy': path.resolve(
+        __dirname,
+        '../../packages/compiler/src/strategy'
+      ),
     },
   },
 });

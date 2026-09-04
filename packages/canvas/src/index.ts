@@ -30,7 +30,7 @@ export const coreNodeRenderers: NodeRendererRegistry = {
   // champion-challenger, interaction-history, constraint, suppress, arbitrate, explain-annotate
 };
 
-export function CanvasEditor(props: CanvasEditorProps): React.ReactNode {
+export function CanvasEditor(_props: CanvasEditorProps): React.ReactNode {
   return null; // TODO: Canvas editor component
 }
 

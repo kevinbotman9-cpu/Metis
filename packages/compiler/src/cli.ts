@@ -6,7 +6,6 @@
  */
 
 import * as fs from 'fs';
-import * as path from 'path';
 import { compile, generateCompileReport } from './compile';
 import type { Tenant } from '@metis/types';
 

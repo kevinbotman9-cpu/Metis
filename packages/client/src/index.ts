@@ -48,7 +48,7 @@ export interface SimulationService {
   getCounterfactual: (decisionId: string, targetOutcome: string) => Promise<any>;
 }
 
-export function createClient(baseUrl: string, token?: string): ApiClient {
+export function createClient(_baseUrl: string, _token?: string): ApiClient {
   throw new Error(
     'Client not yet generated. Generate from OpenAPI spec via: npm run generate'
   );

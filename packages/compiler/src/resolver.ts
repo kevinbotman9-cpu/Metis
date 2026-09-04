@@ -2,8 +2,8 @@
  * Version Resolver - Resolve version ranges and pin packages
  */
 
-import { satisfies, minVersion, maxSatisfying } from 'semver';
-import type { DecisionIR, PackageVersion } from '@metis/types';
+import { satisfies } from 'semver';
+import type { DecisionIR } from '@metis/types';
 
 export interface ResolutionResult {
   success: boolean;

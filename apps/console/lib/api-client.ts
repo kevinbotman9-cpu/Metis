@@ -458,6 +458,32 @@ export interface DirEdgeDto {
   label?: string;
 }
 
+export interface DiagnosticDto {
+  severity: 'error' | 'warning';
+  code: string;
+  at?: string;
+  message: string;
+  remedy?: string;
+}
+
+export interface CompileResultDto {
+  ok: boolean;
+  diagnostics: DiagnosticDto[];
+  artifact: {
+    packageVersions: Record<string, string>;
+    artifactHash: string;
+    compiledAt: string;
+    costManifest: {
+      nodeCount: number;
+      criticalPathMs: number;
+      worstCaseMs: number;
+      modelInvocations: { nodeId: string; model: string }[];
+      latencyBudgetMs: number;
+      withinBudget: boolean;
+    };
+  } | null;
+}
+
 export interface ArtifactSummaryDto {
   id: string;
   name: string;
@@ -472,6 +498,12 @@ export interface ArtifactSummaryDto {
   edges: DirEdgeDto[];
   updatedAt: string;
   updatedBy: string;
+  /** Compile summary, on the list endpoint. */
+  compileOk?: boolean | null;
+  errorCount?: number;
+  warningCount?: number;
+  /** Full compiler output, on the detail endpoint. */
+  compilation?: CompileResultDto | null;
 }
 
 export default apiClient;

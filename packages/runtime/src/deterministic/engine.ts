@@ -18,7 +18,6 @@ import type {
   Proposition,
   EngagementPolicy,
   PolicyCondition,
-  ContactPolicy,
   Lever,
   PolicyScope,
 } from '@metis/core/domain';

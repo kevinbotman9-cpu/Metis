@@ -2,8 +2,8 @@
  * Artifact Registry - Immutable, versioned, signed artifact storage
  */
 
-import type { CompiledArtifact, ArtifactMetadata } from '@metis/types';
-import { v4 as uuid } from 'uuid';
+import type { CompiledArtifact } from '@metis/types';
+import { v4 as _uuid } from 'uuid';
 
 export interface RegistryEntry {
   artifact: CompiledArtifact;

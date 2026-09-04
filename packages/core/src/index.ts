@@ -5,8 +5,6 @@
 import Ajv from 'ajv';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { DecisionIR } from '@metis/types';
-
 // Load schemas
 const dirSchema = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'schema/dir.schema.json'), 'utf-8')

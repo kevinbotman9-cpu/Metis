@@ -137,7 +137,7 @@ function checkBias(
   // Simple parity check: do all segments get similar action distributions?
   const actionRates: Record<string, number[]> = {};
 
-  for (const [segment, actions] of Object.entries(segments)) {
+  for (const [_segment, actions] of Object.entries(segments)) {
     const total = Object.values(actions).reduce((a, b) => a + b, 0);
     for (const [action, count] of Object.entries(actions)) {
       if (!actionRates[action]) actionRates[action] = [];

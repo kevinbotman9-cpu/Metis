@@ -3,7 +3,6 @@
  * Change request management with tier-based autonomy
  */
 
-import type { CompiledArtifact } from '@metis/types';
 import { v4 as uuid } from 'uuid';
 
 export type ApprovalStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'active' | 'rolled_back';

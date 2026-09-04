@@ -147,7 +147,7 @@ export function printResults(result: HarnessResult): void {
 /**
  * Create a standard load test scenario
  */
-export function createSteadyStateTest(artifact: CompiledArtifact): LoadTest {
+export function createSteadyStateTest(_artifact: CompiledArtifact): LoadTest {
   return {
     name: 'Steady State',
     description: 'Constant 100 requests per second for 30 seconds',

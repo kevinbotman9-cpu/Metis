@@ -38,6 +38,9 @@
       "@metis/compiler": [
         "../../packages/compiler/src"
       ],
+      "@metis/compiler/*": [
+        "../../packages/compiler/src/*"
+      ],
       "@metis/runtime": [
         "../../packages/runtime/src"
       ],

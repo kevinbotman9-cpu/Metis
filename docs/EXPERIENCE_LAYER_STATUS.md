@@ -3,12 +3,14 @@
 **Last verified:** 2026-09-04 by an automated suite, not by eye.
 
 ```
+Integration         6 passed   - author -> compile -> execute -> replay
 Determinism        28 passed   - packages/runtime, the Phase 0 gate
+Compiler           40 passed   - packages/compiler
 Unit (Vitest)      38 passed   - apps/console
-E2E  (Playwright)  53 passed   - includes 18 axe checks, 0 WCAG 2.2 AA violations
+E2E (Playwright)   57 passed   - includes 18 axe checks, 0 WCAG 2.2 AA violations
 Typecheck          clean
                   ---
-                   119 tests
+                   169 tests, one runner
 ```
 
 Legend: **BUILT** = runs, and a test asserts it · **PARTIAL** = usable, with a
@@ -29,8 +31,8 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | `/engagement-policies` | BUILT | Eligibility / applicability / suitability with conditions rendered. |
 | `/contact-policy` | BUILT | Frequency caps, cooldowns, scope. |
 | `/arbitration` | BUILT | P × V × L × C weight editor; publishing persists and is audited. |
-| `/strategies` | BUILT | Artifact list with versions and latency against budget. |
-| `/strategies/[id]` | BUILT | **DIR canvas** (React Flow, read-only) with a node inspector. |
+| `/strategies` | BUILT | Artifact list with compile status per strategy. |
+| `/strategies/[id]` | BUILT | Compiler verdict with remedies, DIR canvas (read-only), node inspector. |
 | `/decisions` | BUILT | 60 decisions, filters, sortable grid. |
 | `/decisions/[id]` | BUILT | Real cascade from the engine, score composition, chain hash, replay that re-executes and compares hashes. |
 | `/approvals` | BUILT | Change request queue, agent vs person provenance. |
@@ -59,6 +61,7 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | Playwright | BUILT | 52 tests: navigation, auth, decisions, RBAC, persistence, appearance. |
 | axe-core | BUILT | 14 pages, light and dark. Zero violations at WCAG 2.2 AA. |
 | Execution engine | BUILT | `packages/runtime/src/deterministic`. Byte-identical across 100 runs; replay compares chain hashes. |
+| Compiler | BUILT | `packages/compiler/src/strategy`. Validates the graph, pins versions and models, computes the critical path, and refuses anything the runtime could not execute safely. |
 | Engine-backed data | BUILT | The console's 60 decisions are real engine output, not fixtures. Replay re-executes. |
 | Storybook | BUILT | 22 stories across Button, primitives, DataTable and the canvas node. Theme and density are toolbar globals, so all four axes are one click apart. Builds clean. |
 
@@ -101,6 +104,15 @@ Worth recording, because each was invisible by eye:
     legitimately rank on value and lever alone (anonymous web traffic has no
     customer to score), and its formula says so. A missing term is neutral, not
     disqualifying; before the fix that whole strategy never returned anything.
+    The compiler now catches this statically as ARBITRATION_MISSING_SCORE - it
+    found the same defect independently on first run.
+12. **Two test runners were fighting over the same files.** Jest and Vitest both
+    matched `*.test.ts` under `packages/`, so Jest failed on every Vitest import
+    and the only integration test had not run in a long time. Consolidated on
+    Vitest; `npm test` now runs everything.
+13. **A project reference to a directory that was never created.** The root
+    tsconfig referenced `planes/authoring`, which has no tsconfig, breaking any
+    tool that walks the reference graph.
 
 ---
 
@@ -110,16 +122,17 @@ Worth recording, because each was invisible by eye:
   storage arrives with the execution plane.
 - **The canvas is read-only.** No editing, no layout algorithm, no compile step.
 - **The execution plane is real, but partial.** The deterministic engine,
-  canonical hashing and replay are built and tested. The compiler, artifact
-  registry and event store are still scaffolds, and there is no WASM hot path -
-  the engine is plain TypeScript.
-- **The original executor is still in the tree** at
-  `packages/runtime/src/executor.ts`, exported as `executeLegacy` and marked as
-  not replay-safe. The compiler's integration test still drives it, and that
-  test uses Jest globals in a Vitest project, so it does not run.
+  canonical hashing, replay and the strategy compiler are built and tested. The
+  artifact registry and event store are still scaffolds, and there is no WASM
+  hot path - the engine is plain TypeScript.
+- **Compilation is not enforced on publish.** The console shows the verdict, but
+  nothing yet blocks promoting a strategy that fails to compile. That belongs
+  with the artifact registry.
 - **Scoring models are seeded hashes, not models.** They have the property that
   matters here - same customer, proposition and pinned version gives the same
   number - but they predict nothing.
+- **The old Phase 0 DIR compiler is still exported** as `compileDir`, for the
+  historical fixtures. Nothing executes its output.
 - **Agent activity is fixture data.** No agent is running; the feed shows what the
   autonomy model would record.
 - **One browser.** Playwright runs Chromium only.
