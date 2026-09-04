@@ -1609,6 +1609,80 @@ paths:
                     type: integer
                     description: Matches before the limit, not the page size
 
+  /decisions:
+    post:
+      summary: Make a decision
+      description: |
+        Execute a strategy against a request and return the trace.
+
+        Integrations are resolved before the deterministic core runs and their
+        values arrive in `request.input`; this operation does not fetch them.
+        A caller that wants resolution asks for it by supplying the fields, or
+        by calling a service configured with a gateway.
+
+        `occurredAt` is required and is never defaulted to the current time.
+        Defaulting it would make a decision depend on when it was made, which
+        is the one thing replay cannot tolerate.
+
+        Two implementations serve this: the console's development store, and
+        the JVM service in `engines/kotlin`. Both produce the same chain hash
+        for the same input — see docs/conformance/service-cases.json.
+      operationId: executeDecision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [artifactId, request]
+              properties:
+                artifactId:
+                  type: string
+                request:
+                  type: object
+                  required: [tenantId, customerId, channel, placement, occurredAt, input]
+                  properties:
+                    tenantId:
+                      type: string
+                    customerId:
+                      type: string
+                    channel:
+                      type: string
+                    placement:
+                      type: string
+                    occurredAt:
+                      type: string
+                      format: date-time
+                      description: An input, never the clock.
+                    input:
+                      type: object
+                      description: Customer and context attributes, already resolved.
+                    contactHistory:
+                      type: object
+                    consent:
+                      type: object
+      responses:
+        '200':
+          description: The decision and its trace
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, decision, chainHash]
+                properties:
+                  id:
+                    type: string
+                    description: Content-addressed. The first 16 characters of the chain hash.
+                  decision:
+                    type: object
+                    description: The reproducible half, exactly as hashed.
+                  chainHash:
+                    type: string
+        '400':
+          description: Malformed request, or an artifact the engine cannot execute
+        '404':
+          description: No such artifact
+
   /decisions/{decisionId}/trace:
     get:
       summary: The full reasoning behind one decision

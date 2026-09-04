@@ -144,9 +144,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # Both suites: the value corpus (how a value hashes) and the decision
-      # corpus (what a decision is). Passing both is what makes a chain hash
-      # mean the same thing in either engine.
-      - name: Conformance (Kotlin engine)
+      # Three suites. :engine covers the value corpus (how a value hashes) and
+      # the decision corpus (what a decision is); :service pushes 60 of the
+      # console's real decisions through HTTP and compares chain hashes.
+      # Passing all three is what makes a chain hash mean the same thing
+      # whichever engine produced it.
+      - name: Conformance (Kotlin engine and service)
         run: ./gradlew test --no-daemon
         working-directory: engines/kotlin

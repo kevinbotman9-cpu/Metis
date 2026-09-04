@@ -18,7 +18,16 @@ import { store, resetStore, recordAudit } from '@/mocks/store';
 import { findTrace, decisions } from '@/mocks/fixtures/decisions';
 import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
 import { compilations, findCompilation } from '@/mocks/fixtures/compiled';
-import { replay as replayDecision } from '@metis/runtime/deterministic/engine';
+import {
+  replay as replayDecision,
+  execute as executeDecision,
+} from '@metis/runtime/deterministic/engine';
+import { execArtifacts } from '@/mocks/fixtures/engine';
+import type { DecisionRequest } from '@metis/runtime/deterministic/types';
+
+/** The request half of an executeDecision body, as the spec declares it. */
+type DecisionRequestBody = Partial<DecisionRequest> &
+  Pick<DecisionRequest, 'tenantId' | 'customerId' | 'channel' | 'placement'>;
 
 type Ctx = { params: Promise<{ path: string[] }> };
 
@@ -261,6 +270,64 @@ export async function POST(req: Request, { params }: Ctx) {
     }
 
     case 'decisions': {
+      // POST /api/decisions — make a decision.
+      //
+      // The same operation the JVM service in engines/kotlin serves, against
+      // the same spec. Two implementations of one contract is the point: a
+      // decision made here and a decision made there carry the same chain
+      // hash, which docs/conformance/service-cases.json asserts.
+      if (rest.length === 0) {
+        const body = (await req.json().catch(() => null)) as {
+          artifactId?: string;
+          request?: DecisionRequestBody;
+        } | null;
+        if (!body) return json({ error: 'bad_request', message: 'Request body must be JSON' }, 400);
+
+        // Structure before lookup, so a caller with two problems hears about
+        // both rather than fixing them one at a time.
+        if (!body.artifactId) {
+          return json({ error: 'bad_request', message: 'Missing required field: artifactId' }, 400);
+        }
+        if (!body.request) {
+          return json({ error: 'bad_request', message: 'Missing required field: request' }, 400);
+        }
+        // Never defaulted to now: a decision that depends on when it was made
+        // cannot be replayed.
+        if (!body.request.occurredAt) {
+          return json(
+            { error: 'bad_request', message: 'Missing required field: request.occurredAt' },
+            400
+          );
+        }
+
+        const artifact = execArtifacts.find((a) => a.id === body.artifactId);
+        if (!artifact) {
+          return json(
+            {
+              error: 'not_found',
+              message: `No artifact '${body.artifactId}'. Loaded: ${execArtifacts
+                .map((a) => a.id)
+                .sort()
+                .join(', ')}`,
+            },
+            404
+          );
+        }
+
+        const trace = executeDecision(artifact, catalogueSnapshot, {
+          tenantId: body.request.tenantId,
+          customerId: body.request.customerId,
+          channel: body.request.channel,
+          placement: body.request.placement,
+          occurredAt: body.request.occurredAt,
+          input: body.request.input ?? {},
+          contactHistory: body.request.contactHistory,
+          consent: body.request.consent,
+        });
+
+        return json({ id: trace.id, decision: trace.decision, chainHash: trace.chainHash });
+      }
+
       if (rest[1] !== 'replay') return notFound();
 
       // A real re-execution, not a canned answer: the engine runs again against

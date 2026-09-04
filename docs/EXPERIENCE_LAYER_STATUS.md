@@ -7,16 +7,16 @@ Integration          6 passed  - author -> compile -> execute -> replay
 Determinism         30 passed  - packages/runtime, byte-identical replay
 Integrations        19 passed  - resolution, failure modes, replay isolation
 Conformance         92 passed  - ADR-003 value corpus + 22-decision corpus
-Conformance (JVM)    4 passed  - engines/kotlin, same corpora, 58 values
-                                 and 22 decisions compared
+Conformance (JVM)   13 passed  - engines/kotlin :engine and :service; 58 values,
+                                 22 decisions, 60 real decisions over HTTP
 Compiler            40 passed  - packages/compiler
 Performance          6 passed  - bench/harness, the p95 < 50ms gate
-Unit (Vitest)       38 passed  - apps/console
-E2E (Playwright)   112 passed  - 22 contract, 19 axe, 8 skipped by design
+Unit (Vitest)       39 passed  - apps/console
+E2E (Playwright)   114 passed  - 23 contract + cross-engine, 19 axe
 Typecheck           clean
 Lint                0 errors   - root and console, which are separate configs
                    ---
-                    345 tests, two languages
+                    357 tests, two languages, two engines
 ```
 
 The console was linted by nobody until 2026-09-04: `apps/console/.eslintrc.json`
@@ -88,7 +88,9 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | Performance gate | BUILT | `bench/harness`, run by `npm test` and CI. p95 measured with `performance.now()` against seeded, reproducible workloads. |
 | Canonical serialisation | BUILT | Specified normatively in ADR-003, with a 67-case corpus generated from the reference. Both the TypeScript and Kotlin implementations are tested against it, so the determinism claim is a property of a specification rather than of one file. |
 | Integrations | BUILT | Connectors are configured once and used at decision time. Resolution runs before the deterministic core and its output is hashed into the input snapshot, so replay re-executes against what was fetched then and never calls a connector again. The compiler adds declared connector latency to the critical path. |
-| Second engine (JVM) | BUILT | `engines/kotlin` implements canonicalisation, hashing and the decision engine, and agrees with the reference on all 58 value cases and all 22 decisions. Integration resolution, replay and the compiler are not ported - resolution is I/O and sits outside the deterministic core by design, and replay is `execute` plus a hash comparison. |
+| Second engine (JVM) | BUILT | `engines/kotlin :engine` implements canonicalisation, hashing and the decision engine, and agrees with the reference on all 58 value cases and all 22 decisions. |
+| JVM decision service | BUILT | `engines/kotlin :service` serves `executeDecision`, trace and replay over HTTP, and reproduces 60 of the console's real decisions byte for byte. In-memory state, no auth, no integration gateway - see its README. |
+| `executeDecision` | BUILT | One OpenAPI operation, two implementations: the console's development store and the JVM service. Both are held to the same 60 expected chain hashes. |
 
 ---
 

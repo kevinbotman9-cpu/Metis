@@ -2,7 +2,7 @@ package com.metis.canonical
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import java.io.File
+import com.metis.Corpus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -21,13 +21,8 @@ import kotlin.test.fail
  */
 class ConformanceTest {
 
-    private val corpus: JsonNode = ObjectMapper().readTree(
-        // The test runs from engines/kotlin; the corpus is repository-level,
-        // shared with the TypeScript suite rather than copied.
-        File("../../docs/conformance/canonical-corpus.json").also {
-            assertTrue(it.exists(), "Corpus not found at ${it.absolutePath}. Run: npm run corpus")
-        }
-    )
+    // Repository-level, shared with the TypeScript suite rather than copied.
+    private val corpus: JsonNode = ObjectMapper().readTree(Corpus.file("canonical-corpus.json"))
 
     /**
      * Decode the transport encoding described in

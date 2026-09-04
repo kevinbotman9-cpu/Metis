@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.JsonNodeType
 import com.metis.canonical.Canonical
 import com.metis.canonical.Canonical.Value
-import java.io.File
+import com.metis.Corpus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -24,11 +24,7 @@ import kotlin.test.fail
 class DecisionConformanceTest {
 
     private val mapper = ObjectMapper()
-    private val corpus: JsonNode = mapper.readTree(
-        File("../../docs/conformance/decision-corpus.json").also {
-            assertTrue(it.exists(), "Corpus not found at ${it.absolutePath}. Run: npm run corpus:decisions")
-        }
-    )
+    private val corpus: JsonNode = mapper.readTree(Corpus.file("decision-corpus.json"))
 
     // --- JSON to canonical value ---------------------------------------------
 

@@ -556,6 +556,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['201', '403'],
   },
+  executeDecision: {
+    method: 'POST',
+    path: '/decisions',
+    pathParams: [],
+    queryParams: [],
+    statuses: ['200', '400', '404'],
+  },
   getArbitrationConfig: {
     method: 'GET',
     path: '/arbitration/{tenantId}',
@@ -804,6 +811,30 @@ export type CreateChangeRequestRequest = ChangeRequest;
 export type CreatePropositionResponse = Proposition;
 export type CreatePropositionRequest = Proposition;
 
+/** Make a decision */
+export type ExecuteDecisionResponse = {
+  /** Content-addressed. The first 16 characters of the chain hash. */
+  id: string;
+  /** The reproducible half, exactly as hashed. */
+  decision: Record<string, unknown>;
+  chainHash: string;
+};
+export type ExecuteDecisionRequest = {
+  artifactId: string;
+  request: {
+    tenantId: string;
+    customerId: string;
+    channel: string;
+    placement: string;
+    /** An input, never the clock. */
+    occurredAt: string;
+    /** Customer and context attributes, already resolved. */
+    input: Record<string, unknown>;
+    contactHistory?: Record<string, unknown>;
+    consent?: Record<string, unknown>;
+  };
+};
+
 /** Arbitration weights and the levers in force */
 export type GetArbitrationConfigResponse = {
   config: ArbitrationConfig;
@@ -986,6 +1017,7 @@ export interface ResponseOf {
   approveChangeRequest: ApproveChangeRequestResponse;
   createChangeRequest: CreateChangeRequestResponse;
   createProposition: CreatePropositionResponse;
+  executeDecision: ExecuteDecisionResponse;
   getArbitrationConfig: GetArbitrationConfigResponse;
   getArtifact: GetArtifactResponse;
   getArtifactSummary: GetArtifactSummaryResponse;
