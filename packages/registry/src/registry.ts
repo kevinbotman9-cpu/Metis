@@ -22,19 +22,33 @@ import { RegistryError } from './types';
  * `Date.now()` would make its own audit log untestable and its ordering
  * dependent on how fast the machine was.
  */
+/**
+ * Asynchronous because durable storage is. The in-memory implementation
+ * satisfies it trivially; making the interface synchronous to suit the easy
+ * case would have meant rewriting every caller the first time a real database
+ * appeared, which is the wrong way round.
+ */
 export interface RegistryStore {
-  getVersion(tenantId: string, name: string, version: string): PublishedVersion | undefined;
-  listVersions(tenantId: string, name: string): PublishedVersion[];
-  putVersion(v: PublishedVersion): void;
+  getVersion(tenantId: string, name: string, version: string): Promise<PublishedVersion | undefined>;
+  listVersions(tenantId: string, name: string): Promise<PublishedVersion[]>;
+  putVersion(v: PublishedVersion): Promise<void>;
 
-  getEnvironment(tenantId: string, name: string, env: Environment): EnvironmentState | undefined;
-  putEnvironment(tenantId: string, name: string, state: EnvironmentState): void;
-  listEnvironments(tenantId: string, name: string): EnvironmentState[];
+  getEnvironment(
+    tenantId: string,
+    name: string,
+    env: Environment
+  ): Promise<EnvironmentState | undefined>;
+  putEnvironment(tenantId: string, name: string, state: EnvironmentState): Promise<void>;
+  listEnvironments(tenantId: string, name: string): Promise<EnvironmentState[]>;
 
-  appendEvent(event: Omit<RegistryEvent, 'seq'>): RegistryEvent;
-  listEvents(filter?: { tenantId?: string; strategyName?: string; limit?: number }): RegistryEvent[];
+  appendEvent(event: Omit<RegistryEvent, 'seq'>): Promise<RegistryEvent>;
+  listEvents(filter?: {
+    tenantId?: string;
+    strategyName?: string;
+    limit?: number;
+  }): Promise<RegistryEvent[]>;
 
-  listStrategies(tenantId: string): string[];
+  listStrategies(tenantId: string): Promise<string[]>;
 }
 
 export class ArtifactRegistry {
@@ -49,7 +63,7 @@ export class ArtifactRegistry {
    * the registry, so it cannot be promoted, so it cannot reach execution. The
    * compiler already knew — nothing was listening.
    */
-  publish(command: PublishCommand, ctx: CompileContext): PublishOutcome {
+  async publish(command: PublishCommand, ctx: CompileContext): Promise<PublishOutcome> {
     const { tenantId, strategyName, version, source, actor, occurredAt } = command;
 
     const result = compileStrategy(source, ctx);
@@ -59,7 +73,7 @@ export class ArtifactRegistry {
     if (!result.ok || !result.artifact) {
       // Recorded, not silently dropped. "Did anyone try to ship this?" is a
       // question worth being able to answer.
-      this.store.appendEvent({
+      await this.store.appendEvent({
         at: occurredAt,
         actor,
         type: 'PublishRejected',
@@ -74,14 +88,14 @@ export class ArtifactRegistry {
       return { status: 'rejected', reason: 'compilation', diagnostics: result.diagnostics };
     }
 
-    const existing = this.store.getVersion(tenantId, strategyName, version);
+    const existing = await this.store.getVersion(tenantId, strategyName, version);
     if (existing) {
       if (existing.artifact.artifactHash === result.artifact.artifactHash) {
         // Idempotent. A retried deploy is not an error, and it must not
         // produce a second event that looks like a second publish.
         return { status: 'unchanged', artifact: existing.artifact, diagnostics: result.diagnostics };
       }
-      this.store.appendEvent({
+      await this.store.appendEvent({
         at: occurredAt,
         actor,
         type: 'PublishRejected',
@@ -102,7 +116,7 @@ export class ArtifactRegistry {
       };
     }
 
-    this.store.putVersion({
+    await this.store.putVersion({
       tenantId,
       strategyName,
       version,
@@ -115,9 +129,9 @@ export class ArtifactRegistry {
     // Read it back rather than returning the compiler's object. What publish
     // hands out has to be the thing that was stored — otherwise a caller holds
     // a mutable copy that looks authoritative and is not.
-    const stored = this.store.getVersion(tenantId, strategyName, version)!;
+    const stored = (await this.store.getVersion(tenantId, strategyName, version))!;
 
-    this.store.appendEvent({
+    await this.store.appendEvent({
       at: occurredAt,
       actor,
       type: 'ArtifactPublished',
@@ -142,15 +156,15 @@ export class ArtifactRegistry {
    * reaches customers, and it should be its own decision with its own audit
    * entry — not a side effect of saving your work.
    */
-  promote(
+  async promote(
     tenantId: string,
     strategyName: string,
     version: string,
     environment: Environment,
     actor: string,
     occurredAt: string
-  ): EnvironmentState {
-    const target = this.store.getVersion(tenantId, strategyName, version);
+  ): Promise<EnvironmentState> {
+    const target = await this.store.getVersion(tenantId, strategyName, version);
     if (!target) {
       throw new RegistryError(
         'UNKNOWN_VERSION',
@@ -158,7 +172,7 @@ export class ArtifactRegistry {
       );
     }
 
-    const current = this.store.getEnvironment(tenantId, strategyName, environment);
+    const current = await this.store.getEnvironment(tenantId, strategyName, environment);
     if (current?.activeVersion === version) {
       throw new RegistryError(
         'ALREADY_ACTIVE',
@@ -175,9 +189,9 @@ export class ArtifactRegistry {
       promotedAt: occurredAt,
       promotedBy: actor,
     };
-    this.store.putEnvironment(tenantId, strategyName, next);
+    await this.store.putEnvironment(tenantId, strategyName, next);
 
-    this.store.appendEvent({
+    await this.store.appendEvent({
       at: occurredAt,
       actor,
       type: 'VersionPromoted',
@@ -202,14 +216,14 @@ export class ArtifactRegistry {
    * started rather than walking backwards through history. That is what an
    * operator means by "undo that".
    */
-  rollback(
+  async rollback(
     tenantId: string,
     strategyName: string,
     environment: Environment,
     actor: string,
     occurredAt: string
-  ): EnvironmentState {
-    const current = this.store.getEnvironment(tenantId, strategyName, environment);
+  ): Promise<EnvironmentState> {
+    const current = await this.store.getEnvironment(tenantId, strategyName, environment);
     if (!current || !current.activeVersion) {
       throw new RegistryError(
         'UNKNOWN_STRATEGY',
@@ -230,9 +244,9 @@ export class ArtifactRegistry {
       promotedAt: occurredAt,
       promotedBy: actor,
     };
-    this.store.putEnvironment(tenantId, strategyName, next);
+    await this.store.putEnvironment(tenantId, strategyName, next);
 
-    this.store.appendEvent({
+    await this.store.appendEvent({
       at: occurredAt,
       actor,
       type: 'VersionRolledBack',
@@ -249,40 +263,48 @@ export class ArtifactRegistry {
   // --- Reading --------------------------------------------------------------
 
   /** The artifact an environment is currently running, or null. */
-  active(tenantId: string, strategyName: string, environment: Environment) {
-    const state = this.store.getEnvironment(tenantId, strategyName, environment);
+  async active(tenantId: string, strategyName: string, environment: Environment) {
+    const state = await this.store.getEnvironment(tenantId, strategyName, environment);
     if (!state?.activeVersion) return null;
-    return this.store.getVersion(tenantId, strategyName, state.activeVersion) ?? null;
+    return (await this.store.getVersion(tenantId, strategyName, state.activeVersion)) ?? null;
   }
 
-  version(tenantId: string, strategyName: string, version: string) {
-    return this.store.getVersion(tenantId, strategyName, version) ?? null;
+  async version(tenantId: string, strategyName: string, version: string) {
+    return (await this.store.getVersion(tenantId, strategyName, version)) ?? null;
   }
 
   /** Newest first, by publish time then version, so the list is stable. */
-  versions(tenantId: string, strategyName: string): PublishedVersion[] {
-    return [...this.store.listVersions(tenantId, strategyName)].sort(
+  async versions(tenantId: string, strategyName: string): Promise<PublishedVersion[]> {
+    const all = await this.store.listVersions(tenantId, strategyName);
+    return [...all].sort(
       (a, b) => b.publishedAt.localeCompare(a.publishedAt) || b.version.localeCompare(a.version)
     );
   }
 
-  environments(tenantId: string, strategyName: string): EnvironmentState[] {
-    return [...this.store.listEnvironments(tenantId, strategyName)].sort((a, b) =>
-      a.environment.localeCompare(b.environment)
-    );
+  async environments(tenantId: string, strategyName: string): Promise<EnvironmentState[]> {
+    const all = await this.store.listEnvironments(tenantId, strategyName);
+    return [...all].sort((a, b) => a.environment.localeCompare(b.environment));
   }
 
-  strategies(tenantId: string): string[] {
-    return [...this.store.listStrategies(tenantId)].sort();
+  async strategies(tenantId: string): Promise<string[]> {
+    return [...(await this.store.listStrategies(tenantId))].sort();
   }
 
   /** Newest first. */
-  events(filter?: { tenantId?: string; strategyName?: string; limit?: number }): RegistryEvent[] {
+  events(filter?: {
+    tenantId?: string;
+    strategyName?: string;
+    limit?: number;
+  }): Promise<RegistryEvent[]> {
     return this.store.listEvents(filter);
   }
 
   /** Warnings a version published with, for a surface that has to explain it. */
-  warningsFor(tenantId: string, strategyName: string, version: string): Diagnostic[] {
-    return this.store.getVersion(tenantId, strategyName, version)?.warnings ?? [];
+  async warningsFor(
+    tenantId: string,
+    strategyName: string,
+    version: string
+  ): Promise<Diagnostic[]> {
+    return (await this.store.getVersion(tenantId, strategyName, version))?.warnings ?? [];
   }
 }

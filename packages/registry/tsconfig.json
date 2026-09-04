@@ -1,9 +1,14 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "composite": true
+    "noEmit": true,
+    "composite": false,
+    "baseUrl": "../..",
+    "paths": {
+      "@metis/compiler/strategy": ["packages/compiler/src/strategy/index.ts"],
+      "@metis/core/domain": ["packages/core/src/domain.ts"],
+      "@metis/*": ["packages/*/src"]
+    }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "tests/**/*"]
 }

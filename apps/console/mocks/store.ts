@@ -58,6 +58,16 @@ type Store = {
    */
   registryStore: InMemoryRegistryStore;
   registry: ArtifactRegistry;
+  /**
+   * Resolves once the fixture strategies have been through the publish path.
+   *
+   * Seeding is asynchronous because the registry is — durable storage forced
+   * that, and the in-memory store follows the same interface rather than
+   * getting a synchronous shortcut. Handlers await this before reading the
+   * registry, so a request that arrives during startup waits instead of seeing
+   * an empty one.
+   */
+  registryReady: Promise<void>;
 };
 
 function seed(): Store {
@@ -65,7 +75,7 @@ function seed(): Store {
   const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
   const registryStore = new InMemoryRegistryStore();
   const registry = new ArtifactRegistry(registryStore);
-  seedRegistry(registry);
+  const registryReady = seedRegistry(registry);
   return {
     issues: clone(seedIssues),
     groups: clone(seedGroups),
@@ -84,6 +94,7 @@ function seed(): Store {
     auditEvents: clone(seedAuditEvents),
     registryStore,
     registry,
+    registryReady,
   };
 }
 
@@ -100,10 +111,10 @@ function seed(): Store {
  * decisions were generated from them and it would be odd to show a strategy as
  * running while the registry says nothing is active.
  */
-function seedRegistry(registry: ArtifactRegistry): void {
+async function seedRegistry(registry: ArtifactRegistry): Promise<void> {
   const at = '2026-08-01T09:00:00.000Z';
   for (const artifact of seedArtifacts) {
-    const outcome = registry.publish(
+    const outcome = await registry.publish(
       {
         tenantId: 'telco-uk',
         strategyName: artifact.id,
@@ -116,7 +127,7 @@ function seedRegistry(registry: ArtifactRegistry): void {
     );
 
     if (outcome.status === 'published' && artifact.status === 'active') {
-      registry.promote('telco-uk', artifact.id, artifact.activeVersion, 'production', artifact.updatedBy, at);
+      await registry.promote('telco-uk', artifact.id, artifact.activeVersion, 'production', artifact.updatedBy, at);
     }
   }
 }

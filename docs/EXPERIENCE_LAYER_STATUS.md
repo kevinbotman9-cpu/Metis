@@ -10,14 +10,15 @@ Conformance         92 passed  - ADR-003 value corpus + 22-decision corpus
 Conformance (JVM)   13 passed  - engines/kotlin :engine and :service; 58 values,
                                  22 decisions, 60 real decisions over HTTP
 Compiler            40 passed  - packages/compiler
-Registry            21 passed  - packages/registry, the compilation gate
+Registry            50 passed  - packages/registry; one behaviour suite run
+                                 against memory and a real PostgreSQL
 Performance          6 passed  - bench/harness, the p95 < 50ms gate
 Unit (Vitest)       39 passed  - apps/console
 E2E (Playwright)   133 passed  - 27 contract + cross-engine, 19 axe, 16 registry
 Typecheck           clean
 Lint                0 errors   - root and console, which are separate configs
                    ---
-                    397 tests, two languages, two engines
+                    426 tests, two languages, two engines
 ```
 
 The console was linted by nobody until 2026-09-04: `apps/console/.eslintrc.json`
@@ -91,7 +92,8 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | Integrations | BUILT | Connectors are configured once and used at decision time. Resolution runs before the deterministic core and its output is hashed into the input snapshot, so replay re-executes against what was fetched then and never calls a connector again. The compiler adds declared connector latency to the critical path. |
 | Second engine (JVM) | BUILT | `engines/kotlin :engine` implements canonicalisation, hashing and the decision engine, and agrees with the reference on all 58 value cases and all 22 decisions. |
 | JVM decision service | BUILT | `engines/kotlin :service` serves `executeDecision`, trace and replay over HTTP, and reproduces 60 of the console's real decisions byte for byte. In-memory state, no auth, no integration gateway - see its README. |
-| Artifact registry | BUILT | `packages/registry`. Publishing compiles first and refuses anything with errors; publishing does not activate; versions are immutable, bound to an artifact hash; promotion and rollback are separate, audited actions. Storage is behind an interface so PostgreSQL can replace the in-memory implementation without changing a rule. |
+| Artifact registry | BUILT | `packages/registry`. Publishing compiles first and refuses anything with errors; publishing does not activate; versions are immutable, bound to an artifact hash; promotion and rollback are separate, audited actions. |
+| Durable storage | BUILT | PostgreSQL, selected by `METIS_DATABASE_URL`. The same behaviour suite runs against memory and a real database, so the rules are known to be storage-independent. Immutability is enforced twice: the application refuses to overwrite a published version, and triggers on `registry_versions` and `registry_events` reject `UPDATE` and `DELETE` outright. A configured database that cannot be reached is an error, never a silent fallback to storage that forgets. |
 | Compilation on publish | BUILT | The gap that stood open longest. A strategy that does not compile never enters the registry, so it cannot be promoted and cannot reach execution — and the refusal is recorded, because an audit that only shows successes cannot answer whether anyone tried. |
 | `executeDecision` | BUILT | One OpenAPI operation, two implementations: the console's development store and the JVM service. Both are held to the same 60 expected chain hashes. |
 
@@ -152,12 +154,15 @@ Worth recording, because each was invisible by eye:
 
 ## Honest limits
 
-- **Persistence is in-memory, registry included.** A server restart restores the
-  seed and loses every published version. `RegistryStore` is an interface with
-  one in-memory implementation precisely so a PostgreSQL one can be added
-  without touching the rules; that is the next piece of real work, and until it
-  exists the registry's immutability guarantee only holds for the life of a
-  process.
+- **Only the registry is durable.** Propositions, policies, arbitration weights,
+  autonomy settings, change requests and the console's audit log are still an
+  in-memory store that resets with the process. The registry proved the pattern;
+  the rest of the control plane has not been moved onto it.
+- **One migration, no runner.** `001_registry.sql` is idempotent and applied at
+  startup. A second migration needs a real runner, and that is the moment to add
+  one.
+- **Nothing signs an artifact.** `CompiledStrategy` carries an `artifactHash`, so
+  the registry can prove content is unchanged — not who vouched for it.
 - **There is no authoring surface.** Versions are published through the API, and
   the console can promote and roll back but cannot draft a new version. The
   registry is ahead of the editor.

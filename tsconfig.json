@@ -42,9 +42,6 @@
       "path": "packages/compiler"
     },
     {
-      "path": "packages/registry"
-    },
-    {
       "path": "packages/runtime"
     },
     {

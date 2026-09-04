@@ -215,13 +215,18 @@ export async function GET(req: Request, { params }: Ctx) {
     }
 
     case 'registry': {
+      // Seeding runs the fixtures through the real publish path, which is
+      // asynchronous. Waiting here means a request during startup sees a
+      // seeded registry rather than an empty one.
+      await store.registryReady;
+
       const tenantId = rest[0];
       if (!tenantId) return notFound();
 
       // GET /registry/{tenant}/events
       if (rest[1] === 'events') {
         return json({
-          events: store.registry.events({
+          events: await store.registry.events({
             tenantId,
             strategyName: q.get('strategyName') ?? undefined,
             limit: Number(q.get('limit') || 100),
@@ -231,17 +236,17 @@ export async function GET(req: Request, { params }: Ctx) {
 
       // GET /registry/{tenant}/{strategy}
       if (rest[1]) {
-        const versions = store.registry.versions(tenantId, rest[1]);
+        const versions = await store.registry.versions(tenantId, rest[1]);
         if (versions.length === 0) return notFound(`No strategy ${rest[1]} in the registry`);
         return json({
           strategyName: rest[1],
           versions,
-          environments: store.registry.environments(tenantId, rest[1]),
+          environments: await store.registry.environments(tenantId, rest[1]),
         });
       }
 
       // GET /registry/{tenant}
-      return json({ strategies: store.registry.strategies(tenantId) });
+      return json({ strategies: await store.registry.strategies(tenantId) });
     }
 
     case 'artifacts': {
@@ -436,6 +441,8 @@ export async function POST(req: Request, { params }: Ctx) {
 
     // Test-only: restore seed state between E2E specs.
     case 'registry': {
+      await store.registryReady;
+
       const user = actor(req);
       if (!user) return json({ error: 'no_session' }, 401);
 
@@ -459,7 +466,7 @@ export async function POST(req: Request, { params }: Ctx) {
         try {
           const state =
             rest[2] === 'promote'
-              ? store.registry.promote(
+              ? await store.registry.promote(
                   tenantId,
                   strategyName,
                   body.version ?? '',
@@ -467,7 +474,7 @@ export async function POST(req: Request, { params }: Ctx) {
                   user.email,
                   new Date().toISOString()
                 )
-              : store.registry.rollback(
+              : await store.registry.rollback(
                   tenantId,
                   strategyName,
                   body.environment,
@@ -512,7 +519,7 @@ export async function POST(req: Request, { params }: Ctx) {
         return json({ error: 'bad_request', message: 'Missing required field: source' }, 400);
       }
 
-      const outcome = store.registry.publish(
+      const outcome = await store.registry.publish(
         {
           tenantId,
           strategyName,

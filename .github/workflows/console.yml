@@ -9,6 +9,24 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+
+    # Without this the registry's PostgreSQL suite skips, and "durable storage
+    # works" would rest on whether a developer happened to have a database
+    # running. The skip exists so a developer without one can still run the
+    # rest; it must not become the normal case.
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: metis_registry_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: apps/console
@@ -67,6 +85,8 @@ jobs:
       - name: Registry
         run: npm run test:registry
         working-directory: .
+        env:
+          METIS_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/metis_registry_test
 
       # The Phase 0 performance gate, which the plan says runs on every commit
       # and until now ran nowhere: the harness had no script, no test and no

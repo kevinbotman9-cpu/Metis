@@ -1,5 +1,12 @@
 export { ArtifactRegistry, type RegistryStore } from './registry';
 export { InMemoryRegistryStore } from './memory-store';
+export { PostgresRegistryStore, type Queryable } from './postgres-store';
+export {
+  createRegistryStore,
+  readMigration,
+  type StoreHandle,
+  type CreateStoreOptions,
+} from './create-store';
 export {
   RegistryError,
   type Environment,

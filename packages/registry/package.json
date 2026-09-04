@@ -12,6 +12,8 @@
     "@metis/core": "*"
   },
   "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.0",
     "vitest": "^1.0.0"
   }
 }

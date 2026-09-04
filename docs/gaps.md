@@ -75,9 +75,9 @@ test by their `proposed` marker. Nothing serves them.
 | `executeDecision` | 2026-09-04 | Served by two implementations — the console's development store and the JVM service — held to the same 60 chain hashes. |
 
 **Caveat that applies to every row above.** "Resolved" means the console has a
-working endpoint with an enforced contract. It is served by
-`apps/console/app/api/[...path]/route.ts` over an in-memory store that resets
-when the process restarts. The execution plane does not serve any of them.
+working endpoint with an enforced contract. Everything except the registry is
+served over an in-memory store that resets when the process restarts; the
+registry can be backed by PostgreSQL via `METIS_DATABASE_URL`. The execution plane does not serve any of them.
 When it does, the contract is already written and the tests already exist.
 
 ---
@@ -151,10 +151,10 @@ When it does, the contract is already written and the tests already exist.
 
 ## Notes for Platform Team
 
-1. **Durable storage for the registry.** `packages/registry` enforces the rules — compilation
-   on publish, immutable versions, publish separate from promote, an append-only log — behind a
-   `RegistryStore` interface with one in-memory implementation. Until a PostgreSQL one exists,
-   the immutability guarantee holds only for the life of a process.
+1. **The rest of the control plane is still in memory.** The registry is durable; propositions,
+   policies, arbitration weights, autonomy settings, change requests and the audit log are not.
+   The pattern is proven — one behaviour suite, two stores — and applying it is mostly work
+   rather than design.
 2. **An authoring surface.** Versions are published through the API; the console can promote and
    roll back but cannot draft a new version. The registry is ahead of the editor.
 3. **Simulation + counterfactual** (Week 2–3) unblocks ad-hoc simulation and the architect personas.
