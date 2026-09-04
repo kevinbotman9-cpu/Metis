@@ -121,7 +121,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         that apply everywhere — search, notifications, tenant, environment — a
         home that is not a page.
       */}
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-header-border bg-gradient-to-r from-header-from via-header-via to-header-to px-3 text-on-header">
+      <header
+        data-header-band
+        className="flex h-14 shrink-0 items-center gap-2 border-b border-header-border bg-gradient-to-r from-header-from via-header-via to-header-to px-3 text-on-header"
+      >
         <button
           onClick={() => setSidebarOpen((v) => !v)}
           aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}

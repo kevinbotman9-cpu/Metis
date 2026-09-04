@@ -249,6 +249,15 @@ body {
   border-radius: var(--radius-sm);
 }
 
+/* The header band does not follow the light/dark ramp, so the accent ring does
+   not hold up on it: the light-mode accent measures 2.36:1 against the burgundy
+   end, under the 3:1 that SC 1.4.11 and 2.4.11 require of a focus indicator.
+   White measures 13.4:1 there. axe has no rule for this, so it is arithmetic
+   rather than a test that guards it. */
+[data-header-band] :focus-visible {
+  outline-color: rgb(var(--on-header));
+}
+
 /* Thin, unobtrusive scrollbars that respect the theme. */
 * {
   scrollbar-width: thin;
