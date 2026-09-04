@@ -163,7 +163,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   className={cn(
                     'px-2 py-1 text-label capitalize transition-colors first:rounded-l last:rounded-r',
                     colorScheme === s
-                      ? 'bg-accent text-white'
+                      ? 'bg-accent text-on-accent'
                       : 'text-content-muted hover:bg-surface-sunken'
                   )}
                 >
@@ -185,7 +185,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   className={cn(
                     'px-2 py-1 text-label capitalize transition-colors first:rounded-l last:rounded-r',
                     density === d
-                      ? 'bg-accent text-white'
+                      ? 'bg-accent text-on-accent'
                       : 'text-content-muted hover:bg-surface-sunken'
                   )}
                 >
@@ -201,7 +201,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 aria-expanded={menuOpen}
                 className="flex items-center gap-2 rounded px-2 py-1 text-body text-content hover:bg-surface-sunken"
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-[0.625rem] font-semibold text-white">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-[0.625rem] font-semibold text-on-accent">
                   {user?.name
                     .split(' ')
                     .map((p) => p[0])

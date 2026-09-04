@@ -9,11 +9,11 @@ const button = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-accent text-white hover:bg-accent-hover',
+        primary: 'bg-accent text-on-accent hover:bg-accent-hover',
         secondary:
           'border border-border bg-surface text-content hover:bg-surface-sunken',
         ghost: 'text-content-muted hover:bg-surface-sunken hover:text-content',
-        danger: 'bg-block text-white hover:opacity-90',
+        danger: 'bg-block text-on-block hover:opacity-90',
         link: 'text-accent underline-offset-4 hover:underline p-0 h-auto',
       },
       size: {

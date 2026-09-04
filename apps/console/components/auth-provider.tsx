@@ -34,8 +34,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { user: restored } = await apiClient.getSession();
         if (!cancelled) setUser(restored);
-      } catch {
-        localStorage.removeItem(TOKEN_KEY);
+      } catch (e) {
+        // Only a 401 means the token is genuinely no longer valid. A network
+        // blip or a server error must not silently sign the user out.
+        if (e instanceof ApiError && e.status === 401) {
+          localStorage.removeItem(TOKEN_KEY);
+        } else {
+          setError('Could not reach the session service. Try reloading.');
+        }
       } finally {
         if (!cancelled) setIsLoading(false);
       }

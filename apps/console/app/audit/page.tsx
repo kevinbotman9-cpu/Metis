@@ -137,7 +137,7 @@ function AuditView() {
             className={cn(
               'rounded border px-2.5 py-1 text-label font-medium capitalize transition-colors',
               actorType === t
-                ? 'border-accent bg-accent text-white'
+                ? 'border-accent bg-accent text-on-accent'
                 : 'border-border text-content-muted hover:bg-surface-sunken'
             )}
           >

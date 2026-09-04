@@ -20,7 +20,7 @@ import type {
   Lever,
   AutonomySetting,
   AgentActivity,
-} from '@metis/core';
+} from '@metis/core/domain';
 
 /** Fixed clock so timestamps are stable across runs. */
 const T0 = Date.parse('2026-09-01T09:00:00Z');

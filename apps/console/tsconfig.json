@@ -32,6 +32,9 @@
       "@metis/core": [
         "../../packages/core/src"
       ],
+      "@metis/core/*": [
+        "../../packages/core/src/*"
+      ],
       "@metis/compiler": [
         "../../packages/compiler/src"
       ],

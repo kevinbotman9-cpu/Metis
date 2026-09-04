@@ -39,6 +39,8 @@ module.exports = {
           hover: rgb('accent-hover'),
           subtle: rgb('accent-subtle'),
         },
+        'on-accent': rgb('on-accent'),
+        'on-block': rgb('on-block'),
         pass: { DEFAULT: rgb('pass'), subtle: rgb('pass-subtle') },
         block: { DEFAULT: rgb('block'), subtle: rgb('block-subtle') },
         hold: { DEFAULT: rgb('hold'), subtle: rgb('hold-subtle') },

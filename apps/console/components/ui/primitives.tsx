@@ -128,7 +128,7 @@ export function AutonomyBadge({ level, name }: { level: string; name?: string })
       )}
     >
       {level}
-      {name ? <span className="font-normal opacity-80">{name}</span> : null}
+      {name ? <span className="font-normal">{name}</span> : null}
     </span>
   );
 }

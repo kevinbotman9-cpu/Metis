@@ -1,63 +1,58 @@
 /**
- * Development API — serves the fixture store over real HTTP.
+ * Development API — serves the mutable store over real HTTP.
  *
  * Why this exists alongside mocks/handlers.ts: MSW needs a service worker,
  * which will not register in every embedded browser context, and never runs
- * server-side. These route handlers read the SAME fixture store, so there is
- * still exactly one place sample data lives, and components still reach it
- * only through the generated client.
+ * server-side. These route handlers read and write the SAME store, so there is
+ * still exactly one place data lives, and components still reach it only
+ * through the generated client. MSW remains the mocking layer for Storybook.
  *
- * MSW remains the mocking layer for Storybook and Vitest.
+ * Writes persist for the life of the server process. Every mutation records an
+ * audit event, so the log cannot drift from the data.
  *
  * Every route below maps to an operationId in docs/metis-api.openapi.yaml.
  */
 
 import { NextResponse } from 'next/server';
-import {
-  issues,
-  groups,
-  propositions,
-  treatments,
-  engagementPolicies,
-  contactPolicies,
-  arbitrationConfig,
-  levers,
-  autonomySettings,
-  agentActivity,
-  users,
-} from '@/mocks/fixtures/catalogue';
-import { decisions, findTrace } from '@/mocks/fixtures/decisions';
-import { changeRequests, auditEvents } from '@/mocks/fixtures/governance';
-import { artifacts } from '@/mocks/fixtures/artifacts';
+import { store, resetStore, recordAudit } from '@/mocks/store';
+import { findTrace, decisions } from '@/mocks/fixtures/decisions';
 
 type Ctx = { params: Promise<{ path: string[] }> };
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
 const notFound = (message = 'Not found') => json({ error: 'not_found', message }, 404);
+const forbidden = (permission: string) =>
+  json(
+    { error: 'forbidden', message: `This action requires the ${permission} permission.` },
+    403
+  );
 
-function userFromRequest(req: Request) {
+function actor(req: Request) {
   const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
   if (!token.startsWith('metis.')) return null;
-  return users.find((u) => u.id === token.slice('metis.'.length)) ?? null;
+  return store.users.find((u) => u.id === token.slice('metis.'.length)) ?? null;
 }
 
-function publicUser(u: (typeof users)[number]) {
+function publicUser(u: (typeof store.users)[number]) {
   const { password: _password, ...rest } = u;
   return rest;
 }
 
 /** Resolve the effective autonomy for a proposition, most specific scope first. */
 function resolveAutonomyFor(propositionId: string, groupId: string, issueId: string) {
+  const a = store.autonomy;
   return (
-    autonomySettings.find(
-      (a) => a.scope.level === 'proposition' && a.scope.targetId === propositionId
-    ) ||
-    autonomySettings.find((a) => a.scope.level === 'group' && a.scope.targetId === groupId) ||
-    autonomySettings.find((a) => a.scope.level === 'issue' && a.scope.targetId === issueId) ||
-    autonomySettings.find((a) => a.scope.level === 'tenant') ||
+    a.find((s) => s.scope.level === 'proposition' && s.scope.targetId === propositionId) ||
+    a.find((s) => s.scope.level === 'group' && s.scope.targetId === groupId) ||
+    a.find((s) => s.scope.level === 'issue' && s.scope.targetId === issueId) ||
+    a.find((s) => s.scope.level === 'tenant') ||
     null
   );
 }
+
+// ---------------------------------------------------------------------------
+// GET
+// ---------------------------------------------------------------------------
 
 export async function GET(req: Request, { params }: Ctx) {
   const { path } = await params;
@@ -66,27 +61,28 @@ export async function GET(req: Request, { params }: Ctx) {
 
   switch (head) {
     case 'auth': {
-      if (rest[0] === 'session') {
-        const user = userFromRequest(req);
-        if (!user) return json({ error: 'no_session' }, 401);
-        return json({ user: publicUser(user) });
-      }
-      return notFound();
+      if (rest[0] !== 'session') return notFound();
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      return json({ user: publicUser(user) });
     }
 
     case 'taxonomy':
-      return json({ issues, groups, propositions });
+      return json({
+        issues: store.issues,
+        groups: store.groups,
+        propositions: store.propositions,
+      });
 
     case 'propositions': {
-      // /propositions/:tenantId  or  /propositions/:tenantId/:propositionId
       const propositionId = rest[1];
       if (propositionId) {
-        const proposition = propositions.find((p) => p.id === propositionId);
+        const proposition = store.propositions.find((p) => p.id === propositionId);
         if (!proposition) return notFound(`No proposition ${propositionId}`);
         return json({
           proposition,
-          treatments: treatments.filter((t) => t.propositionId === proposition.id),
-          policies: engagementPolicies.filter((p) =>
+          treatments: store.treatments.filter((t) => t.propositionId === proposition.id),
+          policies: store.engagementPolicies.filter((p) =>
             proposition.policyIds.includes(p.id)
           ),
           autonomy: resolveAutonomyFor(
@@ -97,7 +93,7 @@ export async function GET(req: Request, { params }: Ctx) {
         });
       }
 
-      let result = propositions;
+      let result = store.propositions;
       const issueId = q.get('issueId');
       const groupId = q.get('groupId');
       const status = q.get('status');
@@ -118,38 +114,39 @@ export async function GET(req: Request, { params }: Ctx) {
       return json({ propositions: result, total: result.length });
     }
 
-    case 'treatments': {
-      const propositionId = rest[1];
+    case 'treatments':
       return json({
-        treatments: treatments.filter((t) => t.propositionId === propositionId),
+        treatments: store.treatments.filter((t) => t.propositionId === rest[1]),
       });
-    }
 
     case 'engagement-policies': {
       const kind = q.get('kind');
       return json({
-        policies: kind ? engagementPolicies.filter((p) => p.kind === kind) : engagementPolicies,
+        policies: kind
+          ? store.engagementPolicies.filter((p) => p.kind === kind)
+          : store.engagementPolicies,
       });
     }
 
     case 'contact-policies':
-      return json({ policies: contactPolicies });
+      return json({ policies: store.contactPolicies });
 
     case 'arbitration':
-      return json({ config: arbitrationConfig, levers });
+      return json({ config: store.arbitration, levers: store.levers });
 
     case 'autonomy':
-      return json({ settings: autonomySettings });
+      return json({ settings: store.autonomy });
 
     case 'agent-activity': {
       const outcome = q.get('outcome');
       const limit = Number(q.get('limit') || 50);
-      const list = outcome ? agentActivity.filter((a) => a.outcome === outcome) : agentActivity;
+      const list = outcome
+        ? store.activity.filter((a) => a.outcome === outcome)
+        : store.activity;
       return json({ activity: list.slice(0, limit) });
     }
 
     case 'decisions': {
-      // /decisions/search  or  /decisions/:id/trace
       if (rest[0] === 'search') {
         const action = q.get('action');
         const channel = q.get('channel');
@@ -185,26 +182,37 @@ export async function GET(req: Request, { params }: Ctx) {
 
     case 'change-requests': {
       if (rest[0]) {
-        const cr = changeRequests.find((c) => c.id === rest[0]);
+        const cr = store.changeRequests.find((c) => c.id === rest[0]);
         return cr ? json(cr) : notFound(`No change request ${rest[0]}`);
       }
       const status = q.get('status');
-      const result = status ? changeRequests.filter((c) => c.status === status) : changeRequests;
+      const result = status
+        ? store.changeRequests.filter((c) => c.status === status)
+        : store.changeRequests;
       return json({ changeRequests: result, total: result.length });
     }
 
     case 'audit': {
       const limit = Number(q.get('limit') || 100);
-      return json({ events: auditEvents.slice(0, limit), total: auditEvents.length });
+      return json({ events: store.auditEvents.slice(0, limit), total: store.auditEvents.length });
     }
 
-    case 'artifacts':
-      return json({ artifacts });
+    case 'artifacts': {
+      if (rest[1]) {
+        const artifact = store.artifacts.find((a) => a.id === rest[1]);
+        return artifact ? json(artifact) : notFound(`No strategy ${rest[1]}`);
+      }
+      return json({ artifacts: store.artifacts });
+    }
 
     default:
       return notFound(`No route for /${path.join('/')}`);
   }
 }
+
+// ---------------------------------------------------------------------------
+// POST
+// ---------------------------------------------------------------------------
 
 export async function POST(req: Request, { params }: Ctx) {
   const { path } = await params;
@@ -217,7 +225,7 @@ export async function POST(req: Request, { params }: Ctx) {
         email?: string;
         password?: string;
       };
-      const user = users.find(
+      const user = store.users.find(
         (u) => u.email.toLowerCase() === (body.email || '').toLowerCase().trim()
       );
       if (!user || user.password !== body.password) {
@@ -249,21 +257,54 @@ export async function POST(req: Request, { params }: Ctx) {
     }
 
     case 'change-requests': {
-      const cr = changeRequests.find((c) => c.id === rest[0]);
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      if (!user.permissions.includes('approve:changes')) return forbidden('approve:changes');
+
+      const cr = store.changeRequests.find((c) => c.id === rest[0]);
       if (!cr) return notFound(`No change request ${rest[0]}`);
-      if (rest[1] === 'approve') {
-        return json({ ...cr, status: 'approved', decidedAt: new Date().toISOString() });
+      if (cr.status !== 'pending') {
+        return json(
+          {
+            error: 'already_decided',
+            message: `This change request was already ${cr.status}.`,
+          },
+          409
+        );
       }
-      if (rest[1] === 'reject') {
-        const body = (await req.json().catch(() => ({}))) as { reason?: string };
-        return json({
-          ...cr,
-          status: 'rejected',
-          decidedAt: new Date().toISOString(),
-          decisionReason: body.reason ?? null,
-        });
-      }
-      return notFound();
+
+      const approving = rest[1] === 'approve';
+      if (!approving && rest[1] !== 'reject') return notFound();
+
+      const body = (await req.json().catch(() => ({}))) as { reason?: string };
+
+      cr.status = approving ? 'approved' : 'rejected';
+      cr.decidedBy = user.email;
+      cr.decidedAt = new Date().toISOString();
+      cr.decisionReason =
+        body.reason ?? (approving ? 'Approved from the console.' : 'Rejected from the console.');
+
+      // An approved change actually applies its diff to the store.
+      if (approving) applyChangeRequest(cr);
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: approving ? 'ChangeRequestApproved' : 'ChangeRequestRejected',
+        scope: cr.targetScope.targetId ?? 'tenant',
+        summary: `${approving ? 'Approved' : 'Rejected'} ${cr.id}: ${cr.title}`,
+        changeRequestId: cr.id,
+      });
+
+      return json(cr);
+    }
+
+    // Test-only: restore seed state between E2E specs.
+    case '_test': {
+      if (rest[0] !== 'reset') return notFound();
+      if (process.env.NODE_ENV === 'production') return notFound();
+      resetStore();
+      return json({ reset: true });
     }
 
     default:
@@ -271,21 +312,149 @@ export async function POST(req: Request, { params }: Ctx) {
   }
 }
 
+/**
+ * Apply an approved change request's diff to the store.
+ *
+ * Only the change types the console can currently raise are handled; anything
+ * else is approved for the record but leaves the data untouched, which is
+ * honest rather than silently pretending.
+ */
+function applyChangeRequest(cr: (typeof store.changeRequests)[number]) {
+  switch (cr.changeType) {
+    case 'arbitration_weights': {
+      for (const d of cr.diff) {
+        const key = d.field.replace(/^weights\./, '') as keyof typeof store.arbitration.weights;
+        if (key in store.arbitration.weights) {
+          store.arbitration.weights[key] = Number(d.after);
+        }
+      }
+      const w = store.arbitration.weights;
+      store.arbitration.formula = `Priority = P^${w.propensity.toFixed(2)} × V^${w.value.toFixed(
+        2
+      )} × L^${w.lever.toFixed(2)} × C^${w.context.toFixed(2)}`;
+      break;
+    }
+    case 'lever_adjust': {
+      for (const d of cr.diff) {
+        const leverId = d.field.split('.')[0];
+        const lever = store.levers.find((l) => l.id === leverId);
+        if (lever) lever.value = Number(d.after);
+      }
+      break;
+    }
+    case 'policy_edit': {
+      for (const d of cr.diff) {
+        // e.g. "pol_heavy_user.conditions[0].value"
+        const match = d.field.match(/^(\w+)\.conditions\[(\d+)\]\.value$/);
+        if (match) {
+          const policy = store.engagementPolicies.find((p) => p.id === match[1]);
+          const cond = policy?.conditions[Number(match[2])];
+          if (cond) cond.value = Number(d.after);
+          continue;
+        }
+        const activeMatch = d.field.match(/^(\w+)\.active$/);
+        if (activeMatch) {
+          const policy = store.engagementPolicies.find((p) => p.id === activeMatch[1]);
+          if (policy) policy.active = d.after === 'true';
+        }
+      }
+      break;
+    }
+    case 'proposition_retire': {
+      const prop = store.propositions.find((p) => p.id === cr.targetScope.targetId);
+      if (prop) prop.status = 'retired';
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PUT
+// ---------------------------------------------------------------------------
+
 export async function PUT(req: Request, { params }: Ctx) {
   const { path } = await params;
-  const [head] = path;
+  const [head, ...rest] = path;
+  const user = actor(req);
+  if (!user) return json({ error: 'no_session' }, 401);
 
-  // Writes are accepted and echoed back. The fixture store is read-only in
-  // development; real persistence arrives with the execution plane.
   switch (head) {
     case 'arbitration': {
-      const body = await req.json().catch(() => ({}));
-      return json({ ...arbitrationConfig, ...(body as object) });
+      if (!user.permissions.includes('edit:arbitration')) return forbidden('edit:arbitration');
+      const body = (await req.json().catch(() => ({}))) as Partial<typeof store.arbitration>;
+      if (body.weights) store.arbitration.weights = { ...store.arbitration.weights, ...body.weights };
+      const w = store.arbitration.weights;
+      store.arbitration.formula = `Priority = P^${w.propensity.toFixed(2)} × V^${w.value.toFixed(
+        2
+      )} × L^${w.lever.toFixed(2)} × C^${w.context.toFixed(2)}`;
+      store.arbitration.updatedAt = new Date().toISOString();
+      store.arbitration.updatedBy = user.email;
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'ArbitrationWeightsChanged',
+        scope: 'tenant',
+        summary: `Arbitration weights set to ${store.arbitration.formula}`,
+      });
+      return json(store.arbitration);
     }
+
     case 'autonomy': {
-      const body = await req.json().catch(() => ({}));
-      return json(body);
+      if (!user.permissions.includes('edit:autonomy')) return forbidden('edit:autonomy');
+      const body = (await req.json().catch(() => ({}))) as { id?: string; level?: string };
+      const setting = store.autonomy.find((s) => s.id === body.id);
+      if (!setting) return notFound(`No autonomy setting ${body.id}`);
+
+      const before = setting.level;
+      Object.assign(setting, body, {
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.email,
+      });
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'AutonomyChanged',
+        scope: setting.scope.targetId ?? 'tenant',
+        summary: `Autonomy for ${setting.scope.level} changed from ${before} to ${setting.level}.`,
+      });
+      return json(setting);
     }
+
+    case 'propositions': {
+      if (!user.permissions.includes('edit:propositions')) return forbidden('edit:propositions');
+      const propositionId = rest[1];
+      const index = store.propositions.findIndex((p) => p.id === propositionId);
+      if (index === -1) return notFound(`No proposition ${propositionId}`);
+
+      const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+      const before = store.propositions[index];
+      const updated = {
+        ...before,
+        ...body,
+        id: before.id,
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.email,
+      };
+      store.propositions[index] = updated;
+
+      const changed = Object.keys(body).filter(
+        (k) => JSON.stringify((before as unknown as Record<string, unknown>)[k]) !== JSON.stringify(body[k])
+      );
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'PropositionUpdated',
+        scope: propositionId,
+        summary: `Updated ${updated.name}${changed.length ? ` (${changed.join(', ')})` : ''}.`,
+      });
+      return json(updated);
+    }
+
     default:
       return notFound(`No route for /${path.join('/')}`);
   }

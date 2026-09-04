@@ -1,100 +1,62 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { Button } from './button';
 
-const meta = {
-  title: 'UI/Button',
+const meta: Meta<typeof Button> = {
+  title: 'Primitives/Button',
   component: Button,
-  parameters: {
-    layout: 'centered',
-  },
-  tags: ['autodocs'],
+  parameters: { layout: 'padded' },
   argTypes: {
     variant: {
       control: 'select',
-      options: ['default', 'secondary', 'ghost', 'destructive'],
+      options: ['primary', 'secondary', 'ghost', 'danger', 'link'],
     },
-    size: {
-      control: 'select',
-      options: ['sm', 'md', 'lg'],
-    },
-    disabled: {
-      control: 'boolean',
-    },
+    size: { control: 'select', options: ['sm', 'md', 'lg', 'icon'] },
+    disabled: { control: 'boolean' },
   },
-} satisfies Meta<typeof Button>;
-
+  args: { children: 'Publish weights', variant: 'secondary', size: 'md' },
+};
 export default meta;
-type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {
-  args: {
-    children: 'Button',
-    variant: 'default',
-  },
-};
+type Story = StoryObj<typeof Button>;
 
-export const Secondary: Story = {
-  args: {
-    children: 'Secondary',
-    variant: 'secondary',
-  },
-};
+export const Playground: Story = {};
 
-export const Ghost: Story = {
-  args: {
-    children: 'Ghost',
-    variant: 'ghost',
-  },
-};
+export const Primary: Story = { args: { variant: 'primary', children: 'Approve' } };
+export const Secondary: Story = { args: { variant: 'secondary', children: 'Version history' } };
+export const Ghost: Story = { args: { variant: 'ghost', children: 'Reset' } };
+export const Danger: Story = { args: { variant: 'danger', children: 'Reject' } };
+export const Link: Story = { args: { variant: 'link', children: 'All approvals' } };
+export const Disabled: Story = { args: { variant: 'primary', children: 'Publish', disabled: true } };
 
-export const Destructive: Story = {
-  args: {
-    children: 'Delete',
-    variant: 'destructive',
-  },
-};
-
-export const Sizes: Story = {
+/**
+ * Filled buttons use the on-accent / on-block tokens rather than a literal
+ * white, because in dark mode the fills become light and white text on them
+ * measured 2.75:1. Check both themes with the toolbar.
+ */
+export const AllVariants: Story = {
   render: () => (
-    <div className="flex gap-4">
-      <Button size="sm">Small</Button>
-      <Button size="md">Medium</Button>
-      <Button size="lg">Large</Button>
+    <div className="space-y-3">
+      {(['sm', 'md', 'lg'] as const).map((size) => (
+        <div key={size} className="flex flex-wrap items-center gap-2">
+          <span className="w-10 text-label text-content-subtle">{size}</span>
+          {(['primary', 'secondary', 'ghost', 'danger'] as const).map((variant) => (
+            <Button key={variant} variant={variant} size={size}>
+              {variant}
+            </Button>
+          ))}
+        </div>
+      ))}
     </div>
   ),
 };
 
-export const Disabled: Story = {
-  args: {
-    children: 'Disabled',
-    disabled: true,
-  },
-};
-
-export const AllThemesLight: Story = {
-  parameters: {
-    theme: 'light',
-    density: 'comfortable',
-  },
+/** The action pairing used on approvals and arbitration. */
+export const ActionBar: Story = {
   render: () => (
-    <div className="flex gap-4">
-      <Button variant="default">Publish</Button>
-      <Button variant="secondary">Cancel</Button>
-      <Button variant="ghost">More</Button>
-    </div>
-  ),
-};
-
-export const AllThemesDark: Story = {
-  parameters: {
-    theme: 'dark',
-    density: 'comfortable',
-  },
-  render: () => (
-    <div className="flex gap-4">
-      <Button variant="default">Publish</Button>
-      <Button variant="secondary">Cancel</Button>
-      <Button variant="ghost">More</Button>
+    <div className="flex items-center gap-2">
+      <Button variant="ghost">Reset</Button>
+      <Button variant="danger">Reject</Button>
+      <Button variant="primary">Approve</Button>
     </div>
   ),
 };

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
 import { useAuth } from '@/components/auth-provider';
 import {
@@ -72,8 +72,21 @@ function money(m: { amount: number; currency: string }) {
   return `${s}${(m.amount / 100).toLocaleString('en-GB')}`;
 }
 
-function ScopeCard({ setting }: { setting: AutonomySettingDto }) {
+function ScopeCard({ setting, canEdit }: { setting: AutonomySettingDto; canEdit: boolean }) {
   const g = setting.guardrails;
+  const [editing, setEditing] = useState(false);
+  const queryClient = useQueryClient();
+
+  const save = useMutation({
+    mutationFn: (level: AutonomySettingDto['level']) =>
+      apiClient.updateAutonomySetting({ id: setting.id, level }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['autonomy'] });
+      queryClient.invalidateQueries({ queryKey: ['audit'] });
+      setEditing(false);
+    },
+  });
+
   return (
     <div className="rounded-lg border border-border bg-surface p-card">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -91,10 +104,42 @@ function ScopeCard({ setting }: { setting: AutonomySettingDto }) {
             </p>
           )}
         </div>
-        <Button variant="secondary" size="sm">
-          Edit
-        </Button>
+        {canEdit && (
+          <Button variant="secondary" size="sm" onClick={() => setEditing((v) => !v)}>
+            {editing ? 'Cancel' : 'Change level'}
+          </Button>
+        )}
       </div>
+
+      {editing && (
+        <div className="mt-3 rounded border border-accent/40 bg-accent-subtle p-2">
+          <p className="mb-1.5 text-label text-content-muted">
+            Raising a level widens what agents may do here without asking. The change is audited.
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {LADDER.map((l) => (
+              <button
+                key={l.level}
+                onClick={() => save.mutate(l.level as AutonomySettingDto['level'])}
+                disabled={save.isPending || l.level === setting.level}
+                className={cn(
+                  'rounded border px-2 py-1 text-label font-medium transition-colors',
+                  l.level === setting.level
+                    ? 'border-accent bg-accent text-on-accent'
+                    : 'border-border bg-surface text-content-muted hover:bg-surface-sunken'
+                )}
+              >
+                {l.level} {l.name}
+              </button>
+            ))}
+          </div>
+          {save.isError && (
+            <p role="alert" className="mt-1.5 text-label text-block">
+              {(save.error as Error).message}
+            </p>
+          )}
+        </div>
+      )}
 
       <p className="mt-2 text-body text-content-muted">{setting.rationale}</p>
 
@@ -284,7 +329,7 @@ function AgenticView() {
           ) : (
             <div className="space-y-3">
               {rows.map((s) => (
-                <ScopeCard key={s.id} setting={s} />
+                <ScopeCard key={s.id} setting={s} canEdit={canEdit} />
               ))}
             </div>
           )}

@@ -32,30 +32,38 @@
   --border: var(--n-300);
   --border-strong: var(--n-400);
 
-  /* Text */
+  /* Text.
+     Every step must clear WCAG AA 4.5:1 against both --surface and
+     --surface-sunken, including at the 10-11px label sizes. n-500 measured
+     4.29:1 on white and 3.75:1 on sunken, so the ramp starts one step darker. */
   --text: var(--n-900);
-  --text-muted: var(--n-600);
-  --text-subtle: var(--n-500);
+  --text-muted: var(--n-700);
+  --text-subtle: var(--n-600);
   --text-inverse: 255 255 255;
 
   /* Brand + state */
   --accent: 37 99 199;
   --accent-hover: 29 78 160;
   --accent-subtle: 232 240 252;
+  /* Text placed ON a strong fill. In dark mode the fills become light, so
+     this flips to near-black — white on the dark-mode accent measured 2.75:1. */
+  --on-accent: 255 255 255;
+  --on-block: 255 255 255;
   --pass: 21 122 78;
   --pass-subtle: 226 244 235;
   --block: 178 58 58;
   --block-subtle: 253 232 232;
-  --hold: 166 107 0;
+  --hold: 140 90 0;
   --hold-subtle: 253 243 224;
   --info: 55 108 176;
   --info-subtle: 232 240 250;
 
-  /* Autonomy ladder — L0 coolest, L4 warmest */
-  --l0: 111 123 141;
+  /* Autonomy ladder — L0 coolest, L4 warmest.
+     Each must clear 4.5:1 on --surface at the 11px badge size. */
+  --l0: 84 96 114;
   --l1: 55 108 176;
   --l2: 37 99 199;
-  --l3: 166 107 0;
+  --l3: 140 90 0;
   --l4: 178 58 58;
 
   /* Density: comfortable is the default */
@@ -112,12 +120,14 @@
   --border-strong: var(--n-400);
 
   --text: var(--n-900);
-  --text-muted: var(--n-600);
-  --text-subtle: var(--n-500);
+  --text-muted: var(--n-700);
+  --text-subtle: var(--n-600);
 
   --accent: 96 155 255;
   --accent-hover: 130 176 255;
   --accent-subtle: 24 42 70;
+  --on-accent: 13 17 24;
+  --on-block: 13 17 24;
   --pass: 74 190 133;
   --pass-subtle: 18 46 35;
   --block: 240 120 120;
@@ -127,7 +137,7 @@
   --info: 118 168 226;
   --info-subtle: 22 38 58;
 
-  --l0: 113 129 152;
+  --l0: 153 167 186;
   --l1: 118 168 226;
   --l2: 96 155 255;
   --l3: 226 168 62;
@@ -160,11 +170,13 @@
     --border: var(--n-300);
     --border-strong: var(--n-400);
     --text: var(--n-900);
-    --text-muted: var(--n-600);
-    --text-subtle: var(--n-500);
+    --text-muted: var(--n-700);
+    --text-subtle: var(--n-600);
     --accent: 96 155 255;
     --accent-hover: 130 176 255;
     --accent-subtle: 24 42 70;
+    --on-accent: 13 17 24;
+    --on-block: 13 17 24;
     --pass: 74 190 133;
     --pass-subtle: 18 46 35;
     --block: 240 120 120;

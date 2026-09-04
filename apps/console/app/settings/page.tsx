@@ -97,7 +97,7 @@ function SettingsView() {
                     className={cn(
                       'flex-1 rounded border px-3 py-2 text-body font-medium capitalize transition-colors',
                       colorScheme === s
-                        ? 'border-accent bg-accent text-white'
+                        ? 'border-accent bg-accent text-on-accent'
                         : 'border-border text-content-muted hover:bg-surface-sunken'
                     )}
                   >
@@ -120,7 +120,7 @@ function SettingsView() {
                     className={cn(
                       'flex-1 rounded border px-3 py-2 text-body font-medium capitalize transition-colors',
                       density === d
-                        ? 'border-accent bg-accent text-white'
+                        ? 'border-accent bg-accent text-on-accent'
                         : 'border-border text-content-muted hover:bg-surface-sunken'
                     )}
                   >
@@ -142,37 +142,42 @@ function SettingsView() {
             description="Where this console is getting its data."
           />
           <CardBody>
-            <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded border border-border px-3 py-2">
-                <dt className="text-label uppercase tracking-wide text-content-subtle">
-                  API source
-                </dt>
-                <dd className="mt-0.5 text-body font-medium">Development route handlers</dd>
-                <p className="mt-1 text-label text-content-muted">
-                  Fixture store served over HTTP from <code>app/api</code>. Swap the base URL to
-                  point at a real execution plane.
-                </p>
-              </div>
-              <div className="rounded border border-border px-3 py-2">
-                <dt className="text-label uppercase tracking-wide text-content-subtle">
-                  Contract
-                </dt>
-                <dd className="mt-0.5 text-body font-medium">OpenAPI 3.1 · 30 operations</dd>
-                <p className="mt-1 text-label text-content-muted">
-                  Every call in this console maps to an operationId in the spec.
-                </p>
-              </div>
-              <div className="rounded border border-border px-3 py-2">
-                <dt className="text-label uppercase tracking-wide text-content-subtle">
-                  Persistence
-                </dt>
-                <dd className="mt-0.5 text-body font-medium">Read-only</dd>
-                <p className="mt-1 text-label text-content-muted">
-                  Writes are accepted and echoed back but not stored. Real persistence lands with
-                  the execution plane.
-                </p>
-              </div>
-            </dl>
+            {/* Not a <dl>: each entry carries explanatory prose as well as a
+                term and value, which a definition list may not contain. */}
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                {
+                  term: 'API source',
+                  value: 'Development route handlers',
+                  detail: (
+                    <>
+                      Fixture store served over HTTP from{' '}
+                      <code className="font-mono">app/api</code>. Swap the base URL to point at a
+                      real execution plane.
+                    </>
+                  ),
+                },
+                {
+                  term: 'Contract',
+                  value: 'OpenAPI 3.1 · 30 operations',
+                  detail: 'Every call in this console maps to an operationId in the spec.',
+                },
+                {
+                  term: 'Persistence',
+                  value: 'In-memory',
+                  detail:
+                    'Edits persist for the life of the server process and are written to the audit log. A restart restores the seed data. Durable storage lands with the execution plane.',
+                },
+              ].map((entry) => (
+                <li key={entry.term} className="rounded border border-border px-3 py-2">
+                  <p className="text-label uppercase tracking-wide text-content-subtle">
+                    {entry.term}
+                  </p>
+                  <p className="mt-0.5 text-body font-medium">{entry.value}</p>
+                  <p className="mt-1 text-label text-content-muted">{entry.detail}</p>
+                </li>
+              ))}
+            </ul>
           </CardBody>
         </Card>
       </div>

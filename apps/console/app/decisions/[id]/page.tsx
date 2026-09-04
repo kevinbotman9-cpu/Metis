@@ -134,7 +134,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
               className={cn(
                 'rounded border px-2 py-1 text-label font-medium transition-colors',
                 audience === a.key
-                  ? 'border-accent bg-accent text-white'
+                  ? 'border-accent bg-accent text-on-accent'
                   : 'border-border text-content-muted hover:bg-surface-sunken'
               )}
             >

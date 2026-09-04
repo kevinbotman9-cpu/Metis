@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
 import {
@@ -18,6 +19,7 @@ import { apiClient, type ArtifactSummaryDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
 
 function StrategiesView() {
+  const router = useRouter();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['artifacts'],
     queryFn: () => apiClient.listArtifacts(),
@@ -142,7 +144,7 @@ function StrategiesView() {
       <Card>
         <CardHeader
           title="Compiled artifacts"
-          description="The canvas editor arrives in a later phase; this list is read-only for now."
+          description="Select a strategy to open its decision graph."
         />
         <DataTable
           columns={columns}
@@ -150,6 +152,7 @@ function StrategiesView() {
           rowKey={(a) => a.id}
           isLoading={isLoading}
           defaultSort={{ key: 'updated', dir: 'desc' }}
+          onRowClick={(a) => router.push(`/strategies/${a.id}`)}
           emptyTitle="No strategies published"
           caption="Compiled strategy artifacts"
         />

@@ -96,6 +96,16 @@ export const apiClient = {
   listTreatments: (propositionId: string, tenantId: string = TENANT) =>
     apiCall<{ treatments: TreatmentDto[] }>(`/treatments/${tenantId}/${propositionId}`),
 
+  updateProposition: (
+    propositionId: string,
+    changes: Partial<PropositionDto>,
+    tenantId: string = TENANT
+  ) =>
+    apiCall<PropositionDto>(`/propositions/${tenantId}/${propositionId}`, {
+      method: 'PUT',
+      body: changes,
+    }),
+
   // --- Policies and arbitration -------------------------------------------
   listEngagementPolicies: (kind?: string, tenantId: string = TENANT) =>
     apiCall<{ policies: EngagementPolicyDto[] }>(`/engagement-policies/${tenantId}`, {
@@ -108,9 +118,24 @@ export const apiClient = {
   getArbitration: (tenantId: string = TENANT) =>
     apiCall<{ config: ArbitrationConfigDto; levers: LeverDto[] }>(`/arbitration/${tenantId}`),
 
+  updateArbitration: (
+    weights: ArbitrationConfigDto['weights'],
+    tenantId: string = TENANT
+  ) =>
+    apiCall<ArbitrationConfigDto>(`/arbitration/${tenantId}`, {
+      method: 'PUT',
+      body: { weights },
+    }),
+
   // --- Agentic ------------------------------------------------------------
   listAutonomySettings: (tenantId: string = TENANT) =>
     apiCall<{ settings: AutonomySettingDto[] }>(`/autonomy/${tenantId}`),
+
+  updateAutonomySetting: (
+    setting: Pick<AutonomySettingDto, 'id'> & Partial<AutonomySettingDto>,
+    tenantId: string = TENANT
+  ) =>
+    apiCall<AutonomySettingDto>(`/autonomy/${tenantId}`, { method: 'PUT', body: setting }),
 
   listAgentActivity: (
     filters: { outcome?: string; limit?: number } = {},
@@ -152,6 +177,9 @@ export const apiClient = {
   // --- Strategies ---------------------------------------------------------
   listArtifacts: (tenantId: string = TENANT) =>
     apiCall<{ artifacts: ArtifactSummaryDto[] }>(`/artifacts/${tenantId}`),
+
+  getArtifact: (artifactId: string, tenantId: string = TENANT) =>
+    apiCall<ArtifactSummaryDto>(`/artifacts/${tenantId}/${artifactId}`),
 };
 
 // ---------------------------------------------------------------------------
@@ -217,6 +245,15 @@ export interface TaxonomyDto {
   issues: IssueDto[];
   groups: GroupDto[];
   propositions: PropositionDto[];
+}
+
+/** getProposition returns the proposition plus everything needed to render it. */
+export interface PropositionDetailDto {
+  proposition: PropositionDto;
+  treatments: TreatmentDto[];
+  policies: EngagementPolicyDto[];
+  /** Effective autonomy for this scope, or null if none resolves. */
+  autonomy: AutonomySettingDto | null;
 }
 
 export interface TreatmentDto {
@@ -397,14 +434,37 @@ export interface AuditEventDto {
   changeRequestId: string | null;
 }
 
+export interface DirNodeDto {
+  id: string;
+  type: string;
+  label: string;
+  description: string;
+  estimatedMs: number;
+  policyIds?: string[];
+  model?: { id: string; version: string };
+  formula?: string;
+  position: { x: number; y: number };
+}
+
+export interface DirEdgeDto {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+}
+
 export interface ArtifactSummaryDto {
   id: string;
   name: string;
+  description: string;
   activeVersion: string;
   versions: string[];
   nodeCount: number;
   estimatedP95LatencyMs: number;
   status: string;
+  candidateKeys: string[];
+  nodes: DirNodeDto[];
+  edges: DirEdgeDto[];
   updatedAt: string;
   updatedBy: string;
 }

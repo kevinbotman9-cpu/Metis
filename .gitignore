@@ -76,3 +76,13 @@ logs/
 
 # Next.js build output
 apps/console/.next/
+
+# tsc emits alongside sources when outDir is unset; never commit build output into src/
+packages/*/src/**/*.js
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.map
+
+# Test and Storybook output
+apps/console/test-results/
+apps/console/playwright-report/
+apps/console/storybook-static/

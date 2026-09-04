@@ -1,0 +1,89 @@
+name: Console
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+# The definition of done in CLAUDE.md, enforced.
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/console
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+        working-directory: .
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      # Covers navigation, auth, RBAC, persistence, and axe-core at WCAG 2.2 AA.
+      - name: End-to-end and accessibility
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/console/playwright-report
+          retention-days: 7
+
+  spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # The spec is the contract between console and execution plane. A version
+      # that does not parse would let the two drift apart silently.
+      - name: Validate the OpenAPI spec
+        run: |
+          npm install --no-save js-yaml
+          node -e "
+            const yaml = require('js-yaml');
+            const fs = require('fs');
+            const doc = yaml.load(fs.readFileSync('docs/metis-api.openapi.yaml', 'utf8'));
+            const ops = Object.values(doc.paths)
+              .flatMap((p) => Object.values(p))
+              .filter((o) => o && o.operationId);
+            const ids = ops.map((o) => o.operationId);
+            if (new Set(ids).size !== ids.length) throw new Error('duplicate operationId');
+
+            // Every \$ref must resolve, or the generated client will be wrong.
+            const schemas = new Set(Object.keys(doc.components.schemas));
+            const refs = [];
+            JSON.stringify(doc, (k, v) => {
+              if (k === '\$ref' && typeof v === 'string') refs.push(v);
+              return v;
+            });
+            const missing = refs
+              .filter((r) => r.startsWith('#/components/schemas/'))
+              .map((r) => r.split('/').pop())
+              .filter((n) => !schemas.has(n));
+            if (missing.length) throw new Error('unresolved \$ref: ' + [...new Set(missing)].join(', '));
+
+            console.log('spec ok:', Object.keys(doc.paths).length, 'paths,', ops.length, 'operations,', schemas.size, 'schemas');
+          "

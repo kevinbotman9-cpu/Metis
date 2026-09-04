@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
 import { useAuth } from '@/components/auth-provider';
 import {
@@ -67,6 +67,12 @@ function ArbitrationView() {
   useEffect(() => {
     if (data?.config.weights) setWeights(data.config.weights);
   }, [data]);
+
+  const queryClient = useQueryClient();
+  const save = useMutation({
+    mutationFn: () => apiClient.updateArbitration(weights),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['arbitration'] }),
+  });
 
   const saved = data?.config.weights;
   const dirty =
@@ -170,13 +176,18 @@ function ArbitrationView() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={!dirty}
+                    disabled={!dirty || save.isPending}
                     onClick={() => saved && setWeights(saved)}
                   >
                     Reset
                   </Button>
-                  <Button variant="primary" size="sm" disabled={!dirty}>
-                    Request change
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={!dirty || save.isPending}
+                    onClick={() => save.mutate()}
+                  >
+                    {save.isPending ? 'Publishing…' : 'Publish weights'}
                   </Button>
                 </>
               ) : (
@@ -198,7 +209,18 @@ function ArbitrationView() {
               </p>
               {dirty && (
                 <p className="mt-1.5 text-label text-hold">
-                  Unsaved. Changing arbitration affects every decision, so it goes through approval.
+                  Unsaved. Publishing changes how every subsequent decision is ranked, and is
+                  recorded in the audit log.
+                </p>
+              )}
+              {save.isSuccess && !dirty && (
+                <p className="mt-1.5 text-label text-pass">
+                  Published. Recorded in the audit log.
+                </p>
+              )}
+              {save.isError && (
+                <p role="alert" className="mt-1.5 text-label text-block">
+                  {(save.error as Error).message}
                 </p>
               )}
             </div>
