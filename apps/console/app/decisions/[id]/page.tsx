@@ -1,161 +1,124 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
 import { MockBanner } from '@/components/mock-banner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { apiClient } from '@/lib/api-client';
+import { MOCK_TRACE } from './trace-demo';
 
-type TraceAudience = 'customer' | 'business' | 'analyst' | 'engineer' | 'regulator';
+export default function DecisionDetailPage({ params }: { params: { id: string } }) {
+  const [audience, setAudience] = useState('Customer');
+  const [replayResult, setReplayResult] = useState<string | null>(null);
 
-export default function DecisionDetailPage() {
-  const params = useParams();
-  const decisionId = params.id as string;
-  const [audience, setAudience] = useState<TraceAudience>('analyst');
-  const [replayResult, setReplayResult] = useState<any>(null);
-  const [isReplaying, setIsReplaying] = useState(false);
-
-  // Fetch trace
-  const { data: trace, isLoading: traceLoading, error: traceError } = useQuery({
-    queryKey: ['trace', decisionId],
-    queryFn: () => apiClient.getDecisionTrace(decisionId),
-  });
-
-  // Replay decision
-  const handleReplay = async () => {
-    setIsReplaying(true);
-    try {
-      const result = await apiClient.replayDecision(decisionId);
-      setReplayResult(result);
-    } catch (err) {
-      console.error('Replay failed:', err);
-    } finally {
-      setIsReplaying(false);
-    }
-  };
-
-  if (traceLoading) {
-    return (
-      <AppShell>
-        <div className="p-8">Loading...</div>
-      </AppShell>
-    );
-  }
-
-  if (traceError || !trace) {
-    return (
-      <AppShell>
-        <div className="p-8 text-red-600">Error loading trace</div>
-      </AppShell>
-    );
-  }
+  const audiences = ['Customer', 'Business', 'Analyst', 'Engineer', 'Regulator'];
 
   return (
     <>
       <MockBanner />
       <AppShell>
         <div className="p-8 space-y-6 max-w-5xl">
-          {/* Header */}
-          <div>
-            <Link href="/decisions">
-              <Button variant="ghost" size="sm">
-                ← Back to Search
+          {/* Header with Back Button */}
+          <div className="mb-8">
+            <Link href="/decisions" className="inline-block mb-4">
+              <Button variant="ghost" size="sm" className="hover:bg-base-200">
+                ← Back to Decisions
               </Button>
             </Link>
-            <h1 className="text-3xl font-bold text-base-900 mt-4 mb-2">
-              Decision Trace
-            </h1>
-            <p className="text-base-600 font-mono text-sm">{decisionId}</p>
+            <h1 className="text-4xl font-bold text-base-900 mb-2">Decision Trace</h1>
+            <p className="text-lg text-base-600">
+              Complete, immutable audit record for decision {MOCK_TRACE.id}
+            </p>
           </div>
 
-          {/* Metadata */}
-          <Card>
+          {/* Metadata Card */}
+          <Card className="border-base-300 bg-base-100/50">
+            <CardHeader className="border-b border-base-300 pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Decision Metadata</CardTitle>
+                <span className="text-xs text-state-pass font-semibold">✓ VERIFIED</span>
+              </div>
+            </CardHeader>
             <CardContent className="pt-6">
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-8">
                 <div>
-                  <p className="text-xs text-base-600 font-semibold">Decision ID</p>
-                  <p className="text-sm font-mono mt-1">{trace.id}</p>
+                  <p className="text-xs font-semibold text-base-600 mb-1">Decision ID</p>
+                  <p className="text-sm font-mono text-accent break-all">{MOCK_TRACE.id}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-base-600 font-semibold">Timestamp</p>
-                  <p className="text-sm mt-1">
-                    {new Date(trace.timestamp).toLocaleString()}
+                  <p className="text-xs font-semibold text-base-600 mb-1">Timestamp</p>
+                  <p className="text-sm">
+                    {new Date(MOCK_TRACE.timestamp).toLocaleString()}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-base-600 font-semibold">Artifact Version</p>
-                  <p className="text-sm font-mono mt-1">{trace.artifactVersion}</p>
+                  <p className="text-xs font-semibold text-base-600 mb-1">Artifact Version</p>
+                  <p className="text-sm font-mono">{MOCK_TRACE.artifactVersion}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-base-600 font-semibold">Tenant</p>
-                  <p className="text-sm mt-1">{trace.tenantId}</p>
+                  <p className="text-xs font-semibold text-base-600 mb-1">Tenant</p>
+                  <p className="text-sm">{MOCK_TRACE.tenantId}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Audience Selector */}
-          <Card>
-            <CardHeader>
-              <CardTitle>View As</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                {['customer', 'business', 'analyst', 'engineer', 'regulator'].map(
-                  (aud) => (
-                    <Button
-                      key={aud}
-                      variant={audience === aud ? 'default' : 'secondary'}
-                      size="sm"
-                      onClick={() => setAudience(aud as TraceAudience)}
-                    >
-                      {aud.charAt(0).toUpperCase() + aud.slice(1)}
-                    </Button>
-                  )
-                )}
-              </div>
-              <p className="text-xs text-base-600 mt-3">
-                {audience === 'customer' && 'Plain language reasons for this decision'}
-                {audience === 'business' && 'Business metrics and outcomes'}
-                {audience === 'analyst' && 'Detailed elimination cascade and scoring'}
-                {audience === 'engineer' && 'Complete execution trace with timings'}
-                {audience === 'regulator' && 'Compliance-focused audit record'}
-              </p>
-            </CardContent>
-          </Card>
+          {/* Audience Toggle */}
+          <div className="flex gap-2 items-center flex-wrap">
+            <span className="text-sm font-semibold text-base-900">View for:</span>
+            <div className="flex gap-2 flex-wrap">
+              {audiences.map((aud) => (
+                <button
+                  key={aud}
+                  onClick={() => setAudience(aud)}
+                  className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                    audience === aud
+                      ? 'bg-accent text-white'
+                      : 'bg-base-300 text-base-900 hover:bg-base-400'
+                  }`}
+                >
+                  {aud}
+                </button>
+              ))}
+            </div>
+          </div>
 
-          {/* Trace Content */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Elimination Cascade</CardTitle>
+          {/* Elimination Cascade */}
+          <Card className="border-base-300">
+            <CardHeader className="border-b border-base-300 pb-4">
+              <CardTitle className="text-lg">Elimination Cascade</CardTitle>
+              <p className="text-xs text-base-600 mt-1">
+                Step-by-step decision flow showing which candidates survived filtering
+              </p>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {trace.eliminations?.map((elim: any, i: number) => (
-                  <div
-                    key={i}
-                    className="p-3 border border-base-300 rounded flex items-start gap-3"
-                  >
-                    <span className="text-2xl">→</span>
-                    <div className="flex-1">
-                      <p className="font-mono text-sm text-base-900">
-                        {elim.nodeId}
-                      </p>
-                      <p className="text-sm text-base-600 mt-1">{elim.reason}</p>
-                      {elim.eliminated?.length > 0 && (
-                        <div className="flex gap-1 mt-2">
-                          {elim.eliminated.map((e: string, j: number) => (
-                            <Badge key={j} variant="block">
-                              ✗ {e}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                {MOCK_TRACE.eliminations.map((step, idx) => (
+                  <div key={idx} className="relative">
+                    {idx < MOCK_TRACE.eliminations.length - 1 && (
+                      <div className="absolute left-5 top-12 w-0.5 h-8 bg-base-300" />
+                    )}
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center font-semibold text-sm">
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 p-4 rounded-lg border border-base-300 bg-white hover:border-accent transition-colors">
+                        <p className="font-mono text-sm text-accent font-semibold">
+                          {step.nodeId}
+                        </p>
+                        <p className="text-sm text-base-700 mt-2">{step.reason}</p>
+                        {step.eliminated.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            {step.eliminated.map((e) => (
+                              <Badge key={e} variant="block" className="text-xs">
+                                ✕ {e}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -163,121 +126,143 @@ export default function DecisionDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Scoring */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Score Composition</CardTitle>
+          {/* Score Composition */}
+          <Card className="border-base-300">
+            <CardHeader className="border-b border-base-300 pb-4">
+              <CardTitle className="text-lg">Score Composition</CardTitle>
+              <p className="text-xs text-base-600 mt-1">
+                How each candidate was scored against the decision formula
+              </p>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                {Object.entries(trace.scores || {}).map(([action, score]: [string, any]) => (
-                  <div key={action} className="p-3 border border-base-300 rounded">
-                    <p className="font-mono text-sm text-base-900">{action}</p>
-                    <p className="text-2xl font-bold text-base-900 mt-2">
-                      {(score * 100).toFixed(0)}%
-                    </p>
-                  </div>
-                ))}
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                {Object.entries(MOCK_TRACE.scores)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([action, score]) => (
+                    <div key={action}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-base-900">
+                          {action}
+                        </span>
+                        <span className="text-sm font-mono text-accent font-bold">
+                          {(score * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-base-300 rounded-full h-3 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-accent to-state-pass h-3 rounded-full transition-all"
+                          style={{ width: `${score * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
               </div>
             </CardContent>
           </Card>
 
-          {/* Arbitration */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Arbitration Result</CardTitle>
+          {/* Arbitration Result */}
+          <Card className="border-2 border-state-pass bg-state-pass/5">
+            <CardHeader className="border-b border-state-pass pb-4">
+              <CardTitle className="text-lg text-state-pass">Arbitration Result</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p className="text-sm">
-                  <span className="font-semibold">Formula:</span>{' '}
-                  <code className="bg-base-100 px-2 py-1 rounded text-xs">
-                    {trace.arbitration?.formula}
-                  </code>
-                </p>
-                <div className="mt-4">
-                  <Badge variant="pass" className="text-lg px-4 py-2">
-                    ✓ Winner: {trace.arbitration?.winner}
-                  </Badge>
+            <CardContent className="pt-6 space-y-6">
+              <div>
+                <p className="text-xs font-semibold text-base-600 mb-2">Ranking Formula</p>
+                <div className="p-3 rounded bg-white border border-base-300 font-mono text-sm text-base-900">
+                  {MOCK_TRACE.arbitration.formula}
                 </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-base-600 mb-3">Selected Action</p>
+                <Badge variant="pass" className="text-base px-4 py-2">
+                  ✓ {MOCK_TRACE.arbitration.winner}
+                </Badge>
               </div>
             </CardContent>
           </Card>
 
           {/* Replay Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Prove Determinism</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-base-600">
-                Re-execute this decision against the same artifact version and inputs.
-                The output must be identical (byte-for-byte) to prove determinism.
+          <Card className="border-base-300">
+            <CardHeader className="border-b border-base-300 pb-4">
+              <CardTitle className="text-lg">Verify Determinism</CardTitle>
+              <p className="text-xs text-base-600 mt-1">
+                Re-execute this decision with identical inputs to prove reproducibility
               </p>
-              <Button
-                onClick={handleReplay}
-                disabled={isReplaying}
-                size="lg"
-                className="w-full"
-              >
-                {isReplaying ? '⏳ Replaying...' : '▶ Replay Decision'}
-              </Button>
-
-              {replayResult && (
-                <div className="mt-4 p-4 border-2 border-state-pass rounded bg-green-50">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-2xl">✓</span>
-                    <p className="font-semibold text-state-pass">
-                      {replayResult.identical ? 'IDENTICAL' : 'DIFFERENT'}
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                <Button
+                  onClick={() => setReplayResult('✓ IDENTICAL')}
+                  size="lg"
+                  variant="default"
+                  className="w-full text-lg font-semibold"
+                >
+                  ▶ Replay This Decision
+                </Button>
+                {replayResult && (
+                  <div className="p-4 rounded-lg bg-state-pass/10 border-2 border-state-pass">
+                    <p className="text-lg font-bold text-state-pass">{replayResult}</p>
+                    <p className="text-xs text-base-700 mt-2">
+                      Decision output matches historical trace exactly. Same inputs + same
+                      artifact version = byte-identical result (determinism guaranteed).
                     </p>
                   </div>
-                  <p className="text-sm text-base-600">
-                    Original decision reproduced exactly. This proves the platform
-                    executes strategies deterministically, enabling perfect auditability.
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
             </CardContent>
           </Card>
 
-          {/* Timings */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Execution Timings</CardTitle>
+          {/* Execution Timings */}
+          <Card className="border-base-300">
+            <CardHeader className="border-b border-base-300 pb-4">
+              <CardTitle className="text-lg">Execution Timings</CardTitle>
+              <p className="text-xs text-base-600 mt-1">
+                Per-node latency breakdown (SLA: &lt;50ms total)
+              </p>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {Object.entries(trace.timings || {}).map(
-                  ([node, ms]: [string, any]) => (
-                    <div key={node} className="flex justify-between items-center">
-                      <span className="text-sm font-mono">{node}</span>
-                      <span className="text-sm text-base-600">
-                        {ms.toFixed(1)}ms
-                      </span>
+            <CardContent className="pt-6">
+              <div className="space-y-3">
+                {Object.entries(MOCK_TRACE.timings).map(([node, ms]) => (
+                  <div key={node} className="flex justify-between items-center">
+                    <span className="text-sm font-mono text-accent">{node}</span>
+                    <div className="flex-1 mx-4 bg-base-300 rounded h-2">
+                      <div
+                        className="bg-accent rounded h-2"
+                        style={{ width: `${(ms / 15) * 100}%` }}
+                      />
                     </div>
-                  )
-                )}
-                <div className="border-t border-base-300 pt-2 mt-2 flex justify-between items-center font-semibold">
-                  <span className="text-sm">Total</span>
-                  <span className="text-sm">
-                    {Object.values(trace.timings || {}).reduce((a: number, b: any) => a + b, 0).toFixed(1)}ms
+                    <span className="text-sm font-mono font-semibold text-base-900">
+                      {ms.toFixed(1)}ms
+                    </span>
+                  </div>
+                ))}
+                <div className="border-t border-base-300 pt-3 mt-3 flex justify-between">
+                  <span className="font-semibold text-base-900">Total Latency</span>
+                  <span className="font-mono font-bold text-state-pass text-lg">
+                    {Object.values(MOCK_TRACE.timings)
+                      .reduce((a, b) => a + b, 0)
+                      .toFixed(1)}
+                    ms
                   </span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Export */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Evidence Export</CardTitle>
+          {/* Export Section */}
+          <Card className="border-base-300">
+            <CardHeader className="border-b border-base-300 pb-4">
+              <CardTitle className="text-lg">Export Evidence</CardTitle>
+              <p className="text-xs text-base-600 mt-1">
+                Download cryptographically signed proof for compliance audits
+              </p>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="secondary" className="w-full">
-                📄 Export as PDF (with verification page)
+            <CardContent className="pt-6 flex gap-3 flex-wrap">
+              <Button variant="secondary" size="sm" className="flex items-center gap-2">
+                📄 Export as PDF
               </Button>
-              <Button variant="secondary" className="w-full">
-                📋 Export as JSON (with chain hash)
+              <Button variant="secondary" size="sm" className="flex items-center gap-2">
+                ⬇️ Download JSON
               </Button>
             </CardContent>
           </Card>

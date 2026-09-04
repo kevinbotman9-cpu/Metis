@@ -11,10 +11,6 @@ const nextConfig = {
       fullUrl: true,
     },
   },
-  // MSW setup for development
-  experimental: {
-    instrumentationHook: true,
-  },
   // No external scripts in air-gapped deployments
   headers: async () => [
     {

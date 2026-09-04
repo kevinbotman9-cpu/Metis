@@ -1,47 +1,18 @@
-'use client';
-
-import { ReactNode, useEffect, useState } from 'react';
-import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
-import { ThemeProvider } from '@/components/theme-provider';
-import { AuthProvider } from '@/components/auth-provider';
+import type { Metadata } from 'next';
+import { ReactNode } from 'react';
+import { RootLayoutClient } from './layout-client';
 import './globals.css';
 
-// MSW initialization in browser
-if (typeof window !== 'undefined') {
-  if (process.env.NEXT_PUBLIC_USE_MSW === 'true') {
-    import('../mocks/browser').then(({ worker }) => {
-      worker.start({ onUnhandledRequest: 'bypass' });
-    });
-  }
-}
+export const metadata: Metadata = {
+  title: 'METIS Console',
+  description: 'AI-native decision platform',
+};
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5,
-      gcTime: 1000 * 60 * 10,
-    },
-  },
-});
-
-function RootLayoutContent({ children }: { children: ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-
-    // Log mock mode
-    if (process.env.NEXT_PUBLIC_USE_MSW === 'true') {
-      console.log('%c🔧 MOCK MODE', 'color: #FFA500; font-weight: bold;');
-      console.log('All API calls use MSW mocks. See docs/gaps.md for status.');
-    }
-  }, []);
-
-  // Prevent hydration mismatch
-  if (!mounted) {
-    return null;
-  }
-
+export default function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   return (
     <html lang="en">
       <head>
@@ -49,14 +20,8 @@ function RootLayoutContent({ children }: { children: ReactNode }) {
         <meta httpEquiv="X-UA-Compatible" content="ie=edge" />
       </head>
       <body className="bg-base-100 text-base-900">
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider defaultColorScheme="light" defaultDensity="comfortable">
-            <AuthProvider>{children}</AuthProvider>
-          </ThemeProvider>
-        </QueryClientProvider>
+        <RootLayoutClient>{children}</RootLayoutClient>
       </body>
     </html>
   );
 }
-
-export default RootLayoutContent;

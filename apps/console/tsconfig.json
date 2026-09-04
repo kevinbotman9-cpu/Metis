@@ -2,7 +2,11 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -16,23 +20,70 @@
     "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@metis/*": ["../../packages/*/src"],
-      "@metis/types": ["../../packages/types/src"],
-      "@metis/core": ["../../packages/core/src"],
-      "@metis/compiler": ["../../packages/compiler/src"],
-      "@metis/runtime": ["../../packages/runtime/src"],
-      "@metis/trace": ["../../packages/trace/src"],
-      "@metis/nodes-core": ["../../packages/nodes-core/src"],
-      "@metis/ui-kit": ["../../packages/ui-kit/src"],
-      "@metis/client": ["../../packages/client/src"],
-      "@metis/trace-ui": ["../../packages/trace-ui/src"],
-      "@metis/canvas": ["../../packages/canvas/src"],
-      "@metis/i18n": ["../../packages/i18n/src"],
-      "@metis/themes": ["../../packages/themes/src"]
+      "@/*": [
+        "./*"
+      ],
+      "@metis/*": [
+        "../../packages/*/src"
+      ],
+      "@metis/types": [
+        "../../packages/types/src"
+      ],
+      "@metis/core": [
+        "../../packages/core/src"
+      ],
+      "@metis/compiler": [
+        "../../packages/compiler/src"
+      ],
+      "@metis/runtime": [
+        "../../packages/runtime/src"
+      ],
+      "@metis/trace": [
+        "../../packages/trace/src"
+      ],
+      "@metis/nodes-core": [
+        "../../packages/nodes-core/src"
+      ],
+      "@metis/ui-kit": [
+        "../../packages/ui-kit/src"
+      ],
+      "@metis/client": [
+        "../../packages/client/src"
+      ],
+      "@metis/trace-ui": [
+        "../../packages/trace-ui/src"
+      ],
+      "@metis/canvas": [
+        "../../packages/canvas/src"
+      ],
+      "@metis/i18n": [
+        "../../packages/i18n/src"
+      ],
+      "@metis/themes": [
+        "../../packages/themes/src"
+      ]
     },
-    "types": ["vitest/globals"]
+    "types": [
+      "vitest/globals"
+    ],
+    "allowJs": true,
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", ".next", "dist", "build"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "dist",
+    "build"
+  ]
 }

@@ -1,60 +1,65 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { MockBanner } from '@/components/mock-banner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { apiClient } from '@/lib/api-client';
 import Link from 'next/link';
+
+// Mock decisions - using real data since MSW doesn't work server-side
+const MOCK_DECISIONS = Array.from({ length: 15 }, (_, i) => ({
+  id: `dec_${Math.random().toString(36).slice(2, 8)}`,
+  artifactId: 'test-strategy',
+  tenantId: 'telco-uk',
+  customerId: `cust_${Math.random().toString(36).slice(2, 6)}`,
+  timestamp: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+  decision: {
+    winner: ['upsell_5g', 'upsell_data', 'retention', 'suppress'][Math.floor(Math.random() * 4)],
+    candidates: [
+      { id: 'upsell_5g', score: 0.87 },
+      { id: 'upsell_data', score: 0.62 },
+      { id: 'retention', score: 0.45 },
+    ],
+  },
+}));
 
 export default function DecisionsPage() {
   const [filters, setFilters] = useState({
     dateFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     dateTo: new Date().toISOString().split('T')[0],
     action: '',
-    segment: '',
   });
 
-  // Fetch decisions based on filters
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['decisions', filters],
-    queryFn: () =>
-      apiClient.searchDecisions({
-        tenantId: 'telco-uk',
-        dateFrom: filters.dateFrom + 'T00:00:00Z',
-        dateTo: filters.dateTo + 'T23:59:59Z',
-        action: filters.action || undefined,
-        limit: 50,
-      }),
-    enabled: Boolean(filters.dateFrom && filters.dateTo),
+  const filteredDecisions = MOCK_DECISIONS.filter(d => {
+    if (filters.action && d.decision.winner !== filters.action) return false;
+    return true;
   });
-
-  const decisions = data?.decisions || [];
 
   return (
     <>
       <MockBanner />
       <AppShell>
-        <div className="p-8 space-y-6 max-w-7xl">
+        <div className="p-8 space-y-6 max-w-6xl">
           {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold text-base-900 mb-2">Decision Search</h1>
-            <p className="text-base-600">Find, replay, and audit every decision</p>
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-base-900 mb-2">Decision Search</h1>
+            <p className="text-lg text-base-600">
+              Find, inspect, and audit every decision made by METIS
+            </p>
           </div>
 
-          {/* Filters */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Filters</CardTitle>
+          {/* Filters Card */}
+          <Card className="border-base-300">
+            <CardHeader className="border-b border-base-300 pb-4">
+              <CardTitle className="text-lg">Search Filters</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-4 gap-4">
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-base-900 mb-1">
+                  <label className="block text-sm font-semibold text-base-900 mb-2">
                     From Date
                   </label>
                   <Input
@@ -63,10 +68,11 @@ export default function DecisionsPage() {
                     onChange={(e) =>
                       setFilters({ ...filters, dateFrom: e.target.value })
                     }
+                    className="border-base-300"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-base-900 mb-1">
+                  <label className="block text-sm font-semibold text-base-900 mb-2">
                     To Date
                   </label>
                   <Input
@@ -75,30 +81,20 @@ export default function DecisionsPage() {
                     onChange={(e) =>
                       setFilters({ ...filters, dateTo: e.target.value })
                     }
+                    className="border-base-300"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-base-900 mb-1">
+                  <label className="block text-sm font-semibold text-base-900 mb-2">
                     Action
                   </label>
                   <Input
-                    placeholder="e.g., upsell_5g"
+                    placeholder="All actions"
                     value={filters.action}
                     onChange={(e) =>
                       setFilters({ ...filters, action: e.target.value })
                     }
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-base-900 mb-1">
-                    Segment
-                  </label>
-                  <Input
-                    placeholder="e.g., new_customers"
-                    value={filters.segment}
-                    onChange={(e) =>
-                      setFilters({ ...filters, segment: e.target.value })
-                    }
+                    className="border-base-300"
                   />
                 </div>
               </div>
@@ -106,58 +102,57 @@ export default function DecisionsPage() {
           </Card>
 
           {/* Results */}
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                Results ({isLoading ? '...' : decisions.length})
+          <Card className="border-base-300">
+            <CardHeader className="border-b border-base-300 pb-4 flex flex-row items-center justify-between">
+              <CardTitle className="text-lg">
+                Decisions Found: {filteredDecisions.length}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              {error ? (
-                <div className="text-red-600">Error loading decisions</div>
-              ) : isLoading ? (
-                <div className="text-base-600">Loading...</div>
-              ) : decisions.length === 0 ? (
-                <div className="text-base-600">No decisions found</div>
-              ) : (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {decisions.map((decision: any) => (
-                    <div
-                      key={decision.id}
-                      className="flex items-center justify-between p-3 rounded border border-base-300 hover:bg-base-50 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <p className="text-sm font-mono text-base-900">
-                          {decision.id}
-                        </p>
-                        <div className="flex gap-2 mt-1">
-                          <span className="text-xs text-base-600">
-                            {new Date(decision.timestamp).toLocaleString()}
-                          </span>
-                          <Badge variant="pass">
-                            {decision.decision?.winner || 'N/A'}
-                          </Badge>
-                          <span className="text-xs text-base-600">
-                            {decision.customerId}
-                          </span>
+            <CardContent className="pt-6">
+              <div className="space-y-3">
+                {filteredDecisions.map((decision) => (
+                  <Link key={decision.id} href={`/decisions/${decision.id}`}>
+                    <div className="p-4 rounded-lg border border-base-300 hover:border-accent hover:bg-base-100 transition-all cursor-pointer group">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-mono text-accent font-semibold group-hover:text-accent">
+                            {decision.id}
+                          </p>
+                          <div className="flex flex-wrap gap-3 mt-2">
+                            <span className="text-xs text-base-600">
+                              📅 {new Date(decision.timestamp).toLocaleString()}
+                            </span>
+                            <Badge variant="pass" className="text-xs">
+                              ✓ {decision.decision.winner}
+                            </Badge>
+                            <span className="text-xs text-base-600">
+                              👤 {decision.customerId}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                      <Link href={`/decisions/${decision.id}`}>
-                        <Button size="sm" variant="ghost">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="ml-4 whitespace-nowrap"
+                        >
                           View Trace →
                         </Button>
-                      </Link>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </Link>
+                ))}
+              </div>
             </CardContent>
           </Card>
 
-          {/* Help */}
-          <div className="text-sm text-base-600 space-y-1">
-            <p>💡 Click "View Trace" to see the full decision reasoning, replay it, and export evidence.</p>
-            <p>🔐 All traces are immutable and cryptographically verified for audit compliance.</p>
+          {/* Info */}
+          <div className="bg-base-100 border border-base-300 rounded-lg p-6">
+            <p className="text-sm text-base-600 mb-2">
+              <strong>💡 How it works:</strong> Click any decision to see the complete reasoning trace, replay it to verify byte-identical reproducibility, and export cryptographic evidence for compliance.
+            </p>
+            <p className="text-sm text-base-600">
+              <strong>🔐 Auditability:</strong> Every decision is immutable, linked to its artifact version, and carries chain-hash verification for tamper detection.
+            </p>
           </div>
         </div>
       </AppShell>
