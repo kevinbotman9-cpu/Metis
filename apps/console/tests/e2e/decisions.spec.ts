@@ -55,10 +55,31 @@ test.describe('decision search and trace', () => {
 
   test('replays a decision and reports it identical', async ({ page }) => {
     await page.getByRole('row').nth(1).click();
+
+    // The chain hash shown on the trace is what a replay has to reproduce.
+    const storedHash = (await page.getByText(/^[0-9a-f]{64}$/).first().innerText()).trim();
+
     await page.getByRole('button', { name: 'Replay this decision' }).click();
 
     await expect(page.getByText('Identical', { exact: true })).toBeVisible();
-    await expect(page.getByText(/Replayed against artifact/)).toBeVisible();
+    await expect(page.getByText(/Re-executed against artifact/)).toBeVisible();
+
+    // Not a canned response: the engine ran again and produced the same hash.
+    await expect(page.getByText('Replayed hash')).toBeVisible();
+    const hashes = await page.getByText(new RegExp(`^${storedHash}$`)).count();
+    expect(hashes).toBeGreaterThanOrEqual(2);
+  });
+
+  test('shows the chain hash as the evidence behind the decision id', async ({ page }) => {
+    const row = page.getByRole('row').nth(1);
+    const id = (await row.locator('td').first().innerText()).trim();
+    await row.click();
+
+    await expect(page.getByText('Chain hash')).toBeVisible();
+    const hash = (await page.getByText(/^[0-9a-f]{64}$/).first().innerText()).trim();
+
+    // The id is the first 16 hex of the hash, so it is verifiable, not a label.
+    expect(id).toBe(`dec_${hash.slice(0, 16)}`);
   });
 
   test('switches the trace audience', async ({ page }) => {

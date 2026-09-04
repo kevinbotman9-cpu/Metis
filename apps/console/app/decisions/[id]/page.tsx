@@ -359,11 +359,37 @@ function TraceView({ decisionId }: { decisionId: string }) {
                     {replay.data.identical ? 'Identical' : 'Diverged'}
                   </p>
                   <p className="mt-1 text-label text-content-muted">
-                    Replayed against artifact {replay.data.artifactVersion}. Original winner{' '}
+                    Re-executed against artifact {replay.data.artifactVersion}. Original winner{' '}
                     <span className="font-mono">{replay.data.originalWinner ?? 'none'}</span>,
                     replayed winner{' '}
                     <span className="font-mono">{replay.data.replayedWinner ?? 'none'}</span>.
                   </p>
+                  <dl className="mt-2 space-y-1 text-[0.6875rem]">
+                    <div>
+                      <dt className="text-content-subtle">Stored hash</dt>
+                      <dd className="break-all font-mono">{replay.data.originalChainHash}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-content-subtle">Replayed hash</dt>
+                      <dd className="break-all font-mono">{replay.data.replayedChainHash}</dd>
+                    </div>
+                  </dl>
+
+                  {replay.data.diff.length > 0 && (
+                    <div className="mt-2">
+                      <p className="mb-1 text-label font-medium text-block">What changed</p>
+                      <ul className="space-y-1">
+                        {replay.data.diff.slice(0, 8).map((d) => (
+                          <li key={d.path} className="font-mono text-[0.6875rem]">
+                            <span className="text-content-subtle">{d.path}</span>{' '}
+                            <span className="text-block">{JSON.stringify(d.original)}</span>
+                            {' -> '}
+                            <span className="text-pass">{JSON.stringify(d.replayed)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </CardBody>
@@ -380,6 +406,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
                   ['Tenant', trace.tenantId, false],
                   ['Artifact', `${trace.artifactId} ${trace.artifactVersion}`, true],
                   ['Placement', trace.placement, true],
+                  ['Input snapshot', `${trace.inputSnapshotHash.slice(0, 16)}...`, true],
                 ].map(([label, value, mono]) => (
                   <div key={String(label)} className="flex justify-between gap-3">
                     <dt className="shrink-0 text-content-subtle">{label}</dt>
@@ -389,6 +416,20 @@ function TraceView({ decisionId }: { decisionId: string }) {
                   </div>
                 ))}
               </dl>
+
+              <div className="mt-3 border-t border-border pt-3">
+                <p className="mb-1 text-label uppercase tracking-wide text-content-subtle">
+                  Chain hash
+                </p>
+                <code className="block break-all rounded border border-border bg-surface-sunken px-2 py-1.5 font-mono text-[0.6875rem] text-content-muted">
+                  {trace.chainHash}
+                </code>
+                <p className="mt-1 text-label text-content-subtle">
+                  sha256 over the reproducible part of this decision. Timings are excluded, so
+                  the hash is stable across executions. The decision ID is its first 16
+                  characters.
+                </p>
+              </div>
             </CardBody>
           </Card>
 

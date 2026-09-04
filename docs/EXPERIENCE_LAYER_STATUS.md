@@ -3,9 +3,12 @@
 **Last verified:** 2026-09-04 by an automated suite, not by eye.
 
 ```
-Unit (Vitest)      31 passed
-E2E  (Playwright)  52 passed   — includes 18 axe checks, 0 WCAG 2.2 AA violations
+Determinism        28 passed   - packages/runtime, the Phase 0 gate
+Unit (Vitest)      38 passed   - apps/console
+E2E  (Playwright)  53 passed   - includes 18 axe checks, 0 WCAG 2.2 AA violations
 Typecheck          clean
+                  ---
+                   119 tests
 ```
 
 Legend: **BUILT** = runs, and a test asserts it · **PARTIAL** = usable, with a
@@ -29,7 +32,7 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | `/strategies` | BUILT | Artifact list with versions and latency against budget. |
 | `/strategies/[id]` | BUILT | **DIR canvas** (React Flow, read-only) with a node inspector. |
 | `/decisions` | BUILT | 60 decisions, filters, sortable grid. |
-| `/decisions/[id]` | BUILT | Cascade, score composition, timings, replay, consent. Resolves its route param. |
+| `/decisions/[id]` | BUILT | Real cascade from the engine, score composition, chain hash, replay that re-executes and compares hashes. |
 | `/approvals` | BUILT | Change request queue, agent vs person provenance. |
 | `/approvals/[id]` | BUILT | Diff, bias-gated simulation, approve/reject — applies the diff on approval. |
 | `/agentic` | BUILT | L0–L4 ladder, per-scope guardrails, editable level, agent activity feed. |
@@ -55,6 +58,8 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | Vitest | BUILT | 31 tests: autonomy resolution, money formatting, fixture referential integrity. |
 | Playwright | BUILT | 52 tests: navigation, auth, decisions, RBAC, persistence, appearance. |
 | axe-core | BUILT | 14 pages, light and dark. Zero violations at WCAG 2.2 AA. |
+| Execution engine | BUILT | `packages/runtime/src/deterministic`. Byte-identical across 100 runs; replay compares chain hashes. |
+| Engine-backed data | BUILT | The console's 60 decisions are real engine output, not fixtures. Replay re-executes. |
 | Storybook | BUILT | 22 stories across Button, primitives, DataTable and the canvas node. Theme and density are toolbar globals, so all four axes are one click apart. Builds clean. |
 
 ---
@@ -82,6 +87,20 @@ Worth recording, because each was invisible by eye:
    domain model. Deleted and gitignored.
 8. **A p95 latency below the graph's own critical path.** The test now computes
    the longest path through the DAG.
+9. **The platform's central claim was false by construction.** The original
+   executor stamped `crypto.randomUUID()` and `Date.now()` into the trace it
+   then hashed, so two runs of the same decision could never match - replay
+   could not have worked. It also hashed inputs with plain `JSON.stringify`,
+   which is key-order dependent. Replaced by a deterministic engine that splits
+   the trace into a reproducible half and a measured half, and hashes only the
+   former.
+10. **Contact policy ignored its own scope.** Every contact policy was applied
+    to every candidate, so a max-one-per-month cooldown scoped to a single
+    group suppressed the entire catalogue - all 60 decisions returned no offer.
+11. **Arbitration dropped candidates with no model score.** A strategy may
+    legitimately rank on value and lever alone (anonymous web traffic has no
+    customer to score), and its formula says so. A missing term is neutral, not
+    disqualifying; before the fix that whole strategy never returned anything.
 
 ---
 
@@ -90,8 +109,17 @@ Worth recording, because each was invisible by eye:
 - **Persistence is in-memory.** A server restart restores the seed. Durable
   storage arrives with the execution plane.
 - **The canvas is read-only.** No editing, no layout algorithm, no compile step.
-- **The platform is still a scaffold.** ~3,500 lines across 19 packages. The
-  console is well ahead of the execution plane.
+- **The execution plane is real, but partial.** The deterministic engine,
+  canonical hashing and replay are built and tested. The compiler, artifact
+  registry and event store are still scaffolds, and there is no WASM hot path -
+  the engine is plain TypeScript.
+- **The original executor is still in the tree** at
+  `packages/runtime/src/executor.ts`, exported as `executeLegacy` and marked as
+  not replay-safe. The compiler's integration test still drives it, and that
+  test uses Jest globals in a Vitest project, so it does not run.
+- **Scoring models are seeded hashes, not models.** They have the property that
+  matters here - same customer, proposition and pinned version gives the same
+  number - but they predict nothing.
 - **Agent activity is fixture data.** No agent is running; the feed shows what the
   autonomy model would record.
 - **One browser.** Playwright runs Chromium only.

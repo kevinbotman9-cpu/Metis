@@ -31,6 +31,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # The Phase 0 gate: same artifact + same inputs = byte-identical decision.
+      - name: Determinism (execution engine)
+        run: npm run test:runtime
+        working-directory: .
+
       - name: Unit tests
         run: npm test
 

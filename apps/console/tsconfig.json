@@ -41,6 +41,9 @@
       "@metis/runtime": [
         "../../packages/runtime/src"
       ],
+      "@metis/runtime/*": [
+        "../../packages/runtime/src/*"
+      ],
       "@metis/trace": [
         "../../packages/trace/src"
       ],

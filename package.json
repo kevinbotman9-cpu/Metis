@@ -15,7 +15,10 @@
     "test": "jest",
     "lint": "eslint packages planes bench infrastructure",
     "dev": "docker-compose up",
-    "compile": "node compile.js"
+    "compile": "node compile.js",
+    "test:runtime": "npm --prefix packages/runtime run test",
+    "test:console": "npm --prefix apps/console run test",
+    "test:all": "npm run test:runtime && npm run test:console"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",

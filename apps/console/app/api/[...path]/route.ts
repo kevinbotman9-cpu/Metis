@@ -16,6 +16,8 @@
 import { NextResponse } from 'next/server';
 import { store, resetStore, recordAudit } from '@/mocks/store';
 import { findTrace, decisions } from '@/mocks/fixtures/decisions';
+import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
+import { replay as replayDecision } from '@metis/runtime/deterministic/engine';
 
 type Ctx = { params: Promise<{ path: string[] }> };
 
@@ -242,17 +244,34 @@ export async function POST(req: Request, { params }: Ctx) {
 
     case 'decisions': {
       if (rest[1] !== 'replay') return notFound();
-      const trace = findTrace(rest[0]);
-      if (!trace) return notFound(`No decision with id ${rest[0]}`);
-      // Determinism: replaying the pinned artifact version reproduces the trace.
+
+      // A real re-execution, not a canned answer: the engine runs again against
+      // the recorded artifact, the catalogue and the original inputs, and the
+      // chain hashes are compared. If a policy or lever has since been edited,
+      // this legitimately reports a divergence and says which field moved.
+      const record = findGenerated(rest[0]);
+      if (!record) return notFound(`No decision with id ${rest[0]}`);
+
+      const result = replayDecision(
+        record.artifact,
+        catalogueSnapshot,
+        record.trace,
+        record.request.input,
+        record.request.contactHistory
+      );
+
       return json({
-        identical: true,
-        decisionId: trace.id,
+        identical: result.identical,
+        decisionId: result.decisionId,
         replayedAt: new Date().toISOString(),
-        artifactVersion: trace.artifactVersion,
-        originalWinner: trace.winner,
-        replayedWinner: trace.winner,
-        diff: [],
+        artifactVersion: record.trace.decision.artifactVersion,
+        originalWinner: record.trace.decision.winner,
+        replayedWinner: result.identical
+          ? record.trace.decision.winner
+          : (result.differences.find((d) => d.path === '$.winner')?.replayed ?? null),
+        originalChainHash: result.originalChainHash,
+        replayedChainHash: result.replayedChainHash,
+        diff: result.differences,
       });
     }
 

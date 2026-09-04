@@ -215,3 +215,62 @@ describe('strategy artifacts', () => {
     }
   });
 });
+
+describe('console decisions come from the real engine', () => {
+  it('replays every decision the console shows to an identical chain hash', async () => {
+    const { generated, catalogueSnapshot } = await import('@/mocks/fixtures/engine');
+    const { replay } = await import('@metis/runtime/deterministic/engine');
+
+    for (const g of generated) {
+      const result = replay(g.artifact, catalogueSnapshot, g.trace, g.request.input, g.request.contactHistory);
+      expect(result.identical, `${g.trace.id} did not replay identically`).toBe(true);
+      expect(result.differences).toEqual([]);
+    }
+  });
+
+  it('derives each decision id from its own chain hash', () => {
+    // The id is evidence, not a label: it is the first 16 hex of the hash over
+    // the reproducible half of the decision.
+    for (const t of traces) {
+      expect(t.id).toBe(`dec_${t.chainHash.slice(0, 16)}`);
+    }
+  });
+
+  it('excludes wall-clock timings from the hashed decision', async () => {
+    const { generated } = await import('@/mocks/fixtures/engine');
+    const { canonicalise } = await import('@metis/runtime/deterministic/canonical');
+
+    for (const g of generated.slice(0, 5)) {
+      const serialised = canonicalise(g.trace.decision);
+      expect(serialised).not.toContain('totalMs');
+      expect(serialised).not.toContain('executedAt');
+    }
+  });
+
+  it('exercises both offered and suppressed outcomes', () => {
+    const offered = decisions.filter((d) => d.winner).length;
+    const suppressed = decisions.length - offered;
+    // Both UI states need real data behind them.
+    expect(offered).toBeGreaterThan(0);
+    expect(suppressed).toBeGreaterThan(0);
+  });
+
+  it('draws decisions from more than one strategy', () => {
+    expect(new Set(decisions.map((d) => d.artifactId)).size).toBeGreaterThan(1);
+  });
+
+  it('records a winner only when arbitration had a survivor', () => {
+    for (const t of traces) {
+      const arbitrate = t.eliminations.find((e) => e.nodeType === 'arbitrate');
+      if (!arbitrate) continue;
+      expect(Boolean(t.winner)).toBe(arbitrate.survived.length > 0);
+    }
+  });
+
+  it('names a winner that is a real proposition key', () => {
+    const keys = new Set(propositions.map((p) => p.key));
+    for (const t of traces) {
+      if (t.winner) expect(keys).toContain(t.winner);
+    }
+  });
+});

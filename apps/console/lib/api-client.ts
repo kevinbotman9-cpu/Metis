@@ -387,6 +387,8 @@ export interface TraceDto extends DecisionDto {
   constraintsApplied: string[];
   consentState: { marketing: boolean; profiling: boolean; thirdParty: boolean };
   treatmentId: string | null;
+  chainHash: string;
+  inputSnapshotHash: string;
 }
 
 export interface ReplayResultDto {
@@ -396,7 +398,10 @@ export interface ReplayResultDto {
   artifactVersion: string;
   originalWinner: string | null;
   replayedWinner: string | null;
-  diff: unknown[];
+  /** sha256 over the reproducible half of the decision, then and now. */
+  originalChainHash: string;
+  replayedChainHash: string;
+  diff: { path: string; original: unknown; replayed: unknown }[];
 }
 
 export interface ChangeRequestDto {
