@@ -15,8 +15,15 @@ test.describe('compiler output in the console', () => {
     await page.goto('/strategies');
 
     const row = page.getByRole('row').filter({ hasText: 'plan-fit-nudges' });
-    await expect(row.getByText(/error/)).toBeVisible();
-    await expect(page.getByText('Failing compilation')).toBeVisible();
+
+    // The visible summary, and the glyph's accessible name for anyone who
+    // cannot see the colour.
+    await expect(row.getByText('2 errors', { exact: true })).toBeVisible();
+    await expect(row.getByText('2 compile errors')).toBeAttached();
+
+    // The health ring reports the same thing at the top of the page.
+    await expect(page.getByText('Compilation')).toBeVisible();
+    await expect(page.getByText('blocked')).toBeVisible();
   });
 
   test('shows why it fails, and what to do about it', async ({ page }) => {

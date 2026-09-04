@@ -24,7 +24,9 @@
   --n-800: 35 43 56;
   --n-900: 17 23 33;
 
-  /* Semantic surfaces */
+  /* Semantic surfaces. --chrome is the shell (sidebar and header); it sits
+     one step away from the page so the frame reads as distinct from content. */
+  --chrome: 255 255 255;
   --page: var(--n-100);
   --surface: 255 255 255;
   --surface-raised: 255 255 255;
@@ -57,6 +59,15 @@
   --hold-subtle: 253 243 224;
   --info: 55 108 176;
   --info-subtle: 232 240 250;
+
+  /* Brand panel.
+     A fixed, saturated surface that does not follow the light/dark ramp - it is
+     the same in both themes, the way a printed cover is. White measures 9.0:1
+     on the violet end and 8.7:1 on the blue, so text on it is safe everywhere. */
+  --brand-from: 91 33 182;
+  --brand-via: 67 56 202;
+  --brand-to: 30 64 175;
+  --on-brand: 255 255 255;
 
   /* Autonomy ladder — L0 coolest, L4 warmest.
      Each must clear 4.5:1 on --surface at the 11px badge size. */
@@ -99,23 +110,28 @@
   --text-label: 0.6875rem;
 }
 
-/* Dark theme — invert the ramp, keep semantic names stable. */
+/* Dark theme - the default.
+   Three distinct depths rather than two: chrome (shell) sits below the page,
+   the page below the cards. The previous ramp put page and surface within one
+   step of each other, so nothing read as lifting off the canvas and the whole
+   console looked flat. */
 :root[data-theme='dark'] {
-  --n-50: 13 17 24;
-  --n-100: 17 23 33;
-  --n-150: 22 29 40;
-  --n-200: 30 39 52;
-  --n-300: 45 57 74;
-  --n-400: 71 86 107;
-  --n-500: 113 129 152;
-  --n-600: 153 167 186;
-  --n-700: 191 202 216;
-  --n-800: 223 230 238;
-  --n-900: 243 246 250;
+  --n-50: 8 10 14;
+  --n-100: 13 16 22;
+  --n-150: 20 24 33;
+  --n-200: 28 34 46;
+  --n-300: 42 51 68;
+  --n-400: 71 86 110;
+  --n-500: 110 126 150;
+  --n-600: 155 170 194;
+  --n-700: 196 208 226;
+  --n-800: 226 233 243;
+  --n-900: 246 249 253;
 
-  --page: var(--n-50);
-  --surface: var(--n-100);
-  --surface-raised: var(--n-150);
+  --chrome: var(--n-50);
+  --page: var(--n-100);
+  --surface: var(--n-150);
+  --surface-raised: var(--n-200);
   --surface-sunken: var(--n-200);
   --border: var(--n-300);
   --border-strong: var(--n-400);
@@ -124,29 +140,32 @@
   --text-muted: var(--n-700);
   --text-subtle: var(--n-600);
 
-  --accent: 96 155 255;
-  --accent-hover: 130 176 255;
-  --accent-subtle: 24 42 70;
-  --on-accent: 13 17 24;
-  --on-block: 13 17 24;
-  --pass: 74 190 133;
-  --pass-subtle: 18 46 35;
-  --block: 240 120 120;
-  --block-subtle: 60 26 26;
-  --hold: 226 168 62;
-  --hold-subtle: 56 41 12;
-  --info: 118 168 226;
-  --info-subtle: 22 38 58;
+  /* Saturated enough to carry a dark canvas. The previous accent was a muted
+     mid-blue that disappeared against it. */
+  --accent: 77 163 255;
+  --accent-hover: 122 186 255;
+  --accent-subtle: 20 42 74;
+  --on-accent: 8 10 14;
+  --on-block: 8 10 14;
+  --pass: 62 207 142;
+  --pass-subtle: 12 46 33;
+  --block: 255 107 107;
+  --block-subtle: 62 22 22;
+  --hold: 245 176 66;
+  --hold-subtle: 58 40 10;
+  --info: 122 186 255;
+  --info-subtle: 18 36 60;
 
-  --l0: 153 167 186;
-  --l1: 118 168 226;
-  --l2: 96 155 255;
-  --l3: 226 168 62;
-  --l4: 240 120 120;
+  --l0: 155 170 194;
+  --l1: 122 186 255;
+  --l2: 77 163 255;
+  --l3: 245 176 66;
+  --l4: 255 107 107;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.5), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 8px 24px -6px rgb(0 0 0 / 0.6);
+  /* Depth on a dark canvas comes from a ring of light, not a drop shadow. */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.6);
+  --shadow: 0 2px 8px -2px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.03);
+  --shadow-lg: 0 16px 40px -12px rgb(0 0 0 / 0.85), 0 0 0 1px rgb(255 255 255 / 0.05);
 }
 
 /* Follow the OS only when the user has not chosen explicitly. */

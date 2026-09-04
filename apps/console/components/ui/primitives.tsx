@@ -145,7 +145,7 @@ export function Card({
   return (
     <section
       className={cn(
-        'rounded-lg border border-border bg-surface shadow-sm',
+        'rounded-xl border border-border bg-surface shadow',
         className
       )}
     >
@@ -164,9 +164,9 @@ export function CardHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="flex items-start justify-between gap-4 border-b border-border px-card py-3">
+    <header className="flex items-start justify-between gap-4 border-b border-border px-card py-3.5">
       <div className="min-w-0">
-        <h2 className="text-body font-semibold text-content">{title}</h2>
+        <h2 className="text-[0.9375rem] font-semibold tracking-tight text-content">{title}</h2>
         {description ? (
           <p className="mt-0.5 text-label text-content-muted">{description}</p>
         ) : null}
@@ -203,7 +203,7 @@ export function PageHeader({
     <header className="mb-stack flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
         {breadcrumb ? <div className="mb-1">{breadcrumb}</div> : null}
-        <h1 className="text-lg font-semibold tracking-tight text-content">{title}</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-content">{title}</h1>
         {description ? (
           <p className="mt-1 max-w-3xl text-body text-content-muted">{description}</p>
         ) : null}
@@ -215,7 +215,7 @@ export function PageHeader({
 
 /** Consistent page gutter and max width for every route. */
 export function PageBody({ children }: { children: ReactNode }) {
-  return <div className="mx-auto w-full max-w-[1400px] px-6 py-5">{children}</div>;
+  return <div className="mx-auto w-full max-w-[1500px] px-7 py-6">{children}</div>;
 }
 
 // --- Metric ----------------------------------------------------------------

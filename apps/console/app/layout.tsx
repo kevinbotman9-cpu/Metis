@@ -26,10 +26,27 @@ export default function RootLayout({
   children: ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html
+      lang="en"
+      className={inter.variable}
+      data-theme="dark"
+      // The inline script below sets data-density and color-scheme before
+      // hydration, so the server markup deliberately differs from the client.
+      suppressHydrationWarning
+    >
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta httpEquiv="X-UA-Compatible" content="ie=edge" />
+        {/*
+          Set the theme before first paint. Without this the browser renders
+          the light default for a frame and the console flashes white on every
+          load, which is the single most obvious tell of a bolted-on dark mode.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('metis.theme.scheme')||'dark';var d=localStorage.getItem('metis.theme.density')||'comfortable';var r=document.documentElement;r.setAttribute('data-theme',t);r.setAttribute('data-density',d);r.style.colorScheme=t;}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`,
+          }}
+        />
       </head>
       <body className="bg-page text-content">
         <RootLayoutClient>{children}</RootLayoutClient>

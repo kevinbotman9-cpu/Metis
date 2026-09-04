@@ -12,9 +12,9 @@ import {
   CardBody,
   Badge,
   AutonomyBadge,
-  Metric,
   LoadingState,
 } from '@/components/ui/primitives';
+import { HealthSummary, BigStat } from '@/components/ui/health-summary';
 import { apiClient } from '@/lib/api-client';
 
 const OUTCOME_TONE: Record<string, 'pass' | 'block' | 'hold' | 'info' | 'neutral'> = {
@@ -31,25 +31,45 @@ function Home() {
   const taxonomy = useQuery({ queryKey: ['taxonomy'], queryFn: () => apiClient.getTaxonomy() });
   const decisions = useQuery({
     queryKey: ['decisions', 'overview'],
-    queryFn: () => apiClient.searchDecisions({ limit: 200 }),
+    // The whole set, not a page of it: the strip reports totals, and a headline
+    // that silently showed the page size instead would be wrong.
+    queryFn: () => apiClient.searchDecisions({ limit: 5000 }),
   });
   const changeRequests = useQuery({
     queryKey: ['change-requests'],
     queryFn: () => apiClient.listChangeRequests(),
   });
-  const activity = useQuery({
+  const activityQuery = useQuery({
     queryKey: ['agent-activity', 'overview'],
-    queryFn: () => apiClient.listAgentActivity({ limit: 6 }),
+    queryFn: () => apiClient.listAgentActivity({ limit: 20 }),
+  });
+  const strategies = useQuery({
+    queryKey: ['artifacts'],
+    queryFn: () => apiClient.listArtifacts(),
   });
 
   const props = taxonomy.data?.propositions ?? [];
   const decs = decisions.data?.decisions ?? [];
-  const pending = (changeRequests.data?.changeRequests ?? []).filter(
-    (c) => c.status === 'pending'
-  );
+  const crs = changeRequests.data?.changeRequests ?? [];
+  const pending = crs.filter((c) => c.status === 'pending');
+  const activity = activityQuery.data?.activity ?? [];
+
   const suppressed = decs.filter((d) => !d.winner).length;
+  const offered = decs.length - suppressed;
   const avgLatency =
-    decs.length > 0 ? (decs.reduce((s, d) => s + d.totalMs, 0) / decs.length).toFixed(1) : '—';
+    decs.length > 0 ? (decs.reduce((s, d) => s + d.totalMs, 0) / decs.length).toFixed(2) : '0';
+
+  const artifacts = strategies.data?.artifacts ?? [];
+  const compileFailing = artifacts.filter((a) => a.compileOk === false).length;
+  const compileWarning = artifacts.filter(
+    (a) => a.compileOk !== false && (a.warningCount ?? 0) > 0
+  ).length;
+
+  // Anything the agents did that a guardrail had to stop is what an operator
+  // actually needs surfaced, so it gets its own segment rather than a footnote.
+  const blocked = activity.filter(
+    (a) => a.outcome === 'blocked' || a.outcome === 'reverted'
+  ).length;
 
   return (
     <PageBody>
@@ -58,24 +78,43 @@ function Home() {
         description="Everything the platform decided, offered and changed for telco-uk."
       />
 
-      <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <Metric
-          label="Active propositions"
-          value={props.filter((p) => p.status === 'active').length}
-          sub={`${props.length} in catalogue`}
+      <div className="mb-stack grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+        <BigStat
+          label="Decisions"
+          value={(decisions.data?.total ?? 0).toLocaleString('en-GB')}
+          sub="last 7 days"
         />
-        <Metric label="Decisions" value={decs.length} sub="last 7 days" />
-        <Metric
-          label="Suppressed"
-          value={suppressed}
-          tone={suppressed > 0 ? 'hold' : 'neutral'}
-          sub="policy or consent"
+        <BigStat
+          label="Avg latency"
+          value={`${avgLatency}ms`}
+          sub={`SLA 50ms · ${((Number(avgLatency) / 50) * 100).toFixed(0)}% of budget`}
         />
-        <Metric label="Avg latency" value={`${avgLatency}ms`} tone="accent" sub="SLA 50ms" />
-        <Metric
-          label="Awaiting approval"
-          value={pending.length}
-          tone={pending.length > 0 ? 'hold' : 'pass'}
+        <HealthSummary
+          label="Decision outcomes"
+          segments={[
+            { label: 'offered', count: offered, tone: 'pass' },
+            { label: 'suppressed', count: suppressed, tone: 'hold' },
+          ]}
+        />
+        <HealthSummary
+          label="Strategy compilation"
+          segments={[
+            {
+              label: 'clean',
+              count: artifacts.length - compileFailing - compileWarning,
+              tone: 'pass',
+            },
+            { label: 'warnings', count: compileWarning, tone: 'hold' },
+            { label: 'blocked', count: compileFailing, tone: 'block' },
+          ]}
+        />
+        <HealthSummary
+          label="Governance"
+          segments={[
+            { label: 'pending', count: pending.length, tone: 'hold' },
+            { label: 'guardrail stops', count: blocked, tone: 'block' },
+            { label: 'decided', count: crs.length - pending.length, tone: 'pass' },
+          ]}
         />
       </div>
 
@@ -141,11 +180,11 @@ function Home() {
             }
           />
           <CardBody className="p-0">
-            {activity.isLoading ? (
+            {activityQuery.isLoading ? (
               <LoadingState />
             ) : (
               <ul className="divide-y divide-border">
-                {(activity.data?.activity ?? []).map((a) => (
+                {activity.slice(0, 6).map((a) => (
                   <li key={a.id} className="px-card py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">

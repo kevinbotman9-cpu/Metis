@@ -76,18 +76,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-page">
+    <div className="flex h-screen overflow-hidden bg-chrome">
       <aside
         className={cn(
-          'flex shrink-0 flex-col border-r border-border bg-surface transition-[width] duration-200',
-          sidebarOpen ? 'w-56' : 'w-0 overflow-hidden'
+          'flex shrink-0 flex-col border-r border-border bg-chrome transition-[width] duration-200',
+          sidebarOpen ? 'w-60' : 'w-0 overflow-hidden'
         )}
       >
-        <div className="flex h-12 items-center gap-2 border-b border-border px-4">
-          <span className="text-body font-semibold tracking-tight text-content">METIS</span>
-          <span className="rounded-sm bg-surface-sunken px-1.5 py-0.5 text-[0.625rem] font-medium uppercase tracking-wide text-content-subtle">
-            Console
+        <div className="flex h-14 items-center gap-2.5 px-4">
+          <span
+            aria-hidden
+            className="flex h-7 w-7 items-center justify-center rounded bg-gradient-to-br from-brand-from to-brand-to"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="rgb(var(--on-brand))" strokeWidth="2">
+              <path d="M12 3 20 7.5v9L12 21 4 16.5v-9L12 3Z" strokeLinejoin="round" />
+              <path d="M12 12 20 7.5M12 12v9M12 12 4 7.5" strokeLinejoin="round" />
+            </svg>
           </span>
+          <span className="text-base font-semibold tracking-tight text-content">METIS</span>
         </div>
 
         <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="Main">
@@ -99,7 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             return (
               <div key={section.label} className="mb-4">
-                <p className="px-2 pb-1 text-[0.625rem] font-semibold uppercase tracking-wider text-content-subtle">
+                <p className="px-3 pb-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-content-subtle">
                   {section.label}
                 </p>
                 <ul className="space-y-0.5">
@@ -109,10 +115,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                         href={item.href}
                         aria-current={isActive(item.href) ? 'page' : undefined}
                         className={cn(
-                          'block rounded px-2 py-1.5 text-body transition-colors',
+                          'relative block rounded-md px-3 py-1.5 text-body transition-colors',
                           isActive(item.href)
-                            ? 'bg-accent-subtle font-medium text-accent'
-                            : 'text-content-muted hover:bg-surface-sunken hover:text-content'
+                            ? 'bg-accent/10 font-medium text-accent before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-r before:bg-accent'
+                            : 'text-content-muted hover:bg-surface/70 hover:text-content'
                         )}
                       >
                         {item.label}
@@ -125,15 +131,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="border-t border-border px-3 py-2">
-          <p className="text-[0.625rem] text-content-subtle">
-            Mock data · MSW · {process.env.NEXT_PUBLIC_USE_MSW === 'true' ? 'on' : 'off'}
+        <div className="px-4 py-3">
+          <p className="flex items-center gap-1.5 text-[0.625rem] text-content-subtle">
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-pass" />
+            Development · fixture data
           </p>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-border bg-surface px-4">
+        <header className="flex h-14 shrink-0 items-center justify-between gap-4 bg-chrome px-4">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -144,14 +151,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <span aria-hidden>☰</span>
             </Button>
-            <span className="rounded border border-border px-2 py-0.5 text-label text-content-muted">
+            <span className="rounded-md border border-border bg-surface px-2.5 py-1 text-label font-medium text-content-muted">
               {user?.tenantId ?? 'no tenant'}
             </span>
           </div>
 
           <div className="flex items-center gap-1">
             <div
-              className="flex items-center rounded border border-border"
+              className="flex items-center rounded-md border border-border bg-surface p-0.5"
               role="group"
               aria-label="Colour scheme"
             >
@@ -161,10 +168,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                   onClick={() => setColorScheme(s)}
                   aria-pressed={colorScheme === s}
                   className={cn(
-                    'px-2 py-1 text-label capitalize transition-colors first:rounded-l last:rounded-r',
+                    'rounded px-2 py-1 text-label font-medium capitalize transition-colors',
                     colorScheme === s
                       ? 'bg-accent text-on-accent'
-                      : 'text-content-muted hover:bg-surface-sunken'
+                      : 'text-content-subtle hover:text-content'
                   )}
                 >
                   {s}
@@ -173,7 +180,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
 
             <div
-              className="ml-1 flex items-center rounded border border-border"
+              className="ml-1 flex items-center rounded-md border border-border bg-surface p-0.5"
               role="group"
               aria-label="Density"
             >
@@ -183,10 +190,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                   onClick={() => setDensity(d)}
                   aria-pressed={density === d}
                   className={cn(
-                    'px-2 py-1 text-label capitalize transition-colors first:rounded-l last:rounded-r',
+                    'rounded px-2 py-1 text-label font-medium capitalize transition-colors',
                     density === d
                       ? 'bg-accent text-on-accent'
-                      : 'text-content-muted hover:bg-surface-sunken'
+                      : 'text-content-subtle hover:text-content'
                   )}
                 >
                   {d}
@@ -250,7 +257,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <main className="flex-1 overflow-y-auto rounded-tl-xl border-l border-t border-border bg-page">
+          {children}
+        </main>
       </div>
     </div>
   );

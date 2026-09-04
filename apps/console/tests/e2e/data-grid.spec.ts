@@ -129,3 +129,68 @@ test('breadcrumbs place a detail page in the hierarchy', async ({ page }) => {
   await crumbs.getByRole('link', { name: 'Decisions' }).click();
   await expect(page).toHaveURL(/\/decisions$/);
 });
+
+test.describe('summary strip', () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page, ACCOUNTS.marcus);
+  });
+
+  test('breaks a total down rather than just counting it', async ({ page }) => {
+    await page.goto('/strategies');
+
+    // A bare count tells an operator nothing actionable; the segments do.
+    // Scope to the strip: the table below uses the same words as status badges.
+    const strip = page.locator('div').filter({ hasText: /^Lifecycle/ }).last();
+    await expect(strip.getByText('active', { exact: true })).toBeVisible();
+    await expect(strip.getByText('draft', { exact: true })).toBeVisible();
+    await expect(strip.getByText('retired', { exact: true })).toBeVisible();
+
+    const compilation = page.locator('div').filter({ hasText: /^Compilation/ }).last();
+    await expect(compilation.getByText('clean', { exact: true })).toBeVisible();
+    await expect(compilation.getByText('blocked', { exact: true })).toBeVisible();
+  });
+
+  test('reports the real decision total, not the page size', async ({ page }) => {
+    await page.goto('/');
+    // Regression guard: this once showed the query limit of 200.
+    await expect(page.getByText('5,000')).toBeVisible();
+  });
+
+  test('gives every status glyph an accessible name', async ({ page }) => {
+    await page.goto('/strategies');
+    // Colour alone must not carry the meaning.
+    await expect(page.getByText('Compiles cleanly').first()).toBeAttached();
+    await expect(page.getByText(/of the 50ms budget/).first()).toBeAttached();
+  });
+
+  test('labels the activity sparkline for screen readers', async ({ page }) => {
+    await page.goto('/strategies');
+    await expect(
+      page.getByRole('img', { name: /Recent decision volume for/ }).first()
+    ).toBeAttached();
+  });
+});
+
+test.describe('sign-in page', () => {
+  test('presents the brand panel alongside the form', async ({ page }) => {
+    await page.goto('/login');
+
+    await expect(page.getByRole('heading', { name: /Decisions you can prove/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Deterministic replay' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Scoped agent autonomy' })).toBeVisible();
+
+    // The form still works, which is the part that matters.
+    await expect(page.getByLabel('Email')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+  });
+
+  test('fills the form from a demo account and signs in', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByRole('button', { name: /Priya Natarajan/ }).click();
+
+    await expect(page.getByLabel('Email')).toHaveValue('priya.natarajan@telco.example');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+
+    await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
+  });
+});

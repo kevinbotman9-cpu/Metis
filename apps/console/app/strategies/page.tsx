@@ -10,10 +10,10 @@ import {
   CardHeader,
   Badge,
   StatusBadge,
-  Metric,
   ErrorState,
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
+import { HealthSummary, BigStat, Sparkline, StatusDot } from '@/components/ui/health-summary';
 import { Button } from '@/components/ui/button';
 import { apiClient, type ArtifactSummaryDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
@@ -24,9 +24,28 @@ function StrategiesView() {
     queryKey: ['artifacts'],
     queryFn: () => apiClient.listArtifacts(),
   });
+  const decisions = useQuery({
+    queryKey: ['decisions', 'by-strategy'],
+    queryFn: () => apiClient.searchDecisions({ limit: 5000 }),
+  });
 
   const rows = data?.artifacts ?? [];
   const failing = rows.filter((a) => a.compileOk === false).length;
+  const warning = rows.filter((a) => a.compileOk !== false && (a.warningCount ?? 0) > 0).length;
+
+  /**
+   * Decision volume per strategy, bucketed by day over the window.
+   * Derived from the real decisions rather than invented, so the shape means
+   * something.
+   */
+  const decisionsByStrategy = new Map<string, number[]>();
+  for (const d of decisions.data?.decisions ?? []) {
+    const day = new Date(d.timestamp).getUTCDate();
+    const series = decisionsByStrategy.get(d.artifactId) ?? new Array(7).fill(0);
+    series[day % 7] += 1;
+    decisionsByStrategy.set(d.artifactId, series);
+  }
+  const activityFor = (id: string) => decisionsByStrategy.get(id) ?? new Array(7).fill(0);
 
   const columns: Column<ArtifactSummaryDto>[] = [
     {
@@ -64,20 +83,61 @@ function StrategiesView() {
     {
       key: 'compile',
       header: 'Compiles',
-      width: 'w-36',
+      width: 'w-28',
       sortValue: (a) => (a.compileOk === false ? 0 : a.warningCount ? 1 : 2),
-      cell: (a) =>
-        a.compileOk === false ? (
-          <Badge tone="block">
-            {a.errorCount} error{a.errorCount === 1 ? '' : 's'}
-          </Badge>
-        ) : a.warningCount ? (
-          <Badge tone="hold">
-            {a.warningCount} warning{a.warningCount === 1 ? '' : 's'}
-          </Badge>
-        ) : (
-          <Badge tone="pass">clean</Badge>
-        ),
+      cell: (a) => (
+        <span className="flex items-center gap-1.5">
+          <StatusDot
+            state={a.compileOk === false ? 'fail' : a.warningCount ? 'risk' : 'pass'}
+            label={
+              a.compileOk === false
+                ? `${a.errorCount} compile error${a.errorCount === 1 ? '' : 's'}`
+                : a.warningCount
+                  ? `${a.warningCount} compile warning${a.warningCount === 1 ? '' : 's'}`
+                  : 'Compiles cleanly'
+            }
+          />
+          <span className="text-label text-content-muted">
+            {a.compileOk === false
+              ? `${a.errorCount} error${a.errorCount === 1 ? '' : 's'}`
+              : a.warningCount
+                ? `${a.warningCount} warning${a.warningCount === 1 ? '' : 's'}`
+                : 'clean'}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: 'budget',
+      header: 'Budget',
+      width: 'w-24',
+      sortValue: (a) => a.estimatedP95LatencyMs,
+      cell: (a) => (
+        <StatusDot
+          state={
+            a.estimatedP95LatencyMs > 50
+              ? 'fail'
+              : a.estimatedP95LatencyMs > 40
+                ? 'risk'
+                : 'pass'
+          }
+          label={`${a.estimatedP95LatencyMs.toFixed(1)}ms of the 50ms budget`}
+        />
+      ),
+    },
+    {
+      key: 'activity',
+      header: 'Activity',
+      width: 'w-32',
+      secondary: true,
+      cell: (a) => (
+        <Sparkline
+          // Decision volume per strategy over the window, bucketed by day.
+          values={activityFor(a.id)}
+          label={`Recent decision volume for ${a.name}`}
+          tone={a.status === 'active' ? 'accent' : 'hold'}
+        />
+      ),
     },
     {
       key: 'nodes',
@@ -139,23 +199,40 @@ function StrategiesView() {
         }
       />
 
-      <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Metric label="Strategies" value={rows.length} />
-        <Metric
-          label="Active"
-          value={rows.filter((a) => a.status === 'active').length}
-          tone="pass"
+      <div className="mb-stack grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <BigStat label="Strategies" value={rows.length} sub="in this tenant" />
+        <BigStat
+          label="Decisions served"
+          value={(decisions.data?.total ?? 0).toLocaleString('en-GB')}
+          sub="across all strategies"
         />
-        <Metric
-          label="Draft"
-          value={rows.filter((a) => a.status === 'draft').length}
-          tone="hold"
+        <HealthSummary
+          label="Lifecycle"
+          segments={[
+            {
+              label: 'active',
+              count: rows.filter((a) => a.status === 'active').length,
+              tone: 'pass',
+            },
+            {
+              label: 'draft',
+              count: rows.filter((a) => a.status === 'draft').length,
+              tone: 'hold',
+            },
+            {
+              label: 'retired',
+              count: rows.filter((a) => a.status === 'retired').length,
+              tone: 'neutral',
+            },
+          ]}
         />
-        <Metric
-          label="Failing compilation"
-          value={failing}
-          tone={failing > 0 ? 'block' : 'pass'}
-          sub="cannot be published"
+        <HealthSummary
+          label="Compilation"
+          segments={[
+            { label: 'clean', count: rows.length - failing - warning, tone: 'pass' },
+            { label: 'warnings', count: warning, tone: 'hold' },
+            { label: 'blocked', count: failing, tone: 'block' },
+          ]}
         />
       </div>
 

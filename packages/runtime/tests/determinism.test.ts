@@ -429,18 +429,44 @@ describe('model-free arbitration', () => {
 describe('hot path cost', () => {
   it('does not re-hash the catalogue on every decision', () => {
     // Regression guard: hashing the whole catalogue per decision is
-    // O(catalogue) work in the hot path and dominated execution entirely,
-    // 1.5ms per decision of which almost all was re-hashing identical data.
-    const N = 500;
-    const started = performance.now();
-    for (let i = 0; i < N; i++) {
-      execute(artifact, catalogue, { ...request, customerId: `cust_${i}` });
-    }
-    const perDecision = (performance.now() - started) / N;
+    // O(catalogue) work in the hot path, and almost all of the original 1.5ms
+    // per decision was re-hashing identical data.
+    //
+    // Asserted as a ratio rather than a wall-clock ceiling. The invariant is
+    // that per-decision cost does not grow with catalogue size; an absolute
+    // threshold measures whatever else the machine happens to be doing, and
+    // this test failed exactly that way while a dev server was running.
+    const bulk = (n: number): CatalogueSnapshot => ({
+      ...catalogue,
+      propositions: Array.from({ length: n }, (_, i) =>
+        proposition({
+          id: `p_bulk_${i}`,
+          key: `bulk_${i}`,
+          // Padding, so a bigger catalogue is genuinely more to hash.
+          description: `filler `.repeat(40),
+        })
+      ).concat(catalogue.propositions),
+    });
 
-    // Generous ceiling: the point is to catch a return to O(catalogue),
-    // not to pin an exact number on shared CI hardware.
-    expect(perDecision).toBeLessThan(1);
+    const timePerDecision = (snapshot: CatalogueSnapshot) => {
+      const N = 300;
+      // Warm up, so first-call costs land outside the measurement.
+      for (let i = 0; i < 20; i++) {
+        execute(artifact, snapshot, { ...request, customerId: `warm_${i}` });
+      }
+      const started = performance.now();
+      for (let i = 0; i < N; i++) {
+        execute(artifact, snapshot, { ...request, customerId: `cust_${i}` });
+      }
+      return (performance.now() - started) / N;
+    };
+
+    const small = timePerDecision(bulk(5));
+    const large = timePerDecision(bulk(400));
+
+    // Without the memo this ratio tracked catalogue size and was enormous.
+    // Allow generous headroom for scheduling noise on shared hardware.
+    expect(large / Math.max(small, 0.001)).toBeLessThan(5);
   });
 
   it('still records a correct and stable catalogue hash', () => {

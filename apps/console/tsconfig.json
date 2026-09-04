@@ -20,38 +20,17 @@
     "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@metis/*": [
-        "../../packages/*/src"
-      ],
-      "@metis/types": [
-        "../../packages/types/src"
-      ],
-      "@metis/core": [
-        "../../packages/core/src"
-      ],
-      "@metis/core/*": [
-        "../../packages/core/src/*"
+      "@metis/nodes-core": [
+        "../../packages/nodes-core/src"
       ],
       "@metis/compiler": [
         "../../packages/compiler/src"
       ],
-      "@metis/compiler/*": [
-        "../../packages/compiler/src/*"
+      "@metis/trace-ui": [
+        "../../packages/trace-ui/src"
       ],
       "@metis/runtime": [
         "../../packages/runtime/src"
-      ],
-      "@metis/runtime/*": [
-        "../../packages/runtime/src/*"
-      ],
-      "@metis/trace": [
-        "../../packages/trace/src"
-      ],
-      "@metis/nodes-core": [
-        "../../packages/nodes-core/src"
       ],
       "@metis/ui-kit": [
         "../../packages/ui-kit/src"
@@ -59,17 +38,38 @@
       "@metis/client": [
         "../../packages/client/src"
       ],
-      "@metis/trace-ui": [
-        "../../packages/trace-ui/src"
-      ],
       "@metis/canvas": [
         "../../packages/canvas/src"
+      ],
+      "@metis/themes": [
+        "../../packages/themes/src"
+      ],
+      "@metis/types": [
+        "../../packages/types/src"
+      ],
+      "@metis/trace": [
+        "../../packages/trace/src"
+      ],
+      "@metis/core": [
+        "../../packages/core/src"
       ],
       "@metis/i18n": [
         "../../packages/i18n/src"
       ],
-      "@metis/themes": [
-        "../../packages/themes/src"
+      "@metis/compiler/*": [
+        "../../packages/compiler/src/*"
+      ],
+      "@metis/runtime/*": [
+        "../../packages/runtime/src/*"
+      ],
+      "@metis/core/*": [
+        "../../packages/core/src/*"
+      ],
+      "@metis/*": [
+        "../../packages/*/src"
+      ],
+      "@/*": [
+        "./*"
       ]
     },
     "types": [

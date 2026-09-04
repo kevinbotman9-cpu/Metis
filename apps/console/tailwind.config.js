@@ -19,6 +19,7 @@ module.exports = {
     extend: {
       colors: {
         page: rgb('page'),
+        chrome: rgb('chrome'),
         surface: {
           DEFAULT: rgb('surface'),
           raised: rgb('surface-raised'),
@@ -41,6 +42,12 @@ module.exports = {
         },
         'on-accent': rgb('on-accent'),
         'on-block': rgb('on-block'),
+        brand: {
+          from: rgb('brand-from'),
+          via: rgb('brand-via'),
+          to: rgb('brand-to'),
+        },
+        'on-brand': rgb('on-brand'),
         pass: { DEFAULT: rgb('pass'), subtle: rgb('pass-subtle') },
         block: { DEFAULT: rgb('block'), subtle: rgb('block-subtle') },
         hold: { DEFAULT: rgb('hold'), subtle: rgb('hold-subtle') },
