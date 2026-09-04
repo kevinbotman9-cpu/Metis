@@ -17,6 +17,7 @@
     "dev": "docker-compose up",
     "compile": "node compile.js",
     "generate": "npm run generate -w @metis/client",
+    "corpus": "node --import tsx scripts/build-conformance-corpus.mjs",
     "test:runtime": "npm --prefix packages/runtime run test",
     "test:console": "npm --prefix apps/console run test",
     "test:integration": "vitest run --config ./vitest.config.ts",
