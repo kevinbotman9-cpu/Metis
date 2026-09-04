@@ -86,3 +86,6 @@ packages/*/src/**/*.map
 apps/console/test-results/
 apps/console/playwright-report/
 apps/console/storybook-static/
+
+# MCP plugin logs
+logs/
