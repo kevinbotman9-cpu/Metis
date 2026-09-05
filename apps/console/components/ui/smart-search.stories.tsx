@@ -23,7 +23,7 @@ const FACETS: Facet[] = [
       { value: 'suppressed', label: 'Suppressed' },
     ],
   },
-  { key: 'action', label: 'Action', hint: 'exact proposition key' },
+  { key: 'action', label: 'Action', hint: 'exact offer key' },
 ];
 
 const meta: Meta = {

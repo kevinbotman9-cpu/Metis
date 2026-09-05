@@ -4,7 +4,7 @@ info:
   version: 2.0.0
   description: |
     AI-native decision platform API.
-    Execution plane: deterministic strategy execution, artifact registry, approval workflow.
+    Execution plane: deterministic flow execution, artifact registry, approval workflow.
   contact:
     name: METIS Team
   license:
@@ -18,11 +18,11 @@ servers:
 
 components:
   schemas:
-    CompiledStrategy:
+    CompiledDecisionFlow:
       type: object
       description: |
         What the compiler emits. Distinct from ArtifactSummary, which is how the
-        console renders a strategy: this is the immutable, executable form the
+        console renders a flow: this is the immutable, executable form the
         registry stores and the engine runs.
       required:
         [id, version, tenantId, nodes, edges, candidateKeys, packageVersions,
@@ -75,7 +75,7 @@ components:
           type: string
           enum: [GBP, USD, EUR]
 
-    Issue:
+    Objective:
       type: object
       required:
         - id
@@ -96,11 +96,11 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
-    Group:
+    Category:
       type: object
       required:
         - id
-        - issueId
+        - objectiveId
         - name
         - key
         - description
@@ -109,7 +109,7 @@ components:
         - updatedAt
       properties:
         id: { type: string }
-        issueId: { type: string }
+        objectiveId: { type: string }
         name: { type: string }
         key: { type: string }
         description: { type: string }
@@ -129,7 +129,7 @@ components:
           format: date
           description: null means open-ended
 
-    PropositionFinancials:
+    OfferFinancials:
       type: object
       required:
         - price
@@ -144,46 +144,46 @@ components:
         termMonths: { type: integer }
         oneOff: { type: boolean }
 
-    Proposition:
+    Offer:
       type: object
       required:
         - id
-        - groupId
-        - issueId
+        - categoryId
+        - objectiveId
         - name
         - key
         - description
         - status
         - financials
         - validity
-        - lever
+        - boost
         - policyIds
-        - treatmentIds
+        - creativeIds
         - tags
         - createdAt
         - updatedAt
         - updatedBy
       properties:
         id: { type: string }
-        groupId: { type: string }
-        issueId:
+        categoryId: { type: string }
+        objectiveId:
           type: string
-          description: Denormalised from the group for tree and breadcrumb rendering
+          description: Denormalised from the category for tree and breadcrumb rendering
         name: { type: string }
         key: { type: string }
         description: { type: string }
         status:
           type: string
           enum: [draft, active, paused, retired]
-        financials: { $ref: "#/components/schemas/PropositionFinancials" }
+        financials: { $ref: "#/components/schemas/OfferFinancials" }
         validity: { $ref: "#/components/schemas/ValidityWindow" }
-        lever:
+        boost:
           type: number
           description: Business priority multiplier. 1.0 is neutral.
         policyIds:
           type: array
           items: { type: string }
-        treatmentIds:
+        creativeIds:
           type: array
           items: { type: string }
         tags:
@@ -193,11 +193,11 @@ components:
         updatedAt: { type: string, format: date-time }
         updatedBy: { type: string }
 
-    Treatment:
+    Creative:
       type: object
       required:
         - id
-        - propositionId
+        - offerId
         - name
         - channel
         - content
@@ -207,7 +207,7 @@ components:
         - updatedAt
       properties:
         id: { type: string }
-        propositionId: { type: string }
+        offerId: { type: string }
         name: { type: string }
         channel:
           type: string
@@ -222,7 +222,7 @@ components:
         updatedAt: { type: string, format: date-time }
 
     # -------------------------------------------------------------------------
-    # Engagement and contact policy
+    # Targeting and frequency policy
     # -------------------------------------------------------------------------
 
     PolicyScope:
@@ -233,7 +233,7 @@ components:
       properties:
         level:
           type: string
-          enum: [tenant, issue, group, proposition]
+          enum: [tenant, objective, category, offer]
         targetId:
           type: [string, "null"]
           description: null when level is tenant
@@ -254,7 +254,7 @@ components:
           enum: [eq, ne, gt, gte, lt, lte, in, not_in, contains, exists, not_exists]
         value: {}
 
-    EngagementPolicy:
+    TargetingPolicy:
       type: object
       required:
         - id
@@ -271,9 +271,9 @@ components:
         name: { type: string }
         kind:
           type: string
-          enum: [eligibility, applicability, suitability]
+          enum: [eligibility, relevance, suitability]
           description: >-
-            eligibility = can we offer it; applicability = should we now;
+            eligibility = can we offer it; relevance = should we now;
             suitability = is it right for this customer
         description: { type: string }
         conditions:
@@ -284,7 +284,7 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
-    ContactPolicy:
+    FrequencyPolicy:
       type: object
       required:
         - id
@@ -334,18 +334,18 @@ components:
           required:
             - propensity
             - value
-            - lever
+            - boost
             - context
           properties:
             propensity: { type: number }
             value: { type: number }
-            lever: { type: number }
+            boost: { type: number }
             context: { type: number }
         formula: { type: string }
         updatedAt: { type: string, format: date-time }
         updatedBy: { type: string }
 
-    Lever:
+    Boost:
       type: object
       required:
         - id
@@ -380,7 +380,7 @@ components:
       required:
         - maxBlastRadiusPct
         - allowedChangeTypes
-        - maxLeverDelta
+        - maxBoostDelta
         - maxBudgetDelta
         - protectedAttributes
         - requireSimulationPass
@@ -395,14 +395,14 @@ components:
           items:
             type: string
             enum:
-              - lever_adjust
-              - treatment_copy
+              - boost_adjust
+              - creative_copy
               - policy_edit
-              - proposition_create
-              - proposition_retire
-              - strategy_edit
+              - offer_create
+              - offer_retire
+              - flow_edit
               - arbitration_weights
-        maxLeverDelta:
+        maxBoostDelta:
           type: number
           description: Fraction. 0.1 permits +/-10%.
         maxBudgetDelta: { $ref: "#/components/schemas/Money" }
@@ -430,7 +430,7 @@ components:
           enum: [L0, L1, L2, L3, L4]
           description: >-
             L0 Observe, L1 Assist, L2 Propose, L3 Bounded, L4 Autonomous.
-            Resolved most-specific-first: proposition > group > issue > tenant.
+            Resolved most-specific-first: offer > category > objective > tenant.
         guardrails: { $ref: "#/components/schemas/AutonomyGuardrails" }
         rationale:
           type: string
@@ -450,7 +450,7 @@ components:
         - summary
         - outcome
         - guardrailBreached
-        - changeRequestId
+        - changeSetId
       properties:
         id: { type: string }
         timestamp: { type: string, format: date-time }
@@ -462,12 +462,12 @@ components:
         changeType:
           type: string
           enum:
-            - lever_adjust
-            - treatment_copy
+            - boost_adjust
+            - creative_copy
             - policy_edit
-            - proposition_create
-            - proposition_retire
-            - strategy_edit
+            - offer_create
+            - offer_retire
+            - flow_edit
             - arbitration_weights
         summary: { type: string }
         outcome:
@@ -475,7 +475,7 @@ components:
           enum: [suggested, proposed, auto_applied, reverted, blocked]
         guardrailBreached:
           type: [string, "null"]
-        changeRequestId:
+        changeSetId:
           type: [string, "null"]
 
     # -------------------------------------------------------------------------
@@ -527,13 +527,13 @@ components:
     ScoreBreakdown:
       type: object
       description: The four arbitration terms and the priority they produce.
-      required: [propensity, value, lever, context, priority]
+      required: [propensity, value, boost, context, priority]
       properties:
         propensity:
           type: number
         value:
           type: number
-        lever:
+        boost:
           type: number
         context:
           type: number
@@ -556,7 +556,7 @@ components:
       description: A decision as it appears in search results, without the trace.
       required:
         [id, artifactId, artifactVersion, tenantId, customerId, timestamp, channel,
-         placement, winner, winnerPropositionId, candidateCount, totalMs]
+         placement, winner, winnerOfferId, candidateCount, totalMs]
       properties:
         id:
           type: string
@@ -579,14 +579,14 @@ components:
         winner:
           type: [string, 'null']
           description: Action key of the winning candidate, or null if suppressed
-        winnerPropositionId:
+        winnerOfferId:
           type: [string, 'null']
         candidateCount:
           type: integer
         totalMs:
           type: number
 
-    DecisionTrace:
+    DecisionRecord:
       type: object
       description: |
         A decision plus the full reasoning behind it. Everything here except
@@ -595,7 +595,7 @@ components:
         judgement call.
       required:
         [id, artifactId, artifactVersion, tenantId, customerId, timestamp, channel,
-         placement, winner, winnerPropositionId, candidateCount, totalMs,
+         placement, winner, winnerOfferId, candidateCount, totalMs,
          eliminations, scores, arbitration, timings, constraintsApplied,
          consentState, chainHash, inputSnapshotHash]
       properties:
@@ -618,7 +618,7 @@ components:
           type: string
         winner:
           type: [string, 'null']
-        winnerPropositionId:
+        winnerOfferId:
           type: [string, 'null']
         candidateCount:
           type: integer
@@ -654,7 +654,7 @@ components:
             type: string
         consentState:
           $ref: '#/components/schemas/ConsentState'
-        treatmentId:
+        creativeId:
           type: [string, 'null']
         sourceBindings:
           type: array
@@ -713,44 +713,44 @@ components:
 
     Taxonomy:
       type: object
-      description: The whole offer catalogue - Issue > Group > Proposition.
-      required: [issues, groups, propositions]
+      description: The whole offer catalogue - Objective > Category > Offer.
+      required: [objectives, categories, offers]
       properties:
-        issues:
+        objectives:
           type: array
           items:
-            $ref: '#/components/schemas/Issue'
-        groups:
+            $ref: '#/components/schemas/Objective'
+        categories:
           type: array
           items:
-            $ref: '#/components/schemas/Group'
-        propositions:
+            $ref: '#/components/schemas/Category'
+        offers:
           type: array
           items:
-            $ref: '#/components/schemas/Proposition'
+            $ref: '#/components/schemas/Offer'
 
-    PropositionDetail:
+    OfferDetail:
       type: object
-      description: A proposition with everything needed to render its page.
-      required: [proposition, treatments, policies, autonomy]
+      description: An offer with everything needed to render its page.
+      required: [offer, creatives, policies, autonomy]
       properties:
-        proposition:
-          $ref: '#/components/schemas/Proposition'
-        treatments:
+        offer:
+          $ref: '#/components/schemas/Offer'
+        creatives:
           type: array
           items:
-            $ref: '#/components/schemas/Treatment'
+            $ref: '#/components/schemas/Creative'
         policies:
           type: array
           items:
-            $ref: '#/components/schemas/EngagementPolicy'
+            $ref: '#/components/schemas/TargetingPolicy'
         autonomy:
           oneOf:
             - $ref: '#/components/schemas/AutonomySetting'
             - type: 'null'
           description: Effective autonomy for this scope, or null if none resolves
 
-    ChangeRequestSimulation:
+    ChangeSetSimulation:
       type: object
       required: [ran, passed, populationSize, projectedMarginDelta, biasRatio, notes]
       properties:
@@ -768,7 +768,7 @@ components:
         notes:
           type: string
 
-    ChangeRequest:
+    ChangeSet:
       type: object
       description: A proposed change awaiting approval, from a person or an agent.
       required:
@@ -816,13 +816,13 @@ components:
                 type: string
         simulation:
           oneOf:
-            - $ref: '#/components/schemas/ChangeRequestSimulation'
+            - $ref: '#/components/schemas/ChangeSetSimulation'
             - type: 'null'
 
     AuditEvent:
       type: object
       description: One entry in the append-only log. Every write produces one.
-      required: [id, timestamp, actor, actorType, eventType, scope, summary, changeRequestId]
+      required: [id, timestamp, actor, actorType, eventType, scope, summary, changeSetId]
       properties:
         id:
           type: string
@@ -840,7 +840,7 @@ components:
           type: string
         summary:
           type: string
-        changeRequestId:
+        changeSetId:
           type: [string, 'null']
 
     Diagnostic:
@@ -863,7 +863,7 @@ components:
 
     CostManifest:
       type: object
-      description: What the compiler predicts this strategy will cost to run.
+      description: What the compiler predicts this flow will cost to run.
       required:
         [nodeCount, criticalPathMs, worstCaseMs, modelInvocations, latencyBudgetMs, withinBudget]
       properties:
@@ -918,7 +918,7 @@ components:
             - type: 'null'
           description: Null when compilation failed
 
-    DirNode:
+    FlowNode:
       type: object
       description: One node in a decision graph.
       required: [id, type, label, description, estimatedMs, position]
@@ -962,7 +962,7 @@ components:
             y:
               type: number
 
-    DirEdge:
+    FlowEdge:
       type: object
       required: [id, source, target]
       properties:
@@ -978,14 +978,14 @@ components:
     PublishedVersion:
       type: object
       description: One immutable version in the registry.
-      required: [strategyName, version, artifact, publishedAt, publishedBy, warnings]
+      required: [flowName, version, artifact, publishedAt, publishedBy, warnings]
       properties:
-        strategyName:
+        flowName:
           type: string
         version:
           type: string
         artifact:
-          $ref: '#/components/schemas/CompiledStrategy'
+          $ref: '#/components/schemas/CompiledDecisionFlow'
         publishedAt:
           type: string
           format: date-time
@@ -994,7 +994,7 @@ components:
         warnings:
           type: array
           description: |
-            Kept with the version rather than discarded on success. A strategy
+            Kept with the version rather than discarded on success. A flow
             that published near its latency budget is a different thing to
             explain in six months than one that published clean.
           items:
@@ -1022,7 +1022,7 @@ components:
       description: |
         The result of a publish. `published` stored a new version, `unchanged`
         found byte-identical content already there, and `rejected` stored
-        nothing - either the strategy did not compile, or the version already
+        nothing - either the flow did not compile, or the version already
         holds different content.
       required: [status, diagnostics]
       properties:
@@ -1035,7 +1035,7 @@ components:
           description: Present when status is `rejected`.
         artifact:
           oneOf:
-            - $ref: '#/components/schemas/CompiledStrategy'
+            - $ref: '#/components/schemas/CompiledDecisionFlow'
             - type: 'null'
         diagnostics:
           type: array
@@ -1051,7 +1051,7 @@ components:
     RegistryEvent:
       type: object
       description: One entry in the registry's append-only log.
-      required: [seq, at, actor, type, tenantId, strategyName, version, summary]
+      required: [seq, at, actor, type, tenantId, flowName, version, summary]
       properties:
         seq:
           type: integer
@@ -1066,7 +1066,7 @@ components:
           enum: [ArtifactPublished, PublishRejected, VersionPromoted, VersionRolledBack]
         tenantId:
           type: string
-        strategyName:
+        flowName:
           type: string
         version:
           type: string
@@ -1105,7 +1105,7 @@ components:
       type: object
       description: |
         A configured route to data the platform does not hold. Used at decision
-        time: a strategy's source node names the connectors it needs, resolution
+        time: a flow's source node names the connectors it needs, resolution
         fetches them before execution, and the values land in the input the
         engine hashes. Replay never calls a connector - it replays against the
         recorded snapshot.
@@ -1187,7 +1187,7 @@ components:
     ArtifactSummary:
       type: object
       description: |
-        A strategy as the console lists and renders it. Distinct from
+        A flow as the console lists and renders it. Distinct from
         CompiledArtifact, which is the registry's immutable executable form.
       required:
         [id, name, description, activeVersion, versions, nodeCount,
@@ -1218,11 +1218,11 @@ components:
         nodes:
           type: array
           items:
-            $ref: '#/components/schemas/DirNode'
+            $ref: '#/components/schemas/FlowNode'
         edges:
           type: array
           items:
-            $ref: '#/components/schemas/DirEdge'
+            $ref: '#/components/schemas/FlowEdge'
         updatedAt:
           type: string
           format: date-time
@@ -1248,14 +1248,14 @@ components:
       required: true
       schema:
         type: string
-    StrategyName:
-      name: strategyName
+    FlowName:
+      name: flowName
       in: path
       required: true
       schema:
         type: string
-    RequestId:
-      name: requestId
+    ChangeSetId:
+      name: changeSetId
       in: path
       required: true
       schema:
@@ -1346,23 +1346,23 @@ paths:
         - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
-          description: Issues, groups and propositions
+          description: Objectives, categories and offers
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Taxonomy'
 
-  /propositions/{tenantId}:
+  /offers/{tenantId}:
     get:
-      summary: List propositions, filtered
-      operationId: listPropositions
+      summary: List offers, filtered
+      operationId: listOffers
       parameters:
         - $ref: '#/components/parameters/TenantId'
-        - name: issueId
+        - name: objectiveId
           in: query
           schema:
             type: string
-        - name: groupId
+        - name: categoryId
           in: query
           schema:
             type: string
@@ -1378,23 +1378,23 @@ paths:
             type: string
       responses:
         '200':
-          description: Matching propositions
+          description: Matching offers
           content:
             application/json:
               schema:
                 type: object
-                required: [propositions, total]
+                required: [offers, total]
                 properties:
-                  propositions:
+                  offers:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Proposition'
+                      $ref: '#/components/schemas/Offer'
                   total:
                     type: integer
 
     post:
-      summary: Create a proposition
-      operationId: createProposition
+      summary: Create an offer
+      operationId: createOffer
       parameters:
         - $ref: '#/components/parameters/TenantId'
       requestBody:
@@ -1402,44 +1402,44 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Proposition'
+              $ref: '#/components/schemas/Offer'
       responses:
         '201':
           description: Created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Proposition'
+                $ref: '#/components/schemas/Offer'
         '403':
-          description: Caller lacks edit:propositions
+          description: Caller lacks edit:offers
 
-  /propositions/{tenantId}/{propositionId}:
+  /offers/{tenantId}/{offerId}:
     get:
-      summary: A proposition with its treatments, policies and effective autonomy
-      operationId: getProposition
+      summary: An offer with its creatives, policies and effective autonomy
+      operationId: getOffer
       parameters:
         - $ref: '#/components/parameters/TenantId'
-        - name: propositionId
+        - name: offerId
           in: path
           required: true
           schema:
             type: string
       responses:
         '200':
-          description: Proposition detail
+          description: Offer detail
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PropositionDetail'
+                $ref: '#/components/schemas/OfferDetail'
         '404':
-          description: No such proposition
+          description: No such offer
 
     put:
-      summary: Update a proposition
-      operationId: updateProposition
+      summary: Update an offer
+      operationId: updateOffer
       parameters:
         - $ref: '#/components/parameters/TenantId'
-        - name: propositionId
+        - name: offerId
           in: path
           required: true
           schema:
@@ -1449,56 +1449,56 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Proposition'
+              $ref: '#/components/schemas/Offer'
       responses:
         '200':
           description: Updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Proposition'
+                $ref: '#/components/schemas/Offer'
         '403':
-          description: Caller lacks edit:propositions
+          description: Caller lacks edit:offers
 
-  /treatments/{tenantId}/{propositionId}:
+  /creatives/{tenantId}/{offerId}:
     get:
-      summary: Treatments for a proposition, one per channel
-      operationId: listTreatments
+      summary: Creatives for an offer, one per channel
+      operationId: listCreatives
       parameters:
         - $ref: '#/components/parameters/TenantId'
-        - name: propositionId
+        - name: offerId
           in: path
           required: true
           schema:
             type: string
       responses:
         '200':
-          description: Treatments
+          description: Creatives
           content:
             application/json:
               schema:
                 type: object
-                required: [treatments]
+                required: [creatives]
                 properties:
-                  treatments:
+                  creatives:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Treatment'
+                      $ref: '#/components/schemas/Creative'
 
   # ---------------------------------------------------------------------------
-  # Engagement policy, contact policy, arbitration
+  # Targeting policy, frequency policy, arbitration
   # ---------------------------------------------------------------------------
-  /engagement-policies/{tenantId}:
+  /targeting-policies/{tenantId}:
     get:
-      summary: Eligibility, applicability and suitability policies
-      operationId: listEngagementPolicies
+      summary: Eligibility, relevance and suitability policies
+      operationId: listTargetingPolicies
       parameters:
         - $ref: '#/components/parameters/TenantId'
         - name: kind
           in: query
           schema:
             type: string
-            enum: [eligibility, applicability, suitability]
+            enum: [eligibility, relevance, suitability]
       responses:
         '200':
           description: Policies
@@ -1511,17 +1511,17 @@ paths:
                   policies:
                     type: array
                     items:
-                      $ref: '#/components/schemas/EngagementPolicy'
+                      $ref: '#/components/schemas/TargetingPolicy'
 
-  /contact-policies/{tenantId}:
+  /frequency-policies/{tenantId}:
     get:
       summary: Frequency caps and cooldowns
-      operationId: listContactPolicies
+      operationId: listFrequencyPolicies
       parameters:
         - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
-          description: Contact policies
+          description: Frequency policies
           content:
             application/json:
               schema:
@@ -1531,29 +1531,29 @@ paths:
                   policies:
                     type: array
                     items:
-                      $ref: '#/components/schemas/ContactPolicy'
+                      $ref: '#/components/schemas/FrequencyPolicy'
 
   /arbitration/{tenantId}:
     get:
-      summary: Arbitration weights and the levers in force
+      summary: Arbitration weights and the boosts in force
       operationId: getArbitrationConfig
       parameters:
         - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
-          description: Config and levers
+          description: Config and boosts
           content:
             application/json:
               schema:
                 type: object
-                required: [config, levers]
+                required: [config, boosts]
                 properties:
                   config:
                     $ref: '#/components/schemas/ArbitrationConfig'
-                  levers:
+                  boosts:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Lever'
+                      $ref: '#/components/schemas/Boost'
 
     put:
       summary: Publish new arbitration weights
@@ -1570,13 +1570,13 @@ paths:
               properties:
                 weights:
                   type: object
-                  required: [propensity, value, lever, context]
+                  required: [propensity, value, boost, context]
                   properties:
                     propensity:
                       type: number
                     value:
                       type: number
-                    lever:
+                    boost:
                       type: number
                     context:
                       type: number
@@ -1720,7 +1720,7 @@ paths:
     post:
       summary: Make a decision
       description: |
-        Execute a strategy against a request and return the trace.
+        Execute a flow against a request and return the trace.
 
         Integrations are resolved before the deterministic core runs and their
         values arrive in `request.input`; this operation does not fetch them.
@@ -1793,7 +1793,7 @@ paths:
   /decisions/{decisionId}/trace:
     get:
       summary: The full reasoning behind one decision
-      operationId: getDecisionTrace
+      operationId: getDecisionRecord
       parameters:
         - name: decisionId
           in: path
@@ -1806,7 +1806,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DecisionTrace'
+                $ref: '#/components/schemas/DecisionRecord'
         '404':
           description: No such decision
 
@@ -1835,10 +1835,10 @@ paths:
   # ---------------------------------------------------------------------------
   # Governance
   # ---------------------------------------------------------------------------
-  /change-requests:
+  /change-sets:
     get:
       summary: The approval queue
-      operationId: listChangeRequests
+      operationId: listChangeSets
       parameters:
         - name: status
           in: query
@@ -1847,75 +1847,75 @@ paths:
             enum: [pending, approved, rejected, withdrawn]
       responses:
         '200':
-          description: Change requests, newest first
+          description: Change sets, newest first
           content:
             application/json:
               schema:
                 type: object
-                required: [changeRequests, total]
+                required: [changeSets, total]
                 properties:
-                  changeRequests:
+                  changeSets:
                     type: array
                     items:
-                      $ref: '#/components/schemas/ChangeRequest'
+                      $ref: '#/components/schemas/ChangeSet'
                   total:
                     type: integer
 
     post:
       summary: Propose a change
-      operationId: createChangeRequest
+      operationId: createChangeSet
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ChangeRequest'
+              $ref: '#/components/schemas/ChangeSet'
       responses:
         '201':
           description: Created, pending approval
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChangeRequest'
+                $ref: '#/components/schemas/ChangeSet'
 
-  /change-requests/{requestId}:
+  /change-sets/{changeSetId}:
     get:
-      summary: A change request with its diff and simulation
-      operationId: getChangeRequest
+      summary: A change set with its diff and simulation
+      operationId: getChangeSet
       parameters:
-        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ChangeSetId'
       responses:
         '200':
-          description: Change request
+          description: Change set
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChangeRequest'
+                $ref: '#/components/schemas/ChangeSet'
         '404':
-          description: No such change request
+          description: No such change set
 
-  /change-requests/{requestId}/approve:
+  /change-sets/{changeSetId}/approve:
     post:
-      summary: Approve a change request, applying its diff
-      operationId: approveChangeRequest
+      summary: Approve a change set, applying its diff
+      operationId: approveChangeSet
       parameters:
-        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ChangeSetId'
       responses:
         '200':
           description: Approved. The diff is applied and the decision audited.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChangeRequest'
+                $ref: '#/components/schemas/ChangeSet'
         '403':
           description: Caller lacks approve:changes
 
-  /change-requests/{requestId}/reject:
+  /change-sets/{changeSetId}/reject:
     post:
-      summary: Reject a change request
-      operationId: rejectChangeRequest
+      summary: Reject a change set
+      operationId: rejectChangeSet
       parameters:
-        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ChangeSetId'
       requestBody:
         required: true
         content:
@@ -1932,7 +1932,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChangeRequest'
+                $ref: '#/components/schemas/ChangeSet'
         '403':
           description: Caller lacks approve:changes
 
@@ -2006,17 +2006,17 @@ paths:
           description: Caller lacks edit:integrations
 
   # ---------------------------------------------------------------------------
-  # Strategies as the console reads them
+  # Flows as the console reads them
   # ---------------------------------------------------------------------------
   /artifacts/{tenantId}:
     get:
-      summary: List strategies with their compile status
+      summary: List flows with their compile status
       operationId: listArtifacts
       parameters:
         - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
-          description: Strategies
+          description: Flows
           content:
             application/json:
               schema:
@@ -2030,7 +2030,7 @@ paths:
 
   /artifacts/{tenantId}/{artifactId}:
     get:
-      summary: One strategy, with its graph and full compiler output
+      summary: One flow, with its graph and full compiler output
       operationId: getArtifactSummary
       parameters:
         - $ref: '#/components/parameters/TenantId'
@@ -2041,13 +2041,13 @@ paths:
             type: string
       responses:
         '200':
-          description: Strategy detail
+          description: Flow detail
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ArtifactSummary'
         '404':
-          description: No such strategy
+          description: No such flow
 
   # ---------------------------------------------------------------------------
   # PROPOSED - registered in docs/gaps.md, not built.
@@ -2058,31 +2058,31 @@ paths:
   # ---------------------------------------------------------------------------
   /registry/{tenantId}:
     get:
-      summary: Strategies in the registry
-      operationId: listRegistryStrategies
+      summary: Flows in the registry
+      operationId: listRegistryFlows
       parameters:
         - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
-          description: Registered strategy names
+          description: Registered flow names
           content:
             application/json:
               schema:
                 type: object
-                required: [strategies]
+                required: [flows]
                 properties:
-                  strategies:
+                  flows:
                     type: array
                     items:
                       type: string
 
-  /registry/{tenantId}/{strategyName}:
+  /registry/{tenantId}/{flowName}:
     get:
       summary: Published versions and where each is running
       operationId: getRegistryEntry
       parameters:
         - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/StrategyName'
+        - $ref: '#/components/parameters/FlowName'
       responses:
         '200':
           description: Versions and environment state
@@ -2090,9 +2090,9 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [strategyName, versions, environments]
+                required: [flowName, versions, environments]
                 properties:
-                  strategyName:
+                  flowName:
                     type: string
                   versions:
                     type: array
@@ -2103,12 +2103,12 @@ paths:
                     items:
                       $ref: '#/components/schemas/EnvironmentState'
         '404':
-          description: No such strategy in the registry
+          description: No such flow in the registry
 
     post:
       summary: Publish a version
       description: |
-        Compiles first. A strategy with compilation errors is refused and
+        Compiles first. A flow with compilation errors is refused and
         nothing is stored, so it cannot be promoted and cannot reach execution.
         The refusal is recorded: an audit that only shows what succeeded cannot
         answer whether anyone tried to ship something.
@@ -2122,7 +2122,7 @@ paths:
       operationId: publishArtifact
       parameters:
         - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/StrategyName'
+        - $ref: '#/components/parameters/FlowName'
       requestBody:
         required: true
         content:
@@ -2135,7 +2135,7 @@ paths:
                   type: string
                 source:
                   type: object
-                  description: The strategy as authored, before compilation.
+                  description: The flow as authored, before compilation.
       responses:
         '201':
           description: Published, or unchanged if the content was already there
@@ -2150,15 +2150,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/PublishOutcome'
         '403':
-          description: Caller lacks publish:strategies
+          description: Caller lacks publish:flows
 
-  /registry/{tenantId}/{strategyName}/promote:
+  /registry/{tenantId}/{flowName}/promote:
     post:
       summary: Point an environment at a published version
       operationId: promoteVersion
       parameters:
         - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/StrategyName'
+        - $ref: '#/components/parameters/FlowName'
       requestBody:
         required: true
         content:
@@ -2183,9 +2183,9 @@ paths:
         '409':
           description: That version is already active in this environment
         '403':
-          description: Caller lacks promote:strategies
+          description: Caller lacks promote:flows
 
-  /registry/{tenantId}/{strategyName}/rollback:
+  /registry/{tenantId}/{flowName}/rollback:
     post:
       summary: Return an environment to the version it ran before
       description: |
@@ -2195,7 +2195,7 @@ paths:
       operationId: rollbackVersion
       parameters:
         - $ref: '#/components/parameters/TenantId'
-        - $ref: '#/components/parameters/StrategyName'
+        - $ref: '#/components/parameters/FlowName'
       requestBody:
         required: true
         content:
@@ -2216,7 +2216,7 @@ paths:
         '409':
           description: Nothing to roll back to
         '403':
-          description: Caller lacks promote:strategies
+          description: Caller lacks promote:flows
 
   /registry/{tenantId}/events:
     get:
@@ -2228,7 +2228,7 @@ paths:
       operationId: listRegistryEvents
       parameters:
         - $ref: '#/components/parameters/TenantId'
-        - name: strategyName
+        - name: flowName
           in: query
           schema:
             type: string
@@ -2249,8 +2249,8 @@ paths:
 
   /simulations:
     post:
-      summary: Run a population through a compiled strategy
-      operationId: simulateStrategy
+      summary: Run a population through a compiled flow
+      operationId: simulateDecisionFlow
       x-metis-status: proposed
       requestBody:
         required: true
@@ -2272,7 +2272,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChangeRequestSimulation'
+                $ref: '#/components/schemas/ChangeSetSimulation'
 
   /counterfactuals:
     post:

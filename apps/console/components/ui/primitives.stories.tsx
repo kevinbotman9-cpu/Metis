@@ -44,7 +44,7 @@ export const Badges: Story = {
 
       <div>
         <p className="mb-2 text-label uppercase tracking-wide text-content-subtle">
-          Proposition status
+          Offer status
         </p>
         <div className="flex flex-wrap gap-2">
           {['active', 'draft', 'paused', 'retired'].map((s) => (
@@ -96,10 +96,10 @@ export const Buttons: Story = {
 export const Metrics: Story = {
   render: () => (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-      <Metric label="Propositions" value={11} sub="across 4 issues" />
+      <Metric label="Offers" value={11} sub="across 4 objectives" />
       <Metric label="Active" value={8} tone="pass" />
       <Metric label="Draft or paused" value={2} tone="hold" />
-      <Metric label="Missing treatments" value={1} tone="block" sub="cannot be delivered" />
+      <Metric label="Missing creatives" value={1} tone="block" sub="cannot be delivered" />
       <Metric label="Avg latency" value="9.9ms" tone="accent" sub="SLA 50ms" />
     </div>
   ),

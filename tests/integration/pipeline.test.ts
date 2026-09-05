@@ -2,7 +2,7 @@
  * End-to-end: author -> compile -> execute -> replay.
  *
  * This is the two-plane architecture in one test. The authoring plane produces
- * a strategy; the compiler refuses it or pins it; the execution plane runs it
+ * a flow; the compiler refuses it or pins it; the execution plane runs it
  * deterministically; replay proves the result reproduces.
  *
  * It replaces an older integration test that had been broken for some time and
@@ -12,26 +12,26 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  compileStrategy,
-  type StrategySource,
+  compileDecisionFlow,
+  type DecisionFlowSource,
   type CompileContext,
-} from '../../packages/compiler/src/strategy/compile';
+} from '../../packages/compiler/src/decision-flow/compile';
 import { execute, replay } from '../../packages/runtime/src/deterministic/engine';
 import type {
   ExecArtifact,
   CatalogueSnapshot,
   DecisionRequest,
 } from '../../packages/runtime/src/deterministic/types';
-import type { Proposition, EngagementPolicy } from '../../packages/core/src/domain';
+import type { Offer, TargetingPolicy } from '../../packages/core/src/domain';
 
 const gbp = (amount: number) => ({ amount, currency: 'GBP' as const });
 
-const proposition = (
-  over: Partial<Proposition> & Pick<Proposition, 'id' | 'key'>
-): Proposition =>
+const offer = (
+  over: Partial<Offer> & Pick<Offer, 'id' | 'key'>
+): Offer =>
   ({
-    groupId: 'grp_mobile',
-    issueId: 'iss_growth',
+    categoryId: 'grp_mobile',
+    objectiveId: 'iss_growth',
     name: over.key,
     description: '',
     status: 'active',
@@ -43,17 +43,17 @@ const proposition = (
       oneOff: false,
     },
     validity: { startsAt: '2026-01-01', endsAt: null },
-    lever: 1,
+    boost: 1,
     policyIds: [],
-    treatmentIds: ['trt_email'],
+    creativeIds: ['trt_email'],
     tags: [],
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     updatedBy: 'test',
     ...over,
-  }) as Proposition;
+  }) as Offer;
 
-const adultOnly: EngagementPolicy = {
+const adultOnly: TargetingPolicy = {
   id: 'pol_age',
   name: 'Adults only',
   kind: 'eligibility',
@@ -65,9 +65,9 @@ const adultOnly: EngagementPolicy = {
   updatedAt: '2026-01-01T00:00:00Z',
 };
 
-const propositions = [
-  proposition({ id: 'p_5g', key: 'upsell_5g', policyIds: ['pol_age'] }),
-  proposition({
+const offers = [
+  offer({ id: 'p_5g', key: 'upsell_5g', policyIds: ['pol_age'] }),
+  offer({
     id: 'p_data',
     key: 'upsell_data',
     financials: {
@@ -83,31 +83,31 @@ const propositions = [
 const arbitration = {
   id: 'arb',
   tenantId: 'telco-uk',
-  weights: { propensity: 1, value: 1, lever: 1, context: 0.5 },
+  weights: { propensity: 1, value: 1, boost: 1, context: 0.5 },
   formula: 'Priority = P^1 x V^1 x L^1 x C^0.5',
   updatedAt: '2026-01-01T00:00:00Z',
   updatedBy: 'test',
 };
 
 const compileContext: CompileContext = {
-  propositions,
-  engagementPolicies: [adultOnly],
-  contactPolicies: [],
+  offers,
+  targetingPolicies: [adultOnly],
+  frequencyPolicies: [],
   arbitration,
   availablePackages: { '@metis/nodes-core': ['1.1.0', '1.4.0'] },
-  knownScopeTargets: { issues: ['iss_growth'], groups: ['grp_mobile'] },
+  knownScopeTargets: { objectives: ['iss_growth'], categories: ['grp_mobile'] },
   tenant: { id: 'telco-uk', latencyBudgetMs: 50, maxNodes: 100 },
 };
 
 const catalogue: CatalogueSnapshot = {
-  propositions,
-  engagementPolicies: [adultOnly],
-  contactPolicies: [],
+  offers,
+  targetingPolicies: [adultOnly],
+  frequencyPolicies: [],
   arbitration,
-  levers: [],
+  boosts: [],
 };
 
-const source: StrategySource = {
+const source: DecisionFlowSource = {
   id: 'next-best-action',
   version: '1.0.0',
   tenantId: 'telco-uk',
@@ -144,7 +144,7 @@ const request: DecisionRequest = {
 
 /** The compiler and the engine agree on the artifact shape. */
 function toExecArtifact(
-  compiled: NonNullable<ReturnType<typeof compileStrategy>['artifact']>
+  compiled: NonNullable<ReturnType<typeof compileDecisionFlow>['artifact']>
 ): ExecArtifact {
   return {
     id: compiled.id,
@@ -164,8 +164,8 @@ function toExecArtifact(
 }
 
 describe('author -> compile -> execute -> replay', () => {
-  it('carries a strategy all the way through to a reproducible decision', () => {
-    const compiled = compileStrategy(source, compileContext);
+  it('carries a flow all the way through to a reproducible decision', () => {
+    const compiled = compileDecisionFlow(source, compileContext);
     expect(compiled.ok).toBe(true);
 
     const artifact = toExecArtifact(compiled.artifact!);
@@ -179,7 +179,7 @@ describe('author -> compile -> execute -> replay', () => {
   });
 
   it('carries the pinned versions from the compiler into the trace', () => {
-    const compiled = compileStrategy(source, compileContext);
+    const compiled = compileDecisionFlow(source, compileContext);
     const artifact = toExecArtifact(compiled.artifact!);
     const trace = execute(artifact, catalogue, request);
 
@@ -189,7 +189,7 @@ describe('author -> compile -> execute -> replay', () => {
   });
 
   it('stays inside the latency budget the compiler proved', () => {
-    const compiled = compileStrategy(source, compileContext);
+    const compiled = compileDecisionFlow(source, compileContext);
     const cost = compiled.artifact!.costManifest;
     expect(cost.withinBudget).toBe(true);
 
@@ -202,7 +202,7 @@ describe('author -> compile -> execute -> replay', () => {
   it('refuses to produce an artifact the runtime could not execute safely', () => {
     // A dangling policy reference would fail at runtime, or worse, silently
     // skip a rule. The compiler stops it reaching the engine at all.
-    const broken = compileStrategy(
+    const broken = compileDecisionFlow(
       {
         ...source,
         nodes: source.nodes.map((n) =>
@@ -219,8 +219,8 @@ describe('author -> compile -> execute -> replay', () => {
 
   it('produces the same decision from two independent compilations', () => {
     // Compilation is deterministic, so the whole pipeline is.
-    const a = toExecArtifact(compileStrategy(source, compileContext).artifact!);
-    const b = toExecArtifact(compileStrategy(source, compileContext).artifact!);
+    const a = toExecArtifact(compileDecisionFlow(source, compileContext).artifact!);
+    const b = toExecArtifact(compileDecisionFlow(source, compileContext).artifact!);
 
     expect(execute(a, catalogue, request).chainHash).toBe(
       execute(b, catalogue, request).chainHash
@@ -228,16 +228,16 @@ describe('author -> compile -> execute -> replay', () => {
   });
 
   it('changes the decision when the catalogue changes, and replay says so', () => {
-    const artifact = toExecArtifact(compileStrategy(source, compileContext).artifact!);
+    const artifact = toExecArtifact(compileDecisionFlow(source, compileContext).artifact!);
     const original = execute(artifact, catalogue, request);
 
     const boosted: CatalogueSnapshot = {
       ...catalogue,
-      levers: [
+      boosts: [
         {
           id: 'lev',
           name: 'Boost data',
-          scope: { level: 'proposition', targetId: 'p_data' },
+          scope: { level: 'offer', targetId: 'p_data' },
           value: 50,
           reason: 'test',
           validity: null,

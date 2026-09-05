@@ -5,7 +5,7 @@
     "composite": false,
     "baseUrl": "../..",
     "paths": {
-      "@metis/compiler/strategy": ["packages/compiler/src/strategy/index.ts"],
+      "@metis/compiler/decision-flow": ["packages/compiler/src/decision-flow/index.ts"],
       "@metis/core/domain": ["packages/core/src/domain.ts"],
       "@metis/*": ["packages/*/src"]
     }

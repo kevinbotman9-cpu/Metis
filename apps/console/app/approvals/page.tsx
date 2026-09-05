@@ -14,7 +14,7 @@ import {
   ErrorState,
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
-import { apiClient, type ChangeRequestDto } from '@/lib/api-client';
+import { apiClient, type ChangeSetDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
 
 const STATUS_TONE: Record<string, 'pass' | 'block' | 'hold' | 'neutral'> = {
@@ -29,19 +29,19 @@ function ApprovalsView() {
   const [status, setStatus] = useState('');
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['change-requests', status],
-    queryFn: () => apiClient.listChangeRequests(status || undefined),
+    queryKey: ['change-sets', status],
+    queryFn: () => apiClient.listChangeSets(status || undefined),
   });
 
-  const rows = data?.changeRequests ?? [];
+  const rows = data?.changeSets ?? [];
   const pending = rows.filter((c) => c.status === 'pending').length;
   const fromAgents = rows.filter((c) => c.requestedBy.startsWith('agent-')).length;
   const simFailed = rows.filter((c) => c.simulation && !c.simulation.passed).length;
 
-  const columns: Column<ChangeRequestDto>[] = [
+  const columns: Column<ChangeSetDto>[] = [
     {
       key: 'title',
-      header: 'Change request',
+      header: 'Change set',
       sortValue: (c) => c.title,
       cell: (c) => (
         <div className="min-w-0">
@@ -121,7 +121,7 @@ function ApprovalsView() {
     <PageBody>
       <PageHeader
         title="Approvals"
-        description="Every change to a proposition, policy, lever or strategy arrives here as a change request — whether a person or an agent raised it."
+        description="Every change to an offer, policy, boost or decision flow arrives here as a change set — whether a person or an agent raised it."
       />
 
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -154,7 +154,7 @@ function ApprovalsView() {
       </div>
 
       <Card>
-        <CardHeader title="Change requests" description="Select a row to review the diff." />
+        <CardHeader title="Change sets" description="Select a row to review the diff." />
         <DataTable
           columns={columns}
           rows={rows}
@@ -162,9 +162,9 @@ function ApprovalsView() {
           isLoading={isLoading}
           defaultSort={{ key: 'requestedAt', dir: 'desc' }}
           onRowClick={(c) => router.push(`/approvals/${c.id}`)}
-          emptyTitle="No change requests"
+          emptyTitle="No change sets"
           emptyDescription="Nothing matches this status filter."
-          caption="Change requests"
+          caption="Change sets"
         />
       </Card>
     </PageBody>

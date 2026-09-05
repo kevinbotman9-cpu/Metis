@@ -39,6 +39,8 @@ and does not.
 | Gap | Registered | Notes |
 |---|---|---|
 | **Project references do not build** | 2026-09-04, re-diagnosed 2026-09-05 | The original cause is gone: `packages/compiler/src/compile.ts` was deleted with the rest of the Phase 0 tree. `tsc --build` still fails, on two causes that were hidden underneath it — the per-package tsconfigs have no `@metis/core/domain` path mapping (only `packages/registry`'s does), and `bench/harness` declares a `rootDir` of `bench/harness/src` that its own `@metis/runtime` imports fall outside. Until this is fixed the per-package tsconfigs cannot be used for typechecking, and `bench/*` is checked by nothing. |
+| **The Kotlin conformance gate could pass without reading the corpus** | 2026-09-05, fixed same day | The tests read `docs/conformance/*.json` by path at runtime, so Gradle had no input dependency on them: after regenerating a corpus, `./gradlew test` reported `UP-TO-DATE` and passed. Fixed by declaring the corpora as `tasks.test` inputs in both modules. Kept here as a record, because the same shape recurs — a check whose real input is invisible to the thing that decides whether to run it. |
+| **Four components agree on API paths, and one typecheck covers one of them** | 2026-09-05 | The spec, the generated client, `apps/console/lib/api-client.ts` (hand-written template URLs), the dev API route handler (a string switch) and the Kotlin service router (another string switch) must all agree. Only the generated client is type-checked. `contract.spec.ts` covers the spec-versus-dev-API pair at E2E time and does bite — verified by pointing a spec path at an unserved route — but the console's own client URLs and the Kotlin router are checked by nothing. |
 | **The root typecheck checks zero files** | 2026-09-04 | The root tsconfig has `"include": []` and only references, and `tsc --noEmit -p` does not build references. CI now also runs the console's typecheck, which resolves `@metis/core`, `@metis/runtime` and `@metis/compiler` through path aliases and is what actually covers them. `bench/*` is still outside every working typecheck — the missing `connectors` field on its catalogue was caught by a failing benchmark, not by the compiler. |
 
 ---
@@ -50,7 +52,7 @@ test by their `proposed` marker. Nothing serves them.
 
 | Operation | Console impact | Registered | Notes |
 |---|---|---|---|
-| `simulateStrategy` | Ad-hoc simulation | Week 2 | `/simulations` says plainly that this is not built and shows only simulations attached to change requests. |
+| `simulateDecisionFlow` | Ad-hoc simulation | Week 2 | `/simulations` says plainly that this is not built and shows only simulations attached to change sets. |
 | `getCounterfactual` | "What would have changed the outcome" | Week 2 | No UI yet. |
 
 ## Resolved
@@ -59,19 +61,19 @@ test by their `proposed` marker. Nothing serves them.
 |---|---|---|
 | `generateOpenAPISpec` | 2026-09-04 | Inverted. The spec is hand-authored and is the source of truth; `packages/client` is generated *from* it, and CI fails if the two disagree. Generating the spec from code would have made the implementation authoritative, which is backwards for a contract. |
 | `searchDecisions` | 2026-09-04 | GET with query parameters, not POST — search state lives in the URL. 5,000 decisions, virtualised. |
-| `getDecisionTrace` | 2026-09-04 | Real engine output. The `DecisionTrace` schema in the spec now matches what the engine emits. |
+| `getDecisionRecord` | 2026-09-04 | Real engine output. The `DecisionRecord` schema in the spec now matches what the engine emits. |
 | `replayDecision` | 2026-09-04 | Re-executes and compares chain hashes. Contract-tested. |
-| `createChangeRequest` / `getChangeRequest` | 2026-09-04 | |
-| `approveChangeRequest` / `rejectChangeRequest` | 2026-09-04 | Approval applies the diff and writes to the audit log. Permission-gated server-side, not just in the UI. |
-| `getTaxonomy`, `listPropositions`, `getProposition`, `listTreatments` | 2026-09-04 | Offer catalogue, Issue › Group › Proposition. |
-| `listEngagementPolicies`, `listContactPolicies` | 2026-09-04 | |
+| `createChangeSet` / `getChangeSet` | 2026-09-04 | |
+| `approveChangeSet` / `rejectChangeSet` | 2026-09-04 | Approval applies the diff and writes to the audit log. Permission-gated server-side, not just in the UI. |
+| `getTaxonomy`, `listOffers`, `getOffer`, `listCreatives` | 2026-09-04 | Offer catalogue, Objective › Category › Offer. |
+| `listTargetingPolicies`, `listFrequencyPolicies` | 2026-09-04 | |
 | `getArbitrationConfig` / `updateArbitrationConfig` | 2026-09-04 | |
 | `listAutonomySettings` / `updateAutonomySetting` | 2026-09-04 | |
 | `listAgentActivity` | 2026-09-04 | Fixture data — no agent is running. The *shape* is real; the activity is not. |
-| `listChangeRequests`, `listAuditEvents`, `listArtifacts`, `getArtifactSummary` | 2026-09-04 | These were **served but missing from the spec entirely** until the contract work. |
+| `listChangeSets`, `listAuditEvents`, `listArtifacts`, `getArtifactSummary` | 2026-09-04 | These were **served but missing from the spec entirely** until the contract work. |
 | `login` / `getSession` | 2026-09-04 | Development identity only. No real identity provider. |
 | `publishArtifact`, `promoteVersion`, `rollbackVersion` | 2026-09-04 | The artifact registry. Publishing compiles first and refuses errors; publishing does not activate; versions are immutable. |
-| `getRegistryEntry`, `listRegistryStrategies`, `listRegistryEvents` | 2026-09-04 | Versions, environment state, and the append-only log including refusals. |
+| `getRegistryEntry`, `listRegistryFlows`, `listRegistryEvents` | 2026-09-04 | Versions, environment state, and the append-only log including refusals. |
 | `executeDecision` | 2026-09-04 | Served by two implementations — the console's development store and the JVM service — held to the same 60 chain hashes. |
 
 **Caveat that applies to every row above.** "Resolved" means the console has a
@@ -88,7 +90,7 @@ When it does, the contract is already written and the tests already exist.
 |-----------|--------|--------|------------|-------|
 | `getNodePackage` | Canvas node renderers | MISSING | Week 3 | Fetch a node package. Must include canvas renderer + inspector schema + trace renderer fragment. Without this, canvas can only draw core 16 nodes. |
 | `getPanelManifest` | Panel host security model | MISSING | Week 3 | Fetch panel manifest. Declares slots, data contract (API scopes), permissions, viewport. Used to validate panel capabilities. |
-| `getLayoutManifest` | Layout editor / workspaces | MISSING | Week 3 | Fetch a screen layout artifact. Declares regions, slots, panel occupants. Versioned like strategies. |
+| `getLayoutManifest` | Layout editor / workspaces | MISSING | Week 3 | Fetch a screen layout artifact. Declares regions, slots, panel occupants. Versioned like flows. |
 | `publishLayoutManifest` | Admin persona | MISSING | Week 3 | Save a layout. Triggers audit + optional approval. |
 
 **Impact:** Panel extensibility cannot be demo'd without node renderers from packages.
@@ -103,18 +105,18 @@ When it does, the contract is already written and the tests already exist.
 |-----------|--------|--------|------------|-------|
 | `listModels` | Model registry | MISSING | Week 4 | List all models + versions + champion/challenger state + shadow scoring status. |
 | `getModelDetail` | Model detail view | MISSING | Week 4 | Fetch performance over time, drift, predictor importance. For adaptive models, binning + learning curves. |
-| `getFeatureCatalog` | Feature catalogue | MISSING | Week 4 | Definitions, TTL, freshness, lineage. Which strategies consume each. |
+| `getFeatureCatalog` | Feature catalogue | MISSING | Week 4 | Definitions, TTL, freshness, lineage. Which flows consume each. |
 | `checkFeatureParity` | Online/offline parity check | MISSING | Week 4 | Given a feature, compare online (feature store) vs offline (batch compute). Return distribution diff. |
 
 ### Marketer Surfaces
 
 | Operation | Console Impact | Platform Status | Registered | Notes |
 |-----------|--------|--------|------------|-------|
-| `getTaxonomy` | Taxonomy browser | MISSING | Week 4 | Issue → Group → Action → Treatment tree. Return inherited properties + overrides. |
+| `getTaxonomy` | Taxonomy browser | MISSING | Week 4 | Objective → Category → Action → Creative tree. Return inherited properties + overrides. |
 | `getActionDetail` | Action editor | MISSING | Week 4 | Properties, catalogue membership, effective dating, approval state. |
-| `getTreatmentLibrary` | Treatment library | MISSING | Week 4 | Assets, per-channel variants, channel preview, approval, expiry. |
-| `listCampaigns` | Campaign builder + results | MISSING | Week 4 | Campaigns + segments + schedules. Query results by action/treatment/channel/segment. |
-| `getContactPolicy` | Contact policy editor | MISSING | Week 4 | Frequency cap matrix. Outcome-conditioned suppression rules. |
+| `getCreativeLibrary` | Creative library | MISSING | Week 4 | Assets, per-channel variants, channel preview, approval, expiry. |
+| `listCampaigns` | Campaign builder + results | MISSING | Week 4 | Campaigns + segments + schedules. Query results by action/creative/channel/segment. |
+| `getFrequencyPolicy` | Frequency policy editor | MISSING | Week 4 | Frequency cap matrix. Outcome-conditioned suppression rules. |
 
 ### Operator Surfaces
 
@@ -151,8 +153,8 @@ When it does, the contract is already written and the tests already exist.
 
 ## Notes for Platform Team
 
-1. **The rest of the control plane is still in memory.** The registry is durable; propositions,
-   policies, arbitration weights, autonomy settings, change requests and the audit log are not.
+1. **The rest of the control plane is still in memory.** The registry is durable; offers,
+   policies, arbitration weights, autonomy settings, change sets and the audit log are not.
    The pattern is proven — one behaviour suite, two stores — and applying it is mostly work
    rather than design.
 2. **An authoring surface.** Versions are published through the API; the console can promote and
@@ -187,32 +189,32 @@ the console runs against the development fixture store.
 
 | Operation | Needed for | Platform status |
 |---|---|---|
-| `getTaxonomy` | Issue › Group › Proposition tree | Not built |
-| `listPropositions` / `getProposition` | Offer catalogue and detail | Not built |
-| `createProposition` / `updateProposition` | Authoring offers | Not built — writes are echoed, not persisted |
-| `listTreatments` | Per-channel content | Not built |
-| `listEngagementPolicies` | Eligibility / applicability / suitability | Not built |
-| `listContactPolicies` | Suppression and frequency caps | Not built |
-| `getArbitrationConfig` / `updateArbitrationConfig` | P × V × L × C weights | Not built |
+| `getTaxonomy` | Objective › Category › Offer tree | Not built |
+| `listOffers` / `getOffer` | Offer catalogue and detail | Not built |
+| `createOffer` / `updateOffer` | Authoring offers | Not built — writes are echoed, not persisted |
+| `listCreatives` | Per-channel content | Not built |
+| `listTargetingPolicies` | Eligibility / relevance / suitability | Not built |
+| `listFrequencyPolicies` | Suppression and frequency caps | Not built |
+| `getArbitrationConfig` / `updateArbitrationConfig` | P × V × B × C weights | Not built |
 | `listAutonomySettings` / `updateAutonomySetting` | Agentic autonomy per scope | Not built |
 | `listAgentActivity` | Agent activity feed | Not built |
 | `login` / `getSession` | Authentication | Not built — no real identity provider yet |
 
 ### Still outstanding from earlier
 
-- `simulateStrategy` — ad-hoc simulation. `/simulations` states plainly that this is not built
-  and shows only simulations attached to change requests.
+- `simulateDecisionFlow` — ad-hoc simulation. `/simulations` states plainly that this is not built
+  and shows only simulations attached to change sets.
 - `getCounterfactual` — minimal-input-change explanations. No UI yet.
 
 ### Notes for the platform team
 
 - **Money is minor units.** `Money.amount` is an integer in pence to avoid float drift.
-- **Autonomy resolution is most-specific-first**: proposition › group › issue › tenant. The
+- **Autonomy resolution is most-specific-first**: offer › category › objective › tenant. The
   reference implementation is `resolveAutonomy()` in `packages/core/src/domain.ts`.
-- **`issueId` on `Proposition` is denormalised** from its group, for tree and breadcrumb
+- **`objectiveId` on `Offer` is denormalised** from its category, for tree and breadcrumb
   rendering without a second lookup.
-- **A proposition with no active treatment cannot be delivered.** The console flags this; the
-  compiler should reject promoting a strategy whose candidate set includes one.
+- **A offer with no active creative cannot be delivered.** The console flags this; the
+  compiler should reject promoting a flow whose candidate set includes one.
 
 ---
 
@@ -232,24 +234,24 @@ deletions.
 | Package system — registry, dependency resolution, signing | `packages/packages-system` | Not built. §5's composability claim rests on this. |
 | Regulatory packs — SOC 2, GDPR, EU AI Act, FCA | `packages/compliance` | Not built. §11 evidence packs depend on it. |
 | Panel host and panel SDK — iframe sandbox, manifest, slots | `packages/panel-host`, `packages/panel-sdk` | Not built. Signed-partner-only was the v1 decision; neither half exists. |
-| Simulation — what-if, counterfactual, bias gate | `packages/simulation` | Not built. `simulateStrategy` and `getCounterfactual` remain proposed operations. |
+| Simulation — what-if, counterfactual, bias gate | `packages/simulation` | Not built. `simulateDecisionFlow` and `getCounterfactual` remain proposed operations. |
 | Adaptive models — online learning, binning | `packages/adaptive-models` | Not built. Scoring is a seeded hash with the right determinism property and no predictive content. |
 | Theme token system | `packages/themes` | Superseded. The console's own token layer is built and tested across four theme axes. |
 | UI primitives | `packages/ui-kit` | Superseded by `apps/console/components/ui`. It was also the only declared owner of `class-variance-authority`, `clsx` and `tailwind-merge`, which the console imports directly — deleting it surfaced three undeclared dependencies. |
 | Canvas | `packages/canvas` | Superseded. The console's read-only React Flow canvas is built. |
 | i18n | `packages/i18n` | Not built. `messages.json` never existed. |
-| Trace format and renderers | `packages/trace`, `packages/trace-ui` | Superseded by `packages/runtime`'s `DecisionTrace` and the console's decision detail page. |
+| Trace format and renderers | `packages/trace`, `packages/trace-ui` | Superseded by `packages/runtime`'s `DecisionRecord` and the console's decision detail page. |
 | Shared types | `packages/types` | Superseded by `packages/core/src/domain.ts`. |
 | Package authoring SDK | `packages/sdk` | Not built. It re-exported the DIR validator, which is also gone. |
-| Approval workflow | `planes/execution/src/approval.ts` | Superseded by `packages/registry` and the console's change-request surface. |
+| Approval workflow | `planes/execution/src/approval.ts` | Superseded by `packages/registry` and the console's change-set surface. |
 | Authoring plane | `planes/authoring` | Not built. The directory held a `package.json` and nothing else. |
 
 Also deleted, for the same reason:
 
 - The Phase 0 DIR compiler — `compileDir`, `typeCheck`, `resolveVersions`,
   `analyzeCost`, the `metis-compile` CLI, `compile.js`, `dir.schema.json` and
-  `metis-package.schema.json`. `compileStrategy` is the only compiler.
-- Four committed compiled artifacts — `compiled.json`, `my-strategy.json` and
+  `metis-package.schema.json`. `compileDecisionFlow` is the only compiler.
+- Four committed compiled artifacts — `compiled.json`, `my-flow.json` and
   the two `tests/fixtures/simple-filter*.json` files. Build output does not
   belong in git, and these embedded a node-type vocabulary nothing executes.
 - `verify-metis.js`, which counted directories and reported "Packages: 11/11 ✓"

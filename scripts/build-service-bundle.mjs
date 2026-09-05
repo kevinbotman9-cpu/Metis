@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Export the console's strategies and catalogue as a bundle the JVM service
+ * Export the console's flows and catalogue as a bundle the JVM service
  * can execute, plus real decisions for it to reproduce.
  *
  * Run: npm run corpus:service
  *
  * The value and decision corpora are synthetic: small cases chosen to isolate
- * rules. This is the other kind of evidence — the actual strategies the console
+ * rules. This is the other kind of evidence — the actual flows the console
  * ships, the actual catalogue, and a sample of the actual decisions the
  * TypeScript engine produced from them. If the Kotlin service reproduces these
  * chain hashes over HTTP, the two engines agree on the product's own data and
@@ -49,11 +49,11 @@ fs.writeFileSync(
 // --- Cases ------------------------------------------------------------------
 
 /**
- * A spread across strategies and outcomes rather than the first N.
+ * A spread across flows and outcomes rather than the first N.
  *
- * Taking a prefix would over-sample whichever strategy happens to sort first
+ * Taking a prefix would over-sample whichever flow happens to sort first
  * and would probably contain no suppressed decisions at all — and suppression
- * is where the contact-policy and consent rules live, which are exactly the
+ * is where the frequency-policy and consent rules live, which are exactly the
  * ones a port gets wrong.
  */
 const SAMPLE = 60;
@@ -93,7 +93,7 @@ if (distinct.size !== cases.length) {
 const withOffer = cases.filter((c) => c.expected.winner !== null).length;
 if (withOffer === 0 || withOffer === cases.length) {
   throw new Error(
-    'Sample is all-offered or all-suppressed; it would not exercise the contact policy and consent rules'
+    'Sample is all-offered or all-suppressed; it would not exercise the frequency policy and consent rules'
   );
 }
 
@@ -115,7 +115,7 @@ fs.writeFileSync(
 
 console.log(
   `Wrote docs/conformance/service-bundle.json: ${execArtifacts.length} artifacts, ` +
-    `${catalogueSnapshot.propositions.length} propositions, ` +
+    `${catalogueSnapshot.offers.length} offers, ` +
     `${catalogueSnapshot.connectors.length} connectors.`
 );
 console.log(

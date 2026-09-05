@@ -18,7 +18,7 @@ import { store, resetStore, recordAudit } from '@/mocks/store';
 import { findTrace, decisions } from '@/mocks/fixtures/decisions';
 import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
 import { compilations, findCompilation, compileContext } from '@/mocks/fixtures/compiled';
-import type { StrategySource } from '@metis/compiler/strategy';
+import type { DecisionFlowSource } from '@metis/compiler/decision-flow';
 import {
   replay as replayDecision,
   execute as executeDecision,
@@ -51,13 +51,13 @@ function publicUser(u: (typeof store.users)[number]) {
   return rest;
 }
 
-/** Resolve the effective autonomy for a proposition, most specific scope first. */
-function resolveAutonomyFor(propositionId: string, groupId: string, issueId: string) {
+/** Resolve the effective autonomy for an offer, most specific scope first. */
+function resolveAutonomyFor(offerId: string, categoryId: string, objectiveId: string) {
   const a = store.autonomy;
   return (
-    a.find((s) => s.scope.level === 'proposition' && s.scope.targetId === propositionId) ||
-    a.find((s) => s.scope.level === 'group' && s.scope.targetId === groupId) ||
-    a.find((s) => s.scope.level === 'issue' && s.scope.targetId === issueId) ||
+    a.find((s) => s.scope.level === 'offer' && s.scope.targetId === offerId) ||
+    a.find((s) => s.scope.level === 'category' && s.scope.targetId === categoryId) ||
+    a.find((s) => s.scope.level === 'objective' && s.scope.targetId === objectiveId) ||
     a.find((s) => s.scope.level === 'tenant') ||
     null
   );
@@ -82,38 +82,38 @@ export async function GET(req: Request, { params }: Ctx) {
 
     case 'taxonomy':
       return json({
-        issues: store.issues,
-        groups: store.groups,
-        propositions: store.propositions,
+        objectives: store.objectives,
+        categories: store.categories,
+        offers: store.offers,
       });
 
-    case 'propositions': {
-      const propositionId = rest[1];
-      if (propositionId) {
-        const proposition = store.propositions.find((p) => p.id === propositionId);
-        if (!proposition) return notFound(`No proposition ${propositionId}`);
+    case 'offers': {
+      const offerId = rest[1];
+      if (offerId) {
+        const offer = store.offers.find((p) => p.id === offerId);
+        if (!offer) return notFound(`No offer ${offerId}`);
         return json({
-          proposition,
-          treatments: store.treatments.filter((t) => t.propositionId === proposition.id),
-          policies: store.engagementPolicies.filter((p) =>
-            proposition.policyIds.includes(p.id)
+          offer,
+          creatives: store.creatives.filter((t) => t.offerId === offer.id),
+          policies: store.targetingPolicies.filter((p) =>
+            offer.policyIds.includes(p.id)
           ),
           autonomy: resolveAutonomyFor(
-            proposition.id,
-            proposition.groupId,
-            proposition.issueId
+            offer.id,
+            offer.categoryId,
+            offer.objectiveId
           ),
         });
       }
 
-      let result = store.propositions;
-      const issueId = q.get('issueId');
-      const groupId = q.get('groupId');
+      let result = store.offers;
+      const objectiveId = q.get('objectiveId');
+      const categoryId = q.get('categoryId');
       const status = q.get('status');
       const search = (q.get('q') || '').toLowerCase().trim();
 
-      if (issueId) result = result.filter((p) => p.issueId === issueId);
-      if (groupId) result = result.filter((p) => p.groupId === groupId);
+      if (objectiveId) result = result.filter((p) => p.objectiveId === objectiveId);
+      if (categoryId) result = result.filter((p) => p.categoryId === categoryId);
       if (status) result = result.filter((p) => p.status === status);
       if (search) {
         result = result.filter(
@@ -124,28 +124,28 @@ export async function GET(req: Request, { params }: Ctx) {
             p.tags.some((t) => t.toLowerCase().includes(search))
         );
       }
-      return json({ propositions: result, total: result.length });
+      return json({ offers: result, total: result.length });
     }
 
-    case 'treatments':
+    case 'creatives':
       return json({
-        treatments: store.treatments.filter((t) => t.propositionId === rest[1]),
+        creatives: store.creatives.filter((t) => t.offerId === rest[1]),
       });
 
-    case 'engagement-policies': {
+    case 'targeting-policies': {
       const kind = q.get('kind');
       return json({
         policies: kind
-          ? store.engagementPolicies.filter((p) => p.kind === kind)
-          : store.engagementPolicies,
+          ? store.targetingPolicies.filter((p) => p.kind === kind)
+          : store.targetingPolicies,
       });
     }
 
-    case 'contact-policies':
-      return json({ policies: store.contactPolicies });
+    case 'frequency-policies':
+      return json({ policies: store.frequencyPolicies });
 
     case 'arbitration':
-      return json({ config: store.arbitration, levers: store.levers });
+      return json({ config: store.arbitration, boosts: store.boosts });
 
     case 'autonomy':
       return json({ settings: store.autonomy });
@@ -193,16 +193,16 @@ export async function GET(req: Request, { params }: Ctx) {
       return notFound();
     }
 
-    case 'change-requests': {
+    case 'change-sets': {
       if (rest[0]) {
-        const cr = store.changeRequests.find((c) => c.id === rest[0]);
-        return cr ? json(cr) : notFound(`No change request ${rest[0]}`);
+        const cr = store.changeSets.find((c) => c.id === rest[0]);
+        return cr ? json(cr) : notFound(`No change set ${rest[0]}`);
       }
       const status = q.get('status');
       const result = status
-        ? store.changeRequests.filter((c) => c.status === status)
-        : store.changeRequests;
-      return json({ changeRequests: result, total: result.length });
+        ? store.changeSets.filter((c) => c.status === status)
+        : store.changeSets;
+      return json({ changeSets: result, total: result.length });
     }
 
     case 'audit': {
@@ -228,32 +228,32 @@ export async function GET(req: Request, { params }: Ctx) {
         return json({
           events: await store.registry.events({
             tenantId,
-            strategyName: q.get('strategyName') ?? undefined,
+            flowName: q.get('flowName') ?? undefined,
             limit: Number(q.get('limit') || 100),
           }),
         });
       }
 
-      // GET /registry/{tenant}/{strategy}
+      // GET /registry/{tenant}/{flow}
       if (rest[1]) {
         const versions = await store.registry.versions(tenantId, rest[1]);
-        if (versions.length === 0) return notFound(`No strategy ${rest[1]} in the registry`);
+        if (versions.length === 0) return notFound(`No flow ${rest[1]} in the registry`);
         return json({
-          strategyName: rest[1],
+          flowName: rest[1],
           versions,
           environments: await store.registry.environments(tenantId, rest[1]),
         });
       }
 
       // GET /registry/{tenant}
-      return json({ strategies: await store.registry.strategies(tenantId) });
+      return json({ flows: await store.registry.flows(tenantId) });
     }
 
     case 'artifacts': {
       if (rest[1]) {
         const artifact = store.artifacts.find((a) => a.id === rest[1]);
-        if (!artifact) return notFound(`No strategy ${rest[1]}`);
-        // The compiler's verdict travels with the strategy: a console that
+        if (!artifact) return notFound(`No flow ${rest[1]}`);
+        // The compiler's verdict travels with the flow: a console that
         // hides it is no better than not compiling at all.
         return json({ ...artifact, compilation: findCompilation(artifact.id)?.result ?? null });
       }
@@ -368,7 +368,7 @@ export async function POST(req: Request, { params }: Ctx) {
 
       // A real re-execution, not a canned answer: the engine runs again against
       // the recorded artifact, the catalogue and the original inputs, and the
-      // chain hashes are compared. If a policy or lever has since been edited,
+      // chain hashes are compared. If a policy or boost has since been edited,
       // this legitimately reports a divergence and says which field moved.
       const record = findGenerated(rest[0]);
       if (!record) return notFound(`No decision with id ${rest[0]}`);
@@ -396,18 +396,18 @@ export async function POST(req: Request, { params }: Ctx) {
       });
     }
 
-    case 'change-requests': {
+    case 'change-sets': {
       const user = actor(req);
       if (!user) return json({ error: 'no_session' }, 401);
       if (!user.permissions.includes('approve:changes')) return forbidden('approve:changes');
 
-      const cr = store.changeRequests.find((c) => c.id === rest[0]);
-      if (!cr) return notFound(`No change request ${rest[0]}`);
+      const cr = store.changeSets.find((c) => c.id === rest[0]);
+      if (!cr) return notFound(`No change set ${rest[0]}`);
       if (cr.status !== 'pending') {
         return json(
           {
             error: 'already_decided',
-            message: `This change request was already ${cr.status}.`,
+            message: `This change set was already ${cr.status}.`,
           },
           409
         );
@@ -425,15 +425,15 @@ export async function POST(req: Request, { params }: Ctx) {
         body.reason ?? (approving ? 'Approved from the console.' : 'Rejected from the console.');
 
       // An approved change actually applies its diff to the store.
-      if (approving) applyChangeRequest(cr);
+      if (approving) applyChangeSet(cr);
 
       recordAudit({
         actor: user.email,
         actorType: 'human',
-        eventType: approving ? 'ChangeRequestApproved' : 'ChangeRequestRejected',
+        eventType: approving ? 'ChangeSetApproved' : 'ChangeSetRejected',
         scope: cr.targetScope.targetId ?? 'tenant',
         summary: `${approving ? 'Approved' : 'Rejected'} ${cr.id}: ${cr.title}`,
-        changeRequestId: cr.id,
+        changeSetId: cr.id,
       });
 
       return json(cr);
@@ -447,13 +447,13 @@ export async function POST(req: Request, { params }: Ctx) {
       if (!user) return json({ error: 'no_session' }, 401);
 
       const tenantId = rest[0];
-      const strategyName = rest[1];
-      if (!tenantId || !strategyName) return notFound();
+      const flowName = rest[1];
+      if (!tenantId || !flowName) return notFound();
 
-      // POST /registry/{tenant}/{strategy}/promote
+      // POST /registry/{tenant}/{flow}/promote
       if (rest[2] === 'promote' || rest[2] === 'rollback') {
-        if (!user.permissions.includes('promote:strategies')) {
-          return forbidden('promote:strategies');
+        if (!user.permissions.includes('promote:flows')) {
+          return forbidden('promote:flows');
         }
         const body = (await req.json().catch(() => ({}))) as {
           version?: string;
@@ -468,7 +468,7 @@ export async function POST(req: Request, { params }: Ctx) {
             rest[2] === 'promote'
               ? await store.registry.promote(
                   tenantId,
-                  strategyName,
+                  flowName,
                   body.version ?? '',
                   body.environment,
                   user.email,
@@ -476,7 +476,7 @@ export async function POST(req: Request, { params }: Ctx) {
                 )
               : await store.registry.rollback(
                   tenantId,
-                  strategyName,
+                  flowName,
                   body.environment,
                   user.email,
                   new Date().toISOString()
@@ -486,12 +486,12 @@ export async function POST(req: Request, { params }: Ctx) {
             actor: user.email,
             actorType: 'human',
             eventType: rest[2] === 'promote' ? 'VersionPromoted' : 'VersionRolledBack',
-            scope: `strategy:${strategyName}`,
+            scope: `flow:${flowName}`,
             summary:
               rest[2] === 'promote'
-                ? `Promoted ${strategyName} ${body.version} to ${body.environment}`
-                : `Rolled ${strategyName} in ${body.environment} back to ${state.activeVersion}`,
-            changeRequestId: null,
+                ? `Promoted ${flowName} ${body.version} to ${body.environment}`
+                : `Rolled ${flowName} in ${body.environment} back to ${state.activeVersion}`,
+            changeSetId: null,
           });
 
           return json(state);
@@ -504,13 +504,13 @@ export async function POST(req: Request, { params }: Ctx) {
         }
       }
 
-      // POST /registry/{tenant}/{strategy} — publish
-      if (!user.permissions.includes('publish:strategies')) {
-        return forbidden('publish:strategies');
+      // POST /registry/{tenant}/{flow} — publish
+      if (!user.permissions.includes('publish:flows')) {
+        return forbidden('publish:flows');
       }
       const body = (await req.json().catch(() => ({}))) as {
         version?: string;
-        source?: StrategySource;
+        source?: DecisionFlowSource;
       };
       if (!body.version) {
         return json({ error: 'bad_request', message: 'Missing required field: version' }, 400);
@@ -522,7 +522,7 @@ export async function POST(req: Request, { params }: Ctx) {
       const outcome = await store.registry.publish(
         {
           tenantId,
-          strategyName,
+          flowName,
           version: body.version,
           source: body.source,
           actor: user.email,
@@ -536,9 +536,9 @@ export async function POST(req: Request, { params }: Ctx) {
           actor: user.email,
           actorType: 'human',
           eventType: 'ArtifactPublished',
-          scope: `strategy:${strategyName}`,
-          summary: `${outcome.status === 'published' ? 'Published' : 'Republished (unchanged)'} ${strategyName} ${body.version}`,
-          changeRequestId: null,
+          scope: `flow:${flowName}`,
+          summary: `${outcome.status === 'published' ? 'Published' : 'Republished (unchanged)'} ${flowName} ${body.version}`,
+          changeSetId: null,
         });
       }
 
@@ -561,13 +561,13 @@ export async function POST(req: Request, { params }: Ctx) {
 }
 
 /**
- * Apply an approved change request's diff to the store.
+ * Apply an approved change set's diff to the store.
  *
  * Only the change types the console can currently raise are handled; anything
  * else is approved for the record but leaves the data untouched, which is
  * honest rather than silently pretending.
  */
-function applyChangeRequest(cr: (typeof store.changeRequests)[number]) {
+function applyChangeSet(cr: (typeof store.changeSets)[number]) {
   switch (cr.changeType) {
     case 'arbitration_weights': {
       for (const d of cr.diff) {
@@ -579,14 +579,14 @@ function applyChangeRequest(cr: (typeof store.changeRequests)[number]) {
       const w = store.arbitration.weights;
       store.arbitration.formula = `Priority = P^${w.propensity.toFixed(2)} × V^${w.value.toFixed(
         2
-      )} × L^${w.lever.toFixed(2)} × C^${w.context.toFixed(2)}`;
+      )} × B^${w.boost.toFixed(2)} × C^${w.context.toFixed(2)}`;
       break;
     }
-    case 'lever_adjust': {
+    case 'boost_adjust': {
       for (const d of cr.diff) {
-        const leverId = d.field.split('.')[0];
-        const lever = store.levers.find((l) => l.id === leverId);
-        if (lever) lever.value = Number(d.after);
+        const boostId = d.field.split('.')[0];
+        const boost = store.boosts.find((l) => l.id === boostId);
+        if (boost) boost.value = Number(d.after);
       }
       break;
     }
@@ -595,21 +595,21 @@ function applyChangeRequest(cr: (typeof store.changeRequests)[number]) {
         // e.g. "pol_heavy_user.conditions[0].value"
         const match = d.field.match(/^(\w+)\.conditions\[(\d+)\]\.value$/);
         if (match) {
-          const policy = store.engagementPolicies.find((p) => p.id === match[1]);
+          const policy = store.targetingPolicies.find((p) => p.id === match[1]);
           const cond = policy?.conditions[Number(match[2])];
           if (cond) cond.value = Number(d.after);
           continue;
         }
         const activeMatch = d.field.match(/^(\w+)\.active$/);
         if (activeMatch) {
-          const policy = store.engagementPolicies.find((p) => p.id === activeMatch[1]);
+          const policy = store.targetingPolicies.find((p) => p.id === activeMatch[1]);
           if (policy) policy.active = d.after === 'true';
         }
       }
       break;
     }
-    case 'proposition_retire': {
-      const prop = store.propositions.find((p) => p.id === cr.targetScope.targetId);
+    case 'offer_retire': {
+      const prop = store.offers.find((p) => p.id === cr.targetScope.targetId);
       if (prop) prop.status = 'retired';
       break;
     }
@@ -636,7 +636,7 @@ export async function PUT(req: Request, { params }: Ctx) {
       const w = store.arbitration.weights;
       store.arbitration.formula = `Priority = P^${w.propensity.toFixed(2)} × V^${w.value.toFixed(
         2
-      )} × L^${w.lever.toFixed(2)} × C^${w.context.toFixed(2)}`;
+      )} × B^${w.boost.toFixed(2)} × C^${w.context.toFixed(2)}`;
       store.arbitration.updatedAt = new Date().toISOString();
       store.arbitration.updatedBy = user.email;
 
@@ -677,7 +677,7 @@ export async function PUT(req: Request, { params }: Ctx) {
         summary:
           `${connector.name}: active ${before.active} to ${connector.active}, ` +
           `cache ${before.cacheTtlSeconds}s to ${connector.cacheTtlSeconds}s`,
-        changeRequestId: null,
+        changeSetId: null,
       });
       return json(connector);
     }
@@ -704,14 +704,14 @@ export async function PUT(req: Request, { params }: Ctx) {
       return json(setting);
     }
 
-    case 'propositions': {
-      if (!user.permissions.includes('edit:propositions')) return forbidden('edit:propositions');
-      const propositionId = rest[1];
-      const index = store.propositions.findIndex((p) => p.id === propositionId);
-      if (index === -1) return notFound(`No proposition ${propositionId}`);
+    case 'offers': {
+      if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
+      const offerId = rest[1];
+      const index = store.offers.findIndex((p) => p.id === offerId);
+      if (index === -1) return notFound(`No offer ${offerId}`);
 
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-      const before = store.propositions[index];
+      const before = store.offers[index];
       const updated = {
         ...before,
         ...body,
@@ -719,7 +719,7 @@ export async function PUT(req: Request, { params }: Ctx) {
         updatedAt: new Date().toISOString(),
         updatedBy: user.email,
       };
-      store.propositions[index] = updated;
+      store.offers[index] = updated;
 
       const changed = Object.keys(body).filter(
         (k) => JSON.stringify((before as unknown as Record<string, unknown>)[k]) !== JSON.stringify(body[k])
@@ -728,8 +728,8 @@ export async function PUT(req: Request, { params }: Ctx) {
       recordAudit({
         actor: user.email,
         actorType: 'human',
-        eventType: 'PropositionUpdated',
-        scope: propositionId,
+        eventType: 'OfferUpdated',
+        scope: offerId,
         summary: `Updated ${updated.name}${changed.length ? ` (${changed.join(', ')})` : ''}.`,
       });
       return json(updated);

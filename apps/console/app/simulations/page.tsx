@@ -19,11 +19,11 @@ import { cn } from '@/lib/cn';
 
 function SimulationsView() {
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['change-requests'],
-    queryFn: () => apiClient.listChangeRequests(),
+    queryKey: ['change-sets'],
+    queryFn: () => apiClient.listChangeSets(),
   });
 
-  const withSim = (data?.changeRequests ?? []).filter((c) => c.simulation);
+  const withSim = (data?.changeSets ?? []).filter((c) => c.simulation);
   const passed = withSim.filter((c) => c.simulation!.passed).length;
   const failed = withSim.length - passed;
 
@@ -64,11 +64,11 @@ function SimulationsView() {
                 Ad-hoc simulation is specified but not implemented
               </p>
               <p className="mt-1 text-body text-content-muted">
-                The <code className="font-mono text-label">simulateStrategy</code> and{' '}
+                The <code className="font-mono text-label">simulateDecisionFlow</code> and{' '}
                 <code className="font-mono text-label">getCounterfactual</code> operations exist in
                 the OpenAPI spec, and the execution plane has not built them. Until it does, this
-                page shows the simulations that were run as part of a change request. Running one
-                on demand — pick a strategy, pick a population, see the distribution shift — needs
+                page shows the simulations that were run as part of a change set. Running one
+                on demand — pick a flow, pick a population, see the distribution shift — needs
                 the platform side first.
               </p>
               <p className="mt-1.5 text-label text-content-subtle">
@@ -82,7 +82,7 @@ function SimulationsView() {
       <Card>
         <CardHeader
           title="Simulation results"
-          description="From change requests, newest first."
+          description="From change sets, newest first."
         />
         <CardBody className="p-0">
           {isLoading ? (

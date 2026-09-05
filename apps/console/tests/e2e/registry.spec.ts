@@ -5,14 +5,14 @@ import { login, resetStore, ACCOUNTS } from './helpers';
  * The artifact registry, through the console.
  *
  * The gap this closes was recorded for weeks: the console showed the
- * compiler's verdict and nothing acted on it, so a strategy with an error
+ * compiler's verdict and nothing acted on it, so a flow with an error
  * could be promoted to production and fail at execution instead of at publish.
  * The first test here is that gap, closed.
  */
 
-/** A strategy the compiler refuses: no arbitration node, no deliverable treatment. */
+/** A flow the compiler refuses: no arbitration node, no deliverable creative. */
 const UNCOMPILABLE = 'plan-fit-nudges';
-/** A strategy that published cleanly and is running in production. */
+/** A flow that published cleanly and is running in production. */
 const PUBLISHED = 'next-best-action';
 
 test.describe('the compilation gate', () => {
@@ -21,8 +21,8 @@ test.describe('the compilation gate', () => {
     await login(page, ACCOUNTS.marcus);
   });
 
-  test('a strategy that does not compile is not in the registry', async ({ page }) => {
-    await page.goto(`/strategies/${UNCOMPILABLE}`);
+  test('a flow that does not compile is not in the registry', async ({ page }) => {
+    await page.goto(`/decision-flows/${UNCOMPILABLE}`);
 
     await expect(page.getByRole('heading', { name: 'Registry' })).toBeVisible();
     await expect(page.getByText('Not in the registry')).toBeVisible();
@@ -31,7 +31,7 @@ test.describe('the compilation gate', () => {
   });
 
   test('the refusal is in the registry log, not silently dropped', async ({ page }) => {
-    await page.goto(`/strategies/${UNCOMPILABLE}`);
+    await page.goto(`/decision-flows/${UNCOMPILABLE}`);
 
     await expect(page.getByText('PublishRejected')).toBeVisible();
     // Naming the codes is what makes the log answerable rather than decorative.
@@ -42,8 +42,8 @@ test.describe('the compilation gate', () => {
     ).toBeVisible();
   });
 
-  test('a strategy that compiles is published and running', async ({ page }) => {
-    await page.goto(`/strategies/${PUBLISHED}`);
+  test('a flow that compiles is published and running', async ({ page }) => {
+    await page.goto(`/decision-flows/${PUBLISHED}`);
 
     await expect(page.getByRole('heading', { name: 'Registry' })).toBeVisible();
     await expect(page.getByText('ArtifactPublished')).toBeVisible();
@@ -55,7 +55,7 @@ test.describe('promotion and rollback', () => {
   test.beforeEach(async ({ page }) => {
     await resetStore(page);
     await login(page, ACCOUNTS.marcus);
-    await page.goto(`/strategies/${PUBLISHED}`);
+    await page.goto(`/decision-flows/${PUBLISHED}`);
   });
 
   test('promoting to an environment is recorded', async ({ page }) => {
@@ -75,7 +75,7 @@ test.describe('promotion and rollback', () => {
   });
 
   test('rollback appears once an environment has a predecessor, and works', async ({ page, request }) => {
-    // The seed publishes one version per strategy, so a second has to be
+    // The seed publishes one version per flow, so a second has to be
     // published to reach the state rollback exists for. Doing it through the
     // API rather than the UI because there is no authoring surface yet — the
     // point being tested is the registry, not how a version gets drafted.
@@ -131,10 +131,10 @@ test.describe('promotion and rollback', () => {
 });
 
 test.describe('registry permissions', () => {
-  test('an account without promote:strategies cannot promote', async ({ page }) => {
+  test('an account without promote:flows cannot promote', async ({ page }) => {
     await resetStore(page);
     await login(page, ACCOUNTS.priya);
-    await page.goto(`/strategies/${PUBLISHED}`);
+    await page.goto(`/decision-flows/${PUBLISHED}`);
 
     // Compliance can see what is running — that is most of their job — without
     // being able to change what customers get.
@@ -257,7 +257,7 @@ test.describe('the registry API', () => {
       await request.get(`/api/registry/telco-uk/${PUBLISHED}`, { headers: auth() })
     ).json();
     const before = await (
-      await request.get(`/api/registry/telco-uk/events?strategyName=${PUBLISHED}`, {
+      await request.get(`/api/registry/telco-uk/events?flowName=${PUBLISHED}`, {
         headers: auth(),
       })
     ).json();
@@ -285,7 +285,7 @@ test.describe('the registry API', () => {
     expect((await republish.json()).status).toBe('unchanged');
 
     const after = await (
-      await request.get(`/api/registry/telco-uk/events?strategyName=${PUBLISHED}`, {
+      await request.get(`/api/registry/telco-uk/events?flowName=${PUBLISHED}`, {
         headers: auth(),
       })
     ).json();
@@ -324,7 +324,7 @@ test.describe('the registry API', () => {
     expect(body.existingHash).not.toBe(body.attemptedHash);
   });
 
-  test('refuses to publish a strategy that does not compile', async ({ request }) => {
+  test('refuses to publish a flow that does not compile', async ({ request }) => {
     const res = await request.post(`/api/registry/telco-uk/${PUBLISHED}`, {
       headers: auth(),
       data: {

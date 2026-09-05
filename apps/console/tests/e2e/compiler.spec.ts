@@ -11,8 +11,8 @@ test.describe('compiler output in the console', () => {
     await login(page, ACCOUNTS.marcus);
   });
 
-  test('flags a strategy that fails to compile in the list', async ({ page }) => {
-    await page.goto('/strategies');
+  test('flags a flow that fails to compile in the list', async ({ page }) => {
+    await page.goto('/decision-flows');
 
     const row = page.getByRole('row').filter({ hasText: 'plan-fit-nudges' });
 
@@ -27,7 +27,7 @@ test.describe('compiler output in the console', () => {
   });
 
   test('shows why it fails, and what to do about it', async ({ page }) => {
-    await page.goto('/strategies/plan-fit-nudges');
+    await page.goto('/decision-flows/plan-fit-nudges');
 
     await expect(page.getByText('Blocked.')).toBeVisible();
 
@@ -36,18 +36,18 @@ test.describe('compiler output in the console', () => {
     // is the compilation gate working, not a duplicate.
     await expect(page.getByText('NO_ARBITRATION', { exact: true })).toBeVisible();
     await expect(
-      page.getByText('The strategy has no arbitrate node, so it can never select a winner.')
+      page.getByText('The flow has no arbitrate node, so it can never select a winner.')
     ).toBeVisible();
 
     // A remedy, phrased for someone who is not the compiler author.
     await expect(page.getByText('Add an arbitrate node as the final step.')).toBeVisible();
 
-    // The undeliverable-offer check, which the propositions page also surfaces.
-    await expect(page.getByText('NO_DELIVERABLE_TREATMENT', { exact: true })).toBeVisible();
+    // The undeliverable-offer check, which the offers page also surfaces.
+    await expect(page.getByText('NO_DELIVERABLE_CREATIVE', { exact: true })).toBeVisible();
   });
 
-  test('shows a passing strategy with its pinned versions and cost', async ({ page }) => {
-    await page.goto('/strategies/next-best-action');
+  test('shows a passing flow with its pinned versions and cost', async ({ page }) => {
+    await page.goto('/decision-flows/next-best-action');
 
     await expect(page.getByText('passing')).toBeVisible();
     await expect(page.getByText('Validated against the catalogue')).toBeVisible();
@@ -64,10 +64,10 @@ test.describe('compiler output in the console', () => {
     await expect(page.getByText(/23\.9ms \/ 50ms/)).toBeVisible();
   });
 
-  test('surfaces the missing-score warning that made a strategy return nothing', async ({
+  test('surfaces the missing-score warning that made a flow return nothing', async ({
     page,
   }) => {
-    await page.goto('/strategies/inbound-web-offers');
+    await page.goto('/decision-flows/inbound-web-offers');
 
     await expect(page.getByText('ARBITRATION_MISSING_SCORE', { exact: true })).toBeVisible();
     // Twice on this page now: once in the compile report, once in the warnings

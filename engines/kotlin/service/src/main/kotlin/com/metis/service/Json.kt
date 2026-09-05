@@ -69,27 +69,27 @@ object Json {
             )
         }
 
-    fun proposition(n: JsonNode) = Proposition(
-        id = req(n["id"], "proposition.id").asText(),
-        groupId = req(n["groupId"], "proposition.groupId").asText(),
-        issueId = req(n["issueId"], "proposition.issueId").asText(),
-        key = req(n["key"], "proposition.key").asText(),
-        status = req(n["status"], "proposition.status").asText(),
+    fun offer(n: JsonNode) = Offer(
+        id = req(n["id"], "offer.id").asText(),
+        categoryId = req(n["categoryId"], "offer.categoryId").asText(),
+        objectiveId = req(n["objectiveId"], "offer.objectiveId").asText(),
+        key = req(n["key"], "offer.key").asText(),
+        status = req(n["status"], "offer.status").asText(),
         financials = Financials(
             Money(
                 req(n["financials"]?.get("expectedMargin")?.get("amount"), "expectedMargin.amount").asDouble(),
                 n["financials"]["expectedMargin"]["currency"]?.asText() ?: "GBP",
             )
         ),
-        validity = validity(n["validity"]) ?: throw BadRequest("proposition.validity is required"),
-        lever = req(n["lever"], "proposition.lever").asDouble(),
+        validity = validity(n["validity"]) ?: throw BadRequest("offer.validity is required"),
+        boost = req(n["boost"], "offer.boost").asDouble(),
         policyIds = n["policyIds"]?.map { it.asText() } ?: emptyList(),
     )
 
     fun catalogue(n: JsonNode) = CatalogueSnapshot(
-        propositions = req(n["propositions"], "catalogue.propositions").map { proposition(it) },
-        engagementPolicies = (n["engagementPolicies"] ?: mapper.createArrayNode()).map { p ->
-            EngagementPolicy(
+        offers = req(n["offers"], "catalogue.offers").map { offer(it) },
+        targetingPolicies = (n["targetingPolicies"] ?: mapper.createArrayNode()).map { p ->
+            TargetingPolicy(
                 id = req(p["id"], "policy.id").asText(),
                 kind = req(p["kind"], "policy.kind").asText(),
                 conditions = (p["conditions"] ?: mapper.createArrayNode()).map {
@@ -103,13 +103,13 @@ object Json {
                 active = p["active"]?.asBoolean() ?: true,
             )
         },
-        contactPolicies = (n["contactPolicies"] ?: mapper.createArrayNode()).map { c ->
-            ContactPolicy(
-                id = req(c["id"], "contactPolicy.id").asText(),
+        frequencyPolicies = (n["frequencyPolicies"] ?: mapper.createArrayNode()).map { c ->
+            FrequencyPolicy(
+                id = req(c["id"], "frequencyPolicy.id").asText(),
                 channel = c["channel"]?.takeIf { !it.isNull }?.asText(),
-                maxContacts = req(c["maxContacts"], "contactPolicy.maxContacts").asDouble(),
-                period = req(c["period"], "contactPolicy.period").asText(),
-                scope = scope(req(c["scope"], "contactPolicy.scope")),
+                maxContacts = req(c["maxContacts"], "frequencyPolicy.maxContacts").asDouble(),
+                period = req(c["period"], "frequencyPolicy.period").asText(),
+                scope = scope(req(c["scope"], "frequencyPolicy.scope")),
                 active = c["active"]?.asBoolean() ?: true,
             )
         },
@@ -118,17 +118,17 @@ object Json {
                 ArbitrationWeights(
                     req(it["propensity"], "weights.propensity").asDouble(),
                     req(it["value"], "weights.value").asDouble(),
-                    req(it["lever"], "weights.lever").asDouble(),
+                    req(it["boost"], "weights.boost").asDouble(),
                     req(it["context"], "weights.context").asDouble(),
                 )
             },
             formula = req(n["arbitration"]?.get("formula"), "arbitration.formula").asText(),
         ),
-        levers = (n["levers"] ?: mapper.createArrayNode()).map { l ->
-            Lever(
-                req(l["id"], "lever.id").asText(),
-                scope(req(l["scope"], "lever.scope")),
-                req(l["value"], "lever.value").asDouble(),
+        boosts = (n["boosts"] ?: mapper.createArrayNode()).map { l ->
+            Boost(
+                req(l["id"], "boost.id").asText(),
+                scope(req(l["scope"], "boost.scope")),
+                req(l["value"], "boost.value").asDouble(),
                 validity(l["validity"]),
             )
         },
@@ -160,7 +160,7 @@ object Json {
                 model = node["model"]?.takeIf { !it.isNull }?.let {
                     Model(req(it["id"], "model.id").asText(), req(it["version"], "model.version").asText())
                 },
-                contactPolicyIds = node["contactPolicyIds"]?.map { it.asText() },
+                frequencyPolicyIds = node["frequencyPolicyIds"]?.map { it.asText() },
                 connectorIds = node["connectorIds"]?.map { it.asText() },
             )
         },

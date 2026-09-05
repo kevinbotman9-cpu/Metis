@@ -52,7 +52,7 @@ object Canon {
             "thirdParty" to Value.Bool(d.consentState.thirdParty),
         ),
         "winner" to strOrNull(d.winner),
-        "winnerPropositionId" to strOrNull(d.winnerPropositionId),
+        "winnerOfferId" to strOrNull(d.winnerOfferId),
     )
 
     private fun binding(b: SourceBinding): Value = obj(
@@ -72,7 +72,7 @@ object Canon {
     private fun score(s: CandidateScore): Value = obj(
         "propensity" to num(s.propensity),
         "value" to num(s.value),
-        "lever" to num(s.lever),
+        "boost" to num(s.boost),
         "context" to num(s.context),
         "priority" to num(s.priority),
     )

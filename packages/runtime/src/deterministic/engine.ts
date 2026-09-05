@@ -15,10 +15,10 @@
  */
 
 import type {
-  Proposition,
-  EngagementPolicy,
+  Offer,
+  TargetingPolicy,
   PolicyCondition,
-  Lever,
+  Boost,
   PolicyScope,
   SourceBinding,
 } from '@metis/core/domain';
@@ -28,7 +28,7 @@ import type {
   ExecNode,
   CatalogueSnapshot,
   DecisionRequest,
-  DecisionTrace,
+  DecisionRecord,
   DeterministicDecision,
   EliminationStep,
   CandidateScore,
@@ -90,20 +90,20 @@ function compare(actual: unknown, operator: PolicyCondition['operator'], expecte
 }
 
 /** All conditions must hold. Use separate policies to express OR. */
-function policyPasses(policy: EngagementPolicy, input: Record<string, unknown>): boolean {
+function policyPasses(policy: TargetingPolicy, input: Record<string, unknown>): boolean {
   return policy.conditions.every((c) => compare(readPath(input, c.field), c.operator, c.value));
 }
 
-/** Does this scope cover this proposition? */
-function scopeCovers(scope: PolicyScope, p: Proposition): boolean {
+/** Does this scope cover this offer? */
+function scopeCovers(scope: PolicyScope, p: Offer): boolean {
   switch (scope.level) {
     case 'tenant':
       return true;
-    case 'issue':
-      return scope.targetId === p.issueId;
-    case 'group':
-      return scope.targetId === p.groupId;
-    case 'proposition':
+    case 'objective':
+      return scope.targetId === p.objectiveId;
+    case 'category':
+      return scope.targetId === p.categoryId;
+    case 'offer':
       return scope.targetId === p.id;
     default:
       return false;
@@ -112,17 +112,17 @@ function scopeCovers(scope: PolicyScope, p: Proposition): boolean {
 
 const SCOPE_RANK: Record<PolicyScope['level'], number> = {
   tenant: 0,
-  issue: 1,
-  group: 2,
-  proposition: 3,
+  objective: 1,
+  category: 2,
+  offer: 3,
 };
 
 /**
- * Effective lever for a proposition: the most specific scope wins, matching how
- * autonomy resolves. Falls back to the proposition's own weight.
+ * Effective boost for an offer: the most specific scope wins, matching how
+ * autonomy resolves. Falls back to the offer's own weight.
  */
-function effectiveLever(levers: Lever[], p: Proposition, occurredAt: string): number {
-  const applicable = levers.filter((l) => {
+function effectiveBoost(boosts: Boost[], p: Offer, occurredAt: string): number {
+  const applicable = boosts.filter((l) => {
     if (!scopeCovers(l.scope, p)) return false;
     if (!l.validity) return true;
     const day = occurredAt.slice(0, 10);
@@ -131,14 +131,14 @@ function effectiveLever(levers: Lever[], p: Proposition, occurredAt: string): nu
     return true;
   });
 
-  if (applicable.length === 0) return p.lever;
+  if (applicable.length === 0) return p.boost;
 
   return applicable.reduce((best, cur) =>
     SCOPE_RANK[cur.scope.level] > SCOPE_RANK[best.scope.level] ? cur : best
   ).value;
 }
 
-function withinValidity(p: Proposition, occurredAt: string): boolean {
+function withinValidity(p: Offer, occurredAt: string): boolean {
   const day = occurredAt.slice(0, 10);
   if (day < p.validity.startsAt) return false;
   if (p.validity.endsAt && day > p.validity.endsAt) return false;
@@ -189,7 +189,7 @@ export function topologicalOrder(artifact: ExecArtifact): ExecNode[] {
   }
 
   if (order.length !== artifact.nodes.length) {
-    throw new Error('Strategy graph contains a cycle; execution must terminate');
+    throw new Error('Flow graph contains a cycle; execution must terminate');
   }
   return order;
 }
@@ -209,7 +209,7 @@ const SERVICE_EXEMPT_THRESHOLD = 50;
  * The catalogue snapshot hash, memoised per snapshot object.
  *
  * Hashing the whole catalogue on every decision is O(catalogue) work in the hot
- * path: with a few thousand propositions it dominated execution entirely
+ * path: with a few thousand offers it dominated execution entirely
  * (1.5ms per decision, almost all of it re-hashing identical data). The
  * snapshot is immutable for the life of a request batch, so caching on object
  * identity is safe, and a WeakMap lets the entry go when the snapshot does.
@@ -226,7 +226,7 @@ function catalogueHash(catalogue: CatalogueSnapshot): string {
 
 const KIND_LABEL = {
   eligibility: 'Eligibility',
-  applicability: 'Applicability',
+  relevance: 'Relevance',
   suitability: 'Suitability',
 } as const;
 
@@ -234,19 +234,19 @@ export function execute(
   artifact: ExecArtifact,
   catalogue: CatalogueSnapshot,
   request: DecisionRequest
-): DecisionTrace {
+): DecisionRecord {
   const startedAt = Date.now();
   const timingsByNode: Record<string, number> = {};
 
-  const byKey = new Map(catalogue.propositions.map((p) => [p.key, p]));
-  const policyById = new Map(catalogue.engagementPolicies.map((p) => [p.id, p]));
+  const byKey = new Map(catalogue.offers.map((p) => [p.key, p]));
+  const policyById = new Map(catalogue.targetingPolicies.map((p) => [p.id, p]));
   const connectorById = new Map((catalogue.connectors ?? []).map((c) => [c.id, c]));
   const sourceBindings: SourceBinding[] = [];
 
   // Initial candidate set, in artifact order so it is reproducible.
-  let candidates: Proposition[] = artifact.candidateKeys
+  let candidates: Offer[] = artifact.candidateKeys
     .map((k) => byKey.get(k))
-    .filter((p): p is Proposition => Boolean(p));
+    .filter((p): p is Offer => Boolean(p));
 
   const consent = request.consent ?? { marketing: true, profiling: true, thirdParty: false };
   const eliminations: EliminationStep[] = [];
@@ -255,7 +255,7 @@ export function execute(
   let winner: string | null = null;
   let runnerUp: string | null = null;
 
-  const record = (node: ExecNode, reason: string, before: Proposition[], after: Proposition[]) => {
+  const record = (node: ExecNode, reason: string, before: Offer[], after: Offer[]) => {
     const survivedKeys = after.map((p) => p.key);
     eliminations.push({
       nodeId: node.id,
@@ -287,7 +287,7 @@ export function execute(
         }
 
         // Validity and status are intrinsic to the candidate set: a retired or
-        // out-of-window proposition was never really a candidate.
+        // out-of-window offer was never really a candidate.
         candidates = before.filter(
           (p) => p.status === 'active' && withinValidity(p, request.occurredAt)
         );
@@ -315,30 +315,30 @@ export function execute(
       case 'constraint': {
         const policies = (node.policyIds ?? [])
           .map((id) => policyById.get(id))
-          .filter((p): p is EngagementPolicy => Boolean(p) && p!.active);
+          .filter((p): p is TargetingPolicy => Boolean(p) && p!.active);
 
         candidates = before.filter((p) =>
           policies.every((policy) => {
             // A policy only applies where its scope covers the candidate, and
             // where the candidate has opted into it.
             if (!scopeCovers(policy.scope, p)) return true;
-            if (!p.policyIds.includes(policy.id) && policy.scope.level === 'proposition') {
+            if (!p.policyIds.includes(policy.id) && policy.scope.level === 'offer') {
               return true;
             }
             return policyPasses(policy, request.input);
           })
         );
 
-        // Contact policy and consent are enforced at constraint nodes only.
+        // Frequency policy and consent are enforced at constraint nodes only.
         if (node.type === 'constraint') {
           const used = request.contactHistory?.withinPeriod ?? {};
 
-          // A contact policy binds to a scope, exactly like an engagement
+          // A frequency policy binds to a scope, exactly like an engagement
           // policy. Applying them all to every candidate is wrong: a
-          // once-a-month cooldown scoped to one group would otherwise suppress
+          // once-a-month cooldown scoped to one category would otherwise suppress
           // the entire catalogue.
-          const relevantTo = (p: Proposition) =>
-            catalogue.contactPolicies.filter(
+          const relevantTo = (p: Offer) =>
+            catalogue.frequencyPolicies.filter(
               (c) =>
                 c.active &&
                 scopeCovers(c.scope, p) &&
@@ -383,18 +383,18 @@ export function execute(
         const modelKey = node.model ? `${node.model.id}@${node.model.version}` : node.id;
         for (const p of candidates) {
           // Deterministic stand-in for a pinned model. Same customer, same
-          // proposition, same model version always yields the same propensity.
+          // offer, same model version always yields the same propensity.
           const propensity = round(
             0.05 + seededUnitInterval(request.customerId, p.key, modelKey) * 0.9,
             6
           );
           const value = round(Math.max(0.01, p.financials.expectedMargin.amount / 60000), 6);
-          const lever = effectiveLever(catalogue.levers, p, request.occurredAt);
+          const boost = effectiveBoost(catalogue.boosts, p, request.occurredAt);
           const context = round(
             0.4 + seededUnitInterval(request.channel, p.key, request.placement) * 0.6,
             6
           );
-          scores[p.key] = { propensity, value, lever, context, priority: 0 };
+          scores[p.key] = { propensity, value, boost, context, priority: 0 };
         }
         record(node, `Scored ${candidates.length} candidate(s) with ${modelKey}.`, before, candidates);
         break;
@@ -403,7 +403,7 @@ export function execute(
       case 'arbitrate': {
         const w = catalogue.arbitration.weights;
 
-        // A candidate with no model score is not disqualified. Some strategies
+        // A candidate with no model score is not disqualified. Some flows
         // legitimately rank without a propensity model - anonymous web traffic
         // has no customer to score - and their formula says so. A missing term
         // is neutral, which under exponentiation means 1.0, not 0.
@@ -412,7 +412,7 @@ export function execute(
           scores[p.key] = {
             propensity: 1,
             value: round(Math.max(0.01, p.financials.expectedMargin.amount / 60000), 6),
-            lever: effectiveLever(catalogue.levers, p, request.occurredAt),
+            boost: effectiveBoost(catalogue.boosts, p, request.occurredAt),
             context: 1,
             priority: 0,
           };
@@ -424,7 +424,7 @@ export function execute(
           s.priority = round(
             Math.pow(s.propensity, w.propensity) *
               Math.pow(s.value, w.value) *
-              Math.pow(s.lever, w.lever) *
+              Math.pow(s.boost, w.boost) *
               Math.pow(s.context, w.context),
             8
           );
@@ -469,7 +469,7 @@ export function execute(
     timingsByNode[node.id] = round(Date.now() - nodeStart, 3);
   }
 
-  const winnerProposition = winner ? byKey.get(winner) ?? null : null;
+  const winnerOffer = winner ? byKey.get(winner) ?? null : null;
 
   const decision: DeterministicDecision = {
     tenantId: request.tenantId,
@@ -495,7 +495,7 @@ export function execute(
     constraintsApplied: [...new Set(constraintsApplied)].sort(),
     consentState: consent,
     winner,
-    winnerPropositionId: winnerProposition?.id ?? null,
+    winnerOfferId: winnerOffer?.id ?? null,
   };
 
   // One hash, used twice. `shortHash` is a prefix of `hash`, so computing both
@@ -539,7 +539,7 @@ export function execute(
 export function replay(
   artifact: ExecArtifact,
   catalogue: CatalogueSnapshot,
-  trace: DecisionTrace,
+  trace: DecisionRecord,
   input: Record<string, unknown>,
   contactHistory?: DecisionRequest['contactHistory']
 ): ReplayResult {

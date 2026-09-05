@@ -9,7 +9,7 @@
 
 ## Context
 
-METIS requires a web console for six personas (Marketer, Compliance Officer, Executive, Operator, Data Scientist, Decision Architect) to design strategies, approve changes, inspect audit trails, and operate the platform. The console will be deployed into customer infrastructure (Kubernetes), sometimes air-gapped, so it must be containerisable and runnable without external CDNs.
+METIS requires a web console for six personas (Marketer, Compliance Officer, Executive, Operator, Data Scientist, Decision Architect) to design flows, approve changes, inspect audit trails, and operate the platform. The console will be deployed into customer infrastructure (Kubernetes), sometimes air-gapped, so it must be containerisable and runnable without external CDNs.
 
 Two viable architectures:
 
@@ -38,7 +38,7 @@ Two viable architectures:
 ### Trade-offs Accepted
 
 - **Requires Node runtime in-cluster.** If customer infra absolutely refuses Node, this decision breaks and we fall back to Vite SPA. That is a known exit, not a problem we need to solve today.
-- **Build-time output incompatible with edge compute.** Static SSG is not viable here (strategy content is real-time). We cannot ship to Cloudflare Workers or Deno Deploy without retooling. Acceptable trade-off for the customer-deployment use case.
+- **Build-time output incompatible with edge compute.** Static SSG is not viable here (flow content is real-time). We cannot ship to Cloudflare Workers or Deno Deploy without retooling. Acceptable trade-off for the customer-deployment use case.
 - **Slightly higher operational complexity.** Running Node in production requires observability (node_exporter, structured logging) and graceful shutdown handling. Teams that have done this before own it; teams without will need an extra sprint of runbook work.
 
 ---

@@ -1,24 +1,24 @@
 /**
  * METIS Compiler
  *
- * `compileStrategy` validates the graph the runtime actually executes, pins
+ * `compileDecisionFlow` validates the graph the runtime actually executes, pins
  * versions and models, and produces a content-hashed artifact. Nothing reaches
  * the runtime without passing it.
  */
 
 export {
-  compileStrategy,
+  compileDecisionFlow,
   resolveRange,
   formatReport,
-  type StrategySource,
-  type StrategyNode,
-  type StrategyEdge,
-  type StrategyNodeType,
+  type DecisionFlowSource,
+  type FlowNode,
+  type FlowEdge,
+  type FlowNodeType,
   type CompileContext,
   type CompileResult,
-  type CompiledStrategy,
+  type CompiledDecisionFlow,
   type CostManifest,
-} from './strategy/compile';
+} from './decision-flow/compile';
 
 export {
   suggest,
@@ -26,5 +26,5 @@ export {
   sortDiagnostics,
   type Diagnostic,
   type Severity,
-} from './strategy/diagnostics';
+} from './decision-flow/diagnostics';
 

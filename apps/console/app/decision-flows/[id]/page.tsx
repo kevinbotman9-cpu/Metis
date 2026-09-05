@@ -20,11 +20,11 @@ import {
   EmptyState,
 } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
-import { DirCanvas } from '@/components/canvas/dir-canvas';
+import { FlowCanvas } from '@/components/canvas/flow-canvas';
 import { CompileReport } from '@/components/compile-report';
 import { RegistryPanel } from '@/components/registry-panel';
-import { apiClient, ApiError, type DirNodeDto } from '@/lib/api-client';
-import type { DirNode, DirEdge } from '@/mocks/fixtures/artifacts';
+import { apiClient, ApiError, type FlowNodeDto } from '@/lib/api-client';
+import type { FlowNode, FlowEdge } from '@/mocks/fixtures/artifacts';
 import { cn } from '@/lib/cn';
 
 const FAMILY_LABEL: Record<string, string> = {
@@ -35,7 +35,7 @@ const FAMILY_LABEL: Record<string, string> = {
   'score-model': 'Score',
   'score-adaptive': 'Score',
   switch: 'Branch',
-  'sub-strategy': 'Branch',
+  'sub-flow': 'Branch',
   'champion-challenger': 'Branch',
   'explain-annotate': 'Output',
   arbitrate: 'Decision',
@@ -52,7 +52,7 @@ function NodeInspector({
   node,
   policyNames,
 }: {
-  node: DirNodeDto;
+  node: FlowNodeDto;
   policyNames: Record<string, string>;
 }) {
   return (
@@ -123,10 +123,10 @@ function NodeInspector({
               ))}
             </ul>
             <Link
-              href="/engagement-policies"
+              href="/targeting-policies"
               className="mt-1.5 inline-block text-label text-accent hover:underline"
             >
-              All engagement policies →
+              All targeting policies →
             </Link>
           </div>
         )}
@@ -135,7 +135,7 @@ function NodeInspector({
   );
 }
 
-function StrategyDetail({ artifactId }: { artifactId: string }) {
+function FlowDetail({ artifactId }: { artifactId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data: artifact, isLoading, error, refetch } = useQuery({
@@ -145,14 +145,14 @@ function StrategyDetail({ artifactId }: { artifactId: string }) {
   });
 
   const policies = useQuery({
-    queryKey: ['engagement-policies'],
-    queryFn: () => apiClient.listEngagementPolicies(),
+    queryKey: ['targeting-policies'],
+    queryFn: () => apiClient.listTargetingPolicies(),
   });
 
   if (isLoading) {
     return (
       <PageBody>
-        <LoadingState label="Loading strategy" />
+        <LoadingState label="Loading decision flow" />
       </PageBody>
     );
   }
@@ -162,20 +162,20 @@ function StrategyDetail({ artifactId }: { artifactId: string }) {
     return (
       <PageBody>
         <PageHeader
-          title="Strategy"
+          title="Decision flow"
           breadcrumb={
-            <Link href="/strategies" className="text-label text-accent hover:underline">
-              ← Strategies
+            <Link href="/decision-flows" className="text-label text-accent hover:underline">
+              ← Flows
             </Link>
           }
         />
         {notFound ? (
           <Card>
             <EmptyState
-              title={`No strategy with ID ${artifactId}`}
+              title={`No flow with ID ${artifactId}`}
               action={
-                <Link href="/strategies">
-                  <Button variant="primary">Back to strategies</Button>
+                <Link href="/decision-flows">
+                  <Button variant="primary">Back to flows</Button>
                 </Link>
               }
             />
@@ -202,7 +202,7 @@ function StrategyDetail({ artifactId }: { artifactId: string }) {
           <Breadcrumbs
             items={[
               { label: 'Decisioning' },
-              { label: 'Strategies', href: '/strategies' },
+              { label: 'Decision flows', href: '/decision-flows' },
               { label: artifact.name },
             ]}
           />
@@ -240,7 +240,7 @@ function StrategyDetail({ artifactId }: { artifactId: string }) {
         <Metric
           label="Candidate set"
           value={artifact.candidateKeys.length}
-          sub="propositions in scope"
+          sub="offers in scope"
         />
         <Metric label="Versions" value={artifact.versions.length} sub="all replayable" />
       </div>
@@ -267,9 +267,9 @@ function StrategyDetail({ artifactId }: { artifactId: string }) {
           />
           {/* React Flow needs an explicit height. */}
           <div className="h-[460px] w-full bg-page">
-            <DirCanvas
-              nodes={artifact.nodes as unknown as DirNode[]}
-              edges={artifact.edges as unknown as DirEdge[]}
+            <FlowCanvas
+              nodes={artifact.nodes as unknown as FlowNode[]}
+              edges={artifact.edges as unknown as FlowEdge[]}
               selectedId={selectedId}
               onSelect={setSelectedId}
             />
@@ -307,14 +307,14 @@ function StrategyDetail({ artifactId }: { artifactId: string }) {
           <Card>
             <CardHeader
               title="Candidate set"
-              description="Propositions this strategy can select from."
+              description="Offers this decision flow can select from."
             />
             <CardBody>
               <ul className="space-y-1">
                 {artifact.candidateKeys.map((key) => (
                   <li key={key}>
                     <Link
-                      href={`/propositions?q=${encodeURIComponent(key)}`}
+                      href={`/offers?q=${encodeURIComponent(key)}`}
                       className="block rounded border border-border px-2 py-1.5 font-mono text-label text-accent transition-colors hover:bg-accent-subtle"
                     >
                       {key}
@@ -346,20 +346,20 @@ function StrategyDetail({ artifactId }: { artifactId: string }) {
                 href={`/decisions?artifact=${artifact.id}`}
                 className="mt-3 block rounded border border-border px-2 py-1.5 text-body transition-colors hover:border-accent hover:bg-accent-subtle"
               >
-                Decisions from this strategy →
+                Decisions from this flow →
               </Link>
             </CardBody>
           </Card>
 
-          <RegistryPanel strategyName={artifact.id} />
+          <RegistryPanel flowName={artifact.id} />
         </div>
       </div>
     </PageBody>
   );
 }
 
-export default function StrategyDetailPage() {
+export default function FlowDetailPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  return <RequireAuth>{id ? <StrategyDetail artifactId={id} /> : null}</RequireAuth>;
+  return <RequireAuth>{id ? <FlowDetail artifactId={id} /> : null}</RequireAuth>;
 }

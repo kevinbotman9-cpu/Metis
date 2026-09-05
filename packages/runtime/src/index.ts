@@ -31,7 +31,7 @@ export type {
   ExecNodeType,
   CatalogueSnapshot,
   DecisionRequest,
-  DecisionTrace,
+  DecisionRecord,
   DeterministicDecision,
   Measurements,
   EliminationStep,

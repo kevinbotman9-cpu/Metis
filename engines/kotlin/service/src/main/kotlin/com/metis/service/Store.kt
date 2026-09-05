@@ -3,7 +3,8 @@ package com.metis.service
 import com.fasterxml.jackson.databind.JsonNode
 import com.metis.canonical.Canonical
 import com.metis.engine.CatalogueSnapshot
-import com.metis.engine.DecisionTrace
+import com.metis.engine.ContactHistory
+import com.metis.engine.DecisionRecord
 import com.metis.engine.ExecArtifact
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -33,8 +34,13 @@ class Store(
      */
     private val traces = ConcurrentHashMap<String, StoredDecision>()
 
-    fun remember(trace: DecisionTrace, artifactId: String, input: Map<String, Any?>) {
-        traces[trace.id] = StoredDecision(trace, artifactId, input)
+    fun remember(
+        trace: DecisionRecord,
+        artifactId: String,
+        input: Map<String, Any?>,
+        contactHistory: ContactHistory?,
+    ) {
+        traces[trace.id] = StoredDecision(trace, artifactId, input, contactHistory)
     }
 
     fun recall(id: String): StoredDecision? = traces[id]
@@ -79,9 +85,18 @@ data class LoadedArtifact(val artifact: ExecArtifact)
  * — never against a fresh read, and never by calling an integration again. A
  * service that re-resolved on replay would reproduce today's answer rather than
  * the original one, which is the opposite of what replay is for.
+ *
+ * The contact history is kept for exactly the same reason, and was missing
+ * until 2026-09-05. Replay passed `null`, so any decision suppressed by a
+ * frequency policy replayed as unsuppressed and reported `identical: false`.
+ * The service conformance test did not catch it because it replays the first
+ * case in the corpus, and that case happened not to be suppression-dependent
+ * until the corpus was regenerated. Contact history is part of what the
+ * decision saw; leaving it out makes replay answer a different question.
  */
 data class StoredDecision(
-    val trace: DecisionTrace,
+    val trace: DecisionRecord,
     val artifactId: String,
     val input: Map<String, Any?>,
+    val contactHistory: ContactHistory?,
 )

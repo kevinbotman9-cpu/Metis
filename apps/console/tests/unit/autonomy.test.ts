@@ -9,8 +9,8 @@ import {
 
 const guardrails: AutonomyGuardrails = {
   maxBlastRadiusPct: 5,
-  allowedChangeTypes: ['lever_adjust'],
-  maxLeverDelta: 0.1,
+  allowedChangeTypes: ['boost_adjust'],
+  maxBoostDelta: 0.1,
   maxBudgetDelta: { amount: 50000, currency: 'GBP' },
   protectedAttributes: [],
   requireSimulationPass: true,
@@ -32,9 +32,9 @@ const setting = (
 });
 
 const ctx = {
-  propositionId: 'prop_a',
-  groupId: 'grp_a',
-  issueId: 'iss_a',
+  offerId: 'prop_a',
+  categoryId: 'grp_a',
+  objectiveId: 'iss_a',
 };
 
 describe('resolveAutonomy', () => {
@@ -47,29 +47,29 @@ describe('resolveAutonomy', () => {
     expect(resolveAutonomy(settings, ctx)?.id).toBe('s1');
   });
 
-  it('prefers issue over tenant', () => {
+  it('prefers objective over tenant', () => {
     const settings = [
       setting('tenant', 'L3', { level: 'tenant', targetId: null }),
-      setting('issue', 'L1', { level: 'issue', targetId: 'iss_a' }),
+      setting('objective', 'L1', { level: 'objective', targetId: 'iss_a' }),
     ];
-    expect(resolveAutonomy(settings, ctx)?.id).toBe('issue');
+    expect(resolveAutonomy(settings, ctx)?.id).toBe('objective');
   });
 
-  it('prefers group over issue', () => {
+  it('prefers category over objective', () => {
     const settings = [
       setting('tenant', 'L3', { level: 'tenant', targetId: null }),
-      setting('issue', 'L1', { level: 'issue', targetId: 'iss_a' }),
-      setting('group', 'L2', { level: 'group', targetId: 'grp_a' }),
+      setting('objective', 'L1', { level: 'objective', targetId: 'iss_a' }),
+      setting('category', 'L2', { level: 'category', targetId: 'grp_a' }),
     ];
-    expect(resolveAutonomy(settings, ctx)?.id).toBe('group');
+    expect(resolveAutonomy(settings, ctx)?.id).toBe('category');
   });
 
-  it('prefers proposition over everything', () => {
+  it('prefers offer over everything', () => {
     const settings = [
       setting('tenant', 'L3', { level: 'tenant', targetId: null }),
-      setting('issue', 'L1', { level: 'issue', targetId: 'iss_a' }),
-      setting('group', 'L2', { level: 'group', targetId: 'grp_a' }),
-      setting('prop', 'L0', { level: 'proposition', targetId: 'prop_a' }),
+      setting('objective', 'L1', { level: 'objective', targetId: 'iss_a' }),
+      setting('category', 'L2', { level: 'category', targetId: 'grp_a' }),
+      setting('prop', 'L0', { level: 'offer', targetId: 'prop_a' }),
     ];
     expect(resolveAutonomy(settings, ctx)?.id).toBe('prop');
   });
@@ -77,24 +77,24 @@ describe('resolveAutonomy', () => {
   it('ignores scopes belonging to a different target', () => {
     const settings = [
       setting('tenant', 'L2', { level: 'tenant', targetId: null }),
-      setting('other-group', 'L4', { level: 'group', targetId: 'grp_other' }),
-      setting('other-prop', 'L4', { level: 'proposition', targetId: 'prop_other' }),
+      setting('other-category', 'L4', { level: 'category', targetId: 'grp_other' }),
+      setting('other-prop', 'L4', { level: 'offer', targetId: 'prop_other' }),
     ];
     expect(resolveAutonomy(settings, ctx)?.id).toBe('tenant');
   });
 
-  it('resolves a restrictive proposition rule under a permissive group', () => {
+  it('resolves a restrictive offer rule under a permissive category', () => {
     // The case the product depends on: one regulated offer pinned low while the
-    // rest of its group runs autonomously.
+    // rest of its category runs autonomously.
     const settings = [
-      setting('group', 'L3', { level: 'group', targetId: 'grp_a' }),
-      setting('regulated', 'L0', { level: 'proposition', targetId: 'prop_a' }),
+      setting('category', 'L3', { level: 'category', targetId: 'grp_a' }),
+      setting('regulated', 'L0', { level: 'offer', targetId: 'prop_a' }),
     ];
     const resolved = resolveAutonomy(settings, ctx);
     expect(resolved?.level).toBe('L0');
 
-    // A sibling proposition in the same group still gets the group's level.
-    const sibling = resolveAutonomy(settings, { ...ctx, propositionId: 'prop_b' });
+    // A sibling offer in the same category still gets the category's level.
+    const sibling = resolveAutonomy(settings, { ...ctx, offerId: 'prop_b' });
     expect(sibling?.level).toBe('L3');
   });
 });

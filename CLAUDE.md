@@ -63,19 +63,56 @@ The platform will lag the console. This is normal and OK.
 
 ## Vocabulary
 
-Use these terms consistently across the product:
+**This list is normative**, in code, APIs, UI and documentation. It follows §3 of the
+METIS platform specification, which is itself normative and states the principle:
+*wherever an industry-standard term already exists — frequency capping, feature store,
+contextual bandit, placement, holdout — METIS adopts it verbatim rather than inventing a
+synonym.*
 
-- **artifact** — compiled strategy + metadata
-- **strategy** — a DIR (decision graph)
-- **action** — named decision outcome (e.g., "upsell_5g")
-- **treatment** — the content/offer associated with an action
-- **trace** — the audit record of a decision
-- **replay** — re-execute a historical decision
-- **change request** — the approval interface (like a PR)
+The list before 2026-09-05 was Pega's vocabulary almost verbatim: proposition, treatment,
+engagement policy, contact policy, lever, decision strategy. That was renamed throughout,
+including the hashed decision, which is why every chain hash in the conformance corpora
+changed on that date.
+
+### The catalogue
+
+- **objective** — the top taxonomy level: what the business is trying to achieve
+  (Acquisition, Retention, Service)
+- **category** — the second level, a product or service grouping (Credit Cards, Broadband)
+- **offer** — the third level: the commercial object itself
+- **action** — an offer instance made decidable in a context. Today an offer carries the
+  `key` used as the action; splitting them properly is a modelling change, not a rename,
+  and has not been done
+- **creative** — the content for an offer on a channel. §3.1 allows *variant*; *creative*
+  is used here because *variant* is already taken by experiments
+
+### Deciding
+
+- **decision flow** — a DAG of operators. Never "strategy"
+- **targeting policy** — the three-tier qualification model below
+- **eligibility** — hard filters: CAN we offer this?
+- **relevance** — situational: SHOULD we offer it now? (never "applicability")
+- **suitability** — affordability and ethics: is it RIGHT for this customer?
+- **frequency & suppression policy** — caps and cooldowns. `FrequencyPolicy` in code
+- **arbitration**, **ranking** — retained deliberately. §3.2 keeps both as industry-standard
+- **propensity** — retained. A standard statistical term
+- **business boost** — a multiplicative weight applied to a candidate. `boost` in code,
+  never "lever"
+- **ranking function** — the formula that combines the terms into a priority
+- **placement** — a content slot in a customer journey
+
+### After the decision
+
+- **artifact** — a compiled decision flow plus metadata
+- **decision record** — one entry: what was decided and why. `DecisionRecord` in code
+- **interaction log** — the append-only store those records land in
+- **trace** — the audit view of a decision record. Kept as a UI and API word
+- **replay** — re-execute a historical decision against its recorded snapshot
+- **change set** — the approval interface, like a PR. Never "change request" or "revision"
+- **release** — a change set promoted to an environment
+- **profile store** — where customer state lives
 - **package** — a distributable unit (node types, themes, packs)
 - **pack** — a regulatory or industry-specific package
-- **lever** — a tunable weight in an arbitration formula
-- **placement** — a content slot in a customer journey
 
 Never use "submit" for buttons. Buttons name their effect ("Publish", "Approve", "Reject", "Replay").
 

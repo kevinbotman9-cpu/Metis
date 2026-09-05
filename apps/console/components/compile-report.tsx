@@ -46,7 +46,7 @@ export function CompileReport({ compilation }: { compilation: CompileResultDto |
         <CardHeader title="Compilation" />
         <CardBody>
           <p className="text-body text-content-muted">
-            This strategy has not been compiled.
+            This flow has not been compiled.
           </p>
         </CardBody>
       </Card>
@@ -88,7 +88,7 @@ export function CompileReport({ compilation }: { compilation: CompileResultDto |
         {warnings.length > 0 && compilation.ok ? (
           <p className="text-label text-content-muted">
             Warnings do not block publishing, but each one describes something that will not
-            behave the way the strategy reads.
+            behave the way the flow reads.
           </p>
         ) : null}
 

@@ -10,7 +10,7 @@
 
 METIS is an enterprise decision platform that flips the script on AI-driven decisioning:
 
-- **Authoring Plane (Design-Time)**: AI agents propose changes to strategies, rules, journeys, and treatments
+- **Authoring Plane (Design-Time)**: AI agents propose changes to flows, rules, journeys, and creatives
 - **Execution Plane (Runtime)**: Compiled decision artifacts run deterministically with **zero LLM calls** in the hot path
 - **Audit Trail**: Every decision is traceable, replayable, and explainable—built in, not added later
 
@@ -40,7 +40,7 @@ npm run build
 ### Run Your First Decision
 
 ```bash
-# Compile a strategy
+# Compile a flow
 npm run compile tests/fixtures/simple-filter.json --tenant test --output compiled.json
 
 # Execute it
@@ -50,7 +50,7 @@ npx ts-node -e "
   const artifact = JSON.parse(fs.readFileSync('compiled.json', 'utf-8'));
   execute(artifact, {
     tenantId: 'test',
-    strategyName: 'simple-filter-strategy',
+    flowName: 'simple-filter-flow',
     customerId: 'customer_123',
     context: { active: true }
   }).then(r => console.log('Decision:', r.decision.winner));
@@ -64,7 +64,7 @@ npx ts-node -e "
 ```
 ┌──────────────────────────── AUTHORING PLANE ─────────────────────────────┐
 │  AI Command Center  ·  Genesis  ·  Agent clusters  ·  Journey canvas      │
-│  Strategy designer  ·  Simulation & what-if  ·  Approval workflows        │
+│  Flow designer  ·  Simulation & what-if  ·  Approval workflows        │
 │                                    │                                      │
 │                          proposes changes to                              │
 │                                    ▼                                      │
@@ -74,7 +74,7 @@ npx ts-node -e "
                                      │ compile + publish (blue/green)
 ┌────────────────────────────────────▼─────────────────────────────────────┐
 │                          EXECUTION PLANE                                  │
-│  Artifact registry → Compiled strategy VM → Arbitration → Explanation     │
+│  Artifact registry → Compiled flow VM → Arbitration → Explanation     │
 │  Feature store (online) · Rules eval · Model scoring · Constraint engine   │
 │                  no LLM · deterministic · p95 < 50ms                      │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -152,7 +152,7 @@ metis/
 **Goal:** Build the foundation that everything else depends on.
 
 **What's included:**
-1. **Decision IR Schema** — Declarative, versioned graph format for strategies
+1. **Decision IR Schema** — Declarative, versioned graph format for flows
 2. **Compiler** — Type checking, version resolution, cost analysis
 3. **Runtime** — Deterministic execution with zero LLM calls
 4. **Trace System** — Canonical audit trail with replay
@@ -170,7 +170,7 @@ Capabilities without which an evaluation is lost in week two:
 
 - Adaptive (self-learning) models
 - Multi-level arbitration, channel-specific formulas, bundles
-- Contact policy with outcome-conditioned suppression
+- Frequency policy with outcome-conditioned suppression
 - Simulation suite (distribution test, version diff, bias gate)
 - Batch/offline executor
 
@@ -192,11 +192,11 @@ Capabilities without which an evaluation is lost in week two:
 
 ### Decision Intermediate Representation (DIR)
 
-A versioned, declarative JSON graph that defines a strategy:
+A versioned, declarative JSON graph that defines a flow:
 
 ```json
 {
-  "id": "my-strategy",
+  "id": "my-flow",
   "nodes": [
     {
       "id": "n1",
@@ -227,7 +227,7 @@ Transforms a DIR into a `CompiledArtifact`:
 4. **Sign** — Cryptographic signature for integrity
 
 ```bash
-metis compile strategy.json --tenant telco-uk --output compiled.json
+metis compile flow.json --tenant telco-uk --output compiled.json
 ```
 
 ### Execution
@@ -250,7 +250,7 @@ console.log(response.cost.totalMs);     // Actual latency
 
 ### Traces
 
-Every decision produces a `DecisionTrace`:
+Every decision produces a `DecisionRecord`:
 
 ```typescript
 {
@@ -288,15 +288,15 @@ METIS ships with 16 core node types:
 | `source` | Fetch data from feature store or external API |
 | `filter` | Boolean eligibility rule |
 | `set-property` | Mutate working state |
-| `join`, `aggregate`, `group-by` | Data transformations |
+| `join`, `aggregate`, `category-by` | Data transformations |
 | `score-model` | Invoke a model (with version pin) |
 | `score-adaptive` | Invoke an adaptive (online-learning) model |
 | `prioritise` | Sort candidates |
 | `switch` | Branching logic |
-| `sub-strategy` | Compose strategies |
+| `sub-flow` | Compose flows |
 | `champion-challenger` | A/B test wrapper |
 | `constraint` | Hard rules (suppress if violated) |
-| `suppress` | Contact policy |
+| `suppress` | Frequency policy |
 | `arbitrate` | Ranking formula over candidates |
 | `explain-annotate` | Emit reasoning |
 
@@ -311,7 +311,7 @@ These 10 principles are non-negotiable for all PRs:
 1. **No LLM in the decision hot path** — Ever
 2. **Everything commercially significant is grounded** — Prices, quantities from system of record
 3. **Explanation is emitted, not reconstructed** — Engine produces trace deterministically
-4. **Every artifact is versioned, immutable, signed** — Strategies, rules, models
+4. **Every artifact is versioned, immutable, signed** — Decision flows, rules, models
 5. **Every write to control plane is an event** — Event-sourced, replay for free
 6. **Multi-tenancy enforced at data layer** — Row-level security, not app code
 7. **Extension points are declared, not discovered** — Registry of typed contracts
@@ -399,7 +399,7 @@ If you're building on METIS, start here:
 These don't block Phase 0 but shape Phase 1:
 
 1. **Segment**: Confirm telco-uk as the seed segment (or pivot to banking-uk)?
-2. **Scenario C**: Is "layer above incumbent Pega" an entry strategy?
+2. **Scenario C**: Is "layer above incumbent Pega" an entry flow?
 3. **Adaptive Models**: Build in-house (recommended) or integrate third-party?
 4. **Open Core**: Publish the DIR schema + SDK publicly?
 5. **Pricing**: Platform fee + volume bands + transparent inference cost?
@@ -420,7 +420,7 @@ These are **intentional**, not bugs. Phase 0 proves the foundations work. Phase 
 
 ## Support
 
-- **Questions?** Open an issue on GitHub
+- **Questions?** Open an objective on GitHub
 - **Found a bug?** `git commit -m "bug: ..."` and open a PR
 - **Want to contribute?** See [Contributing Guide](CONTRIBUTING.md)
 

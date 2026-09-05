@@ -1,10 +1,10 @@
-/** Compiled strategy artifacts, including their DIR graph. Deterministic. */
+/** Compiled flow artifacts, including their DIR graph. Deterministic. */
 
 const T0 = Date.parse('2026-09-01T09:00:00Z');
 const iso = (h: number) => new Date(T0 + h * 3600_000).toISOString();
 
 /** Node types the canvas knows how to render. Mirrors packages/nodes-core. */
-export type DirNodeType =
+export type FlowNodeType =
   | 'source'
   | 'filter'
   | 'set-property'
@@ -13,19 +13,19 @@ export type DirNodeType =
   | 'constraint'
   | 'arbitrate'
   | 'switch'
-  | 'sub-strategy'
+  | 'sub-flow'
   | 'champion-challenger'
   | 'explain-annotate';
 
-export interface DirNode {
+export interface FlowNode {
   id: string;
-  type: DirNodeType;
+  type: FlowNodeType;
   label: string;
   /** Plain-language description shown in the inspector. */
   description: string;
   /** Worst-case contribution to latency, from the compiler's cost analysis. */
   estimatedMs: number;
-  /** Engagement policy IDs this node evaluates, where relevant. */
+  /** Targeting policy IDs this node evaluates, where relevant. */
   policyIds?: string[];
   /**
    * Connectors a source node draws on.
@@ -43,7 +43,7 @@ export interface DirNode {
   position: { x: number; y: number };
 }
 
-export interface DirEdge {
+export interface FlowEdge {
   id: string;
   source: string;
   target: string;
@@ -60,10 +60,10 @@ export interface ArtifactSummary {
   nodeCount: number;
   estimatedP95LatencyMs: number;
   status: 'active' | 'draft' | 'retired';
-  /** Proposition keys this strategy can select from. */
+  /** Offer keys this flow can select from. */
   candidateKeys: string[];
-  nodes: DirNode[];
-  edges: DirEdge[];
+  nodes: FlowNode[];
+  edges: FlowEdge[];
   updatedAt: string;
   updatedBy: string;
 }
@@ -76,7 +76,7 @@ export const artifacts: ArtifactSummary[] = [
     id: 'next-best-action',
     name: 'Next Best Action',
     description:
-      'The main arbitration strategy. Runs on every inbound and outbound touchpoint.',
+      'The main arbitration flow. Runs on every inbound and outbound touchpoint.',
     activeVersion: '2.4.0',
     versions: ['2.4.0', '2.3.1', '2.3.0', '2.2.0'],
     nodeCount: 7,
@@ -107,9 +107,9 @@ export const artifacts: ArtifactSummary[] = [
         position: { x: COL[1], y: 40 },
       },
       {
-        id: 'filter_applicability',
+        id: 'filter_relevance',
         type: 'filter',
-        label: 'Applicability',
+        label: 'Relevance',
         description:
           'Situational relevance: already held, trigger not fired, or the wrong moment in the lifecycle.',
         estimatedMs: 0.9,
@@ -139,7 +139,7 @@ export const artifacts: ArtifactSummary[] = [
       {
         id: 'constraint_contact',
         type: 'constraint',
-        label: 'Contact policy',
+        label: 'Frequency policy',
         description:
           'Frequency caps and cooldowns. Suppression here still records the full ranking, so you can answer what would have been offered.',
         estimatedMs: 0.6,
@@ -152,15 +152,15 @@ export const artifacts: ArtifactSummary[] = [
         description:
           'Ranks surviving candidates and selects a winner. The terms and weights are recorded in every trace.',
         estimatedMs: 2.3,
-        formula: 'Priority = P^1.0 × V^1.0 × L^1.0 × C^0.5',
+        formula: 'Priority = P^1.0 × V^1.0 × B^1.0 × C^0.5',
         position: { x: COL[4], y: 120 },
       },
     ],
     edges: [
       { id: 'e1', source: 'source_customer', target: 'filter_eligibility' },
-      { id: 'e2', source: 'source_customer', target: 'filter_applicability' },
+      { id: 'e2', source: 'source_customer', target: 'filter_relevance' },
       { id: 'e3', source: 'filter_eligibility', target: 'score_propensity' },
-      { id: 'e4', source: 'filter_applicability', target: 'score_propensity' },
+      { id: 'e4', source: 'filter_relevance', target: 'score_propensity' },
       { id: 'e5', source: 'score_propensity', target: 'filter_suitability' },
       { id: 'e6', source: 'score_propensity', target: 'constraint_contact' },
       { id: 'e7', source: 'filter_suitability', target: 'arbitrate_priority' },
@@ -172,7 +172,7 @@ export const artifacts: ArtifactSummary[] = [
   {
     id: 'inbound-web-offers',
     name: 'Inbound Web Offers',
-    description: 'Lighter strategy for anonymous and logged-in web placements.',
+    description: 'Lighter decision flow for anonymous and logged-in web placements.',
     activeVersion: '1.8.2',
     versions: ['1.8.2', '1.8.1', '1.7.0'],
     nodeCount: 4,
@@ -212,9 +212,9 @@ export const artifacts: ArtifactSummary[] = [
         id: 'arbitrate_web',
         type: 'arbitrate',
         label: 'Arbitrate',
-        description: 'Ranks by value and lever only; no propensity model on anonymous traffic.',
+        description: 'Ranks by value and boost only; no propensity model on anonymous traffic.',
         estimatedMs: 1.6,
-        formula: 'Priority = V^1.0 × L^1.0',
+        formula: 'Priority = V^1.0 × B^1.0',
         position: { x: COL[3], y: 100 },
       },
     ],
@@ -289,7 +289,7 @@ export const artifacts: ArtifactSummary[] = [
         label: 'Queue ordering',
         description: 'Orders the agent call queue by churn risk weighted against offer cost.',
         estimatedMs: 3.2,
-        formula: 'Priority = Churn^1.5 × V^0.8 × L^1.0',
+        formula: 'Priority = Churn^1.5 × V^0.8 × B^1.0',
         position: { x: COL[4], y: 100 },
       },
     ],
@@ -308,7 +308,7 @@ export const artifacts: ArtifactSummary[] = [
     id: 'plan-fit-nudges',
     name: 'Plan Fit Nudges',
     description:
-      'Service-led strategy that suggests a cheaper plan when usage is consistently low.',
+      'Service-led flow that suggests a cheaper plan when usage is consistently low.',
     activeVersion: '0.4.0',
     versions: ['0.4.0'],
     nodeCount: 3,

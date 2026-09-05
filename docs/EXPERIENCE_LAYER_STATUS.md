@@ -50,22 +50,22 @@ Nothing is marked BUILT unless a test would fail if it broke.
 |---|---|---|
 | `/login` | BUILT | Three demo accounts with different roles. Session restore, guard, logout. |
 | `/` | BUILT | Catalogue counts, decision volume, approval queue, agent activity. |
-| `/propositions` | BUILT | Issue › Group tree with counts, sortable catalogue, search and status filter. |
-| `/propositions/[id]` | BUILT | Financials, per-channel treatments, three-tier policy, resolved autonomy. |
-| `/engagement-policies` | BUILT | Eligibility / applicability / suitability with conditions rendered. |
-| `/contact-policy` | BUILT | Frequency caps, cooldowns, scope. |
-| `/arbitration` | BUILT | P × V × L × C weight editor; publishing persists and is audited. |
-| `/strategies` | BUILT | Artifact list with compile status per strategy. |
-| `/strategies/[id]` | BUILT | Compiler verdict with remedies, DIR canvas (read-only), node inspector. |
+| `/offers` | BUILT | Objective › Category tree with counts, sortable catalogue, search and status filter. |
+| `/offers/[id]` | BUILT | Financials, per-channel creatives, three-tier policy, resolved autonomy. |
+| `/targeting-policies` | BUILT | Eligibility / relevance / suitability with conditions rendered. |
+| `/frequency-policy` | BUILT | Frequency caps, cooldowns, scope. |
+| `/arbitration` | BUILT | P × V × B × C weight editor; publishing persists and is audited. |
+| `/decision-flows` | BUILT | Artifact list with compile status per flow. |
+| `/decision-flows/[id]` | BUILT | Compiler verdict with remedies, flow canvas (read-only), node inspector. |
 | `/decisions` | BUILT | 5,000 engine-executed decisions in a virtualised grid, unified search with filter chips. |
 | `/decisions/[id]` | BUILT | Real cascade from the engine, score composition, chain hash, replay that re-executes and compares hashes. |
-| `/approvals` | BUILT | Change request queue, agent vs person provenance. |
+| `/approvals` | BUILT | Change set queue, agent vs person provenance. |
 | `/approvals/[id]` | BUILT | Diff, bias-gated simulation, approve/reject — applies the diff on approval. |
 | `/agentic` | BUILT | L0–L4 ladder, per-scope guardrails, editable level, agent activity feed. |
 | `/audit` | BUILT | Append-only log, filterable by actor type. Every write lands here. |
 | `/settings` | BUILT | Account, roles, permissions, appearance, environment. |
 | `/integrations` | BUILT | Configured connectors, what each supplies, declared latency against the budget, and activate/deactivate gated on `edit:integrations`. |
-| `/simulations` | PARTIAL | Shows simulations attached to change requests. Ad-hoc simulation is **not built**, and the page says so. |
+| `/simulations` | PARTIAL | Shows simulations attached to change sets. Ad-hoc simulation is **not built**, and the page says so. |
 
 ---
 
@@ -89,11 +89,11 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | Playwright | BUILT | 52 tests: navigation, auth, decisions, RBAC, persistence, appearance. |
 | axe-core | BUILT | 14 pages, light and dark. Zero violations at WCAG 2.2 AA. |
 | Execution engine | BUILT | `packages/runtime/src/deterministic`. Byte-identical across 100 runs; replay compares chain hashes. |
-| Compiler | BUILT | `packages/compiler/src/strategy`. Validates the graph, pins versions and models, computes the critical path, and refuses anything the runtime could not execute safely. |
+| Compiler | BUILT | `packages/compiler/src/decision-flow`. Validates the graph, pins versions and models, computes the critical path, and refuses anything the runtime could not execute safely. |
 | Engine-backed data | BUILT | The console's 60 decisions are real engine output, not fixtures. Replay re-executes. |
 | Storybook | PARTIAL | 5 story files - Button, primitives, DataTable, SmartSearch, the canvas node. Theme and density are toolbar globals, so all four axes are one click apart. **No stories for AppShell, CommandPalette, Notifications, HealthSummary, CompileReport or Breadcrumbs**, which the definition of done requires. |
 | API contract | BUILT | `packages/client` is generated from `docs/metis-api.openapi.yaml`; the console compiles against those types, so a spec change it has not absorbed is a compile error. `contract.spec.ts` asserts the other direction: every operation not marked `proposed` is served and returns what the spec declares. CI fails if the generated client is stale. |
-| Global search | BUILT | Cmd/Ctrl+K over pages, propositions, strategies and all 5,000 decisions. |
+| Global search | BUILT | Cmd/Ctrl+K over pages, offers, flows and all 5,000 decisions. |
 | Notifications | BUILT | Pending approvals and guardrail stops, merged, breaches first. |
 | i18n | MISSING | The definition of done names `/packages/i18n/messages.json`. That file never existed. `packages/i18n` was a 55-line stub with ~20 keys that nothing imported, and it was deleted on 2026-09-05; every string is inline in JSX. The rule in CLAUDE.md now describes nothing, which is the honest state rather than a worse one. |
 | Bundle budget | MISSING | The definition of done says route bundle size is checked in CI. Nothing checks it. |
@@ -105,7 +105,7 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | JVM decision service | BUILT | `engines/kotlin :service` serves `executeDecision`, trace and replay over HTTP, and reproduces 60 of the console's real decisions byte for byte. In-memory state, no auth, no integration gateway - see its README. |
 | Artifact registry | BUILT | `packages/registry`. Publishing compiles first and refuses anything with errors; publishing does not activate; versions are immutable, bound to an artifact hash; promotion and rollback are separate, audited actions. |
 | Durable storage | BUILT | PostgreSQL, selected by `METIS_DATABASE_URL`. The same behaviour suite runs against memory and a real database, so the rules are known to be storage-independent. Immutability is enforced twice: the application refuses to overwrite a published version, and triggers on `registry_versions` and `registry_events` reject `UPDATE` and `DELETE` outright. A configured database that cannot be reached is an error, never a silent fallback to storage that forgets. |
-| Compilation on publish | BUILT | The gap that stood open longest. A strategy that does not compile never enters the registry, so it cannot be promoted and cannot reach execution — and the refusal is recorded, because an audit that only shows successes cannot answer whether anyone tried. |
+| Compilation on publish | BUILT | The gap that stood open longest. A flow that does not compile never enters the registry, so it cannot be promoted and cannot reach execution — and the refusal is recorded, because an audit that only shows successes cannot answer whether anyone tried. |
 | `executeDecision` | BUILT | One OpenAPI operation, two implementations: the console's development store and the JVM service. Both are held to the same 60 expected chain hashes. |
 
 ---
@@ -140,13 +140,13 @@ Worth recording, because each was invisible by eye:
    which is key-order dependent. Replaced by a deterministic engine that splits
    the trace into a reproducible half and a measured half, and hashes only the
    former.
-10. **Contact policy ignored its own scope.** Every contact policy was applied
+10. **Frequency policy ignored its own scope.** Every frequency policy was applied
     to every candidate, so a max-one-per-month cooldown scoped to a single
-    group suppressed the entire catalogue - all 60 decisions returned no offer.
-11. **Arbitration dropped candidates with no model score.** A strategy may
-    legitimately rank on value and lever alone (anonymous web traffic has no
+    category suppressed the entire catalogue - all 60 decisions returned no offer.
+11. **Arbitration dropped candidates with no model score.** A flow may
+    legitimately rank on value and boost alone (anonymous web traffic has no
     customer to score), and its formula says so. A missing term is neutral, not
-    disqualifying; before the fix that whole strategy never returned anything.
+    disqualifying; before the fix that whole flow never returned anything.
     The compiler now catches this statically as ARBITRATION_MISSING_SCORE - it
     found the same defect independently on first run.
 12. **Two test runners were fighting over the same files.** Jest and Vitest both
@@ -165,31 +165,31 @@ Worth recording, because each was invisible by eye:
 
 ## Honest limits
 
-- **Only the registry is durable.** Propositions, policies, arbitration weights,
-  autonomy settings, change requests and the console's audit log are still an
+- **Only the registry is durable.** Offers, policies, arbitration weights,
+  autonomy settings, change sets and the console's audit log are still an
   in-memory store that resets with the process. The registry proved the pattern;
   the rest of the control plane has not been moved onto it.
 - **One migration, no runner.** `001_registry.sql` is idempotent and applied at
   startup. A second migration needs a real runner, and that is the moment to add
   one.
-- **Nothing signs an artifact.** `CompiledStrategy` carries an `artifactHash`, so
+- **Nothing signs an artifact.** `CompiledDecisionFlow` carries an `artifactHash`, so
   the registry can prove content is unchanged — not who vouched for it.
 - **There is no authoring surface.** Versions are published through the API, and
   the console can promote and roll back but cannot draft a new version. The
   registry is ahead of the editor.
 - **The canvas is read-only.** No editing, no layout algorithm, no compile step.
 - **The execution plane is real, but partial.** The deterministic engine,
-  canonical hashing, replay, the strategy compiler and the artifact registry are
+  canonical hashing, replay, the flow compiler and the artifact registry are
   built and tested. There is no decision ledger, no idempotency, no outcome
   capture and no WASM hot path — the engine is plain TypeScript.
 - **Scoring models are seeded hashes, not models.** They have the property that
-  matters here - same customer, proposition and pinned version gives the same
+  matters here - same customer, offer and pinned version gives the same
   number - but they predict nothing.
 - **The old Phase 0 DIR compiler is gone.** `compileDir`, `typeCheck`,
   `resolveVersions`, `analyzeCost`, the `metis-compile` CLI, `dir.schema.json`
   and the four committed compiled artifacts were deleted on 2026-09-05. Nothing
   executed their output, and keeping a second compiler alive "for the fixtures"
-  meant keeping a second definition of what a strategy is.
+  meant keeping a second definition of what a flow is.
 - **Agent activity is fixture data.** No agent is running; the feed shows what the
   autonomy model would record.
 - **One browser.** Playwright runs Chromium only.
@@ -207,7 +207,7 @@ Worth recording, because each was invisible by eye:
   single-threaded: 5,213 decisions/s at 10 candidates, 2,140/s at 40, and 249/s
   at 400. The latency promise holds everywhere with two orders of magnitude of
   room (p95 of 7.5ms at the worst size), but sustaining the plan's 1000 req/s
-  with a 400-candidate catalogue needs four cores, or a strategy that narrows
+  with a 400-candidate catalogue needs four cores, or a flow that narrows
   candidates before scoring. The stress scenario reports throughput without
   gating it, because "1000 req/s" is a horizontally scaled service claim and
   this harness runs on one core.
@@ -224,7 +224,7 @@ Worth recording, because each was invisible by eye:
   build-system gaps in docs/gaps.md.
 - **The decision corpus is 22 cases, not a proof.** It covers the rules a
   reimplementation is most likely to get wrong - tie-breaks, scope resolution,
-  the neutral-score rule, contact-policy scoping, the service exemption - and it
+  the neutral-score rule, frequency-policy scoping, the service exemption - and it
   bites: injecting a wrong neutral score fails 13 of 22 with field-level diffs.
   It does not cover every path, and it does not currently distinguish
   `StrictMath.pow` from `Math.pow`, which ADR-003 §4a is explicit about.
@@ -287,7 +287,7 @@ Also removed, for the same reason:
 - **Four committed compiled artifacts.** Build output in git, embedding a
   node-type vocabulary nothing executes.
 - **The Phase 0 DIR compiler and its schema.** Two compilers meant two
-  definitions of what a strategy is, and only one of them ran.
+  definitions of what a flow is, and only one of them ran.
 
 ### What the deletion surfaced
 
@@ -342,3 +342,74 @@ contention, not a startup failure.
 verification is that the full suite is green from a cold `.next` with the CPU
 saturated for its entire 17.2-minute run, which is stronger than the conditions
 that produced the failure — but it is evidence, not proof.
+
+---
+
+## The taxonomy rename, 2026-09-05
+
+The vocabulary was Pega's almost verbatim — proposition, treatment, engagement
+policy, contact policy, lever, decision strategy, change request. It is now the
+canonical taxonomy of §3 of the platform specification. `arbitration` and
+`propensity` are retained deliberately: §3.2 keeps both as industry-standard,
+which removed about 500 of the occurrences a full rename would otherwise have
+touched.
+
+The normative list lives in the Vocabulary section of `CLAUDE.md`. It was left
+in place through Stage 0, where it still mandated "treatment" and "lever" — an
+instruction to reintroduce the vocabulary being removed.
+
+**Every chain hash changed**, in all three corpora. Field names are inside the
+hashed decision, and `lever` → `boost` also reorders the canonical form, since
+canonical serialisation sorts keys. This was done now precisely because nothing
+is published outside this repository; ADR-003 freezes these rules for anything
+that is.
+
+### What the rename surfaced
+
+Three real defects, none of them caused by it:
+
+- **The JVM service threw away contact history on replay.** `replay` re-executed
+  with `contactHistory = null`, so any decision suppressed by a frequency policy
+  replayed as unsuppressed and reported `identical: false`. The service
+  conformance test replayed `cases[0]` only, and that case happened not to be
+  suppression-dependent — regenerating the corpus reordered the cases and it
+  failed immediately. Fixed, and the test now replays all sixty cases and
+  asserts that offered, suppressed and history-carrying decisions are all
+  represented. Verified by re-introducing the bug: the new test fails, the old
+  one would not have.
+- **Gradle reported the Kotlin conformance tests `UP-TO-DATE` after a corpus
+  change.** The tests read `docs/conformance/*.json` by path at runtime, so
+  nothing connected them to the task graph — `./gradlew test` could pass without
+  reading a byte of a changed corpus, which is exactly when the check matters.
+  The corpora are now declared as task inputs. Verified both ways: unchanged
+  inputs still report `UP-TO-DATE`, and touching a corpus forces a real run.
+- **The ranking formula string is hashed.** Renaming its `L` symbol to `B`, to
+  match `boost`, changed the chain hash of all sixty service cases. Worth
+  knowing: `ArbitrationConfig.formula` is display text that is nonetheless part
+  of the catalogue snapshot, so editing it is a decision-identity change.
+
+### What a mechanical rename gets wrong
+
+Recorded because the same script will be wanted again:
+
+- **Two-word replacements do not belong in code.** Replacing `strategy` with
+  "decision flow" produced `listDecision flows`, the SQL column
+  `decision flow_name`, and the object key `decision flows:`. Those fail loudly.
+  The same substitution inside `'view:strategies'` is silent, and that one is a
+  permission scope. The rename now uses the single word `flow` everywhere, and
+  user-visible labels were raised to "Decision flow" deliberately, where the
+  surrounding context is visible.
+- **Word boundaries have three cases, not one.** `listEngagementPolicies`
+  (camelCase tail), `PropositionStatus` (camelCase head), `contactPolicyIds`
+  (lowercase head) and `lever_adjust` (snake_case) each need their own pattern.
+  A rename that handles only standalone identifiers leaves the operationIds and
+  compound property names carrying the old vocabulary — schemas that read
+  correctly, reached by operations that do not.
+- **Some words are not the domain word.** `classGroups` is tailwind-merge's API,
+  Next.js has route groups, and "best and worst treated group" is a fairness
+  metric. Each was protected by phrase.
+- **The path segment `/decisions/{id}/trace` stays.** The schema is
+  `DecisionRecord` and the operation is `getDecisionRecord`, but `trace` is kept
+  as a UI and API word. Renaming the segment broke agreement between the spec,
+  the console's hand-written client URL, the dev API route handler and the
+  Kotlin service route — and only one of those four is covered by a typecheck.

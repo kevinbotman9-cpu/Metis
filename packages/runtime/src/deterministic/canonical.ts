@@ -73,7 +73,7 @@ export function shortHash(value: unknown, length = 12): string {
 /**
  * Deterministic value in [0, 1) derived from a key.
  *
- * Stand-in for a scoring model: given the same customer, proposition and
+ * Stand-in for a scoring model: given the same customer, offer and
  * pinned model version it always returns the same number, which is exactly the
  * property a real pinned model must have. Never reach for an actual RNG in the
  * hot path - it would break replay.

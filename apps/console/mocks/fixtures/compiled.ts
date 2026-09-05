@@ -1,7 +1,7 @@
 /**
- * Compilation results for the tenant's strategies.
+ * Compilation results for the tenant's flows.
  *
- * Every strategy in ./artifacts.ts is put through the real compiler against the
+ * Every flow in ./artifacts.ts is put through the real compiler against the
  * real catalogue. The console shows what it says, including the warnings - a
  * compiler whose findings are hidden is no better than no compiler.
  *
@@ -10,17 +10,17 @@
  */
 
 import {
-  compileStrategy,
+  compileDecisionFlow,
   type CompileContext,
   type CompileResult,
-  type StrategySource,
-} from '@metis/compiler/strategy/compile';
+  type DecisionFlowSource,
+} from '@metis/compiler/decision-flow/compile';
 import {
-  issues,
-  groups,
-  propositions,
-  engagementPolicies,
-  contactPolicies,
+  objectives,
+  categories,
+  offers,
+  targetingPolicies,
+  frequencyPolicies,
   arbitrationConfig,
   connectors,
 } from './catalogue';
@@ -33,27 +33,27 @@ const AVAILABLE_PACKAGES: Record<string, string[]> = {
 };
 
 export const compileContext: CompileContext = {
-  propositions,
-  engagementPolicies,
-  contactPolicies,
+  offers,
+  targetingPolicies,
+  frequencyPolicies,
   arbitration: arbitrationConfig,
   availablePackages: AVAILABLE_PACKAGES,
   knownScopeTargets: {
-    issues: issues.map((i) => i.id),
-    groups: groups.map((g) => g.id),
+    objectives: objectives.map((i) => i.id),
+    categories: categories.map((g) => g.id),
   },
   connectors,
   tenant: { id: 'telco-uk', latencyBudgetMs: 50, maxNodes: 100 },
 };
 
 /**
- * A strategy as authored, from the console's view of it.
+ * A flow as authored, from the console's view of it.
  *
  * Exported because the registry publishes from this shape: what the console
  * shows and what the registry compiles must be the same source, or the
  * compiler's verdict on screen is about something else.
  */
-export function toSource(a: ArtifactSummary): StrategySource {
+export function toSource(a: ArtifactSummary): DecisionFlowSource {
   return {
     id: a.id,
     version: a.activeVersion,
@@ -62,7 +62,7 @@ export function toSource(a: ArtifactSummary): StrategySource {
     packageRanges: { '@metis/nodes-core': '^1.2.0', '@metis/core': '^2.0.0' },
     nodes: a.nodes.map((n) => ({
       id: n.id,
-      type: n.type as StrategySource['nodes'][number]['type'],
+      type: n.type as DecisionFlowSource['nodes'][number]['type'],
       label: n.label,
       policyIds: n.policyIds,
       model: n.model,
@@ -75,18 +75,18 @@ export function toSource(a: ArtifactSummary): StrategySource {
   };
 }
 
-export interface StrategyCompilation {
+export interface FlowCompilation {
   artifactId: string;
   result: CompileResult;
 }
 
-export const compilations: StrategyCompilation[] = artifacts.map((a) => ({
+export const compilations: FlowCompilation[] = artifacts.map((a) => ({
   artifactId: a.id,
-  result: compileStrategy(toSource(a), compileContext),
+  result: compileDecisionFlow(toSource(a), compileContext),
 }));
 
 const byId = new Map(compilations.map((c) => [c.artifactId, c]));
 
-export function findCompilation(artifactId: string): StrategyCompilation | undefined {
+export function findCompilation(artifactId: string): FlowCompilation | undefined {
   return byId.get(artifactId);
 }

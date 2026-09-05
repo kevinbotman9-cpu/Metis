@@ -104,14 +104,14 @@ test.describe('command palette', () => {
   });
 
   test('jumps to a page without touching the sidebar', async ({ page }) => {
-    await page.getByRole('button', { name: /Search propositions/ }).click();
+    await page.getByRole('button', { name: /Search offers/ }).click();
     await page.getByRole('combobox').fill('arbitration');
     await page.keyboard.press('Enter');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Arbitration & levers' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Arbitration & boosts' })).toBeVisible();
   });
 
-  test('finds a proposition by name and opens its detail page', async ({ page }) => {
+  test('finds an offer by name and opens its detail page', async ({ page }) => {
     await page.keyboard.press('ControlOrMeta+k');
     await page.getByRole('combobox').fill('5G Unlimited');
 
@@ -119,7 +119,7 @@ test.describe('command palette', () => {
     await expect(option).toBeVisible();
     await option.click();
 
-    await expect(page).toHaveURL(/\/propositions\/prop_/);
+    await expect(page).toHaveURL(/\/offers\/prop_/);
     await expect(page.getByRole('heading', { level: 1, name: /5G Unlimited/ })).toBeVisible();
   });
 
@@ -133,7 +133,7 @@ test.describe('command palette', () => {
 
     await page.keyboard.press('ControlOrMeta+k');
     // The decisions page has its own search box, so name the palette's input.
-    await page.getByRole('combobox', { name: /Search propositions/ }).fill(id);
+    await page.getByRole('combobox', { name: /Search offers/ }).fill(id);
 
     const option = page.getByRole('option', { name: new RegExp(id) }).first();
     await expect(option).toBeVisible();
@@ -167,7 +167,7 @@ test.describe('notifications', () => {
   test('the badge count matches the number of items listed', async ({ page }) => {
     await login(page, ACCOUNTS.priya);
 
-    // There are pending change requests in the seed, so the badge must show a
+    // There are pending change sets in the seed, so the badge must show a
     // number. Waiting for it also avoids reading the label mid-fetch.
     const bell = page.getByRole('button', { name: /needing attention/ });
     await expect(bell).toBeVisible();

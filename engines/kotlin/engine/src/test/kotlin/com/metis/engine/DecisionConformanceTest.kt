@@ -73,10 +73,10 @@ class DecisionConformanceTest {
         ValidityWindow(it["startsAt"].asText(), it["endsAt"].takeIf { e -> !e.isNull }?.asText())
     }
 
-    private fun proposition(n: JsonNode) = Proposition(
+    private fun offer(n: JsonNode) = Offer(
         id = n["id"].asText(),
-        groupId = n["groupId"].asText(),
-        issueId = n["issueId"].asText(),
+        categoryId = n["categoryId"].asText(),
+        objectiveId = n["objectiveId"].asText(),
         key = n["key"].asText(),
         status = n["status"].asText(),
         financials = Financials(
@@ -86,14 +86,14 @@ class DecisionConformanceTest {
             )
         ),
         validity = validity(n["validity"])!!,
-        lever = n["lever"].asDouble(),
+        boost = n["boost"].asDouble(),
         policyIds = n["policyIds"].map { it.asText() },
     )
 
     private fun catalogue(n: JsonNode) = CatalogueSnapshot(
-        propositions = n["propositions"].map { proposition(it) },
-        engagementPolicies = n["engagementPolicies"].map { p ->
-            EngagementPolicy(
+        offers = n["offers"].map { offer(it) },
+        targetingPolicies = n["targetingPolicies"].map { p ->
+            TargetingPolicy(
                 id = p["id"].asText(),
                 kind = p["kind"].asText(),
                 conditions = p["conditions"].map {
@@ -103,8 +103,8 @@ class DecisionConformanceTest {
                 active = p["active"].asBoolean(),
             )
         },
-        contactPolicies = n["contactPolicies"].map { c ->
-            ContactPolicy(
+        frequencyPolicies = n["frequencyPolicies"].map { c ->
+            FrequencyPolicy(
                 id = c["id"].asText(),
                 channel = c["channel"].takeIf { !it.isNull }?.asText(),
                 maxContacts = c["maxContacts"].asDouble(),
@@ -118,14 +118,14 @@ class DecisionConformanceTest {
                 ArbitrationWeights(
                     it["propensity"].asDouble(),
                     it["value"].asDouble(),
-                    it["lever"].asDouble(),
+                    it["boost"].asDouble(),
                     it["context"].asDouble(),
                 )
             },
             formula = n["arbitration"]["formula"].asText(),
         ),
-        levers = n["levers"].map { l ->
-            Lever(l["id"].asText(), scope(l["scope"]), l["value"].asDouble(), validity(l["validity"]))
+        boosts = n["boosts"].map { l ->
+            Boost(l["id"].asText(), scope(l["scope"]), l["value"].asDouble(), validity(l["validity"]))
         },
         connectors = (n["connectors"] ?: mapper.createArrayNode()).map { c ->
             Connector(
@@ -149,7 +149,7 @@ class DecisionConformanceTest {
                 label = node["label"].asText(),
                 policyIds = node["policyIds"]?.map { it.asText() },
                 model = node["model"]?.let { Model(it["id"].asText(), it["version"].asText()) },
-                contactPolicyIds = node["contactPolicyIds"]?.map { it.asText() },
+                frequencyPolicyIds = node["frequencyPolicyIds"]?.map { it.asText() },
                 connectorIds = node["connectorIds"]?.map { it.asText() },
             )
         },

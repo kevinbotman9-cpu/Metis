@@ -12,10 +12,10 @@
 // --- Schemas ----------------------------------------------------------------
 
 /** What the compiler emits. Distinct from ArtifactSummary, which is how the
-console renders a strategy: this is the immutable, executable form the
+console renders a flow: this is the immutable, executable form the
 registry stores and the engine runs.
  */
-export interface CompiledStrategy {
+export interface CompiledDecisionFlow {
   id: string;
   version: string;
   tenantId: string;
@@ -40,7 +40,7 @@ export interface Money {
   currency: "GBP" | "USD" | "EUR";
 }
 
-export interface Issue {
+export interface Objective {
   id: string;
   name: string;
   /** URL-safe stable key, e.g. "retention" */
@@ -51,9 +51,9 @@ export interface Issue {
   updatedAt: string;
 }
 
-export interface Group {
+export interface Category {
   id: string;
-  issueId: string;
+  objectiveId: string;
   name: string;
   key: string;
   description: string;
@@ -68,7 +68,7 @@ export interface ValidityWindow {
   endsAt: string | null;
 }
 
-export interface PropositionFinancials {
+export interface OfferFinancials {
   price: Money;
   cost: Money;
   expectedMargin: Money;
@@ -76,30 +76,30 @@ export interface PropositionFinancials {
   oneOff: boolean;
 }
 
-export interface Proposition {
+export interface Offer {
   id: string;
-  groupId: string;
-  /** Denormalised from the group for tree and breadcrumb rendering */
-  issueId: string;
+  categoryId: string;
+  /** Denormalised from the category for tree and breadcrumb rendering */
+  objectiveId: string;
   name: string;
   key: string;
   description: string;
   status: "draft" | "active" | "paused" | "retired";
-  financials: PropositionFinancials;
+  financials: OfferFinancials;
   validity: ValidityWindow;
   /** Business priority multiplier. 1.0 is neutral. */
-  lever: number;
+  boost: number;
   policyIds: string[];
-  treatmentIds: string[];
+  creativeIds: string[];
   tags: string[];
   createdAt: string;
   updatedAt: string;
   updatedBy: string;
 }
 
-export interface Treatment {
+export interface Creative {
   id: string;
-  propositionId: string;
+  offerId: string;
   name: string;
   channel: "email" | "sms" | "web" | "push" | "outbound_call";
   /** Channel-specific content; shape is discriminated by channel */
@@ -111,7 +111,7 @@ export interface Treatment {
 }
 
 export interface PolicyScope {
-  level: "tenant" | "issue" | "group" | "proposition";
+  level: "tenant" | "objective" | "category" | "offer";
   /** null when level is tenant */
   targetId: string | null;
 }
@@ -123,11 +123,11 @@ export interface PolicyCondition {
   value: unknown;
 }
 
-export interface EngagementPolicy {
+export interface TargetingPolicy {
   id: string;
   name: string;
-  /** eligibility = can we offer it; applicability = should we now; suitability = is it right for this customer */
-  kind: "eligibility" | "applicability" | "suitability";
+  /** eligibility = can we offer it; relevance = should we now; suitability = is it right for this customer */
+  kind: "eligibility" | "relevance" | "suitability";
   description: string;
   conditions: PolicyCondition[];
   scope: PolicyScope;
@@ -136,7 +136,7 @@ export interface EngagementPolicy {
   updatedAt: string;
 }
 
-export interface ContactPolicy {
+export interface FrequencyPolicy {
   id: string;
   name: string;
   description: string;
@@ -156,7 +156,7 @@ export interface ArbitrationConfig {
   weights: {
     propensity: number;
     value: number;
-    lever: number;
+    boost: number;
     context: number;
   };
   formula: string;
@@ -164,7 +164,7 @@ export interface ArbitrationConfig {
   updatedBy: string;
 }
 
-export interface Lever {
+export interface Boost {
   id: string;
   name: string;
   scope: PolicyScope;
@@ -178,9 +178,9 @@ export interface Lever {
 
 export interface AutonomyGuardrails {
   maxBlastRadiusPct: number;
-  allowedChangeTypes: ("lever_adjust" | "treatment_copy" | "policy_edit" | "proposition_create" | "proposition_retire" | "strategy_edit" | "arbitration_weights")[];
+  allowedChangeTypes: ("boost_adjust" | "creative_copy" | "policy_edit" | "offer_create" | "offer_retire" | "flow_edit" | "arbitration_weights")[];
   /** Fraction. 0.1 permits +/-10%. */
-  maxLeverDelta: number;
+  maxBoostDelta: number;
   maxBudgetDelta: Money;
   protectedAttributes: string[];
   requireSimulationPass: boolean;
@@ -190,7 +190,7 @@ export interface AutonomyGuardrails {
 export interface AutonomySetting {
   id: string;
   scope: PolicyScope;
-  /** L0 Observe, L1 Assist, L2 Propose, L3 Bounded, L4 Autonomous. Resolved most-specific-first: proposition > group > issue > tenant. */
+  /** L0 Observe, L1 Assist, L2 Propose, L3 Bounded, L4 Autonomous. Resolved most-specific-first: offer > category > objective > tenant. */
   level: "L0" | "L1" | "L2" | "L3" | "L4";
   guardrails: AutonomyGuardrails;
   /** Why this scope was granted this level. Required for audit. */
@@ -205,11 +205,11 @@ export interface AgentActivity {
   agentId: string;
   level: "L0" | "L1" | "L2" | "L3" | "L4";
   scope: PolicyScope;
-  changeType: "lever_adjust" | "treatment_copy" | "policy_edit" | "proposition_create" | "proposition_retire" | "strategy_edit" | "arbitration_weights";
+  changeType: "boost_adjust" | "creative_copy" | "policy_edit" | "offer_create" | "offer_retire" | "flow_edit" | "arbitration_weights";
   summary: string;
   outcome: "suggested" | "proposed" | "auto_applied" | "reverted" | "blocked";
   guardrailBreached: string | null;
-  changeRequestId: string | null;
+  changeSetId: string | null;
 }
 
 export interface AuthUser {
@@ -234,7 +234,7 @@ export interface Elimination {
 export interface ScoreBreakdown {
   propensity: number;
   value: number;
-  lever: number;
+  boost: number;
   context: number;
   priority: number;
 }
@@ -258,7 +258,7 @@ export interface Decision {
   placement: string;
   /** Action key of the winning candidate, or null if suppressed */
   winner: string | null;
-  winnerPropositionId: string | null;
+  winnerOfferId: string | null;
   candidateCount: number;
   totalMs: number;
 }
@@ -268,7 +268,7 @@ export interface Decision {
 half, which is what makes replay a byte-comparison rather than a
 judgement call.
  */
-export interface DecisionTrace {
+export interface DecisionRecord {
   id: string;
   artifactId: string;
   artifactVersion: string;
@@ -278,7 +278,7 @@ export interface DecisionTrace {
   channel: string;
   placement: string;
   winner: string | null;
-  winnerPropositionId: string | null;
+  winnerOfferId: string | null;
   candidateCount: number;
   totalMs: number;
   eliminations: Elimination[];
@@ -293,7 +293,7 @@ export interface DecisionTrace {
   timings: Record<string, number>;
   constraintsApplied: string[];
   consentState: ConsentState;
-  treatmentId?: string | null;
+  creativeId?: string | null;
   /** Which connector supplied which input field. Reproducible. */
   sourceBindings?: SourceBinding[];
   /** What the integrations did on the wire. Measured, so absent on a
@@ -324,23 +324,23 @@ export interface ReplayResult {
   }[];
 }
 
-/** The whole offer catalogue - Issue > Group > Proposition. */
+/** The whole offer catalogue - Objective > Category > Offer. */
 export interface Taxonomy {
-  issues: Issue[];
-  groups: Group[];
-  propositions: Proposition[];
+  objectives: Objective[];
+  categories: Category[];
+  offers: Offer[];
 }
 
-/** A proposition with everything needed to render its page. */
-export interface PropositionDetail {
-  proposition: Proposition;
-  treatments: Treatment[];
-  policies: EngagementPolicy[];
+/** An offer with everything needed to render its page. */
+export interface OfferDetail {
+  offer: Offer;
+  creatives: Creative[];
+  policies: TargetingPolicy[];
   /** Effective autonomy for this scope, or null if none resolves */
   autonomy: AutonomySetting | null;
 }
 
-export interface ChangeRequestSimulation {
+export interface ChangeSetSimulation {
   ran: boolean;
   passed: boolean;
   populationSize: number;
@@ -351,7 +351,7 @@ export interface ChangeRequestSimulation {
 }
 
 /** A proposed change awaiting approval, from a person or an agent. */
-export interface ChangeRequest {
+export interface ChangeSet {
   id: string;
   title: string;
   description: string;
@@ -369,7 +369,7 @@ export interface ChangeRequest {
     before: string;
     after: string;
   }[];
-  simulation: ChangeRequestSimulation | null;
+  simulation: ChangeSetSimulation | null;
 }
 
 /** One entry in the append-only log. Every write produces one. */
@@ -381,7 +381,7 @@ export interface AuditEvent {
   eventType: string;
   scope: string;
   summary: string;
-  changeRequestId: string | null;
+  changeSetId: string | null;
 }
 
 /** One compiler finding, with the remedy where there is one. */
@@ -394,7 +394,7 @@ export interface Diagnostic {
   remedy?: string;
 }
 
-/** What the compiler predicts this strategy will cost to run. */
+/** What the compiler predicts this flow will cost to run. */
 export interface CostManifest {
   nodeCount: number;
   /** Longest path through the DAG, not the sum of all nodes */
@@ -421,7 +421,7 @@ export interface CompileResult {
 }
 
 /** One node in a decision graph. */
-export interface DirNode {
+export interface FlowNode {
   id: string;
   type: string;
   label: string;
@@ -442,7 +442,7 @@ export interface DirNode {
   };
 }
 
-export interface DirEdge {
+export interface FlowEdge {
   id: string;
   source: string;
   target: string;
@@ -451,12 +451,12 @@ export interface DirEdge {
 
 /** One immutable version in the registry. */
 export interface PublishedVersion {
-  strategyName: string;
+  flowName: string;
   version: string;
-  artifact: CompiledStrategy;
+  artifact: CompiledDecisionFlow;
   publishedAt: string;
   publishedBy: string;
-  /** Kept with the version rather than discarded on success. A strategy
+  /** Kept with the version rather than discarded on success. A flow
 that published near its latency budget is a different thing to
 explain in six months than one that published clean.
  */
@@ -475,14 +475,14 @@ export interface EnvironmentState {
 
 /** The result of a publish. `published` stored a new version, `unchanged`
 found byte-identical content already there, and `rejected` stored
-nothing - either the strategy did not compile, or the version already
+nothing - either the flow did not compile, or the version already
 holds different content.
  */
 export interface PublishOutcome {
   status: "published" | "unchanged" | "rejected";
   /** Present when status is `rejected`. */
   reason?: "compilation" | "immutable";
-  artifact?: CompiledStrategy | null;
+  artifact?: CompiledDecisionFlow | null;
   diagnostics: Diagnostic[];
   /** Present when refused as immutable. */
   existingHash?: string;
@@ -498,7 +498,7 @@ export interface RegistryEvent {
   actor: string;
   type: "ArtifactPublished" | "PublishRejected" | "VersionPromoted" | "VersionRolledBack";
   tenantId: string;
-  strategyName: string;
+  flowName: string;
   version: string;
   environment?: string;
   summary: string;
@@ -518,7 +518,7 @@ export interface FieldBinding {
 }
 
 /** A configured route to data the platform does not hold. Used at decision
-time: a strategy's source node names the connectors it needs, resolution
+time: a flow's source node names the connectors it needs, resolution
 fetches them before execution, and the values land in the input the
 engine hashes. Replay never calls a connector - it replays against the
 recorded snapshot.
@@ -562,7 +562,7 @@ export interface SourceCall {
   detail?: string;
 }
 
-/** A strategy as the console lists and renders it. Distinct from
+/** A flow as the console lists and renders it. Distinct from
 CompiledArtifact, which is the registry's immutable executable form.
  */
 export interface ArtifactSummary {
@@ -575,8 +575,8 @@ export interface ArtifactSummary {
   estimatedP95LatencyMs: number;
   status: string;
   candidateKeys: string[];
-  nodes: DirNode[];
-  edges: DirEdge[];
+  nodes: FlowNode[];
+  edges: FlowEdge[];
   updatedAt: string;
   updatedBy: string;
   /** Compile summary. Present on the list endpoint. */
@@ -591,23 +591,23 @@ export interface ArtifactSummary {
 
 /** Every operation the spec declares, keyed by operationId. */
 export const OPERATIONS = {
-  approveChangeRequest: {
+  approveChangeSet: {
     method: 'POST',
-    path: '/change-requests/{requestId}/approve',
-    pathParams: ['requestId'],
+    path: '/change-sets/{changeSetId}/approve',
+    pathParams: ['changeSetId'],
     queryParams: [],
     statuses: ['200', '403'],
   },
-  createChangeRequest: {
+  createChangeSet: {
     method: 'POST',
-    path: '/change-requests',
+    path: '/change-sets',
     pathParams: [],
     queryParams: [],
     statuses: ['201'],
   },
-  createProposition: {
+  createOffer: {
     method: 'POST',
-    path: '/propositions/{tenantId}',
+    path: '/offers/{tenantId}',
     pathParams: ['tenantId'],
     queryParams: [],
     statuses: ['201', '403'],
@@ -633,10 +633,10 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '404'],
   },
-  getChangeRequest: {
+  getChangeSet: {
     method: 'GET',
-    path: '/change-requests/{requestId}',
-    pathParams: ['requestId'],
+    path: '/change-sets/{changeSetId}',
+    pathParams: ['changeSetId'],
     queryParams: [],
     statuses: ['200', '404'],
   },
@@ -647,24 +647,24 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200'],
   },
-  getDecisionTrace: {
+  getDecisionRecord: {
     method: 'GET',
     path: '/decisions/{decisionId}/trace',
     pathParams: ['decisionId'],
     queryParams: [],
     statuses: ['200', '404'],
   },
-  getProposition: {
+  getOffer: {
     method: 'GET',
-    path: '/propositions/{tenantId}/{propositionId}',
-    pathParams: ['tenantId', 'propositionId'],
+    path: '/offers/{tenantId}/{offerId}',
+    pathParams: ['tenantId', 'offerId'],
     queryParams: [],
     statuses: ['200', '404'],
   },
   getRegistryEntry: {
     method: 'GET',
-    path: '/registry/{tenantId}/{strategyName}',
-    pathParams: ['tenantId', 'strategyName'],
+    path: '/registry/{tenantId}/{flowName}',
+    pathParams: ['tenantId', 'flowName'],
     queryParams: [],
     statuses: ['200', '404'],
   },
@@ -710,9 +710,9 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200'],
   },
-  listChangeRequests: {
+  listChangeSets: {
     method: 'GET',
-    path: '/change-requests',
+    path: '/change-sets',
     pathParams: [],
     queryParams: ['status'],
     statuses: ['200'],
@@ -724,46 +724,46 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200'],
   },
-  listContactPolicies: {
+  listCreatives: {
     method: 'GET',
-    path: '/contact-policies/{tenantId}',
+    path: '/creatives/{tenantId}/{offerId}',
+    pathParams: ['tenantId', 'offerId'],
+    queryParams: [],
+    statuses: ['200'],
+  },
+  listFrequencyPolicies: {
+    method: 'GET',
+    path: '/frequency-policies/{tenantId}',
     pathParams: ['tenantId'],
     queryParams: [],
     statuses: ['200'],
   },
-  listEngagementPolicies: {
+  listOffers: {
     method: 'GET',
-    path: '/engagement-policies/{tenantId}',
+    path: '/offers/{tenantId}',
     pathParams: ['tenantId'],
-    queryParams: ['kind'],
-    statuses: ['200'],
-  },
-  listPropositions: {
-    method: 'GET',
-    path: '/propositions/{tenantId}',
-    pathParams: ['tenantId'],
-    queryParams: ['issueId', 'groupId', 'status', 'q'],
+    queryParams: ['objectiveId', 'categoryId', 'status', 'q'],
     statuses: ['200'],
   },
   listRegistryEvents: {
     method: 'GET',
     path: '/registry/{tenantId}/events',
     pathParams: ['tenantId'],
-    queryParams: ['strategyName', 'limit'],
+    queryParams: ['flowName', 'limit'],
     statuses: ['200'],
   },
-  listRegistryStrategies: {
+  listRegistryFlows: {
     method: 'GET',
     path: '/registry/{tenantId}',
     pathParams: ['tenantId'],
     queryParams: [],
     statuses: ['200'],
   },
-  listTreatments: {
+  listTargetingPolicies: {
     method: 'GET',
-    path: '/treatments/{tenantId}/{propositionId}',
-    pathParams: ['tenantId', 'propositionId'],
-    queryParams: [],
+    path: '/targeting-policies/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: ['kind'],
     statuses: ['200'],
   },
   login: {
@@ -775,22 +775,22 @@ export const OPERATIONS = {
   },
   promoteVersion: {
     method: 'POST',
-    path: '/registry/{tenantId}/{strategyName}/promote',
-    pathParams: ['tenantId', 'strategyName'],
+    path: '/registry/{tenantId}/{flowName}/promote',
+    pathParams: ['tenantId', 'flowName'],
     queryParams: [],
     statuses: ['200', '403', '404', '409'],
   },
   publishArtifact: {
     method: 'POST',
-    path: '/registry/{tenantId}/{strategyName}',
-    pathParams: ['tenantId', 'strategyName'],
+    path: '/registry/{tenantId}/{flowName}',
+    pathParams: ['tenantId', 'flowName'],
     queryParams: [],
     statuses: ['201', '403', '409'],
   },
-  rejectChangeRequest: {
+  rejectChangeSet: {
     method: 'POST',
-    path: '/change-requests/{requestId}/reject',
-    pathParams: ['requestId'],
+    path: '/change-sets/{changeSetId}/reject',
+    pathParams: ['changeSetId'],
     queryParams: [],
     statuses: ['200', '403'],
   },
@@ -803,8 +803,8 @@ export const OPERATIONS = {
   },
   rollbackVersion: {
     method: 'POST',
-    path: '/registry/{tenantId}/{strategyName}/rollback',
-    pathParams: ['tenantId', 'strategyName'],
+    path: '/registry/{tenantId}/{flowName}/rollback',
+    pathParams: ['tenantId', 'flowName'],
     queryParams: [],
     statuses: ['200', '403', '409'],
   },
@@ -815,7 +815,7 @@ export const OPERATIONS = {
     queryParams: ['action', 'channel', 'customerId', 'dateFrom', 'dateTo', 'outcome', 'limit'],
     statuses: ['200'],
   },
-  simulateStrategy: {
+  simulateDecisionFlow: {
     method: 'POST',
     path: '/simulations',
     pathParams: [],
@@ -843,10 +843,10 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '403'],
   },
-  updateProposition: {
+  updateOffer: {
     method: 'PUT',
-    path: '/propositions/{tenantId}/{propositionId}',
-    pathParams: ['tenantId', 'propositionId'],
+    path: '/offers/{tenantId}/{offerId}',
+    pathParams: ['tenantId', 'offerId'],
     queryParams: [],
     statuses: ['200', '403'],
   },
@@ -856,16 +856,16 @@ export type OperationId = keyof typeof OPERATIONS;
 
 // --- Request and response bodies --------------------------------------------
 
-/** Approve a change request, applying its diff */
-export type ApproveChangeRequestResponse = ChangeRequest;
+/** Approve a change set, applying its diff */
+export type ApproveChangeSetResponse = ChangeSet;
 
 /** Propose a change */
-export type CreateChangeRequestResponse = ChangeRequest;
-export type CreateChangeRequestRequest = ChangeRequest;
+export type CreateChangeSetResponse = ChangeSet;
+export type CreateChangeSetRequest = ChangeSet;
 
-/** Create a proposition */
-export type CreatePropositionResponse = Proposition;
-export type CreatePropositionRequest = Proposition;
+/** Create an offer */
+export type CreateOfferResponse = Offer;
+export type CreateOfferRequest = Offer;
 
 /** Make a decision */
 export type ExecuteDecisionResponse = {
@@ -891,17 +891,17 @@ export type ExecuteDecisionRequest = {
   };
 };
 
-/** Arbitration weights and the levers in force */
+/** Arbitration weights and the boosts in force */
 export type GetArbitrationConfigResponse = {
   config: ArbitrationConfig;
-  levers: Lever[];
+  boosts: Boost[];
 };
 
-/** One strategy, with its graph and full compiler output */
+/** One flow, with its graph and full compiler output */
 export type GetArtifactSummaryResponse = ArtifactSummary;
 
-/** A change request with its diff and simulation */
-export type GetChangeRequestResponse = ChangeRequest;
+/** A change set with its diff and simulation */
+export type GetChangeSetResponse = ChangeSet;
 
 /** Find the smallest input change that flips a decision */
 export type GetCounterfactualResponse = {
@@ -918,14 +918,14 @@ export type GetCounterfactualRequest = {
 };
 
 /** The full reasoning behind one decision */
-export type GetDecisionTraceResponse = DecisionTrace;
+export type GetDecisionRecordResponse = DecisionRecord;
 
-/** A proposition with its treatments, policies and effective autonomy */
-export type GetPropositionResponse = PropositionDetail;
+/** An offer with its creatives, policies and effective autonomy */
+export type GetOfferResponse = OfferDetail;
 
 /** Published versions and where each is running */
 export type GetRegistryEntryResponse = {
-  strategyName: string;
+  flowName: string;
   versions: PublishedVersion[];
   environments: EnvironmentState[];
 };
@@ -943,7 +943,7 @@ export type ListAgentActivityResponse = {
   activity: AgentActivity[];
 };
 
-/** List strategies with their compile status */
+/** List flows with their compile status */
 export type ListArtifactsResponse = {
   artifacts: ArtifactSummary[];
 };
@@ -960,8 +960,8 @@ export type ListAutonomySettingsResponse = {
 };
 
 /** The approval queue */
-export type ListChangeRequestsResponse = {
-  changeRequests: ChangeRequest[];
+export type ListChangeSetsResponse = {
+  changeSets: ChangeSet[];
   total: number;
 };
 
@@ -970,19 +970,19 @@ export type ListConnectorsResponse = {
   connectors: Connector[];
 };
 
+/** Creatives for an offer, one per channel */
+export type ListCreativesResponse = {
+  creatives: Creative[];
+};
+
 /** Frequency caps and cooldowns */
-export type ListContactPoliciesResponse = {
-  policies: ContactPolicy[];
+export type ListFrequencyPoliciesResponse = {
+  policies: FrequencyPolicy[];
 };
 
-/** Eligibility, applicability and suitability policies */
-export type ListEngagementPoliciesResponse = {
-  policies: EngagementPolicy[];
-};
-
-/** List propositions, filtered */
-export type ListPropositionsResponse = {
-  propositions: Proposition[];
+/** List offers, filtered */
+export type ListOffersResponse = {
+  offers: Offer[];
   total: number;
 };
 
@@ -991,14 +991,14 @@ export type ListRegistryEventsResponse = {
   events: RegistryEvent[];
 };
 
-/** Strategies in the registry */
-export type ListRegistryStrategiesResponse = {
-  strategies: string[];
+/** Flows in the registry */
+export type ListRegistryFlowsResponse = {
+  flows: string[];
 };
 
-/** Treatments for a proposition, one per channel */
-export type ListTreatmentsResponse = {
-  treatments: Treatment[];
+/** Eligibility, relevance and suitability policies */
+export type ListTargetingPoliciesResponse = {
+  policies: TargetingPolicy[];
 };
 
 /** Exchange credentials for a session token */
@@ -1022,13 +1022,13 @@ export type PromoteVersionRequest = {
 export type PublishArtifactResponse = PublishOutcome;
 export type PublishArtifactRequest = {
   version: string;
-  /** The strategy as authored, before compilation. */
+  /** The flow as authored, before compilation. */
   source: Record<string, unknown>;
 };
 
-/** Reject a change request */
-export type RejectChangeRequestResponse = ChangeRequest;
-export type RejectChangeRequestRequest = {
+/** Reject a change set */
+export type RejectChangeSetResponse = ChangeSet;
+export type RejectChangeSetRequest = {
   reason: string;
 };
 
@@ -1048,9 +1048,9 @@ export type SearchDecisionsResponse = {
   total: number;
 };
 
-/** Run a population through a compiled strategy */
-export type SimulateStrategyResponse = ChangeRequestSimulation;
-export type SimulateStrategyRequest = {
+/** Run a population through a compiled flow */
+export type SimulateDecisionFlowResponse = ChangeSetSimulation;
+export type SimulateDecisionFlowRequest = {
   artifactId: string;
   version?: string;
   populationSize: number;
@@ -1062,7 +1062,7 @@ export type UpdateArbitrationConfigRequest = {
   weights: {
     propensity: number;
     value: number;
-    lever: number;
+    boost: number;
     context: number;
   };
 };
@@ -1075,22 +1075,22 @@ export type UpdateAutonomySettingRequest = AutonomySetting;
 export type UpdateConnectorResponse = Connector;
 export type UpdateConnectorRequest = Connector;
 
-/** Update a proposition */
-export type UpdatePropositionResponse = Proposition;
-export type UpdatePropositionRequest = Proposition;
+/** Update an offer */
+export type UpdateOfferResponse = Offer;
+export type UpdateOfferRequest = Offer;
 
 /** Response body type for each operation, by id. */
 export interface ResponseOf {
-  approveChangeRequest: ApproveChangeRequestResponse;
-  createChangeRequest: CreateChangeRequestResponse;
-  createProposition: CreatePropositionResponse;
+  approveChangeSet: ApproveChangeSetResponse;
+  createChangeSet: CreateChangeSetResponse;
+  createOffer: CreateOfferResponse;
   executeDecision: ExecuteDecisionResponse;
   getArbitrationConfig: GetArbitrationConfigResponse;
   getArtifactSummary: GetArtifactSummaryResponse;
-  getChangeRequest: GetChangeRequestResponse;
+  getChangeSet: GetChangeSetResponse;
   getCounterfactual: GetCounterfactualResponse;
-  getDecisionTrace: GetDecisionTraceResponse;
-  getProposition: GetPropositionResponse;
+  getDecisionRecord: GetDecisionRecordResponse;
+  getOffer: GetOfferResponse;
   getRegistryEntry: GetRegistryEntryResponse;
   getSession: GetSessionResponse;
   getTaxonomy: GetTaxonomyResponse;
@@ -1098,24 +1098,24 @@ export interface ResponseOf {
   listArtifacts: ListArtifactsResponse;
   listAuditEvents: ListAuditEventsResponse;
   listAutonomySettings: ListAutonomySettingsResponse;
-  listChangeRequests: ListChangeRequestsResponse;
+  listChangeSets: ListChangeSetsResponse;
   listConnectors: ListConnectorsResponse;
-  listContactPolicies: ListContactPoliciesResponse;
-  listEngagementPolicies: ListEngagementPoliciesResponse;
-  listPropositions: ListPropositionsResponse;
+  listCreatives: ListCreativesResponse;
+  listFrequencyPolicies: ListFrequencyPoliciesResponse;
+  listOffers: ListOffersResponse;
   listRegistryEvents: ListRegistryEventsResponse;
-  listRegistryStrategies: ListRegistryStrategiesResponse;
-  listTreatments: ListTreatmentsResponse;
+  listRegistryFlows: ListRegistryFlowsResponse;
+  listTargetingPolicies: ListTargetingPoliciesResponse;
   login: LoginResponse;
   promoteVersion: PromoteVersionResponse;
   publishArtifact: PublishArtifactResponse;
-  rejectChangeRequest: RejectChangeRequestResponse;
+  rejectChangeSet: RejectChangeSetResponse;
   replayDecision: ReplayDecisionResponse;
   rollbackVersion: RollbackVersionResponse;
   searchDecisions: SearchDecisionsResponse;
-  simulateStrategy: SimulateStrategyResponse;
+  simulateDecisionFlow: SimulateDecisionFlowResponse;
   updateArbitrationConfig: UpdateArbitrationConfigResponse;
   updateAutonomySetting: UpdateAutonomySettingResponse;
   updateConnector: UpdateConnectorResponse;
-  updateProposition: UpdatePropositionResponse;
+  updateOffer: UpdateOfferResponse;
 }

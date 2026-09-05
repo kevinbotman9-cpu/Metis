@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { apiClient, ApiError } from '@/lib/api-client';
 
 /**
- * A strategy's registry entry: what has been published, and what each
+ * A flow's registry entry: what has been published, and what each
  * environment is running.
  *
  * The distinction this surface exists to make visible is publish versus
@@ -20,34 +20,34 @@ import { apiClient, ApiError } from '@/lib/api-client';
 
 const ENVIRONMENTS = ['development', 'staging', 'production'] as const;
 
-export function RegistryPanel({ strategyName }: { strategyName: string }) {
+export function RegistryPanel({ flowName }: { flowName: string }) {
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
-  const canPromote = hasPermission('promote:strategies');
+  const canPromote = hasPermission('promote:flows');
 
   const entry = useQuery({
-    queryKey: ['registry', strategyName],
-    queryFn: () => apiClient.getRegistryEntry(strategyName),
+    queryKey: ['registry', flowName],
+    queryFn: () => apiClient.getRegistryEntry(flowName),
     retry: false,
   });
 
   const events = useQuery({
-    queryKey: ['registry-events', strategyName],
-    queryFn: () => apiClient.listRegistryEvents({ strategyName, limit: 12 }),
+    queryKey: ['registry-events', flowName],
+    queryFn: () => apiClient.listRegistryEvents({ flowName, limit: 12 }),
   });
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['registry', strategyName] });
-    queryClient.invalidateQueries({ queryKey: ['registry-events', strategyName] });
+    queryClient.invalidateQueries({ queryKey: ['registry', flowName] });
+    queryClient.invalidateQueries({ queryKey: ['registry-events', flowName] });
     queryClient.invalidateQueries({ queryKey: ['audit'] });
   };
 
   const promote = useMutation({
     mutationFn: (v: { version: string; environment: string }) =>
-      apiClient.promoteVersion(strategyName, v.version, v.environment),
+      apiClient.promoteVersion(flowName, v.version, v.environment),
     onMutate: (v) => {
       setPending(`${v.environment}:${v.version}`);
       setProblem(null);
@@ -58,7 +58,7 @@ export function RegistryPanel({ strategyName }: { strategyName: string }) {
   });
 
   const rollback = useMutation({
-    mutationFn: (environment: string) => apiClient.rollbackVersion(strategyName, environment),
+    mutationFn: (environment: string) => apiClient.rollbackVersion(flowName, environment),
     onMutate: (env) => {
       setPending(`rollback:${env}`);
       setProblem(null);
@@ -68,7 +68,7 @@ export function RegistryPanel({ strategyName }: { strategyName: string }) {
     onSuccess: invalidate,
   });
 
-  // A strategy that failed to compile was never stored, so there is no entry.
+  // A flow that failed to compile was never stored, so there is no entry.
   // That is the compilation gate working, and it deserves saying rather than
   // an empty panel.
   if (entry.error instanceof ApiError && entry.error.status === 404) {
@@ -77,7 +77,7 @@ export function RegistryPanel({ strategyName }: { strategyName: string }) {
         <CardHeader title="Registry" />
         <EmptyState
           title="Not in the registry"
-          description="Publishing compiles first, and this strategy has not been published successfully. A version that does not compile is refused, so it cannot be promoted and cannot reach execution. The registry log below records the attempt."
+          description="Publishing compiles first, and this decision flow has not been published successfully. A version that does not compile is refused, so it cannot be promoted and cannot reach execution. The registry log below records the attempt."
         />
         <CardBody>
           <RegistryLog events={events.data?.events ?? []} />

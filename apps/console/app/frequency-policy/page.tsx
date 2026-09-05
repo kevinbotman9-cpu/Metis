@@ -13,17 +13,17 @@ import {
   ErrorState,
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
-import { apiClient, type ContactPolicyDto } from '@/lib/api-client';
+import { apiClient, type FrequencyPolicyDto } from '@/lib/api-client';
 
-function ContactPolicyView() {
+function FrequencyPolicyView() {
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['contact-policies'],
-    queryFn: () => apiClient.listContactPolicies(),
+    queryKey: ['frequency-policies'],
+    queryFn: () => apiClient.listFrequencyPolicies(),
   });
 
   const rows = data?.policies ?? [];
 
-  const columns: Column<ContactPolicyDto>[] = [
+  const columns: Column<FrequencyPolicyDto>[] = [
     {
       key: 'name',
       header: 'Rule',
@@ -102,8 +102,8 @@ function ContactPolicyView() {
   return (
     <PageBody>
       <PageHeader
-        title="Contact policy"
-        description="Frequency caps and cooldowns. These suppress an otherwise-winning proposition, and the suppression is recorded in the trace so it can be explained."
+        title="Frequency policy"
+        description="Frequency caps and cooldowns. These suppress an otherwise-winning offer, and the suppression is recorded in the trace so it can be explained."
       />
 
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -136,8 +136,8 @@ function ContactPolicyView() {
           rowKey={(p) => p.id}
           isLoading={isLoading}
           defaultSort={{ key: 'scope', dir: 'asc' }}
-          emptyTitle="No contact policies configured"
-          caption="Contact policies"
+          emptyTitle="No frequency policies configured"
+          caption="Frequency policies"
         />
       </Card>
 
@@ -146,7 +146,7 @@ function ContactPolicyView() {
           <CardHeader title="How suppression appears in a decision" />
           <CardBody>
             <p className="text-body text-content-muted">
-              When a contact policy blocks delivery, the decision still runs and still ranks
+              When a frequency policy blocks delivery, the decision still runs and still ranks
               candidates. The constraint node then removes the winner, and the decision returns
               no offer. The trace keeps the full ranking, so you can answer both{' '}
               <em>&ldquo;what would we have offered?&rdquo;</em> and{' '}
@@ -159,10 +159,10 @@ function ContactPolicyView() {
   );
 }
 
-export default function ContactPolicyPage() {
+export default function FrequencyPolicyPage() {
   return (
     <RequireAuth>
-      <ContactPolicyView />
+      <FrequencyPolicyView />
     </RequireAuth>
   );
 }

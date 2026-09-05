@@ -3,11 +3,11 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import { cn } from '@/lib/cn';
-import type { DirNodeType } from '@/mocks/fixtures/artifacts';
+import type { FlowNodeType } from '@/mocks/fixtures/artifacts';
 
-export interface DirNodeData {
+export interface FlowNodeData {
   label: string;
-  nodeType: DirNodeType;
+  nodeType: FlowNodeType;
   estimatedMs: number;
   policyCount: number;
   hasModel: boolean;
@@ -20,7 +20,7 @@ export interface DirNodeData {
  * Node families share a colour so the graph reads at a glance:
  * data in, gates, scoring, and the terminal decision.
  */
-const FAMILY: Record<DirNodeType, { tone: string; family: string }> = {
+const FAMILY: Record<FlowNodeType, { tone: string; family: string }> = {
   source: { tone: 'info', family: 'Data' },
   filter: { tone: 'accent', family: 'Gate' },
   constraint: { tone: 'hold', family: 'Gate' },
@@ -28,7 +28,7 @@ const FAMILY: Record<DirNodeType, { tone: string; family: string }> = {
   'score-adaptive': { tone: 'pass', family: 'Score' },
   'set-property': { tone: 'info', family: 'Data' },
   switch: { tone: 'accent', family: 'Branch' },
-  'sub-strategy': { tone: 'accent', family: 'Branch' },
+  'sub-flow': { tone: 'accent', family: 'Branch' },
   'champion-challenger': { tone: 'accent', family: 'Branch' },
   'explain-annotate': { tone: 'info', family: 'Output' },
   arbitrate: { tone: 'block', family: 'Decision' },
@@ -50,7 +50,7 @@ const TONE_TEXT: Record<string, string> = {
   block: 'text-block',
 };
 
-function DirNodeComponent({ data }: NodeProps<DirNodeData>) {
+function FlowNodeComponent({ data }: NodeProps<FlowNodeData>) {
   const { tone, family } = FAMILY[data.nodeType] ?? FAMILY.source;
 
   return (
@@ -108,4 +108,4 @@ function DirNodeComponent({ data }: NodeProps<DirNodeData>) {
   );
 }
 
-export const DirNode = memo(DirNodeComponent);
+export const FlowNode = memo(FlowNodeComponent);

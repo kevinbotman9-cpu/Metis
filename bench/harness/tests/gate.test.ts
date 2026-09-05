@@ -15,7 +15,7 @@ import { runScenario, checkGate, BUDGET } from '../src/index';
  */
 
 describe('performance budget', () => {
-  const workload = buildWorkload({ propositions: 40 });
+  const workload = buildWorkload({ offers: 40 });
   const result = runScenario({
     name: 'CI gate',
     artifact: workload.artifact,
@@ -66,8 +66,8 @@ describe('performance budget', () => {
     // The original dataset generator used Math.random(), so a regression and a
     // reroll looked identical. This is the property that makes the benchmark
     // mean anything between runs.
-    const a = buildWorkload({ propositions: 8 });
-    const b = buildWorkload({ propositions: 8 });
+    const a = buildWorkload({ offers: 8 });
+    const b = buildWorkload({ offers: 8 });
 
     expect(a.request(42)).toEqual(b.request(42));
     expect(a.catalogue).toEqual(b.catalogue);
@@ -83,10 +83,10 @@ describe('performance budget', () => {
     // invariant worth holding is that the work stays proportional. Arbitration
     // that compared every candidate to every other would be quadratic, and 20x
     // the candidates would cost far more than 20x.
-    const measure = (propositions: number) => {
-      const w = buildWorkload({ propositions });
+    const measure = (offers: number) => {
+      const w = buildWorkload({ offers });
       return runScenario({
-        name: `${propositions}`,
+        name: `${offers}`,
         artifact: w.artifact,
         catalogue: w.catalogue,
         request: w.request,

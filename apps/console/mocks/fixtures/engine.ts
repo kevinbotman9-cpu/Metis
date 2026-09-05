@@ -3,13 +3,13 @@
  *
  * These are not hand-written any more. Each decision below is the actual output
  * of `@metis/runtime`'s deterministic engine, run over the catalogue in
- * ./catalogue.ts and the strategy graphs in ./artifacts.ts. That means:
+ * ./catalogue.ts and the flow graphs in ./artifacts.ts. That means:
  *
  *   - the elimination cascade shown in the console is the cascade that really
  *     happened, not prose written to look like one;
  *   - the console's Replay button re-executes the engine and compares chain
  *     hashes, rather than returning a hardcoded "identical";
- *   - a change to a policy or lever changes the decisions, because the engine
+ *   - a change to a policy or boost changes the decisions, because the engine
  *     is reading the same catalogue the UI edits.
  *
  * Generation is deterministic, so the set is byte-identical on every reload.
@@ -21,29 +21,29 @@ import type {
   ExecArtifact,
   CatalogueSnapshot,
   DecisionRequest,
-  DecisionTrace,
+  DecisionRecord,
 } from '@metis/runtime/deterministic/types';
 import {
-  propositions,
-  engagementPolicies,
-  contactPolicies,
+  offers,
+  targetingPolicies,
+  frequencyPolicies,
   arbitrationConfig,
-  levers,
+  boosts,
   connectors,
 } from './catalogue';
 import { artifacts, type ArtifactSummary } from './artifacts';
 
 /** The catalogue exactly as the engine sees it. */
 export const catalogueSnapshot: CatalogueSnapshot = {
-  propositions,
-  engagementPolicies,
-  contactPolicies,
+  offers,
+  targetingPolicies,
+  frequencyPolicies,
   arbitration: arbitrationConfig,
-  levers,
+  boosts,
   connectors,
 };
 
-/** A strategy artifact, in the shape the engine executes. */
+/** A flow artifact, in the shape the engine executes. */
 function toExecArtifact(a: ArtifactSummary): ExecArtifact {
   return {
     id: a.id,
@@ -77,7 +77,7 @@ export const execArtifacts: ExecArtifact[] = artifacts.map(toExecArtifact);
 
 const T0 = Date.parse('2026-09-04T08:00:00Z');
 
-/** Only strategies that are live make decisions. */
+/** Only flows that are live make decisions. */
 const LIVE = execArtifacts.filter((a) =>
   artifacts.find((s) => s.id === a.id)?.status === 'active'
 );
@@ -194,7 +194,7 @@ function buildRequest(index: number): DecisionRequest {
 // ---------------------------------------------------------------------------
 
 export interface GeneratedDecision {
-  trace: DecisionTrace;
+  trace: DecisionRecord;
   request: DecisionRequest;
   artifact: ExecArtifact;
 }

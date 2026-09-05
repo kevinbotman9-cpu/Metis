@@ -17,14 +17,14 @@ import { Button } from '@/components/ui/button';
 import { apiClient, type ArtifactSummaryDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
 
-function StrategiesView() {
+function FlowsView() {
   const router = useRouter();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['artifacts'],
     queryFn: () => apiClient.listArtifacts(),
   });
   const decisions = useQuery({
-    queryKey: ['decisions', 'by-strategy'],
+    queryKey: ['decisions', 'by-flow'],
     queryFn: () => apiClient.searchDecisions({ limit: 5000 }),
   });
 
@@ -33,23 +33,23 @@ function StrategiesView() {
   const warning = rows.filter((a) => a.compileOk !== false && (a.warningCount ?? 0) > 0).length;
 
   /**
-   * Decision volume per strategy, bucketed by day over the window.
+   * Decision volume per flow, bucketed by day over the window.
    * Derived from the real decisions rather than invented, so the shape means
    * something.
    */
-  const decisionsByStrategy = new Map<string, number[]>();
+  const decisionsByFlow = new Map<string, number[]>();
   for (const d of decisions.data?.decisions ?? []) {
     const day = new Date(d.timestamp).getUTCDate();
-    const series = decisionsByStrategy.get(d.artifactId) ?? new Array(7).fill(0);
+    const series = decisionsByFlow.get(d.artifactId) ?? new Array(7).fill(0);
     series[day % 7] += 1;
-    decisionsByStrategy.set(d.artifactId, series);
+    decisionsByFlow.set(d.artifactId, series);
   }
-  const activityFor = (id: string) => decisionsByStrategy.get(id) ?? new Array(7).fill(0);
+  const activityFor = (id: string) => decisionsByFlow.get(id) ?? new Array(7).fill(0);
 
   const columns: Column<ArtifactSummaryDto>[] = [
     {
       key: 'name',
-      header: 'Strategy',
+      header: 'Decision flow',
       sortValue: (a) => a.name,
       cell: (a) => (
         <div className="min-w-0">
@@ -131,7 +131,7 @@ function StrategiesView() {
       secondary: true,
       cell: (a) => (
         <Sparkline
-          // Decision volume per strategy over the window, bucketed by day.
+          // Decision volume per flow over the window, bucketed by day.
           values={activityFor(a.id)}
           label={`Recent decision volume for ${a.name}`}
           tone={a.status === 'active' ? 'accent' : 'hold'}
@@ -189,21 +189,21 @@ function StrategiesView() {
   return (
     <PageBody>
       <PageHeader
-        title="Strategies"
+        title="Decision flows"
         description="Compiled decision graphs. Each version is immutable and pinned to the node package versions it was compiled against, so any decision it made can be replayed exactly."
         actions={
           <Button variant="primary" size="md">
-            New strategy
+            New flow
           </Button>
         }
       />
 
       <div className="mb-stack grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <BigStat label="Strategies" value={rows.length} sub="in this tenant" />
+        <BigStat label="Decision flows" value={rows.length} sub="in this tenant" />
         <BigStat
           label="Decisions served"
           value={(decisions.data?.total ?? 0).toLocaleString('en-GB')}
-          sub="across all strategies"
+          sub="across all decision flows"
         />
         <HealthSummary
           label="Lifecycle"
@@ -238,7 +238,7 @@ function StrategiesView() {
       <Card>
         <CardHeader
           title="Compiled artifacts"
-          description="Select a strategy to open its decision graph."
+          description="Select a decision flow to open its graph."
         />
         <DataTable
           columns={columns}
@@ -246,19 +246,19 @@ function StrategiesView() {
           rowKey={(a) => a.id}
           isLoading={isLoading}
           defaultSort={{ key: 'updated', dir: 'desc' }}
-          onRowClick={(a) => router.push(`/strategies/${a.id}`)}
-          emptyTitle="No strategies published"
-          caption="Compiled strategy artifacts"
+          onRowClick={(a) => router.push(`/decision-flows/${a.id}`)}
+          emptyTitle="No decision flows published"
+          caption="Compiled decision flow artifacts"
         />
       </Card>
     </PageBody>
   );
 }
 
-export default function StrategiesPage() {
+export default function FlowsPage() {
   return (
     <RequireAuth>
-      <StrategiesView />
+      <FlowsView />
     </RequireAuth>
   );
 }

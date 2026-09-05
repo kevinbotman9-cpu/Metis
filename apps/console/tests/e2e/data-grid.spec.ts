@@ -136,7 +136,7 @@ test.describe('summary strip', () => {
   });
 
   test('breaks a total down rather than just counting it', async ({ page }) => {
-    await page.goto('/strategies');
+    await page.goto('/decision-flows');
 
     // A bare count tells an operator nothing actionable; the segments do.
     // Scope to the strip: the table below uses the same words as status badges.
@@ -157,14 +157,14 @@ test.describe('summary strip', () => {
   });
 
   test('gives every status glyph an accessible name', async ({ page }) => {
-    await page.goto('/strategies');
+    await page.goto('/decision-flows');
     // Colour alone must not carry the meaning.
     await expect(page.getByText('Compiles cleanly').first()).toBeAttached();
     await expect(page.getByText(/of the 50ms budget/).first()).toBeAttached();
   });
 
   test('labels the activity sparkline for screen readers', async ({ page }) => {
-    await page.goto('/strategies');
+    await page.goto('/decision-flows');
     await expect(
       page.getByRole('img', { name: /Recent decision volume for/ }).first()
     ).toBeAttached();

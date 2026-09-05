@@ -7,67 +7,67 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  issues,
-  groups,
-  propositions,
-  treatments,
-  engagementPolicies,
-  contactPolicies,
-  levers,
+  objectives,
+  categories,
+  offers,
+  creatives,
+  targetingPolicies,
+  frequencyPolicies,
+  boosts,
   autonomySettings,
 } from '@/mocks/fixtures/catalogue';
 import { decisions, traces, findTrace } from '@/mocks/fixtures/decisions';
 import { artifacts } from '@/mocks/fixtures/artifacts';
 
 describe('taxonomy integrity', () => {
-  it('gives every group a real issue', () => {
-    const issueIds = new Set(issues.map((i) => i.id));
-    for (const g of groups) expect(issueIds).toContain(g.issueId);
+  it('gives every category a real objective', () => {
+    const objectiveIds = new Set(objectives.map((i) => i.id));
+    for (const g of categories) expect(objectiveIds).toContain(g.objectiveId);
   });
 
-  it('gives every proposition a real group, with a matching denormalised issue', () => {
-    const byId = new Map(groups.map((g) => [g.id, g]));
-    for (const p of propositions) {
-      const group = byId.get(p.groupId);
-      expect(group, `${p.id} references missing group ${p.groupId}`).toBeDefined();
-      // issueId is denormalised for rendering; it must not drift from the group.
-      expect(p.issueId).toBe(group!.issueId);
+  it('gives every offer a real category, with a matching denormalised objective', () => {
+    const byId = new Map(categories.map((g) => [g.id, g]));
+    for (const p of offers) {
+      const category = byId.get(p.categoryId);
+      expect(category, `${p.id} references missing category ${p.categoryId}`).toBeDefined();
+      // objectiveId is denormalised for rendering; it must not drift from the category.
+      expect(p.objectiveId).toBe(category!.objectiveId);
     }
   });
 
-  it('resolves every treatment reference in both directions', () => {
-    const treatmentIds = new Set(treatments.map((t) => t.id));
-    const propositionIds = new Set(propositions.map((p) => p.id));
+  it('resolves every creative reference in both directions', () => {
+    const creativeIds = new Set(creatives.map((t) => t.id));
+    const offerIds = new Set(offers.map((p) => p.id));
 
-    for (const p of propositions) {
-      for (const id of p.treatmentIds) {
-        expect(treatmentIds, `${p.id} references missing treatment ${id}`).toContain(id);
+    for (const p of offers) {
+      for (const id of p.creativeIds) {
+        expect(creativeIds, `${p.id} references missing creative ${id}`).toContain(id);
       }
     }
-    for (const t of treatments) {
-      expect(propositionIds).toContain(t.propositionId);
-      // The treatment must be listed by the proposition it claims to belong to.
-      const owner = propositions.find((p) => p.id === t.propositionId)!;
-      expect(owner.treatmentIds).toContain(t.id);
+    for (const t of creatives) {
+      expect(offerIds).toContain(t.offerId);
+      // The creative must be listed by the offer it claims to belong to.
+      const owner = offers.find((p) => p.id === t.offerId)!;
+      expect(owner.creativeIds).toContain(t.id);
     }
   });
 
   it('resolves every policy reference', () => {
-    const policyIds = new Set(engagementPolicies.map((p) => p.id));
-    for (const p of propositions) {
+    const policyIds = new Set(targetingPolicies.map((p) => p.id));
+    for (const p of offers) {
       for (const id of p.policyIds) {
         expect(policyIds, `${p.id} references missing policy ${id}`).toContain(id);
       }
     }
   });
 
-  it('points every scoped policy, lever and autonomy rule at something real', () => {
+  it('points every scoped policy, boost and autonomy rule at something real', () => {
     const targets = new Set([
-      ...issues.map((i) => i.id),
-      ...groups.map((g) => g.id),
-      ...propositions.map((p) => p.id),
+      ...objectives.map((i) => i.id),
+      ...categories.map((g) => g.id),
+      ...offers.map((p) => p.id),
     ]);
-    const scoped = [...engagementPolicies, ...contactPolicies, ...levers, ...autonomySettings];
+    const scoped = [...targetingPolicies, ...frequencyPolicies, ...boosts, ...autonomySettings];
     for (const s of scoped) {
       if (s.scope.level === 'tenant') {
         expect(s.scope.targetId).toBeNull();
@@ -81,18 +81,18 @@ describe('taxonomy integrity', () => {
 
   it('keeps unique IDs across each collection', () => {
     const unique = (xs: { id: string }[]) => new Set(xs.map((x) => x.id)).size === xs.length;
-    expect(unique(issues)).toBe(true);
-    expect(unique(groups)).toBe(true);
-    expect(unique(propositions)).toBe(true);
-    expect(unique(treatments)).toBe(true);
-    expect(unique(engagementPolicies)).toBe(true);
+    expect(unique(objectives)).toBe(true);
+    expect(unique(categories)).toBe(true);
+    expect(unique(offers)).toBe(true);
+    expect(unique(creatives)).toBe(true);
+    expect(unique(targetingPolicies)).toBe(true);
   });
 
-  it('flags an active proposition with no deliverable treatment', () => {
+  it('flags an active offer with no deliverable creative', () => {
     // Not a failure — the console surfaces these. This asserts the console has
     // something to surface, so the empty state stays exercised.
-    const undeliverable = propositions.filter(
-      (p) => p.status !== 'retired' && p.treatmentIds.length === 0
+    const undeliverable = offers.filter(
+      (p) => p.status !== 'retired' && p.creativeIds.length === 0
     );
     expect(undeliverable.length).toBeGreaterThan(0);
   });
@@ -165,7 +165,7 @@ describe('decision fixtures', () => {
   });
 });
 
-describe('strategy artifacts', () => {
+describe('flow artifacts', () => {
   it('keeps nodeCount in step with the graph', () => {
     for (const a of artifacts) expect(a.nodeCount).toBe(a.nodes.length);
   });
@@ -221,15 +221,15 @@ describe('strategy artifacts', () => {
     }
   });
 
-  it('keeps every strategy inside the 50ms latency budget', () => {
+  it('keeps every flow inside the 50ms latency budget', () => {
     for (const a of artifacts) expect(a.estimatedP95LatencyMs).toBeLessThan(50);
   });
 
-  it('draws candidates from real proposition keys', () => {
-    const keys = new Set(propositions.map((p) => p.key));
+  it('draws candidates from real offer keys', () => {
+    const keys = new Set(offers.map((p) => p.key));
     for (const a of artifacts) {
       for (const k of a.candidateKeys) {
-        expect(keys, `${a.id} references unknown proposition key ${k}`).toContain(k);
+        expect(keys, `${a.id} references unknown offer key ${k}`).toContain(k);
       }
     }
   });
@@ -274,7 +274,7 @@ describe('console decisions come from the real engine', () => {
     expect(suppressed).toBeGreaterThan(0);
   });
 
-  it('draws decisions from more than one strategy', () => {
+  it('draws decisions from more than one flow', () => {
     expect(new Set(decisions.map((d) => d.artifactId)).size).toBeGreaterThan(1);
   });
 
@@ -286,8 +286,8 @@ describe('console decisions come from the real engine', () => {
     }
   });
 
-  it('names a winner that is a real proposition key', () => {
-    const keys = new Set(propositions.map((p) => p.key));
+  it('names a winner that is a real offer key', () => {
+    const keys = new Set(offers.map((p) => p.key));
     for (const t of traces) {
       if (t.winner) expect(keys).toContain(t.winner);
     }

@@ -3,8 +3,8 @@
  *
  * These are read by marketers and compliance officers, not only engineers, so
  * a diagnostic has to say what is wrong, where, and what to do about it. A
- * message like "type mismatch" fails that test; "Proposition 'upsell_5g' has no
- * active treatment for any channel, so it can never be delivered" passes it.
+ * message like "type mismatch" fails that test; "Offer 'upsell_5g' has no
+ * active creative for any channel, so it can never be delivered" passes it.
  */
 
 export type Severity = 'error' | 'warning';
@@ -85,7 +85,7 @@ export function didYouMean(unknownName: string, known: Iterable<string>): string
   return ` Did you mean ${options.map((o) => `'${o}'`).join(', ')}?`;
 }
 
-/** Group diagnostics for display: errors first, then warnings, stable order. */
+/** Category diagnostics for display: errors first, then warnings, stable order. */
 export function sortDiagnostics(diagnostics: Diagnostic[]): Diagnostic[] {
   const rank = (d: Diagnostic) => (d.severity === 'error' ? 0 : 1);
   return [...diagnostics].sort(

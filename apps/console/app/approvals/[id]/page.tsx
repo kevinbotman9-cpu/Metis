@@ -29,31 +29,31 @@ const STATUS_TONE: Record<string, 'pass' | 'block' | 'hold' | 'neutral'> = {
   withdrawn: 'neutral',
 };
 
-function ChangeRequestDetail({ id }: { id: string }) {
+function ChangeSetDetail({ id }: { id: string }) {
   const { hasPermission } = useAuth();
   const canApprove = hasPermission('approve:changes');
   const queryClient = useQueryClient();
 
   const { data: cr, isLoading, error, refetch } = useQuery({
-    queryKey: ['change-request', id],
-    queryFn: () => apiClient.getChangeRequest(id),
+    queryKey: ['change-set', id],
+    queryFn: () => apiClient.getChangeSet(id),
     retry: false,
   });
 
   const approve = useMutation({
-    mutationFn: () => apiClient.approveChangeRequest(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['change-request', id] }),
+    mutationFn: () => apiClient.approveChangeSet(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['change-set', id] }),
   });
 
   const reject = useMutation({
-    mutationFn: () => apiClient.rejectChangeRequest(id, 'Rejected from the console.'),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['change-request', id] }),
+    mutationFn: () => apiClient.rejectChangeSet(id, 'Rejected from the console.'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['change-set', id] }),
   });
 
   if (isLoading) {
     return (
       <PageBody>
-        <LoadingState label="Loading change request" />
+        <LoadingState label="Loading change set" />
       </PageBody>
     );
   }
@@ -63,7 +63,7 @@ function ChangeRequestDetail({ id }: { id: string }) {
     return (
       <PageBody>
         <PageHeader
-          title="Change request"
+          title="Change set"
           breadcrumb={
             <Link href="/approvals" className="text-label text-accent hover:underline">
               ← Approvals
@@ -73,7 +73,7 @@ function ChangeRequestDetail({ id }: { id: string }) {
         {notFound ? (
           <Card>
             <EmptyState
-              title={`No change request with ID ${id}`}
+              title={`No change set with ID ${id}`}
               action={
                 <Link href="/approvals">
                   <Button variant="primary">Back to approvals</Button>
@@ -319,5 +319,5 @@ function ChangeRequestDetail({ id }: { id: string }) {
 export default function ApprovalDetailPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  return <RequireAuth>{id ? <ChangeRequestDetail id={id} /> : null}</RequireAuth>;
+  return <RequireAuth>{id ? <ChangeSetDetail id={id} /> : null}</RequireAuth>;
 }

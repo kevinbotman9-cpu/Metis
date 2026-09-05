@@ -13,22 +13,22 @@ import type {
   AuditEvent as AuditEventDto,
   AuthUser as AuthUserDto,
   AutonomySetting as AutonomySettingDto,
-  ChangeRequest as ChangeRequestDto,
+  ChangeSet as ChangeSetDto,
   CompileResult as CompileResultDto,
-  ContactPolicy as ContactPolicyDto,
+  FrequencyPolicy as FrequencyPolicyDto,
   Decision as DecisionDto,
-  DecisionTrace as TraceDto,
+  DecisionRecord as TraceDto,
   Diagnostic as DiagnosticDto,
-  DirEdge as DirEdgeDto,
-  DirNode as DirNodeDto,
-  EngagementPolicy as EngagementPolicyDto,
-  Group as GroupDto,
-  Issue as IssueDto,
-  Lever as LeverDto,
+  FlowEdge as FlowEdgeDto,
+  FlowNode as FlowNodeDto,
+  TargetingPolicy as TargetingPolicyDto,
+  Category as CategoryDto,
+  Objective as ObjectiveDto,
+  Boost as BoostDto,
   Money as MoneyDto,
   PolicyScope as PolicyScopeDto,
-  Proposition as PropositionDto,
-  PropositionDetail as PropositionDetailDto,
+  Offer as OfferDto,
+  OfferDetail as OfferDetailDto,
   ReplayResult as ReplayResultDto,
   Connector as ConnectorDto,
   PublishedVersion as PublishedVersionDto,
@@ -38,7 +38,7 @@ import type {
   SourceBinding as SourceBindingDto,
   SourceCall as SourceCallDto,
   Taxonomy as TaxonomyDto,
-  Treatment as TreatmentDto,
+  Creative as CreativeDto,
 } from '@metis/client';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api';
@@ -112,46 +112,46 @@ export const apiClient = {
 
   getSession: () => apiCall<{ user: AuthUserDto }>('/auth/session'),
 
-  // --- Propositions -------------------------------------------------------
+  // --- Offers -------------------------------------------------------
   getTaxonomy: (tenantId: string = TENANT) =>
     apiCall<TaxonomyDto>(`/taxonomy/${tenantId}`),
 
-  listPropositions: (
-    filters: { issueId?: string; groupId?: string; status?: string; q?: string } = {},
+  listOffers: (
+    filters: { objectiveId?: string; categoryId?: string; status?: string; q?: string } = {},
     tenantId: string = TENANT
   ) =>
-    apiCall<{ propositions: PropositionDto[]; total: number }>(
-      `/propositions/${tenantId}`,
+    apiCall<{ offers: OfferDto[]; total: number }>(
+      `/offers/${tenantId}`,
       { query: filters }
     ),
 
-  getProposition: (propositionId: string, tenantId: string = TENANT) =>
-    apiCall<PropositionDetailDto>(`/propositions/${tenantId}/${propositionId}`),
+  getOffer: (offerId: string, tenantId: string = TENANT) =>
+    apiCall<OfferDetailDto>(`/offers/${tenantId}/${offerId}`),
 
-  listTreatments: (propositionId: string, tenantId: string = TENANT) =>
-    apiCall<{ treatments: TreatmentDto[] }>(`/treatments/${tenantId}/${propositionId}`),
+  listCreatives: (offerId: string, tenantId: string = TENANT) =>
+    apiCall<{ creatives: CreativeDto[] }>(`/creatives/${tenantId}/${offerId}`),
 
-  updateProposition: (
-    propositionId: string,
-    changes: Partial<PropositionDto>,
+  updateOffer: (
+    offerId: string,
+    changes: Partial<OfferDto>,
     tenantId: string = TENANT
   ) =>
-    apiCall<PropositionDto>(`/propositions/${tenantId}/${propositionId}`, {
+    apiCall<OfferDto>(`/offers/${tenantId}/${offerId}`, {
       method: 'PUT',
       body: changes,
     }),
 
   // --- Policies and arbitration -------------------------------------------
-  listEngagementPolicies: (kind?: string, tenantId: string = TENANT) =>
-    apiCall<{ policies: EngagementPolicyDto[] }>(`/engagement-policies/${tenantId}`, {
+  listTargetingPolicies: (kind?: string, tenantId: string = TENANT) =>
+    apiCall<{ policies: TargetingPolicyDto[] }>(`/targeting-policies/${tenantId}`, {
       query: { kind },
     }),
 
-  listContactPolicies: (tenantId: string = TENANT) =>
-    apiCall<{ policies: ContactPolicyDto[] }>(`/contact-policies/${tenantId}`),
+  listFrequencyPolicies: (tenantId: string = TENANT) =>
+    apiCall<{ policies: FrequencyPolicyDto[] }>(`/frequency-policies/${tenantId}`),
 
   getArbitration: (tenantId: string = TENANT) =>
-    apiCall<{ config: ArbitrationConfigDto; levers: LeverDto[] }>(`/arbitration/${tenantId}`),
+    apiCall<{ config: ArbitrationConfigDto; boosts: BoostDto[] }>(`/arbitration/${tenantId}`),
 
   updateArbitration: (
     weights: ArbitrationConfigDto['weights'],
@@ -183,25 +183,25 @@ export const apiClient = {
       query: filters as Record<string, string | number | undefined>,
     }),
 
-  getDecisionTrace: (decisionId: string) =>
+  getDecisionRecord: (decisionId: string) =>
     apiCall<TraceDto>(`/decisions/${decisionId}/trace`),
 
   replayDecision: (decisionId: string) =>
     apiCall<ReplayResultDto>(`/decisions/${decisionId}/replay`, { method: 'POST' }),
 
   // --- Governance ---------------------------------------------------------
-  listChangeRequests: (status?: string) =>
-    apiCall<{ changeRequests: ChangeRequestDto[]; total: number }>('/change-requests', {
+  listChangeSets: (status?: string) =>
+    apiCall<{ changeSets: ChangeSetDto[]; total: number }>('/change-sets', {
       query: { status },
     }),
 
-  getChangeRequest: (id: string) => apiCall<ChangeRequestDto>(`/change-requests/${id}`),
+  getChangeSet: (id: string) => apiCall<ChangeSetDto>(`/change-sets/${id}`),
 
-  approveChangeRequest: (id: string) =>
-    apiCall<ChangeRequestDto>(`/change-requests/${id}/approve`, { method: 'POST' }),
+  approveChangeSet: (id: string) =>
+    apiCall<ChangeSetDto>(`/change-sets/${id}/approve`, { method: 'POST' }),
 
-  rejectChangeRequest: (id: string, reason: string) =>
-    apiCall<ChangeRequestDto>(`/change-requests/${id}/reject`, {
+  rejectChangeSet: (id: string, reason: string) =>
+    apiCall<ChangeSetDto>(`/change-sets/${id}/reject`, {
       method: 'POST',
       body: { reason },
     }),
@@ -220,36 +220,36 @@ export const apiClient = {
     }),
 
   // --- Registry -----------------------------------------------------------
-  getRegistryEntry: (strategyName: string, tenantId: string = TENANT) =>
+  getRegistryEntry: (flowName: string, tenantId: string = TENANT) =>
     apiCall<{
-      strategyName: string;
+      flowName: string;
       versions: PublishedVersionDto[];
       environments: EnvironmentStateDto[];
-    }>(`/registry/${tenantId}/${strategyName}`),
+    }>(`/registry/${tenantId}/${flowName}`),
 
   listRegistryEvents: (
-    filters: { strategyName?: string; limit?: number } = {},
+    filters: { flowName?: string; limit?: number } = {},
     tenantId: string = TENANT
   ) => apiCall<{ events: RegistryEventDto[] }>(`/registry/${tenantId}/events`, { query: filters }),
 
   promoteVersion: (
-    strategyName: string,
+    flowName: string,
     version: string,
     environment: string,
     tenantId: string = TENANT
   ) =>
-    apiCall<EnvironmentStateDto>(`/registry/${tenantId}/${strategyName}/promote`, {
+    apiCall<EnvironmentStateDto>(`/registry/${tenantId}/${flowName}/promote`, {
       method: 'POST',
       body: { version, environment },
     }),
 
-  rollbackVersion: (strategyName: string, environment: string, tenantId: string = TENANT) =>
-    apiCall<EnvironmentStateDto>(`/registry/${tenantId}/${strategyName}/rollback`, {
+  rollbackVersion: (flowName: string, environment: string, tenantId: string = TENANT) =>
+    apiCall<EnvironmentStateDto>(`/registry/${tenantId}/${flowName}/rollback`, {
       method: 'POST',
       body: { environment },
     }),
 
-  // --- Strategies ---------------------------------------------------------
+  // --- Flows ---------------------------------------------------------
   listArtifacts: (tenantId: string = TENANT) =>
     apiCall<{ artifacts: ArtifactSummaryDto[] }>(`/artifacts/${tenantId}`),
 
@@ -275,25 +275,25 @@ export type {
   AuditEventDto,
   AuthUserDto,
   AutonomySettingDto,
-  ChangeRequestDto,
+  ChangeSetDto,
   CompileResultDto,
-  ContactPolicyDto,
+  FrequencyPolicyDto,
   DecisionDto,
   TraceDto,
   DiagnosticDto,
-  DirEdgeDto,
-  DirNodeDto,
-  EngagementPolicyDto,
-  GroupDto,
-  IssueDto,
-  LeverDto,
+  FlowEdgeDto,
+  FlowNodeDto,
+  TargetingPolicyDto,
+  CategoryDto,
+  ObjectiveDto,
+  BoostDto,
   MoneyDto,
   PolicyScopeDto,
-  PropositionDto,
-  PropositionDetailDto,
+  OfferDto,
+  OfferDetailDto,
   ReplayResultDto,
   TaxonomyDto,
-  TreatmentDto,
+  CreativeDto,
   ConnectorDto,
   PublishedVersionDto,
   EnvironmentStateDto,

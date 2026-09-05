@@ -21,7 +21,7 @@ import {
   EmptyState,
 } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
-import { apiClient, ApiError, type TreatmentDto } from '@/lib/api-client';
+import { apiClient, ApiError, type CreativeDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
 
 const CHANNEL_LABEL: Record<string, string> = {
@@ -34,7 +34,7 @@ const CHANNEL_LABEL: Record<string, string> = {
 
 const KIND_TONE: Record<string, 'accent' | 'info' | 'hold'> = {
   eligibility: 'accent',
-  applicability: 'info',
+  relevance: 'info',
   suitability: 'hold',
 };
 
@@ -43,9 +43,9 @@ function money(m: { amount: number; currency: string }) {
   return `${symbol}${(m.amount / 100).toFixed(2)}`;
 }
 
-/** Renders a treatment's channel-specific fields without leaking the shape. */
-function TreatmentBody({ treatment }: { treatment: TreatmentDto }) {
-  const c = treatment.content;
+/** Renders a creative's channel-specific fields without leaking the shape. */
+function CreativeBody({ creative }: { creative: CreativeDto }) {
+  const c = creative.content;
   const rows: [string, string][] = Object.entries(c)
     .filter(([k]) => k !== 'channel')
     .map(([k, v]) => [k, String(v)]);
@@ -64,19 +64,19 @@ function TreatmentBody({ treatment }: { treatment: TreatmentDto }) {
   );
 }
 
-function PropositionDetail({ propositionId }: { propositionId: string }) {
-  const [activeTreatment, setActiveTreatment] = useState<string | null>(null);
+function OfferDetail({ offerId }: { offerId: string }) {
+  const [activeCreative, setActiveCreative] = useState<string | null>(null);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['proposition', propositionId],
-    queryFn: () => apiClient.getProposition(propositionId),
+    queryKey: ['offer', offerId],
+    queryFn: () => apiClient.getOffer(offerId),
     retry: false,
   });
 
   if (isLoading) {
     return (
       <PageBody>
-        <LoadingState label="Loading proposition" />
+        <LoadingState label="Loading offer" />
       </PageBody>
     );
   }
@@ -86,20 +86,20 @@ function PropositionDetail({ propositionId }: { propositionId: string }) {
     return (
       <PageBody>
         <PageHeader
-          title="Proposition"
+          title="Offer"
           breadcrumb={
-            <Link href="/propositions" className="text-label text-accent hover:underline">
-              ← Propositions
+            <Link href="/offers" className="text-label text-accent hover:underline">
+              ← Offers
             </Link>
           }
         />
         {notFound ? (
           <Card>
             <EmptyState
-              title={`No proposition with ID ${propositionId}`}
+              title={`No offer with ID ${offerId}`}
               description="It may have been deleted, or the link may be stale."
               action={
-                <Link href="/propositions">
+                <Link href="/offers">
                   <Button variant="primary">Back to catalogue</Button>
                 </Link>
               }
@@ -114,9 +114,9 @@ function PropositionDetail({ propositionId }: { propositionId: string }) {
 
   if (!data) return null;
 
-  const { proposition: p, treatments, policies, autonomy } = data;
+  const { offer: p, creatives, policies, autonomy } = data;
   const selected =
-    treatments.find((t) => t.id === activeTreatment) ?? treatments[0] ?? null;
+    creatives.find((t) => t.id === activeCreative) ?? creatives[0] ?? null;
 
   const margin = p.financials.expectedMargin;
   const byKind = (kind: string) => policies.filter((pol) => pol.kind === kind);
@@ -128,7 +128,7 @@ function PropositionDetail({ propositionId }: { propositionId: string }) {
           <Breadcrumbs
             items={[
               { label: 'Offers' },
-              { label: 'Propositions', href: '/propositions' },
+              { label: 'Offers', href: '/offers' },
               { label: p.name },
             ]}
           />
@@ -166,45 +166,45 @@ function PropositionDetail({ propositionId }: { propositionId: string }) {
           sub={p.financials.termMonths > 0 ? `over ${p.financials.termMonths} months` : 'one-off'}
         />
         <Metric
-          label="Lever"
-          value={p.lever.toFixed(2)}
-          tone={p.lever > 1 ? 'pass' : p.lever < 1 ? 'hold' : 'neutral'}
+          label="Boost"
+          value={p.boost.toFixed(2)}
+          tone={p.boost > 1 ? 'pass' : p.boost < 1 ? 'hold' : 'neutral'}
           sub="arbitration weight"
         />
         <Metric
-          label="Treatments"
-          value={treatments.length}
-          tone={treatments.length === 0 ? 'block' : 'neutral'}
-          sub={`${treatments.filter((t) => t.active).length} active`}
+          label="Creatives"
+          value={creatives.length}
+          tone={creatives.length === 0 ? 'block' : 'neutral'}
+          sub={`${creatives.filter((t) => t.active).length} active`}
         />
       </div>
 
       <div className="grid gap-stack lg:grid-cols-[1.5fr_1fr]">
         <div className="space-y-stack">
-          {/* Treatments */}
+          {/* Creatives */}
           <Card>
             <CardHeader
-              title="Treatments"
+              title="Creatives"
               description="The content delivered on each channel."
               actions={
                 <Button variant="secondary" size="sm">
-                  Add treatment
+                  Add creative
                 </Button>
               }
             />
-            {treatments.length === 0 ? (
+            {creatives.length === 0 ? (
               <EmptyState
-                title="No treatments yet"
-                description="A proposition needs at least one active treatment before it can be delivered. This one cannot currently win a decision."
-                action={<Button variant="primary">Add the first treatment</Button>}
+                title="No creatives yet"
+                description="An offer needs at least one active creative before it can be delivered. This one cannot currently win a decision."
+                action={<Button variant="primary">Add the first creative</Button>}
               />
             ) : (
               <>
                 <div className="flex flex-wrap gap-1 border-b border-border px-card py-2">
-                  {treatments.map((t) => (
+                  {creatives.map((t) => (
                     <button
                       key={t.id}
-                      onClick={() => setActiveTreatment(t.id)}
+                      onClick={() => setActiveCreative(t.id)}
                       aria-pressed={selected?.id === t.id}
                       className={cn(
                         'flex items-center gap-1.5 rounded border px-2 py-1 text-label font-medium transition-colors',
@@ -236,7 +236,7 @@ function PropositionDetail({ propositionId }: { propositionId: string }) {
                       </Badge>
                     </div>
                     <div className="rounded border border-border bg-surface-sunken p-3">
-                      <TreatmentBody treatment={selected} />
+                      <CreativeBody creative={selected} />
                     </div>
                   </CardBody>
                 )}
@@ -244,14 +244,14 @@ function PropositionDetail({ propositionId }: { propositionId: string }) {
             )}
           </Card>
 
-          {/* Engagement policy */}
+          {/* Targeting policy */}
           <Card>
             <CardHeader
-              title="Engagement policy"
-              description="Eligibility asks whether we can. Applicability asks whether we should now. Suitability asks whether it is right for this customer."
+              title="Targeting policy"
+              description="Eligibility asks whether we can. Relevance asks whether we should now. Suitability asks whether it is right for this customer."
             />
             <CardBody className="space-y-4">
-              {(['eligibility', 'applicability', 'suitability'] as const).map((kind) => {
+              {(['eligibility', 'relevance', 'suitability'] as const).map((kind) => {
                 const list = byKind(kind);
                 return (
                   <div key={kind}>
@@ -263,7 +263,7 @@ function PropositionDetail({ propositionId }: { propositionId: string }) {
                     </div>
                     {list.length === 0 ? (
                       <p className="text-body text-content-subtle">
-                        No {kind} rules bound to this proposition.
+                        No {kind} rules bound to this offer.
                       </p>
                     ) : (
                       <ul className="space-y-1.5">
@@ -324,9 +324,9 @@ function PropositionDetail({ propositionId }: { propositionId: string }) {
                       <dd className="tnum">{autonomy.guardrails.maxBlastRadiusPct}%</dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-content-subtle">Max lever delta</dt>
+                      <dt className="text-content-subtle">Max boost delta</dt>
                       <dd className="tnum">
-                        ±{(autonomy.guardrails.maxLeverDelta * 100).toFixed(0)}%
+                        ±{(autonomy.guardrails.maxBoostDelta * 100).toFixed(0)}%
                       </dd>
                     </div>
                     <div className="flex justify-between">
@@ -411,7 +411,7 @@ function PropositionDetail({ propositionId }: { propositionId: string }) {
                 href="/arbitration"
                 className="mt-2 block rounded border border-border px-3 py-2 text-body hover:border-accent hover:bg-accent-subtle"
               >
-                Levers affecting this →
+                Boosts affecting this →
               </Link>
             </CardBody>
           </Card>
@@ -421,9 +421,9 @@ function PropositionDetail({ propositionId }: { propositionId: string }) {
   );
 }
 
-export default function PropositionDetailPage() {
+export default function OfferDetailPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
-  return <RequireAuth>{id ? <PropositionDetail propositionId={id} /> : null}</RequireAuth>;
+  return <RequireAuth>{id ? <OfferDetail offerId={id} /> : null}</RequireAuth>;
 }

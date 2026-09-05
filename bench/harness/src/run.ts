@@ -29,15 +29,15 @@ import {
 const STRESS: Budget = { p95Ms: BUDGET.p95Ms, throughputPerSecond: null };
 
 const SCENARIOS = [
-  { name: 'Small catalogue (10 candidates)', propositions: 10, decisions: 20_000, budget: BUDGET },
-  { name: 'Realistic catalogue (40 candidates)', propositions: 40, decisions: 20_000, budget: BUDGET },
-  { name: 'Stress (400 candidates)', propositions: 400, decisions: 5_000, budget: STRESS },
+  { name: 'Small catalogue (10 candidates)', offers: 10, decisions: 20_000, budget: BUDGET },
+  { name: 'Realistic catalogue (40 candidates)', offers: 40, decisions: 20_000, budget: BUDGET },
+  { name: 'Stress (400 candidates)', offers: 400, decisions: 5_000, budget: STRESS },
 ];
 
 const results: { result: ScenarioResult; budget: Budget }[] = [];
 
 for (const scenario of SCENARIOS) {
-  const workload = buildWorkload({ propositions: scenario.propositions });
+  const workload = buildWorkload({ offers: scenario.offers });
   results.push({
     budget: scenario.budget,
     result: runScenario({
@@ -69,7 +69,7 @@ console.log(
 );
 console.log(
   `\nPer-core capacity: ${large.throughput.toFixed(0)} decisions/s at 400 candidates. ` +
-    `Sustaining 1000/s at that catalogue size needs four cores, or a strategy ` +
+    `Sustaining 1000/s at that catalogue size needs four cores, or a flow ` +
     `that narrows the candidate set before scoring.`
 );
 

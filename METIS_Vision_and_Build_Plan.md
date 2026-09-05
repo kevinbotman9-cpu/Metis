@@ -1,5 +1,15 @@
 # METIS — Vision and Build Plan
 
+
+> **Vocabulary note, 2026-09-05.** The terminology in this document was updated in place
+> to the canonical taxonomy in §3 of the METIS platform specification. Where it previously
+> said *proposition*, *treatment*, *issue*, *group*, *engagement policy*, *contact policy*,
+> *boost*, *decision flow* and *change set*, it now says *offer*, *creative*,
+> *objective*, *category*, *targeting policy*, *frequency policy*, *boost*, *decision flow*
+> and *change set*. *Arbitration* and *propensity* are retained deliberately — §3.2 keeps
+> both as industry-standard. The argument and the intent are unchanged; only the words are.
+> See the Vocabulary section of `CLAUDE.md`, which is normative.
+
 **Audience:** Claude Code (implementation agent) and the product owner
 **Status:** Direction-setting document. Supersedes prior scope framing where they conflict.
 **Version:** 1.0 — September 2026
@@ -38,7 +48,7 @@ The fix is not to retreat from agents. It is to be precise about where they oper
 | Determinism | Not required | Absolute — same inputs, same version, same output |
 | Auditability | Change provenance: who/what proposed, who approved | Replay: any past decision reproducible byte-for-byte |
 
-Agents design strategies, write eligibility rules, build journeys, generate treatments, tune arbitration weights, propose experiments, detect drift and draft the fix. Every one of those actions produces a **proposed change to a Decision Artifact**, which is diffed, simulated, approved (per autonomy tier) and compiled. The runtime then executes compiled artifacts with no model call in the hot path.
+Agents design flows, write eligibility rules, build journeys, generate creatives, tune arbitration weights, propose experiments, detect drift and draft the fix. Every one of those actions produces a **proposed change to a Decision Artifact**, which is diffed, simulated, approved (per autonomy tier) and compiled. The runtime then executes compiled artifacts with no model call in the hot path.
 
 **Why this is the right bet:**
 
@@ -76,7 +86,7 @@ These are constraints on every PR.
 1. **No LLM call in the decision hot path.** Ever. If a feature seems to need one, it belongs in the authoring plane or in an async enrichment path with a cached result.
 2. **Everything commercially significant is grounded.** Prices, quantities, eligibility, terms come from a system of record with a recorded version. Never generated.
 3. **Explanation is emitted, not reconstructed.** The engine produces the reasoning trace as a by-product of execution. If a decision cannot explain itself, it does not ship.
-4. **Every artifact is versioned, immutable and signed.** Strategies, rules, journeys, models, treatments, packs. Mutation happens by publishing a new version.
+4. **Every artifact is versioned, immutable and signed.** Flows, rules, journeys, models, creatives, packs. Mutation happens by publishing a new version.
 5. **Every write to the control plane is an event.** Event-sourced. The current state is a projection. This gives change history, replay and rollback for free.
 6. **Multi-tenancy is enforced at the data layer**, not in application code. Row-level security or per-tenant schema. Never a `WHERE tenant_id =` that a developer can forget.
 7. **Extension points are declared, not discovered.** A registry of extension points with typed contracts. No monkey-patching, no dynamic import of arbitrary code paths.
@@ -93,7 +103,7 @@ These are constraints on every PR.
 ```
 ┌──────────────────────────── AUTHORING PLANE ─────────────────────────────┐
 │  AI Command Center  ·  Genesis  ·  Agent clusters  ·  Journey canvas      │
-│  Strategy designer  ·  Simulation & what-if  ·  Approval workflows        │
+│  Flow designer  ·  Simulation & what-if  ·  Approval workflows        │
 │                                    │                                      │
 │                          proposes changes to                              │
 │                                    ▼                                      │
@@ -103,7 +113,7 @@ These are constraints on every PR.
                                      │ compile + publish (blue/green)
 ┌────────────────────────────────────▼─────────────────────────────────────┐
 │                          EXECUTION PLANE                                  │
-│  Artifact registry → Compiled strategy VM → Arbitration → Explanation     │
+│  Artifact registry → Compiled flow VM → Arbitration → Explanation     │
 │  Feature store (online) · Rules eval · Model scoring · Constraint engine   │
 │                  no LLM · deterministic · p95 < 50ms                      │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -123,7 +133,7 @@ The Decision Intermediate Representation is the single most important new asset.
 - Round-trips losslessly to and from the visual canvas.
 
 **Minimum node taxonomy for parity** (each a package-provided type):
-`source` · `filter` · `set-property` · `join` · `aggregate` · `group-by` · `score-model` · `score-adaptive` · `prioritise` · `switch` · `sub-strategy` · `champion-challenger` · `interaction-history` · `constraint` · `suppress` · `arbitrate` · `explain-annotate`
+`source` · `filter` · `set-property` · `join` · `aggregate` · `category-by` · `score-model` · `score-adaptive` · `prioritise` · `switch` · `sub-flow` · `champion-challenger` · `interaction-history` · `constraint` · `suppress` · `arbitrate` · `explain-annotate`
 
 **Compiler responsibilities:**
 - Type-check field references against the customer data model.
@@ -144,7 +154,7 @@ metis-package.json
                                    // ui-panel | theme | connector | agent
   "version": "2.1.0",
   "apiVersion": "metis/v1",
-  "provides": ["data-model", "actions", "journeys", "strategies", "themes"],
+  "provides": ["data-model", "actions", "journeys", "flows", "themes"],
   "requires": { "metis.core": ">=1.4", "metis.pack.reg.uk-gdpr": "^1.0" },
   "extensionPoints": { ... },
   "signature": "..."
@@ -155,36 +165,36 @@ Package kinds to support:
 
 | Kind | What it contributes | Example |
 |---|---|---|
-| `industry-pack` | Data model, actions, journeys, strategy templates, personas | TM Forum SID telco; BIAN banking |
+| `industry-pack` | Data model, actions, journeys, flow templates, personas | TM Forum SID telco; BIAN banking |
 | `regulatory-pack` | Consent rules, retention policy, mandatory checks, disclosure text | UK FCA Consumer Duty; EU AI Act; GDPR; CCPA |
 | `node` | New DIR node types with typed contracts | Custom scoring node |
-| `channel` | Delivery adapter + treatment schema + render contract | WhatsApp, in-app, IVR, DOOH |
+| `channel` | Delivery adapter + creative schema + render contract | WhatsApp, in-app, IVR, DOOH |
 | `model-provider` | Scoring adapter | ONNX runtime, SageMaker, Vertex, in-house |
 | `connector` | Data ingress/egress | Kafka, Snowflake, Salesforce, Adobe |
 | `ui-panel` | Micro-frontend panel with slot declaration | Custom KPI board |
 | `theme` | Token set, typography, density, motion | Bank house style |
 | `agent` | Additional authoring-plane agent with tool contract | Bespoke pricing analyst agent |
 
-**This is the single biggest "awe" lever with technical buyers.** An architect who can see a package manifest and understand how to extend the platform in a two-hour workshop is an architect who will champion you internally.
+**This is the single biggest "awe" boost with technical buyers.** An architect who can see a package manifest and understand how to extend the platform in a two-hour workshop is an architect who will champion you internally.
 
 ### 4.4 Data and feature layer
 
 - **Customer data model** is pack-supplied and versioned; migrations are generated.
 - **Online feature store** — Redis-backed, with declared feature definitions, TTLs, freshness stamps and lineage. Every feature read into a decision carries `{value, source_system, computed_at, version}`.
 - **Offline store** — ClickHouse for history, training sets and analytics. Same feature definitions compile to both online and offline paths so training/serving skew is structurally prevented.
-- **Interaction history** as a first-class, append-only store with fast per-customer recency queries (last N impressions, last outcome per action, contact counts per channel per window). Parity depends on this being fast; contact policy evaluation is unusable without it.
+- **Interaction history** as a first-class, append-only store with fast per-customer recency queries (last N impressions, last outcome per action, contact counts per channel per window). Parity depends on this being fast; frequency policy evaluation is unusable without it.
 
 ### 4.5 Explainability spine
 
-One trace format, five renderings. The engine emits a canonical `DecisionTrace`:
+One trace format, five renderings. The engine emits a canonical `DecisionRecord`:
 
 ```
-DecisionTrace {
+DecisionRecord {
   decision_id, tenant_id, customer_ref (pseudonymised),
   artifact_version, package_versions[], input_snapshot_hash,
   candidate_set: [ { action_id, entered_at_node, ... } ],
   eliminations: [ { action_id, node_id, rule_id, reason_code, human_reason } ],
-  scores: [ { action_id, component: propensity|value|context|lever, value, model_version, top_features[] } ],
+  scores: [ { action_id, component: propensity|value|context|boost, value, model_version, top_features[] } ],
   arbitration: { formula_version, ranked[], winner },
   constraints_applied: [ ... ],
   consent_state, compliance_checks[],
@@ -216,21 +226,21 @@ Status key: **H** = have (per current docs) · **P** = partial · **M** = missin
 
 | Capability | Pega equivalent | Status | Build note |
 |---|---|---|---|
-| Hierarchical taxonomy (Issue → Group → Action → Treatment) | NBA Designer taxonomy | P | Formalise. Actions exist; the hierarchy and its inheritance semantics need to be explicit and pack-supplied. |
-| Action properties, catalogues, versioning | Proposition Management | P | Add approval state machine and effective-dating. |
-| Treatments per channel with variants | Treatments | P | Treatment must be a distinct entity from Action, with per-channel schema from the channel package. |
+| Hierarchical taxonomy (Objective → Category → Action → Creative) | NBA Designer taxonomy | P | Formalise. Actions exist; the hierarchy and its inheritance semantics need to be explicit and pack-supplied. |
+| Action properties, catalogues, versioning | Offer Management | P | Add approval state machine and effective-dating. |
+| Creatives per channel with variants | Creatives | P | Creative must be a distinct entity from Action, with per-channel schema from the channel package. |
 | Content library with approval workflow | Content Manager | M | Asset store, versions, review/approve, expiry, usage tracking, brand checks. |
-| Effective dating and scheduling on any artifact | Availability dates | M | Cross-cutting: `valid_from`/`valid_to` on actions, treatments, strategies. |
+| Effective dating and scheduling on any artifact | Availability dates | M | Cross-cutting: `valid_from`/`valid_to` on actions, creatives, flows. |
 
-### 5.2 Engagement policy
+### 5.2 Targeting policy
 
 | Capability | Pega equivalent | Status | Build note |
 |---|---|---|---|
 | Eligibility (hard rules) | Eligibility | H | Keep deterministic, versioned, testable in isolation. |
-| Applicability (contextual relevance) | Applicability | P | Distinguish from eligibility. Different reason codes in the trace. |
+| Relevance (contextual relevance) | Relevance | P | Distinguish from eligibility. Different reason codes in the trace. |
 | Suitability (customer-interest test) | Suitability | M | Needed for Consumer Duty style regimes. Make it a first-class layer with its own audit line. |
-| Contact policy / suppression | Contact Policy | P | Requires fast IH: "suppress action X for 30 days after 3 impressions with no response." Volume + recency + outcome-conditioned. |
-| Channel-level and customer-level frequency caps | Contact limits | P | Per channel, per period, per issue, with priority-based override. |
+| Frequency policy / suppression | Frequency Policy | P | Requires fast IH: "suppress action X for 30 days after 3 impressions with no response." Volume + recency + outcome-conditioned. |
+| Channel-level and customer-level frequency caps | Contact limits | P | Per channel, per period, per objective, with priority-based override. |
 | Global opt-out and consent enforcement | Consent | P | Must fail closed. Pack-supplied consent taxonomy. |
 
 ### 5.3 Arbitration
@@ -238,8 +248,8 @@ Status key: **H** = have (per current docs) · **P** = partial · **M** = missin
 | Capability | Pega equivalent | Status | Build note |
 |---|---|---|---|
 | Multi-factor ranking formula | P × C × V × L | P | Make the formula an artifact: named, versioned, editable, simulatable. Do not hardcode. |
-| Business levers / weighting by objective | Levers | P | Expose as a business-user control with an immediate simulated impact preview. |
-| Multi-level arbitration hierarchies | Group-then-action arbitration | M | Arbitrate within group, then across groups, with per-level formulas. Explicitly called out as a gap. |
+| Business boosts / weighting by objective | Boosts | P | Expose as a business-user control with an immediate simulated impact preview. |
+| Multi-level arbitration hierarchies | Category-then-action arbitration | M | Arbitrate within category, then across categories, with per-level formulas. Explicitly called out as a gap. |
 | Channel-specific arbitration | Channel overrides | M | Same candidate set, different formula per channel/placement. |
 | Bundle and sequencing decisions | Bundles | M | Deciding a *set* of actions, not just the top one. Required for real placements with N slots. |
 | Tie-breaking and diversity constraints | — | M | Deterministic tie-break; optional diversity constraint so a customer does not see the same offer everywhere. Also a differentiator. |
@@ -248,10 +258,10 @@ Status key: **H** = have (per current docs) · **P** = partial · **M** = missin
 
 | Capability | Pega equivalent | Status | Build note |
 |---|---|---|---|
-| Adaptive (self-learning) models | Adaptive Decision Manager | M | **Highest-priority parity gap.** Online-learning per action/treatment/channel, with automatic predictor binning, importance and cold-start handling. Without this, buyers see METIS as a rules engine with a chatbot. |
+| Adaptive (self-learning) models | Adaptive Decision Manager | M | **Highest-priority parity gap.** Online-learning per action/creative/channel, with automatic predictor binning, importance and cold-start handling. Without this, buyers see METIS as a rules engine with a chatbot. |
 | Predictive model import and serving | Prediction Studio | P | ONNX/PMML import, versioned serving, shadow mode. |
 | Model monitoring, drift, performance reports | Model reports | P | Drift detection on inputs and outputs, alerting, auto-quarantine of degraded models. |
-| Champion/challenger on models and strategies | Champion Challenger | M | Node type + traffic split + significance testing + auto-promote (subject to autonomy tier). |
+| Champion/challenger on models and flows | Champion Challenger | M | Node type + traffic split + significance testing + auto-promote (subject to autonomy tier). |
 | Feature attribution per decision | Predictor importance | P | Must reach the trace, not just a report. |
 | Model risk documentation generation | — | M | Generate SR 11-7-shaped model documentation from the registry. This is a *differentiator disguised as compliance*. |
 
@@ -264,7 +274,7 @@ Status key: **H** = have (per current docs) · **P** = partial · **M** = missin
 | Under-served customer analysis | Value Finder | M | Find customers with no eligible action or uniformly low propensity. Excellent demo material. |
 | Ethical bias testing | Bias policy | M | Protected-attribute parity checks on outcomes, pre-publish gate, recorded result. |
 | Audience simulation on real IH | — | M | Replay historical interactions through a candidate artifact for a counterfactual estimate. |
-| Unit tests on strategies and rules | Test cases | M | Deterministic fixtures. Runs in CI. Required for the "business user changes things" story to be safe. |
+| Unit tests on flows and rules | Test cases | M | Deterministic fixtures. Runs in CI. Required for the "business user changes things" story to be safe. |
 
 **Do not underestimate this block.** Simulation is what makes autonomy palatable. Tier 3 is unsellable without it, and Tier 2 approvals are guesswork without it.
 
@@ -275,19 +285,19 @@ Status key: **H** = have (per current docs) · **P** = partial · **M** = missin
 | Inbound real-time containers | Real-Time Container | P | Named placements, slot counts, per-placement policy, capture of impression + click + outcome. |
 | Agent-assist / CSR surface | Customer Service integration | P | Needs an embeddable widget and a documented contract. |
 | Outbound campaigns with segments and schedules | Outbound schedules | P | Segment builder, volume constraints, throttling, quiet hours, retry. |
-| Always-on outbound | 1:1 Operations | M | Continuous evaluation of the base against strategies, with volume/frequency governance. |
+| Always-on outbound | 1:1 Operations | M | Continuous evaluation of the base against flows, with volume/frequency governance. |
 | Batch and offline decisioning | Batch runs | M | Explicitly named as a gap. Same DIR, different executor. Millions of customers, no latency constraint. |
 | Paid media audience export | Paid Media Manager | M | Meta/Google/TTD audience sync with consent filtering and suppression. |
-| Event-triggered decisioning | Event Strategy Manager | P | Stream processing with windowed patterns ("3 failed logins in 10 min"). |
+| Event-triggered decisioning | Event Flow Manager | P | Stream processing with windowed patterns ("3 failed logins in 10 min"). |
 
 ### 5.7 Governance and change management
 
 | Capability | Pega equivalent | Status | Build note |
 |---|---|---|---|
-| Change request → review → approve → deploy | 1:1 Operations Manager | P | Formalise as a workflow over artifact versions, with agent-proposed changes as first-class requests. |
+| Change set → review → approve → deploy | 1:1 Operations Manager | P | Formalise as a workflow over artifact versions, with agent-proposed changes as first-class requests. |
 | Branching and merge of decisioning config | Revision management | M | Because artifacts are versioned and diffable, this is achievable and is a genuine step beyond Pega. |
 | Environment promotion (dev → UAT → prod) | Deployment Manager | M | Blue/green artifact publish with instant rollback. |
-| Role-based access at artifact granularity | RBAC | H | Extend to per-issue/per-group scoping. |
+| Role-based access at artifact granularity | RBAC | H | Extend to per-objective/per-category scoping. |
 | Immutable audit of every change | Audit | P | Extend chained audit from decisions to configuration changes. |
 | Four-eyes / segregation of duties | — | M | Configurable approval quorum per artifact type and per tier. |
 
@@ -311,13 +321,13 @@ Parity gets you evaluated. These get you chosen.
 "Why did this customer get that offer, and what would have had to be different for them to get the other one?" The engine can answer both because it is deterministic. Minimal counterfactual — the smallest change in inputs that flips the outcome — is a genuinely novel regulatory answer and demos beautifully.
 
 **6.2 Compile-time guarantees.**
-Publish a strategy and the platform tells you, before it goes live: worst-case latency, data dependencies, models invoked, cost per thousand decisions, which customers become newly eligible or ineligible, and whether any protected-attribute disparity appeared. No incumbent does this well.
+Publish a flow and the platform tells you, before it goes live: worst-case latency, data dependencies, models invoked, cost per thousand decisions, which customers become newly eligible or ineligible, and whether any protected-attribute disparity appeared. No incumbent does this well.
 
 **6.3 The regulatory pack system.**
 Compliance as installable, versioned content. When the EU AI Act guidance updates, customers install `metis.pack.reg.eu-aiact@2.3.0` and get a change report showing exactly which of their decisions would now behave differently. This turns a cost centre into a subscription.
 
 **6.4 Agent-proposed change with human-grade diffs.**
-An agent notices drift, drafts a strategy change, runs simulation, and submits it as a change request containing: the diff, the simulated impact, the bias check, the cost delta and its own reasoning. A human sees a pull request, not a black box. This is the honest, defensible version of "autonomous."
+An agent notices drift, drafts a flow change, runs simulation, and submits it as a change set containing: the diff, the simulated impact, the bias check, the cost delta and its own reasoning. A human sees a pull request, not a black box. This is the honest, defensible version of "autonomous."
 
 **6.5 Shadow mode / Decision Twin.**
 Run METIS alongside an incumbent on live traffic, decide nothing, and report where the two disagree and which would have performed better. This is the answer to "nobody wants to be first" — it removes the risk from the first deal and directly enables Scenario C in your assessment. **Build this early; it is a sales instrument as much as a feature.**
@@ -344,10 +354,10 @@ Screens are declared, not coded: a manifest describes regions, slots and the pan
 A panel declares which slots it can occupy, what data contract it needs, and what permissions it requires. Customers and partners can write panels. This is what turns the UI from a screen into a platform.
 
 **7.4 Persona workspaces.**
-Ship opinionated defaults, because most users do not want to configure anything: *Marketer* (campaigns, actions, results), *Decision Architect* (strategies, arbitration, simulation), *Data Scientist* (models, drift, features), *Compliance Officer* (audit, bias, consent, evidence export), *Operator* (health, throughput, incidents), *Executive* (value, adoption, cost).
+Ship opinionated defaults, because most users do not want to configure anything: *Marketer* (campaigns, actions, results), *Decision Architect* (flows, arbitration, simulation), *Data Scientist* (models, drift, features), *Compliance Officer* (audit, bias, consent, evidence export), *Operator* (health, throughput, incidents), *Executive* (value, adoption, cost).
 
 **7.5 The canvas.**
-One canvas metaphor for journeys and strategies, with live data overlays — show real volumes flowing through each node from the last 24 hours. Debug by clicking a node and seeing which customers took that path. Direct manipulation, undo/redo, keyboard-first, multiplayer-aware.
+One canvas metaphor for journeys and flows, with live data overlays — show real volumes flowing through each node from the last 24 hours. Debug by clicking a node and seeing which customers took that path. Direct manipulation, undo/redo, keyboard-first, multiplayer-aware.
 
 **7.6 Explanation-first surfaces.**
 Every number in the UI is clickable to its trace. No unexplained figures anywhere in the product. This is a small discipline with an enormous cumulative effect on trust.
@@ -387,7 +397,7 @@ The plane separation and the artifact model. Nothing else matters until this exi
 - Build the compiler: type checking, version pinning, static cost analysis.
 - Build the artifact registry: immutable, versioned, signed, blue/green publish, instant rollback.
 - Refactor the runtime to execute compiled artifacts with no model call in the hot path.
-- Implement the canonical `DecisionTrace` and the replay service.
+- Implement the canonical `DecisionRecord` and the replay service.
 - Convert the control plane to event sourcing.
 - Load harness in CI with a p95 gate.
 
@@ -399,12 +409,12 @@ The capabilities without which an evaluation is lost in week two.
 
 - Adaptive models (online learning, binning, importance, cold start).
 - Multi-level arbitration, channel-specific formulas, bundles and slots.
-- Contact policy with outcome-conditioned suppression over fast interaction history.
+- Frequency policy with outcome-conditioned suppression over fast interaction history.
 - Suitability layer; effective dating across artifacts.
 - Simulation suite: distribution test, version diff on a population, value finder, bias gate.
 - Batch/offline executor sharing the DIR.
-- Change request workflow with agent-proposed changes as pull-request-shaped objects.
-- Treatment/content library with approval workflow.
+- Change set workflow with agent-proposed changes as pull-request-shaped objects.
+- Creative/content library with approval workflow.
 
 **Gate:** a full evaluation script for one segment can be run end to end without a "we don't have that yet."
 
@@ -490,7 +500,7 @@ State these explicitly to protect focus.
 Claude Code cannot resolve these; they are yours.
 
 1. **Segment.** The assessment says pick one. Telco-UK is the obvious candidate given the existing dataset and demo. Confirm, because §9 sequencing changes materially with the answer.
-2. **Scenario C posture.** Is "layer above an incumbent" an entry strategy we build for deliberately? If yes, the Pega/Adobe read-through connectors and Shadow Mode move into Phase 1.
+2. **Scenario C posture.** Is "layer above an incumbent" an entry flow we build for deliberately? If yes, the Pega/Adobe read-through connectors and Shadow Mode move into Phase 1.
 3. **Adaptive models: build or integrate?** Building is the honest parity answer and is significant work. Integrating an external online-learning service is faster but adds a dependency. My recommendation is build, because it sits in the hot path and the determinism story depends on owning it.
 4. **Open core?** Publishing the DIR schema and package SDK openly would accelerate the composability moat and partner story considerably. It also gives away the design. Worth a real decision rather than a default.
 5. **Pricing model.** Section 5 of the assessment recommends platform fee with volume bands plus transparent inference cost. The cost transparency surface in §6.7 assumes that model. Confirm before building it.
@@ -505,7 +515,7 @@ metis/
 │   ├── core/              # DIR schema, compiler, artifact registry
 │   ├── runtime/           # execution plane, deterministic engine
 │   ├── nodes-core/        # core DIR node types
-│   ├── trace/             # DecisionTrace, renderers, replay
+│   ├── trace/             # DecisionRecord, renderers, replay
 │   ├── sdk/               # package authoring SDK + typed contracts
 │   └── ui-kit/            # tokens, primitives, panel host
 ├── planes/

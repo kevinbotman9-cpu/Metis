@@ -55,17 +55,17 @@ Four steps: **author → compile → execute → replay**.
 
 [`tests/integration/pipeline.test.ts`](../tests/integration/pipeline.test.ts)
 is the executable version of this section. It builds a two-offer catalogue,
-compiles a four-node strategy, executes one decision and replays it. Read it
+compiles a four-node flow, executes one decision and replays it. Read it
 first; it is about 200 lines and it is the shortest true description of the
 system.
 
 ### Author
 
-A `StrategySource` is a small DAG — nodes, edges, the candidate keys it may
+A `DecisionFlowSource` is a small DAG — nodes, edges, the candidate keys it may
 choose between, and the package ranges it depends on:
 
 ```ts
-const source: StrategySource = {
+const source: DecisionFlowSource = {
   id: 'next-best-action',
   version: '1.0.0',
   tenantId: 'telco-uk',
@@ -88,9 +88,9 @@ const source: StrategySource = {
 ### Compile
 
 ```ts
-import { compileStrategy } from '@metis/compiler/strategy';
+import { compileDecisionFlow } from '@metis/compiler/decision-flow';
 
-const compiled = compileStrategy(source, compileContext);
+const compiled = compileDecisionFlow(source, compileContext);
 if (!compiled.ok) console.error(formatReport(compiled.diagnostics));
 ```
 
@@ -102,7 +102,7 @@ nothing enters the registry without compiling — see
 [`packages/registry/src/registry.ts`](../packages/registry/src/registry.ts).
 
 Diagnostics name the fix, not just the fault. `NO_ARBITRATION`,
-`ARBITRATION_MISSING_SCORE` and `NO_DELIVERABLE_TREATMENT` each encode a bug
+`ARBITRATION_MISSING_SCORE` and `NO_DELIVERABLE_CREATIVE` each encode a bug
 that was previously only findable by running the engine and noticing the output
 was empty.
 

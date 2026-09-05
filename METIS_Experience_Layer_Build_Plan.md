@@ -1,5 +1,15 @@
 # METIS — Experience Layer Build Plan
 
+
+> **Vocabulary note, 2026-09-05.** The terminology in this document was updated in place
+> to the canonical taxonomy in §3 of the METIS platform specification. Where it previously
+> said *proposition*, *treatment*, *issue*, *group*, *engagement policy*, *contact policy*,
+> *boost*, *decision flow* and *change set*, it now says *offer*, *creative*,
+> *objective*, *category*, *targeting policy*, *frequency policy*, *boost*, *decision flow*
+> and *change set*. *Arbitration* and *propensity* are retained deliberately — §3.2 keeps
+> both as industry-standard. The argument and the intent are unchanged; only the words are.
+> See the Vocabulary section of `CLAUDE.md`, which is normative.
+
 **Audience:** Claude Code (implementation agent) and the product owner
 **Status:** Direction-setting. Extends `METIS_Vision_and_Build_Plan.md` §7. Where this conflicts with the "Phase 2 ✅ Complete" claims in `PHASES_SUMMARY.md`, this wins.
 **Version:** 1.0 — September 2026
@@ -16,7 +26,7 @@ The vision document names six personas. Four of them — Marketer, Compliance Of
 
 Three sharper consequences:
 
-**The safety story is a visual story.** Tier 2 and Tier 3 autonomy are only sellable because a human can inspect what the agent proposes. A change request containing a diff, a simulated impact, a bias check and a cost delta is a screen. Nobody approves fifty JSON diffs a week. Without the approval surface, autonomy tiers collapse back to Tier 1, and the agentic pitch dies with them.
+**The safety story is a visual story.** Tier 2 and Tier 3 autonomy are only sellable because a human can inspect what the agent proposes. A change set containing a diff, a simulated impact, a bias check and a cost delta is a screen. Nobody approves fifty JSON diffs a week. Without the approval surface, autonomy tiers collapse back to Tier 1, and the agentic pitch dies with them.
 
 **Determinism without a trace viewer is an assertion, not a proof.** "Prove it" — replay a decision and show byte-identical output — is the single strongest demo in the platform. In a terminal it is a hash comparison. On screen it is a compliance officer picking a decision from last March, watching it re-execute, and seeing which node eliminated which offer and why. That is the moment that wins the room.
 
@@ -72,7 +82,7 @@ packages/
   panel-host/       # slot runtime, manifest loader, capability bridge
   panel-sdk/        # what third parties import to write a panel
   client/           # typed API client, GENERATED from OpenAPI
-  trace-ui/         # DecisionTrace renderers (5 audiences), pure functions
+  trace-ui/         # DecisionRecord renderers (5 audiences), pure functions
   canvas/           # DIR graph editor, node renderer registry
   themes/           # token sets shipped as packages
   i18n/             # message catalogues + ICU formatting
@@ -125,13 +135,13 @@ Working the frontend-design process here rather than defaulting.
 --state-hold    #A66B00   suppressed / pending / stale
 ```
 
-Semantic colours are load-bearing. If green means "approved" in the change request inbox and also means "brand accent" in the header, the trace loses its readability. Reserve them.
+Semantic colours are load-bearing. If green means "approved" in the change set inbox and also means "brand accent" in the header, the trace loses its readability. Reserve them.
 
 Dark mode is a first-class axis, not an afterthought. Operators run this on wall displays.
 
 **Type.** One family with a strong numeric set, because most of this product is numbers in tables. Something like Inter Tight or IBM Plex Sans for the interface, with tabular figures enabled globally for any numeric column, and a mono face used only where characters must be counted (IDs, hashes, rule expressions, DIR source). Not a mono face for small labels as a style choice — that is the template tell.
 
-Base size 14px for data-dense views, 16px for reading views (docs, change request descriptions, regulator-facing exports). Line length under 80 characters in prose regions.
+Base size 14px for data-dense views, 16px for reading views (docs, change set descriptions, regulator-facing exports). Line length under 80 characters in prose regions.
 
 **Layout.** A persistent left rail for navigation, a wide work area, and a right inspector that is contextual rather than fixed. The inspector is where the product's density lives — select a node, a decision, a model, an action, and the inspector explains it. Avoid the card grid. Most screens here are a table plus an inspector, and that is correct for the subject matter.
 
@@ -155,7 +165,7 @@ Orthogonal axes, per §7.1: light/dark × compact/comfortable × accessibility m
 
 ### 6.2 Layout manifests
 
-A screen is a JSON artifact declaring regions, slots and the panels occupying them, versioned in the same registry as strategies. The layout editor is drag-and-drop over that manifest. Personas are just default manifests. Users can fork one, and an admin can publish a fork as the new default for a role.
+A screen is a JSON artifact declaring regions, slots and the panels occupying them, versioned in the same registry as flows. The layout editor is drag-and-drop over that manifest. Personas are just default manifests. Users can fork one, and an admin can publish a fork as the new default for a role.
 
 ### 6.3 Panels, and the security model
 
@@ -183,40 +193,40 @@ Organised by persona, since the personas are how the product is sold and how the
 - App shell: left rail, work area, contextual inspector, breadcrumb
 - Tenant switcher; environment switcher with distinct chrome per environment
 - ⌘K command palette: navigate, run actions, jump to artifact, jump to decision ID
-- Global search across strategies, actions, treatments, models, packages, decisions, customers
+- Global search across flows, actions, creatives, models, packages, decisions, customers
 - Approvals inbox with badge count (this is the product's home for most users)
-- Notification centre: publishes, rollbacks, drift alerts, failed batch runs, expiring treatments
+- Notification centre: publishes, rollbacks, drift alerts, failed batch runs, expiring creatives
 - Keyboard shortcut reference; contextual docs drawer
 - Impersonation / view-as-persona for admins, clearly banner-marked
 
 ### 7.2 Decision Architect
 
-- **Strategy list** — versions, status, owner, effective dates, environment published to, last simulated
+- **Flow list** — versions, status, owner, effective dates, environment published to, last simulated
 - **Canvas editor** — palette populated from installed node packages; inspector driven by node JSON Schema; inline validation gutter; snap/align; undo/redo; keyboard node insertion
 - **Compile panel** — the static manifest made visible: data dependencies, models invoked, external calls, worst-case latency vs tenant budget, estimated cost per thousand decisions, and a hard fail when the budget is exceeded (§4.2). This screen is one of your strongest differentiators; treat it as a hero surface, not a modal.
 - **Version diff** — side-by-side canvas diff with added/removed/changed nodes highlighted, plus a textual DIR diff, plus a semantic summary ("3 more actions become eligible for customers under 25")
 - **Live overlays** — 24h volumes flowing through each node; click a node to see the customer sample that took that path
-- **Arbitration formula editor** — named, versioned formula; per-level and per-channel matrix; lever sliders with immediate simulated impact preview
+- **Arbitration formula editor** — named, versioned formula; per-level and per-channel matrix; boost sliders with immediate simulated impact preview
 - **Simulation workbench** — distribution test, version-vs-version on a population, value finder (under-served customers), bias gate, audience replay counterfactual; run history; shareable result permalinks
-- **Test case manager** — deterministic fixtures, expected outputs, CI status per strategy
+- **Test case manager** — deterministic fixtures, expected outputs, CI status per flow
 - **Batch run console** — schedules, volume caps, throttling, quiet hours, retries, run history with per-run trace sampling
 
 ### 7.3 Marketer
 
-- **Taxonomy browser** — Issue → Group → Action → Treatment tree, showing inherited properties and where they were overridden
+- **Taxonomy browser** — Objective → Category → Action → Creative tree, showing inherited properties and where they were overridden
 - **Action editor** — properties, catalogue membership, effective dating, approval state machine
-- **Treatment and content library** — assets, per-channel variants, channel-accurate preview (email, SMS with character count, push, web placement, IVR script), approval workflow, expiry, usage tracking, brand check results
+- **Creative and content library** — assets, per-channel variants, channel-accurate preview (email, SMS with character count, push, web placement, IVR script), approval workflow, expiry, usage tracking, brand check results
 - **Campaign builder** — segment builder with live count, schedule, volume constraints, quiet hours, retry policy
 - **Always-on outbound monitor** — continuous evaluation state, governance thresholds, current send rate
-- **Contact policy editor** — frequency cap matrix (channel × period × issue), outcome-conditioned suppression rules authored in plain English with the generated rule shown alongside, and a simulated impact preview before save
-- **Results** — by action, treatment, channel, segment; lift; conversion funnel; every figure linked to its underlying decisions
+- **Frequency policy editor** — frequency cap matrix (channel × period × objective), outcome-conditioned suppression rules authored in plain English with the generated rule shown alongside, and a simulated impact preview before save
+- **Results** — by action, creative, channel, segment; lift; conversion funnel; every figure linked to its underlying decisions
 
 ### 7.4 Data Scientist
 
 - **Model registry** — list, lineage graph, versions, champion/challenger state, shadow scoring status
 - **Model detail** — performance over time, drift on inputs and outputs, predictor importance, and for adaptive models the binning visualisation and per-action learning curves
-- **Cold-start monitor** — which actions/treatments are still in exploration
-- **Feature catalogue** — definitions, TTL, freshness, lineage, online/offline parity check, which strategies consume each feature
+- **Cold-start monitor** — which actions/creatives are still in exploration
+- **Feature catalogue** — definitions, TTL, freshness, lineage, online/offline parity check, which flows consume each feature
 - **Model import wizard** — ONNX/PMML upload, schema mapping to the customer data model, validation, shadow deploy, promote
 - **Training set explorer** — with erasure propagation status visible
 
@@ -230,7 +240,7 @@ This persona gets the most design attention, because this is where the product's
 - **Counterfactual explorer** — minimal input change that flips the outcome, per §6.1
 - **Bias dashboard** — protected-attribute parity by action and segment over time; history of pre-publish gate results
 - **Consent console** — opt-out states, consent taxonomy from the installed regulatory pack, erasure requests and their propagation status across IH, traces and training sets
-- **Regulatory pack manager** — installed packs and versions; upgrade change report showing exactly which strategies and decisions change behaviour
+- **Regulatory pack manager** — installed packs and versions; upgrade change report showing exactly which flows and decisions change behaviour
 - **Evidence export** — assemble a regulator-ready pack (PDF + machine-readable) with a hash verification page
 - **Model risk documentation** — SR 11-7 shaped document generated from the registry, previewed and exported
 - **Configuration audit log** — every control-plane change, who proposed, who approved, four-eyes records
@@ -252,13 +262,13 @@ This persona gets the most design attention, because this is where the product's
 
 ### 7.8 Governance (cross-persona)
 
-- **Change request detail** — the pull-request view: visual diff, textual diff, simulated impact, bias check, cost delta, the agent's stated reasoning, comments, required quorum, approve/reject/request changes
+- **Change set detail** — the pull-request view: visual diff, textual diff, simulated impact, bias check, cost delta, the agent's stated reasoning, comments, required quorum, approve/reject/request changes
 - **Branch and merge** for decisioning configuration
 - **Environment promotion pipeline** — dev → UAT → prod with gate status per stage
 
 ### 7.9 Admin
 
-- Users, roles, per-issue and per-group RBAC scoping
+- Users, roles, per-objective and per-category RBAC scoping
 - Theme manager with live preview and contrast audit
 - Layout manifest editor
 - Tenant settings: latency budget, residency, retention policy
@@ -295,7 +305,7 @@ UI phases are labelled U0–U6 to avoid collision with the platform phases. They
 
 ### U2 — Trace explorer (3–4 weeks) — the first vertical slice
 
-Deliberately first. It is read-only so the blast radius is small, it is the strongest differentiator, it forces the DecisionTrace API to become real, and it is demoable on its own.
+Deliberately first. It is read-only so the blast radius is small, it is the strongest differentiator, it forces the DecisionRecord API to become real, and it is demoable on its own.
 
 - Decision search with virtualised results
 - Trace explorer with all five audience renderers
@@ -310,8 +320,8 @@ Deliberately first. It is read-only so the blast radius is small, it is the stro
 - Compile panel with the full static manifest and budget enforcement
 - Version diff, visual and textual and semantic
 - Simulation workbench: distribution, version diff on population, value finder, bias gate
-- Change request inbox and detail view; approval with quorum
-- **Gate:** a decision architect edits a strategy, sees its compile-time cost, simulates it against a population, gets a bias result, and routes it through approval to publish, entirely in the UI.
+- Change set inbox and detail view; approval with quorum
+- **Gate:** a decision architect edits a flow, sees its compile-time cost, simulates it against a population, gets a bias result, and routes it through approval to publish, entirely in the UI.
 
 ### U4 — Composable experience (4–5 weeks)
 
@@ -324,7 +334,7 @@ Deliberately first. It is read-only so the blast radius is small, it is the stro
 
 ### U5 — Operate and sell (4–5 weeks)
 
-- Marketer surfaces: taxonomy, action editor, content library, contact policy, campaigns, results
+- Marketer surfaces: taxonomy, action editor, content library, frequency policy, campaigns, results
 - Data scientist surfaces: registry, drift, features, import wizard
 - Operator surfaces: health, degradation, deployment, regions
 - Executive surfaces: value, cost transparency, shadow mode scoreboard
@@ -371,8 +381,8 @@ Put this at the repo root. It is what keeps a long agentic build from drifting.
 - Screenshot attached to the PR description
 
 ## Vocabulary
-Use the product vocabulary consistently: artifact, strategy, action,
-treatment, trace, replay, change request, package, pack, lever, placement.
+Use the product vocabulary consistently: artifact, flow, action,
+creative, trace, replay, change set, package, pack, boost, placement.
 Never "submit". Buttons name their effect.
 ```
 
@@ -430,7 +440,7 @@ The demo-critical subset, in order. Everything else waits.
 2. U1 foundation, with one theme and one alternate to prove theming works
 3. U2 trace explorer and replay in full — this is the demo
 4. Canvas in read-only mode with the compile panel and live overlays, editing deferred
-5. Change request detail view with a real diff and simulated impact
+5. Change set detail view with a real diff and simulated impact
 6. Cost transparency and shadow mode scoreboard, single page each
 
 That is a coherent story: here is a decision, here is why, here is proof it reproduces, here is what the agent wants to change and what it would do, here is what it costs, here is how it compares to your incumbent. It sells without a single editing surface.

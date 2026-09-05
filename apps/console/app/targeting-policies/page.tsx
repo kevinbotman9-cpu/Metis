@@ -12,7 +12,7 @@ import {
   ErrorState,
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
-import { apiClient, type EngagementPolicyDto } from '@/lib/api-client';
+import { apiClient, type TargetingPolicyDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
 
 const KINDS = [
@@ -24,8 +24,8 @@ const KINDS = [
     tone: 'accent' as const,
   },
   {
-    key: 'applicability',
-    title: 'Applicability',
+    key: 'relevance',
+    title: 'Relevance',
     question: 'Should we offer it now?',
     blurb: 'Situational relevance — already held, trigger not fired, wrong moment.',
     tone: 'info' as const,
@@ -43,14 +43,14 @@ function PoliciesView() {
   const [kind, setKind] = useState<string>('');
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['engagement-policies'],
-    queryFn: () => apiClient.listEngagementPolicies(),
+    queryKey: ['targeting-policies'],
+    queryFn: () => apiClient.listTargetingPolicies(),
   });
 
   const all = data?.policies ?? [];
   const rows = kind ? all.filter((p) => p.kind === kind) : all;
 
-  const columns: Column<EngagementPolicyDto>[] = [
+  const columns: Column<TargetingPolicyDto>[] = [
     {
       key: 'name',
       header: 'Policy',
@@ -126,8 +126,8 @@ function PoliciesView() {
   return (
     <PageBody>
       <PageHeader
-        title="Engagement policies"
-        description="Three tiers decide whether a proposition may reach a customer. Every trace records which tier removed a candidate and why."
+        title="Targeting policies"
+        description="Three tiers decide whether an offer may reach a customer. Every trace records which tier removed a candidate and why."
       />
 
       <div className="mb-stack grid gap-3 lg:grid-cols-3">
@@ -173,14 +173,14 @@ function PoliciesView() {
           isLoading={isLoading}
           defaultSort={{ key: 'kind', dir: 'asc' }}
           emptyTitle="No policies in this tier"
-          caption="Engagement policies"
+          caption="Targeting policies"
         />
       </Card>
     </PageBody>
   );
 }
 
-export default function EngagementPoliciesPage() {
+export default function TargetingPoliciesPage() {
   return (
     <RequireAuth>
       <PoliciesView />

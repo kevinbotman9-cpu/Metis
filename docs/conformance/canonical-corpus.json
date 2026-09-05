@@ -1301,11 +1301,11 @@
                       },
                       {
                         "key": [
-                          108,
-                          101,
-                          118,
-                          101,
-                          114
+                          98,
+                          111,
+                          111,
+                          115,
+                          116
                         ],
                         "value": {
                           "t": "num",
@@ -1547,8 +1547,8 @@
           }
         ]
       },
-      "canonical": "{\"artifactId\":\"art_bench\",\"artifactVersion\":\"1.0.0\",\"candidateKeys\":[\"b\",\"a\"],\"consentState\":{\"marketing\":true,\"profiling\":false,\"thirdParty\":false},\"eliminations\":[{\"eliminated\":[\"x\"],\"nodeId\":\"n_eligibility\",\"reason\":\"policy\",\"survived\":[\"y\"]}],\"occurredAt\":\"2026-06-01T12:00:00.000Z\",\"scores\":{\"upsell_5g\":{\"context\":0.8,\"lever\":1.25,\"priority\":0.5,\"propensity\":0.5,\"value\":1}},\"tenantId\":\"telco-uk\",\"winner\":null}",
-      "sha256": "ba48340ba19ec7a55bdbcc06694533edc950a218cf893a848521df73344fcd2d"
+      "canonical": "{\"artifactId\":\"art_bench\",\"artifactVersion\":\"1.0.0\",\"candidateKeys\":[\"b\",\"a\"],\"consentState\":{\"marketing\":true,\"profiling\":false,\"thirdParty\":false},\"eliminations\":[{\"eliminated\":[\"x\"],\"nodeId\":\"n_eligibility\",\"reason\":\"policy\",\"survived\":[\"y\"]}],\"occurredAt\":\"2026-06-01T12:00:00.000Z\",\"scores\":{\"upsell_5g\":{\"boost\":1.25,\"context\":0.8,\"priority\":0.5,\"propensity\":0.5,\"value\":1}},\"tenantId\":\"telco-uk\",\"winner\":null}",
+      "sha256": "f6573159accf5196b1e96242479d51332eb4124496c6e27b7ed481b2a3c7747b"
     }
   ]
 }

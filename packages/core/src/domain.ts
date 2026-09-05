@@ -1,20 +1,20 @@
 /**
- * METIS Domain Model — CDH-grade proposition taxonomy
+ * METIS Domain Model — CDH-grade offer taxonomy
  *
- * Hierarchy:  Issue > Group > Proposition > Treatment
+ * Hierarchy:  Objective > Category > Offer > Creative
  *
- * This is the contract every console surface renders and every strategy
- * references. A strategy's candidate set is a list of Proposition IDs; the
+ * This is the contract every console surface renders and every flow
+ * references. A flow's candidate set is a list of Offer IDs; the
  * runtime resolves them to full objects with policies, financials and
- * channel treatments.
+ * channel creatives.
  */
 
 // ---------------------------------------------------------------------------
-// Proposition hierarchy
+// Offer hierarchy
 // ---------------------------------------------------------------------------
 
-/** Top of the hierarchy: the business objective a proposition serves. */
-export interface Issue {
+/** Top of the hierarchy: the business objective an offer serves. */
+export interface Objective {
   id: string;
   name: string;
   /** URL-safe stable key, e.g. "retention" */
@@ -26,10 +26,10 @@ export interface Issue {
   updatedAt: string;
 }
 
-/** A product family within an Issue, e.g. "Mobile Plans" under "Retention". */
-export interface Group {
+/** A product family within an Objective, e.g. "Mobile Plans" under "Retention". */
+export interface Category {
   id: string;
-  issueId: string;
+  objectiveId: string;
   name: string;
   key: string;
   description: string;
@@ -38,7 +38,7 @@ export interface Group {
   updatedAt: string;
 }
 
-export type PropositionStatus = 'draft' | 'active' | 'paused' | 'retired';
+export type OfferStatus = 'draft' | 'active' | 'paused' | 'retired';
 
 /** Money is stored in minor units to avoid float drift. */
 export interface Money {
@@ -47,7 +47,7 @@ export interface Money {
   currency: 'GBP' | 'USD' | 'EUR';
 }
 
-export interface PropositionFinancials {
+export interface OfferFinancials {
   /** What the customer pays, recurring per month unless oneOff. */
   price: Money;
   /** Cost to serve, same period as price. */
@@ -60,33 +60,33 @@ export interface PropositionFinancials {
 }
 
 export interface ValidityWindow {
-  /** ISO date. Proposition cannot be offered before this. */
+  /** ISO date. Offer cannot be offered before this. */
   startsAt: string;
   /** ISO date, or null for open-ended. */
   endsAt: string | null;
 }
 
 /** The offer itself — what "mastering offers" produces. */
-export interface Proposition {
+export interface Offer {
   id: string;
-  groupId: string;
+  categoryId: string;
   /** Denormalised for tree rendering and breadcrumbs. */
-  issueId: string;
+  objectiveId: string;
   name: string;
   key: string;
   description: string;
-  status: PropositionStatus;
-  financials: PropositionFinancials;
+  status: OfferStatus;
+  financials: OfferFinancials;
   validity: ValidityWindow;
   /**
-   * Business priority weight used by arbitration's lever term.
+   * Business priority weight used by arbitration's boost term.
    * 1.0 is neutral; >1 boosts, <1 suppresses.
    */
-  lever: number;
-  /** Engagement policy rule IDs applying to this proposition. */
+  boost: number;
+  /** Targeting policy rule IDs applying to this offer. */
   policyIds: string[];
-  /** Channel treatments. At least one is required to go active. */
-  treatmentIds: string[];
+  /** Channel creatives. At least one is required to go active. */
+  creativeIds: string[];
   /** Free-form labels for search and bulk operations. */
   tags: string[];
   createdAt: string;
@@ -95,7 +95,7 @@ export interface Proposition {
 }
 
 // ---------------------------------------------------------------------------
-// Treatments — channel-specific content
+// Creatives — channel-specific content
 // ---------------------------------------------------------------------------
 
 export type Channel = 'email' | 'sms' | 'web' | 'push' | 'outbound_call';
@@ -141,37 +141,37 @@ export interface OutboundCallContent {
   objectionHandling: string;
 }
 
-export type TreatmentContent =
+export type CreativeContent =
   | EmailContent
   | SmsContent
   | WebContent
   | PushContent
   | OutboundCallContent;
 
-export interface Treatment {
+export interface Creative {
   id: string;
-  propositionId: string;
+  offerId: string;
   name: string;
   channel: Channel;
-  content: TreatmentContent;
-  /** Only active treatments are eligible for delivery. */
+  content: CreativeContent;
+  /** Only active creatives are eligible for delivery. */
   active: boolean;
-  /** Locale this treatment serves, e.g. "en-GB". */
+  /** Locale this creative serves, e.g. "en-GB". */
   locale: string;
   createdAt: string;
   updatedAt: string;
 }
 
 // ---------------------------------------------------------------------------
-// Engagement policy — Pega's three-tier model
+// Targeting policy — the three-tier qualification model
 // ---------------------------------------------------------------------------
 
 /**
- * eligibility   — hard filters. CAN we legally/contractually offer this?
- * applicability — situational. SHOULD we offer it right now?
- * suitability   — affordability and ethics. Is it RIGHT for this customer?
+ * eligibility — hard filters. CAN we legally and contractually offer this?
+ * relevance   — situational. SHOULD we offer it right now?
+ * suitability — affordability and ethics. Is it RIGHT for this customer?
  */
-export type PolicyKind = 'eligibility' | 'applicability' | 'suitability';
+export type PolicyKind = 'eligibility' | 'relevance' | 'suitability';
 
 export type PolicyOperator =
   | 'eq'
@@ -193,7 +193,7 @@ export interface PolicyCondition {
   value: unknown;
 }
 
-export interface EngagementPolicy {
+export interface TargetingPolicy {
   id: string;
   name: string;
   kind: PolicyKind;
@@ -201,8 +201,8 @@ export interface EngagementPolicy {
   /** All conditions must pass (AND). Use separate policies for OR. */
   conditions: PolicyCondition[];
   /**
-   * Scope this policy binds to. A policy at issue level applies to every
-   * proposition beneath it.
+   * Scope this policy binds to. A policy at objective level applies to every
+   * offer beneath it.
    */
   scope: PolicyScope;
   active: boolean;
@@ -211,18 +211,18 @@ export interface EngagementPolicy {
 }
 
 export interface PolicyScope {
-  level: 'tenant' | 'issue' | 'group' | 'proposition';
+  level: 'tenant' | 'objective' | 'category' | 'offer';
   /** null when level is 'tenant'. */
   targetId: string | null;
 }
 
 // ---------------------------------------------------------------------------
-// Contact policy — suppression
+// Frequency policy — suppression
 // ---------------------------------------------------------------------------
 
-export type ContactPolicyPeriod = 'day' | 'week' | 'month';
+export type FrequencyPolicyPeriod = 'day' | 'week' | 'month';
 
-export interface ContactPolicy {
+export interface FrequencyPolicy {
   id: string;
   name: string;
   description: string;
@@ -230,9 +230,9 @@ export interface ContactPolicy {
   channel: Channel | null;
   /** Maximum outbound contacts permitted in the period. */
   maxContacts: number;
-  period: ContactPolicyPeriod;
+  period: FrequencyPolicyPeriod;
   /**
-   * Days to suppress a proposition after the customer rejects or ignores it.
+   * Days to suppress an offer after the customer rejects or ignores it.
    */
   cooldownDaysAfterReject: number;
   scope: PolicyScope;
@@ -244,7 +244,7 @@ export interface ContactPolicy {
 // ---------------------------------------------------------------------------
 
 /**
- * Priority = Propensity ^wP  x  Value ^wV  x  Lever ^wL  x  Context ^wC
+ * Priority = Propensity ^wP  x  Value ^wV  x  Boost ^wL  x  Context ^wC
  *
  * Exponent weights let a tenant tune how much each term matters without
  * rewriting the formula. All default to 1.0.
@@ -255,7 +255,7 @@ export interface ArbitrationConfig {
   weights: {
     propensity: number;
     value: number;
-    lever: number;
+    boost: number;
     context: number;
   };
   /** Human-readable rendering of the formula for the trace and UI. */
@@ -264,15 +264,15 @@ export interface ArbitrationConfig {
   updatedBy: string;
 }
 
-/** A per-scope business weight, surfaced in the lever tuning UI. */
-export interface Lever {
+/** A per-scope business weight, surfaced in the boost tuning UI. */
+export interface Boost {
   id: string;
   name: string;
   scope: PolicyScope;
   /** Multiplier. 1.0 neutral. */
   value: number;
   reason: string;
-  /** Levers can be time-boxed for campaigns. */
+  /** Boosts can be time-boxed for campaigns. */
   validity: ValidityWindow | null;
   updatedAt: string;
   updatedBy: string;
@@ -285,7 +285,7 @@ export interface Lever {
 /**
  * L0 Observe    — explain only, no authoring
  * L1 Assist     — drafts suggestions, human writes the change
- * L2 Propose    — opens a change request with diff + simulation, human approves
+ * L2 Propose    — opens a change set with diff + simulation, human approves
  * L3 Bounded    — auto-publishes inside guardrails, auto-reverts on breach
  * L4 Autonomous — runs experiments, promotes winners, humans audit after
  */
@@ -303,13 +303,13 @@ export const AUTONOMY_LEVELS: Record<
   },
   L1: {
     name: 'Assist',
-    summary: 'Drafts rules, copy and treatments as suggestions.',
+    summary: 'Drafts rules, copy and creatives as suggestions.',
     humanGate: 'Human writes the change',
     rollback: 'Not applicable',
   },
   L2: {
     name: 'Propose',
-    summary: 'Opens a change request with diff and simulation results.',
+    summary: 'Opens a change set with diff and simulation results.',
     humanGate: 'Approve before publish',
     rollback: 'Manual',
   },
@@ -328,12 +328,12 @@ export const AUTONOMY_LEVELS: Record<
 };
 
 export type ChangeType =
-  | 'lever_adjust'
-  | 'treatment_copy'
+  | 'boost_adjust'
+  | 'creative_copy'
   | 'policy_edit'
-  | 'proposition_create'
-  | 'proposition_retire'
-  | 'strategy_edit'
+  | 'offer_create'
+  | 'offer_retire'
+  | 'flow_edit'
   | 'arbitration_weights';
 
 export interface AutonomyGuardrails {
@@ -341,8 +341,8 @@ export interface AutonomyGuardrails {
   maxBlastRadiusPct: number;
   /** Change types the agent may make at this level. */
   allowedChangeTypes: ChangeType[];
-  /** Maximum permitted change to a lever, as a fraction. 0.1 = +/-10%. */
-  maxLeverDelta: number;
+  /** Maximum permitted change to a boost, as a fraction. 0.1 = +/-10%. */
+  maxBoostDelta: number;
   /** Maximum permitted change to committed spend, in minor units. */
   maxBudgetDelta: Money;
   /** Fields the agent may never introduce as a decision input. */
@@ -355,7 +355,7 @@ export interface AutonomyGuardrails {
 
 /**
  * Autonomy is resolved most-specific-first:
- *   proposition > group > issue > tenant
+ *   offer > category > objective > tenant
  * so a regulated retention offer can sit at L1 while an accessory upsell
  * runs at L3 under the same tenant.
  */
@@ -389,8 +389,8 @@ export interface AgentActivity {
   outcome: AgentActivityOutcome;
   /** Set when outcome is 'blocked' or 'reverted'. */
   guardrailBreached: string | null;
-  /** Links to the change request this produced, when level >= L2. */
-  changeRequestId: string | null;
+  /** Links to the change set this produced, when level >= L2. */
+  changeSetId: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -399,29 +399,29 @@ export interface AgentActivity {
 
 const SCOPE_SPECIFICITY: Record<PolicyScope['level'], number> = {
   tenant: 0,
-  issue: 1,
-  group: 2,
-  proposition: 3,
+  objective: 1,
+  category: 2,
+  offer: 3,
 };
 
 /**
- * Resolve the effective autonomy setting for a proposition by walking the
+ * Resolve the effective autonomy setting for an offer by walking the
  * hierarchy and taking the most specific match.
  */
 export function resolveAutonomy(
   settings: AutonomySetting[],
-  ctx: { propositionId: string; groupId: string; issueId: string }
+  ctx: { offerId: string; categoryId: string; objectiveId: string }
 ): AutonomySetting | null {
   const matches = settings.filter((s) => {
     switch (s.scope.level) {
       case 'tenant':
         return true;
-      case 'issue':
-        return s.scope.targetId === ctx.issueId;
-      case 'group':
-        return s.scope.targetId === ctx.groupId;
-      case 'proposition':
-        return s.scope.targetId === ctx.propositionId;
+      case 'objective':
+        return s.scope.targetId === ctx.objectiveId;
+      case 'category':
+        return s.scope.targetId === ctx.categoryId;
+      case 'offer':
+        return s.scope.targetId === ctx.offerId;
       default:
         return false;
     }
@@ -446,7 +446,7 @@ export function formatMoney(m: Money): string {
 // Integrations
 //
 // A connector is a configured route to data the platform does not hold. Once
-// configured it is used at decision time: a strategy's source node names the
+// configured it is used at decision time: a flow's source node names the
 // connectors it needs, resolution fetches them before execution, and the values
 // land in the request input that the engine hashes.
 //

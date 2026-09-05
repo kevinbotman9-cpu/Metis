@@ -25,21 +25,21 @@ data class ValidityWindow(val startsAt: String, val endsAt: String?)
 
 data class PolicyScope(val level: String, val targetId: String?)
 
-data class Proposition(
+data class Offer(
     val id: String,
-    val groupId: String,
-    val issueId: String,
+    val categoryId: String,
+    val objectiveId: String,
     val key: String,
     val status: String,
     val financials: Financials,
     val validity: ValidityWindow,
-    val lever: Double,
+    val boost: Double,
     val policyIds: List<String>,
 )
 
 data class PolicyCondition(val field: String, val operator: String, val value: Any?)
 
-data class EngagementPolicy(
+data class TargetingPolicy(
     val id: String,
     val kind: String,
     val conditions: List<PolicyCondition>,
@@ -47,7 +47,7 @@ data class EngagementPolicy(
     val active: Boolean,
 )
 
-data class ContactPolicy(
+data class FrequencyPolicy(
     val id: String,
     val channel: String?,
     val maxContacts: Double,
@@ -59,13 +59,13 @@ data class ContactPolicy(
 data class ArbitrationWeights(
     val propensity: Double,
     val value: Double,
-    val lever: Double,
+    val boost: Double,
     val context: Double,
 )
 
 data class ArbitrationConfig(val weights: ArbitrationWeights, val formula: String)
 
-data class Lever(
+data class Boost(
     val id: String,
     val scope: PolicyScope,
     val value: Double,
@@ -81,11 +81,11 @@ data class Connector(
 )
 
 data class CatalogueSnapshot(
-    val propositions: List<Proposition>,
-    val engagementPolicies: List<EngagementPolicy>,
-    val contactPolicies: List<ContactPolicy>,
+    val offers: List<Offer>,
+    val targetingPolicies: List<TargetingPolicy>,
+    val frequencyPolicies: List<FrequencyPolicy>,
     val arbitration: ArbitrationConfig,
-    val levers: List<Lever>,
+    val boosts: List<Boost>,
     val connectors: List<Connector>,
 )
 
@@ -97,7 +97,7 @@ data class ExecNode(
     val label: String,
     val policyIds: List<String>? = null,
     val model: Model? = null,
-    val contactPolicyIds: List<String>? = null,
+    val frequencyPolicyIds: List<String>? = null,
     val connectorIds: List<String>? = null,
 )
 
@@ -146,7 +146,7 @@ data class EliminationStep(
 data class CandidateScore(
     val propensity: Double,
     val value: Double,
-    val lever: Double,
+    val boost: Double,
     val context: Double,
     var priority: Double,
 )
@@ -175,10 +175,10 @@ data class DeterministicDecision(
     val constraintsApplied: List<String>,
     val consentState: Consent,
     val winner: String?,
-    val winnerPropositionId: String?,
+    val winnerOfferId: String?,
 )
 
-data class DecisionTrace(
+data class DecisionRecord(
     val id: String,
     val decision: DeterministicDecision,
     val chainHash: String,

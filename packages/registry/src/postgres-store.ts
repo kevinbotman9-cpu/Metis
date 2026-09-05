@@ -32,7 +32,7 @@ export interface Queryable {
 /** Rows as Postgres returns them, before mapping onto the domain. */
 interface VersionRow {
   tenant_id: string;
-  strategy_name: string;
+  flow_name: string;
   version: string;
   artifact: unknown;
   published_at: Date | string;
@@ -54,7 +54,7 @@ interface EventRow {
   actor: string;
   type: string;
   tenant_id: string;
-  strategy_name: string;
+  flow_name: string;
   version: string;
   environment: string | null;
   summary: string;
@@ -83,9 +83,9 @@ export class PostgresRegistryStore implements RegistryStore {
     version: string
   ): Promise<PublishedVersion | undefined> {
     const { rows } = await this.db.query<VersionRow>(
-      `SELECT tenant_id, strategy_name, version, artifact, published_at, published_by, warnings
+      `SELECT tenant_id, flow_name, version, artifact, published_at, published_by, warnings
          FROM registry_versions
-        WHERE tenant_id = $1 AND strategy_name = $2 AND version = $3`,
+        WHERE tenant_id = $1 AND flow_name = $2 AND version = $3`,
       [tenantId, name, version]
     );
     return rows[0] ? this.toVersion(rows[0]) : undefined;
@@ -93,9 +93,9 @@ export class PostgresRegistryStore implements RegistryStore {
 
   async listVersions(tenantId: string, name: string): Promise<PublishedVersion[]> {
     const { rows } = await this.db.query<VersionRow>(
-      `SELECT tenant_id, strategy_name, version, artifact, published_at, published_by, warnings
+      `SELECT tenant_id, flow_name, version, artifact, published_at, published_by, warnings
          FROM registry_versions
-        WHERE tenant_id = $1 AND strategy_name = $2
+        WHERE tenant_id = $1 AND flow_name = $2
         ORDER BY published_at DESC, version DESC`,
       [tenantId, name]
     );
@@ -109,11 +109,11 @@ export class PostgresRegistryStore implements RegistryStore {
     // refuse anyway, but a unique violation is the clearer error.
     await this.db.query(
       `INSERT INTO registry_versions
-         (tenant_id, strategy_name, version, artifact, artifact_hash, published_at, published_by, warnings)
+         (tenant_id, flow_name, version, artifact, artifact_hash, published_at, published_by, warnings)
        VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8::jsonb)`,
       [
         v.tenantId,
-        v.strategyName,
+        v.flowName,
         v.version,
         JSON.stringify(v.artifact),
         v.artifact.artifactHash,
@@ -127,7 +127,7 @@ export class PostgresRegistryStore implements RegistryStore {
   private toVersion(r: VersionRow): PublishedVersion {
     return {
       tenantId: r.tenant_id,
-      strategyName: r.strategy_name,
+      flowName: r.flow_name,
       version: r.version,
       artifact: r.artifact as PublishedVersion['artifact'],
       publishedAt: iso(r.published_at),
@@ -146,7 +146,7 @@ export class PostgresRegistryStore implements RegistryStore {
     const { rows } = await this.db.query<EnvironmentRow>(
       `SELECT environment, active_version, previous_version, promoted_at, promoted_by
          FROM registry_environments
-        WHERE tenant_id = $1 AND strategy_name = $2 AND environment = $3`,
+        WHERE tenant_id = $1 AND flow_name = $2 AND environment = $3`,
       [tenantId, name, env]
     );
     return rows[0] ? this.toEnvironment(rows[0]) : undefined;
@@ -157,9 +157,9 @@ export class PostgresRegistryStore implements RegistryStore {
     // environment is: a name for whatever is currently running.
     await this.db.query(
       `INSERT INTO registry_environments
-         (tenant_id, strategy_name, environment, active_version, previous_version, promoted_at, promoted_by)
+         (tenant_id, flow_name, environment, active_version, previous_version, promoted_at, promoted_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (tenant_id, strategy_name, environment) DO UPDATE
+       ON CONFLICT (tenant_id, flow_name, environment) DO UPDATE
           SET active_version   = EXCLUDED.active_version,
               previous_version = EXCLUDED.previous_version,
               promoted_at      = EXCLUDED.promoted_at,
@@ -180,7 +180,7 @@ export class PostgresRegistryStore implements RegistryStore {
     const { rows } = await this.db.query<EnvironmentRow>(
       `SELECT environment, active_version, previous_version, promoted_at, promoted_by
          FROM registry_environments
-        WHERE tenant_id = $1 AND strategy_name = $2
+        WHERE tenant_id = $1 AND flow_name = $2
         ORDER BY environment`,
       [tenantId, name]
     );
@@ -202,7 +202,7 @@ export class PostgresRegistryStore implements RegistryStore {
   async appendEvent(event: Omit<RegistryEvent, 'seq'>): Promise<RegistryEvent> {
     const { rows } = await this.db.query<{ seq: string | number }>(
       `INSERT INTO registry_events
-         (at, actor, type, tenant_id, strategy_name, version, environment, summary, diagnostics)
+         (at, actor, type, tenant_id, flow_name, version, environment, summary, diagnostics)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
        RETURNING seq`,
       [
@@ -210,7 +210,7 @@ export class PostgresRegistryStore implements RegistryStore {
         event.actor,
         event.type,
         event.tenantId,
-        event.strategyName,
+        event.flowName,
         event.version,
         event.environment ?? null,
         event.summary,
@@ -222,7 +222,7 @@ export class PostgresRegistryStore implements RegistryStore {
 
   async listEvents(filter?: {
     tenantId?: string;
-    strategyName?: string;
+    flowName?: string;
     limit?: number;
   }): Promise<RegistryEvent[]> {
     const where: string[] = [];
@@ -231,13 +231,13 @@ export class PostgresRegistryStore implements RegistryStore {
       values.push(filter.tenantId);
       where.push(`tenant_id = $${values.length}`);
     }
-    if (filter?.strategyName) {
-      values.push(filter.strategyName);
-      where.push(`strategy_name = $${values.length}`);
+    if (filter?.flowName) {
+      values.push(filter.flowName);
+      where.push(`flow_name = $${values.length}`);
     }
 
     let sql =
-      `SELECT seq, at, actor, type, tenant_id, strategy_name, version, environment, summary, diagnostics
+      `SELECT seq, at, actor, type, tenant_id, flow_name, version, environment, summary, diagnostics
          FROM registry_events` +
       (where.length > 0 ? ` WHERE ${where.join(' AND ')}` : '') +
       // Newest first, by sequence rather than timestamp: two events can share a
@@ -256,7 +256,7 @@ export class PostgresRegistryStore implements RegistryStore {
       actor: r.actor,
       type: r.type as RegistryEvent['type'],
       tenantId: r.tenant_id,
-      strategyName: r.strategy_name,
+      flowName: r.flow_name,
       version: r.version,
       // Absent rather than null, so the shape matches what the in-memory store
       // produces and the shared suite can compare them.
@@ -266,13 +266,13 @@ export class PostgresRegistryStore implements RegistryStore {
     }));
   }
 
-  // --- Strategies -----------------------------------------------------------
+  // --- Flows -----------------------------------------------------------
 
-  async listStrategies(tenantId: string): Promise<string[]> {
-    const { rows } = await this.db.query<{ strategy_name: string }>(
-      `SELECT DISTINCT strategy_name FROM registry_versions WHERE tenant_id = $1 ORDER BY strategy_name`,
+  async listFlows(tenantId: string): Promise<string[]> {
+    const { rows } = await this.db.query<{ flow_name: string }>(
+      `SELECT DISTINCT flow_name FROM registry_versions WHERE tenant_id = $1 ORDER BY flow_name`,
       [tenantId]
     );
-    return rows.map((r) => r.strategy_name);
+    return rows.map((r) => r.flow_name);
   }
 }

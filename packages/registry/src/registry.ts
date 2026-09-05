@@ -1,5 +1,5 @@
-import { compileStrategy, type CompileContext } from '@metis/compiler/strategy';
-import type { Diagnostic } from '@metis/compiler/strategy';
+import { compileDecisionFlow, type CompileContext } from '@metis/compiler/decision-flow';
+import type { Diagnostic } from '@metis/compiler/decision-flow';
 import type {
   Environment,
   EnvironmentState,
@@ -44,11 +44,11 @@ export interface RegistryStore {
   appendEvent(event: Omit<RegistryEvent, 'seq'>): Promise<RegistryEvent>;
   listEvents(filter?: {
     tenantId?: string;
-    strategyName?: string;
+    flowName?: string;
     limit?: number;
   }): Promise<RegistryEvent[]>;
 
-  listStrategies(tenantId: string): Promise<string[]>;
+  listFlows(tenantId: string): Promise<string[]>;
 }
 
 export class ArtifactRegistry {
@@ -59,14 +59,14 @@ export class ArtifactRegistry {
   /**
    * Compile, then store.
    *
-   * The order is the feature. A strategy that does not compile does not enter
+   * The order is the feature. A flow that does not compile does not enter
    * the registry, so it cannot be promoted, so it cannot reach execution. The
    * compiler already knew — nothing was listening.
    */
   async publish(command: PublishCommand, ctx: CompileContext): Promise<PublishOutcome> {
-    const { tenantId, strategyName, version, source, actor, occurredAt } = command;
+    const { tenantId, flowName, version, source, actor, occurredAt } = command;
 
-    const result = compileStrategy(source, ctx);
+    const result = compileDecisionFlow(source, ctx);
     const errors = result.diagnostics.filter((d) => d.severity === 'error');
     const warnings = result.diagnostics.filter((d) => d.severity === 'warning');
 
@@ -78,9 +78,9 @@ export class ArtifactRegistry {
         actor,
         type: 'PublishRejected',
         tenantId,
-        strategyName,
+        flowName,
         version,
-        summary: `Refused ${strategyName} ${version}: ${errors.length} compilation error(s) — ${errors
+        summary: `Refused ${flowName} ${version}: ${errors.length} compilation error(s) — ${errors
           .map((e) => e.code)
           .join(', ')}`,
         diagnostics: result.diagnostics,
@@ -88,7 +88,7 @@ export class ArtifactRegistry {
       return { status: 'rejected', reason: 'compilation', diagnostics: result.diagnostics };
     }
 
-    const existing = await this.store.getVersion(tenantId, strategyName, version);
+    const existing = await this.store.getVersion(tenantId, flowName, version);
     if (existing) {
       if (existing.artifact.artifactHash === result.artifact.artifactHash) {
         // Idempotent. A retried deploy is not an error, and it must not
@@ -100,10 +100,10 @@ export class ArtifactRegistry {
         actor,
         type: 'PublishRejected',
         tenantId,
-        strategyName,
+        flowName,
         version,
         summary:
-          `Refused ${strategyName} ${version}: the version already holds different content. ` +
+          `Refused ${flowName} ${version}: the version already holds different content. ` +
           `Published ${existing.artifact.artifactHash.slice(0, 12)}, offered ${result.artifact.artifactHash.slice(0, 12)}.`,
         diagnostics: result.diagnostics,
       });
@@ -118,7 +118,7 @@ export class ArtifactRegistry {
 
     await this.store.putVersion({
       tenantId,
-      strategyName,
+      flowName,
       version,
       artifact: result.artifact,
       publishedAt: occurredAt,
@@ -129,17 +129,17 @@ export class ArtifactRegistry {
     // Read it back rather than returning the compiler's object. What publish
     // hands out has to be the thing that was stored — otherwise a caller holds
     // a mutable copy that looks authoritative and is not.
-    const stored = (await this.store.getVersion(tenantId, strategyName, version))!;
+    const stored = (await this.store.getVersion(tenantId, flowName, version))!;
 
     await this.store.appendEvent({
       at: occurredAt,
       actor,
       type: 'ArtifactPublished',
       tenantId,
-      strategyName,
+      flowName,
       version,
       summary:
-        `Published ${strategyName} ${version} (${result.artifact.artifactHash.slice(0, 12)})` +
+        `Published ${flowName} ${version} (${result.artifact.artifactHash.slice(0, 12)})` +
         (warnings.length > 0 ? ` with ${warnings.length} warning(s)` : '') +
         `. Not active anywhere until promoted.`,
     });
@@ -158,25 +158,25 @@ export class ArtifactRegistry {
    */
   async promote(
     tenantId: string,
-    strategyName: string,
+    flowName: string,
     version: string,
     environment: Environment,
     actor: string,
     occurredAt: string
   ): Promise<EnvironmentState> {
-    const target = await this.store.getVersion(tenantId, strategyName, version);
+    const target = await this.store.getVersion(tenantId, flowName, version);
     if (!target) {
       throw new RegistryError(
         'UNKNOWN_VERSION',
-        `${strategyName} ${version} has not been published. Publish it before promoting it.`
+        `${flowName} ${version} has not been published. Publish it before promoting it.`
       );
     }
 
-    const current = await this.store.getEnvironment(tenantId, strategyName, environment);
+    const current = await this.store.getEnvironment(tenantId, flowName, environment);
     if (current?.activeVersion === version) {
       throw new RegistryError(
         'ALREADY_ACTIVE',
-        `${strategyName} ${version} is already active in ${environment}.`
+        `${flowName} ${version} is already active in ${environment}.`
       );
     }
 
@@ -189,20 +189,20 @@ export class ArtifactRegistry {
       promotedAt: occurredAt,
       promotedBy: actor,
     };
-    await this.store.putEnvironment(tenantId, strategyName, next);
+    await this.store.putEnvironment(tenantId, flowName, next);
 
     await this.store.appendEvent({
       at: occurredAt,
       actor,
       type: 'VersionPromoted',
       tenantId,
-      strategyName,
+      flowName,
       version,
       environment,
       summary:
         current?.activeVersion
-          ? `Promoted ${strategyName} ${version} to ${environment}, replacing ${current.activeVersion}.`
-          : `Promoted ${strategyName} ${version} to ${environment}.`,
+          ? `Promoted ${flowName} ${version} to ${environment}, replacing ${current.activeVersion}.`
+          : `Promoted ${flowName} ${version} to ${environment}.`,
     });
 
     return next;
@@ -218,22 +218,22 @@ export class ArtifactRegistry {
    */
   async rollback(
     tenantId: string,
-    strategyName: string,
+    flowName: string,
     environment: Environment,
     actor: string,
     occurredAt: string
   ): Promise<EnvironmentState> {
-    const current = await this.store.getEnvironment(tenantId, strategyName, environment);
+    const current = await this.store.getEnvironment(tenantId, flowName, environment);
     if (!current || !current.activeVersion) {
       throw new RegistryError(
-        'UNKNOWN_STRATEGY',
-        `${strategyName} is not active in ${environment}; there is nothing to roll back.`
+        'UNKNOWN_FLOW',
+        `${flowName} is not active in ${environment}; there is nothing to roll back.`
       );
     }
     if (!current.previousVersion) {
       throw new RegistryError(
         'NOTHING_TO_ROLL_BACK',
-        `${strategyName} ${current.activeVersion} is the first version promoted to ${environment}. There is no earlier version to return to.`
+        `${flowName} ${current.activeVersion} is the first version promoted to ${environment}. There is no earlier version to return to.`
       );
     }
 
@@ -244,14 +244,14 @@ export class ArtifactRegistry {
       promotedAt: occurredAt,
       promotedBy: actor,
     };
-    await this.store.putEnvironment(tenantId, strategyName, next);
+    await this.store.putEnvironment(tenantId, flowName, next);
 
     await this.store.appendEvent({
       at: occurredAt,
       actor,
       type: 'VersionRolledBack',
       tenantId,
-      strategyName,
+      flowName,
       version: current.previousVersion,
       environment,
       summary: `Rolled ${environment} back from ${current.activeVersion} to ${current.previousVersion}.`,
@@ -263,37 +263,37 @@ export class ArtifactRegistry {
   // --- Reading --------------------------------------------------------------
 
   /** The artifact an environment is currently running, or null. */
-  async active(tenantId: string, strategyName: string, environment: Environment) {
-    const state = await this.store.getEnvironment(tenantId, strategyName, environment);
+  async active(tenantId: string, flowName: string, environment: Environment) {
+    const state = await this.store.getEnvironment(tenantId, flowName, environment);
     if (!state?.activeVersion) return null;
-    return (await this.store.getVersion(tenantId, strategyName, state.activeVersion)) ?? null;
+    return (await this.store.getVersion(tenantId, flowName, state.activeVersion)) ?? null;
   }
 
-  async version(tenantId: string, strategyName: string, version: string) {
-    return (await this.store.getVersion(tenantId, strategyName, version)) ?? null;
+  async version(tenantId: string, flowName: string, version: string) {
+    return (await this.store.getVersion(tenantId, flowName, version)) ?? null;
   }
 
   /** Newest first, by publish time then version, so the list is stable. */
-  async versions(tenantId: string, strategyName: string): Promise<PublishedVersion[]> {
-    const all = await this.store.listVersions(tenantId, strategyName);
+  async versions(tenantId: string, flowName: string): Promise<PublishedVersion[]> {
+    const all = await this.store.listVersions(tenantId, flowName);
     return [...all].sort(
       (a, b) => b.publishedAt.localeCompare(a.publishedAt) || b.version.localeCompare(a.version)
     );
   }
 
-  async environments(tenantId: string, strategyName: string): Promise<EnvironmentState[]> {
-    const all = await this.store.listEnvironments(tenantId, strategyName);
+  async environments(tenantId: string, flowName: string): Promise<EnvironmentState[]> {
+    const all = await this.store.listEnvironments(tenantId, flowName);
     return [...all].sort((a, b) => a.environment.localeCompare(b.environment));
   }
 
-  async strategies(tenantId: string): Promise<string[]> {
-    return [...(await this.store.listStrategies(tenantId))].sort();
+  async flows(tenantId: string): Promise<string[]> {
+    return [...(await this.store.listFlows(tenantId))].sort();
   }
 
   /** Newest first. */
   events(filter?: {
     tenantId?: string;
-    strategyName?: string;
+    flowName?: string;
     limit?: number;
   }): Promise<RegistryEvent[]> {
     return this.store.listEvents(filter);
@@ -302,9 +302,9 @@ export class ArtifactRegistry {
   /** Warnings a version published with, for a surface that has to explain it. */
   async warningsFor(
     tenantId: string,
-    strategyName: string,
+    flowName: string,
     version: string
   ): Promise<Diagnostic[]> {
-    return (await this.store.getVersion(tenantId, strategyName, version))?.warnings ?? [];
+    return (await this.store.getVersion(tenantId, flowName, version))?.warnings ?? [];
   }
 }

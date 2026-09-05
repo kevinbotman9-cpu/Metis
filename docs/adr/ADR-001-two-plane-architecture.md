@@ -19,7 +19,7 @@ Without a clear separation between authoring and execution, the platform faces s
 We adopt a two-plane architecture:
 
 ### Authoring Plane (Design-Time, AI-Orchestrated)
-- Agents propose changes to strategies, rules, journeys, treatments
+- Agents propose changes to flows, rules, journeys, creatives
 - Changes produce a **Decision Artifact** (DIR - Decision Intermediate Representation)
 - Artifact is diffed, simulated, tested, and approved (per autonomy tier)
 - All work is amortized: seconds to minutes per design cycle
@@ -39,7 +39,7 @@ We adopt a two-plane architecture:
 - **Cost predictability:** Authoring inference is bounded and amortized over millions of decisions
 - **Latency guarantee:** No request-time ML means <50ms is achievable and testable
 - **Explainability:** Traces are emitted by the engine, not reconstructed post-hoc
-- **Honesty:** "Our agents build your strategies; a deterministic engine runs them" survives due diligence better than "an LLM decides"
+- **Honesty:** "Our agents build your flows; a deterministic engine runs them" survives due diligence better than "an LLM decides"
 
 ### Negative
 - **Complexity:** Building both planes is more engineering work than a single-plane system

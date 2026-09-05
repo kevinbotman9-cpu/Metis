@@ -34,14 +34,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -63,31 +63,31 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [],
+        "targetingPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -101,10 +101,10 @@
         }
       },
       "expected": {
-        "id": "dec_e805253cbc99c0ae",
-        "chainHash": "e805253cbc99c0ae7f6a1802801fd954aa67c79e13225745b23a5049fda1da2e",
+        "id": "dec_c2be3c106d395d31",
+        "chainHash": "c2be3c106d395d315db2f9774c4367298d90f66744f65267d38c22133ea4e31a",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "e1ba49269883e257dfc1c15853843e1d06043dea4c635d8f739c28e17990553a",
+        "catalogueSnapshotHash": "f65171a4d1dceb354e8c38607648f6b6f85cf44b9e77dbbfaa81813ddb24b619",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -114,7 +114,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "e1ba49269883e257dfc1c15853843e1d06043dea4c635d8f739c28e17990553a",
+          "catalogueSnapshotHash": "f65171a4d1dceb354e8c38607648f6b6f85cf44b9e77dbbfaa81813ddb24b619",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -146,7 +146,7 @@
             "offer_a": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 1,
               "priority": 0.038333
             }
@@ -163,7 +163,7 @@
             "thirdParty": false
           },
           "winner": "offer_a",
-          "winnerPropositionId": "p_a"
+          "winnerOfferId": "p_a"
         }
       }
     },
@@ -214,14 +214,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -243,9 +243,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1.25,
+            "boost": 1.25,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -253,11 +253,11 @@
           },
           {
             "id": "p_b",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_b",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
             "key": "offer_b",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -279,9 +279,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 0.8,
+            "boost": 0.8,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -289,11 +289,11 @@
           },
           {
             "id": "p_c",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_c",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
             "key": "offer_c",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -315,31 +315,31 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [],
+        "targetingPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -353,10 +353,10 @@
         }
       },
       "expected": {
-        "id": "dec_58ff109f8c03d1dc",
-        "chainHash": "58ff109f8c03d1dca720e3a7c7637a56c397ee8ac04f856aa2558bc88dfc27a7",
+        "id": "dec_6b4801e2ee2be35b",
+        "chainHash": "6b4801e2ee2be35bb888f1c4c8e0b7bc95f11884138c7b7973efc1497c976568",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "9bb5a5b1f7f001401eb520c044a9e20a6b02822d80898b796f28a00e5a6c08b3",
+        "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -366,7 +366,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "9bb5a5b1f7f001401eb520c044a9e20a6b02822d80898b796f28a00e5a6c08b3",
+          "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -416,21 +416,21 @@
             "offer_a": {
               "propensity": 0.581701,
               "value": 0.038333,
-              "lever": 1.25,
+              "boost": 1.25,
               "context": 0.478535,
               "priority": 0.01333817
             },
             "offer_b": {
               "propensity": 0.481034,
               "value": 0.038333,
-              "lever": 0.8,
+              "boost": 0.8,
               "context": 0.975873,
               "priority": 0.01439567
             },
             "offer_c": {
               "propensity": 0.379446,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 0.506921,
               "priority": 0.00737332
             }
@@ -447,12 +447,12 @@
             "thirdParty": false
           },
           "winner": "offer_b",
-          "winnerPropositionId": "p_b"
+          "winnerOfferId": "p_b"
         }
       }
     },
     {
-      "name": "no score node: every term neutral except value and lever",
+      "name": "no score node: every term neutral except value and boost",
       "artifact": {
         "id": "art_fixture",
         "version": "1.0.0",
@@ -485,14 +485,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -514,9 +514,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1.25,
+            "boost": 1.25,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -524,11 +524,11 @@
           },
           {
             "id": "p_b",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_b",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
             "key": "offer_b",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -550,9 +550,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 0.8,
+            "boost": 0.8,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -560,11 +560,11 @@
           },
           {
             "id": "p_c",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_c",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
             "key": "offer_c",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -586,31 +586,31 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [],
+        "targetingPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -624,10 +624,10 @@
         }
       },
       "expected": {
-        "id": "dec_a53c5263f9a4d771",
-        "chainHash": "a53c5263f9a4d77197aee67d60859d78fffd045e7c8ea2cc4e9b143bbc4158c9",
+        "id": "dec_1c17b6c97ff8c4d6",
+        "chainHash": "1c17b6c97ff8c4d6bec92799f7ed3c7a28cc459562a1d3fdd53ec07ff9727d96",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "9bb5a5b1f7f001401eb520c044a9e20a6b02822d80898b796f28a00e5a6c08b3",
+        "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -637,7 +637,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "9bb5a5b1f7f001401eb520c044a9e20a6b02822d80898b796f28a00e5a6c08b3",
+          "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -676,21 +676,21 @@
             "offer_a": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1.25,
+              "boost": 1.25,
               "context": 1,
               "priority": 0.04791625
             },
             "offer_b": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 0.8,
+              "boost": 0.8,
               "context": 1,
               "priority": 0.0306664
             },
             "offer_c": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 1,
               "priority": 0.038333
             }
@@ -707,7 +707,7 @@
             "thirdParty": false
           },
           "winner": "offer_a",
-          "winnerPropositionId": "p_a"
+          "winnerOfferId": "p_a"
         }
       }
     },
@@ -758,14 +758,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -787,9 +787,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1.25,
+            "boost": 1.25,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -797,11 +797,11 @@
           },
           {
             "id": "p_b",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_b",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
             "key": "offer_b",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -823,9 +823,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 0.8,
+            "boost": 0.8,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -833,11 +833,11 @@
           },
           {
             "id": "p_c",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_c",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
             "key": "offer_c",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -859,31 +859,31 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [],
+        "targetingPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1.5,
             "value": 0.75,
-            "lever": 2,
+            "boost": 2,
             "context": 0.3333333333333333
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -897,10 +897,10 @@
         }
       },
       "expected": {
-        "id": "dec_07f76727488f71ff",
-        "chainHash": "07f76727488f71ff7f4c2a51ece5dd10d3c3072b11cead410dddd0241b2a44cd",
+        "id": "dec_1e4dc437512b46eb",
+        "chainHash": "1e4dc437512b46ebc3d2a87aa3afc94c25adbfa4c7a55c5fde49ed4126e2aeb4",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "bf3059ce01da6eca4e1e801a7bccfac7a73b2fdef5fafb36032963a53c36f305",
+        "catalogueSnapshotHash": "b61965ff2f0dae10b45bfda028f13058b73fa613372e7c62d865fe77dbc637cb",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -910,7 +910,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "bf3059ce01da6eca4e1e801a7bccfac7a73b2fdef5fafb36032963a53c36f305",
+          "catalogueSnapshotHash": "b61965ff2f0dae10b45bfda028f13058b73fa613372e7c62d865fe77dbc637cb",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -960,21 +960,21 @@
             "offer_a": {
               "propensity": 0.581701,
               "value": 0.038333,
-              "lever": 1.25,
+              "boost": 1.25,
               "context": 0.478535,
               "priority": 0.04697361
             },
             "offer_b": {
               "propensity": 0.481034,
               "value": 0.038333,
-              "lever": 0.8,
+              "boost": 0.8,
               "context": 0.975873,
               "priority": 0.01834796
             },
             "offer_c": {
               "propensity": 0.379446,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 0.506921,
               "priority": 0.01614549
             }
@@ -991,7 +991,7 @@
             "thirdParty": false
           },
           "winner": "offer_a",
-          "winnerPropositionId": "p_a"
+          "winnerOfferId": "p_a"
         }
       }
     },
@@ -1028,14 +1028,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_z",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_z",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_z",
             "key": "offer_z",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -1057,9 +1057,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -1067,11 +1067,11 @@
           },
           {
             "id": "p_a2",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a2",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a2",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -1093,31 +1093,31 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [],
+        "targetingPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -1131,10 +1131,10 @@
         }
       },
       "expected": {
-        "id": "dec_71e5c4833767e1f0",
-        "chainHash": "71e5c4833767e1f01dd2abbff9e0beb400ad49bede91616fffc672391e2d017c",
+        "id": "dec_16d5abbac955c4c6",
+        "chainHash": "16d5abbac955c4c62592efb5c41e8c85ac32bc31290626ccc0070634d59ae32d",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "817c31ae0871aee1a86cbdfc9d8d0b91023a42677f49d14d8925bbe72a2c5dbf",
+        "catalogueSnapshotHash": "0f980712d88fbd6c1a2fba7dea90631162d86238cabf4bef79b2b6572ff6ccc7",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -1144,7 +1144,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "817c31ae0871aee1a86cbdfc9d8d0b91023a42677f49d14d8925bbe72a2c5dbf",
+          "catalogueSnapshotHash": "0f980712d88fbd6c1a2fba7dea90631162d86238cabf4bef79b2b6572ff6ccc7",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -1180,14 +1180,14 @@
             "offer_z": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 1,
               "priority": 0.038333
             },
             "offer_a": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 1,
               "priority": 0.038333
             }
@@ -1204,7 +1204,7 @@
             "thirdParty": false
           },
           "winner": "offer_a",
-          "winnerPropositionId": "p_a2"
+          "winnerOfferId": "p_a2"
         }
       }
     },
@@ -1254,14 +1254,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -1283,9 +1283,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1.25,
+            "boost": 1.25,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -1293,11 +1293,11 @@
           },
           {
             "id": "p_b",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_b",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
             "key": "offer_b",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -1319,9 +1319,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 0.8,
+            "boost": 0.8,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -1329,11 +1329,11 @@
           },
           {
             "id": "p_c",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_c",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
             "key": "offer_c",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -1355,16 +1355,16 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [
+        "targetingPolicies": [
           {
             "id": "pol_tenure",
             "name": "Fixture policy",
@@ -1386,21 +1386,21 @@
             "updatedAt": "2020-01-01T00:00:00.000Z"
           }
         ],
-        "contactPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -1414,10 +1414,10 @@
         }
       },
       "expected": {
-        "id": "dec_ef80b4f20053035c",
-        "chainHash": "ef80b4f20053035c0d30d47c2a056983118e379774d66227e026f5cc933dcd0d",
+        "id": "dec_66f3b97f8575f47f",
+        "chainHash": "66f3b97f8575f47fa57e6a0de2e6b76b80cf7504a916110bba06b51579d70712",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "145f6a2f39bc7a48c6b4cc9d5176eae866ca6caa06e25341b5ffb80a7d4a1be3",
+        "catalogueSnapshotHash": "95b8e86db7dc541c485f0e9368066edad493e5591f70c9c58689f5eda6c6759b",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -1427,7 +1427,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "145f6a2f39bc7a48c6b4cc9d5176eae866ca6caa06e25341b5ffb80a7d4a1be3",
+          "catalogueSnapshotHash": "95b8e86db7dc541c485f0e9368066edad493e5591f70c9c58689f5eda6c6759b",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -1481,12 +1481,12 @@
             "thirdParty": false
           },
           "winner": null,
-          "winnerPropositionId": null
+          "winnerOfferId": null
         }
       }
     },
     {
-      "name": "policy scoped to a group only applies to that group",
+      "name": "policy scoped to a category only applies to that category",
       "artifact": {
         "id": "art_fixture",
         "version": "1.0.0",
@@ -1531,14 +1531,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -1560,9 +1560,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -1570,11 +1570,11 @@
           },
           {
             "id": "p_b",
-            "groupId": "grp_2",
-            "issueId": "iss_1",
-            "name": "Proposition p_b",
+            "categoryId": "grp_2",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
             "key": "offer_b",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -1596,9 +1596,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -1606,11 +1606,11 @@
           },
           {
             "id": "p_c",
-            "groupId": "grp_2",
-            "issueId": "iss_1",
-            "name": "Proposition p_c",
+            "categoryId": "grp_2",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
             "key": "offer_c",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -1632,16 +1632,16 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [
+        "targetingPolicies": [
           {
             "id": "pol_grp",
             "name": "Fixture policy",
@@ -1655,7 +1655,7 @@
               }
             ],
             "scope": {
-              "level": "group",
+              "level": "category",
               "targetId": "grp_2"
             },
             "active": true,
@@ -1663,21 +1663,21 @@
             "updatedAt": "2020-01-01T00:00:00.000Z"
           }
         ],
-        "contactPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -1691,10 +1691,10 @@
         }
       },
       "expected": {
-        "id": "dec_bc6fc9e0fed2f9ae",
-        "chainHash": "bc6fc9e0fed2f9aef8fae41b1c1efbedb79a387c50d1bed396b38bf2399978eb",
+        "id": "dec_091a01c3d4c7a24c",
+        "chainHash": "091a01c3d4c7a24c2fc183808027658b4604b9669f0702bb94ebc1257fb04dca",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "0bbf356942b4e4103ad28db95c3411408dc62b4ec5b91b7bf61e028d9fb03609",
+        "catalogueSnapshotHash": "91f0c3265722745b54a42ab64c9ea5c53ddd8513c896a8d2193253c627be5140",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -1704,7 +1704,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "0bbf356942b4e4103ad28db95c3411408dc62b4ec5b91b7bf61e028d9fb03609",
+          "catalogueSnapshotHash": "91f0c3265722745b54a42ab64c9ea5c53ddd8513c896a8d2193253c627be5140",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -1752,7 +1752,7 @@
             "offer_a": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 1,
               "priority": 0.038333
             }
@@ -1769,7 +1769,7 @@
             "thirdParty": false
           },
           "winner": "offer_a",
-          "winnerPropositionId": "p_a"
+          "winnerOfferId": "p_a"
         }
       }
     },
@@ -1817,14 +1817,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -1846,16 +1846,16 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [
+        "targetingPolicies": [
           {
             "id": "pol_missing",
             "name": "Fixture policy",
@@ -1877,21 +1877,21 @@
             "updatedAt": "2020-01-01T00:00:00.000Z"
           }
         ],
-        "contactPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -1903,10 +1903,10 @@
         "input": {}
       },
       "expected": {
-        "id": "dec_db7af84d39df63df",
-        "chainHash": "db7af84d39df63df4417d9c52828548f21b5cadc9a878c8e16da1116ba6a2568",
+        "id": "dec_7d6be3bc72f09908",
+        "chainHash": "7d6be3bc72f099080fd42b85f052e86b33e4ba8c6a6ef2f5823bb7ef654b30c7",
         "inputSnapshotHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-        "catalogueSnapshotHash": "b24092f8bc26a4fb9d9c8989f16baa3200fecb3ca0ade3640a80ae0857c67f3c",
+        "catalogueSnapshotHash": "7a1c45d0bc8650460b0dfcfeef7635a44e7998ab09a861273356cf7ed352db99",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -1916,7 +1916,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-          "catalogueSnapshotHash": "b24092f8bc26a4fb9d9c8989f16baa3200fecb3ca0ade3640a80ae0857c67f3c",
+          "catalogueSnapshotHash": "7a1c45d0bc8650460b0dfcfeef7635a44e7998ab09a861273356cf7ed352db99",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -1964,7 +1964,7 @@
             "thirdParty": false
           },
           "winner": null,
-          "winnerPropositionId": null
+          "winnerOfferId": null
         }
       }
     },
@@ -2012,14 +2012,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -2041,16 +2041,16 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [
+        "targetingPolicies": [
           {
             "id": "pol_ops",
             "name": "Fixture policy",
@@ -2137,21 +2137,21 @@
             "updatedAt": "2020-01-01T00:00:00.000Z"
           }
         ],
-        "contactPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -2177,10 +2177,10 @@
         }
       },
       "expected": {
-        "id": "dec_31b3dad0bb354edc",
-        "chainHash": "31b3dad0bb354edc9aade791216f4f13da6578bc29baa90fce73735caff345cc",
+        "id": "dec_8b79a509ffd4830c",
+        "chainHash": "8b79a509ffd4830c17a6a99a2980094ed8b6ec6a6e0aac79aee9be4c20b46cf6",
         "inputSnapshotHash": "76ba7db6de00801343db3d1c472c701d6a95339964bf85d26abf8abf98cd9568",
-        "catalogueSnapshotHash": "3b20148da9ad022d58261f3b87ab202169b4dcc7fb527858a8afe8c880870047",
+        "catalogueSnapshotHash": "82194527f6449b1a817c4d255ca58207d5c1e0ffeec250d78cbca3b72a925683",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -2190,7 +2190,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "76ba7db6de00801343db3d1c472c701d6a95339964bf85d26abf8abf98cd9568",
-          "catalogueSnapshotHash": "3b20148da9ad022d58261f3b87ab202169b4dcc7fb527858a8afe8c880870047",
+          "catalogueSnapshotHash": "82194527f6449b1a817c4d255ca58207d5c1e0ffeec250d78cbca3b72a925683",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -2231,7 +2231,7 @@
             "offer_a": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 1,
               "priority": 0.038333
             }
@@ -2248,12 +2248,12 @@
             "thirdParty": false
           },
           "winner": "offer_a",
-          "winnerPropositionId": "p_a"
+          "winnerOfferId": "p_a"
         }
       }
     },
     {
-      "name": "contact policy breach suppresses",
+      "name": "frequency policy breach suppresses",
       "artifact": {
         "id": "art_fixture",
         "version": "1.0.0",
@@ -2267,8 +2267,8 @@
           {
             "id": "n2_constraint",
             "type": "constraint",
-            "label": "Contact policy",
-            "contactPolicyIds": [
+            "label": "Frequency policy",
+            "frequencyPolicyIds": [
               "cp_1"
             ]
           },
@@ -2298,14 +2298,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -2327,9 +2327,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1.25,
+            "boost": 1.25,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -2337,11 +2337,11 @@
           },
           {
             "id": "p_b",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_b",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
             "key": "offer_b",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -2363,9 +2363,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 0.8,
+            "boost": 0.8,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -2373,11 +2373,11 @@
           },
           {
             "id": "p_c",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_c",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
             "key": "offer_c",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -2399,17 +2399,17 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [
+        "targetingPolicies": [],
+        "frequencyPolicies": [
           {
             "id": "cp_1",
             "name": "Fixture cap",
@@ -2431,14 +2431,14 @@
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -2458,10 +2458,10 @@
         }
       },
       "expected": {
-        "id": "dec_a650c176732d98be",
-        "chainHash": "a650c176732d98be8928e27458ddf4f8e687eb936623b2ae8203abc67ef62f3d",
+        "id": "dec_c1dcff8c3da0b923",
+        "chainHash": "c1dcff8c3da0b9236bd5fd737fa610406e7e8faaec325fdbe8f80ff9712af60e",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "2c203da0e306e09bec36dc6bb5109ab525833571f9cfa15956d1c10b062a2753",
+        "catalogueSnapshotHash": "c471b1a2c7b24481e23326a4c2a64e890ce270cfb3d19598dd944a8afe2afe91",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -2471,7 +2471,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "2c203da0e306e09bec36dc6bb5109ab525833571f9cfa15956d1c10b062a2753",
+          "catalogueSnapshotHash": "c471b1a2c7b24481e23326a4c2a64e890ce270cfb3d19598dd944a8afe2afe91",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -2496,7 +2496,7 @@
             {
               "nodeId": "n2_constraint",
               "nodeType": "constraint",
-              "reason": "Contact policy removed 3 candidate(s).",
+              "reason": "Frequency policy removed 3 candidate(s).",
               "eliminated": [
                 "offer_a",
                 "offer_b",
@@ -2527,12 +2527,12 @@
             "thirdParty": false
           },
           "winner": null,
-          "winnerPropositionId": null
+          "winnerOfferId": null
         }
       }
     },
     {
-      "name": "contact policy scoped to a group leaves the rest alone",
+      "name": "frequency policy scoped to a category leaves the rest alone",
       "artifact": {
         "id": "art_fixture",
         "version": "1.0.0",
@@ -2546,8 +2546,8 @@
           {
             "id": "n2_constraint",
             "type": "constraint",
-            "label": "Contact policy",
-            "contactPolicyIds": [
+            "label": "Frequency policy",
+            "frequencyPolicyIds": [
               "cp_grp"
             ]
           },
@@ -2577,14 +2577,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -2606,9 +2606,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -2616,11 +2616,11 @@
           },
           {
             "id": "p_b",
-            "groupId": "grp_2",
-            "issueId": "iss_1",
-            "name": "Proposition p_b",
+            "categoryId": "grp_2",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
             "key": "offer_b",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -2642,9 +2642,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -2652,11 +2652,11 @@
           },
           {
             "id": "p_c",
-            "groupId": "grp_2",
-            "issueId": "iss_1",
-            "name": "Proposition p_c",
+            "categoryId": "grp_2",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
             "key": "offer_c",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -2678,17 +2678,17 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [
+        "targetingPolicies": [],
+        "frequencyPolicies": [
           {
             "id": "cp_grp",
             "name": "Fixture cap",
@@ -2698,7 +2698,7 @@
             "period": "week",
             "cooldownDaysAfterReject": 0,
             "scope": {
-              "level": "group",
+              "level": "category",
               "targetId": "grp_2"
             },
             "active": true
@@ -2710,14 +2710,14 @@
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -2737,10 +2737,10 @@
         }
       },
       "expected": {
-        "id": "dec_5151581658e02b76",
-        "chainHash": "5151581658e02b7641e5e5db56c4b0885cff0c9ba77f8c9fd22f29237debc696",
+        "id": "dec_63e52cd5cd1b75c3",
+        "chainHash": "63e52cd5cd1b75c3320d5007ecafdc46d0b921d543b9aff15773a854bf5032b6",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "27dc9a92ece8361e6ddf688bafb2467b7b5778b4e150ac92768325d1bfaef2a7",
+        "catalogueSnapshotHash": "1cbc4d99eea072d035cb0d2bb5a5af5cda7415a642370398c09fa038eb856a41",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -2750,7 +2750,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "27dc9a92ece8361e6ddf688bafb2467b7b5778b4e150ac92768325d1bfaef2a7",
+          "catalogueSnapshotHash": "1cbc4d99eea072d035cb0d2bb5a5af5cda7415a642370398c09fa038eb856a41",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -2775,7 +2775,7 @@
             {
               "nodeId": "n2_constraint",
               "nodeType": "constraint",
-              "reason": "Contact policy removed 2 candidate(s).",
+              "reason": "Frequency policy removed 2 candidate(s).",
               "eliminated": [
                 "offer_b",
                 "offer_c"
@@ -2798,7 +2798,7 @@
             "offer_a": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 1,
               "priority": 0.038333
             }
@@ -2817,7 +2817,7 @@
             "thirdParty": false
           },
           "winner": "offer_a",
-          "winnerPropositionId": "p_a"
+          "winnerOfferId": "p_a"
         }
       }
     },
@@ -2836,8 +2836,8 @@
           {
             "id": "n2_constraint",
             "type": "constraint",
-            "label": "Contact policy",
-            "contactPolicyIds": [
+            "label": "Frequency policy",
+            "frequencyPolicyIds": [
               "cp_1"
             ]
           },
@@ -2867,14 +2867,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_svc",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_svc",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -2896,9 +2896,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -2906,11 +2906,11 @@
           },
           {
             "id": "p_b",
-            "groupId": "grp_2",
-            "issueId": "iss_1",
-            "name": "Proposition p_b",
+            "categoryId": "grp_2",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
             "key": "offer_b",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -2932,9 +2932,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -2942,11 +2942,11 @@
           },
           {
             "id": "p_c",
-            "groupId": "grp_2",
-            "issueId": "iss_1",
-            "name": "Proposition p_c",
+            "categoryId": "grp_2",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
             "key": "offer_c",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -2968,17 +2968,17 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [
+        "targetingPolicies": [],
+        "frequencyPolicies": [
           {
             "id": "cp_svc",
             "name": "Fixture cap",
@@ -2988,7 +2988,7 @@
             "period": "week",
             "cooldownDaysAfterReject": 0,
             "scope": {
-              "level": "group",
+              "level": "category",
               "targetId": "grp_svc"
             },
             "active": true
@@ -3002,7 +3002,7 @@
             "period": "week",
             "cooldownDaysAfterReject": 0,
             "scope": {
-              "level": "group",
+              "level": "category",
               "targetId": "grp_2"
             },
             "active": true
@@ -3014,14 +3014,14 @@
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -3040,10 +3040,10 @@
         }
       },
       "expected": {
-        "id": "dec_5ef19f98c6df711c",
-        "chainHash": "5ef19f98c6df711cf9a04678add77a7e636cb391f14ad3ea8a40cc6dd15cbfaf",
+        "id": "dec_8ed7569cb0105bec",
+        "chainHash": "8ed7569cb0105beca77671e6c3fcdb7c5ef7e2051ab6a919c576058fbaa093bc",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "f1a8268651a9920cb04a43c55c19cbd650c6c552271db648b04710c4eee39516",
+        "catalogueSnapshotHash": "75b5acfb927ab39388b97aefe4bea25012997fd9309915ac8edc1f75a0fb1980",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -3053,7 +3053,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "f1a8268651a9920cb04a43c55c19cbd650c6c552271db648b04710c4eee39516",
+          "catalogueSnapshotHash": "75b5acfb927ab39388b97aefe4bea25012997fd9309915ac8edc1f75a0fb1980",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -3078,7 +3078,7 @@
             {
               "nodeId": "n2_constraint",
               "nodeType": "constraint",
-              "reason": "Contact policy removed 2 candidate(s).",
+              "reason": "Frequency policy removed 2 candidate(s).",
               "eliminated": [
                 "offer_b",
                 "offer_c"
@@ -3101,7 +3101,7 @@
             "offer_a": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 1,
               "priority": 0.038333
             }
@@ -3121,12 +3121,12 @@
             "thirdParty": false
           },
           "winner": "offer_a",
-          "winnerPropositionId": "p_a"
+          "winnerOfferId": "p_a"
         }
       }
     },
     {
-      "name": "channel-specific contact policy ignores other channels",
+      "name": "channel-specific frequency policy ignores other channels",
       "artifact": {
         "id": "art_fixture",
         "version": "1.0.0",
@@ -3140,8 +3140,8 @@
           {
             "id": "n2_constraint",
             "type": "constraint",
-            "label": "Contact policy",
-            "contactPolicyIds": [
+            "label": "Frequency policy",
+            "frequencyPolicyIds": [
               "cp_sms"
             ]
           },
@@ -3169,14 +3169,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -3198,17 +3198,17 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [
+        "targetingPolicies": [],
+        "frequencyPolicies": [
           {
             "id": "cp_sms",
             "name": "Fixture cap",
@@ -3230,14 +3230,14 @@
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -3257,10 +3257,10 @@
         }
       },
       "expected": {
-        "id": "dec_b4a819da3ed80446",
-        "chainHash": "b4a819da3ed804460d8615cdeccad9fd4f4aefd2683b30e3c1805b222cbd455e",
+        "id": "dec_529a6271ce9c0610",
+        "chainHash": "529a6271ce9c06103bd81241a15dcd799cf5864be94ff70a6d38a80bca64ddf1",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "75a39f268d7c124561b498668560db716dd28eb7c95dbc59a2962932f11b077a",
+        "catalogueSnapshotHash": "cce09eb2ee2d0dcae48a6365d54afa2e6f8001a2f0a51d5115106637fca12064",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -3270,7 +3270,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "75a39f268d7c124561b498668560db716dd28eb7c95dbc59a2962932f11b077a",
+          "catalogueSnapshotHash": "cce09eb2ee2d0dcae48a6365d54afa2e6f8001a2f0a51d5115106637fca12064",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -3291,7 +3291,7 @@
             {
               "nodeId": "n2_constraint",
               "nodeType": "constraint",
-              "reason": "All 1 candidate(s) passed contact policy.",
+              "reason": "All 1 candidate(s) passed frequency policy.",
               "eliminated": [],
               "survived": [
                 "offer_a"
@@ -3311,7 +3311,7 @@
             "offer_a": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 1,
               "priority": 0.038333
             }
@@ -3328,12 +3328,12 @@
             "thirdParty": false
           },
           "winner": "offer_a",
-          "winnerPropositionId": "p_a"
+          "winnerOfferId": "p_a"
         }
       }
     },
     {
-      "name": "lever resolves to the most specific scope",
+      "name": "boost resolves to the most specific scope",
       "artifact": {
         "id": "art_fixture",
         "version": "1.0.0",
@@ -3379,14 +3379,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -3408,9 +3408,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1.25,
+            "boost": 1.25,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -3418,11 +3418,11 @@
           },
           {
             "id": "p_b",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_b",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
             "key": "offer_b",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -3444,9 +3444,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 0.8,
+            "boost": 0.8,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -3454,11 +3454,11 @@
           },
           {
             "id": "p_c",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_c",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
             "key": "offer_c",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -3480,31 +3480,31 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [],
+        "targetingPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [
+        "boosts": [
           {
             "id": "lv_t",
             "name": "Tenant",
@@ -3520,9 +3520,9 @@
           },
           {
             "id": "lv_g",
-            "name": "Group",
+            "name": "Category",
             "scope": {
-              "level": "group",
+              "level": "category",
               "targetId": "grp_1"
             },
             "value": 1.4,
@@ -3533,9 +3533,9 @@
           },
           {
             "id": "lv_p",
-            "name": "Proposition",
+            "name": "Offer",
             "scope": {
-              "level": "proposition",
+              "level": "offer",
               "targetId": "p_b"
             },
             "value": 2.5,
@@ -3558,10 +3558,10 @@
         }
       },
       "expected": {
-        "id": "dec_fe0f76fc20a81b6b",
-        "chainHash": "fe0f76fc20a81b6b985bf34676886798dd7b93330035c399b190ab4f39a42736",
+        "id": "dec_b0b0abc50df5af09",
+        "chainHash": "b0b0abc50df5af09e6db771a48ef025f6fb5075b09cad7795f0600162b676f71",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "83dcbf57a18602c78afb35ce996140dc24a18f3b990d98d1f9738343b5bad462",
+        "catalogueSnapshotHash": "7687f47f6b4b1db0bf568c33b7a24e1f2765195382b8f976adea16911fe93c1c",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -3571,7 +3571,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "83dcbf57a18602c78afb35ce996140dc24a18f3b990d98d1f9738343b5bad462",
+          "catalogueSnapshotHash": "7687f47f6b4b1db0bf568c33b7a24e1f2765195382b8f976adea16911fe93c1c",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -3621,21 +3621,21 @@
             "offer_a": {
               "propensity": 0.581701,
               "value": 0.038333,
-              "lever": 1.4,
+              "boost": 1.4,
               "context": 0.478535,
               "priority": 0.01493875
             },
             "offer_b": {
               "propensity": 0.481034,
               "value": 0.038333,
-              "lever": 2.5,
+              "boost": 2.5,
               "context": 0.975873,
               "priority": 0.04498647
             },
             "offer_c": {
               "propensity": 0.379446,
               "value": 0.038333,
-              "lever": 1.4,
+              "boost": 1.4,
               "context": 0.506921,
               "priority": 0.01032265
             }
@@ -3652,12 +3652,12 @@
             "thirdParty": false
           },
           "winner": "offer_b",
-          "winnerPropositionId": "p_b"
+          "winnerOfferId": "p_b"
         }
       }
     },
     {
-      "name": "lever outside its validity window does not apply",
+      "name": "boost outside its validity window does not apply",
       "artifact": {
         "id": "art_fixture",
         "version": "1.0.0",
@@ -3701,14 +3701,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -3730,31 +3730,31 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [],
+        "targetingPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [
+        "boosts": [
           {
             "id": "lv_expired",
             "name": "Expired",
@@ -3785,10 +3785,10 @@
         }
       },
       "expected": {
-        "id": "dec_8917f4a63b98708c",
-        "chainHash": "8917f4a63b98708cf5aa8dbe3ec44c582ccf1d3fe6ac84a8b68090e1fef52b31",
+        "id": "dec_debdd06238c997dc",
+        "chainHash": "debdd06238c997dc95faccc95c67d36612ca6adc0c00557168b258e675fb671f",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "191c35691d7080eb81dd9cf7f0573e21b258c9a85849cffbc8b03729d2ceb305",
+        "catalogueSnapshotHash": "02d5ed6709ce90149d8b7968468c0830e681e60a711d59d959e24c5904b5ff24",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -3798,7 +3798,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "191c35691d7080eb81dd9cf7f0573e21b258c9a85849cffbc8b03729d2ceb305",
+          "catalogueSnapshotHash": "02d5ed6709ce90149d8b7968468c0830e681e60a711d59d959e24c5904b5ff24",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -3839,7 +3839,7 @@
             "offer_a": {
               "propensity": 0.581701,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 0.478535,
               "priority": 0.01067054
             }
@@ -3856,7 +3856,7 @@
             "thirdParty": false
           },
           "winner": "offer_a",
-          "winnerPropositionId": "p_a"
+          "winnerOfferId": "p_a"
         }
       }
     },
@@ -3894,14 +3894,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -3923,9 +3923,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -3933,11 +3933,11 @@
           },
           {
             "id": "p_r",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_r",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_r",
             "key": "offer_retired",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "retired",
             "financials": {
               "price": {
@@ -3959,9 +3959,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -3969,11 +3969,11 @@
           },
           {
             "id": "p_f",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_f",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_f",
             "key": "offer_future",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -3995,31 +3995,31 @@
               "startsAt": "2030-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [],
+        "targetingPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -4033,10 +4033,10 @@
         }
       },
       "expected": {
-        "id": "dec_da6cbb542eca02f8",
-        "chainHash": "da6cbb542eca02f8ae8a2543d042b117012b2322a696d90e581ae09cfacc571e",
+        "id": "dec_8d3df49bdd7a6569",
+        "chainHash": "8d3df49bdd7a65696ba86678b2e7853684ed7c566cf25d190120457226f0c2ba",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "24d235f0e28be73e292f4f72f673b1588cc762e2e30a3ad830c4e047f9576e1a",
+        "catalogueSnapshotHash": "c6b7a1b5523734d7c1c703e96a955b86f5497f1715ad54ae09fc690d9d69b347",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -4046,7 +4046,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "24d235f0e28be73e292f4f72f673b1588cc762e2e30a3ad830c4e047f9576e1a",
+          "catalogueSnapshotHash": "c6b7a1b5523734d7c1c703e96a955b86f5497f1715ad54ae09fc690d9d69b347",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -4083,7 +4083,7 @@
             "offer_a": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 1,
               "priority": 0.038333
             }
@@ -4100,7 +4100,7 @@
             "thirdParty": false
           },
           "winner": "offer_a",
-          "winnerPropositionId": "p_a"
+          "winnerOfferId": "p_a"
         }
       }
     },
@@ -4148,14 +4148,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -4177,16 +4177,16 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [
+        "targetingPolicies": [
           {
             "id": "pol_never",
             "name": "Fixture policy",
@@ -4208,21 +4208,21 @@
             "updatedAt": "2020-01-01T00:00:00.000Z"
           }
         ],
-        "contactPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -4236,10 +4236,10 @@
         }
       },
       "expected": {
-        "id": "dec_d4a0811a618c2f52",
-        "chainHash": "d4a0811a618c2f521dfa5619fb1911f19b2272540de124509818a0a7824e8cf4",
+        "id": "dec_b84a0a02c4352571",
+        "chainHash": "b84a0a02c435257129ffc471b0a626a2e80cdf68158da248b1d4d80f6b597307",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "cfe9ebc590ec69d07ccd54e7206f71d430b9ef475fa636796b28e29dacdd3084",
+        "catalogueSnapshotHash": "54199b282e644416fb910743def2ab3786ddd3ed2a56f85ffcfd972060f7943a",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -4249,7 +4249,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "cfe9ebc590ec69d07ccd54e7206f71d430b9ef475fa636796b28e29dacdd3084",
+          "catalogueSnapshotHash": "54199b282e644416fb910743def2ab3786ddd3ed2a56f85ffcfd972060f7943a",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -4297,7 +4297,7 @@
             "thirdParty": false
           },
           "winner": null,
-          "winnerPropositionId": null
+          "winnerOfferId": null
         }
       }
     },
@@ -4337,14 +4337,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -4366,31 +4366,31 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [],
+        "targetingPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": [
           {
             "id": "conn_a",
@@ -4452,10 +4452,10 @@
         }
       },
       "expected": {
-        "id": "dec_3d70d1f42dec83a8",
-        "chainHash": "3d70d1f42dec83a8063b556be108197005af0617bab237678f4969cb1482fb27",
+        "id": "dec_ec262fe8aa9ff045",
+        "chainHash": "ec262fe8aa9ff045028bba954e5accbfcbe25533bc8046c4b2354106977af658",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "5b3150e8a4cf706d2ea154d8eb643d94e3c055c835ab1519fa71d76abd39b3c2",
+        "catalogueSnapshotHash": "b76defde7dee747bd7d975489519baab05cee8156b7757d5f0a0c0c2e733bf53",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -4465,7 +4465,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "5b3150e8a4cf706d2ea154d8eb643d94e3c055c835ab1519fa71d76abd39b3c2",
+          "catalogueSnapshotHash": "b76defde7dee747bd7d975489519baab05cee8156b7757d5f0a0c0c2e733bf53",
           "sourceBindings": [
             {
               "field": "tenureMonths",
@@ -4503,7 +4503,7 @@
             "offer_a": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 1,
               "priority": 0.038333
             }
@@ -4520,7 +4520,7 @@
             "thirdParty": false
           },
           "winner": "offer_a",
-          "winnerPropositionId": "p_a"
+          "winnerOfferId": "p_a"
         }
       }
     },
@@ -4580,14 +4580,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -4609,9 +4609,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1.25,
+            "boost": 1.25,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -4619,11 +4619,11 @@
           },
           {
             "id": "p_b",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_b",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
             "key": "offer_b",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -4645,9 +4645,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 0.8,
+            "boost": 0.8,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -4655,11 +4655,11 @@
           },
           {
             "id": "p_c",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_c",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
             "key": "offer_c",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -4681,31 +4681,31 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [],
+        "targetingPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -4719,10 +4719,10 @@
         }
       },
       "expected": {
-        "id": "dec_34fd5c49ccdb2c25",
-        "chainHash": "34fd5c49ccdb2c252080ba3a906bb79aed71c52604074dea2a74895974bb7d24",
+        "id": "dec_5c26abd260e3f040",
+        "chainHash": "5c26abd260e3f0400eff9bdde7e871457bba48df55f15c4ca457b9d5b089c6fa",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "9bb5a5b1f7f001401eb520c044a9e20a6b02822d80898b796f28a00e5a6c08b3",
+        "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -4732,7 +4732,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "9bb5a5b1f7f001401eb520c044a9e20a6b02822d80898b796f28a00e5a6c08b3",
+          "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -4793,21 +4793,21 @@
             "offer_a": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1.25,
+              "boost": 1.25,
               "context": 1,
               "priority": 0.04791625
             },
             "offer_b": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 0.8,
+              "boost": 0.8,
               "context": 1,
               "priority": 0.0306664
             },
             "offer_c": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 1,
               "priority": 0.038333
             }
@@ -4824,12 +4824,12 @@
             "thirdParty": false
           },
           "winner": "offer_a",
-          "winnerPropositionId": "p_a"
+          "winnerOfferId": "p_a"
         }
       }
     },
     {
-      "name": "a proposition-scoped policy only binds where the candidate opted in",
+      "name": "an offer-scoped policy only binds where the candidate opted in",
       "artifact": {
         "id": "art_fixture",
         "version": "1.0.0",
@@ -4873,14 +4873,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -4902,11 +4902,11 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [
               "pol_opt"
             ],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -4914,11 +4914,11 @@
           },
           {
             "id": "p_b",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_b",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
             "key": "offer_b",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -4940,16 +4940,16 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [
+        "targetingPolicies": [
           {
             "id": "pol_opt",
             "name": "Fixture policy",
@@ -4963,7 +4963,7 @@
               }
             ],
             "scope": {
-              "level": "proposition",
+              "level": "offer",
               "targetId": "p_a"
             },
             "active": true,
@@ -4971,21 +4971,21 @@
             "updatedAt": "2020-01-01T00:00:00.000Z"
           }
         ],
-        "contactPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -4999,10 +4999,10 @@
         }
       },
       "expected": {
-        "id": "dec_102c202cc542c29a",
-        "chainHash": "102c202cc542c29a386e8e6961510debdf13f59e8cfc22c428d1ccdee042351c",
+        "id": "dec_a6162098971e8611",
+        "chainHash": "a6162098971e8611a12bde6b357714a8b63bf55d9b8473eff6e187b8c6f78b19",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "c5ec7b92862fc4f0f7ec93adfe48d1951a474fc316e267f11d905c984c28f28b",
+        "catalogueSnapshotHash": "a049714f6bf258767035171eadbe9b8fa3fb5d977ac35448475c8059477ced41",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -5012,7 +5012,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "c5ec7b92862fc4f0f7ec93adfe48d1951a474fc316e267f11d905c984c28f28b",
+          "catalogueSnapshotHash": "a049714f6bf258767035171eadbe9b8fa3fb5d977ac35448475c8059477ced41",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -5057,7 +5057,7 @@
             "offer_b": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 1,
               "priority": 0.038333
             }
@@ -5074,7 +5074,7 @@
             "thirdParty": false
           },
           "winner": "offer_b",
-          "winnerPropositionId": "p_b"
+          "winnerOfferId": "p_b"
         }
       }
     },
@@ -5122,14 +5122,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_a",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
             "key": "offer_a",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -5151,16 +5151,16 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [
+        "targetingPolicies": [
           {
             "id": "pol_off",
             "name": "Fixture policy",
@@ -5182,21 +5182,21 @@
             "updatedAt": "2020-01-01T00:00:00.000Z"
           }
         ],
-        "contactPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -5210,10 +5210,10 @@
         }
       },
       "expected": {
-        "id": "dec_8203f46b86c4ae5f",
-        "chainHash": "8203f46b86c4ae5faf6ba2f1021b6d88b33e1b05a0f8e498b7c26d4e8b9785d7",
+        "id": "dec_d19e81047a2fbf14",
+        "chainHash": "d19e81047a2fbf1404f4589c9df89e7fbe8972e15182839fd0d3ccdc453c4673",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "217121b5ef99c6bdaafc57ac0485b71f257a248fba9e7faa461631982e5370c0",
+        "catalogueSnapshotHash": "8755c9514f684c8e55b587df7ad5459b1e648f4cade83451f5b844ed7377d808",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -5223,7 +5223,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "217121b5ef99c6bdaafc57ac0485b71f257a248fba9e7faa461631982e5370c0",
+          "catalogueSnapshotHash": "8755c9514f684c8e55b587df7ad5459b1e648f4cade83451f5b844ed7377d808",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -5264,7 +5264,7 @@
             "offer_a": {
               "propensity": 1,
               "value": 0.038333,
-              "lever": 1,
+              "boost": 1,
               "context": 1,
               "priority": 0.038333
             }
@@ -5281,7 +5281,7 @@
             "thirdParty": false
           },
           "winner": "offer_a",
-          "winnerPropositionId": "p_a"
+          "winnerOfferId": "p_a"
         }
       }
     },
@@ -5331,14 +5331,14 @@
         }
       },
       "catalogue": {
-        "propositions": [
+        "offers": [
           {
             "id": "p_rich",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_rich",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_rich",
             "key": "offer_rich",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -5360,9 +5360,9 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
@@ -5370,11 +5370,11 @@
           },
           {
             "id": "p_zero",
-            "groupId": "grp_1",
-            "issueId": "iss_1",
-            "name": "Proposition p_zero",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_zero",
             "key": "offer_zero",
-            "description": "Fixture proposition.",
+            "description": "Fixture offer.",
             "status": "active",
             "financials": {
               "price": {
@@ -5396,31 +5396,31 @@
               "startsAt": "2020-01-01",
               "endsAt": null
             },
-            "lever": 1,
+            "boost": 1,
             "policyIds": [],
-            "treatmentIds": [],
+            "creativeIds": [],
             "tags": [],
             "createdAt": "2020-01-01T00:00:00.000Z",
             "updatedAt": "2020-01-01T00:00:00.000Z",
             "updatedBy": "fixture"
           }
         ],
-        "engagementPolicies": [],
-        "contactPolicies": [],
+        "targetingPolicies": [],
+        "frequencyPolicies": [],
         "arbitration": {
           "id": "arb",
           "tenantId": "t",
           "weights": {
             "propensity": 1,
             "value": 1,
-            "lever": 1,
+            "boost": 1,
             "context": 1
           },
           "formula": "P^wP x V^wV x L^wL x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
-        "levers": [],
+        "boosts": [],
         "connectors": []
       },
       "request": {
@@ -5434,10 +5434,10 @@
         }
       },
       "expected": {
-        "id": "dec_2594acda9f4a9f16",
-        "chainHash": "2594acda9f4a9f16f0295200402e1f1df64824bbb4fc000a178f57cf54770079",
+        "id": "dec_27c8d5999085c083",
+        "chainHash": "27c8d5999085c0836056b0042c41f5f7d4e55b5b3c3ec7f2779ff204e9f0e4da",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "1d71fab69af4df7baaa27c49488106e7bf4a12c3bea30afc8d9effa9deaa3441",
+        "catalogueSnapshotHash": "51ebf6d93fd972cc0639724eeb36c97c1210240305fda85a731141d8b09225d6",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -5447,7 +5447,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "1d71fab69af4df7baaa27c49488106e7bf4a12c3bea30afc8d9effa9deaa3441",
+          "catalogueSnapshotHash": "51ebf6d93fd972cc0639724eeb36c97c1210240305fda85a731141d8b09225d6",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -5493,14 +5493,14 @@
             "offer_rich": {
               "propensity": 0.455734,
               "value": 1.483333,
-              "lever": 1,
+              "boost": 1,
               "context": 0.660731,
               "priority": 0.44665765
             },
             "offer_zero": {
               "propensity": 0.902363,
               "value": 0.01,
-              "lever": 1,
+              "boost": 1,
               "context": 0.447696,
               "priority": 0.00403984
             }
@@ -5517,7 +5517,7 @@
             "thirdParty": false
           },
           "winner": "offer_rich",
-          "winnerPropositionId": "p_rich"
+          "winnerOfferId": "p_rich"
         }
       }
     }

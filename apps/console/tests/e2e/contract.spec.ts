@@ -98,19 +98,19 @@ async function resolveParams(api: APIRequestContext, token: string) {
 
   const taxonomy = await json('/api/taxonomy/telco-uk');
   const decisions = await json('/api/decisions/search?limit=1');
-  const changeRequests = await json('/api/change-requests');
+  const changeSets = await json('/api/change-sets');
   const artifacts = await json('/api/artifacts/telco-uk');
   const connectors = await json('/api/connectors/telco-uk');
 
   return {
     tenantId: 'telco-uk',
     connectorId: connectors.connectors[0].id,
-    propositionId: taxonomy.propositions[0].id,
+    offerId: taxonomy.offers[0].id,
     decisionId: decisions.decisions[0].id,
-    requestId: changeRequests.changeRequests[0].id,
+    changeSetId: changeSets.changeSets[0].id,
     artifactId: artifacts.artifacts[0].id,
-    // The registry keys strategies by the artifact id they were published under.
-    strategyName: artifacts.artifacts[0].id,
+    // The registry keys flows by the artifact id they were published under.
+    flowName: artifacts.artifacts[0].id,
   } as Record<string, string>;
 }
 
@@ -163,13 +163,13 @@ const COVERED_BY_WRITE_SUITES = new Set([
   'publishArtifact',
   'promoteVersion',
   'rollbackVersion',
-  'createProposition',
-  'updateProposition',
+  'createOffer',
+  'updateOffer',
   'updateArbitrationConfig',
   'updateAutonomySetting',
-  'createChangeRequest',
-  'approveChangeRequest',
-  'rejectChangeRequest',
+  'createChangeSet',
+  'approveChangeSet',
+  'rejectChangeSet',
 ]);
 
 test.describe('OpenAPI contract', () => {

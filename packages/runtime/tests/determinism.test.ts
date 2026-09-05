@@ -12,7 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import { execute, replay, diff, topologicalOrder, canonicalise, hash } from '../src';
 import type { ExecArtifact, CatalogueSnapshot, DecisionRequest } from '../src';
-import type { Proposition, EngagementPolicy, ContactPolicy } from '@metis/core/domain';
+import type { Offer, TargetingPolicy, FrequencyPolicy } from '@metis/core/domain';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -20,10 +20,10 @@ import type { Proposition, EngagementPolicy, ContactPolicy } from '@metis/core/d
 
 const gbp = (amount: number) => ({ amount, currency: 'GBP' as const });
 
-function proposition(over: Partial<Proposition> & Pick<Proposition, 'id' | 'key'>): Proposition {
+function offer(over: Partial<Offer> & Pick<Offer, 'id' | 'key'>): Offer {
   return {
-    groupId: 'grp_a',
-    issueId: 'iss_a',
+    categoryId: 'grp_a',
+    objectiveId: 'iss_a',
     name: over.key,
     description: '',
     status: 'active',
@@ -35,18 +35,18 @@ function proposition(over: Partial<Proposition> & Pick<Proposition, 'id' | 'key'
       oneOff: false,
     },
     validity: { startsAt: '2026-01-01', endsAt: null },
-    lever: 1,
+    boost: 1,
     policyIds: [],
-    treatmentIds: ['trt_1'],
+    creativeIds: ['trt_1'],
     tags: [],
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     updatedBy: 'test',
     ...over,
-  } as Proposition;
+  } as Offer;
 }
 
-const adultOnly: EngagementPolicy = {
+const adultOnly: TargetingPolicy = {
   id: 'pol_age',
   name: 'Adults only',
   kind: 'eligibility',
@@ -58,7 +58,7 @@ const adultOnly: EngagementPolicy = {
   updatedAt: '2026-01-01T00:00:00Z',
 };
 
-const weeklyCap: ContactPolicy = {
+const weeklyCap: FrequencyPolicy = {
   id: 'cpol_week',
   name: 'Weekly cap',
   description: '',
@@ -71,23 +71,23 @@ const weeklyCap: ContactPolicy = {
 };
 
 const catalogue: CatalogueSnapshot = {
-  propositions: [
-    proposition({ id: 'p1', key: 'upsell_5g', financials: { price: gbp(3500), cost: gbp(1200), expectedMargin: gbp(55200), termMonths: 24, oneOff: false } }),
-    proposition({ id: 'p2', key: 'upsell_data', financials: { price: gbp(800), cost: gbp(150), expectedMargin: gbp(7800), termMonths: 12, oneOff: false } }),
-    proposition({ id: 'p3', key: 'retention_offer', lever: 1.4 }),
-    proposition({ id: 'p4', key: 'legacy', status: 'retired' }),
+  offers: [
+    offer({ id: 'p1', key: 'upsell_5g', financials: { price: gbp(3500), cost: gbp(1200), expectedMargin: gbp(55200), termMonths: 24, oneOff: false } }),
+    offer({ id: 'p2', key: 'upsell_data', financials: { price: gbp(800), cost: gbp(150), expectedMargin: gbp(7800), termMonths: 12, oneOff: false } }),
+    offer({ id: 'p3', key: 'retention_offer', boost: 1.4 }),
+    offer({ id: 'p4', key: 'legacy', status: 'retired' }),
   ],
-  engagementPolicies: [adultOnly],
-  contactPolicies: [weeklyCap],
+  targetingPolicies: [adultOnly],
+  frequencyPolicies: [weeklyCap],
   arbitration: {
     id: 'arb',
     tenantId: 'telco-uk',
-    weights: { propensity: 1, value: 1, lever: 1, context: 0.5 },
+    weights: { propensity: 1, value: 1, boost: 1, context: 0.5 },
     formula: 'Priority = P^1 x V^1 x L^1 x C^0.5',
     updatedAt: '2026-01-01T00:00:00Z',
     updatedBy: 'test',
   },
-  levers: [],
+  boosts: [],
 };
 
 const artifact: ExecArtifact = {
@@ -174,7 +174,7 @@ describe('determinism', () => {
       ...catalogue,
       arbitration: {
         ...catalogue.arbitration,
-        weights: { propensity: 1, value: 2, lever: 1, context: 0.5 },
+        weights: { propensity: 1, value: 2, boost: 1, context: 0.5 },
       },
     };
     const result = replay(artifact, retuned, original, request.input);
@@ -215,7 +215,7 @@ describe('determinism', () => {
 });
 
 describe('decision logic', () => {
-  it('removes retired propositions at the source node', () => {
+  it('removes retired offers at the source node', () => {
     const trace = execute(artifact, catalogue, request);
     const source = trace.decision.eliminations.find((e) => e.nodeId === 'source')!;
 
@@ -266,14 +266,14 @@ describe('decision logic', () => {
     expect(scores[winner!].priority).toBeGreaterThanOrEqual(scores[runnerUp!].priority);
   });
 
-  it('honours a lever that is in its validity window and ignores one that is not', () => {
+  it('honours a boost that is in its validity window and ignores one that is not', () => {
     const boosted: CatalogueSnapshot = {
       ...catalogue,
-      levers: [
+      boosts: [
         {
           id: 'lev_active',
           name: 'Q4 push',
-          scope: { level: 'proposition', targetId: 'p2' },
+          scope: { level: 'offer', targetId: 'p2' },
           value: 5,
           reason: 'test',
           validity: { startsAt: '2026-09-01', endsAt: '2026-12-31' },
@@ -284,11 +284,11 @@ describe('decision logic', () => {
     };
     const expired: CatalogueSnapshot = {
       ...boosted,
-      levers: [{ ...boosted.levers[0], validity: { startsAt: '2025-01-01', endsAt: '2025-12-31' } }],
+      boosts: [{ ...boosted.boosts[0], validity: { startsAt: '2025-01-01', endsAt: '2025-12-31' } }],
     };
 
-    expect(execute(artifact, boosted, request).decision.scores['upsell_data'].lever).toBe(5);
-    expect(execute(artifact, expired, request).decision.scores['upsell_data'].lever).toBe(1);
+    expect(execute(artifact, boosted, request).decision.scores['upsell_data'].boost).toBe(5);
+    expect(execute(artifact, expired, request).decision.scores['upsell_data'].boost).toBe(1);
   });
 
   it('records an elimination step for every node in the graph', () => {
@@ -398,10 +398,10 @@ describe('diff', () => {
 });
 
 describe('model-free arbitration', () => {
-  it('ranks candidates in a strategy that has no score node', () => {
-    // Anonymous web traffic has no customer to score, so the strategy declares
-    // a value-and-lever formula. A missing model term must be neutral, not
-    // disqualifying - this whole strategy returned nothing before.
+  it('ranks candidates in a flow that has no score node', () => {
+    // Anonymous web traffic has no customer to score, so the flow declares
+    // a value-and-boost formula. A missing model term must be neutral, not
+    // disqualifying - this whole flow returned nothing before.
     const noScore: ExecArtifact = {
       ...artifact,
       nodes: [
@@ -418,7 +418,7 @@ describe('model-free arbitration', () => {
     const trace = execute(noScore, catalogue, request);
 
     expect(trace.decision.winner).not.toBeNull();
-    // Neutral propensity and context, real value and lever.
+    // Neutral propensity and context, real value and boost.
     const s = trace.decision.scores[trace.decision.winner!];
     expect(s.propensity).toBe(1);
     expect(s.context).toBe(1);
@@ -438,14 +438,14 @@ describe('hot path cost', () => {
     // this test failed exactly that way while a dev server was running.
     const bulk = (n: number): CatalogueSnapshot => ({
       ...catalogue,
-      propositions: Array.from({ length: n }, (_, i) =>
-        proposition({
+      offers: Array.from({ length: n }, (_, i) =>
+        offer({
           id: `p_bulk_${i}`,
           key: `bulk_${i}`,
           // Padding, so a bigger catalogue is genuinely more to hash.
           description: `filler `.repeat(40),
         })
-      ).concat(catalogue.propositions),
+      ).concat(catalogue.offers),
     });
 
     const timePerDecision = (snapshot: CatalogueSnapshot) => {
@@ -475,7 +475,7 @@ describe('hot path cost', () => {
     expect(a.decision.catalogueSnapshotHash).toBe(b.decision.catalogueSnapshotHash);
 
     // A different catalogue must still hash differently, or the memo is wrong.
-    const changed = { ...catalogue, levers: [...catalogue.levers] };
+    const changed = { ...catalogue, boosts: [...catalogue.boosts] };
     const c = execute(artifact, { ...changed, arbitration: { ...catalogue.arbitration, formula: 'other' } }, request);
     expect(c.decision.catalogueSnapshotHash).not.toBe(a.decision.catalogueSnapshotHash);
   });

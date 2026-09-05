@@ -4,8 +4,8 @@
  * The central design decision: a trace is split into a deterministic part and
  * a measured part.
  *
- *   DecisionTrace.decision  - what was decided and why. Reproducible.
- *   DecisionTrace.measured  - how long it took. Not reproducible, by nature.
+ *   DecisionRecord.decision  - what was decided and why. Reproducible.
+ *   DecisionRecord.measured  - how long it took. Not reproducible, by nature.
  *
  * Only the deterministic part is hashed into `chainHash`, and only that part is
  * compared on replay. The previous executor hashed wall-clock timings into the
@@ -14,11 +14,11 @@
  */
 
 import type {
-  Proposition,
-  EngagementPolicy,
-  ContactPolicy,
+  Offer,
+  TargetingPolicy,
+  FrequencyPolicy,
   ArbitrationConfig,
-  Lever,
+  Boost,
   Connector,
   SourceBinding,
   SourceCall,
@@ -39,12 +39,12 @@ export interface ExecNode {
   id: string;
   type: ExecNodeType;
   label: string;
-  /** Engagement policies this node evaluates. */
+  /** Targeting policies this node evaluates. */
   policyIds?: string[];
   /** Pinned model, for score nodes. Pinning is what makes replay possible. */
   model?: { id: string; version: string };
-  /** Contact policies this node enforces, for constraint nodes. */
-  contactPolicyIds?: string[];
+  /** Frequency policies this node enforces, for constraint nodes. */
+  frequencyPolicyIds?: string[];
   /**
    * Connectors this node draws on, for source nodes.
    *
@@ -61,14 +61,14 @@ export interface ExecEdge {
   to: string;
 }
 
-/** A compiled, immutable strategy. Everything needed to reproduce a decision. */
+/** A compiled, immutable flow. Everything needed to reproduce a decision. */
 export interface ExecArtifact {
   id: string;
   version: string;
   tenantId: string;
   nodes: ExecNode[];
   edges: ExecEdge[];
-  /** Proposition keys forming the initial candidate set. */
+  /** Offer keys forming the initial candidate set. */
   candidateKeys: string[];
   /** Package versions pinned at compile time. */
   packageVersions: Record<string, string>;
@@ -81,11 +81,11 @@ export interface ExecArtifact {
  * today's catalogue would reproduce today's answer, not the original one.
  */
 export interface CatalogueSnapshot {
-  propositions: Proposition[];
-  engagementPolicies: EngagementPolicy[];
-  contactPolicies: ContactPolicy[];
+  offers: Offer[];
+  targetingPolicies: TargetingPolicy[];
+  frequencyPolicies: FrequencyPolicy[];
   arbitration: ArbitrationConfig;
-  levers: Lever[];
+  boosts: Boost[];
   /**
    * Configured integrations.
    *
@@ -111,7 +111,7 @@ export interface DecisionRequest {
   occurredAt: string;
   /** Customer and context attributes the policies are evaluated against. */
   input: Record<string, unknown>;
-  /** Prior contact counts, for contact-policy enforcement. */
+  /** Prior contact counts, for frequency-policy enforcement. */
   contactHistory?: { channel: string; withinPeriod: Record<string, number> };
   consent?: { marketing: boolean; profiling: boolean; thirdParty: boolean };
 }
@@ -127,7 +127,7 @@ export interface EliminationStep {
 export interface CandidateScore {
   propensity: number;
   value: number;
-  lever: number;
+  boost: number;
   context: number;
   priority: number;
 }
@@ -165,7 +165,7 @@ export interface DeterministicDecision {
   constraintsApplied: string[];
   consentState: { marketing: boolean; profiling: boolean; thirdParty: boolean };
   winner: string | null;
-  winnerPropositionId: string | null;
+  winnerOfferId: string | null;
 }
 
 /** The measured half. Observability only - never hashed, never replayed. */
@@ -186,7 +186,7 @@ export interface Measurements {
   sourceCalls?: SourceCall[];
 }
 
-export interface DecisionTrace {
+export interface DecisionRecord {
   id: string;
   decision: DeterministicDecision;
   measured: Measurements;

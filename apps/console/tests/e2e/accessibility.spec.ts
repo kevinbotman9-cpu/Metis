@@ -9,16 +9,16 @@ import { login, ACCOUNTS, openAccountPanel } from './helpers';
 
 const PAGES = [
   { path: '/', name: 'home' },
-  { path: '/propositions', name: 'propositions' },
-  { path: '/propositions/prop_5g_unlimited_24', name: 'proposition detail' },
-  { path: '/engagement-policies', name: 'engagement policies' },
-  { path: '/contact-policy', name: 'contact policy' },
+  { path: '/offers', name: 'offers' },
+  { path: '/offers/prop_5g_unlimited_24', name: 'offer detail' },
+  { path: '/targeting-policies', name: 'targeting policies' },
+  { path: '/frequency-policy', name: 'frequency policy' },
   { path: '/arbitration', name: 'arbitration' },
-  { path: '/strategies', name: 'strategies' },
+  { path: '/decision-flows', name: 'flows' },
   { path: '/decisions', name: 'decisions' },
   { path: '/integrations', name: 'integrations' },
   { path: '/approvals', name: 'approvals' },
-  { path: '/approvals/cr_0042', name: 'change request' },
+  { path: '/approvals/cr_0042', name: 'change set' },
   { path: '/agentic', name: 'agentic' },
   { path: '/audit', name: 'audit' },
   { path: '/settings', name: 'settings' },
@@ -56,7 +56,7 @@ test.describe('accessibility', () => {
       await page.getByRole('group', { name: 'Colour scheme' }).getByText('Dark').click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
-      for (const path of ['/', '/decisions', '/propositions', '/agentic']) {
+      for (const path of ['/', '/decisions', '/offers', '/agentic']) {
         await page.goto(path);
         const results = await new AxeBuilder({ page })
           .withTags(['wcag2aa'])

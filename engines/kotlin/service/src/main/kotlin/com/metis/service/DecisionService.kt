@@ -105,7 +105,7 @@ class DecisionService(private val store: Store, port: Int = 0) {
             catalogueSnapshotHash = store.catalogueHash,
             inputSnapshotHash = inputHash,
         )
-        store.remember(trace, artifactId, request.input)
+        store.remember(trace, artifactId, request.input, request.contactHistory)
 
         return 200 to traceJson(trace)
     }
@@ -134,7 +134,7 @@ class DecisionService(private val store: Store, port: Int = 0) {
                 placement = d.placement,
                 occurredAt = d.occurredAt,
                 input = stored.input,
-                contactHistory = null,
+                contactHistory = stored.contactHistory,
                 consent = d.consentState,
             ),
             catalogueSnapshotHash = d.catalogueSnapshotHash,
@@ -163,7 +163,7 @@ class DecisionService(private val store: Store, port: Int = 0) {
      * one the hash is taken over — so the body a client reads cannot drift from
      * the bytes that were hashed.
      */
-    private fun traceJson(trace: DecisionTrace): ObjectNode {
+    private fun traceJson(trace: DecisionRecord): ObjectNode {
         val out = Json.mapper.createObjectNode()
         out.put("id", trace.id)
         out.set<ObjectNode>(

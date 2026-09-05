@@ -11,7 +11,7 @@
  *      `DecisionRequest`s, so that is what this builds.
  *
  * Scale is a parameter. The console's fixtures are fixed at eleven
- * propositions, which is the right size for a UI and the wrong size for
+ * offers, which is the right size for a UI and the wrong size for
  * measuring how cost scales with the catalogue.
  */
 
@@ -24,10 +24,10 @@ import type {
 import type {
   ArbitrationConfig,
   Connector,
-  ContactPolicy,
-  EngagementPolicy,
-  Lever,
-  Proposition,
+  FrequencyPolicy,
+  TargetingPolicy,
+  Boost,
+  Offer,
 } from '@metis/core/domain';
 
 const CHANNELS = ['web', 'email', 'sms', 'push', 'outbound_call'] as const;
@@ -39,9 +39,9 @@ function pick<T>(list: readonly T[], salt: string, index: number): T {
 }
 
 export interface WorkloadOptions {
-  /** How many propositions in the catalogue. */
-  propositions?: number;
-  /** How many engagement policies each proposition is scoped by. */
+  /** How many offers in the catalogue. */
+  offers?: number;
+  /** How many targeting policies each offer is scoped by. */
   policies?: number;
   /** How many distinct customers the requests are drawn from. */
   customers?: number;
@@ -55,15 +55,15 @@ export interface Workload {
   label: string;
 }
 
-function proposition(index: number): Proposition {
+function offer(index: number): Offer {
   const price = 500 + Math.floor(seededUnitInterval('price', index, 'p') * 9500);
   const cost = Math.floor(price * (0.2 + seededUnitInterval('cost', index, 'c') * 0.4));
 
   return {
     id: `prop_bench_${index}`,
-    groupId: `grp_${index % 5}`,
-    issueId: `iss_${index % 3}`,
-    name: `Bench proposition ${index}`,
+    categoryId: `grp_${index % 5}`,
+    objectiveId: `iss_${index % 3}`,
+    name: `Bench offer ${index}`,
     key: `bench_${index}`,
     description: 'A synthetic offer, sized like a real one so hashing is honest.',
     status: 'active',
@@ -75,9 +75,9 @@ function proposition(index: number): Proposition {
       oneOff: false,
     },
     validity: { startsAt: '2020-01-01T00:00:00.000Z', endsAt: null },
-    lever: 0.8 + seededUnitInterval('lever', index, 'l') * 0.6,
+    boost: 0.8 + seededUnitInterval('boost', index, 'l') * 0.6,
     policyIds: [],
-    treatmentIds: [`treat_bench_${index}`],
+    creativeIds: [`treat_bench_${index}`],
     tags: ['bench'],
     createdAt: '2020-01-01T00:00:00.000Z',
     updatedAt: '2020-01-01T00:00:00.000Z',
@@ -85,8 +85,8 @@ function proposition(index: number): Proposition {
   };
 }
 
-function engagementPolicy(index: number): EngagementPolicy {
-  const kinds = ['eligibility', 'applicability', 'suitability'] as const;
+function targetingPolicy(index: number): TargetingPolicy {
+  const kinds = ['eligibility', 'relevance', 'suitability'] as const;
   return {
     id: `pol_bench_${index}`,
     name: `Bench policy ${index}`,
@@ -109,23 +109,23 @@ function engagementPolicy(index: number): EngagementPolicy {
 }
 
 export function buildWorkload(options: WorkloadOptions = {}): Workload {
-  const propositionCount = options.propositions ?? 40;
+  const offerCount = options.offers ?? 40;
   const policyCount = options.policies ?? 6;
   const customerCount = options.customers ?? 10_000;
 
-  const propositions = Array.from({ length: propositionCount }, (_, i) => proposition(i));
-  const engagementPolicies = Array.from({ length: policyCount }, (_, i) => engagementPolicy(i));
+  const offers = Array.from({ length: offerCount }, (_, i) => offer(i));
+  const targetingPolicies = Array.from({ length: policyCount }, (_, i) => targetingPolicy(i));
 
-  // Every proposition is scoped by a couple of policies, so the filter nodes
+  // Every offer is scoped by a couple of policies, so the filter nodes
   // have real work to do rather than passing everything through.
-  for (const [i, p] of propositions.entries()) {
+  for (const [i, p] of offers.entries()) {
     p.policyIds = [
-      engagementPolicies[i % policyCount].id,
-      engagementPolicies[(i + 1) % policyCount].id,
+      targetingPolicies[i % policyCount].id,
+      targetingPolicies[(i + 1) % policyCount].id,
     ];
   }
 
-  const contactPolicies: ContactPolicy[] = [
+  const frequencyPolicies: FrequencyPolicy[] = [
     {
       id: 'contact_bench_frequency',
       name: 'Bench frequency cap',
@@ -142,7 +142,7 @@ export function buildWorkload(options: WorkloadOptions = {}): Workload {
   const arbitration: ArbitrationConfig = {
     id: 'arb_bench',
     tenantId: 'bench',
-    weights: { propensity: 1, value: 1, lever: 1, context: 0.5 },
+    weights: { propensity: 1, value: 1, boost: 1, context: 0.5 },
     formula: 'P^wP x V^wV x L^wL x C^wC',
     updatedAt: '2020-01-01T00:00:00.000Z',
     updatedBy: 'bench',
@@ -174,10 +174,10 @@ export function buildWorkload(options: WorkloadOptions = {}): Workload {
     },
   ];
 
-  const levers: Lever[] = [
+  const boosts: Boost[] = [
     {
-      id: 'lever_bench',
-      name: 'Bench lever',
+      id: 'boost_bench',
+      name: 'Bench boost',
       scope: { level: 'tenant', targetId: null },
       value: 1.1,
       reason: 'Synthetic',
@@ -202,19 +202,19 @@ export function buildWorkload(options: WorkloadOptions = {}): Workload {
         id: 'n_eligibility',
         type: 'filter',
         label: 'Eligibility',
-        policyIds: engagementPolicies.filter((p) => p.kind === 'eligibility').map((p) => p.id),
+        policyIds: targetingPolicies.filter((p) => p.kind === 'eligibility').map((p) => p.id),
       },
       {
-        id: 'n_applicability',
+        id: 'n_relevance',
         type: 'filter',
-        label: 'Applicability',
-        policyIds: engagementPolicies.filter((p) => p.kind === 'applicability').map((p) => p.id),
+        label: 'Relevance',
+        policyIds: targetingPolicies.filter((p) => p.kind === 'relevance').map((p) => p.id),
       },
       {
         id: 'n_contact',
         type: 'constraint',
-        label: 'Contact policy',
-        contactPolicyIds: contactPolicies.map((p) => p.id),
+        label: 'Frequency policy',
+        frequencyPolicyIds: frequencyPolicies.map((p) => p.id),
       },
       {
         id: 'n_score',
@@ -226,24 +226,24 @@ export function buildWorkload(options: WorkloadOptions = {}): Workload {
     ],
     edges: [
       { from: 'n_source', to: 'n_eligibility' },
-      { from: 'n_eligibility', to: 'n_applicability' },
-      { from: 'n_applicability', to: 'n_contact' },
+      { from: 'n_eligibility', to: 'n_relevance' },
+      { from: 'n_relevance', to: 'n_contact' },
       { from: 'n_contact', to: 'n_score' },
       { from: 'n_score', to: 'n_arbitrate' },
     ],
-    candidateKeys: propositions.map((p) => p.key),
+    candidateKeys: offers.map((p) => p.key),
     packageVersions: { '@metis/nodes-core': '2.0.0' },
   };
 
   return {
-    label: `${propositionCount} propositions, ${policyCount} policies`,
+    label: `${offerCount} offers, ${policyCount} policies`,
     artifact,
     catalogue: {
-      propositions,
-      engagementPolicies,
-      contactPolicies,
+      offers,
+      targetingPolicies,
+      frequencyPolicies,
       arbitration,
-      levers,
+      boosts,
       connectors,
     },
     request: (index: number): DecisionRequest => {

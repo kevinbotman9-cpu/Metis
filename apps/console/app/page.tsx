@@ -34,21 +34,21 @@ function Home() {
     // that silently showed the page size instead would be wrong.
     queryFn: () => apiClient.searchDecisions({ limit: 5000 }),
   });
-  const changeRequests = useQuery({
-    queryKey: ['change-requests'],
-    queryFn: () => apiClient.listChangeRequests(),
+  const changeSets = useQuery({
+    queryKey: ['change-sets'],
+    queryFn: () => apiClient.listChangeSets(),
   });
   const activityQuery = useQuery({
     queryKey: ['agent-activity', 'overview'],
     queryFn: () => apiClient.listAgentActivity({ limit: 20 }),
   });
-  const strategies = useQuery({
+  const flows = useQuery({
     queryKey: ['artifacts'],
     queryFn: () => apiClient.listArtifacts(),
   });
 
   const decs = decisions.data?.decisions ?? [];
-  const crs = changeRequests.data?.changeRequests ?? [];
+  const crs = changeSets.data?.changeSets ?? [];
   const pending = crs.filter((c) => c.status === 'pending');
   const activity = activityQuery.data?.activity ?? [];
 
@@ -57,7 +57,7 @@ function Home() {
   const avgLatency =
     decs.length > 0 ? (decs.reduce((s, d) => s + d.totalMs, 0) / decs.length).toFixed(2) : '0';
 
-  const artifacts = strategies.data?.artifacts ?? [];
+  const artifacts = flows.data?.artifacts ?? [];
   const compileFailing = artifacts.filter((a) => a.compileOk === false).length;
   const compileWarning = artifacts.filter(
     (a) => a.compileOk !== false && (a.warningCount ?? 0) > 0
@@ -95,7 +95,7 @@ function Home() {
           ]}
         />
         <HealthSummary
-          label="Strategy compilation"
+          label="Flow compilation"
           segments={[
             {
               label: 'clean',
@@ -128,7 +128,7 @@ function Home() {
             }
           />
           <CardBody className="p-0">
-            {changeRequests.isLoading ? (
+            {changeSets.isLoading ? (
               <LoadingState />
             ) : pending.length === 0 ? (
               <p className="px-card py-6 text-body text-content-muted">
@@ -217,9 +217,9 @@ function Home() {
           <CardBody>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {[
-                { href: '/propositions', label: 'Propositions', blurb: 'Master and group offers' },
+                { href: '/offers', label: 'Offers', blurb: 'Master and category offers' },
                 { href: '/decisions', label: 'Decisions', blurb: 'Search traces and replay' },
-                { href: '/arbitration', label: 'Arbitration', blurb: 'Tune P × V × L × C' },
+                { href: '/arbitration', label: 'Arbitration', blurb: 'Tune P × V × B × C' },
                 { href: '/agentic', label: 'Agentic AI', blurb: 'Autonomy and guardrails' },
               ].map((l) => (
                 <Link

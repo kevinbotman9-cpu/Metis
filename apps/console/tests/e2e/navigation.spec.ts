@@ -10,11 +10,11 @@ import { login, ACCOUNTS } from './helpers';
 
 const NAV_ITEMS = [
   { label: 'Home', heading: /Good to see you/ },
-  { label: 'Propositions', heading: 'Propositions' },
-  { label: 'Engagement Policies', heading: 'Engagement policies' },
-  { label: 'Contact Policy', heading: 'Contact policy' },
-  { label: 'Arbitration & Levers', heading: 'Arbitration & levers' },
-  { label: 'Strategies', heading: 'Strategies' },
+  { label: 'Offers', heading: 'Offers' },
+  { label: 'Targeting Policies', heading: 'Targeting policies' },
+  { label: 'Frequency Policy', heading: 'Frequency policy' },
+  { label: 'Arbitration & Boosts', heading: 'Arbitration & boosts' },
+  { label: 'Decision flows', heading: 'Decision flows' },
   { label: 'Decisions', heading: 'Decisions' },
   { label: 'Simulations', heading: 'Simulations' },
   { label: 'Approvals', heading: 'Approvals' },
@@ -52,23 +52,23 @@ test.describe('navigation', () => {
     await expect(page.getByRole('link', { name: /Back to decision search/ })).toBeVisible();
   });
 
-  test('an unknown proposition shows a real empty state', async ({ page }) => {
-    await page.goto('/propositions/prop_nope');
-    await expect(page.getByText(/No proposition with ID prop_nope/)).toBeVisible();
+  test('an unknown offer shows a real empty state', async ({ page }) => {
+    await page.goto('/offers/prop_nope');
+    await expect(page.getByText(/No offer with ID prop_nope/)).toBeVisible();
   });
 });
 
 test.describe('authentication', () => {
   test('redirects an anonymous visitor to login and returns them afterwards', async ({ page }) => {
-    await page.goto('/propositions');
-    await expect(page).toHaveURL(/\/login\?next=%2Fpropositions/);
+    await page.goto('/offers');
+    await expect(page).toHaveURL(/\/login\?next=%2Foffers/);
 
     await page.getByLabel('Email').fill(ACCOUNTS.sarah);
     await page.getByLabel('Password').fill('demo');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    await expect(page).toHaveURL(/\/propositions$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Propositions' })).toBeVisible();
+    await expect(page).toHaveURL(/\/offers$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Offers' })).toBeVisible();
   });
 
   test('rejects a wrong password without signing in', async ({ page }) => {

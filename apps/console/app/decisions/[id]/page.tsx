@@ -24,7 +24,7 @@ import { cn } from '@/lib/cn';
 
 const AUDIENCES = [
   { key: 'customer', label: 'Customer', blurb: 'Plain language, no internal identifiers.' },
-  { key: 'business', label: 'Business', blurb: 'Value, levers and commercial outcome.' },
+  { key: 'business', label: 'Business', blurb: 'Value, boosts and commercial outcome.' },
   { key: 'analyst', label: 'Analyst', blurb: 'Full score composition and elimination detail.' },
   { key: 'engineer', label: 'Engineer', blurb: 'Node IDs, timings and artifact version.' },
   { key: 'regulator', label: 'Regulator', blurb: 'Policies applied, consent state and evidence.' },
@@ -37,7 +37,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
 
   const { data: trace, isLoading, error, refetch } = useQuery({
     queryKey: ['trace', decisionId],
-    queryFn: () => apiClient.getDecisionTrace(decisionId),
+    queryFn: () => apiClient.getDecisionRecord(decisionId),
     retry: false,
   });
 
@@ -273,7 +273,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
                             {s.value.toFixed(3)}
                           </td>
                           <td className="tnum py-2 text-right text-content-muted">
-                            {s.lever.toFixed(2)}
+                            {s.boost.toFixed(2)}
                           </td>
                           <td className="tnum py-2 text-right text-content-muted">
                             {s.context.toFixed(3)}
@@ -504,7 +504,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
                 </div>
 
                 <p className="mb-2 mt-4 text-label uppercase tracking-wide text-content-subtle">
-                  Contact policies applied
+                  Frequency policies applied
                 </p>
                 <ul className="space-y-1">
                   {trace.constraintsApplied.map((c) => (
@@ -514,16 +514,16 @@ function TraceView({ decisionId }: { decisionId: string }) {
                   ))}
                 </ul>
 
-                {trace.treatmentId && (
+                {trace.creativeId && (
                   <>
                     <p className="mb-2 mt-4 text-label uppercase tracking-wide text-content-subtle">
-                      Treatment delivered
+                      Creative delivered
                     </p>
                     <Link
-                      href={`/propositions/${trace.winnerPropositionId}`}
+                      href={`/offers/${trace.winnerOfferId}`}
                       className="font-mono text-label text-accent hover:underline"
                     >
-                      {trace.treatmentId}
+                      {trace.creativeId}
                     </Link>
                   </>
                 )}

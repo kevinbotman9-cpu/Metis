@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { apiClient, type PropositionDto } from '@/lib/api-client';
+import { apiClient, type OfferDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
 
 function money(m: { amount: number; currency: string }) {
@@ -28,9 +28,9 @@ function money(m: { amount: number; currency: string }) {
   return `${symbol}${(m.amount / 100).toFixed(2)}`;
 }
 
-function PropositionsView() {
+function OffersView() {
   const router = useRouter();
-  const [selected, setSelected] = useState<{ type: 'all' | 'issue' | 'group'; id?: string }>({
+  const [selected, setSelected] = useState<{ type: 'all' | 'objective' | 'category'; id?: string }>({
     type: 'all',
   });
   const [search, setSearch] = useState('');
@@ -41,16 +41,16 @@ function PropositionsView() {
     queryFn: () => apiClient.getTaxonomy(),
   });
 
-  const issues = data?.issues ?? [];
-  const groups = data?.groups ?? [];
+  const objectives = data?.objectives ?? [];
+  const categories = data?.categories ?? [];
   // Memoised so the empty-array fallback keeps a stable identity between
   // renders; otherwise every render invalidates the filter below.
-  const all = useMemo(() => data?.propositions ?? [], [data]);
+  const all = useMemo(() => data?.offers ?? [], [data]);
 
   const filtered = useMemo(() => {
     let rows = all;
-    if (selected.type === 'issue') rows = rows.filter((p) => p.issueId === selected.id);
-    if (selected.type === 'group') rows = rows.filter((p) => p.groupId === selected.id);
+    if (selected.type === 'objective') rows = rows.filter((p) => p.objectiveId === selected.id);
+    if (selected.type === 'category') rows = rows.filter((p) => p.categoryId === selected.id);
     if (status) rows = rows.filter((p) => p.status === status);
     const q = search.toLowerCase().trim();
     if (q) {
@@ -64,13 +64,13 @@ function PropositionsView() {
     return rows;
   }, [all, selected, search, status]);
 
-  const countFor = (predicate: (p: PropositionDto) => boolean) =>
+  const countFor = (predicate: (p: OfferDto) => boolean) =>
     all.filter(predicate).length;
 
-  const columns: Column<PropositionDto>[] = [
+  const columns: Column<OfferDto>[] = [
     {
       key: 'name',
-      header: 'Proposition',
+      header: 'Offer',
       sortValue: (p) => p.name,
       cell: (p) => (
         <div className="min-w-0">
@@ -80,14 +80,14 @@ function PropositionsView() {
       ),
     },
     {
-      key: 'group',
-      header: 'Group',
+      key: 'category',
+      header: 'Category',
       width: 'w-44',
       secondary: true,
-      sortValue: (p) => p.groupId,
+      sortValue: (p) => p.categoryId,
       cell: (p) => (
         <span className="text-content-muted">
-          {groups.find((g) => g.id === p.groupId)?.name ?? '—'}
+          {categories.find((g) => g.id === p.categoryId)?.name ?? '—'}
         </span>
       ),
     },
@@ -131,33 +131,33 @@ function PropositionsView() {
       ),
     },
     {
-      key: 'lever',
-      header: 'Lever',
+      key: 'boost',
+      header: 'Boost',
       align: 'right',
       width: 'w-20',
-      sortValue: (p) => p.lever,
+      sortValue: (p) => p.boost,
       cell: (p) => (
         <span
           className={cn(
             'font-medium',
-            p.lever > 1 ? 'text-pass' : p.lever < 1 ? 'text-hold' : 'text-content-muted'
+            p.boost > 1 ? 'text-pass' : p.boost < 1 ? 'text-hold' : 'text-content-muted'
           )}
         >
-          {p.lever.toFixed(2)}
+          {p.boost.toFixed(2)}
         </span>
       ),
     },
     {
-      key: 'treatments',
-      header: 'Treatments',
+      key: 'creatives',
+      header: 'Creatives',
       align: 'right',
       width: 'w-24',
-      sortValue: (p) => p.treatmentIds.length,
+      sortValue: (p) => p.creativeIds.length,
       cell: (p) =>
-        p.treatmentIds.length === 0 ? (
+        p.creativeIds.length === 0 ? (
           <Badge tone="hold">none</Badge>
         ) : (
-          <span className="text-content-muted">{p.treatmentIds.length}</span>
+          <span className="text-content-muted">{p.creativeIds.length}</span>
         ),
     },
   ];
@@ -173,17 +173,17 @@ function PropositionsView() {
   return (
     <PageBody>
       <PageHeader
-        title="Propositions"
-        description="The offer catalogue, organised by business issue and product group. A strategy's candidate set is drawn from here."
+        title="Offers"
+        description="The offer catalogue, organised by business objective and product category. A decision flow's candidate set is drawn from here."
         actions={
           <Button variant="primary" size="md">
-            New proposition
+            New offer
           </Button>
         }
       />
 
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Metric label="Propositions" value={all.length} sub={`across ${issues.length} issues`} />
+        <Metric label="Offers" value={all.length} sub={`across ${objectives.length} objectives`} />
         <Metric
           label="Active"
           value={countFor((p) => p.status === 'active')}
@@ -195,9 +195,9 @@ function PropositionsView() {
           tone="hold"
         />
         <Metric
-          label="Missing treatments"
-          value={countFor((p) => p.treatmentIds.length === 0 && p.status !== 'retired')}
-          tone={countFor((p) => p.treatmentIds.length === 0 && p.status !== 'retired') > 0 ? 'block' : 'neutral'}
+          label="Missing creatives"
+          value={countFor((p) => p.creativeIds.length === 0 && p.status !== 'retired')}
+          tone={countFor((p) => p.creativeIds.length === 0 && p.status !== 'retired') > 0 ? 'block' : 'neutral'}
           sub="cannot be delivered"
         />
       </div>
@@ -205,7 +205,7 @@ function PropositionsView() {
       <div className="grid gap-stack lg:grid-cols-[260px_1fr]">
         {/* Hierarchy tree */}
         <Card className="h-fit">
-          <CardHeader title="Hierarchy" description="Issue › Group" />
+          <CardHeader title="Hierarchy" description="Objective › Category" />
           <CardBody className="p-2">
             <button
               onClick={() => setSelected({ type: 'all' })}
@@ -216,45 +216,45 @@ function PropositionsView() {
                   : 'text-content-muted hover:bg-surface-sunken'
               )}
             >
-              <span>All propositions</span>
+              <span>All offers</span>
               <span className="tnum text-label">{all.length}</span>
             </button>
 
-            {issues.map((issue) => {
-              const issueGroups = groups.filter((g) => g.issueId === issue.id);
-              const issueCount = countFor((p) => p.issueId === issue.id);
+            {objectives.map((objective) => {
+              const objectiveCategories = categories.filter((g) => g.objectiveId === objective.id);
+              const objectiveCount = countFor((p) => p.objectiveId === objective.id);
               return (
-                <div key={issue.id} className="mb-1">
+                <div key={objective.id} className="mb-1">
                   <button
-                    onClick={() => setSelected({ type: 'issue', id: issue.id })}
+                    onClick={() => setSelected({ type: 'objective', id: objective.id })}
                     className={cn(
                       'flex w-full items-center justify-between rounded px-2 py-1.5 text-body transition-colors',
-                      selected.type === 'issue' && selected.id === issue.id
+                      selected.type === 'objective' && selected.id === objective.id
                         ? 'bg-accent-subtle font-medium text-accent'
                         : 'font-medium text-content hover:bg-surface-sunken'
                     )}
                   >
-                    <span className="truncate">{issue.name}</span>
-                    <span className="tnum text-label text-content-subtle">{issueCount}</span>
+                    <span className="truncate">{objective.name}</span>
+                    <span className="tnum text-label text-content-subtle">{objectiveCount}</span>
                   </button>
 
                   <ul className="ml-2 border-l border-border pl-2">
-                    {issueGroups.map((group) => {
-                      const groupCount = countFor((p) => p.groupId === group.id);
+                    {objectiveCategories.map((category) => {
+                      const categoryCount = countFor((p) => p.categoryId === category.id);
                       return (
-                        <li key={group.id}>
+                        <li key={category.id}>
                           <button
-                            onClick={() => setSelected({ type: 'group', id: group.id })}
+                            onClick={() => setSelected({ type: 'category', id: category.id })}
                             className={cn(
                               'flex w-full items-center justify-between rounded px-2 py-1 text-body transition-colors',
-                              selected.type === 'group' && selected.id === group.id
+                              selected.type === 'category' && selected.id === category.id
                                 ? 'bg-accent-subtle font-medium text-accent'
                                 : 'text-content-muted hover:bg-surface-sunken hover:text-content'
                             )}
                           >
-                            <span className="truncate">{group.name}</span>
+                            <span className="truncate">{category.name}</span>
                             <span className="tnum text-label text-content-subtle">
-                              {groupCount}
+                              {categoryCount}
                             </span>
                           </button>
                         </li>
@@ -272,16 +272,16 @@ function PropositionsView() {
           <CardHeader
             title={
               selected.type === 'all'
-                ? 'All propositions'
-                : selected.type === 'issue'
-                  ? issues.find((i) => i.id === selected.id)?.name ?? ''
-                  : groups.find((g) => g.id === selected.id)?.name ?? ''
+                ? 'All offers'
+                : selected.type === 'objective'
+                  ? objectives.find((i) => i.id === selected.id)?.name ?? ''
+                  : categories.find((g) => g.id === selected.id)?.name ?? ''
             }
             description={`${filtered.length} shown`}
             actions={
               <div className="flex items-center gap-2">
                 <Input
-                  aria-label="Search propositions"
+                  aria-label="Search offers"
                   placeholder="Search name, key or tag"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -308,10 +308,10 @@ function PropositionsView() {
             rowKey={(p) => p.id}
             isLoading={isLoading}
             defaultSort={{ key: 'name', dir: 'asc' }}
-            onRowClick={(p) => router.push(`/propositions/${p.id}`)}
-            emptyTitle="No propositions here"
-            emptyDescription="Change the filter, or create a proposition in this group."
-            caption="Proposition catalogue"
+            onRowClick={(p) => router.push(`/offers/${p.id}`)}
+            emptyTitle="No offers here"
+            emptyDescription="Change the filter, or create an offer in this category."
+            caption="Offer catalogue"
           />
         </Card>
       </div>
@@ -319,7 +319,7 @@ function PropositionsView() {
   );
 }
 
-export default function PropositionsPage() {
+export default function OffersPage() {
   return (
     <RequireAuth>
       <Guarded />
@@ -329,13 +329,13 @@ export default function PropositionsPage() {
 
 function Guarded() {
   const { hasPermission } = useAuth();
-  if (!hasPermission('view:propositions')) {
+  if (!hasPermission('view:offers')) {
     return (
       <PageBody>
-        <PageHeader title="Propositions" />
-        <PermissionDenied permission="view:propositions" />
+        <PageHeader title="Offers" />
+        <PermissionDenied permission="view:offers" />
       </PageBody>
     );
   }
-  return <PropositionsView />;
+  return <OffersView />;
 }

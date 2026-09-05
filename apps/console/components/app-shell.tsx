@@ -29,16 +29,16 @@ const NAV: NavSection[] = [
   {
     label: 'Offers',
     items: [
-      { href: '/propositions', label: 'Propositions', permission: 'view:propositions' },
-      { href: '/engagement-policies', label: 'Engagement Policies' },
-      { href: '/contact-policy', label: 'Contact Policy' },
-      { href: '/arbitration', label: 'Arbitration & Levers' },
+      { href: '/offers', label: 'Offers', permission: 'view:offers' },
+      { href: '/targeting-policies', label: 'Targeting Policies' },
+      { href: '/frequency-policy', label: 'Frequency Policy' },
+      { href: '/arbitration', label: 'Arbitration & Boosts' },
     ],
   },
   {
     label: 'Decisioning',
     items: [
-      { href: '/strategies', label: 'Strategies', permission: 'view:strategies' },
+      { href: '/decision-flows', label: 'Decision flows', permission: 'view:flows' },
       { href: '/decisions', label: 'Decisions', permission: 'view:decisions' },
       { href: '/simulations', label: 'Simulations' },
       { href: '/integrations', label: 'Integrations' },
@@ -61,7 +61,7 @@ const NAV: NavSection[] = [
 /**
  * Which environment this console is pointed at.
  *
- * Not decoration. On a platform where publishing a strategy changes what real
+ * Not decoration. On a platform where publishing a flow changes what real
  * customers are offered, mistaking one environment for another is the expensive
  * mistake, so it is stated permanently rather than inferred from the hostname.
  */
@@ -193,7 +193,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="mx-auto hidden w-full max-w-md items-center gap-2 rounded-md border border-on-header/25 bg-on-header/10 px-3 py-1.5 text-label transition-colors hover:border-on-header/50 hover:bg-on-header/20 md:flex"
         >
           <span aria-hidden>⌕</span>
-          <span>Search propositions, strategies, decisions…</span>
+          <span>Search offers, decision flows, decisions…</span>
           <kbd className="ml-auto rounded border border-on-header/30 px-1.5 py-0.5 font-mono text-[0.625rem]">
             ⌘K
           </kbd>

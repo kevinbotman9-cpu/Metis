@@ -10,14 +10,14 @@
  */
 
 import type {
-  Issue,
-  Group,
-  Proposition,
-  Treatment,
-  EngagementPolicy,
-  ContactPolicy,
+  Objective,
+  Category,
+  Offer,
+  Creative,
+  TargetingPolicy,
+  FrequencyPolicy,
   ArbitrationConfig,
-  Lever,
+  Boost,
   AutonomySetting,
   AgentActivity,
   Connector,
@@ -28,10 +28,10 @@ const T0 = Date.parse('2026-09-01T09:00:00Z');
 const iso = (offsetHours: number) => new Date(T0 + offsetHours * 3600_000).toISOString();
 
 // ---------------------------------------------------------------------------
-// Issues
+// Objectives
 // ---------------------------------------------------------------------------
 
-export const issues: Issue[] = [
+export const objectives: Objective[] = [
   {
     id: 'iss_acquisition',
     name: 'Acquisition',
@@ -71,13 +71,13 @@ export const issues: Issue[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Groups
+// Categories
 // ---------------------------------------------------------------------------
 
-export const groups: Group[] = [
+export const categories: Category[] = [
   {
     id: 'grp_new_mobile',
-    issueId: 'iss_acquisition',
+    objectiveId: 'iss_acquisition',
     name: 'New Mobile Plans',
     key: 'new-mobile',
     description: 'SIM-only and handset plans for new lines.',
@@ -87,7 +87,7 @@ export const groups: Group[] = [
   },
   {
     id: 'grp_new_broadband',
-    issueId: 'iss_acquisition',
+    objectiveId: 'iss_acquisition',
     name: 'New Broadband',
     key: 'new-broadband',
     description: 'Fibre and full-fibre acquisition offers.',
@@ -97,7 +97,7 @@ export const groups: Group[] = [
   },
   {
     id: 'grp_contract_renewal',
-    issueId: 'iss_retention',
+    objectiveId: 'iss_retention',
     name: 'Contract Renewal',
     key: 'contract-renewal',
     description: 'Retention offers for customers nearing contract end.',
@@ -107,7 +107,7 @@ export const groups: Group[] = [
   },
   {
     id: 'grp_winback',
-    issueId: 'iss_retention',
+    objectiveId: 'iss_retention',
     name: 'Save & Winback',
     key: 'winback',
     description: 'Discounts and credits for customers who have signalled intent to leave.',
@@ -117,7 +117,7 @@ export const groups: Group[] = [
   },
   {
     id: 'grp_data_upsell',
-    issueId: 'iss_growth',
+    objectiveId: 'iss_growth',
     name: 'Data & Speed Upsell',
     key: 'data-upsell',
     description: 'Move customers to higher data or speed tiers.',
@@ -127,7 +127,7 @@ export const groups: Group[] = [
   },
   {
     id: 'grp_accessories',
-    issueId: 'iss_growth',
+    objectiveId: 'iss_growth',
     name: 'Accessories & Add-ons',
     key: 'accessories',
     description: 'Low-risk attach offers: insurance, roaming passes, devices.',
@@ -137,7 +137,7 @@ export const groups: Group[] = [
   },
   {
     id: 'grp_account_health',
-    issueId: 'iss_service',
+    objectiveId: 'iss_service',
     name: 'Account Health',
     key: 'account-health',
     description: 'Bill shock warnings, usage alerts, plan-fit nudges.',
@@ -148,16 +148,16 @@ export const groups: Group[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Propositions
+// Offers
 // ---------------------------------------------------------------------------
 
 const gbp = (amount: number) => ({ amount, currency: 'GBP' as const });
 
-export const propositions: Proposition[] = [
+export const offers: Offer[] = [
   {
     id: 'prop_5g_unlimited_24',
-    groupId: 'grp_data_upsell',
-    issueId: 'iss_growth',
+    categoryId: 'grp_data_upsell',
+    objectiveId: 'iss_growth',
     name: '5G Unlimited 24mo',
     key: 'upsell_5g',
     description: 'Unlimited 5G data on a 24-month term, £35/mo.',
@@ -170,9 +170,9 @@ export const propositions: Proposition[] = [
       oneOff: false,
     },
     validity: { startsAt: '2026-01-01', endsAt: null },
-    lever: 1.25,
+    boost: 1.25,
     policyIds: ['pol_age_18', 'pol_credit_pass', 'pol_not_on_5g', 'pol_afford_5g'],
-    treatmentIds: ['trt_5g_email', 'trt_5g_sms', 'trt_5g_web', 'trt_5g_push'],
+    creativeIds: ['trt_5g_email', 'trt_5g_sms', 'trt_5g_web', 'trt_5g_push'],
     tags: ['5g', 'flagship', 'high-margin'],
     createdAt: iso(-600),
     updatedAt: iso(-6),
@@ -180,8 +180,8 @@ export const propositions: Proposition[] = [
   },
   {
     id: 'prop_data_boost_10gb',
-    groupId: 'grp_data_upsell',
-    issueId: 'iss_growth',
+    categoryId: 'grp_data_upsell',
+    objectiveId: 'iss_growth',
     name: 'Data Boost +10GB',
     key: 'upsell_data',
     description: 'Add 10GB to the current plan for £8/mo, no term change.',
@@ -194,9 +194,9 @@ export const propositions: Proposition[] = [
       oneOff: false,
     },
     validity: { startsAt: '2026-01-01', endsAt: null },
-    lever: 1.0,
+    boost: 1.0,
     policyIds: ['pol_age_18', 'pol_heavy_user'],
-    treatmentIds: ['trt_data_email', 'trt_data_sms', 'trt_data_web'],
+    creativeIds: ['trt_data_email', 'trt_data_sms', 'trt_data_web'],
     tags: ['data', 'low-friction'],
     createdAt: iso(-600),
     updatedAt: iso(-30),
@@ -204,8 +204,8 @@ export const propositions: Proposition[] = [
   },
   {
     id: 'prop_retention_20pct',
-    groupId: 'grp_contract_renewal',
-    issueId: 'iss_retention',
+    categoryId: 'grp_contract_renewal',
+    objectiveId: 'iss_retention',
     name: 'Loyalty Discount 20%',
     key: 'retention_offer',
     description: '20% off the current plan for 12 months on re-contract.',
@@ -218,9 +218,9 @@ export const propositions: Proposition[] = [
       oneOff: false,
     },
     validity: { startsAt: '2026-06-01', endsAt: '2026-12-31' },
-    lever: 1.4,
+    boost: 1.4,
     policyIds: ['pol_age_18', 'pol_contract_ending', 'pol_afford_retention'],
-    treatmentIds: ['trt_ret_email', 'trt_ret_call'],
+    creativeIds: ['trt_ret_email', 'trt_ret_call'],
     tags: ['retention', 'regulated', 'margin-dilutive'],
     createdAt: iso(-400),
     updatedAt: iso(-12),
@@ -228,8 +228,8 @@ export const propositions: Proposition[] = [
   },
   {
     id: 'prop_winback_credit',
-    groupId: 'grp_winback',
-    issueId: 'iss_retention',
+    categoryId: 'grp_winback',
+    objectiveId: 'iss_retention',
     name: 'Winback £50 Credit',
     key: 'winback_credit',
     description: 'One-off £50 account credit for customers who requested a PAC code.',
@@ -242,9 +242,9 @@ export const propositions: Proposition[] = [
       oneOff: true,
     },
     validity: { startsAt: '2026-03-01', endsAt: '2026-10-31' },
-    lever: 1.6,
+    boost: 1.6,
     policyIds: ['pol_age_18', 'pol_pac_requested', 'pol_afford_retention'],
-    treatmentIds: ['trt_winback_call', 'trt_winback_sms'],
+    creativeIds: ['trt_winback_call', 'trt_winback_sms'],
     tags: ['retention', 'regulated', 'high-cost'],
     createdAt: iso(-300),
     updatedAt: iso(-24),
@@ -252,8 +252,8 @@ export const propositions: Proposition[] = [
   },
   {
     id: 'prop_fibre_900',
-    groupId: 'grp_new_broadband',
-    issueId: 'iss_acquisition',
+    categoryId: 'grp_new_broadband',
+    objectiveId: 'iss_acquisition',
     name: 'Full Fibre 900Mb',
     key: 'acq_fibre_900',
     description: 'Full-fibre 900Mb broadband, £45/mo on 18 months.',
@@ -266,9 +266,9 @@ export const propositions: Proposition[] = [
       oneOff: false,
     },
     validity: { startsAt: '2026-02-01', endsAt: null },
-    lever: 1.15,
+    boost: 1.15,
     policyIds: ['pol_age_18', 'pol_credit_pass', 'pol_fibre_available'],
-    treatmentIds: ['trt_fibre_email', 'trt_fibre_web'],
+    creativeIds: ['trt_fibre_email', 'trt_fibre_web'],
     tags: ['broadband', 'acquisition'],
     createdAt: iso(-500),
     updatedAt: iso(-72),
@@ -276,8 +276,8 @@ export const propositions: Proposition[] = [
   },
   {
     id: 'prop_sim_only_15',
-    groupId: 'grp_new_mobile',
-    issueId: 'iss_acquisition',
+    categoryId: 'grp_new_mobile',
+    objectiveId: 'iss_acquisition',
     name: 'SIM Only 30GB',
     key: 'acq_sim_30',
     description: 'SIM-only 30GB, £15/mo rolling.',
@@ -290,9 +290,9 @@ export const propositions: Proposition[] = [
       oneOff: false,
     },
     validity: { startsAt: '2026-01-01', endsAt: null },
-    lever: 0.9,
+    boost: 0.9,
     policyIds: ['pol_age_18', 'pol_credit_pass'],
-    treatmentIds: ['trt_sim_web', 'trt_sim_email'],
+    creativeIds: ['trt_sim_web', 'trt_sim_email'],
     tags: ['mobile', 'acquisition', 'entry'],
     createdAt: iso(-500),
     updatedAt: iso(-48),
@@ -300,8 +300,8 @@ export const propositions: Proposition[] = [
   },
   {
     id: 'prop_roaming_pass',
-    groupId: 'grp_accessories',
-    issueId: 'iss_growth',
+    categoryId: 'grp_accessories',
+    objectiveId: 'iss_growth',
     name: 'Europe Roaming Pass',
     key: 'addon_roaming',
     description: '£12 for 14 days of EU roaming.',
@@ -314,9 +314,9 @@ export const propositions: Proposition[] = [
       oneOff: true,
     },
     validity: { startsAt: '2026-04-01', endsAt: '2026-10-31' },
-    lever: 1.0,
+    boost: 1.0,
     policyIds: ['pol_age_18'],
-    treatmentIds: ['trt_roam_push', 'trt_roam_sms'],
+    creativeIds: ['trt_roam_push', 'trt_roam_sms'],
     tags: ['addon', 'seasonal', 'low-risk'],
     createdAt: iso(-200),
     updatedAt: iso(-6),
@@ -324,8 +324,8 @@ export const propositions: Proposition[] = [
   },
   {
     id: 'prop_device_insurance',
-    groupId: 'grp_accessories',
-    issueId: 'iss_growth',
+    categoryId: 'grp_accessories',
+    objectiveId: 'iss_growth',
     name: 'Device Insurance',
     key: 'addon_insurance',
     description: 'Accidental damage and theft cover, £9/mo.',
@@ -338,9 +338,9 @@ export const propositions: Proposition[] = [
       oneOff: false,
     },
     validity: { startsAt: '2026-01-01', endsAt: null },
-    lever: 1.0,
+    boost: 1.0,
     policyIds: ['pol_age_18', 'pol_afford_insurance'],
-    treatmentIds: ['trt_ins_email'],
+    creativeIds: ['trt_ins_email'],
     tags: ['addon', 'regulated', 'insurance'],
     createdAt: iso(-450),
     updatedAt: iso(-120),
@@ -348,8 +348,8 @@ export const propositions: Proposition[] = [
   },
   {
     id: 'prop_bill_shock_alert',
-    groupId: 'grp_account_health',
-    issueId: 'iss_service',
+    categoryId: 'grp_account_health',
+    objectiveId: 'iss_service',
     name: 'Bill Shock Warning',
     key: 'svc_bill_shock',
     description: 'Proactive alert when projected usage exceeds the plan allowance.',
@@ -362,9 +362,9 @@ export const propositions: Proposition[] = [
       oneOff: true,
     },
     validity: { startsAt: '2026-01-01', endsAt: null },
-    lever: 2.0,
+    boost: 2.0,
     policyIds: ['pol_usage_projection'],
-    treatmentIds: ['trt_shock_sms', 'trt_shock_push'],
+    creativeIds: ['trt_shock_sms', 'trt_shock_push'],
     tags: ['service', 'non-commercial', 'always-on'],
     createdAt: iso(-650),
     updatedAt: iso(-96),
@@ -372,8 +372,8 @@ export const propositions: Proposition[] = [
   },
   {
     id: 'prop_plan_downsize',
-    groupId: 'grp_account_health',
-    issueId: 'iss_service',
+    categoryId: 'grp_account_health',
+    objectiveId: 'iss_service',
     name: 'Better Plan Available',
     key: 'svc_plan_fit',
     description: 'Suggest a cheaper plan when usage is consistently below allowance.',
@@ -386,9 +386,9 @@ export const propositions: Proposition[] = [
       oneOff: true,
     },
     validity: { startsAt: '2026-10-01', endsAt: null },
-    lever: 1.0,
+    boost: 1.0,
     policyIds: ['pol_usage_projection'],
-    treatmentIds: [],
+    creativeIds: [],
     tags: ['service', 'fair-value', 'margin-negative'],
     createdAt: iso(-100),
     updatedAt: iso(-2),
@@ -396,11 +396,11 @@ export const propositions: Proposition[] = [
   },
   {
     id: 'prop_legacy_4g_bundle',
-    groupId: 'grp_data_upsell',
-    issueId: 'iss_growth',
+    categoryId: 'grp_data_upsell',
+    objectiveId: 'iss_growth',
     name: 'Legacy 4G Bundle',
     key: 'upsell_4g_legacy',
-    description: 'Superseded by the 5G Unlimited proposition.',
+    description: 'Superseded by the 5G Unlimited offer.',
     status: 'retired',
     financials: {
       price: gbp(2200),
@@ -410,9 +410,9 @@ export const propositions: Proposition[] = [
       oneOff: false,
     },
     validity: { startsAt: '2025-01-01', endsAt: '2026-06-30' },
-    lever: 0.5,
+    boost: 0.5,
     policyIds: ['pol_age_18'],
-    treatmentIds: [],
+    creativeIds: [],
     tags: ['legacy', 'retired'],
     createdAt: iso(-900),
     updatedAt: iso(-300),
@@ -421,13 +421,13 @@ export const propositions: Proposition[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Treatments
+// Creatives
 // ---------------------------------------------------------------------------
 
-export const treatments: Treatment[] = [
+export const creatives: Creative[] = [
   {
     id: 'trt_5g_email',
-    propositionId: 'prop_5g_unlimited_24',
+    offerId: 'prop_5g_unlimited_24',
     name: '5G Unlimited — Email',
     channel: 'email',
     content: {
@@ -445,7 +445,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_5g_sms',
-    propositionId: 'prop_5g_unlimited_24',
+    offerId: 'prop_5g_unlimited_24',
     name: '5G Unlimited — SMS',
     channel: 'sms',
     content: {
@@ -460,7 +460,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_5g_web',
-    propositionId: 'prop_5g_unlimited_24',
+    offerId: 'prop_5g_unlimited_24',
     name: '5G Unlimited — Web banner',
     channel: 'web',
     content: {
@@ -479,7 +479,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_5g_push',
-    propositionId: 'prop_5g_unlimited_24',
+    offerId: 'prop_5g_unlimited_24',
     name: '5G Unlimited — Push',
     channel: 'push',
     content: {
@@ -495,7 +495,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_data_email',
-    propositionId: 'prop_data_boost_10gb',
+    offerId: 'prop_data_boost_10gb',
     name: 'Data Boost — Email',
     channel: 'email',
     content: {
@@ -513,7 +513,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_data_sms',
-    propositionId: 'prop_data_boost_10gb',
+    offerId: 'prop_data_boost_10gb',
     name: 'Data Boost — SMS',
     channel: 'sms',
     content: {
@@ -528,7 +528,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_data_web',
-    propositionId: 'prop_data_boost_10gb',
+    offerId: 'prop_data_boost_10gb',
     name: 'Data Boost — Web',
     channel: 'web',
     content: {
@@ -547,7 +547,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_ret_email',
-    propositionId: 'prop_retention_20pct',
+    offerId: 'prop_retention_20pct',
     name: 'Loyalty Discount — Email',
     channel: 'email',
     content: {
@@ -565,7 +565,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_ret_call',
-    propositionId: 'prop_retention_20pct',
+    offerId: 'prop_retention_20pct',
     name: 'Loyalty Discount — Agent script',
     channel: 'outbound_call',
     content: {
@@ -580,13 +580,13 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_winback_call',
-    propositionId: 'prop_winback_credit',
+    offerId: 'prop_winback_credit',
     name: 'Winback — Agent script',
     channel: 'outbound_call',
     content: {
       channel: 'outbound_call',
       script: 'Acknowledge the PAC request without pressure. Offer: "Before you go, I can add £50 credit to your account if you stay with us for another 12 months."',
-      objectionHandling: 'Accept the first clear no. Do not re-offer on the same call. Log the outcome so contact policy suppresses follow-ups for 30 days.',
+      objectionHandling: 'Accept the first clear no. Do not re-offer on the same call. Log the outcome so frequency policy suppresses follow-ups for 30 days.',
     },
     active: true,
     locale: 'en-GB',
@@ -595,7 +595,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_winback_sms',
-    propositionId: 'prop_winback_credit',
+    offerId: 'prop_winback_credit',
     name: 'Winback — SMS',
     channel: 'sms',
     content: {
@@ -610,7 +610,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_fibre_email',
-    propositionId: 'prop_fibre_900',
+    offerId: 'prop_fibre_900',
     name: 'Full Fibre — Email',
     channel: 'email',
     content: {
@@ -628,7 +628,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_fibre_web',
-    propositionId: 'prop_fibre_900',
+    offerId: 'prop_fibre_900',
     name: 'Full Fibre — Web',
     channel: 'web',
     content: {
@@ -647,7 +647,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_sim_web',
-    propositionId: 'prop_sim_only_15',
+    offerId: 'prop_sim_only_15',
     name: 'SIM Only — Web',
     channel: 'web',
     content: {
@@ -666,7 +666,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_sim_email',
-    propositionId: 'prop_sim_only_15',
+    offerId: 'prop_sim_only_15',
     name: 'SIM Only — Email',
     channel: 'email',
     content: {
@@ -684,7 +684,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_roam_push',
-    propositionId: 'prop_roaming_pass',
+    offerId: 'prop_roaming_pass',
     name: 'Roaming Pass — Push',
     channel: 'push',
     content: {
@@ -700,7 +700,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_roam_sms',
-    propositionId: 'prop_roaming_pass',
+    offerId: 'prop_roaming_pass',
     name: 'Roaming Pass — SMS',
     channel: 'sms',
     content: {
@@ -715,7 +715,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_ins_email',
-    propositionId: 'prop_device_insurance',
+    offerId: 'prop_device_insurance',
     name: 'Device Insurance — Email',
     channel: 'email',
     content: {
@@ -733,7 +733,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_shock_sms',
-    propositionId: 'prop_bill_shock_alert',
+    offerId: 'prop_bill_shock_alert',
     name: 'Bill Shock — SMS',
     channel: 'sms',
     content: {
@@ -748,7 +748,7 @@ export const treatments: Treatment[] = [
   },
   {
     id: 'trt_shock_push',
-    propositionId: 'prop_bill_shock_alert',
+    offerId: 'prop_bill_shock_alert',
     name: 'Bill Shock — Push',
     channel: 'push',
     content: {
@@ -765,10 +765,10 @@ export const treatments: Treatment[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Engagement policies
+// Targeting policies
 // ---------------------------------------------------------------------------
 
-export const engagementPolicies: EngagementPolicy[] = [
+export const targetingPolicies: TargetingPolicy[] = [
   {
     id: 'pol_age_18',
     name: 'Adult customers only',
@@ -800,7 +800,7 @@ export const engagementPolicies: EngagementPolicy[] = [
     kind: 'eligibility',
     description: 'Do not offer full fibre where the network has not been built.',
     conditions: [{ field: 'address.fibre_available', operator: 'eq', value: true }],
-    scope: { level: 'group', targetId: 'grp_new_broadband' },
+    scope: { level: 'category', targetId: 'grp_new_broadband' },
     active: true,
     createdAt: iso(-500),
     updatedAt: iso(-500),
@@ -808,10 +808,10 @@ export const engagementPolicies: EngagementPolicy[] = [
   {
     id: 'pol_not_on_5g',
     name: 'Not already on 5G unlimited',
-    kind: 'applicability',
+    kind: 'relevance',
     description: 'Suppress the offer for customers who already hold it.',
     conditions: [{ field: 'customer.current_plan', operator: 'ne', value: '5g_unlimited' }],
-    scope: { level: 'proposition', targetId: 'prop_5g_unlimited_24' },
+    scope: { level: 'offer', targetId: 'prop_5g_unlimited_24' },
     active: true,
     createdAt: iso(-600),
     updatedAt: iso(-600),
@@ -819,10 +819,10 @@ export const engagementPolicies: EngagementPolicy[] = [
   {
     id: 'pol_heavy_user',
     name: 'Consistently near allowance',
-    kind: 'applicability',
+    kind: 'relevance',
     description: 'Only offer a data boost where usage justifies it.',
     conditions: [{ field: 'usage.pct_of_allowance_3mo_avg', operator: 'gte', value: 0.8 }],
-    scope: { level: 'proposition', targetId: 'prop_data_boost_10gb' },
+    scope: { level: 'offer', targetId: 'prop_data_boost_10gb' },
     active: true,
     createdAt: iso(-600),
     updatedAt: iso(-60),
@@ -830,10 +830,10 @@ export const engagementPolicies: EngagementPolicy[] = [
   {
     id: 'pol_contract_ending',
     name: 'Contract ends within 90 days',
-    kind: 'applicability',
+    kind: 'relevance',
     description: 'Retention offers are only relevant near contract end.',
     conditions: [{ field: 'contract.days_to_end', operator: 'lte', value: 90 }],
-    scope: { level: 'group', targetId: 'grp_contract_renewal' },
+    scope: { level: 'category', targetId: 'grp_contract_renewal' },
     active: true,
     createdAt: iso(-400),
     updatedAt: iso(-400),
@@ -841,10 +841,10 @@ export const engagementPolicies: EngagementPolicy[] = [
   {
     id: 'pol_pac_requested',
     name: 'PAC code requested',
-    kind: 'applicability',
+    kind: 'relevance',
     description: 'Winback only applies to customers who signalled intent to leave.',
     conditions: [{ field: 'events.pac_requested_within_days', operator: 'lte', value: 14 }],
-    scope: { level: 'group', targetId: 'grp_winback' },
+    scope: { level: 'category', targetId: 'grp_winback' },
     active: true,
     createdAt: iso(-300),
     updatedAt: iso(-300),
@@ -858,7 +858,7 @@ export const engagementPolicies: EngagementPolicy[] = [
       { field: 'customer.bill_to_income_ratio', operator: 'lt', value: 0.05 },
       { field: 'customer.arrears_count_12mo', operator: 'eq', value: 0 },
     ],
-    scope: { level: 'issue', targetId: 'iss_growth' },
+    scope: { level: 'objective', targetId: 'iss_growth' },
     active: true,
     createdAt: iso(-350),
     updatedAt: iso(-40),
@@ -869,7 +869,7 @@ export const engagementPolicies: EngagementPolicy[] = [
     kind: 'suitability',
     description: 'A retention offer must reduce, not increase, the customer bill.',
     conditions: [{ field: 'offer.monthly_delta', operator: 'lte', value: 0 }],
-    scope: { level: 'issue', targetId: 'iss_retention' },
+    scope: { level: 'objective', targetId: 'iss_retention' },
     active: true,
     createdAt: iso(-350),
     updatedAt: iso(-40),
@@ -880,7 +880,7 @@ export const engagementPolicies: EngagementPolicy[] = [
     kind: 'suitability',
     description: 'FCA — do not offer insurance where the device value is below the total premium.',
     conditions: [{ field: 'device.residual_value', operator: 'gt', value: 10800 }],
-    scope: { level: 'proposition', targetId: 'prop_device_insurance' },
+    scope: { level: 'offer', targetId: 'prop_device_insurance' },
     active: true,
     createdAt: iso(-450),
     updatedAt: iso(-120),
@@ -891,7 +891,7 @@ export const engagementPolicies: EngagementPolicy[] = [
     kind: 'eligibility',
     description: 'Service messages need at least 3 months of usage history.',
     conditions: [{ field: 'usage.months_of_history', operator: 'gte', value: 3 }],
-    scope: { level: 'group', targetId: 'grp_account_health' },
+    scope: { level: 'category', targetId: 'grp_account_health' },
     active: true,
     createdAt: iso(-650),
     updatedAt: iso(-650),
@@ -899,10 +899,10 @@ export const engagementPolicies: EngagementPolicy[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Contact policies
+// Frequency policies
 // ---------------------------------------------------------------------------
 
-export const contactPolicies: ContactPolicy[] = [
+export const frequencyPolicies: FrequencyPolicy[] = [
   {
     id: 'cpol_global_weekly',
     name: 'Global outbound cap',
@@ -944,7 +944,7 @@ export const contactPolicies: ContactPolicy[] = [
     maxContacts: 1,
     period: 'month',
     cooldownDaysAfterReject: 30,
-    scope: { level: 'group', targetId: 'grp_winback' },
+    scope: { level: 'category', targetId: 'grp_winback' },
     active: true,
   },
   {
@@ -955,7 +955,7 @@ export const contactPolicies: ContactPolicy[] = [
     maxContacts: 99,
     period: 'day',
     cooldownDaysAfterReject: 0,
-    scope: { level: 'issue', targetId: 'iss_service' },
+    scope: { level: 'objective', targetId: 'iss_service' },
     active: true,
   },
 ];
@@ -967,17 +967,17 @@ export const contactPolicies: ContactPolicy[] = [
 export const arbitrationConfig: ArbitrationConfig = {
   id: 'arb_telco_uk',
   tenantId: 'telco-uk',
-  weights: { propensity: 1.0, value: 1.0, lever: 1.0, context: 0.5 },
-  formula: 'Priority = P^1.0 × V^1.0 × L^1.0 × C^0.5',
+  weights: { propensity: 1.0, value: 1.0, boost: 1.0, context: 0.5 },
+  formula: 'Priority = P^1.0 × V^1.0 × B^1.0 × C^0.5',
   updatedAt: iso(-72),
   updatedBy: 'marcus.webb@telco.example',
 };
 
-export const levers: Lever[] = [
+export const boosts: Boost[] = [
   {
     id: 'lev_retention_push',
     name: 'Q4 retention push',
-    scope: { level: 'issue', targetId: 'iss_retention' },
+    scope: { level: 'objective', targetId: 'iss_retention' },
     value: 1.4,
     reason: 'Churn is 2.1pp above plan; board-approved retention emphasis through year end.',
     validity: { startsAt: '2026-09-01', endsAt: '2026-12-31' },
@@ -987,7 +987,7 @@ export const levers: Lever[] = [
   {
     id: 'lev_5g_flagship',
     name: '5G flagship boost',
-    scope: { level: 'proposition', targetId: 'prop_5g_unlimited_24' },
+    scope: { level: 'offer', targetId: 'prop_5g_unlimited_24' },
     value: 1.25,
     reason: 'Strategic priority to migrate the base onto 5G ahead of the 3G sunset.',
     validity: null,
@@ -997,7 +997,7 @@ export const levers: Lever[] = [
   {
     id: 'lev_service_always',
     name: 'Service messages priority',
-    scope: { level: 'issue', targetId: 'iss_service' },
+    scope: { level: 'objective', targetId: 'iss_service' },
     value: 2.0,
     reason: 'Duty-of-care messages must outrank commercial offers in arbitration.',
     validity: null,
@@ -1007,9 +1007,9 @@ export const levers: Lever[] = [
   {
     id: 'lev_legacy_suppress',
     name: 'Legacy suppression',
-    scope: { level: 'proposition', targetId: 'prop_legacy_4g_bundle' },
+    scope: { level: 'offer', targetId: 'prop_legacy_4g_bundle' },
     value: 0.5,
-    reason: 'Retired proposition; suppress in case any strategy still references it.',
+    reason: 'Retired offer; suppress in case any flow still references it.',
     validity: null,
     updatedAt: iso(-300),
     updatedBy: 'sarah.chen@telco.example',
@@ -1022,8 +1022,8 @@ export const levers: Lever[] = [
 
 const baseGuardrails = {
   maxBlastRadiusPct: 5,
-  allowedChangeTypes: ['lever_adjust', 'treatment_copy'] as const,
-  maxLeverDelta: 0.1,
+  allowedChangeTypes: ['boost_adjust', 'creative_copy'] as const,
+  maxBoostDelta: 0.1,
   maxBudgetDelta: gbp(50000),
   protectedAttributes: [
     'customer.ethnicity',
@@ -1042,19 +1042,19 @@ export const autonomySettings: AutonomySetting[] = [
     level: 'L2',
     guardrails: { ...baseGuardrails, allowedChangeTypes: [...baseGuardrails.allowedChangeTypes] },
     rationale:
-      'Default posture: agents may open change requests with a diff and simulation, but a human approves every publish.',
+      'Default posture: agents may open change sets with a diff and simulation, but a human approves every publish.',
     updatedAt: iso(-200),
     updatedBy: 'marcus.webb@telco.example',
   },
   {
     id: 'aut_retention_restricted',
-    scope: { level: 'issue', targetId: 'iss_retention' },
+    scope: { level: 'objective', targetId: 'iss_retention' },
     level: 'L1',
     guardrails: {
       ...baseGuardrails,
       maxBlastRadiusPct: 0,
       allowedChangeTypes: [],
-      maxLeverDelta: 0,
+      maxBoostDelta: 0,
       maxBudgetDelta: gbp(0),
     },
     rationale:
@@ -1064,29 +1064,29 @@ export const autonomySettings: AutonomySetting[] = [
   },
   {
     id: 'aut_accessories_bounded',
-    scope: { level: 'group', targetId: 'grp_accessories' },
+    scope: { level: 'category', targetId: 'grp_accessories' },
     level: 'L3',
     guardrails: {
       ...baseGuardrails,
       maxBlastRadiusPct: 25,
-      allowedChangeTypes: ['lever_adjust', 'treatment_copy'],
-      maxLeverDelta: 0.15,
+      allowedChangeTypes: ['boost_adjust', 'creative_copy'],
+      maxBoostDelta: 0.15,
       maxBudgetDelta: gbp(200000),
     },
     rationale:
-      'Low-value, low-risk add-ons with no contractual commitment. Agents may auto-publish copy and lever changes inside guardrails; breaches auto-revert.',
+      'Low-value, low-risk add-ons with no contractual commitment. Agents may auto-publish copy and boost changes inside guardrails; breaches auto-revert.',
     updatedAt: iso(-48),
     updatedBy: 'sarah.chen@telco.example',
   },
   {
     id: 'aut_bill_shock_observe',
-    scope: { level: 'proposition', targetId: 'prop_bill_shock_alert' },
+    scope: { level: 'offer', targetId: 'prop_bill_shock_alert' },
     level: 'L0',
     guardrails: {
       ...baseGuardrails,
       maxBlastRadiusPct: 0,
       allowedChangeTypes: [],
-      maxLeverDelta: 0,
+      maxBoostDelta: 0,
       maxBudgetDelta: gbp(0),
     },
     rationale:
@@ -1106,76 +1106,76 @@ export const agentActivity: AgentActivity[] = [
     timestamp: iso(-2),
     agentId: 'agent-copywriter-01',
     level: 'L3',
-    scope: { level: 'group', targetId: 'grp_accessories' },
-    changeType: 'treatment_copy',
+    scope: { level: 'category', targetId: 'grp_accessories' },
+    changeType: 'creative_copy',
     summary:
       'Rewrote the Europe Roaming Pass push title after CTR fell 18% week-on-week. Simulation showed +4.2% projected CTR.',
     outcome: 'auto_applied',
     guardrailBreached: null,
-    changeRequestId: null,
+    changeSetId: null,
   },
   {
     id: 'act_0008',
     timestamp: iso(-5),
     agentId: 'agent-optimiser-01',
     level: 'L3',
-    scope: { level: 'proposition', targetId: 'prop_roaming_pass' },
-    changeType: 'lever_adjust',
-    summary: 'Raised the roaming lever from 1.00 to 1.12 ahead of the October half-term travel peak.',
+    scope: { level: 'offer', targetId: 'prop_roaming_pass' },
+    changeType: 'boost_adjust',
+    summary: 'Raised the roaming boost from 1.00 to 1.12 ahead of the October half-term travel peak.',
     outcome: 'auto_applied',
     guardrailBreached: null,
-    changeRequestId: null,
+    changeSetId: null,
   },
   {
     id: 'act_0007',
     timestamp: iso(-9),
     agentId: 'agent-optimiser-01',
     level: 'L3',
-    scope: { level: 'group', targetId: 'grp_accessories' },
-    changeType: 'lever_adjust',
-    summary: 'Attempted to raise the Device Insurance lever from 1.00 to 1.35 (+35%).',
+    scope: { level: 'category', targetId: 'grp_accessories' },
+    changeType: 'boost_adjust',
+    summary: 'Attempted to raise the Device Insurance boost from 1.00 to 1.35 (+35%).',
     outcome: 'blocked',
-    guardrailBreached: 'maxLeverDelta (0.15) exceeded: requested 0.35',
-    changeRequestId: null,
+    guardrailBreached: 'maxBoostDelta (0.15) exceeded: requested 0.35',
+    changeSetId: null,
   },
   {
     id: 'act_0006',
     timestamp: iso(-14),
     agentId: 'agent-strategist-01',
     level: 'L2',
-    scope: { level: 'proposition', targetId: 'prop_5g_unlimited_24' },
+    scope: { level: 'offer', targetId: 'prop_5g_unlimited_24' },
     changeType: 'policy_edit',
     summary:
       'Proposed relaxing the heavy-user threshold on Data Boost from 80% to 70% of allowance. Simulation projects +11k eligible customers, +£43k monthly margin.',
     outcome: 'proposed',
     guardrailBreached: null,
-    changeRequestId: 'cr_0042',
+    changeSetId: 'cr_0042',
   },
   {
     id: 'act_0005',
     timestamp: iso(-26),
     agentId: 'agent-copywriter-01',
     level: 'L1',
-    scope: { level: 'issue', targetId: 'iss_retention' },
-    changeType: 'treatment_copy',
+    scope: { level: 'objective', targetId: 'iss_retention' },
+    changeType: 'creative_copy',
     summary:
       'Drafted three alternative subject lines for the Loyalty Discount email. Delivered as suggestions for human review.',
     outcome: 'suggested',
     guardrailBreached: null,
-    changeRequestId: null,
+    changeSetId: null,
   },
   {
     id: 'act_0004',
     timestamp: iso(-31),
     agentId: 'agent-optimiser-01',
     level: 'L3',
-    scope: { level: 'group', targetId: 'grp_accessories' },
-    changeType: 'treatment_copy',
+    scope: { level: 'category', targetId: 'grp_accessories' },
+    changeType: 'creative_copy',
     summary:
       'Auto-applied a shorter roaming SMS, then reverted 40 minutes later when the bias gate flagged a 1.31 disparity ratio across age cohorts.',
     outcome: 'reverted',
     guardrailBreached: 'biasGateThreshold (1.2) exceeded: observed 1.31',
-    changeRequestId: null,
+    changeSetId: null,
   },
   {
     id: 'act_0003',
@@ -1188,32 +1188,32 @@ export const agentActivity: AgentActivity[] = [
       'Proposed lowering the context weight from 0.5 to 0.35 after trace analysis showed context contributed under 3% of ranking variance.',
     outcome: 'proposed',
     guardrailBreached: null,
-    changeRequestId: 'cr_0041',
+    changeSetId: 'cr_0041',
   },
   {
     id: 'act_0002',
     timestamp: iso(-70),
     agentId: 'agent-strategist-01',
     level: 'L2',
-    scope: { level: 'issue', targetId: 'iss_retention' },
-    changeType: 'lever_adjust',
-    summary: 'Attempted to open a change request to raise the retention lever to 1.55.',
+    scope: { level: 'objective', targetId: 'iss_retention' },
+    changeType: 'boost_adjust',
+    summary: 'Attempted to open a change set to raise the retention boost to 1.55.',
     outcome: 'blocked',
     guardrailBreached: 'Scope autonomy is L1 (Assist); L2 proposals are not permitted on iss_retention',
-    changeRequestId: null,
+    changeSetId: null,
   },
   {
     id: 'act_0001',
     timestamp: iso(-96),
     agentId: 'agent-copywriter-01',
     level: 'L0',
-    scope: { level: 'proposition', targetId: 'prop_bill_shock_alert' },
-    changeType: 'treatment_copy',
+    scope: { level: 'offer', targetId: 'prop_bill_shock_alert' },
+    changeType: 'creative_copy',
     summary:
-      'Answered "why did customer c_88213 receive the bill shock alert before the upsell?" — service lever 2.0 outranked the commercial candidate.',
+      'Answered "why did customer c_88213 receive the bill shock alert before the upsell?" — service boost 2.0 outranked the commercial candidate.',
     outcome: 'suggested',
     guardrailBreached: null,
-    changeRequestId: null,
+    changeSetId: null,
   },
 ];
 
@@ -1235,7 +1235,7 @@ export interface FixtureUser {
 // ---------------------------------------------------------------------------
 // Integrations
 //
-// Configured once here, and actually used at decision time: the strategies in
+// Configured once here, and actually used at decision time: the flows in
 // ./artifacts.ts name these on their source nodes, and ./engine.ts resolves
 // them before executing. Their values land in the hashed input snapshot, so a
 // decision that used the bureau replays exactly as well as one that did not.
@@ -1305,7 +1305,7 @@ export const connectors: Connector[] = [
     name: 'Credit bureau',
     kind: 'rest',
     description:
-      'Full bureau file. Configured, and deliberately not wired into any live strategy: at 180ms it cannot be called synchronously inside a 50ms budget, and the compiler says so rather than letting it fail in production.',
+      'Full bureau file. Configured, and deliberately not wired into any live flow: at 180ms it cannot be called synchronously inside a 50ms budget, and the compiler says so rather than letting it fail in production.',
     target: 'https://bureau.example/v1/file',
     declaredP95Ms: 180,
     timeoutMs: 400,
@@ -1344,11 +1344,11 @@ export const users: FixtureUser[] = [
     name: 'Sarah Chen',
     roles: ['architect', 'marketer'],
     permissions: [
-      'view:propositions',
-      'edit:propositions',
-      'view:strategies',
-      'edit:strategies',
-      'publish:strategies',
+      'view:offers',
+      'edit:offers',
+      'view:flows',
+      'edit:flows',
+      'publish:flows',
       'view:decisions',
       'view:audit',
       'request:changes',
@@ -1362,8 +1362,8 @@ export const users: FixtureUser[] = [
     name: 'Priya Natarajan',
     roles: ['compliance'],
     permissions: [
-      'view:propositions',
-      'view:strategies',
+      'view:offers',
+      'view:flows',
       'view:decisions',
       'view:audit',
       'view:policies',
@@ -1380,10 +1380,10 @@ export const users: FixtureUser[] = [
     name: 'Marcus Webb',
     roles: ['admin', 'architect'],
     permissions: [
-      'view:propositions',
-      'edit:propositions',
-      'view:strategies',
-      'edit:strategies',
+      'view:offers',
+      'edit:offers',
+      'view:flows',
+      'edit:flows',
       'view:decisions',
       'view:audit',
       'view:policies',
@@ -1393,8 +1393,8 @@ export const users: FixtureUser[] = [
       'edit:arbitration',
       'edit:autonomy',
       'edit:integrations',
-      'publish:strategies',
-      'promote:strategies',
+      'publish:flows',
+      'promote:flows',
       'admin:settings',
     ],
     tenantId: 'telco-uk',

@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { apiClient, type LeverDto } from '@/lib/api-client';
+import { apiClient, type BoostDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
 
 const TERMS = [
@@ -34,9 +34,9 @@ const TERMS = [
     blurb: 'Expected margin if accepted, normalised.',
   },
   {
-    key: 'lever' as const,
+    key: 'boost' as const,
     symbol: 'L',
-    name: 'Lever',
+    name: 'Boost',
     blurb: 'Business weight. The only term humans set directly.',
   },
   {
@@ -59,7 +59,7 @@ function ArbitrationView() {
   const [weights, setWeights] = useState({
     propensity: 1,
     value: 1,
-    lever: 1,
+    boost: 1,
     context: 0.5,
   });
 
@@ -79,12 +79,12 @@ function ArbitrationView() {
     saved &&
     TERMS.some((t) => Math.abs(weights[t.key] - saved[t.key]) > 0.001);
 
-  const levers = data?.levers ?? [];
+  const boosts = data?.boosts ?? [];
 
-  const leverColumns: Column<LeverDto>[] = [
+  const boostColumns: Column<BoostDto>[] = [
     {
       key: 'name',
-      header: 'Lever',
+      header: 'Boost',
       sortValue: (l) => l.name,
       cell: (l) => (
         <div>
@@ -161,8 +161,8 @@ function ArbitrationView() {
   return (
     <PageBody>
       <PageHeader
-        title="Arbitration & levers"
-        description="How competing propositions are ranked. Every decision's winner comes from this formula, and every trace shows the terms that produced it."
+        title="Arbitration & boosts"
+        description="How competing offers are ranked. Every decision's winner comes from this formula, and every trace shows the terms that produced it."
       />
 
       <div className="mb-stack">
@@ -264,37 +264,37 @@ function ArbitrationView() {
       </div>
 
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Metric label="Active levers" value={levers.length} />
+        <Metric label="Active boosts" value={boosts.length} />
         <Metric
           label="Boosting"
-          value={levers.filter((l) => l.value > 1).length}
+          value={boosts.filter((l) => l.value > 1).length}
           tone="pass"
         />
         <Metric
           label="Suppressing"
-          value={levers.filter((l) => l.value < 1).length}
+          value={boosts.filter((l) => l.value < 1).length}
           tone="hold"
         />
         <Metric
           label="Time-boxed"
-          value={levers.filter((l) => l.validity).length}
+          value={boosts.filter((l) => l.validity).length}
           sub="expire automatically"
         />
       </div>
 
       <Card>
         <CardHeader
-          title="Levers"
-          description="Business weights applied at a scope. The most specific lever wins, the same way autonomy resolves."
-          actions={canEdit ? <Button variant="secondary" size="sm">New lever</Button> : null}
+          title="Boosts"
+          description="Business weights applied at a scope. The most specific boost wins, the same way autonomy resolves."
+          actions={canEdit ? <Button variant="secondary" size="sm">New boost</Button> : null}
         />
         <DataTable
-          columns={leverColumns}
-          rows={levers}
+          columns={boostColumns}
+          rows={boosts}
           rowKey={(l) => l.id}
           defaultSort={{ key: 'value', dir: 'desc' }}
-          emptyTitle="No levers configured"
-          caption="Arbitration levers"
+          emptyTitle="No boosts configured"
+          caption="Arbitration boosts"
         />
       </Card>
     </PageBody>

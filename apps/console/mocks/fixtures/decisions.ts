@@ -1,7 +1,7 @@
 /**
  * Decision and trace records, adapted from real engine output.
  *
- * Nothing here is authored. Every field is derived from a DecisionTrace that
+ * Nothing here is authored. Every field is derived from a DecisionRecord that
  * `@metis/runtime` actually produced - see ./engine.ts. This module's only job
  * is to flatten the engine's shape (which separates the reproducible decision
  * from the measured timings) into the flat records the console renders.
@@ -11,7 +11,7 @@
  * are measurements and are not.
  */
 
-import { treatments, connectors } from './catalogue';
+import { creatives, connectors } from './catalogue';
 import { generated, type GeneratedDecision } from './engine';
 import type { SourceBinding, SourceCall } from '@metis/core/domain';
 
@@ -33,7 +33,7 @@ export interface DecisionRecord {
   channel: string;
   placement: string;
   winner: string | null;
-  winnerPropositionId: string | null;
+  winnerOfferId: string | null;
   candidateCount: number;
   totalMs: number;
 }
@@ -42,13 +42,13 @@ export interface TraceRecord extends DecisionRecord {
   eliminations: EliminationStep[];
   scores: Record<
     string,
-    { propensity: number; value: number; lever: number; context: number; priority: number }
+    { propensity: number; value: number; boost: number; context: number; priority: number }
   >;
   arbitration: { formula: string; winner: string | null; runnerUp: string | null };
   timings: Record<string, number>;
   constraintsApplied: string[];
   consentState: { marketing: boolean; profiling: boolean; thirdParty: boolean };
-  treatmentId: string | null;
+  creativeId: string | null;
   /** Which connector supplied which field. Reproducible. */
   sourceBindings: SourceBinding[];
   /**
@@ -64,16 +64,16 @@ export interface TraceRecord extends DecisionRecord {
   inputSnapshotHash: string;
 }
 
-/** Pick the treatment that would actually have been delivered on this channel. */
-function resolveTreatment(propositionId: string | null, channel: string): string | null {
-  if (!propositionId) return null;
-  const forChannel = treatments.find(
-    (t) => t.propositionId === propositionId && t.channel === channel && t.active
+/** Pick the creative that would actually have been delivered on this channel. */
+function resolveCreative(offerId: string | null, channel: string): string | null {
+  if (!offerId) return null;
+  const forChannel = creatives.find(
+    (t) => t.offerId === offerId && t.channel === channel && t.active
   );
   if (forChannel) return forChannel.id;
-  // No treatment for the winning channel is a real condition the console
+  // No creative for the winning channel is a real condition the console
   // surfaces, so fall back rather than inventing one.
-  return treatments.find((t) => t.propositionId === propositionId && t.active)?.id ?? null;
+  return creatives.find((t) => t.offerId === offerId && t.active)?.id ?? null;
 }
 
 /**
@@ -115,7 +115,7 @@ function toTrace({ trace }: GeneratedDecision): TraceRecord {
     channel: d.channel,
     placement: d.placement,
     winner: d.winner,
-    winnerPropositionId: d.winnerPropositionId,
+    winnerOfferId: d.winnerOfferId,
     candidateCount: d.candidateKeys.length,
     totalMs: trace.measured.totalMs,
     eliminations: d.eliminations,
@@ -124,7 +124,7 @@ function toTrace({ trace }: GeneratedDecision): TraceRecord {
     timings: trace.measured.timingsByNode,
     constraintsApplied: d.constraintsApplied,
     consentState: d.consentState,
-    treatmentId: resolveTreatment(d.winnerPropositionId, d.channel),
+    creativeId: resolveCreative(d.winnerOfferId, d.channel),
     sourceBindings: d.sourceBindings,
     sourceCalls: sourceCallsFor(d.sourceBindings),
     chainHash: trace.chainHash,
@@ -144,7 +144,7 @@ export const decisions: DecisionRecord[] = traces.map((t) => ({
   channel: t.channel,
   placement: t.placement,
   winner: t.winner,
-  winnerPropositionId: t.winnerPropositionId,
+  winnerOfferId: t.winnerOfferId,
   candidateCount: t.candidateCount,
   totalMs: t.totalMs,
 }));

@@ -1,20 +1,20 @@
 /**
- * The strategy compiler's public surface.
+ * The flow compiler's public surface.
  *
- * Added because consumers were reaching into `@metis/compiler/strategy/compile`
+ * Added because consumers were reaching into `@metis/compiler/decision-flow/compile`
  * directly, which makes every internal file part of the API by accident.
  */
 export {
-  compileStrategy,
+  compileDecisionFlow,
   resolveRange,
   formatReport,
-  type StrategyNode,
-  type StrategyNodeType,
-  type StrategyEdge,
-  type StrategySource,
+  type FlowNode,
+  type FlowNodeType,
+  type FlowEdge,
+  type DecisionFlowSource,
   type CompileContext,
   type CompileResult,
-  type CompiledStrategy,
+  type CompiledDecisionFlow,
   type CostManifest,
 } from './compile';
 

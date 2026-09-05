@@ -11,14 +11,14 @@
  */
 
 import {
-  issues as seedIssues,
-  groups as seedGroups,
-  propositions as seedPropositions,
-  treatments as seedTreatments,
-  engagementPolicies as seedEngagementPolicies,
-  contactPolicies as seedContactPolicies,
+  objectives as seedObjectives,
+  categories as seedCategories,
+  offers as seedOffers,
+  creatives as seedCreatives,
+  targetingPolicies as seedTargetingPolicies,
+  frequencyPolicies as seedFrequencyPolicies,
   arbitrationConfig as seedArbitration,
-  levers as seedLevers,
+  boosts as seedBoosts,
   autonomySettings as seedAutonomy,
   agentActivity as seedActivity,
   connectors as seedConnectors,
@@ -28,27 +28,27 @@ import { artifacts as seedArtifacts, type ArtifactSummary } from './fixtures/art
 import { compileContext, toSource } from './fixtures/compiled';
 import { ArtifactRegistry, InMemoryRegistryStore } from '@metis/registry';
 import {
-  changeRequests as seedChangeRequests,
+  changeSets as seedChangeSets,
   auditEvents as seedAuditEvents,
-  type ChangeRequestRecord,
+  type ChangeSetRecord,
   type AuditEvent,
 } from './fixtures/governance';
 
 type Store = {
-  issues: typeof seedIssues;
-  groups: typeof seedGroups;
-  propositions: typeof seedPropositions;
-  treatments: typeof seedTreatments;
-  engagementPolicies: typeof seedEngagementPolicies;
-  contactPolicies: typeof seedContactPolicies;
+  objectives: typeof seedObjectives;
+  categories: typeof seedCategories;
+  offers: typeof seedOffers;
+  creatives: typeof seedCreatives;
+  targetingPolicies: typeof seedTargetingPolicies;
+  frequencyPolicies: typeof seedFrequencyPolicies;
   arbitration: typeof seedArbitration;
-  levers: typeof seedLevers;
+  boosts: typeof seedBoosts;
   autonomy: typeof seedAutonomy;
   activity: typeof seedActivity;
   connectors: typeof seedConnectors;
   users: typeof seedUsers;
   artifacts: ArtifactSummary[];
-  changeRequests: ChangeRequestRecord[];
+  changeSets: ChangeSetRecord[];
   auditEvents: AuditEvent[];
   /**
    * The artifact registry.
@@ -59,7 +59,7 @@ type Store = {
   registryStore: InMemoryRegistryStore;
   registry: ArtifactRegistry;
   /**
-   * Resolves once the fixture strategies have been through the publish path.
+   * Resolves once the fixture flows have been through the publish path.
    *
    * Seeding is asynchronous because the registry is — durable storage forced
    * that, and the in-memory store follows the same interface rather than
@@ -77,20 +77,20 @@ function seed(): Store {
   const registry = new ArtifactRegistry(registryStore);
   const registryReady = seedRegistry(registry);
   return {
-    issues: clone(seedIssues),
-    groups: clone(seedGroups),
-    propositions: clone(seedPropositions),
-    treatments: clone(seedTreatments),
-    engagementPolicies: clone(seedEngagementPolicies),
-    contactPolicies: clone(seedContactPolicies),
+    objectives: clone(seedObjectives),
+    categories: clone(seedCategories),
+    offers: clone(seedOffers),
+    creatives: clone(seedCreatives),
+    targetingPolicies: clone(seedTargetingPolicies),
+    frequencyPolicies: clone(seedFrequencyPolicies),
     arbitration: clone(seedArbitration),
-    levers: clone(seedLevers),
+    boosts: clone(seedBoosts),
     autonomy: clone(seedAutonomy),
     activity: clone(seedActivity),
     connectors: clone(seedConnectors),
     users: clone(seedUsers),
     artifacts: clone(seedArtifacts),
-    changeRequests: clone(seedChangeRequests),
+    changeSets: clone(seedChangeSets),
     auditEvents: clone(seedAuditEvents),
     registryStore,
     registry,
@@ -99,16 +99,16 @@ function seed(): Store {
 }
 
 /**
- * Put the fixture strategies through the real publish path.
+ * Put the fixture flows through the real publish path.
  *
  * Not inserted directly: they are compiled and either accepted or refused,
  * exactly as a publish from the console would be. One of the fixtures does not
  * compile, so the seeded registry starts with a rejection in its log — which is
  * the honest starting state for a console whose home page already reports one
- * strategy as blocked.
+ * flow as blocked.
  *
  * Accepted versions are promoted to `production`, because the console's
- * decisions were generated from them and it would be odd to show a strategy as
+ * decisions were generated from them and it would be odd to show a flow as
  * running while the registry says nothing is active.
  */
 async function seedRegistry(registry: ArtifactRegistry): Promise<void> {
@@ -117,7 +117,7 @@ async function seedRegistry(registry: ArtifactRegistry): Promise<void> {
     const outcome = await registry.publish(
       {
         tenantId: 'telco-uk',
-        strategyName: artifact.id,
+        flowName: artifact.id,
         version: artifact.activeVersion,
         source: toSource(artifact),
         actor: artifact.updatedBy,
@@ -157,12 +157,12 @@ export function recordAudit(event: {
   eventType: string;
   scope: string;
   summary: string;
-  changeRequestId?: string | null;
+  changeSetId?: string | null;
 }) {
   const entry: AuditEvent = {
     id: `evt_${++auditCounter}`,
     timestamp: new Date().toISOString(),
-    changeRequestId: event.changeRequestId ?? null,
+    changeSetId: event.changeSetId ?? null,
     ...event,
   };
   store.auditEvents.unshift(entry);

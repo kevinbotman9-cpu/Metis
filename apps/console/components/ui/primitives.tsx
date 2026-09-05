@@ -98,7 +98,7 @@ export function Badge({ tone, className, children }: BadgeProps) {
   return <span className={cn(badge({ tone }), className)}>{children}</span>;
 }
 
-/** Maps a proposition status to a consistent tone across every surface. */
+/** Maps an offer status to a consistent tone across every surface. */
 export function StatusBadge({ status }: { status: string }) {
   const tone =
     status === 'active'

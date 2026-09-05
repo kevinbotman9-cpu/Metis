@@ -10,12 +10,12 @@ import { cn } from '@/lib/cn';
  * Jump to anything, from anywhere.
  *
  * The console has five thousand decisions, a four-level offer taxonomy and
- * sixteen routes. Without this, reaching a specific proposition means three
+ * sixteen routes. Without this, reaching a specific offer means three
  * clicks and a scroll, and reaching a specific decision means knowing its id
  * and editing the URL. Cmd/Ctrl+K is where people already reach for this.
  */
 
-type ResultKind = 'page' | 'proposition' | 'strategy' | 'decision' | 'action';
+type ResultKind = 'page' | 'offer' | 'flow' | 'decision' | 'action';
 
 interface Result {
   kind: ResultKind;
@@ -23,38 +23,38 @@ interface Result {
   title: string;
   subtitle?: string;
   href: string;
-  /** Higher sorts first within a group. */
+  /** Higher sorts first within a category. */
   weight?: number;
 }
 
 const KIND_LABEL: Record<ResultKind, string> = {
   action: 'Actions',
   page: 'Go to',
-  proposition: 'Propositions',
-  strategy: 'Strategies',
+  offer: 'Offers',
+  flow: 'Decision flows',
   decision: 'Decisions',
 };
 
-const KIND_ORDER: ResultKind[] = ['action', 'page', 'proposition', 'strategy', 'decision'];
+const KIND_ORDER: ResultKind[] = ['action', 'page', 'offer', 'flow', 'decision'];
 
 const KIND_TONE: Record<ResultKind, string> = {
   action: 'text-hold',
   page: 'text-content-subtle',
-  proposition: 'text-accent',
-  strategy: 'text-pass',
+  offer: 'text-accent',
+  flow: 'text-pass',
   decision: 'text-info',
 };
 
 const PAGES: Result[] = [
   { kind: 'page', id: 'home', title: 'Home', href: '/' },
-  { kind: 'page', id: 'propositions', title: 'Propositions', subtitle: 'Offer catalogue', href: '/propositions' },
-  { kind: 'page', id: 'engagement', title: 'Engagement Policies', subtitle: 'Eligibility, applicability, suitability', href: '/engagement-policies' },
-  { kind: 'page', id: 'contact', title: 'Contact Policy', subtitle: 'Frequency caps and cooldowns', href: '/contact-policy' },
-  { kind: 'page', id: 'arbitration', title: 'Arbitration & Levers', subtitle: 'P x V x L x C', href: '/arbitration' },
-  { kind: 'page', id: 'strategies', title: 'Strategies', subtitle: 'Compiled decision graphs', href: '/strategies' },
+  { kind: 'page', id: 'offers', title: 'Offers', subtitle: 'Offer catalogue', href: '/offers' },
+  { kind: 'page', id: 'engagement', title: 'Targeting Policies', subtitle: 'Eligibility, relevance, suitability', href: '/targeting-policies' },
+  { kind: 'page', id: 'contact', title: 'Frequency Policy', subtitle: 'Frequency caps and cooldowns', href: '/frequency-policy' },
+  { kind: 'page', id: 'arbitration', title: 'Arbitration & Boosts', subtitle: 'P x V x L x C', href: '/arbitration' },
+  { kind: 'page', id: 'flows', title: 'Decision flows', subtitle: 'Compiled decision graphs', href: '/decision-flows' },
   { kind: 'page', id: 'decisions', title: 'Decisions', subtitle: 'Search traces and replay', href: '/decisions' },
   { kind: 'page', id: 'simulations', title: 'Simulations', href: '/simulations' },
-  { kind: 'page', id: 'approvals', title: 'Approvals', subtitle: 'Change request queue', href: '/approvals' },
+  { kind: 'page', id: 'approvals', title: 'Approvals', subtitle: 'Change set queue', href: '/approvals' },
   { kind: 'page', id: 'agentic', title: 'Agentic AI', subtitle: 'Autonomy levels and guardrails', href: '/agentic' },
   { kind: 'page', id: 'audit', title: 'Audit Log', href: '/audit' },
   { kind: 'page', id: 'settings', title: 'Settings', href: '/settings' },
@@ -106,19 +106,19 @@ export function CommandPalette({
 
     const pool: Result[] = [
       ...PAGES,
-      ...(taxonomy.data?.propositions ?? []).map((p) => ({
-        kind: 'proposition' as const,
+      ...(taxonomy.data?.offers ?? []).map((p) => ({
+        kind: 'offer' as const,
         id: p.id,
         title: p.name,
         subtitle: `${p.key} · ${p.status}`,
-        href: `/propositions/${p.id}`,
+        href: `/offers/${p.id}`,
       })),
       ...(artifacts.data?.artifacts ?? []).map((a) => ({
-        kind: 'strategy' as const,
+        kind: 'flow' as const,
         id: a.id,
         title: a.name,
         subtitle: `${a.id} · ${a.activeVersion}`,
-        href: `/strategies/${a.id}`,
+        href: `/decision-flows/${a.id}`,
       })),
     ];
 
@@ -237,8 +237,8 @@ export function CommandPalette({
             aria-expanded
             aria-controls="command-results"
             aria-activedescendant={flat[active] ? `cmd-${flat[active].id}` : undefined}
-            aria-label="Search propositions, strategies, decisions and pages"
-            placeholder="Search propositions, strategies, decisions…"
+            aria-label="Search offers, decision flows, decisions and pages"
+            placeholder="Search offers, decision flows, decisions…"
             className="w-full bg-transparent py-3 text-body text-content outline-none placeholder:text-content-subtle"
           />
           <kbd className="rounded border border-border px-1.5 py-0.5 font-mono text-[0.625rem] text-content-subtle">
@@ -252,13 +252,13 @@ export function CommandPalette({
               Nothing matches “{query}”.
             </li>
           ) : (
-            grouped.map((group) => (
-              <li key={group.kind}>
+            grouped.map((category) => (
+              <li key={category.kind}>
                 <p className="px-2 pb-1 pt-2 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-content-subtle">
-                  {KIND_LABEL[group.kind]}
+                  {KIND_LABEL[category.kind]}
                 </p>
                 <ul>
-                  {group.items.map((r) => {
+                  {category.items.map((r) => {
                     index += 1;
                     const isActive = index === active;
                     const myIndex = index;

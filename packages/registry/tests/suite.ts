@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import type { CompileContext, StrategySource } from '@metis/compiler/strategy';
+import type { CompileContext, DecisionFlowSource } from '@metis/compiler/decision-flow';
 import { ArtifactRegistry, type RegistryStore } from '../src/registry';
 import { RegistryError } from '../src/types';
 
@@ -17,7 +17,7 @@ const T = 'telco-uk';
 const NAME = 'inbound-web-offers';
 const AT = '2026-06-01T12:00:00.000Z';
 
-export function source(over: Partial<StrategySource> = {}): StrategySource {
+export function source(over: Partial<DecisionFlowSource> = {}): DecisionFlowSource {
   return {
     id: NAME,
     version: '1.0.0',
@@ -30,16 +30,16 @@ export function source(over: Partial<StrategySource> = {}): StrategySource {
     candidateKeys: ['offer_a'],
     packageRanges: { '@metis/nodes-core': '^2.0.0' },
     ...over,
-  } as StrategySource;
+  } as DecisionFlowSource;
 }
 
 export function context(over: Partial<CompileContext> = {}): CompileContext {
   return {
-    propositions: [
+    offers: [
       {
         id: 'p_a',
-        groupId: 'g1',
-        issueId: 'i1',
+        categoryId: 'g1',
+        objectiveId: 'i1',
         name: 'Offer A',
         key: 'offer_a',
         description: '',
@@ -52,21 +52,21 @@ export function context(over: Partial<CompileContext> = {}): CompileContext {
           oneOff: false,
         },
         validity: { startsAt: '2020-01-01', endsAt: null },
-        lever: 1,
+        boost: 1,
         policyIds: [],
-        treatmentIds: ['t_a'],
+        creativeIds: ['t_a'],
         tags: [],
         createdAt: AT,
         updatedAt: AT,
         updatedBy: 'test',
       },
     ],
-    engagementPolicies: [],
-    contactPolicies: [],
+    targetingPolicies: [],
+    frequencyPolicies: [],
     arbitration: {
       id: 'arb',
       tenantId: T,
-      weights: { propensity: 1, value: 1, lever: 1, context: 1 },
+      weights: { propensity: 1, value: 1, boost: 1, context: 1 },
       formula: 'P x V x L x C',
       updatedAt: AT,
       updatedBy: 'test',
@@ -116,7 +116,7 @@ export function describeRegistry(label: string, harness: StoreHarness): void {
       registry.publish(
         {
           tenantId: T,
-          strategyName: NAME,
+          flowName: NAME,
           version: '1.0.0',
           source: source(),
           actor: 'sarah@telco.example',
@@ -128,15 +128,15 @@ export function describeRegistry(label: string, harness: StoreHarness): void {
 
     // --- Publishing compiles first -----------------------------------------
 
-    it('stores a strategy that compiles', async () => {
+    it('stores a flow that compiles', async () => {
       const out = await publish();
       expect(out.status).toBe('published');
       expect(await registry.versions(T, NAME)).toHaveLength(1);
     });
 
-    it('refuses a strategy that does not compile, and stores nothing', async () => {
+    it('refuses a flow that does not compile, and stores nothing', async () => {
       // The gap this closes. The console showed the compiler's verdict for
-      // weeks and nothing acted on it, so a strategy with an error could be
+      // weeks and nothing acted on it, so a flow with an error could be
       // promoted to production and fail at execution instead of at publish.
       const out = await publish({ source: source({ edges: [{ from: 'n1_source', to: 'nope' }] }) });
 
@@ -315,11 +315,11 @@ export function describeRegistry(label: string, harness: StoreHarness): void {
       );
     });
 
-    it('filters by strategy and limits', async () => {
+    it('filters by flow and limits', async () => {
       await publish({ version: '1.0.0' });
-      await publish({ strategyName: 'other', version: '1.0.0' });
+      await publish({ flowName: 'other', version: '1.0.0' });
 
-      expect(await registry.events({ tenantId: T, strategyName: 'other' })).toHaveLength(1);
+      expect(await registry.events({ tenantId: T, flowName: 'other' })).toHaveLength(1);
       expect(await registry.events({ tenantId: T, limit: 1 })).toHaveLength(1);
     });
 
@@ -329,7 +329,7 @@ export function describeRegistry(label: string, harness: StoreHarness): void {
       await publish();
       await publish({ tenantId: 'bank-uk' });
 
-      expect(await registry.strategies(T)).toEqual([NAME]);
+      expect(await registry.flows(T)).toEqual([NAME]);
       expect(await registry.versions('bank-uk', NAME)).toHaveLength(1);
       expect(await registry.events({ tenantId: 'bank-uk' })).toHaveLength(1);
     });

@@ -1,9 +1,9 @@
 /**
  * The two numbers that decide whether Node scales for this workload.
  *
- *   1. Heap per proposition. Node is process-per-core, so each worker holds its
+ *   1. Heap per offer. Node is process-per-core, so each worker holds its
  *      own copy of the catalogue. A JVM would share one heap across threads.
- *      If the per-proposition cost were large, that duplication would be the
+ *      If the per-offer cost were large, that duplication would be the
  *      argument for moving off Node. Measured: it is not.
  *
  *   2. Tail latency. The mean is comfortably inside budget; the question is
@@ -23,10 +23,10 @@
 import { buildWorkload } from '@metis/datasets';
 import { execute } from '@metis/runtime';
 
-function heapFor(propositions: number): number {
+function heapFor(offers: number): number {
   global.gc?.();
   const before = process.memoryUsage().heapUsed;
-  const w = buildWorkload({ propositions });
+  const w = buildWorkload({ offers });
   // Touch it, so nothing is lazily deferred out of the measurement.
   execute(w.artifact, w.catalogue, w.request(0));
   global.gc?.();
@@ -39,17 +39,17 @@ for (const n of [100, 1000, 5000]) {
   const bytes = heapFor(n);
   points.push([n, bytes]);
   console.log(
-    `  ${String(n).padStart(5)} propositions  ${(bytes / 1e6).toFixed(1)} MB` +
+    `  ${String(n).padStart(5)} offers  ${(bytes / 1e6).toFixed(1)} MB` +
       `  (${Math.round(bytes / n)} bytes each)`
   );
 }
 const marginal = (points[2][1] - points[0][1]) / (points[2][0] - points[0][0]);
-console.log(`  marginal cost: ${Math.round(marginal)} bytes per proposition`);
+console.log(`  marginal cost: ${Math.round(marginal)} bytes per offer`);
 console.log(
-  `  1,000,000 propositions would be ~${((marginal * 1e6) / 1e9).toFixed(2)} GB per worker\n`
+  `  1,000,000 offers would be ~${((marginal * 1e6) / 1e9).toFixed(2)} GB per worker\n`
 );
 
-const w = buildWorkload({ propositions: 40 });
+const w = buildWorkload({ offers: 40 });
 for (let i = 0; i < 2000; i++) execute(w.artifact, w.catalogue, w.request(i));
 
 const N = 40_000;

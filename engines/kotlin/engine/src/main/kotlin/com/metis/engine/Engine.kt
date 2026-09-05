@@ -32,7 +32,7 @@ object Engine {
 
     private val KIND_LABEL = mapOf(
         "eligibility" to "Eligibility",
-        "applicability" to "Applicability",
+        "relevance" to "Relevance",
         "suitability" to "Suitability",
     )
 
@@ -92,22 +92,22 @@ object Engine {
     }
 
     /** All conditions must hold. Separate policies express OR. */
-    private fun policyPasses(policy: EngagementPolicy, input: Map<String, Any?>): Boolean =
+    private fun policyPasses(policy: TargetingPolicy, input: Map<String, Any?>): Boolean =
         policy.conditions.all { compare(readPath(input, it.field), it.operator, it.value) }
 
-    private fun scopeCovers(scope: PolicyScope, p: Proposition): Boolean = when (scope.level) {
+    private fun scopeCovers(scope: PolicyScope, p: Offer): Boolean = when (scope.level) {
         "tenant" -> true
-        "issue" -> scope.targetId == p.issueId
-        "group" -> scope.targetId == p.groupId
-        "proposition" -> scope.targetId == p.id
+        "objective" -> scope.targetId == p.objectiveId
+        "category" -> scope.targetId == p.categoryId
+        "offer" -> scope.targetId == p.id
         else -> false
     }
 
-    private val SCOPE_RANK = mapOf("tenant" to 0, "issue" to 1, "group" to 2, "proposition" to 3)
+    private val SCOPE_RANK = mapOf("tenant" to 0, "objective" to 1, "category" to 2, "offer" to 3)
 
-    /** Most specific scope wins; falls back to the proposition's own weight. */
-    private fun effectiveLever(levers: List<Lever>, p: Proposition, occurredAt: String): Double {
-        val applicable = levers.filter { l ->
+    /** Most specific scope wins; falls back to the offer's own weight. */
+    private fun effectiveBoost(boosts: List<Boost>, p: Offer, occurredAt: String): Double {
+        val applicable = boosts.filter { l ->
             if (!scopeCovers(l.scope, p)) return@filter false
             val v = l.validity ?: return@filter true
             val day = occurredAt.take(10)
@@ -115,13 +115,13 @@ object Engine {
             if (v.endsAt != null && day > v.endsAt) return@filter false
             true
         }
-        if (applicable.isEmpty()) return p.lever
+        if (applicable.isEmpty()) return p.boost
         return applicable.reduce { best, cur ->
             if ((SCOPE_RANK[cur.scope.level] ?: -1) > (SCOPE_RANK[best.scope.level] ?: -1)) cur else best
         }.value
     }
 
-    private fun withinValidity(p: Proposition, occurredAt: String): Boolean {
+    private fun withinValidity(p: Offer, occurredAt: String): Boolean {
         val day = occurredAt.take(10)
         if (day < p.validity.startsAt) return false
         val end = p.validity.endsAt
@@ -169,7 +169,7 @@ object Engine {
         }
 
         require(order.size == artifact.nodes.size) {
-            "Strategy graph contains a cycle; execution must terminate"
+            "Flow graph contains a cycle; execution must terminate"
         }
         return order
     }
@@ -192,7 +192,7 @@ object Engine {
     /**
      * Deterministic value in [0, 1) derived from a key.
      *
-     * Stand-in for a pinned model: same customer, same proposition, same model
+     * Stand-in for a pinned model: same customer, same offer, same model
      * version always yields the same number. Must match
      * `seededUnitInterval` in canonical.ts byte for byte, which is why the
      * parts are joined with a single space and the first six bytes are read
@@ -224,14 +224,14 @@ object Engine {
          */
         catalogueSnapshotHash: String,
         inputSnapshotHash: String,
-    ): DecisionTrace {
-        val byKey = catalogue.propositions.associateBy { it.key }
-        val policyById = catalogue.engagementPolicies.associateBy { it.id }
+    ): DecisionRecord {
+        val byKey = catalogue.offers.associateBy { it.key }
+        val policyById = catalogue.targetingPolicies.associateBy { it.id }
         val connectorById = catalogue.connectors.associateBy { it.id }
         val sourceBindings = mutableListOf<SourceBinding>()
 
         // Initial candidate set, in artifact order so it is reproducible.
-        var candidates: List<Proposition> = artifact.candidateKeys.mapNotNull { byKey[it] }
+        var candidates: List<Offer> = artifact.candidateKeys.mapNotNull { byKey[it] }
 
         val consent = request.consent ?: Consent(marketing = true, profiling = true, thirdParty = false)
         val eliminations = mutableListOf<EliminationStep>()
@@ -240,14 +240,14 @@ object Engine {
         var winner: String? = null
         var runnerUp: String? = null
 
-        fun record(node: ExecNode, reason: String, before: List<Proposition>, after: List<Proposition>) {
+        fun record(node: ExecNode, reason: String, before: List<Offer>, after: List<Offer>) {
             eliminations.add(
                 EliminationStep(
                     nodeId = node.id,
                     nodeType = node.type,
                     reason = reason,
                     // Identity, not equality: the TypeScript uses `includes`,
-                    // and two propositions can be structurally equal.
+                    // and two offers can be structurally equal.
                     eliminated = before.filter { b -> after.none { it === b } }.map { it.key },
                     survived = after.map { it.key },
                 )
@@ -299,7 +299,7 @@ object Engine {
                             // A policy applies where its scope covers the
                             // candidate, and where the candidate opted in.
                             if (!scopeCovers(policy.scope, p)) return@all true
-                            if (!p.policyIds.contains(policy.id) && policy.scope.level == "proposition") {
+                            if (!p.policyIds.contains(policy.id) && policy.scope.level == "offer") {
                                 return@all true
                             }
                             policyPasses(policy, request.input)
@@ -309,10 +309,10 @@ object Engine {
                     if (node.type == "constraint") {
                         val used = request.contactHistory?.withinPeriod ?: emptyMap()
 
-                        // Contact policies bind to a scope exactly like
-                        // engagement policies. Applying them all to every
+                        // Frequency policies bind to a scope exactly like
+                        // targeting policies. Applying them all to every
                         // candidate once suppressed an entire catalogue.
-                        fun relevantTo(p: Proposition) = catalogue.contactPolicies.filter { c ->
+                        fun relevantTo(p: Offer) = catalogue.frequencyPolicies.filter { c ->
                             c.active &&
                                 scopeCovers(c.scope, p) &&
                                 (c.channel == null || c.channel == request.channel)
@@ -356,11 +356,11 @@ object Engine {
                             0.05 + seededUnitInterval(request.customerId, p.key, modelKey) * 0.9, 6
                         )
                         val value = round(maxOf(0.01, p.financials.expectedMargin.amount / 60000.0), 6)
-                        val lever = effectiveLever(catalogue.levers, p, request.occurredAt)
+                        val boost = effectiveBoost(catalogue.boosts, p, request.occurredAt)
                         val context = round(
                             0.4 + seededUnitInterval(request.channel, p.key, request.placement) * 0.6, 6
                         )
-                        scores[p.key] = CandidateScore(propensity, value, lever, context, 0.0)
+                        scores[p.key] = CandidateScore(propensity, value, boost, context, 0.0)
                     }
                     record(node, "Scored ${candidates.size} candidate(s) with $modelKey.", before, candidates)
                 }
@@ -369,7 +369,7 @@ object Engine {
                     val w = catalogue.arbitration.weights
 
                     // A candidate with no model score is not disqualified. Some
-                    // strategies legitimately rank without a propensity model —
+                    // flows legitimately rank without a propensity model —
                     // anonymous web traffic has no customer to score — and their
                     // formula says so. A missing term is neutral, which under
                     // exponentiation means 1.0, not 0.
@@ -378,7 +378,7 @@ object Engine {
                         scores[p.key] = CandidateScore(
                             propensity = 1.0,
                             value = round(maxOf(0.01, p.financials.expectedMargin.amount / 60000.0), 6),
-                            lever = effectiveLever(catalogue.levers, p, request.occurredAt),
+                            boost = effectiveBoost(catalogue.boosts, p, request.occurredAt),
                             context = 1.0,
                             priority = 0.0,
                         )
@@ -394,7 +394,7 @@ object Engine {
                         s.priority = round(
                             StrictMath.pow(s.propensity, w.propensity) *
                                 StrictMath.pow(s.value, w.value) *
-                                StrictMath.pow(s.lever, w.lever) *
+                                StrictMath.pow(s.boost, w.boost) *
                                 StrictMath.pow(s.context, w.context),
                             8,
                         )
@@ -405,7 +405,7 @@ object Engine {
                     val ranked = candidates
                         .filter { scores.containsKey(it.key) }
                         .sortedWith(
-                            compareByDescending<Proposition> { scores.getValue(it.key).priority }
+                            compareByDescending<Offer> { scores.getValue(it.key).priority }
                                 .thenBy { it.key }
                         )
 
@@ -432,7 +432,7 @@ object Engine {
             }
         }
 
-        val winnerProposition = winner?.let { byKey[it] }
+        val winnerOffer = winner?.let { byKey[it] }
 
         val decision = DeterministicDecision(
             tenantId = request.tenantId,
@@ -455,11 +455,11 @@ object Engine {
             constraintsApplied = constraintsApplied.distinct().sorted(),
             consentState = consent,
             winner = winner,
-            winnerPropositionId = winnerProposition?.id,
+            winnerOfferId = winnerOffer?.id,
         )
 
         // One hash, used twice: the id is a prefix of the chain hash.
         val chainHash = Canonical.hash(Canon.decision(decision))
-        return DecisionTrace(id = "dec_${chainHash.take(16)}", decision = decision, chainHash = chainHash)
+        return DecisionRecord(id = "dec_${chainHash.take(16)}", decision = decision, chainHash = chainHash)
     }
 }

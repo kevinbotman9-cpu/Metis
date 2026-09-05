@@ -37,9 +37,9 @@
           ]
         },
         {
-          "id": "filter_applicability",
+          "id": "filter_relevance",
           "type": "filter",
-          "label": "Applicability",
+          "label": "Relevance",
           "policyIds": [
             "pol_not_on_5g",
             "pol_heavy_user",
@@ -67,7 +67,7 @@
         {
           "id": "constraint_contact",
           "type": "constraint",
-          "label": "Contact policy"
+          "label": "Frequency policy"
         },
         {
           "id": "arbitrate_priority",
@@ -82,14 +82,14 @@
         },
         {
           "from": "source_customer",
-          "to": "filter_applicability"
+          "to": "filter_relevance"
         },
         {
           "from": "filter_eligibility",
           "to": "score_propensity"
         },
         {
-          "from": "filter_applicability",
+          "from": "filter_relevance",
           "to": "score_propensity"
         },
         {
@@ -297,11 +297,11 @@
     }
   ],
   "catalogue": {
-    "propositions": [
+    "offers": [
       {
         "id": "prop_5g_unlimited_24",
-        "groupId": "grp_data_upsell",
-        "issueId": "iss_growth",
+        "categoryId": "grp_data_upsell",
+        "objectiveId": "iss_growth",
         "name": "5G Unlimited 24mo",
         "key": "upsell_5g",
         "description": "Unlimited 5G data on a 24-month term, £35/mo.",
@@ -326,14 +326,14 @@
           "startsAt": "2026-01-01",
           "endsAt": null
         },
-        "lever": 1.25,
+        "boost": 1.25,
         "policyIds": [
           "pol_age_18",
           "pol_credit_pass",
           "pol_not_on_5g",
           "pol_afford_5g"
         ],
-        "treatmentIds": [
+        "creativeIds": [
           "trt_5g_email",
           "trt_5g_sms",
           "trt_5g_web",
@@ -350,8 +350,8 @@
       },
       {
         "id": "prop_data_boost_10gb",
-        "groupId": "grp_data_upsell",
-        "issueId": "iss_growth",
+        "categoryId": "grp_data_upsell",
+        "objectiveId": "iss_growth",
         "name": "Data Boost +10GB",
         "key": "upsell_data",
         "description": "Add 10GB to the current plan for £8/mo, no term change.",
@@ -376,12 +376,12 @@
           "startsAt": "2026-01-01",
           "endsAt": null
         },
-        "lever": 1,
+        "boost": 1,
         "policyIds": [
           "pol_age_18",
           "pol_heavy_user"
         ],
-        "treatmentIds": [
+        "creativeIds": [
           "trt_data_email",
           "trt_data_sms",
           "trt_data_web"
@@ -396,8 +396,8 @@
       },
       {
         "id": "prop_retention_20pct",
-        "groupId": "grp_contract_renewal",
-        "issueId": "iss_retention",
+        "categoryId": "grp_contract_renewal",
+        "objectiveId": "iss_retention",
         "name": "Loyalty Discount 20%",
         "key": "retention_offer",
         "description": "20% off the current plan for 12 months on re-contract.",
@@ -422,13 +422,13 @@
           "startsAt": "2026-06-01",
           "endsAt": "2026-12-31"
         },
-        "lever": 1.4,
+        "boost": 1.4,
         "policyIds": [
           "pol_age_18",
           "pol_contract_ending",
           "pol_afford_retention"
         ],
-        "treatmentIds": [
+        "creativeIds": [
           "trt_ret_email",
           "trt_ret_call"
         ],
@@ -443,8 +443,8 @@
       },
       {
         "id": "prop_winback_credit",
-        "groupId": "grp_winback",
-        "issueId": "iss_retention",
+        "categoryId": "grp_winback",
+        "objectiveId": "iss_retention",
         "name": "Winback £50 Credit",
         "key": "winback_credit",
         "description": "One-off £50 account credit for customers who requested a PAC code.",
@@ -469,13 +469,13 @@
           "startsAt": "2026-03-01",
           "endsAt": "2026-10-31"
         },
-        "lever": 1.6,
+        "boost": 1.6,
         "policyIds": [
           "pol_age_18",
           "pol_pac_requested",
           "pol_afford_retention"
         ],
-        "treatmentIds": [
+        "creativeIds": [
           "trt_winback_call",
           "trt_winback_sms"
         ],
@@ -490,8 +490,8 @@
       },
       {
         "id": "prop_fibre_900",
-        "groupId": "grp_new_broadband",
-        "issueId": "iss_acquisition",
+        "categoryId": "grp_new_broadband",
+        "objectiveId": "iss_acquisition",
         "name": "Full Fibre 900Mb",
         "key": "acq_fibre_900",
         "description": "Full-fibre 900Mb broadband, £45/mo on 18 months.",
@@ -516,13 +516,13 @@
           "startsAt": "2026-02-01",
           "endsAt": null
         },
-        "lever": 1.15,
+        "boost": 1.15,
         "policyIds": [
           "pol_age_18",
           "pol_credit_pass",
           "pol_fibre_available"
         ],
-        "treatmentIds": [
+        "creativeIds": [
           "trt_fibre_email",
           "trt_fibre_web"
         ],
@@ -536,8 +536,8 @@
       },
       {
         "id": "prop_sim_only_15",
-        "groupId": "grp_new_mobile",
-        "issueId": "iss_acquisition",
+        "categoryId": "grp_new_mobile",
+        "objectiveId": "iss_acquisition",
         "name": "SIM Only 30GB",
         "key": "acq_sim_30",
         "description": "SIM-only 30GB, £15/mo rolling.",
@@ -562,12 +562,12 @@
           "startsAt": "2026-01-01",
           "endsAt": null
         },
-        "lever": 0.9,
+        "boost": 0.9,
         "policyIds": [
           "pol_age_18",
           "pol_credit_pass"
         ],
-        "treatmentIds": [
+        "creativeIds": [
           "trt_sim_web",
           "trt_sim_email"
         ],
@@ -582,8 +582,8 @@
       },
       {
         "id": "prop_roaming_pass",
-        "groupId": "grp_accessories",
-        "issueId": "iss_growth",
+        "categoryId": "grp_accessories",
+        "objectiveId": "iss_growth",
         "name": "Europe Roaming Pass",
         "key": "addon_roaming",
         "description": "£12 for 14 days of EU roaming.",
@@ -608,11 +608,11 @@
           "startsAt": "2026-04-01",
           "endsAt": "2026-10-31"
         },
-        "lever": 1,
+        "boost": 1,
         "policyIds": [
           "pol_age_18"
         ],
-        "treatmentIds": [
+        "creativeIds": [
           "trt_roam_push",
           "trt_roam_sms"
         ],
@@ -627,8 +627,8 @@
       },
       {
         "id": "prop_device_insurance",
-        "groupId": "grp_accessories",
-        "issueId": "iss_growth",
+        "categoryId": "grp_accessories",
+        "objectiveId": "iss_growth",
         "name": "Device Insurance",
         "key": "addon_insurance",
         "description": "Accidental damage and theft cover, £9/mo.",
@@ -653,12 +653,12 @@
           "startsAt": "2026-01-01",
           "endsAt": null
         },
-        "lever": 1,
+        "boost": 1,
         "policyIds": [
           "pol_age_18",
           "pol_afford_insurance"
         ],
-        "treatmentIds": [
+        "creativeIds": [
           "trt_ins_email"
         ],
         "tags": [
@@ -672,8 +672,8 @@
       },
       {
         "id": "prop_bill_shock_alert",
-        "groupId": "grp_account_health",
-        "issueId": "iss_service",
+        "categoryId": "grp_account_health",
+        "objectiveId": "iss_service",
         "name": "Bill Shock Warning",
         "key": "svc_bill_shock",
         "description": "Proactive alert when projected usage exceeds the plan allowance.",
@@ -698,11 +698,11 @@
           "startsAt": "2026-01-01",
           "endsAt": null
         },
-        "lever": 2,
+        "boost": 2,
         "policyIds": [
           "pol_usage_projection"
         ],
-        "treatmentIds": [
+        "creativeIds": [
           "trt_shock_sms",
           "trt_shock_push"
         ],
@@ -717,8 +717,8 @@
       },
       {
         "id": "prop_plan_downsize",
-        "groupId": "grp_account_health",
-        "issueId": "iss_service",
+        "categoryId": "grp_account_health",
+        "objectiveId": "iss_service",
         "name": "Better Plan Available",
         "key": "svc_plan_fit",
         "description": "Suggest a cheaper plan when usage is consistently below allowance.",
@@ -743,11 +743,11 @@
           "startsAt": "2026-10-01",
           "endsAt": null
         },
-        "lever": 1,
+        "boost": 1,
         "policyIds": [
           "pol_usage_projection"
         ],
-        "treatmentIds": [],
+        "creativeIds": [],
         "tags": [
           "service",
           "fair-value",
@@ -759,11 +759,11 @@
       },
       {
         "id": "prop_legacy_4g_bundle",
-        "groupId": "grp_data_upsell",
-        "issueId": "iss_growth",
+        "categoryId": "grp_data_upsell",
+        "objectiveId": "iss_growth",
         "name": "Legacy 4G Bundle",
         "key": "upsell_4g_legacy",
-        "description": "Superseded by the 5G Unlimited proposition.",
+        "description": "Superseded by the 5G Unlimited offer.",
         "status": "retired",
         "financials": {
           "price": {
@@ -785,11 +785,11 @@
           "startsAt": "2025-01-01",
           "endsAt": "2026-06-30"
         },
-        "lever": 0.5,
+        "boost": 0.5,
         "policyIds": [
           "pol_age_18"
         ],
-        "treatmentIds": [],
+        "creativeIds": [],
         "tags": [
           "legacy",
           "retired"
@@ -799,7 +799,7 @@
         "updatedBy": "sarah.chen@telco.example"
       }
     ],
-    "engagementPolicies": [
+    "targetingPolicies": [
       {
         "id": "pol_age_18",
         "name": "Adult customers only",
@@ -858,7 +858,7 @@
           }
         ],
         "scope": {
-          "level": "group",
+          "level": "category",
           "targetId": "grp_new_broadband"
         },
         "active": true,
@@ -868,7 +868,7 @@
       {
         "id": "pol_not_on_5g",
         "name": "Not already on 5G unlimited",
-        "kind": "applicability",
+        "kind": "relevance",
         "description": "Suppress the offer for customers who already hold it.",
         "conditions": [
           {
@@ -878,7 +878,7 @@
           }
         ],
         "scope": {
-          "level": "proposition",
+          "level": "offer",
           "targetId": "prop_5g_unlimited_24"
         },
         "active": true,
@@ -888,7 +888,7 @@
       {
         "id": "pol_heavy_user",
         "name": "Consistently near allowance",
-        "kind": "applicability",
+        "kind": "relevance",
         "description": "Only offer a data boost where usage justifies it.",
         "conditions": [
           {
@@ -898,7 +898,7 @@
           }
         ],
         "scope": {
-          "level": "proposition",
+          "level": "offer",
           "targetId": "prop_data_boost_10gb"
         },
         "active": true,
@@ -908,7 +908,7 @@
       {
         "id": "pol_contract_ending",
         "name": "Contract ends within 90 days",
-        "kind": "applicability",
+        "kind": "relevance",
         "description": "Retention offers are only relevant near contract end.",
         "conditions": [
           {
@@ -918,7 +918,7 @@
           }
         ],
         "scope": {
-          "level": "group",
+          "level": "category",
           "targetId": "grp_contract_renewal"
         },
         "active": true,
@@ -928,7 +928,7 @@
       {
         "id": "pol_pac_requested",
         "name": "PAC code requested",
-        "kind": "applicability",
+        "kind": "relevance",
         "description": "Winback only applies to customers who signalled intent to leave.",
         "conditions": [
           {
@@ -938,7 +938,7 @@
           }
         ],
         "scope": {
-          "level": "group",
+          "level": "category",
           "targetId": "grp_winback"
         },
         "active": true,
@@ -963,7 +963,7 @@
           }
         ],
         "scope": {
-          "level": "issue",
+          "level": "objective",
           "targetId": "iss_growth"
         },
         "active": true,
@@ -983,7 +983,7 @@
           }
         ],
         "scope": {
-          "level": "issue",
+          "level": "objective",
           "targetId": "iss_retention"
         },
         "active": true,
@@ -1003,7 +1003,7 @@
           }
         ],
         "scope": {
-          "level": "proposition",
+          "level": "offer",
           "targetId": "prop_device_insurance"
         },
         "active": true,
@@ -1023,7 +1023,7 @@
           }
         ],
         "scope": {
-          "level": "group",
+          "level": "category",
           "targetId": "grp_account_health"
         },
         "active": true,
@@ -1031,7 +1031,7 @@
         "updatedAt": "2026-08-05T07:00:00.000Z"
       }
     ],
-    "contactPolicies": [
+    "frequencyPolicies": [
       {
         "id": "cpol_global_weekly",
         "name": "Global outbound cap",
@@ -1083,7 +1083,7 @@
         "period": "month",
         "cooldownDaysAfterReject": 30,
         "scope": {
-          "level": "group",
+          "level": "category",
           "targetId": "grp_winback"
         },
         "active": true
@@ -1097,7 +1097,7 @@
         "period": "day",
         "cooldownDaysAfterReject": 0,
         "scope": {
-          "level": "issue",
+          "level": "objective",
           "targetId": "iss_service"
         },
         "active": true
@@ -1109,19 +1109,19 @@
       "weights": {
         "propensity": 1,
         "value": 1,
-        "lever": 1,
+        "boost": 1,
         "context": 0.5
       },
-      "formula": "Priority = P^1.0 × V^1.0 × L^1.0 × C^0.5",
+      "formula": "Priority = P^1.0 × V^1.0 × B^1.0 × C^0.5",
       "updatedAt": "2026-08-29T09:00:00.000Z",
       "updatedBy": "marcus.webb@telco.example"
     },
-    "levers": [
+    "boosts": [
       {
         "id": "lev_retention_push",
         "name": "Q4 retention push",
         "scope": {
-          "level": "issue",
+          "level": "objective",
           "targetId": "iss_retention"
         },
         "value": 1.4,
@@ -1137,7 +1137,7 @@
         "id": "lev_5g_flagship",
         "name": "5G flagship boost",
         "scope": {
-          "level": "proposition",
+          "level": "offer",
           "targetId": "prop_5g_unlimited_24"
         },
         "value": 1.25,
@@ -1150,7 +1150,7 @@
         "id": "lev_service_always",
         "name": "Service messages priority",
         "scope": {
-          "level": "issue",
+          "level": "objective",
           "targetId": "iss_service"
         },
         "value": 2,
@@ -1163,11 +1163,11 @@
         "id": "lev_legacy_suppress",
         "name": "Legacy suppression",
         "scope": {
-          "level": "proposition",
+          "level": "offer",
           "targetId": "prop_legacy_4g_bundle"
         },
         "value": 0.5,
-        "reason": "Retired proposition; suppress in case any strategy still references it.",
+        "reason": "Retired offer; suppress in case any flow still references it.",
         "validity": null,
         "updatedAt": "2026-08-19T21:00:00.000Z",
         "updatedBy": "sarah.chen@telco.example"
@@ -1268,7 +1268,7 @@
         "id": "conn_credit_bureau",
         "name": "Credit bureau",
         "kind": "rest",
-        "description": "Full bureau file. Configured, and deliberately not wired into any live strategy: at 180ms it cannot be called synchronously inside a 50ms budget, and the compiler says so rather than letting it fail in production.",
+        "description": "Full bureau file. Configured, and deliberately not wired into any live flow: at 180ms it cannot be called synchronously inside a 50ms budget, and the compiler says so rather than letting it fail in production.",
         "target": "https://bureau.example/v1/file",
         "declaredP95Ms": 180,
         "timeoutMs": 400,

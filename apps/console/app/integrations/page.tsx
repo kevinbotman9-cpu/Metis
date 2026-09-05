@@ -168,7 +168,7 @@ function IntegrationsView() {
     <PageBody>
       <PageHeader
         title="Integrations"
-        description="Data the platform does not hold, fetched at decision time. A strategy's source node names the connectors it needs; the values it returns land in the input snapshot the decision is hashed from, so a replay six months later uses what was fetched then, not what the system would return today."
+        description="Data the platform does not hold, fetched at decision time. A decision flow's source node names the connectors it needs; the values it returns land in the input snapshot the decision is hashed from, so a replay six months later uses what was fetched then, not what the system would return today."
       />
 
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -193,7 +193,7 @@ function IntegrationsView() {
             title="Some connectors cannot be called synchronously"
             description={`${overBudget
               .map((c) => `${c.name} declares ${c.declaredP95Ms}ms`)
-              .join('; ')}. The compiler rejects any strategy whose source node names one of these, rather than letting it fail in production. Pre-compute the field into the feature store, or raise the budget.`}
+              .join('; ')}. The compiler rejects any flow whose source node names one of these, rather than letting it fail in production. Pre-compute the field into the feature store, or raise the budget.`}
           />
         </Card>
       )}
@@ -210,7 +210,7 @@ function IntegrationsView() {
           isLoading={isLoading}
           defaultSort={{ key: 'active', dir: 'asc' }}
           emptyTitle="No integrations configured"
-          emptyDescription="A strategy can only read what the request carries until a connector supplies more."
+          emptyDescription="A flow can only read what the request carries until a connector supplies more."
           caption="Configured integrations"
         />
       </Card>

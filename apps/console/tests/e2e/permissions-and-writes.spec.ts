@@ -7,7 +7,7 @@ test.describe('role-based access', () => {
     const nav = page.getByRole('navigation', { name: 'Main' });
     // Sarah has view:audit, so it is present. Assert the mechanism instead by
     // checking a permission she lacks surfaces as read-only.
-    await expect(nav.getByRole('link', { name: 'Arbitration & Levers' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Arbitration & Boosts' })).toBeVisible();
 
     await page.goto('/arbitration');
     await expect(page.getByText('read only')).toBeVisible();
@@ -31,7 +31,7 @@ test.describe('role-based access', () => {
     // does not share the browser's localStorage, so send the token explicitly —
     // otherwise this asserts 401 (no session) rather than 403 (no permission).
     const token = await page.evaluate(() => localStorage.getItem('metis.auth.token'));
-    const res = await page.request.post('/api/change-requests/cr_0042/approve', {
+    const res = await page.request.post('/api/change-sets/cr_0042/approve', {
       headers: { Authorization: `Bearer ${token}` },
     });
     expect(res.status()).toBe(403);
@@ -67,11 +67,11 @@ test.describe('writes persist', () => {
     await expect(page.getByText('ArbitrationWeightsChanged').first()).toBeVisible();
   });
 
-  test('approving a change request applies its diff and records the decision', async ({ page }) => {
+  test('approving a change set applies its diff and records the decision', async ({ page }) => {
     await login(page, ACCOUNTS.priya);
 
     // cr_0042 lowers the heavy-user threshold from 0.8 to 0.7.
-    const before = await page.request.get('/api/engagement-policies/telco-uk');
+    const before = await page.request.get('/api/targeting-policies/telco-uk');
     const policyBefore = (await before.json()).policies.find(
       (p: { id: string }) => p.id === 'pol_heavy_user'
     );
@@ -81,14 +81,14 @@ test.describe('writes persist', () => {
     await page.getByRole('button', { name: 'Approve' }).click();
     await expect(page.getByText(/Approved\. The change will publish/)).toBeVisible();
 
-    const after = await page.request.get('/api/engagement-policies/telco-uk');
+    const after = await page.request.get('/api/targeting-policies/telco-uk');
     const policyAfter = (await after.json()).policies.find(
       (p: { id: string }) => p.id === 'pol_heavy_user'
     );
     expect(policyAfter.conditions[0].value).toBe(0.7);
 
     await page.goto('/audit');
-    await expect(page.getByText('ChangeRequestApproved').first()).toBeVisible();
+    await expect(page.getByText('ChangeSetApproved').first()).toBeVisible();
   });
 
   test('changing an autonomy level persists and is audited', async ({ page }) => {

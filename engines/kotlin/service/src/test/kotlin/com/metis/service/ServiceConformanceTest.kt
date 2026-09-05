@@ -16,7 +16,7 @@ import kotlin.test.fail
  *
  * The value and decision corpora are synthetic — small cases written to isolate
  * one rule each. This is the other kind of evidence: the console's real
- * strategies, its real catalogue, and 60 of the decisions its engine actually
+ * flows, its real catalogue, and 60 of the decisions its engine actually
  * produced. Same requests, over HTTP, must come back with the same chain hash.
  *
  * That is the claim a JVM deployment rests on. Without it, "the Kotlin engine
@@ -136,24 +136,50 @@ class ServiceConformanceTest {
         assertTrue(offered < checked, "every decision produced an offer; suppression is untested")
     }
 
+    /**
+     * Every case, not the first one.
+     *
+     * This test used to replay `cases[0]` alone, and passed while the service
+     * threw away the contact history it was given: replay re-executed with
+     * `null`, so a decision suppressed by a frequency policy replayed as
+     * unsuppressed. It stayed green only because the case that happened to be
+     * first did not depend on suppression. Regenerating the corpus reordered
+     * the cases and the bug surfaced immediately — which is an argument for
+     * covering the whole corpus rather than for regenerating more often.
+     */
     @Test
-    fun `a decision can be fetched and replayed`() {
-        val case = cases["cases"][0]
-        val payload = Json.mapper.createObjectNode()
-        payload.put("artifactId", case["artifactId"].asText())
-        payload.set<JsonNode>("request", case["request"])
+    fun `every decision can be fetched and replayed`() {
+        var offered = 0
+        var suppressed = 0
+        var withHistory = 0
 
-        val (_, decision) = call("POST", "/api/decisions", Json.mapper.writeValueAsString(payload))
-        val id = decision["id"].asText()
+        for (case in cases["cases"]) {
+            val payload = Json.mapper.createObjectNode()
+            payload.put("artifactId", case["artifactId"].asText())
+            payload.set<JsonNode>("request", case["request"])
 
-        val (traceStatus, trace) = call("GET", "/api/decisions/$id/trace")
-        assertEquals(200, traceStatus)
-        assertEquals(decision["chainHash"].asText(), trace["chainHash"].asText())
+            val (_, decision) = call("POST", "/api/decisions", Json.mapper.writeValueAsString(payload))
+            val id = decision["id"].asText()
 
-        val (replayStatus, replay) = call("POST", "/api/decisions/$id/replay")
-        assertEquals(200, replayStatus)
-        assertTrue(replay["identical"].asBoolean(), "replay did not reproduce the decision")
-        assertEquals(decision["chainHash"].asText(), replay["replayedChainHash"].asText())
+            val (traceStatus, trace) = call("GET", "/api/decisions/$id/trace")
+            assertEquals(200, traceStatus)
+            assertEquals(decision["chainHash"].asText(), trace["chainHash"].asText())
+
+            val (replayStatus, replay) = call("POST", "/api/decisions/$id/replay")
+            assertEquals(200, replayStatus)
+            assertTrue(replay["identical"].asBoolean(), "replay did not reproduce decision $id")
+            assertEquals(decision["chainHash"].asText(), replay["replayedChainHash"].asText())
+
+            if (case["expected"]["winner"].isNull) suppressed++ else offered++
+            if (case["request"].has("contactHistory")) withHistory++
+        }
+
+        // Without these the loop above could pass over sixty decisions that
+        // were all the same shape, which is how the single-case version of
+        // this test stayed green through a real bug.
+        assertTrue(offered > 0, "no replayed decision produced an offer")
+        assertTrue(suppressed > 0, "no replayed decision was suppressed")
+        assertTrue(withHistory > 0, "no replayed decision carried contact history")
     }
 
     @Test

@@ -8,20 +8,20 @@
 
 import { http, HttpResponse } from 'msw';
 import {
-  issues,
-  groups,
-  propositions,
-  treatments,
-  engagementPolicies,
-  contactPolicies,
+  objectives,
+  categories,
+  offers,
+  creatives,
+  targetingPolicies,
+  frequencyPolicies,
   arbitrationConfig,
-  levers,
+  boosts,
   autonomySettings,
   agentActivity,
   users,
 } from './fixtures/catalogue';
 import { decisions, findTrace } from './fixtures/decisions';
-import { changeRequests, auditEvents } from './fixtures/governance';
+import { changeSets, auditEvents } from './fixtures/governance';
 
 const API = '*/api';
 
@@ -69,23 +69,23 @@ export const handlers = [
   }),
 
   // -------------------------------------------------------------------------
-  // Proposition taxonomy
+  // Offer taxonomy
   // -------------------------------------------------------------------------
 
   http.get(`${API}/taxonomy/:tenantId`, () =>
-    HttpResponse.json({ issues, groups, propositions })
+    HttpResponse.json({ objectives, categories, offers })
   ),
 
-  http.get(`${API}/propositions/:tenantId`, ({ request }) => {
+  http.get(`${API}/offers/:tenantId`, ({ request }) => {
     const url = new URL(request.url);
-    const issueId = url.searchParams.get('issueId');
-    const groupId = url.searchParams.get('groupId');
+    const objectiveId = url.searchParams.get('objectiveId');
+    const categoryId = url.searchParams.get('categoryId');
     const status = url.searchParams.get('status');
     const q = (url.searchParams.get('q') || '').toLowerCase().trim();
 
-    let result = propositions;
-    if (issueId) result = result.filter((p) => p.issueId === issueId);
-    if (groupId) result = result.filter((p) => p.groupId === groupId);
+    let result = offers;
+    if (objectiveId) result = result.filter((p) => p.objectiveId === objectiveId);
+    if (categoryId) result = result.filter((p) => p.categoryId === categoryId);
     if (status) result = result.filter((p) => p.status === status);
     if (q) {
       result = result.filter(
@@ -97,35 +97,35 @@ export const handlers = [
       );
     }
 
-    return HttpResponse.json({ propositions: result, total: result.length });
+    return HttpResponse.json({ offers: result, total: result.length });
   }),
 
-  http.get(`${API}/propositions/:tenantId/:propositionId`, ({ params }) => {
-    const proposition = propositions.find((p) => p.id === params.propositionId);
-    if (!proposition) {
+  http.get(`${API}/offers/:tenantId/:offerId`, ({ params }) => {
+    const offer = offers.find((p) => p.id === params.offerId);
+    if (!offer) {
       return HttpResponse.json({ error: 'not_found' }, { status: 404 });
     }
 
-    const propTreatments = treatments.filter((t) => t.propositionId === proposition.id);
-    const policies = engagementPolicies.filter((p) => proposition.policyIds.includes(p.id));
+    const propCreatives = creatives.filter((t) => t.offerId === offer.id);
+    const policies = targetingPolicies.filter((p) => offer.policyIds.includes(p.id));
     const autonomy =
       autonomySettings.find(
-        (a) => a.scope.level === 'proposition' && a.scope.targetId === proposition.id
+        (a) => a.scope.level === 'offer' && a.scope.targetId === offer.id
       ) ||
       autonomySettings.find(
-        (a) => a.scope.level === 'group' && a.scope.targetId === proposition.groupId
+        (a) => a.scope.level === 'category' && a.scope.targetId === offer.categoryId
       ) ||
       autonomySettings.find(
-        (a) => a.scope.level === 'issue' && a.scope.targetId === proposition.issueId
+        (a) => a.scope.level === 'objective' && a.scope.targetId === offer.objectiveId
       ) ||
       autonomySettings.find((a) => a.scope.level === 'tenant');
 
-    return HttpResponse.json({ proposition, treatments: propTreatments, policies, autonomy });
+    return HttpResponse.json({ offer, creatives: propCreatives, policies, autonomy });
   }),
 
-  http.get(`${API}/treatments/:tenantId/:propositionId`, ({ params }) =>
+  http.get(`${API}/creatives/:tenantId/:offerId`, ({ params }) =>
     HttpResponse.json({
-      treatments: treatments.filter((t) => t.propositionId === params.propositionId),
+      creatives: creatives.filter((t) => t.offerId === params.offerId),
     })
   ),
 
@@ -133,20 +133,20 @@ export const handlers = [
   // Policies and arbitration
   // -------------------------------------------------------------------------
 
-  http.get(`${API}/engagement-policies/:tenantId`, ({ request }) => {
+  http.get(`${API}/targeting-policies/:tenantId`, ({ request }) => {
     const kind = new URL(request.url).searchParams.get('kind');
     const policies = kind
-      ? engagementPolicies.filter((p) => p.kind === kind)
-      : engagementPolicies;
+      ? targetingPolicies.filter((p) => p.kind === kind)
+      : targetingPolicies;
     return HttpResponse.json({ policies });
   }),
 
-  http.get(`${API}/contact-policies/:tenantId`, () =>
-    HttpResponse.json({ policies: contactPolicies })
+  http.get(`${API}/frequency-policies/:tenantId`, () =>
+    HttpResponse.json({ policies: frequencyPolicies })
   ),
 
   http.get(`${API}/arbitration/:tenantId`, () =>
-    HttpResponse.json({ config: arbitrationConfig, levers })
+    HttpResponse.json({ config: arbitrationConfig, boosts })
   ),
 
   // -------------------------------------------------------------------------
@@ -229,29 +229,29 @@ export const handlers = [
   }),
 
   // -------------------------------------------------------------------------
-  // Change requests and audit
+  // Change sets and audit
   // -------------------------------------------------------------------------
 
-  http.get(`${API}/change-requests`, ({ request }) => {
+  http.get(`${API}/change-sets`, ({ request }) => {
     const status = new URL(request.url).searchParams.get('status');
-    const result = status ? changeRequests.filter((c) => c.status === status) : changeRequests;
-    return HttpResponse.json({ changeRequests: result, total: result.length });
+    const result = status ? changeSets.filter((c) => c.status === status) : changeSets;
+    return HttpResponse.json({ changeSets: result, total: result.length });
   }),
 
-  http.get(`${API}/change-requests/:id`, ({ params }) => {
-    const cr = changeRequests.find((c) => c.id === params.id);
+  http.get(`${API}/change-sets/:id`, ({ params }) => {
+    const cr = changeSets.find((c) => c.id === params.id);
     if (!cr) return HttpResponse.json({ error: 'not_found' }, { status: 404 });
     return HttpResponse.json(cr);
   }),
 
-  http.post(`${API}/change-requests/:id/approve`, ({ params }) => {
-    const cr = changeRequests.find((c) => c.id === params.id);
+  http.post(`${API}/change-sets/:id/approve`, ({ params }) => {
+    const cr = changeSets.find((c) => c.id === params.id);
     if (!cr) return HttpResponse.json({ error: 'not_found' }, { status: 404 });
     return HttpResponse.json({ ...cr, status: 'approved', decidedAt: new Date().toISOString() });
   }),
 
-  http.post(`${API}/change-requests/:id/reject`, ({ params }) => {
-    const cr = changeRequests.find((c) => c.id === params.id);
+  http.post(`${API}/change-sets/:id/reject`, ({ params }) => {
+    const cr = changeSets.find((c) => c.id === params.id);
     if (!cr) return HttpResponse.json({ error: 'not_found' }, { status: 404 });
     return HttpResponse.json({ ...cr, status: 'rejected', decidedAt: new Date().toISOString() });
   }),
@@ -262,7 +262,7 @@ export const handlers = [
   }),
 
   // -------------------------------------------------------------------------
-  // Artifacts / strategies
+  // Artifacts / flows
   // -------------------------------------------------------------------------
 
   http.get(`${API}/artifacts/:tenantId`, () =>

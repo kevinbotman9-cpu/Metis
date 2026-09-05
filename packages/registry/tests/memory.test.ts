@@ -21,7 +21,7 @@ describeRegistry('registry over memory', {
       const out = await registry.publish(
         {
           tenantId: 'telco-uk',
-          strategyName: 'frozen-check',
+          flowName: 'frozen-check',
           version: '1.0.0',
           source: {
             id: 'frozen-check',

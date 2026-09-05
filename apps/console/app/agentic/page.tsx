@@ -32,14 +32,14 @@ const LADDER = [
   {
     level: 'L1',
     name: 'Assist',
-    can: 'Draft rules, copy and treatments as suggestions',
+    can: 'Draft rules, copy and creatives as suggestions',
     gate: 'Human writes the change',
     rollback: '—',
   },
   {
     level: 'L2',
     name: 'Propose',
-    can: 'Open a change request with a diff and simulation results',
+    can: 'Open a change set with a diff and simulation results',
     gate: 'Approve before publish',
     rollback: 'Manual',
   },
@@ -149,8 +149,8 @@ function ScopeCard({ setting, canEdit }: { setting: AutonomySettingDto; canEdit:
           <dd className="tnum font-medium">{g.maxBlastRadiusPct}%</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-content-subtle">Lever delta</dt>
-          <dd className="tnum font-medium">±{(g.maxLeverDelta * 100).toFixed(0)}%</dd>
+          <dt className="text-content-subtle">Boost delta</dt>
+          <dd className="tnum font-medium">±{(g.maxBoostDelta * 100).toFixed(0)}%</dd>
         </div>
         <div className="flex justify-between">
           <dt className="text-content-subtle">Budget delta</dt>
@@ -237,7 +237,7 @@ function AgenticView() {
     <PageBody>
       <PageHeader
         title="Agentic AI"
-        description="How much authority agents hold, and over what. Autonomy is set per scope and resolves most-specific-first: proposition beats group, group beats issue, issue beats tenant."
+        description="How much authority agents hold, and over what. Autonomy is set per scope and resolves most-specific-first: offer beats category, category beats objective, objective beats tenant."
         actions={
           canEdit ? (
             <Button variant="primary" size="md">
@@ -396,12 +396,12 @@ function AgenticView() {
                             minute: '2-digit',
                           })}
                         </span>
-                        {a.changeRequestId && (
+                        {a.changeSetId && (
                           <Link
-                            href={`/approvals/${a.changeRequestId}`}
+                            href={`/approvals/${a.changeSetId}`}
                             className="text-accent hover:underline"
                           >
-                            {a.changeRequestId} →
+                            {a.changeSetId} →
                           </Link>
                         )}
                       </div>

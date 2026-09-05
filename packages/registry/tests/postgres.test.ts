@@ -64,7 +64,7 @@ if (!reachable) {
         await registry.publish(
           {
             tenantId: 'telco-uk',
-            strategyName: 'inbound-web-offers',
+            flowName: 'inbound-web-offers',
             version: '1.0.0',
             source: source(),
             actor: 'test',
@@ -85,7 +85,7 @@ if (!reachable) {
         await registry.publish(
           {
             tenantId: 'telco-uk',
-            strategyName: 'inbound-web-offers',
+            flowName: 'inbound-web-offers',
             version: '1.0.0',
             source: source(),
             actor: 'test',
@@ -105,7 +105,7 @@ if (!reachable) {
         await expect(
           pool.query(
             `INSERT INTO registry_environments
-               (tenant_id, strategy_name, environment, active_version)
+               (tenant_id, flow_name, environment, active_version)
              VALUES ('telco-uk', 'inbound-web-offers', 'production', '404.0.0')`
           )
         ).rejects.toThrow();
@@ -117,7 +117,7 @@ if (!reachable) {
           await registry.publish(
             {
               tenantId: 'telco-uk',
-              strategyName: 'inbound-web-offers',
+              flowName: 'inbound-web-offers',
               version,
               source: source({
                 nodes: [

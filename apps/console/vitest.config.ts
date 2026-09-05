@@ -17,9 +17,9 @@ export default defineConfig({
         __dirname,
         '../../packages/runtime/src/deterministic'
       ),
-      '@metis/compiler/strategy': path.resolve(
+      '@metis/compiler/decision-flow': path.resolve(
         __dirname,
-        '../../packages/compiler/src/strategy'
+        '../../packages/compiler/src/decision-flow'
       ),
     },
   },

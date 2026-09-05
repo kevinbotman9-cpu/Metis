@@ -1,15 +1,15 @@
-/** Change requests and the audit event log. Deterministic. */
+/** Change sets and the audit event log. Deterministic. */
 
 const T0 = Date.parse('2026-09-01T09:00:00Z');
 const iso = (h: number) => new Date(T0 + h * 3600_000).toISOString();
 
-export type ChangeRequestStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn';
+export type ChangeSetStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn';
 
-export interface ChangeRequestRecord {
+export interface ChangeSetRecord {
   id: string;
   title: string;
   description: string;
-  status: ChangeRequestStatus;
+  status: ChangeSetStatus;
   /** 1 = manual, 2 = bounded, 3 = autonomous. */
   autonomyTier: 1 | 2 | 3;
   requestedBy: string;
@@ -30,12 +30,12 @@ export interface ChangeRequestRecord {
   } | null;
 }
 
-export const changeRequests: ChangeRequestRecord[] = [
+export const changeSets: ChangeSetRecord[] = [
   {
     id: 'cr_0042',
     title: 'Relax Data Boost heavy-user threshold to 70%',
     description:
-      'Trace analysis shows customers between 70% and 80% of allowance convert at a similar rate to those above 80%, but are never offered the boost. Widening the applicability rule adds roughly 11,000 eligible customers.',
+      'Trace analysis shows customers between 70% and 80% of allowance convert at a similar rate to those above 80%, but are never offered the boost. Widening the relevance rule adds roughly 11,000 eligible customers.',
     status: 'pending',
     autonomyTier: 2,
     requestedBy: 'agent-strategist-01',
@@ -43,7 +43,7 @@ export const changeRequests: ChangeRequestRecord[] = [
     decidedBy: null,
     decidedAt: null,
     decisionReason: null,
-    targetScope: { level: 'proposition', targetId: 'prop_data_boost_10gb' },
+    targetScope: { level: 'offer', targetId: 'prop_data_boost_10gb' },
     changeType: 'policy_edit',
     diff: [
       {
@@ -87,7 +87,7 @@ export const changeRequests: ChangeRequestRecord[] = [
   },
   {
     id: 'cr_0040',
-    title: 'Raise Q4 retention lever to 1.40',
+    title: 'Raise Q4 retention boost to 1.40',
     description:
       'Churn is 2.1pp above plan. Board approved additional retention emphasis through year end.',
     status: 'approved',
@@ -98,8 +98,8 @@ export const changeRequests: ChangeRequestRecord[] = [
     decidedAt: iso(-26),
     decisionReason:
       'Approved. Fair-value assessment attached; the discount reduces customer bills so the suitability test holds.',
-    targetScope: { level: 'issue', targetId: 'iss_retention' },
-    changeType: 'lever_adjust',
+    targetScope: { level: 'objective', targetId: 'iss_retention' },
+    changeType: 'boost_adjust',
     diff: [{ field: 'lev_retention_push.value', before: '1.15', after: '1.40' }],
     simulation: {
       ran: true,
@@ -121,8 +121,8 @@ export const changeRequests: ChangeRequestRecord[] = [
     decidedBy: 'priya.natarajan@telco.example',
     decidedAt: iso(-132),
     decisionReason:
-      'Rejected. Removing the residual-value floor would let us sell cover worth more than the device it insures. That fails the FCA fair-value test. Proposition paused pending redesign.',
-    targetScope: { level: 'proposition', targetId: 'prop_device_insurance' },
+      'Rejected. Removing the residual-value floor would let us sell cover worth more than the device it insures. That fails the FCA fair-value test. Offer paused pending redesign.',
+    targetScope: { level: 'offer', targetId: 'prop_device_insurance' },
     changeType: 'policy_edit',
     diff: [
       { field: 'pol_afford_insurance.active', before: 'true', after: 'false' },
@@ -148,8 +148,8 @@ export const changeRequests: ChangeRequestRecord[] = [
     decidedBy: 'marcus.webb@telco.example',
     decidedAt: iso(-300),
     decisionReason: 'Approved. Existing holders are unaffected; only new offers stop.',
-    targetScope: { level: 'proposition', targetId: 'prop_legacy_4g_bundle' },
-    changeType: 'proposition_retire',
+    targetScope: { level: 'offer', targetId: 'prop_legacy_4g_bundle' },
+    changeType: 'offer_retire',
     diff: [{ field: 'status', before: 'active', after: 'retired' }],
     simulation: null,
   },
@@ -163,7 +163,7 @@ export interface AuditEvent {
   eventType: string;
   scope: string;
   summary: string;
-  changeRequestId: string | null;
+  changeSetId: string | null;
 }
 
 export const auditEvents: AuditEvent[] = [
@@ -172,30 +172,30 @@ export const auditEvents: AuditEvent[] = [
     timestamp: iso(-2),
     actor: 'agent-copywriter-01',
     actorType: 'agent',
-    eventType: 'TreatmentUpdated',
+    eventType: 'CreativeUpdated',
     scope: 'trt_roam_push',
     summary: 'Push title rewritten under L3 bounded autonomy. Simulation passed, blast radius 4%.',
-    changeRequestId: null,
+    changeSetId: null,
   },
   {
     id: 'evt_0030',
     timestamp: iso(-5),
     actor: 'agent-optimiser-01',
     actorType: 'agent',
-    eventType: 'LeverAdjusted',
+    eventType: 'BoostAdjusted',
     scope: 'prop_roaming_pass',
-    summary: 'Lever 1.00 to 1.12 under L3 bounded autonomy.',
-    changeRequestId: null,
+    summary: 'Boost 1.00 to 1.12 under L3 bounded autonomy.',
+    changeSetId: null,
   },
   {
     id: 'evt_0029',
     timestamp: iso(-6),
     actor: 'sarah.chen@telco.example',
     actorType: 'human',
-    eventType: 'PropositionUpdated',
+    eventType: 'OfferUpdated',
     scope: 'prop_5g_unlimited_24',
     summary: 'Email body reworded to reference the three-month usage trend.',
-    changeRequestId: null,
+    changeSetId: null,
   },
   {
     id: 'evt_0028',
@@ -204,8 +204,8 @@ export const auditEvents: AuditEvent[] = [
     actorType: 'system',
     eventType: 'GuardrailBlocked',
     scope: 'prop_device_insurance',
-    summary: 'Blocked agent lever change: requested delta 0.35 exceeds maxLeverDelta 0.15.',
-    changeRequestId: null,
+    summary: 'Blocked agent boost change: requested delta 0.35 exceeds maxBoostDelta 0.15.',
+    changeSetId: null,
   },
   {
     id: 'evt_0027',
@@ -215,27 +215,27 @@ export const auditEvents: AuditEvent[] = [
     eventType: 'ArtifactPublished',
     scope: 'next-best-action v2.4.0',
     summary: 'Published after approval of cr_0040. Previous version 2.3.1 remains available for rollback.',
-    changeRequestId: 'cr_0040',
+    changeSetId: 'cr_0040',
   },
   {
     id: 'evt_0026',
     timestamp: iso(-14),
     actor: 'agent-strategist-01',
     actorType: 'agent',
-    eventType: 'ChangeRequestOpened',
+    eventType: 'ChangeSetOpened',
     scope: 'prop_data_boost_10gb',
     summary: 'Opened cr_0042 under L2 autonomy with simulation attached.',
-    changeRequestId: 'cr_0042',
+    changeSetId: 'cr_0042',
   },
   {
     id: 'evt_0025',
     timestamp: iso(-26),
     actor: 'priya.natarajan@telco.example',
     actorType: 'human',
-    eventType: 'ChangeRequestApproved',
+    eventType: 'ChangeSetApproved',
     scope: 'iss_retention',
     summary: 'Approved cr_0040 with fair-value assessment attached.',
-    changeRequestId: 'cr_0040',
+    changeSetId: 'cr_0040',
   },
   {
     id: 'evt_0024',
@@ -245,7 +245,7 @@ export const auditEvents: AuditEvent[] = [
     eventType: 'AutoReverted',
     scope: 'trt_roam_sms',
     summary: 'Reverted agent copy change after bias gate observed 1.31 against a 1.20 threshold.',
-    changeRequestId: null,
+    changeSetId: null,
   },
   {
     id: 'evt_0023',
@@ -255,7 +255,7 @@ export const auditEvents: AuditEvent[] = [
     eventType: 'AutonomyChanged',
     scope: 'grp_accessories',
     summary: 'Raised autonomy from L2 to L3 for accessories. Rationale recorded.',
-    changeRequestId: null,
+    changeSetId: null,
   },
   {
     id: 'evt_0022',
@@ -265,16 +265,16 @@ export const auditEvents: AuditEvent[] = [
     eventType: 'AutonomyChanged',
     scope: 'prop_bill_shock_alert',
     summary: 'Pinned to L0 Observe. Duty-of-care wording is legally reviewed.',
-    changeRequestId: null,
+    changeSetId: null,
   },
   {
     id: 'evt_0021',
     timestamp: iso(-132),
     actor: 'priya.natarajan@telco.example',
     actorType: 'human',
-    eventType: 'ChangeRequestRejected',
+    eventType: 'ChangeSetRejected',
     scope: 'prop_device_insurance',
-    summary: 'Rejected cr_0039 on FCA fair-value grounds; proposition paused.',
-    changeRequestId: 'cr_0039',
+    summary: 'Rejected cr_0039 on FCA fair-value grounds; offer paused.',
+    changeSetId: 'cr_0039',
   },
 ];

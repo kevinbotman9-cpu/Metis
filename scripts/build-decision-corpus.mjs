@@ -14,7 +14,7 @@
  * work. There is an objective finish line, and it is this file.
  *
  * Cases are chosen for the rules a reimplementation would get wrong: tie-breaks,
- * scope resolution, the neutral-score rule, contact policy scoping, the
+ * scope resolution, the neutral-score rule, frequency policy scoping, the
  * service-exemption threshold, and the float behaviour in `round` and `pow`.
  */
 
@@ -30,15 +30,15 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const money = (amount) => ({ amount, currency: 'GBP' });
 
-function proposition(over = {}) {
+function offer(over = {}) {
   const id = over.id ?? 'p_a';
   return {
     id,
-    groupId: 'grp_1',
-    issueId: 'iss_1',
-    name: `Proposition ${id}`,
+    categoryId: 'grp_1',
+    objectiveId: 'iss_1',
+    name: `Offer ${id}`,
     key: over.key ?? id,
-    description: 'Fixture proposition.',
+    description: 'Fixture offer.',
     status: 'active',
     financials: {
       price: money(3500),
@@ -48,9 +48,9 @@ function proposition(over = {}) {
       oneOff: false,
     },
     validity: { startsAt: '2020-01-01', endsAt: null },
-    lever: 1,
+    boost: 1,
     policyIds: [],
-    treatmentIds: [],
+    creativeIds: [],
     tags: [],
     createdAt: '2020-01-01T00:00:00.000Z',
     updatedAt: '2020-01-01T00:00:00.000Z',
@@ -74,7 +74,7 @@ function policy(over = {}) {
   };
 }
 
-function contactPolicy(over = {}) {
+function frequencyPolicy(over = {}) {
   return {
     id: 'cp_1',
     name: 'Fixture cap',
@@ -91,18 +91,18 @@ function contactPolicy(over = {}) {
 
 function catalogue(over = {}) {
   return {
-    propositions: [proposition({ id: 'p_a', key: 'offer_a' })],
-    engagementPolicies: [],
-    contactPolicies: [],
+    offers: [offer({ id: 'p_a', key: 'offer_a' })],
+    targetingPolicies: [],
+    frequencyPolicies: [],
     arbitration: {
       id: 'arb',
       tenantId: 't',
-      weights: { propensity: 1, value: 1, lever: 1, context: 1 },
+      weights: { propensity: 1, value: 1, boost: 1, context: 1 },
       formula: 'P^wP x V^wV x L^wL x C^wC',
       updatedAt: '2020-01-01T00:00:00.000Z',
       updatedBy: 'fixture',
     },
-    levers: [],
+    boosts: [],
     connectors: [],
     ...over,
   };
@@ -138,7 +138,7 @@ function request(over = {}) {
 
 const scoreNode = { id: 'n2_score', type: 'score-model', label: 'Propensity', model: { id: 'm_prop', version: '3.1.0' } };
 
-/** Source -> score -> arbitrate, the shape most strategies take. */
+/** Source -> score -> arbitrate, the shape most flows take. */
 function scoredArtifact(over = {}) {
   return artifact({
     nodes: [
@@ -157,9 +157,9 @@ function scoredArtifact(over = {}) {
 // --- Cases ------------------------------------------------------------------
 
 const three = [
-  proposition({ id: 'p_a', key: 'offer_a', lever: 1.25 }),
-  proposition({ id: 'p_b', key: 'offer_b', lever: 0.8 }),
-  proposition({ id: 'p_c', key: 'offer_c', lever: 1 }),
+  offer({ id: 'p_a', key: 'offer_a', boost: 1.25 }),
+  offer({ id: 'p_b', key: 'offer_b', boost: 0.8 }),
+  offer({ id: 'p_c', key: 'offer_c', boost: 1 }),
 ];
 const threeKeys = ['offer_a', 'offer_b', 'offer_c'];
 
@@ -173,15 +173,15 @@ const CASES = [
   {
     name: 'scored and arbitrated',
     artifact: scoredArtifact({ candidateKeys: threeKeys }),
-    catalogue: catalogue({ propositions: three }),
+    catalogue: catalogue({ offers: three }),
     request: request(),
   },
   {
-    name: 'no score node: every term neutral except value and lever',
+    name: 'no score node: every term neutral except value and boost',
     // The rule a reimplementation is most likely to get wrong. A candidate with
     // no model score is not disqualified; the missing terms are 1.0, not 0.
     artifact: artifact({ candidateKeys: threeKeys }),
-    catalogue: catalogue({ propositions: three }),
+    catalogue: catalogue({ offers: three }),
     request: request(),
   },
   {
@@ -190,11 +190,11 @@ const CASES = [
     // this is where an ulp of difference would show up as a different hash.
     artifact: scoredArtifact({ candidateKeys: threeKeys }),
     catalogue: catalogue({
-      propositions: three,
+      offers: three,
       arbitration: {
         id: 'arb',
         tenantId: 't',
-        weights: { propensity: 1.5, value: 0.75, lever: 2, context: 0.3333333333333333 },
+        weights: { propensity: 1.5, value: 0.75, boost: 2, context: 0.3333333333333333 },
         formula: 'P^wP x V^wV x L^wL x C^wC',
         updatedAt: '2020-01-01T00:00:00.000Z',
         updatedBy: 'fixture',
@@ -204,13 +204,13 @@ const CASES = [
   },
   {
     name: 'tie on priority breaks by key',
-    // Two identical propositions differing only in key. Sort stability is not
+    // Two identical offers differing only in key. Sort stability is not
     // guaranteed across languages, so the engine breaks ties explicitly.
     artifact: artifact({ candidateKeys: ['offer_z', 'offer_a'] }),
     catalogue: catalogue({
-      propositions: [
-        proposition({ id: 'p_z', key: 'offer_z' }),
-        proposition({ id: 'p_a2', key: 'offer_a' }),
+      offers: [
+        offer({ id: 'p_z', key: 'offer_z' }),
+        offer({ id: 'p_a2', key: 'offer_a' }),
       ],
     }),
     request: request(),
@@ -230,15 +230,15 @@ const CASES = [
       ],
     }),
     catalogue: catalogue({
-      propositions: three,
-      engagementPolicies: [
+      offers: three,
+      targetingPolicies: [
         policy({ id: 'pol_tenure', conditions: [{ field: 'tenureMonths', operator: 'gte', value: 36 }] }),
       ],
     }),
     request: request({ input: { tenureMonths: 24 } }),
   },
   {
-    name: 'policy scoped to a group only applies to that group',
+    name: 'policy scoped to a category only applies to that category',
     artifact: artifact({
       candidateKeys: threeKeys,
       nodes: [
@@ -252,15 +252,15 @@ const CASES = [
       ],
     }),
     catalogue: catalogue({
-      propositions: [
-        proposition({ id: 'p_a', key: 'offer_a', groupId: 'grp_1' }),
-        proposition({ id: 'p_b', key: 'offer_b', groupId: 'grp_2' }),
-        proposition({ id: 'p_c', key: 'offer_c', groupId: 'grp_2' }),
+      offers: [
+        offer({ id: 'p_a', key: 'offer_a', categoryId: 'grp_1' }),
+        offer({ id: 'p_b', key: 'offer_b', categoryId: 'grp_2' }),
+        offer({ id: 'p_c', key: 'offer_c', categoryId: 'grp_2' }),
       ],
-      engagementPolicies: [
+      targetingPolicies: [
         policy({
           id: 'pol_grp',
-          scope: { level: 'group', targetId: 'grp_2' },
+          scope: { level: 'category', targetId: 'grp_2' },
           conditions: [{ field: 'tenureMonths', operator: 'gte', value: 999 }],
         }),
       ],
@@ -281,7 +281,7 @@ const CASES = [
       ],
     }),
     catalogue: catalogue({
-      engagementPolicies: [
+      targetingPolicies: [
         policy({ id: 'pol_missing', conditions: [{ field: 'notPresent', operator: 'gte', value: 1 }] }),
       ],
     }),
@@ -301,7 +301,7 @@ const CASES = [
       ],
     }),
     catalogue: catalogue({
-      engagementPolicies: [
+      targetingPolicies: [
         policy({
           id: 'pol_ops',
           conditions: [
@@ -334,12 +334,12 @@ const CASES = [
     }),
   },
   {
-    name: 'contact policy breach suppresses',
+    name: 'frequency policy breach suppresses',
     artifact: artifact({
       candidateKeys: threeKeys,
       nodes: [
         { id: 'n1_source', type: 'source', label: 'Source' },
-        { id: 'n2_constraint', type: 'constraint', label: 'Contact policy', contactPolicyIds: ['cp_1'] },
+        { id: 'n2_constraint', type: 'constraint', label: 'Frequency policy', frequencyPolicyIds: ['cp_1'] },
         { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
       ],
       edges: [
@@ -347,18 +347,18 @@ const CASES = [
         { from: 'n2_constraint', to: 'n3_arbitrate' },
       ],
     }),
-    catalogue: catalogue({ propositions: three, contactPolicies: [contactPolicy()] }),
+    catalogue: catalogue({ offers: three, frequencyPolicies: [frequencyPolicy()] }),
     request: request({ contactHistory: { channel: 'web', withinPeriod: { week: 5 } } }),
   },
   {
-    name: 'contact policy scoped to a group leaves the rest alone',
-    // The defect this case exists for: applying every contact policy to every
+    name: 'frequency policy scoped to a category leaves the rest alone',
+    // The defect this case exists for: applying every frequency policy to every
     // candidate once suppressed an entire catalogue.
     artifact: artifact({
       candidateKeys: threeKeys,
       nodes: [
         { id: 'n1_source', type: 'source', label: 'Source' },
-        { id: 'n2_constraint', type: 'constraint', label: 'Contact policy', contactPolicyIds: ['cp_grp'] },
+        { id: 'n2_constraint', type: 'constraint', label: 'Frequency policy', frequencyPolicyIds: ['cp_grp'] },
         { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
       ],
       edges: [
@@ -367,13 +367,13 @@ const CASES = [
       ],
     }),
     catalogue: catalogue({
-      propositions: [
-        proposition({ id: 'p_a', key: 'offer_a', groupId: 'grp_1' }),
-        proposition({ id: 'p_b', key: 'offer_b', groupId: 'grp_2' }),
-        proposition({ id: 'p_c', key: 'offer_c', groupId: 'grp_2' }),
+      offers: [
+        offer({ id: 'p_a', key: 'offer_a', categoryId: 'grp_1' }),
+        offer({ id: 'p_b', key: 'offer_b', categoryId: 'grp_2' }),
+        offer({ id: 'p_c', key: 'offer_c', categoryId: 'grp_2' }),
       ],
-      contactPolicies: [
-        contactPolicy({ id: 'cp_grp', maxContacts: 1, scope: { level: 'group', targetId: 'grp_2' } }),
+      frequencyPolicies: [
+        frequencyPolicy({ id: 'cp_grp', maxContacts: 1, scope: { level: 'category', targetId: 'grp_2' } }),
       ],
     }),
     request: request({ contactHistory: { channel: 'web', withinPeriod: { week: 2 } } }),
@@ -384,7 +384,7 @@ const CASES = [
       candidateKeys: threeKeys,
       nodes: [
         { id: 'n1_source', type: 'source', label: 'Source' },
-        { id: 'n2_constraint', type: 'constraint', label: 'Contact policy', contactPolicyIds: ['cp_1'] },
+        { id: 'n2_constraint', type: 'constraint', label: 'Frequency policy', frequencyPolicyIds: ['cp_1'] },
         { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
       ],
       edges: [
@@ -393,16 +393,16 @@ const CASES = [
       ],
     }),
     catalogue: catalogue({
-      propositions: [
-        proposition({ id: 'p_a', key: 'offer_a', groupId: 'grp_svc' }),
-        proposition({ id: 'p_b', key: 'offer_b', groupId: 'grp_2' }),
-        proposition({ id: 'p_c', key: 'offer_c', groupId: 'grp_2' }),
+      offers: [
+        offer({ id: 'p_a', key: 'offer_a', categoryId: 'grp_svc' }),
+        offer({ id: 'p_b', key: 'offer_b', categoryId: 'grp_2' }),
+        offer({ id: 'p_c', key: 'offer_c', categoryId: 'grp_2' }),
       ],
-      contactPolicies: [
+      frequencyPolicies: [
         // A cap this high is a scope declaring itself exempt, which is how a
         // duty-of-care message stays deliverable when commercial offers stop.
-        contactPolicy({ id: 'cp_svc', maxContacts: 100, scope: { level: 'group', targetId: 'grp_svc' } }),
-        contactPolicy({ id: 'cp_com', maxContacts: 3, scope: { level: 'group', targetId: 'grp_2' } }),
+        frequencyPolicy({ id: 'cp_svc', maxContacts: 100, scope: { level: 'category', targetId: 'grp_svc' } }),
+        frequencyPolicy({ id: 'cp_com', maxContacts: 3, scope: { level: 'category', targetId: 'grp_2' } }),
       ],
     }),
     request: request({
@@ -410,11 +410,11 @@ const CASES = [
     }),
   },
   {
-    name: 'channel-specific contact policy ignores other channels',
+    name: 'channel-specific frequency policy ignores other channels',
     artifact: artifact({
       nodes: [
         { id: 'n1_source', type: 'source', label: 'Source' },
-        { id: 'n2_constraint', type: 'constraint', label: 'Contact policy', contactPolicyIds: ['cp_sms'] },
+        { id: 'n2_constraint', type: 'constraint', label: 'Frequency policy', frequencyPolicyIds: ['cp_sms'] },
         { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
       ],
       edges: [
@@ -423,28 +423,28 @@ const CASES = [
       ],
     }),
     catalogue: catalogue({
-      contactPolicies: [contactPolicy({ id: 'cp_sms', channel: 'sms', maxContacts: 0 })],
+      frequencyPolicies: [frequencyPolicy({ id: 'cp_sms', channel: 'sms', maxContacts: 0 })],
     }),
     request: request({ channel: 'web', contactHistory: { channel: 'web', withinPeriod: { week: 9 } } }),
   },
   {
-    name: 'lever resolves to the most specific scope',
+    name: 'boost resolves to the most specific scope',
     artifact: scoredArtifact({ candidateKeys: threeKeys }),
     catalogue: catalogue({
-      propositions: three,
-      levers: [
+      offers: three,
+      boosts: [
         { id: 'lv_t', name: 'Tenant', scope: { level: 'tenant', targetId: null }, value: 1.1, reason: 'x', validity: null, updatedAt: '2020-01-01T00:00:00.000Z', updatedBy: 'f' },
-        { id: 'lv_g', name: 'Group', scope: { level: 'group', targetId: 'grp_1' }, value: 1.4, reason: 'x', validity: null, updatedAt: '2020-01-01T00:00:00.000Z', updatedBy: 'f' },
-        { id: 'lv_p', name: 'Proposition', scope: { level: 'proposition', targetId: 'p_b' }, value: 2.5, reason: 'x', validity: null, updatedAt: '2020-01-01T00:00:00.000Z', updatedBy: 'f' },
+        { id: 'lv_g', name: 'Category', scope: { level: 'category', targetId: 'grp_1' }, value: 1.4, reason: 'x', validity: null, updatedAt: '2020-01-01T00:00:00.000Z', updatedBy: 'f' },
+        { id: 'lv_p', name: 'Offer', scope: { level: 'offer', targetId: 'p_b' }, value: 2.5, reason: 'x', validity: null, updatedAt: '2020-01-01T00:00:00.000Z', updatedBy: 'f' },
       ],
     }),
     request: request(),
   },
   {
-    name: 'lever outside its validity window does not apply',
+    name: 'boost outside its validity window does not apply',
     artifact: scoredArtifact(),
     catalogue: catalogue({
-      levers: [
+      boosts: [
         {
           id: 'lv_expired',
           name: 'Expired',
@@ -463,10 +463,10 @@ const CASES = [
     name: 'retired and out-of-window candidates never enter',
     artifact: artifact({ candidateKeys: ['offer_a', 'offer_retired', 'offer_future'] }),
     catalogue: catalogue({
-      propositions: [
-        proposition({ id: 'p_a', key: 'offer_a' }),
-        proposition({ id: 'p_r', key: 'offer_retired', status: 'retired' }),
-        proposition({ id: 'p_f', key: 'offer_future', validity: { startsAt: '2030-01-01', endsAt: null } }),
+      offers: [
+        offer({ id: 'p_a', key: 'offer_a' }),
+        offer({ id: 'p_r', key: 'offer_retired', status: 'retired' }),
+        offer({ id: 'p_f', key: 'offer_future', validity: { startsAt: '2030-01-01', endsAt: null } }),
       ],
     }),
     request: request(),
@@ -485,7 +485,7 @@ const CASES = [
       ],
     }),
     catalogue: catalogue({
-      engagementPolicies: [
+      targetingPolicies: [
         policy({ id: 'pol_never', conditions: [{ field: 'tenureMonths', operator: 'gte', value: 9999 }] }),
       ],
     }),
@@ -556,11 +556,11 @@ const CASES = [
         { from: 'z_annotate', to: 'n3_arbitrate' },
       ],
     }),
-    catalogue: catalogue({ propositions: three }),
+    catalogue: catalogue({ offers: three }),
     request: request(),
   },
   {
-    name: 'a proposition-scoped policy only binds where the candidate opted in',
+    name: 'an offer-scoped policy only binds where the candidate opted in',
     artifact: artifact({
       candidateKeys: ['offer_a', 'offer_b'],
       nodes: [
@@ -574,14 +574,14 @@ const CASES = [
       ],
     }),
     catalogue: catalogue({
-      propositions: [
-        proposition({ id: 'p_a', key: 'offer_a', policyIds: ['pol_opt'] }),
-        proposition({ id: 'p_b', key: 'offer_b', policyIds: [] }),
+      offers: [
+        offer({ id: 'p_a', key: 'offer_a', policyIds: ['pol_opt'] }),
+        offer({ id: 'p_b', key: 'offer_b', policyIds: [] }),
       ],
-      engagementPolicies: [
+      targetingPolicies: [
         policy({
           id: 'pol_opt',
-          scope: { level: 'proposition', targetId: 'p_a' },
+          scope: { level: 'offer', targetId: 'p_a' },
           conditions: [{ field: 'tenureMonths', operator: 'gte', value: 9999 }],
         }),
       ],
@@ -602,7 +602,7 @@ const CASES = [
       ],
     }),
     catalogue: catalogue({
-      engagementPolicies: [
+      targetingPolicies: [
         policy({ id: 'pol_off', active: false, conditions: [{ field: 'tenureMonths', operator: 'gte', value: 9999 }] }),
       ],
     }),
@@ -612,13 +612,13 @@ const CASES = [
     name: 'expectedMargin drives the value term, floored at 0.01',
     artifact: scoredArtifact({ candidateKeys: ['offer_rich', 'offer_zero'] }),
     catalogue: catalogue({
-      propositions: [
-        proposition({
+      offers: [
+        offer({
           id: 'p_rich',
           key: 'offer_rich',
           financials: { price: money(90000), cost: money(1000), expectedMargin: money(89000), termMonths: 24, oneOff: false },
         }),
-        proposition({
+        offer({
           id: 'p_zero',
           key: 'offer_zero',
           financials: { price: money(100), cost: money(100), expectedMargin: money(0), termMonths: 1, oneOff: true },

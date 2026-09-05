@@ -26,14 +26,14 @@ const PILLARS = [
   },
   {
     title: 'Compiled before it ships',
-    body: 'The compiler refuses a strategy the runtime could not execute safely, and says how to fix it.',
+    body: 'The compiler refuses a flow the runtime could not execute safely, and says how to fix it.',
     icon: (
       <path d="m9 12 2 2 4-4M12 3l7.5 4v5c0 4.5-3 8.3-7.5 9.5C7.5 20.3 4.5 16.5 4.5 12V7Z" strokeLinecap="round" strokeLinejoin="round" />
     ),
   },
   {
     title: 'Scoped agent autonomy',
-    body: 'L0 to L4 per proposition, group or issue. A regulated offer stays supervised while others run free.',
+    body: 'L0 to L4 per offer, category or objective. A regulated offer stays supervised while others run free.',
     icon: (
       <path d="M12 3v4m0 10v4M3 12h4m10 0h4M6.3 6.3l2.8 2.8m5.8 5.8 2.8 2.8m0-11.4-2.8 2.8m-5.8 5.8-2.8 2.8" strokeLinecap="round" />
     ),
@@ -52,7 +52,7 @@ const DEMO_ACCOUNTS = [
     email: 'sarah.chen@telco.example',
     name: 'Sarah Chen',
     role: 'Decision Architect',
-    can: 'Authors propositions and strategies. Cannot approve.',
+    can: 'Authors offers and flows. Cannot approve.',
   },
   {
     email: 'priya.natarajan@telco.example',

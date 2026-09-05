@@ -48,11 +48,11 @@ const artifact: ExecArtifact = {
 };
 
 const catalogue: CatalogueSnapshot = {
-  propositions: [
+  offers: [
     {
       id: 'p1',
-      groupId: 'g1',
-      issueId: 'i1',
+      categoryId: 'g1',
+      objectiveId: 'i1',
       name: 'Offer A',
       key: 'offer_a',
       description: '',
@@ -65,26 +65,26 @@ const catalogue: CatalogueSnapshot = {
         oneOff: false,
       },
       validity: { startsAt: '2020-01-01', endsAt: null },
-      lever: 1,
+      boost: 1,
       policyIds: [],
-      treatmentIds: [],
+      creativeIds: [],
       tags: [],
       createdAt: '2020-01-01T00:00:00.000Z',
       updatedAt: '2020-01-01T00:00:00.000Z',
       updatedBy: 'test',
     },
   ],
-  engagementPolicies: [],
-  contactPolicies: [],
+  targetingPolicies: [],
+  frequencyPolicies: [],
   arbitration: {
     id: 'arb',
     tenantId: 't',
-    weights: { propensity: 1, value: 1, lever: 1, context: 1 },
+    weights: { propensity: 1, value: 1, boost: 1, context: 1 },
     formula: 'P x V x L x C',
     updatedAt: '2020-01-01T00:00:00.000Z',
     updatedBy: 'test',
   },
-  levers: [],
+  boosts: [],
   connectors: [connector()],
 };
 

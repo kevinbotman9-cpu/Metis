@@ -80,12 +80,12 @@ function AuditView() {
           <p className="text-content-muted">{e.summary}</p>
           <div className="mt-0.5 flex items-center gap-2">
             <span className="font-mono text-[0.6875rem] text-content-subtle">{e.scope}</span>
-            {e.changeRequestId && (
+            {e.changeSetId && (
               <Link
-                href={`/approvals/${e.changeRequestId}`}
+                href={`/approvals/${e.changeSetId}`}
                 className="text-[0.6875rem] text-accent hover:underline"
               >
-                {e.changeRequestId} →
+                {e.changeSetId} →
               </Link>
             )}
           </div>

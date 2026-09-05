@@ -10,7 +10,7 @@ import { cn } from '@/lib/cn';
  * What needs a person's attention, wherever they happen to be.
  *
  * Two things in this platform are time-sensitive and were previously only
- * visible if you navigated to the right page: a change request waiting on
+ * visible if you navigated to the right page: a change set waiting on
  * approval, and an agent action a guardrail stopped. Both are surfaced here
  * from the same data those pages read.
  */
@@ -37,16 +37,16 @@ export function Notifications() {
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
-  const changeRequests = useQuery({
-    queryKey: ['change-requests'],
-    queryFn: () => apiClient.listChangeRequests(),
+  const changeSets = useQuery({
+    queryKey: ['change-sets'],
+    queryFn: () => apiClient.listChangeSets(),
   });
   const activity = useQuery({
     queryKey: ['agent-activity', 'notifications'],
     queryFn: () => apiClient.listAgentActivity({ limit: 50 }),
   });
 
-  const pending: Item[] = (changeRequests.data?.changeRequests ?? [])
+  const pending: Item[] = (changeSets.data?.changeSets ?? [])
     .filter((c) => c.status === 'pending')
     .map((c) => ({
       id: c.id,

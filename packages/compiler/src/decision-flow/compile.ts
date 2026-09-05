@@ -1,5 +1,5 @@
 /**
- * Strategy compiler.
+ * Flow compiler.
  *
  * The point of the two-plane architecture is that nothing reaches the runtime
  * unless it has been proved safe first. This is where that proof happens: every
@@ -10,7 +10,7 @@
  * running the engine and noticing every decision came back empty:
  *   - ARBITRATION_MISSING_SCORE: a formula weighting propensity, with nothing
  *     scoring upstream, silently ranks nothing.
- *   - NO_DELIVERABLE_TREATMENT: an offer that can win but cannot be sent.
+ *   - NO_DELIVERABLE_CREATIVE: an offer that can win but cannot be sent.
  *
  * Finding those at compile time is the difference between a platform that
  * catches its own mistakes and one that ships them.
@@ -18,9 +18,9 @@
 
 import { createHash } from 'node:crypto';
 import type {
-  Proposition,
-  EngagementPolicy,
-  ContactPolicy,
+  Offer,
+  TargetingPolicy,
+  FrequencyPolicy,
   ArbitrationConfig,
   PolicyScope,
   Connector,
@@ -37,7 +37,7 @@ import {
 // Inputs and outputs
 // ---------------------------------------------------------------------------
 
-export type StrategyNodeType =
+export type FlowNodeType =
   | 'source'
   | 'filter'
   | 'constraint'
@@ -47,9 +47,9 @@ export type StrategyNodeType =
   | 'explain-annotate'
   | 'arbitrate';
 
-export interface StrategyNode {
+export interface FlowNode {
   id: string;
-  type: StrategyNodeType;
+  type: FlowNodeType;
   label: string;
   policyIds?: string[];
   model?: { id: string; version: string };
@@ -59,38 +59,38 @@ export interface StrategyNode {
   estimatedMs: number;
 }
 
-export interface StrategyEdge {
+export interface FlowEdge {
   from: string;
   to: string;
 }
 
-/** A strategy as authored, before compilation. */
-export interface StrategySource {
+/** A flow as authored, before compilation. */
+export interface DecisionFlowSource {
   id: string;
   version: string;
   tenantId: string;
-  nodes: StrategyNode[];
-  edges: StrategyEdge[];
+  nodes: FlowNode[];
+  edges: FlowEdge[];
   candidateKeys: string[];
   /** Requested package ranges, resolved and pinned during compilation. */
   packageRanges?: Record<string, string>;
 }
 
 export interface CompileContext {
-  propositions: Proposition[];
-  engagementPolicies: EngagementPolicy[];
-  contactPolicies: ContactPolicy[];
+  offers: Offer[];
+  targetingPolicies: TargetingPolicy[];
+  frequencyPolicies: FrequencyPolicy[];
   arbitration: ArbitrationConfig;
   /** Versions available to resolve `packageRanges` against. */
   availablePackages?: Record<string, string[]>;
   /**
-   * Issue and group ids that exist. Supplied so a policy scoped to something
+   * Objective and category ids that exist. Supplied so a policy scoped to something
    * that was deleted can be caught; omitted, that check is skipped rather
    * than guessed at.
    */
-  knownScopeTargets?: { issues: string[]; groups: string[] };
+  knownScopeTargets?: { objectives: string[]; categories: string[] };
   /**
-   * Configured integrations. Omitted means the tenant has none, and a strategy
+   * Configured integrations. Omitted means the tenant has none, and a flow
    * naming a connector is then rejected rather than assumed to be fine.
    */
   connectors?: Connector[];
@@ -99,7 +99,7 @@ export interface CompileContext {
    * placement an inbound integration always sends.
    *
    * Omitted disables the UNRESOLVED_FIELD check entirely rather than guessing:
-   * a check that fires on every strategy is one nobody reads.
+   * a check that fires on every flow is one nobody reads.
    */
   requestFields?: string[];
   tenant: { id: string; latencyBudgetMs: number; maxNodes: number };
@@ -116,12 +116,12 @@ export interface CostManifest {
   withinBudget: boolean;
 }
 
-export interface CompiledStrategy {
+export interface CompiledDecisionFlow {
   id: string;
   version: string;
   tenantId: string;
-  nodes: StrategyNode[];
-  edges: StrategyEdge[];
+  nodes: FlowNode[];
+  edges: FlowEdge[];
   candidateKeys: string[];
   /** Exact versions, locked at compile time so a replay is reproducible. */
   packageVersions: Record<string, string>;
@@ -133,7 +133,7 @@ export interface CompiledStrategy {
 
 export interface CompileResult {
   ok: boolean;
-  artifact: CompiledStrategy | null;
+  artifact: CompiledDecisionFlow | null;
   diagnostics: Diagnostic[];
 }
 
@@ -142,12 +142,12 @@ export interface CompileResult {
 // ---------------------------------------------------------------------------
 
 interface Graph {
-  byId: Map<string, StrategyNode>;
+  byId: Map<string, FlowNode>;
   outgoing: Map<string, string[]>;
   incoming: Map<string, string[]>;
 }
 
-function buildGraph(source: StrategySource): Graph {
+function buildGraph(source: DecisionFlowSource): Graph {
   const byId = new Map(source.nodes.map((n) => [n.id, n]));
   const outgoing = new Map<string, string[]>();
   const incoming = new Map<string, string[]>();
@@ -159,7 +159,7 @@ function buildGraph(source: StrategySource): Graph {
 }
 
 /** Nodes reachable from every root, so unreachable ones can be reported. */
-function reachable(source: StrategySource, g: Graph): Set<string> {
+function reachable(source: DecisionFlowSource, g: Graph): Set<string> {
   const roots = source.nodes.filter((n) => (g.incoming.get(n.id) ?? []).length === 0);
   const seen = new Set<string>();
   const stack = roots.map((r) => r.id);
@@ -172,7 +172,7 @@ function reachable(source: StrategySource, g: Graph): Set<string> {
   return seen;
 }
 
-function hasCycle(source: StrategySource, g: Graph): boolean {
+function hasCycle(source: DecisionFlowSource, g: Graph): boolean {
   const state = new Map<string, 0 | 1 | 2>();
   const visit = (id: string): boolean => {
     const s = state.get(id) ?? 0;
@@ -195,11 +195,11 @@ function hasCycle(source: StrategySource, g: Graph): boolean {
  * Connectors on one node are fetched concurrently, so the node waits for the
  * slowest rather than the sum — the same assumption `resolveInputs` makes when
  * it runs them through Promise.all. Getting this wrong in either direction
- * matters: summing would reject strategies that are actually fine, and ignoring
+ * matters: summing would reject flows that are actually fine, and ignoring
  * connectors entirely would let a 180ms bureau call through a 50ms budget and
  * fail in production instead.
  */
-function nodeCost(node: StrategyNode | undefined, connectors: Map<string, Connector>): number {
+function nodeCost(node: FlowNode | undefined, connectors: Map<string, Connector>): number {
   if (!node) return 0;
   const own = node.estimatedMs ?? 0;
   const attached = (node.connectorIds ?? [])
@@ -209,7 +209,7 @@ function nodeCost(node: StrategyNode | undefined, connectors: Map<string, Connec
   return own + (attached.length > 0 ? Math.max(...attached) : 0);
 }
 
-function criticalPath(source: StrategySource, g: Graph, connectors: Map<string, Connector>): number {
+function criticalPath(source: DecisionFlowSource, g: Graph, connectors: Map<string, Connector>): number {
   const memo = new Map<string, number>();
   const cost = (id: string): number => {
     const cached = memo.get(id);
@@ -281,17 +281,17 @@ export function resolveRange(range: string, available: string[]): string | null 
 // Compile
 // ---------------------------------------------------------------------------
 
-const SCORE_TYPES: StrategyNodeType[] = ['score-model', 'score-adaptive'];
+const SCORE_TYPES: FlowNodeType[] = ['score-model', 'score-adaptive'];
 
-export function compileStrategy(
-  source: StrategySource,
+export function compileDecisionFlow(
+  source: DecisionFlowSource,
   ctx: CompileContext
 ): CompileResult {
   const d: Diagnostic[] = [];
   const g = buildGraph(source);
 
-  const propositionByKey = new Map(ctx.propositions.map((p) => [p.key, p]));
-  const policyIds = new Set(ctx.engagementPolicies.map((p) => p.id));
+  const offerByKey = new Map(ctx.offers.map((p) => [p.key, p]));
+  const policyIds = new Set(ctx.targetingPolicies.map((p) => p.id));
   const connectorLookup = new Map((ctx.connectors ?? []).map((c) => [c.id, c]));
 
   // --- Structure ---------------------------------------------------------
@@ -329,7 +329,7 @@ export function compileStrategy(
 
   if (source.nodes.length === 0) {
     d.push(
-      error('EMPTY_STRATEGY', 'The strategy has no nodes.', 'Add at least a source and an arbitrate node.')
+      error('EMPTY_FLOW', 'The flow has no nodes.', 'Add at least a source and an arbitrate node.')
     );
   }
 
@@ -337,8 +337,8 @@ export function compileStrategy(
     d.push(
       error(
         'TOO_MANY_NODES',
-        `The strategy has ${source.nodes.length} nodes; the tenant limit is ${ctx.tenant.maxNodes}.`,
-        'Split the strategy, or extract part of it into a sub-strategy.'
+        `The flow has ${source.nodes.length} nodes; the tenant limit is ${ctx.tenant.maxNodes}.`,
+        'Split the flow, or extract part of it into a sub-flow.'
       )
     );
   }
@@ -348,7 +348,7 @@ export function compileStrategy(
     d.push(
       error(
         'CYCLE',
-        'The strategy graph contains a cycle.',
+        'The flow graph contains a cycle.',
         'Execution has to terminate, so the graph must be acyclic. Remove the edge that loops back.'
       )
     );
@@ -375,7 +375,7 @@ export function compileStrategy(
     d.push(
       error(
         'NO_ARBITRATION',
-        'The strategy has no arbitrate node, so it can never select a winner.',
+        'The flow has no arbitrate node, so it can never select a winner.',
         'Add an arbitrate node as the final step.'
       )
     );
@@ -387,14 +387,14 @@ export function compileStrategy(
     for (const node of arbitrateNodes) {
       const upstream = ancestorsOf(node.id, g);
       const scoresUpstream = [...upstream].some((id) =>
-        SCORE_TYPES.includes(g.byId.get(id)?.type as StrategyNodeType)
+        SCORE_TYPES.includes(g.byId.get(id)?.type as FlowNodeType)
       );
       if (!scoresUpstream && ctx.arbitration.weights.propensity > 0) {
         d.push(
           warning(
             'ARBITRATION_MISSING_SCORE',
             `Arbitration at '${node.id}' weights propensity at ${ctx.arbitration.weights.propensity}, but no scoring node runs before it.`,
-            'Add a score node upstream, or set the propensity weight to 0 so the formula matches what the strategy actually computes. Propensity will be treated as neutral.',
+            'Add a score node upstream, or set the propensity weight to 0 so the formula matches what the flow actually computes. Propensity will be treated as neutral.',
             node.id
           )
         );
@@ -410,7 +410,7 @@ export function compileStrategy(
         d.push(
           error(
             'UNKNOWN_POLICY',
-            `Node '${n.id}' references engagement policy '${id}', which does not exist.` +
+            `Node '${n.id}' references targeting policy '${id}', which does not exist.` +
               didYouMean(id, policyIds),
             'Reference an existing policy, or create it first.',
             n.id
@@ -449,7 +449,7 @@ export function compileStrategy(
           error(
             'CONNECTOR_EXCEEDS_BUDGET',
             `Connector '${connector.name}' declares a p95 of ${connector.declaredP95Ms}ms, which alone exceeds the ${ctx.tenant.latencyBudgetMs}ms budget.`,
-            'No strategy can call this synchronously and stay inside the budget. Pre-compute the field, cache it, or raise the budget.',
+            'No flow can call this synchronously and stay inside the budget. Pre-compute the field, cache it, or raise the budget.',
             n.id
           )
         );
@@ -495,21 +495,21 @@ export function compileStrategy(
     d.push(
       error(
         'EMPTY_CANDIDATE_SET',
-        'The strategy has no candidate propositions.',
-        'Add at least one proposition key to the candidate set.'
+        'The flow has no candidate offers.',
+        'Add at least one offer key to the candidate set.'
       )
     );
   }
 
   for (const key of source.candidateKeys) {
-    const p = propositionByKey.get(key);
+    const p = offerByKey.get(key);
     if (!p) {
       d.push(
         error(
-          'UNKNOWN_PROPOSITION',
-          `Candidate '${key}' is not a proposition in the catalogue.` +
-            didYouMean(key, propositionByKey.keys()),
-          'Reference an existing proposition, or create it first.',
+          'UNKNOWN_OFFER',
+          `Candidate '${key}' is not an offer in the catalogue.` +
+            didYouMean(key, offerByKey.keys()),
+          'Reference an existing offer, or create it first.',
           key
         )
       );
@@ -536,12 +536,12 @@ export function compileStrategy(
       );
     }
 
-    if (p.status !== 'retired' && p.treatmentIds.length === 0) {
+    if (p.status !== 'retired' && p.creativeIds.length === 0) {
       d.push(
         error(
-          'NO_DELIVERABLE_TREATMENT',
-          `Proposition '${key}' has no treatment, so even if it wins there is nothing to deliver.`,
-          'Add at least one active treatment for a channel this strategy serves.',
+          'NO_DELIVERABLE_CREATIVE',
+          `Offer '${key}' has no creative, so even if it wins there is nothing to deliver.`,
+          'Add at least one active creative for a channel this flow serves.',
           key
         )
       );
@@ -552,7 +552,7 @@ export function compileStrategy(
         d.push(
           error(
             'UNKNOWN_POLICY',
-            `Proposition '${key}' references engagement policy '${id}', which does not exist.` +
+            `Offer '${key}' references targeting policy '${id}', which does not exist.` +
               didYouMean(id, policyIds),
             'Reference an existing policy, or create it first.',
             key
@@ -564,29 +564,29 @@ export function compileStrategy(
 
   // --- Dead rules --------------------------------------------------------
 
-  // A policy scoped to another group is not a defect of this strategy, so the
+  // A policy scoped to another category is not a defect of this flow, so the
   // check is narrow on purpose: only a scope pointing at something that does
   // not exist anywhere in the catalogue is reported. Warning on every
-  // non-covering policy produced noise on every strategy and taught readers to
+  // non-covering policy produced noise on every flow and taught readers to
   // ignore the compiler.
   const knownTargets = ctx.knownScopeTargets;
   if (knownTargets) {
     const valid = new Set([
-      ...knownTargets.issues,
-      ...knownTargets.groups,
-      ...ctx.propositions.map((p) => p.id),
+      ...knownTargets.objectives,
+      ...knownTargets.categories,
+      ...ctx.offers.map((p) => p.id),
     ]);
     const scoped: { id: string; name: string; kind: string; scope: PolicyScope }[] = [
-      ...ctx.contactPolicies.filter((c) => c.active).map((c) => ({
+      ...ctx.frequencyPolicies.filter((c) => c.active).map((c) => ({
         id: c.id,
         name: c.name,
-        kind: 'Contact policy',
+        kind: 'Frequency policy',
         scope: c.scope,
       })),
-      ...ctx.engagementPolicies.filter((e) => e.active).map((e) => ({
+      ...ctx.targetingPolicies.filter((e) => e.active).map((e) => ({
         id: e.id,
         name: e.name,
-        kind: 'Engagement policy',
+        kind: 'Targeting policy',
         scope: e.scope,
       })),
     ];
@@ -660,7 +660,7 @@ export function compileStrategy(
       const referenced = new Map<string, string>();
       for (const n of source.nodes) {
         for (const id of n.policyIds ?? []) {
-          const policy = ctx.engagementPolicies.find((p) => p.id === id);
+          const policy = ctx.targetingPolicies.find((p) => p.id === id);
           for (const c of policy?.conditions ?? []) {
             // Only the root of a dotted path can be supplied by a connector.
             referenced.set(c.field.split('.')[0], n.id);

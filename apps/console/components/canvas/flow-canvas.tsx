@@ -12,14 +12,14 @@ import ReactFlow, {
   type NodeMouseHandler,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { DirNode, type DirNodeData } from './dir-node';
-import type { DirNode as DirNodeModel, DirEdge } from '@/mocks/fixtures/artifacts';
+import { FlowNode, type FlowNodeData } from './flow-node';
+import type { FlowNode as FlowNodeModel, FlowEdge } from '@/mocks/fixtures/artifacts';
 
-const nodeTypes = { dir: DirNode };
+const nodeTypes = { dir: FlowNode };
 
-interface DirCanvasProps {
-  nodes: DirNodeModel[];
-  edges: DirEdge[];
+interface FlowCanvasProps {
+  nodes: FlowNodeModel[];
+  edges: FlowEdge[];
   selectedId: string | null;
   onSelect: (nodeId: string | null) => void;
 }
@@ -36,8 +36,8 @@ interface DirCanvasProps {
  */
 const DEFAULT_VIEWPORT = { x: 24, y: 24, zoom: 0.55 };
 
-function Canvas({ nodes, edges, selectedId, onSelect }: DirCanvasProps) {
-  const flowNodes = useMemo<Node<DirNodeData>[]>(
+function Canvas({ nodes, edges, selectedId, onSelect }: FlowCanvasProps) {
+  const flowNodes = useMemo<Node<FlowNodeData>[]>(
     () =>
       nodes.map((n) => ({
         id: n.id,
@@ -111,7 +111,7 @@ function Canvas({ nodes, edges, selectedId, onSelect }: DirCanvasProps) {
 }
 
 /** Read-only DIR graph. Positions are authored in the artifact, not computed. */
-export function DirCanvas(props: DirCanvasProps) {
+export function FlowCanvas(props: FlowCanvasProps) {
   return (
     <ReactFlowProvider>
       <Canvas {...props} />

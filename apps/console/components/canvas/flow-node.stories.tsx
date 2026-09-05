@@ -2,11 +2,11 @@ import type { ReactElement } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { ReactFlowProvider } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { DirNode, type DirNodeData } from './dir-node';
-import type { DirNodeType } from '@/mocks/fixtures/artifacts';
+import { FlowNode, type FlowNodeData } from './flow-node';
+import type { FlowNodeType } from '@/mocks/fixtures/artifacts';
 
 const meta: Meta = {
-  title: 'Canvas/DirNode',
+  title: 'Canvas/FlowNode',
   parameters: { layout: 'padded' },
   decorators: [
     (Story) => (
@@ -18,7 +18,7 @@ const meta: Meta = {
 };
 export default meta;
 
-const base: DirNodeData = {
+const base: FlowNodeData = {
   label: 'Eligibility',
   nodeType: 'filter',
   estimatedMs: 1.1,
@@ -29,19 +29,19 @@ const base: DirNodeData = {
 
 // NodeProps carries React Flow internals the component never reads; only
 // `data` matters, so build a minimal props object and widen it once.
-function Node(props: Partial<DirNodeData>) {
-  const data: DirNodeData = { ...base, ...props };
-  const NodePreview = DirNode as unknown as (p: { data: DirNodeData }) => ReactElement;
+function Node(props: Partial<FlowNodeData>) {
+  const data: FlowNodeData = { ...base, ...props };
+  const NodePreview = FlowNode as unknown as (p: { data: FlowNodeData }) => ReactElement;
   return <NodePreview data={data} />;
 }
 
 /** One of each family, so the colour coding can be checked at a glance. */
 export const AllTypes: StoryObj = {
   render: () => {
-    const types: { type: DirNodeType; label: string; extra?: Partial<DirNodeData> }[] = [
+    const types: { type: FlowNodeType; label: string; extra?: Partial<FlowNodeData> }[] = [
       { type: 'source', label: 'Customer profile', extra: { policyCount: 0, estimatedMs: 4.2 } },
       { type: 'filter', label: 'Eligibility' },
-      { type: 'constraint', label: 'Contact policy', extra: { policyCount: 0, estimatedMs: 0.6 } },
+      { type: 'constraint', label: 'Frequency policy', extra: { policyCount: 0, estimatedMs: 0.6 } },
       {
         type: 'score-adaptive',
         label: 'Acceptance propensity',
