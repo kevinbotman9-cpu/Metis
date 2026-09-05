@@ -10,9 +10,20 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
+  // Kept, but it is not the fix and must not be treated as one. The two
+  // failures that prompted this work were budget failures under machine load,
+  // and they were addressed at the source: routes are compiled up front by the
+  // warmup project, and the one test that visited sixteen pages inside a single
+  // timeout was split. A test that passes only on retry is a defect to
+  // investigate, not a result to accept.
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['list']] : [['list']],
-  timeout: 30_000,
+  // Measured on this machine with ten busy loops on twelve cores, which is
+  // roughly what a CI runner under contention looks like: page visits go from
+  // ~2s to ~4s, and the slowest single test (dark-theme contrast over four
+  // pages) from 6.3s to 18.6s. 45s leaves that a 2.4x margin while still
+  // failing a genuine hang promptly.
+  timeout: 45_000,
   expect: { timeout: 10_000 },
   use: {
     baseURL,
@@ -20,7 +31,18 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // `next dev` compiles a route on its first request, so without this the
+    // first test to reach a route pays that cost inside its own 10s expect
+    // timeout. See tests/e2e/warmup.setup.ts.
+    { name: 'warmup', testMatch: /warmup\.setup\.ts$/ },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      // Without this the warmup runs twice: once as the dependency, once as an
+      // ordinary spec, because it lives under the same testDir.
+      testIgnore: /warmup\.setup\.ts$/,
+      dependencies: ['warmup'],
+    },
   ],
   webServer: {
     command: 'npm run dev',

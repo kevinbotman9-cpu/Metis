@@ -27,6 +27,11 @@ The E2E gate was checked by breaking it: a deliberate failing assertion in
 `app-shell.spec.ts` made Playwright exit 1, which is the only evidence that
 CI's E2E step is doing anything.
 
+The E2E counts above are from a run with `.next` deleted and ten busy loops
+pinned to twelve cores for its full 17.2 minutes — a deliberate reproduction of
+the conditions under which two tests failed on 2026-09-05. See the note on
+timing budgets below.
+
 The console was linted by nobody until 2026-09-04: `apps/console/.eslintrc.json`
 had no `"root": true`, so ESLint cascaded to the repo config, whose
 `ignorePatterns` excludes `apps/console`. Every file was silently skipped, in CI
@@ -294,3 +299,46 @@ Also removed, for the same reason:
 - **Six dependencies the console declared and never imported.**
 - **A new diagnosis for `tsc --build`.** The old cause went with
   `packages/compiler/src/compile.ts`; two more were hiding underneath it.
+
+---
+
+## Timing budgets in the E2E suite
+
+Two tests in `app-shell.spec.ts` failed once, on 2026-09-05, in a run made
+while a Gradle build and an npm install were running alongside it. They passed
+in isolation twenty minutes later. The obvious reading — a cold `next dev`
+server — turned out to be only half of it, and it is worth writing down which
+half, because the wrong half was nearly fixed.
+
+**What was measured.** With `.next` deleted and port 3000 freed, the same 32
+tests pass in 2.0 minutes with no intervention. So a cold server alone does not
+reproduce the failure. With ten busy loops on twelve cores, page visits go from
+~2s to ~4s, the worst single test from 6.3s to 18.6s, and route compilation
+from ~1s to as much as 7.6s. The failure was a *budget* failure under
+contention, not a startup failure.
+
+**What changed.**
+
+- **`tests/e2e/warmup.setup.ts`** compiles every route before the suite starts,
+  as a setup project the `chromium` project depends on. Route compilation is
+  real work that has to happen once; it now happens in a named step with a 90s
+  budget per route instead of inside whichever assertion arrives first with 10s.
+  Under load it reported five of eighteen routes taking over 5s — the exact
+  cost that was landing in test timeouts. The route list is read from the
+  filesystem, so a route added later cannot silently drop out of the warmup.
+- **`accessibility.spec.ts` no longer visits fifteen pages inside one test.**
+  `every page has exactly one h1` took 29.4s of a 30s budget under load. It was
+  not slow; it was fifteen page visits sharing the budget each of its
+  neighbours gets for one, two lines below a loop that already expands the same
+  list into one test per page. Now split, and a failure names the page.
+- **The test timeout is 45s, from 30s.** The slowest surviving test is 20.8s
+  under saturation, so the margin is 2.4x rather than 1.4x. `expect` stays at
+  10s; a single assertion waiting ten seconds is a defect either way.
+- **`retries: 1` in CI is kept and demoted.** It is a hedge against machine
+  variance, not the fix, and the config now says so. A test that passes only on
+  retry is a defect to investigate.
+
+**What this is not.** The original failure was never reproduced on demand. The
+verification is that the full suite is green from a cold `.next` with the CPU
+saturated for its entire 17.2-minute run, which is stronger than the conditions
+that produced the failure — but it is evidence, not proof.

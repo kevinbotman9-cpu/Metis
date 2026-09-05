@@ -78,14 +78,17 @@ test.describe('accessibility', () => {
       await expect(page).toHaveURL(/\/decisions\/dec_/);
     });
 
-    test('every page has exactly one h1', async ({ page }) => {
-      for (const target of PAGES) {
+    // One test per page, matching the axe loop above rather than visiting all
+    // sixteen inside a single test. As one test it took 29.4s of a 30s budget
+    // on a saturated machine — it was not slow, it was sixteen page visits
+    // sharing the budget its neighbours each get for one. A CI runner slower
+    // than this desktop would have failed it, and the failure would have named
+    // the whole suite rather than the page at fault.
+    for (const target of PAGES) {
+      test(`${target.name} has exactly one h1`, async ({ page }) => {
         await page.goto(target.path);
-        await expect(
-          page.getByRole('heading', { level: 1 }),
-          `${target.name} should have one h1`
-        ).toHaveCount(1);
-      }
-    });
+        await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+      });
+    }
   });
 });
