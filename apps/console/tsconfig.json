@@ -26,35 +26,14 @@
       "@metis/compiler": [
         "../../packages/compiler/src"
       ],
-      "@metis/trace-ui": [
-        "../../packages/trace-ui/src"
-      ],
       "@metis/runtime": [
         "../../packages/runtime/src"
-      ],
-      "@metis/ui-kit": [
-        "../../packages/ui-kit/src"
       ],
       "@metis/client": [
         "../../packages/client/src"
       ],
-      "@metis/canvas": [
-        "../../packages/canvas/src"
-      ],
-      "@metis/themes": [
-        "../../packages/themes/src"
-      ],
-      "@metis/types": [
-        "../../packages/types/src"
-      ],
-      "@metis/trace": [
-        "../../packages/trace/src"
-      ],
       "@metis/core": [
         "../../packages/core/src"
-      ],
-      "@metis/i18n": [
-        "../../packages/i18n/src"
       ],
       "@metis/compiler/*": [
         "../../packages/compiler/src/*"

@@ -1,349 +1,192 @@
-# METIS Getting Started Guide
+# Getting started
 
-Welcome to METIS - AI-native decisioning with deterministic execution.
+The previous version of this guide taught a pipeline that no longer exists: a
+`metis compile` CLI over a JSON "Decision IR", with a type checker, a version
+resolver and a cost analyser as separate passes. That code was deleted on
+2026-09-05 along with thirteen other packages nothing imported. What replaced
+it is smaller and actually runs.
 
-## Overview
+This guide is deliberately short, and every code path in it is covered by a
+test. Where a test says it better, this points at the test rather than
+repeating it — a tutorial that drifts from the code is worse than no tutorial.
 
-METIS is a two-plane architecture:
-- **Authoring Plane**: Agents design strategies at design time
-- **Execution Plane**: Compiled deterministic engine executes decisions <50ms with zero LLM calls in the hot path
-
-This guide gets you from zero to a working decision strategy in under 2 hours.
+---
 
 ## Prerequisites
 
-- Node.js 18+ and npm 9+
-- Docker and Docker Compose (for full stack)
-- Basic knowledge of TypeScript/JSON
-
-## Installation
-
-### 1. Clone and Install
+- Node 20+
+- Java 17+, only if you want to run the Kotlin engine
+- PostgreSQL, only if you want durable registry storage; without it the
+  registry runs in memory and its Postgres suite skips
 
 ```bash
-git clone <metis-repo>
-cd metis
 npm install
 ```
 
-### 2. Build Packages
+There is no `npm run build` step to do first. Every package is consumed from
+source through path aliases, so the tests and the console run against `.ts`
+directly.
 
-```bash
-npm run build
-```
+---
 
-This compiles all TypeScript packages in the monorepo.
-
-### 3. Run Tests
+## Check it works
 
 ```bash
 npm test
 ```
 
-Verifies the installation and runs unit tests.
+That runs six suites in order: the integration seam, the deterministic engine,
+the compiler, the registry, the performance gate, and the console's unit
+tests. All six must pass before anything else you read here is true.
 
-## Your First Strategy: Hello Decision
-
-### Step 1: Create a Decision IR
-
-Create a file `my-first-strategy.json`:
-
-```json
-{
-  "id": "hello-decision",
-  "name": "Hello Decision Strategy",
-  "version": "1.0.0",
-  "description": "A simple strategy that demonstrates the basics",
-  "nodes": [
-    {
-      "id": "source_1",
-      "type": "source",
-      "label": "Load Data",
-      "config": {
-        "sourceId": "customer_data",
-        "estimatedMs": 5
-      },
-      "inputs": {
-        "customerId": {
-          "name": "customerId",
-          "type": "string",
-          "required": true
-        }
-      },
-      "outputs": {
-        "data": {
-          "name": "data",
-          "type": "object"
-        }
-      }
-    },
-    {
-      "id": "arbitrate_1",
-      "type": "arbitrate",
-      "label": "Pick Best Offer",
-      "config": {
-        "formula": "propensity * value"
-      },
-      "inputs": {
-        "candidates": {
-          "name": "candidates",
-          "type": "array",
-          "required": true
-        }
-      },
-      "outputs": {
-        "ranked": {
-          "name": "ranked",
-          "type": "array"
-        },
-        "winner": {
-          "name": "winner",
-          "type": "string"
-        }
-      }
-    }
-  ],
-  "edges": [
-    {
-      "from": "source_1",
-      "to": "arbitrate_1"
-    }
-  ],
-  "entryNode": "source_1",
-  "exitNodes": ["arbitrate_1"],
-  "packageDependencies": {
-    "@metis/nodes-core": "1.0.0"
-  }
-}
-```
-
-### Step 2: Compile the Strategy
+For the rest:
 
 ```bash
-npm run compile my-first-strategy.json --tenant test --output compiled.json
+npm run test:e2e --prefix apps/console   # console E2E, contract and axe
+node scripts/validate-spec.mjs           # the OpenAPI contract
+cd engines/kotlin && ./gradlew test      # the second engine, same corpora
 ```
-
-Expected output:
-```
-✓ Compilation successful
-  Artifact ID: hello-decision
-  Version: 1.0.0
-  Nodes: 2
-  Estimated P95 Latency: 10ms
-  Models Invoked: none
-
-✓ Compiled artifact written to: compiled.json
-```
-
-### Step 3: Execute the Strategy
-
-Create `execute-example.ts`:
-
-```typescript
-import { execute } from '@metis/runtime';
-import * as fs from 'fs';
-
-async function main() {
-  // Load compiled artifact
-  const compiledContent = fs.readFileSync('compiled.json', 'utf-8');
-  const compiled = JSON.parse(compiledContent);
-  
-  // Execute
-  const response = await execute(compiled, {
-    tenantId: 'test',
-    strategyName: 'hello-decision',
-    customerId: 'customer_123',
-    context: {
-      segment: 'premium',
-      active: true,
-    },
-  });
-
-  console.log('Decision:', response.decision.winner);
-  console.log('Trace:', response.trace);
-  console.log('Latency:', response.cost.totalMs, 'ms');
-}
-
-main().catch(console.error);
-```
-
-Run it:
-```bash
-npx ts-node execute-example.ts
-```
-
-## Understanding the Architecture
-
-### Decision Intermediate Representation (DIR)
-
-The DIR is a declarative JSON graph that defines a decision strategy:
-
-- **Nodes**: Decision operations (source, filter, score, arbitrate, etc.)
-- **Edges**: Connections between nodes
-- **Entry/Exit**: Where execution begins and ends
-
-Example node types:
-
-```json
-{
-  "type": "source",      // Fetch data
-  "type": "filter",      // Boolean eligibility rule
-  "type": "score-model", // Invoke a model
-  "type": "arbitrate",   // Ranking formula
-  "type": "constraint",  // Hard rules
-  "type": "switch",      // Branching logic
-}
-```
-
-### Compilation
-
-The compiler performs three critical tasks:
-
-1. **Type Checking**: Validates node connectivity and schemas
-2. **Version Resolution**: Pins package versions for reproducibility
-3. **Cost Analysis**: Predicts latency and enforces tenant budgets
-
-Result: A `CompiledArtifact` that the runtime can execute deterministically.
-
-### Execution
-
-The runtime:
-
-1. Loads the compiled artifact
-2. Executes nodes in topological order
-3. Emits a `DecisionTrace` as a side effect
-4. Returns decision + trace + cost metrics
-
-**Key property**: Same input + same artifact version = identical output, every time.
-
-## How Traces Work
-
-Every decision produces a trace showing:
-
-- **Candidates Considered**: All actions that entered the strategy
-- **Eliminations**: Which candidates were filtered out and why
-- **Scores**: Model scores for each candidate
-- **Arbitration**: How the winner was selected
-- **Chain Hash**: Audit trail link to previous decision
-
-Access the trace:
-
-```typescript
-// Customer-friendly (minimal info)
-console.log(renderForCustomer(response.trace));
-
-// Analyst-friendly (metrics)
-console.log(renderForAnalyst(response.trace));
-
-// Engineer (full JSON)
-console.log(renderForEngineer(response.trace));
-
-// Regulator (audit trail)
-console.log(renderForRegulator(response.trace));
-```
-
-## Testing Your Strategy
-
-### Run the Built-in Tests
-
-```bash
-npm test -- tests/integration/compile-and-execute.test.ts
-```
-
-This tests compilation, execution, and determinism.
-
-### Load Testing
-
-```bash
-npm run bench
-```
-
-Measures latency and throughput. Fails if p95 > 50ms.
-
-## Node Types Reference
-
-| Node | Purpose | Inputs | Output |
-|------|---------|--------|--------|
-| `source` | Fetch data | customerId | data object |
-| `filter` | Eligibility rule | value | pass (bool) + reason |
-| `score-model` | Model scoring | features | score, confidence |
-| `arbitrate` | Rank candidates | candidates array | ranked, winner |
-| `constraint` | Hard rules | candidates | filtered candidates |
-| `switch` | Branching | value | branch ID |
-| `set-property` | Mutate state | object | modified object |
-
-Full documentation in `/docs/api/nodes.md`.
-
-## Debugging
-
-### Check Compilation Errors
-
-```bash
-npm run compile strategy.json --tenant test 2>&1 | grep -A5 "Error"
-```
-
-### Inspect a Trace
-
-```typescript
-console.log(JSON.stringify(response.trace, null, 2));
-```
-
-Look for:
-- `eliminations`: Why candidates were filtered
-- `timingsByNode`: Where time was spent
-- `complianceChecks`: Audit and consent status
-
-### Replay a Decision
-
-```typescript
-const decision = await execute(artifact, { ... });
-// Later, ask: what was this decision?
-const replayed = await replay(decision.decisionId);
-```
-
-Produces byte-identical result.
-
-## Next Steps
-
-1. **Build a Real Strategy**: Replace the toy example with a telco/banking/insurance use case
-2. **Add Models**: Use `score-model` node to invoke models
-3. **Test at Scale**: Run the load harness with realistic volume
-4. **Explore Simulation**: Phase 1 adds what-if analysis
-
-## FAQ
-
-**Q: How do I add a custom node type?**  
-A: Create a package implementing the `BaseNode` interface. See `/packages/nodes-core/src` for examples.
-
-**Q: Can I modify a strategy after it's live?**  
-A: Publish a new version. Blue/green deployment switches instantly. Rollback is one click.
-
-**Q: How do I ensure GDPR/compliance?**  
-A: Use `constraint` nodes + consent tracking in the trace. Regulatory packs are coming in Phase 1.
-
-**Q: What's the performance target?**  
-A: p95 < 50ms at 1000 req/sec per tenant. Load gate fails if you exceed it.
-
-## Getting Help
-
-- **API Docs**: `npm run build && open docs/api/index.html`
-- **Architecture**: See `/docs/adr/` for design decisions
-- **Examples**: `/tests/fixtures/` has sample strategies
-- **Chat**: Open an issue on GitHub
-
-## Success Checklist
-
-- [ ] Installation complete (`npm install && npm run build` works)
-- [ ] First strategy compiles (`npm run compile my-first-strategy.json`)
-- [ ] First strategy executes (`npx ts-node execute-example.ts`)
-- [ ] Trace is readable (render functions work)
-- [ ] Tests pass (`npm test`)
-- [ ] Load test shows p95 < 50ms
-
-Once all ✓, you're ready to build real strategies.
 
 ---
 
-**Prepared by:** METIS Team  
-**For Phase 0:** Foundations  
-**Last Updated:** 2026-09-03
+## The pipeline, end to end
+
+Four steps: **author → compile → execute → replay**.
+
+[`tests/integration/pipeline.test.ts`](../tests/integration/pipeline.test.ts)
+is the executable version of this section. It builds a two-offer catalogue,
+compiles a four-node strategy, executes one decision and replays it. Read it
+first; it is about 200 lines and it is the shortest true description of the
+system.
+
+### Author
+
+A `StrategySource` is a small DAG — nodes, edges, the candidate keys it may
+choose between, and the package ranges it depends on:
+
+```ts
+const source: StrategySource = {
+  id: 'next-best-action',
+  version: '1.0.0',
+  tenantId: 'telco-uk',
+  candidateKeys: ['upsell_5g', 'upsell_data'],
+  packageRanges: { '@metis/nodes-core': '^1.2.0' },
+  nodes: [
+    { id: 'source',    type: 'source',         label: 'Profile',     estimatedMs: 4 },
+    { id: 'gate',      type: 'filter',         label: 'Eligibility', policyIds: ['pol_age'], estimatedMs: 1 },
+    { id: 'score',     type: 'score-adaptive', label: 'Propensity',  model: { id: 'adm', version: '4.2.0' }, estimatedMs: 3 },
+    { id: 'arbitrate', type: 'arbitrate',      label: 'Arbitrate',   estimatedMs: 2 },
+  ],
+  edges: [
+    { from: 'source', to: 'gate' },
+    { from: 'gate',   to: 'score' },
+    { from: 'score',  to: 'arbitrate' },
+  ],
+};
+```
+
+### Compile
+
+```ts
+import { compileStrategy } from '@metis/compiler/strategy';
+
+const compiled = compileStrategy(source, compileContext);
+if (!compiled.ok) console.error(formatReport(compiled.diagnostics));
+```
+
+The compiler is the gate, not a formality. It resolves `^1.2.0` to a concrete
+version and records it, proves the graph's estimated cost fits the tenant's
+latency budget, checks every referenced policy and model exists, and
+content-hashes the result. Nothing reaches the runtime without passing it, and
+nothing enters the registry without compiling — see
+[`packages/registry/src/registry.ts`](../packages/registry/src/registry.ts).
+
+Diagnostics name the fix, not just the fault. `NO_ARBITRATION`,
+`ARBITRATION_MISSING_SCORE` and `NO_DELIVERABLE_TREATMENT` each encode a bug
+that was previously only findable by running the engine and noticing the output
+was empty.
+
+### Execute
+
+```ts
+import { execute } from '@metis/runtime';
+
+const trace = execute(artifact, catalogue, request);
+trace.decision.winner;   // the chosen action, or null
+trace.chainHash;         // what makes the decision quotable
+```
+
+The decision splits in two, and the split is the whole design:
+
+- **`trace.decision`** is *reproducible*. Same artifact, same catalogue, same
+  input produces byte-identical bytes, on any machine, in any language. It is
+  what the chain hash is taken over.
+- **`trace.measured`** is *measured*: elapsed milliseconds, cache hits, which
+  provider answered. Real, useful, and deliberately outside the hash, because
+  a decision that changed identity when a machine was busy would not be
+  quotable.
+
+### Replay
+
+```ts
+import { replay } from '@metis/runtime';
+
+replay(artifact, catalogue, trace, input).identical;   // true
+```
+
+Not a re-run that happens to agree — a byte comparison of the canonical form.
+`identical: false` means something that should have been deterministic was not,
+and that is a bug in the engine rather than a fact about the decision.
+
+---
+
+## Why the hash means something
+
+Two independent implementations of the serialisation rules in
+[ADR-003](adr/ADR-003-canonical-serialisation.md) — TypeScript and Kotlin — are
+held to the same committed corpora in [`docs/conformance/`](conformance/):
+
+| Corpus | What it pins |
+|---|---|
+| `canonical-corpus.json` | 67 cases: how a *value* hashes |
+| `decision-corpus.json` | 22 cases: what a *decision* is |
+| `service-cases.json` | 60 of the console's real decisions, over HTTP |
+
+CI regenerates all three from the TypeScript reference and fails on any diff,
+so a stale corpus cannot silently become the thing being asserted against. A
+chain hash means the same thing whichever engine produced it, and that is the
+only reason a second engine is worth having.
+
+Both engines are held to it deliberately: changing `Double.toString` to
+Kotlin's default broke 25 cases, and making a missing score default to a
+neutral value in only one engine broke 13.
+
+---
+
+## The console
+
+```bash
+npm run dev --prefix apps/console
+```
+
+It reads through [`packages/client`](../packages/client), which is **generated**
+from [`docs/metis-api.openapi.yaml`](metis-api.openapi.yaml). Do not hand-edit
+it; add the operation to the spec and run `npm run generate`. The console then
+fails to compile at every call site that disagrees with the new contract, which
+is the point.
+
+Drift is caught in both directions: the compiler catches spec-ahead-of-console,
+and `apps/console/tests/e2e/contract.spec.ts` catches console-ahead-of-spec by
+asserting every non-`proposed` operation is actually served.
+
+---
+
+## Where to look next
+
+| Question | File |
+|---|---|
+| What is built, and what only looks built? | [`EXPERIENCE_LAYER_STATUS.md`](EXPERIENCE_LAYER_STATUS.md) |
+| What is missing, and why? | [`gaps.md`](gaps.md) |
+| Why does the hash work the way it does? | [`adr/ADR-003-canonical-serialisation.md`](adr/ADR-003-canonical-serialisation.md) |
+| What does the API actually promise? | [`metis-api.openapi.yaml`](metis-api.openapi.yaml) |
+| How fast is it, and under what conditions? | [`bench/harness`](../bench/harness) |

@@ -38,7 +38,8 @@ and does not.
 
 | Gap | Registered | Notes |
 |---|---|---|
-| **Project references do not build** | 2026-09-04 | `tsc --build` fails on pre-existing Phase 0 files: `packages/compiler/src/compile.ts` imports `@metis/types` and `@metis/core` across `rootDir` boundaries, and `packages/nodes-core` no longer exports `CORE_NODE_TYPES`. Until this is fixed the per-package tsconfigs cannot be used for typechecking. |
+| **Project references do not build** | 2026-09-04, re-diagnosed 2026-09-05 | The original cause is gone: `packages/compiler/src/compile.ts` was deleted with the rest of the Phase 0 tree. `tsc --build` still fails, on two causes that were hidden underneath it — the per-package tsconfigs have no `@metis/core/domain` path mapping (only `packages/registry`'s does), and `bench/harness` declares a `rootDir` of `bench/harness/src` that its own `@metis/runtime` imports fall outside. Until this is fixed the per-package tsconfigs cannot be used for typechecking, and `bench/*` is checked by nothing. |
+| **The E2E suite fails on a cold dev server** | 2026-09-05 | Playwright's `webServer` runs `next dev`, which compiles routes on first request. Whichever tests hit a route first can exceed the 10s `expect` timeout and fail; on a warm server the same tests take 1.5–2.6s. Observed on `app-shell.spec.ts`, twice, in a run that took 22.8 minutes; the same twelve tests passed in 23.8 seconds against a warm server. CI's `retries: 1` hides this rather than fixing it, which is worse: it turns a startup problem into an intermittent one. The fix is to build once and serve, or to warm the routes before the suite runs. |
 | **The root typecheck checks zero files** | 2026-09-04 | The root tsconfig has `"include": []` and only references, and `tsc --noEmit -p` does not build references. CI now also runs the console's typecheck, which resolves `@metis/core`, `@metis/runtime` and `@metis/compiler` through path aliases and is what actually covers them. `bench/*` is still outside every working typecheck — the missing `connectors` field on its catalogue was caught by a failing benchmark, not by the compiler. |
 
 ---
@@ -176,7 +177,7 @@ When it does, the contract is already written and the tests already exist.
 
 ---
 
-**Last reviewed:** 2026-09-04
+**Last reviewed:** 2026-09-05
 
 ---
 
@@ -213,3 +214,47 @@ the console runs against the development fixture store.
   rendering without a second lookup.
 - **A proposition with no active treatment cannot be delivered.** The console flags this; the
   compiler should reject promoting a strategy whose candidate set includes one.
+
+---
+
+## Registered 2026-09-05 — capabilities that were stubs, and are now gaps
+
+Fourteen packages were deleted. Each was a single file with no tests, imported
+by nothing except the other thirteen. They are listed here rather than
+forgotten: the capabilities are still wanted, and a gap register that omits
+them would be as misleading as the packages were.
+
+The change is one of honesty, not of scope. Nothing that ran stopped running —
+the full suite was green before and after, with no source change beyond
+deletions.
+
+| Capability | Was | Now |
+|---|---|---|
+| Package system — registry, dependency resolution, signing | `packages/packages-system` | Not built. §5's composability claim rests on this. |
+| Regulatory packs — SOC 2, GDPR, EU AI Act, FCA | `packages/compliance` | Not built. §11 evidence packs depend on it. |
+| Panel host and panel SDK — iframe sandbox, manifest, slots | `packages/panel-host`, `packages/panel-sdk` | Not built. Signed-partner-only was the v1 decision; neither half exists. |
+| Simulation — what-if, counterfactual, bias gate | `packages/simulation` | Not built. `simulateStrategy` and `getCounterfactual` remain proposed operations. |
+| Adaptive models — online learning, binning | `packages/adaptive-models` | Not built. Scoring is a seeded hash with the right determinism property and no predictive content. |
+| Theme token system | `packages/themes` | Superseded. The console's own token layer is built and tested across four theme axes. |
+| UI primitives | `packages/ui-kit` | Superseded by `apps/console/components/ui`. It was also the only declared owner of `class-variance-authority`, `clsx` and `tailwind-merge`, which the console imports directly — deleting it surfaced three undeclared dependencies. |
+| Canvas | `packages/canvas` | Superseded. The console's read-only React Flow canvas is built. |
+| i18n | `packages/i18n` | Not built. `messages.json` never existed. |
+| Trace format and renderers | `packages/trace`, `packages/trace-ui` | Superseded by `packages/runtime`'s `DecisionTrace` and the console's decision detail page. |
+| Shared types | `packages/types` | Superseded by `packages/core/src/domain.ts`. |
+| Package authoring SDK | `packages/sdk` | Not built. It re-exported the DIR validator, which is also gone. |
+| Approval workflow | `planes/execution/src/approval.ts` | Superseded by `packages/registry` and the console's change-request surface. |
+| Authoring plane | `planes/authoring` | Not built. The directory held a `package.json` and nothing else. |
+
+Also deleted, for the same reason:
+
+- The Phase 0 DIR compiler — `compileDir`, `typeCheck`, `resolveVersions`,
+  `analyzeCost`, the `metis-compile` CLI, `compile.js`, `dir.schema.json` and
+  `metis-package.schema.json`. `compileStrategy` is the only compiler.
+- Four committed compiled artifacts — `compiled.json`, `my-strategy.json` and
+  the two `tests/fixtures/simple-filter*.json` files. Build output does not
+  belong in git, and these embedded a node-type vocabulary nothing executes.
+- `verify-metis.js`, which counted directories and reported "Packages: 11/11 ✓"
+  for packages with no tests, then exited 0 while printing "Some components
+  missing".
+- `docs/PHASES_SUMMARY.md`, which marked Phases 0–4 "✅ Complete".
+

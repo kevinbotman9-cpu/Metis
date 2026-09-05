@@ -5,7 +5,6 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "planes/*",
     "infrastructure/*",
     "bench/*",
     "apps/*"
@@ -13,9 +12,8 @@
   "scripts": {
     "build": "tsc --build",
     "test": "npm run test:integration && npm run test:runtime && npm run test:compiler && npm run test:registry && npm run test:bench && npm run test:console",
-    "lint": "eslint packages planes bench --ext .ts",
+    "lint": "eslint packages bench --ext .ts",
     "dev": "docker-compose up",
-    "compile": "node compile.js",
     "generate": "npm run generate -w @metis/client",
     "corpus": "npm run corpus:values && npm run corpus:decisions && npm run corpus:service",
     "corpus:values": "node --import tsx scripts/build-conformance-corpus.mjs",

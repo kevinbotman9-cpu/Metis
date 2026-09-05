@@ -25,7 +25,12 @@ These are non-negotiable. Every PR must enforce them.
 - [ ] axe-core clean (zero WCAG 2.2 AA violations)
 - [ ] Full keyboard path verified; visible focus indicators
 - [ ] Loading, empty, error and permission-denied states implemented
-- [ ] Strings in `/packages/i18n/messages.json`, never inline in JSX
+- [ ] Strings in a message catalogue, never inline in JSX — **not currently
+      possible.** This rule named `/packages/i18n/messages.json`, which never
+      existed; the stub package it lived in was deleted on 2026-09-05. Every
+      string is inline today. Do not add a new one-off i18n mechanism to satisfy
+      this line; the gap is registered in `docs/gaps.md` and needs a decision,
+      not a workaround.
 - [ ] Every displayed number links to its source trace or explains why it cannot
 - [ ] Route bundle size within budget (checked in CI)
 - [ ] Screenshot attached to the PR description, showing the component in Storybook

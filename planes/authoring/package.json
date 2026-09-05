@@ -1,9 +1,0 @@
-{
-  "name": "@metis/authoring-plane",
-  "version": "0.0.1",
-  "description": "METIS authoring plane - agents, Genesis, canvas, simulation (Phase 1+)",
-  "main": "dist/index.js",
-  "scripts": {
-    "build": "tsc"
-  }
-}

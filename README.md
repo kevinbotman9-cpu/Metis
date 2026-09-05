@@ -82,59 +82,67 @@ npx ts-node -e "
 
 ### Key Components
 
+Status here means *covered by a test that fails when it breaks*. Anything else
+is listed as not built, however much design exists for it.
+
 | Component | Purpose | Status |
 |-----------|---------|--------|
-| **Decision IR** | Versioned, declarative graph format | ✓ Phase 0 |
-| **Compiler** | Type checking, version resolution, cost analysis | ✓ Phase 0 |
-| **Runtime** | Deterministic execution engine (WASM + orchestrator) | ✓ Phase 0 |
-| **Trace System** | Canonical audit trail with multi-audience renderers | ✓ Phase 0 |
-| **Artifact Registry** | Immutable versioned storage with blue/green deployment | ✓ Phase 0 |
-| **Event Sourcing** | Append-only audit log of all control plane changes | ⊡ Phase 1 |
-| **Feature Store** | Online (Redis) + offline (ClickHouse) feature cache | ⊡ Phase 1 |
-| **Adaptive Models** | Online-learning models with automatic binning | ⊡ Phase 1 |
-| **Simulation** | What-if analysis, counterfactual testing, bias checking | ⊡ Phase 1 |
-| **Package System** | Extensible node/channel/model-provider packages | ⊡ Phase 2 |
-| **Theming & UI** | Token-driven theming, layout manifests, micro-frontends | ⊡ Phase 2 |
+| **Compiler** | Validates the graph, pins versions, content-hashes the artifact | Built |
+| **Runtime** | Deterministic execution; byte-identical replay | Built |
+| **Canonical serialisation** | ADR-003, conformance-tested in TypeScript and Kotlin | Built |
+| **Artifact registry** | Immutable versions, compilation-gated publish, promote and roll back | Built |
+| **Durable storage** | PostgreSQL, append-only at the schema level | Built — registry only |
+| **OpenAPI contract** | Generated client; drift is a compile error | Built |
+| **Decision ledger** | Durable decision records and outcome capture | Not built |
+| **Idempotency** | Duplicate requests return the original decision | Not built |
+| **Shadow mode** | Run a candidate version beside the active one and diff | Not built |
+| **Export / re-import** | Leave without professional-services intervention | Not built |
+| **Adaptive models** | Online learning, contextual bandits, drift | Not built |
+| **Simulation** | What-if, counterfactual, bias gates | Not built |
+| **Package system** | Extensible node, channel and model-provider packages | Not built |
 
-(✓ = available in Phase 0, ⊡ = planned for Phase 1+)
+The unbuilt rows are tracked with their reasons in [`docs/gaps.md`](docs/gaps.md);
+which console surfaces are real is in
+[`docs/EXPERIENCE_LAYER_STATUS.md`](docs/EXPERIENCE_LAYER_STATUS.md).
 
 ---
 
 ## Repository Structure
 
+Every directory below holds code that something else imports. There is no
+scaffolding tree: fourteen stub packages were deleted on 2026-09-05 precisely
+because nothing imported them, and their presence made the repository look
+more built than it was.
+
 ```
 metis/
-├── packages/                  # Core libraries (monorepo)
-│   ├── types/                 # Shared type definitions
-│   ├── core/                  # DIR schema, package manifest, core node types
-│   ├── compiler/              # Type checker, resolver, cost analyzer
-│   ├── runtime/               # Execution engine (WASM + orchestrator)
-│   ├── trace/                 # DecisionTrace format and renderers
-│   ├── nodes-core/            # 14+ core node type implementations
-│   └── sdk/                   # Package authoring SDK
+├── packages/
+│   ├── core/                  # The domain types every plane shares
+│   ├── compiler/              # Graph validation, version pinning, artifact hashing
+│   ├── runtime/               # Deterministic engine, canonical serialisation, replay
+│   ├── registry/              # Immutable versions, environments, event log
+│   ├── client/                # Generated from the OpenAPI spec — never hand-edited
+│   └── nodes-core/            # Core node type implementations
 │
-├── planes/
-│   ├── execution/             # API server, artifact registry
-│   └── authoring/             # (Phase 1+) agents, canvas, simulation
+├── apps/console/              # Next.js console
 │
-├── infrastructure/
-│   ├── docker/                # Docker Compose, local development
-│   ├── migrations/            # Database schemas
-│   └── k8s/                   # Kubernetes manifests (Phase 1+)
+├── engines/kotlin/            # A second ADR-003 implementation, and a JVM decision service
+│   ├── engine/                # Zero runtime dependencies
+│   └── service/               # HTTP, held to the console's own decisions
 │
 ├── bench/
-│   ├── harness/               # Load testing, latency measurement
-│   └── datasets/              # Synthetic test data generator
+│   ├── harness/               # Latency measurement, and the gate CI enforces
+│   └── datasets/              # Seeded, deterministic synthetic data
 │
-├── tests/
-│   ├── fixtures/              # Example strategies (JSON)
-│   └── integration/           # End-to-end tests
+├── infrastructure/            # Docker Compose, migrations, k8s manifests
+├── tests/integration/         # The seams between packages
 │
 └── docs/
     ├── adr/                   # Architecture Decision Records
-    ├── api/                   # Generated API docs
-    ├── GETTING_STARTED.md     # 2-hour onboarding guide
-    └── METIS_Vision_and_Build_Plan.md
+    ├── conformance/           # The corpora both engines are held to
+    ├── metis-api.openapi.yaml # The contract; the client is generated from it
+    ├── gaps.md                # What is not built, and why
+    └── EXPERIENCE_LAYER_STATUS.md
 ```
 
 ---
