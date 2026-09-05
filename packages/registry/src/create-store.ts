@@ -66,7 +66,7 @@ export async function createRegistryStore(
   }
 
   if (options.migrate !== false) {
-    await pool.query(readMigration());
+    await runMigration(pool);
   }
 
   return {
@@ -83,6 +83,50 @@ export async function createRegistryStore(
 export function readMigration(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
   return fs.readFileSync(path.resolve(here, '../migrations/001_registry.sql'), 'utf8');
+}
+
+/** A pool that can hand out a dedicated connection, which the lock below needs. */
+export interface Connectable {
+  connect(): Promise<{
+    query(text: string, values?: unknown[]): Promise<unknown>;
+    release(): void;
+  }>;
+}
+
+/**
+ * Apply the schema, under a lock, on one connection.
+ *
+ * The DDL is idempotent but not concurrency-safe: `CREATE OR REPLACE FUNCTION`
+ * takes an exclusive lock on the function's `pg_proc` row and the trigger
+ * statements take one on each table, so two processes running it at once can
+ * take those locks in opposite orders and deadlock. That is not a test
+ * artefact — every service instance runs this on startup, and instances start
+ * together.
+ *
+ * An advisory lock is the fix rather than reordering the statements, because
+ * the ordering that deadlocks today is not the only ordering a future
+ * migration could introduce. The key is an arbitrary constant, namespaced to
+ * this schema.
+ *
+ * Session-scoped rather than transaction-scoped, because the migration carries
+ * its own BEGIN/COMMIT — so it must be taken on a checked-out client, not
+ * through the pool, or the unlock could land on a different connection than the
+ * lock.
+ */
+const MIGRATION_LOCK_KEY = 0x6d657469; // 'meti'
+
+export async function runMigration(pool: Connectable): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_KEY]);
+    try {
+      await client.query(readMigration());
+    } finally {
+      await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_KEY]);
+    }
+  } finally {
+    client.release();
+  }
 }
 
 function redact(url: string): string {

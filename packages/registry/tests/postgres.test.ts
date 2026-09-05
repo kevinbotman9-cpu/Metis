@@ -1,8 +1,7 @@
 import { it, expect } from 'vitest';
 import { Pool } from 'pg';
-import fs from 'node:fs';
-import path from 'node:path';
 import { PostgresRegistryStore } from '../src/postgres-store';
+import { runMigration } from '../src/create-store';
 import { describeRegistry, context, source } from './suite';
 
 /**
@@ -35,11 +34,13 @@ try {
 if (!reachable) {
   it.skip(`postgres at ${URL.replace(/:[^:@]*@/, ':***@')} is not reachable`, () => {});
 } else {
-  const migration = fs.readFileSync(
-    path.resolve(__dirname, '../migrations/001_registry.sql'),
-    'utf8'
-  );
-  await pool.query(migration);
+  // Through runMigration rather than raw SQL, so this file and create-store.ts
+  // — which vitest runs in parallel worker processes — take the same advisory
+  // lock. Applying the DDL directly here deadlocked against the other file's
+  // startup migration: `40P01`, waiting on `pg_proc`. Intermittent, and I could
+  // not make it reproduce on demand, so treat the lock as the fix for the race
+  // rather than for a reliably failing test.
+  await runMigration(pool);
 
   describeRegistry('registry over postgres', {
     async create() {
