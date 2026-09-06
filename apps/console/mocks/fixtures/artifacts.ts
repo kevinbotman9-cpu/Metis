@@ -57,6 +57,19 @@ export interface ArtifactSummary {
   description: string;
   activeVersion: string;
   versions: string[];
+  /**
+   * What the candidate set was in versions before the active one.
+   *
+   * `versions` listed a history the registry had never heard of: the seed
+   * published `activeVersion` and nothing else, so the console showed "4
+   * versions, all replayable" against a registry holding one. Shadow mode is
+   * what made that bite — there was no predecessor to shadow against.
+   *
+   * A version absent from this map is seeded with the active candidate set: it
+   * differed in ways this fixture does not model, and inventing a difference
+   * would be worse than declaring none.
+   */
+  priorCandidateKeys?: Record<string, string[]>;
   nodeCount: number;
   estimatedP95LatencyMs: number;
   status: 'active' | 'draft' | 'retired';
@@ -85,6 +98,9 @@ export const artifacts: ArtifactSummary[] = [
     estimatedP95LatencyMs: 11.9,
     status: 'active',
     candidateKeys: ['upsell_5g', 'upsell_data', 'retention_offer', 'addon_roaming'],
+    // Roaming joined the flow in 2.4.0, so 2.3.1 could not select it. This is
+    // the difference shadow mode compares against.
+    priorCandidateKeys: { '2.3.1': ['upsell_5g', 'upsell_data', 'retention_offer'] },
     nodes: [
       {
         id: 'source_customer',

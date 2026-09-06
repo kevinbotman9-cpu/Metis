@@ -110,6 +110,9 @@ changed on that date.
 - **replay** — re-execute a historical decision against its recorded snapshot
 - **change set** — the approval interface, like a PR. Never "change request" or "revision"
 - **release** — a change set promoted to an environment
+- **shadow** — a version running beside the active one in an environment, deciding
+  nothing. `shadowVersion` in code. Reserved for flow versions; a *model* running beside
+  another is shadow scoring, which is a different thing and not built
 - **profile store** — where customer state lives
 - **package** — a distributable unit (node types, themes, packs)
 - **pack** — a regulatory or industry-specific package

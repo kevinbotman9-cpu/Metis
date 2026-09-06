@@ -516,6 +516,9 @@ export interface EnvironmentState {
   activeVersion: string | null;
   /** Null when there is nothing to roll back to. */
   previousVersion: string | null;
+  /** A version running beside the active one and deciding nothing. Its output never reaches a customer — the active version's answer is always the one returned. What the shadow produces is compared and recorded, which is how a migration is evidenced rather than asserted. Null when nothing is shadowing, which is the normal state.
+ */
+  shadowVersion: string | null;
   promotedAt: string | null;
   promotedBy: string | null;
 }
@@ -535,6 +538,25 @@ export interface PublishOutcome {
   existingHash?: string;
   /** Present when refused as immutable. */
   attemptedHash?: string;
+}
+
+export interface ShadowReport {
+  flowName: string;
+  activeVersion: string | null;
+  shadowVersion: string | null;
+  compared: number;
+  agreed: number;
+  /** 0 when nothing has been compared, never 1. */
+  agreementRate: number;
+  topDivergences: ({
+    kind: "winner" | "ranking" | "reasons";
+    summary: string;
+    count: number;
+  })[];
+  shadowMsP50: number;
+  /** The tail is the number that matters: a shadow whose p95 is 100ms is not free, whatever its median says.
+ */
+  shadowMsP95: number;
 }
 
 /** One entry in the registry's append-only log. */
@@ -722,6 +744,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '401'],
   },
+  getShadowReport: {
+    method: 'GET',
+    path: '/registry/{tenantId}/{flowName}/shadow-report',
+    pathParams: ['tenantId', 'flowName'],
+    queryParams: [],
+    statuses: ['200', '404'],
+  },
   getTaxonomy: {
     method: 'GET',
     path: '/taxonomy/{tenantId}',
@@ -876,6 +905,13 @@ export const OPERATIONS = {
     queryParams: ['action', 'channel', 'customerId', 'dateFrom', 'dateTo', 'outcome', 'limit'],
     statuses: ['200'],
   },
+  setShadow: {
+    method: 'POST',
+    path: '/registry/{tenantId}/{flowName}/shadow',
+    pathParams: ['tenantId', 'flowName'],
+    queryParams: [],
+    statuses: ['200', '403', '404', '409'],
+  },
   simulateDecisionFlow: {
     method: 'POST',
     path: '/simulations',
@@ -1002,6 +1038,9 @@ export type GetRegistryEntryResponse = {
 export type GetSessionResponse = {
   user: AuthUser;
 };
+
+/** How the shadow compares to what is running */
+export type GetShadowReportResponse = ShadowReport;
 
 /** The whole offer taxonomy in one call */
 export type GetTaxonomyResponse = Taxonomy;
@@ -1130,6 +1169,14 @@ export type SearchDecisionsResponse = {
   total: number;
 };
 
+/** Start or stop a shadow */
+export type SetShadowResponse = EnvironmentState;
+export type SetShadowRequest = {
+  /** Null stops the shadow. */
+  version?: string | null;
+  environment: string;
+};
+
 /** Run a population through a compiled flow */
 export type SimulateDecisionFlowResponse = ChangeSetSimulation;
 export type SimulateDecisionFlowRequest = {
@@ -1175,6 +1222,7 @@ export interface ResponseOf {
   getOffer: GetOfferResponse;
   getRegistryEntry: GetRegistryEntryResponse;
   getSession: GetSessionResponse;
+  getShadowReport: GetShadowReportResponse;
   getTaxonomy: GetTaxonomyResponse;
   listAgentActivity: ListAgentActivityResponse;
   listArtifacts: ListArtifactsResponse;
@@ -1197,6 +1245,7 @@ export interface ResponseOf {
   replayDecision: ReplayDecisionResponse;
   rollbackVersion: RollbackVersionResponse;
   searchDecisions: SearchDecisionsResponse;
+  setShadow: SetShadowResponse;
   simulateDecisionFlow: SimulateDecisionFlowResponse;
   updateArbitrationConfig: UpdateArbitrationConfigResponse;
   updateAutonomySetting: UpdateAutonomySettingResponse;

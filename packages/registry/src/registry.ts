@@ -183,6 +183,11 @@ export class ArtifactRegistry {
     const next: EnvironmentState = {
       environment,
       activeVersion: version,
+      // Promotion does not disturb a shadow. The two answer different
+      // questions — what is running, and what is being evidenced — and
+      // clearing the shadow on every promote would end a comparison halfway
+      // through without anyone asking for it.
+      shadowVersion: current?.shadowVersion ?? null,
       // What rollback returns to. Only the immediately previous version: a
       // deeper history invites rolling back to something nobody remembers.
       previousVersion: current?.activeVersion ?? null,
@@ -203,6 +208,95 @@ export class ArtifactRegistry {
         current?.activeVersion
           ? `Promoted ${flowName} ${version} to ${environment}, replacing ${current.activeVersion}.`
           : `Promoted ${flowName} ${version} to ${environment}.`,
+    });
+
+    return next;
+  }
+
+  /**
+   * Run a version beside the active one, deciding nothing.
+   *
+   * Refuses to shadow the version already active: comparing a thing with
+   * itself produces a 100% agreement rate that means nothing, and publishing
+   * that number would be worse than having none.
+   */
+  async startShadow(
+    tenantId: string,
+    flowName: string,
+    version: string,
+    environment: Environment,
+    actor: string,
+    occurredAt: string
+  ): Promise<EnvironmentState> {
+    const target = await this.store.getVersion(tenantId, flowName, version);
+    if (!target) {
+      throw new RegistryError(
+        'UNKNOWN_VERSION',
+        `${flowName} ${version} has not been published. Publish it before shadowing it.`
+      );
+    }
+
+    const current = await this.store.getEnvironment(tenantId, flowName, environment);
+    if (!current?.activeVersion) {
+      throw new RegistryError(
+        'UNKNOWN_VERSION',
+        `${flowName} has nothing active in ${environment}, so there is nothing to shadow against.`
+      );
+    }
+    if (current.activeVersion === version) {
+      throw new RegistryError(
+        'ALREADY_ACTIVE',
+        `${flowName} ${version} is already active in ${environment}. ` +
+          'Shadowing a version against itself measures nothing.'
+      );
+    }
+
+    const next: EnvironmentState = { ...current, shadowVersion: version };
+    await this.store.putEnvironment(tenantId, flowName, next);
+
+    await this.store.appendEvent({
+      at: occurredAt,
+      actor,
+      type: 'ShadowStarted',
+      tenantId,
+      flowName,
+      version,
+      environment,
+      summary: `${flowName} ${version} is now shadowing ${current.activeVersion} in ${environment}.`,
+    });
+
+    return next;
+  }
+
+  /** Stop shadowing. The active version is untouched. */
+  async stopShadow(
+    tenantId: string,
+    flowName: string,
+    environment: Environment,
+    actor: string,
+    occurredAt: string
+  ): Promise<EnvironmentState> {
+    const current = await this.store.getEnvironment(tenantId, flowName, environment);
+    if (!current?.shadowVersion) {
+      throw new RegistryError(
+        'NOTHING_TO_ROLL_BACK',
+        `${flowName} has no shadow running in ${environment}.`
+      );
+    }
+
+    const stopped = current.shadowVersion;
+    const next: EnvironmentState = { ...current, shadowVersion: null };
+    await this.store.putEnvironment(tenantId, flowName, next);
+
+    await this.store.appendEvent({
+      at: occurredAt,
+      actor,
+      type: 'ShadowStopped',
+      tenantId,
+      flowName,
+      version: stopped,
+      environment,
+      summary: `${flowName} ${stopped} stopped shadowing in ${environment}.`,
     });
 
     return next;
@@ -240,6 +334,9 @@ export class ArtifactRegistry {
     const next: EnvironmentState = {
       environment,
       activeVersion: current.previousVersion,
+      // A rollback leaves the shadow alone too: whatever was being evidenced
+      // is still worth evidencing against whatever is now running.
+      shadowVersion: current.shadowVersion ?? null,
       previousVersion: current.activeVersion,
       promotedAt: occurredAt,
       promotedBy: actor,
@@ -279,6 +376,15 @@ export class ArtifactRegistry {
     return [...all].sort(
       (a, b) => b.publishedAt.localeCompare(a.publishedAt) || b.version.localeCompare(a.version)
     );
+  }
+
+  /** One environment, for callers that know which one they mean. */
+  environment(
+    tenantId: string,
+    flowName: string,
+    environment: Environment
+  ): Promise<EnvironmentState | undefined> {
+    return this.store.getEnvironment(tenantId, flowName, environment);
   }
 
   async environments(tenantId: string, flowName: string): Promise<EnvironmentState[]> {

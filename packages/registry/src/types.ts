@@ -80,6 +80,18 @@ export interface EnvironmentState {
   activeVersion: string | null;
   /** What rollback returns to. Null when there is nothing to go back to. */
   previousVersion: string | null;
+  /**
+   * A version running beside the active one, deciding nothing.
+   *
+   * Shadow output never reaches a customer: the active version's answer is the
+   * one returned, always. What the shadow produces is compared against it and
+   * recorded, which is how a migration is evidenced rather than asserted —
+   * §12's factory needs "shadow production decisions, candidate/rank/reason
+   * comparison" before anyone is asked to trust a cutover.
+   *
+   * Null when nothing is shadowing, which is the normal state.
+   */
+  shadowVersion: string | null;
   promotedAt: string | null;
   promotedBy: string | null;
 }
@@ -88,7 +100,9 @@ export type RegistryEventType =
   | 'ArtifactPublished'
   | 'PublishRejected'
   | 'VersionPromoted'
-  | 'VersionRolledBack';
+  | 'VersionRolledBack'
+  | 'ShadowStarted'
+  | 'ShadowStopped';
 
 /**
  * One entry in the append-only log.

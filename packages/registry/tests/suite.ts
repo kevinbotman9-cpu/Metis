@@ -290,6 +290,106 @@ export function describeRegistry(label: string, harness: StoreHarness): void {
       );
     });
 
+    // --- Shadow ------------------------------------------------------------
+
+    it('runs a version beside the active one without changing what is active', async () => {
+      await publish();
+      await registry.promote(T, NAME, '1.0.0', 'production', 'm', AT);
+      await publish({ version: '2.0.0' });
+
+      const state = await registry.startShadow(T, NAME, '2.0.0', 'production', 'm', AT);
+      // The active version is what decides. A shadow that changed it would be
+      // a promotion with a quieter name.
+      expect(state.activeVersion).toBe('1.0.0');
+      expect(state.shadowVersion).toBe('2.0.0');
+    });
+
+    it('refuses to shadow a version against itself', async () => {
+      // A 100% agreement rate that means nothing is worse than no number.
+      await publish();
+      await registry.promote(T, NAME, '1.0.0', 'production', 'm', AT);
+      await expect(
+        registry.startShadow(T, NAME, '1.0.0', 'production', 'm', AT)
+      ).rejects.toThrow(RegistryError);
+    });
+
+    it('refuses to shadow an unpublished version', async () => {
+      await publish();
+      await registry.promote(T, NAME, '1.0.0', 'production', 'm', AT);
+      await expect(
+        registry.startShadow(T, NAME, '9.9.9', 'production', 'm', AT)
+      ).rejects.toThrow(RegistryError);
+    });
+
+    it('refuses to shadow where nothing is running', async () => {
+      // There is no baseline to compare against.
+      await publish();
+      await expect(
+        registry.startShadow(T, NAME, '1.0.0', 'staging', 'm', AT)
+      ).rejects.toThrow(RegistryError);
+    });
+
+    it('survives a promotion, because the two answer different questions', async () => {
+      // What is running, and what is being evidenced. Clearing the shadow on
+      // every promote would end a comparison halfway through unasked.
+      await publish();
+      await registry.promote(T, NAME, '1.0.0', 'production', 'm', AT);
+      await publish({ version: '2.0.0' });
+      await registry.startShadow(T, NAME, '2.0.0', 'production', 'm', AT);
+
+      await publish({ version: '3.0.0' });
+      const after = await registry.promote(T, NAME, '3.0.0', 'production', 'm', AT);
+      expect(after.activeVersion).toBe('3.0.0');
+      expect(after.shadowVersion).toBe('2.0.0');
+    });
+
+    it('survives a rollback for the same reason', async () => {
+      await publish();
+      await registry.promote(T, NAME, '1.0.0', 'production', 'm', AT);
+      await publish({ version: '2.0.0' });
+      await registry.promote(T, NAME, '2.0.0', 'production', 'm', AT);
+      await publish({ version: '3.0.0' });
+      await registry.startShadow(T, NAME, '3.0.0', 'production', 'm', AT);
+
+      const back = await registry.rollback(T, NAME, 'production', 'm', AT);
+      expect(back.activeVersion).toBe('1.0.0');
+      expect(back.shadowVersion).toBe('3.0.0');
+    });
+
+    it('stops, leaving the active version alone', async () => {
+      await publish();
+      await registry.promote(T, NAME, '1.0.0', 'production', 'm', AT);
+      await publish({ version: '2.0.0' });
+      await registry.startShadow(T, NAME, '2.0.0', 'production', 'm', AT);
+
+      const stopped = await registry.stopShadow(T, NAME, 'production', 'm', AT);
+      expect(stopped.shadowVersion).toBeNull();
+      expect(stopped.activeVersion).toBe('1.0.0');
+    });
+
+    it('refuses to stop what was never started', async () => {
+      await publish();
+      await registry.promote(T, NAME, '1.0.0', 'production', 'm', AT);
+      await expect(registry.stopShadow(T, NAME, 'production', 'm', AT)).rejects.toThrow(
+        RegistryError
+      );
+    });
+
+    it('records starting and stopping in the log', async () => {
+      // A shadow is a governance act: somebody chose to evidence a migration,
+      // and an audit that only showed promotions could not say when.
+      await publish();
+      await registry.promote(T, NAME, '1.0.0', 'production', 'm', AT);
+      await publish({ version: '2.0.0' });
+      await registry.startShadow(T, NAME, '2.0.0', 'production', 'm', AT);
+      await registry.stopShadow(T, NAME, 'production', 'm', AT);
+
+      const events = await registry.events({ tenantId: T, flowName: NAME });
+      const types = events.map((e) => e.type);
+      expect(types).toContain('ShadowStarted');
+      expect(types).toContain('ShadowStopped');
+    });
+
     // --- The event log ------------------------------------------------------
 
     it('orders by sequence, not by timestamp', async () => {

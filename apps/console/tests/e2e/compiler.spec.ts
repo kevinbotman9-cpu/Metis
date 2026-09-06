@@ -69,11 +69,12 @@ test.describe('compiler output in the console', () => {
   }) => {
     await page.goto('/decision-flows/inbound-web-offers');
 
-    await expect(page.getByText('ARBITRATION_MISSING_SCORE', { exact: true })).toBeVisible();
-    // Twice on this page now: once in the compile report, once in the warnings
-    // the registry kept with the published version. Both should say it — a
-    // version that shipped with a warning is a different thing to explain later
-    // than one that shipped clean.
-    await expect(page.getByText(/no scoring node runs before it/)).toHaveCount(2);
+    await expect(page.getByText('ARBITRATION_MISSING_SCORE', { exact: true }).first()).toBeVisible();
+    // Four times on this page: once in the compile report, and once for each of
+    // the three published versions, which each kept the warning they shipped
+    // with. All of them should say it — a version that shipped with a warning
+    // is a different thing to explain later than one that shipped clean, and
+    // that is a fact about the version, not about the flow.
+    await expect(page.getByText(/no scoring node runs before it/)).toHaveCount(4);
   });
 });

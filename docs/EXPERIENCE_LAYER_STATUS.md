@@ -56,7 +56,7 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | `/frequency-policy` | BUILT | Frequency caps, cooldowns, scope. |
 | `/arbitration` | BUILT | P × V × B × C weight editor; publishing persists and is audited. |
 | `/decision-flows` | BUILT | Artifact list with compile status per flow. |
-| `/decision-flows/[id]` | BUILT | Compiler verdict with remedies, flow canvas (read-only), node inspector. |
+| `/decision-flows/[id]` | BUILT | Compiler verdict with remedies, flow canvas (read-only), node inspector, registry panel (publish vs promote, rollback) and a shadow panel: start or stop a second version running beside the active one, with the agreement rate, the divergences by kind and what the shadow cost. |
 | `/decisions` | BUILT | 5,000 engine-executed decisions in a virtualised grid, unified search with filter chips. |
 | `/decisions/[id]` | BUILT | Real cascade from the engine, score composition, chain hash, replay that re-executes and compares hashes. |
 | `/approvals` | BUILT | Change set queue, agent vs person provenance. |

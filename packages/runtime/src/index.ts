@@ -52,3 +52,11 @@ export type {
   IdempotencyOutcome,
   IdempotencyStore,
 } from './idempotency';
+
+export { compareShadow, buildShadowReport } from './shadow';
+export type {
+  ShadowComparison,
+  ShadowReport,
+  Divergence,
+  DivergenceKind,
+} from './shadow';

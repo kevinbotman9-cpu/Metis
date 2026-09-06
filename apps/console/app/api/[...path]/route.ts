@@ -16,7 +16,8 @@
 import { NextResponse } from 'next/server';
 import { store, resetStore, recordAudit } from '@/mocks/store';
 import { findTrace, decisions } from '@/mocks/fixtures/decisions';
-import { IdempotencyConflict } from '@metis/runtime';
+import { IdempotencyConflict, compareShadow, buildShadowReport } from '@metis/runtime';
+import type { DecisionRecord } from '@metis/runtime';
 import type { OutcomeType } from '@metis/ledger';
 import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
 import { compilations, findCompilation, compileContext } from '@/mocks/fixtures/compiled';
@@ -26,6 +27,7 @@ import {
   execute as executeDecision,
 } from '@metis/runtime/deterministic/engine';
 import { execArtifacts } from '@/mocks/fixtures/engine';
+import type { ExecArtifact } from '@metis/runtime/deterministic/types';
 import type { DecisionRequest } from '@metis/runtime/deterministic/types';
 
 /** The request half of an executeDecision body, as the spec declares it. */
@@ -33,6 +35,59 @@ type DecisionRequestBody = Partial<DecisionRequest> &
   Pick<DecisionRequest, 'tenantId' | 'customerId' | 'channel' | 'placement'>;
 
 type Ctx = { params: Promise<{ path: string[] }> };
+
+/**
+ * Run the shadow version of a flow and record how it compared.
+ *
+ * Never on the request path. Errors are swallowed into the comparison store
+ * rather than thrown: a shadow that fails must not affect the decision that was
+ * already returned, and must not become an unhandled rejection either.
+ */
+async function runShadow(active: DecisionRecord, request: DecisionRequest): Promise<void> {
+  const done = (async () => {
+    try {
+      const env = await store.registry.environment(
+        request.tenantId,
+        active.decision.artifactId,
+        'production'
+      );
+      if (!env?.shadowVersion) return;
+
+      // The registry's own compiled artifact for that version, not a lookup by
+      // flow id: a shadow is a *version* of the same flow, and matching the
+      // version string against artifact ids — which is what this did first —
+      // silently found nothing and reported a shadow that never ran.
+      const published = await store.registry.version(
+        request.tenantId,
+        active.decision.artifactId,
+        env.shadowVersion
+      );
+      // A shadow version with no stored artifact is a configuration problem,
+      // not a decision problem. Recording nothing is right: an agreement rate
+      // computed from runs that never happened would be worse than a gap.
+      if (!published) return;
+      const shadowArtifact: ExecArtifact = published.artifact;
+
+      const started = performance.now();
+      const shadow = executeDecision(shadowArtifact, catalogueSnapshot, request);
+      const shadowMs = performance.now() - started;
+
+      store.shadowComparisons.push(
+        compareShadow(
+          active,
+          shadow,
+          { activeVersion: env.activeVersion ?? 'unknown', shadowVersion: env.shadowVersion },
+          shadowMs
+        )
+      );
+    } catch {
+      // Deliberately silent. The decision already went out.
+    }
+  })();
+
+  store.shadowInFlight.add(done);
+  await done.finally(() => store.shadowInFlight.delete(done));
+}
 
 const json = (body: unknown, status = 200, headers?: Record<string, string>) =>
   NextResponse.json(body, { status, headers });
@@ -258,6 +313,31 @@ export async function GET(req: Request, { params }: Ctx) {
             limit: Number(q.get('limit') || 100),
           }),
         });
+      }
+
+      // GET /registry/{tenant}/{flow}/shadow-report
+      if (rest[1] && rest[2] === 'shadow-report') {
+        // A flow the registry has never heard of gets a 404, not a zeroed
+        // report. A report of "0 compared, nothing shadowing" about a flow that
+        // failed to compile reads as a shadow that is merely idle, and the
+        // console would offer to start one against nothing.
+        if ((await store.registry.versions(tenantId, rest[1])).length === 0) {
+          return notFound(`No flow ${rest[1]} in the registry`);
+        }
+        const env = await store.registry.environment(tenantId, rest[1], 'production');
+        // Filtered to the pair currently configured. Comparisons from an
+        // earlier shadow describe a different question, and folding them into
+        // one agreement rate would average across two migrations.
+        const mine = store.shadowComparisons.filter(
+          (c) => c.shadowVersion === env?.shadowVersion && c.activeVersion === env?.activeVersion
+        );
+        return json(
+          buildShadowReport(
+            rest[1],
+            { activeVersion: env?.activeVersion ?? null, shadowVersion: env?.shadowVersion ?? null },
+            mine
+          )
+        );
       }
 
       // GET /registry/{tenant}/{flow}
@@ -497,6 +577,21 @@ export async function POST(req: Request, { params }: Ctx) {
           }
         }
 
+        // The shadow runs after the response is built, and is deliberately not
+        // awaited.
+        //
+        // §13 requires the shadow to stay out of the active latency budget, and
+        // the only honest way to do that is not to make the caller wait for it.
+        // Measuring it and subtracting would leave the wall clock unchanged and
+        // the number a fiction. Node keeps running the promise after the
+        // response is returned; what it costs is recorded on the comparison so
+        // it can be read rather than assumed.
+        //
+        // Tracked in `store.shadowInFlight` so tests can wait for quiescence
+        // instead of sleeping — an async mechanism tested with a sleep is a
+        // flake with a timer attached.
+        void runShadow(trace, decisionRequest);
+
         return json({ id: trace.id, decision: trace.decision, chainHash: trace.chainHash });
       }
 
@@ -585,6 +680,55 @@ export async function POST(req: Request, { params }: Ctx) {
       const tenantId = rest[0];
       const flowName = rest[1];
       if (!tenantId || !flowName) return notFound();
+
+      // POST /registry/{tenant}/{flow}/shadow — start or stop a shadow.
+      //
+      // Gated on promote:flows, not a permission of its own. Deciding what runs
+      // in production, even beside the active version, is the same authority —
+      // and a shadow is the step before a cutover, so whoever can do one should
+      // be the one setting up the evidence for it.
+      if (rest[2] === 'shadow') {
+        if (!user.permissions.includes('promote:flows')) {
+          return forbidden('promote:flows');
+        }
+        const body = (await req.json().catch(() => ({}))) as {
+          version?: string | null;
+          environment?: string;
+        };
+        if (!body.environment) {
+          return json({ error: 'bad_request', message: 'Missing required field: environment' }, 400);
+        }
+
+        try {
+          // A null version stops the shadow. Explicit rather than a separate
+          // verb, because "what is shadowing" is one piece of state.
+          const state = body.version
+            ? await store.registry.startShadow(
+                tenantId, flowName, body.version, body.environment,
+                user.email, new Date().toISOString()
+              )
+            : await store.registry.stopShadow(
+                tenantId, flowName, body.environment, user.email, new Date().toISOString()
+              );
+
+          recordAudit({
+            actor: user.email,
+            actorType: 'human',
+            eventType: body.version ? 'ShadowStarted' : 'ShadowStopped',
+            scope: `flow:${flowName}`,
+            summary: body.version
+              ? `${flowName} ${body.version} now shadowing in ${body.environment}`
+              : `${flowName} stopped shadowing in ${body.environment}`,
+            changeSetId: null,
+          });
+
+          return json(state);
+        } catch (e) {
+          const err = e as { code?: string; message?: string };
+          const status = err.code === 'UNKNOWN_VERSION' ? 404 : 409;
+          return json({ error: err.code ?? 'registry_error', message: err.message }, status);
+        }
+      }
 
       // POST /registry/{tenant}/{flow}/promote
       if (rest[2] === 'promote' || rest[2] === 'rollback') {
@@ -685,6 +829,16 @@ export async function POST(req: Request, { params }: Ctx) {
     }
 
     case '_test': {
+      // POST /api/_test/drain — wait for shadow work to finish.
+      //
+      // The shadow is deliberately not awaited on the request path, so a test
+      // that asserts on a comparison has to wait for one. This is the honest
+      // way to do that: sleeping would be a flake with a timer attached.
+      if (rest[0] === 'drain') {
+        await Promise.all([...store.shadowInFlight]);
+        return json({ drained: true });
+      }
+
       if (rest[0] !== 'reset') return notFound();
       if (process.env.NODE_ENV === 'production') return notFound();
       resetStore();

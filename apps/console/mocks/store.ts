@@ -11,6 +11,7 @@
  */
 
 import { DecisionLedger, InMemoryLedgerStore } from '@metis/ledger';
+import type { ShadowComparison } from '@metis/runtime';
 import {
   objectives as seedObjectives,
   categories as seedCategories,
@@ -53,6 +54,15 @@ type Store = {
   ledger: DecisionLedger;
   /** The concrete store, so the test reset can clear it. */
   ledgerStore: InMemoryLedgerStore;
+  /** Shadow comparisons recorded this process, oldest first. */
+  shadowComparisons: ShadowComparison[];
+  /**
+   * Shadow runs not yet finished.
+   *
+   * Exposed so a test can wait for quiescence rather than sleep. An async
+   * mechanism tested with a sleep is a flake with a timer attached.
+   */
+  shadowInFlight: Set<Promise<void>>;
   boosts: typeof seedBoosts;
   autonomy: typeof seedAutonomy;
   activity: typeof seedActivity;
@@ -98,6 +108,8 @@ function seed(): Store {
     arbitration: clone(seedArbitration),
     ledger: new DecisionLedger(ledgerStore),
     ledgerStore,
+    shadowComparisons: [],
+    shadowInFlight: new Set(),
     boosts: clone(seedBoosts),
     autonomy: clone(seedAutonomy),
     activity: clone(seedActivity),
@@ -128,19 +140,28 @@ function seed(): Store {
 async function seedRegistry(registry: ArtifactRegistry): Promise<void> {
   const at = '2026-08-01T09:00:00.000Z';
   for (const artifact of seedArtifacts) {
-    const outcome = await registry.publish(
-      {
-        tenantId: 'telco-uk',
-        flowName: artifact.id,
-        version: artifact.activeVersion,
-        source: toSource(artifact),
-        actor: artifact.updatedBy,
-        occurredAt: at,
-      },
-      compileContext
-    );
+    // Oldest first, so the registry's publishedAt ordering matches the order
+    // the versions were actually released in.
+    for (const version of [...artifact.versions].reverse()) {
+      const source = toSource(artifact);
+      await registry.publish(
+        {
+          tenantId: 'telco-uk',
+          flowName: artifact.id,
+          version,
+          source: {
+            ...source,
+            version,
+            candidateKeys: artifact.priorCandidateKeys?.[version] ?? source.candidateKeys,
+          },
+          actor: artifact.updatedBy,
+          occurredAt: at,
+        },
+        compileContext
+      );
+    }
 
-    if (outcome.status === 'published' && artifact.status === 'active') {
+    if (artifact.status === 'active') {
       await registry.promote('telco-uk', artifact.id, artifact.activeVersion, 'production', artifact.updatedBy, at);
     }
   }

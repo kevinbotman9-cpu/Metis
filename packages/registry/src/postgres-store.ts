@@ -44,6 +44,7 @@ interface EnvironmentRow {
   environment: string;
   active_version: string | null;
   previous_version: string | null;
+  shadow_version: string | null;
   promoted_at: Date | string | null;
   promoted_by: string | null;
 }
@@ -144,7 +145,7 @@ export class PostgresRegistryStore implements RegistryStore {
     env: Environment
   ): Promise<EnvironmentState | undefined> {
     const { rows } = await this.db.query<EnvironmentRow>(
-      `SELECT environment, active_version, previous_version, promoted_at, promoted_by
+      `SELECT environment, active_version, previous_version, shadow_version, promoted_at, promoted_by
          FROM registry_environments
         WHERE tenant_id = $1 AND flow_name = $2 AND environment = $3`,
       [tenantId, name, env]
@@ -157,11 +158,13 @@ export class PostgresRegistryStore implements RegistryStore {
     // environment is: a name for whatever is currently running.
     await this.db.query(
       `INSERT INTO registry_environments
-         (tenant_id, flow_name, environment, active_version, previous_version, promoted_at, promoted_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+         (tenant_id, flow_name, environment, active_version, previous_version, shadow_version,
+          promoted_at, promoted_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (tenant_id, flow_name, environment) DO UPDATE
           SET active_version   = EXCLUDED.active_version,
               previous_version = EXCLUDED.previous_version,
+              shadow_version   = EXCLUDED.shadow_version,
               promoted_at      = EXCLUDED.promoted_at,
               promoted_by      = EXCLUDED.promoted_by`,
       [
@@ -170,6 +173,7 @@ export class PostgresRegistryStore implements RegistryStore {
         state.environment,
         state.activeVersion,
         state.previousVersion,
+        state.shadowVersion,
         state.promotedAt,
         state.promotedBy,
       ]
@@ -178,7 +182,7 @@ export class PostgresRegistryStore implements RegistryStore {
 
   async listEnvironments(tenantId: string, name: string): Promise<EnvironmentState[]> {
     const { rows } = await this.db.query<EnvironmentRow>(
-      `SELECT environment, active_version, previous_version, promoted_at, promoted_by
+      `SELECT environment, active_version, previous_version, shadow_version, promoted_at, promoted_by
          FROM registry_environments
         WHERE tenant_id = $1 AND flow_name = $2
         ORDER BY environment`,
@@ -191,6 +195,7 @@ export class PostgresRegistryStore implements RegistryStore {
     return {
       environment: r.environment,
       activeVersion: r.active_version,
+      shadowVersion: r.shadow_version,
       previousVersion: r.previous_version,
       promotedAt: r.promoted_at ? iso(r.promoted_at) : null,
       promotedBy: r.promoted_by,

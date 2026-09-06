@@ -1112,7 +1112,7 @@ components:
     EnvironmentState:
       type: object
       description: What an environment is running, and what rollback returns to.
-      required: [environment, activeVersion, previousVersion, promotedAt, promotedBy]
+      required: [environment, activeVersion, previousVersion, shadowVersion, promotedAt, promotedBy]
       properties:
         environment:
           type: string
@@ -1121,6 +1121,14 @@ components:
         previousVersion:
           type: [string, 'null']
           description: Null when there is nothing to roll back to.
+        shadowVersion:
+          type: [string, 'null']
+          description: >
+            A version running beside the active one and deciding nothing. Its
+            output never reaches a customer — the active version's answer is
+            always the one returned. What the shadow produces is compared and
+            recorded, which is how a migration is evidenced rather than
+            asserted. Null when nothing is shadowing, which is the normal state.
         promotedAt:
           type: [string, 'null']
         promotedBy:
@@ -1156,6 +1164,45 @@ components:
         attemptedHash:
           type: string
           description: Present when refused as immutable.
+
+    ShadowReport:
+      type: object
+      required:
+        - flowName
+        - activeVersion
+        - shadowVersion
+        - compared
+        - agreed
+        - agreementRate
+        - topDivergences
+        - shadowMsP50
+        - shadowMsP95
+      properties:
+        flowName: { type: string }
+        activeVersion: { type: [string, 'null'] }
+        shadowVersion: { type: [string, 'null'] }
+        compared: { type: integer }
+        agreed: { type: integer }
+        agreementRate:
+          type: number
+          description: 0 when nothing has been compared, never 1.
+        topDivergences:
+          type: array
+          items:
+            type: object
+            required: [kind, summary, count]
+            properties:
+              kind:
+                type: string
+                enum: [winner, ranking, reasons]
+              summary: { type: string }
+              count: { type: integer }
+        shadowMsP50: { type: number }
+        shadowMsP95:
+          type: number
+          description: >
+            The tail is the number that matters: a shadow whose p95 is 100ms is
+            not free, whatever its median says.
 
     RegistryEvent:
       type: object
@@ -2407,6 +2454,99 @@ paths:
           description: That version is already active in this environment
         '403':
           description: Caller lacks promote:flows
+
+  /registry/{tenantId}/{flowName}/shadow:
+    post:
+      summary: Start or stop a shadow
+      description: |
+        Runs a published version beside the active one, deciding nothing.
+
+        A null `version` stops the shadow. One verb rather than two, because
+        "what is shadowing" is one piece of state.
+
+        Refused if the version is already active: comparing a thing with itself
+        produces a 100% agreement rate that means nothing, and publishing that
+        number would be worse than having none. Also refused where nothing is
+        active, since there is no baseline to compare against.
+
+        Gated on `promote:flows` rather than a permission of its own. Deciding
+        what runs in production, even beside the active version, is the same
+        authority.
+      operationId: setShadow
+      x-metis-status: built
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/FlowName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [environment]
+              properties:
+                version:
+                  type: [string, 'null']
+                  description: Null stops the shadow.
+                environment:
+                  type: string
+      responses:
+        '200':
+          description: The environment, with its shadow set or cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentState'
+        '403':
+          description: Caller lacks promote:flows
+        '404':
+          description: No such version
+        '409':
+          description: >
+            Already active, or nothing running to compare against, or no shadow
+            to stop.
+
+  /registry/{tenantId}/{flowName}/shadow-report:
+    get:
+      summary: How the shadow compares to what is running
+      description: |
+        Agreement rate and the most common divergences, for the pair currently
+        configured. Comparisons from an earlier shadow are excluded: they
+        describe a different question, and folding them in would average across
+        two migrations.
+
+        Three separate comparisons, not one boolean — a migration that changes
+        *why* without changing *what* is exactly the case a regulator asks
+        about, and agreement on the winner alone would hide it:
+
+        - `winner` — did it choose the same action?
+        - `ranking` — did it order the candidates the same way?
+        - `reasons` — did it deny the same candidates for the same coded reason?
+
+        Zero comparisons reports a 0% agreement rate, not 100%. Nothing has
+        agreed yet.
+
+        `shadowMsP50` and `shadowMsP95` are what the shadow cost. It runs after
+        the response is sent and never enters the active latency budget, so
+        these are published rather than hidden — a cost that is real but paid
+        somewhere the caller does not wait for it.
+      operationId: getShadowReport
+      x-metis-status: built
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/FlowName'
+      responses:
+        '200':
+          description: The report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShadowReport'
+        '404':
+          description: >
+            No such flow in the registry. A flow that failed to compile was
+            never stored, and a zeroed report about it would read as a shadow
+            that is merely idle rather than one that cannot exist.
 
   /registry/{tenantId}/{flowName}/rollback:
     post:

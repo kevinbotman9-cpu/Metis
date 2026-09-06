@@ -41,6 +41,26 @@ BEGIN
 END $$;
 
 ALTER INDEX IF EXISTS registry_versions_by_strategy RENAME TO registry_versions_by_flow;
+
+-- Added after the table shipped, and there is still no migration runner, so it
+-- goes in here guarded rather than in an 002_. When a second real migration
+-- arrives, that is the moment to add the runner and move both of these.
+ALTER TABLE IF EXISTS registry_environments ADD COLUMN IF NOT EXISTS shadow_version text;
+
+-- `CREATE TABLE IF NOT EXISTS` below creates the CHECK with the current list,
+-- but it does not *evolve* one that already exists — an existing database keeps
+-- the old set and rejects ShadowStarted with a check violation. Dropped and
+-- recreated rather than left to chance, and unconditionally, because the
+-- constraint's content is what changes rather than its presence.
+DO $$
+BEGIN
+    IF to_regclass('registry_events') IS NOT NULL THEN
+        ALTER TABLE registry_events DROP CONSTRAINT IF EXISTS registry_events_type_check;
+        ALTER TABLE registry_events ADD CONSTRAINT registry_events_type_check
+            CHECK (type IN ('ArtifactPublished', 'PublishRejected', 'VersionPromoted',
+                            'VersionRolledBack', 'ShadowStarted', 'ShadowStopped'));
+    END IF;
+END $$;
 ALTER INDEX IF EXISTS registry_events_by_strategy RENAME TO registry_events_by_flow;
 
 CREATE TABLE IF NOT EXISTS registry_versions (
@@ -82,6 +102,9 @@ CREATE TABLE IF NOT EXISTS registry_environments (
     -- What rollback returns to. Only the immediately previous version: a
     -- deeper history invites rolling back to something nobody remembers.
     previous_version text,
+    -- A version running beside the active one and deciding nothing. Null is
+    -- the normal state.
+    shadow_version   text,
     promoted_at      timestamptz,
     promoted_by      text,
 
@@ -105,7 +128,8 @@ CREATE TABLE IF NOT EXISTS registry_events (
     at            timestamptz NOT NULL,
     actor         text        NOT NULL,
     type          text        NOT NULL
-        CHECK (type IN ('ArtifactPublished', 'PublishRejected', 'VersionPromoted', 'VersionRolledBack')),
+        CHECK (type IN ('ArtifactPublished', 'PublishRejected', 'VersionPromoted',
+                        'VersionRolledBack', 'ShadowStarted', 'ShadowStopped')),
     tenant_id     text        NOT NULL,
     flow_name text        NOT NULL,
     version       text        NOT NULL,

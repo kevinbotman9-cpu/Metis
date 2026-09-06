@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { FlowCanvas } from '@/components/canvas/flow-canvas';
 import { CompileReport } from '@/components/compile-report';
 import { RegistryPanel } from '@/components/registry-panel';
+import { ShadowPanel } from '@/components/shadow-panel';
 import { apiClient, ApiError, type FlowNodeDto } from '@/lib/api-client';
 import type { FlowNode, FlowEdge } from '@/mocks/fixtures/artifacts';
 import { cn } from '@/lib/cn';
@@ -352,6 +353,8 @@ function FlowDetail({ artifactId }: { artifactId: string }) {
           </Card>
 
           <RegistryPanel flowName={artifact.id} />
+
+          <ShadowPanel flowName={artifact.id} />
         </div>
       </div>
     </PageBody>

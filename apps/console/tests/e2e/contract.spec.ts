@@ -162,6 +162,10 @@ const COVERED_BY_WRITE_SUITES = new Set([
   // against an arbitrary decision id. ledger.spec.ts covers it, including the
   // 404 for a decision nobody made and the required occurredAt.
   'recordOutcome',
+  // Changes what runs in production beside the active version. shadow.spec.ts
+  // covers it, including the refusal to shadow a version against itself and
+  // the permission gate.
+  'setShadow',
   // Registry writes: publishing, promoting and rolling back all mutate the
   // registry, and registry.spec.ts covers them with the reset discipline.
   'publishArtifact',

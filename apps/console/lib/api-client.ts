@@ -35,6 +35,7 @@ import type {
   EnvironmentState as EnvironmentStateDto,
   PublishOutcome as PublishOutcomeDto,
   RegistryEvent as RegistryEventDto,
+  ShadowReport as ShadowReportDto,
   SourceBinding as SourceBindingDto,
   SourceCall as SourceCallDto,
   Taxonomy as TaxonomyDto,
@@ -248,6 +249,21 @@ export const apiClient = {
       method: 'POST',
       body: { environment },
     }),
+
+  /** Null stops the shadow. */
+  setShadow: (
+    flowName: string,
+    version: string | null,
+    environment: string,
+    tenantId: string = TENANT
+  ) =>
+    apiCall<EnvironmentStateDto>(`/registry/${tenantId}/${flowName}/shadow`, {
+      method: 'POST',
+      body: { version, environment },
+    }),
+
+  getShadowReport: (flowName: string, tenantId: string = TENANT) =>
+    apiCall<ShadowReportDto>(`/registry/${tenantId}/${flowName}/shadow-report`),
 
   // --- Flows ---------------------------------------------------------
   listArtifacts: (tenantId: string = TENANT) =>
