@@ -98,7 +98,7 @@ otherwise.
 | W-004 | 8 | No-network-egress assertion in the decision path — **done** | 1 |
 | W-005 | 9 | Catalogue, policies and taxonomy into PostgreSQL — **half done** | 2 |
 | W-006 | 9 | Retention and erasure design — **ADR awaiting decision** | 2 |
-| W-007 | 9 | Configurable approved default for a missing score | 2 |
+| W-007 | 9 | Configurable approved default for a missing score — **done** | 2 |
 | W-008 | 10 | Customer profile store and data model | 2 |
 | W-009 | 10 | Online feature service | 2 |
 | W-010 | 10 | Ingestion: batch and stream | 2 |
@@ -416,8 +416,22 @@ this list.
 - Retention policy is configurable per tenant and enforced by a job with its own
   test.
 
-### W-007 — Configurable approved default for a missing score
+### W-007 — Configurable approved default for a missing score — **DONE 2026-09-06**
 Gate 2 · Depends: none · Spec §6
+
+**Closed.** A flow declares `missingScoreDefault` — propensity, context, and
+the approver with a date. It is carried through the compiler into the artifact,
+so the default a decision used is pinned by the artifact hash rather than read
+from wherever the catalogue happens to be at replay time.
+
+Every decision records `arbitration.missingScore`: which candidates fell back,
+and what default stood in — present even when nothing was missing, so "no
+default configured" stays distinguishable from "written by an older engine".
+
+Both engines agree, via two new corpus cases: one where the default is applied
+and one where it is declared but unneeded. Verified to bite: an engine ignoring
+the declared default fails two unit tests and the decision corpus.
+
 
 The engine uses a neutral 1.0 under exponentiation, which is correct arithmetic
 but not the configurable approved default the spec asks for.

@@ -118,6 +118,22 @@ data class Model(val id: String, val version: String)
 
 data class ExecEdge(val from: String, val to: String)
 
+/**
+ * What to use for a candidate no scoring node produced a score for.
+ *
+ * The TypeScript engine's `MissingScoreDefault`, field for field. §6 asks for a
+ * configurable *approved* default rather than a constant: "the engine assumes
+ * 1.0" is an implementation detail, and "the flow declares 0.3, approved by
+ * this person on this date" is an answer to why an unscored offer outranked a
+ * scored one.
+ */
+data class MissingScoreDefault(
+    val propensity: Double,
+    val context: Double,
+    val approvedBy: String,
+    val approvedAt: String,
+)
+
 data class ExecArtifact(
     val id: String,
     val version: String,
@@ -126,6 +142,8 @@ data class ExecArtifact(
     val edges: List<ExecEdge>,
     val candidateKeys: List<String>,
     val packageVersions: Map<String, String>,
+    /** Null when the flow declares none; the engine then uses a neutral 1.0. */
+    val missingScoreDefault: MissingScoreDefault? = null,
 )
 
 // --- Request -----------------------------------------------------------------
@@ -183,10 +201,22 @@ data class CandidateScore(
 
 data class SourceBinding(val field: String, val connectorId: String, val nodeId: String)
 
+/**
+ * What ranking did about candidates nothing scored.
+ *
+ * Present on every decision, including when nothing was missing, so that "no
+ * default configured" and "written by an older engine" stay distinguishable.
+ */
+data class MissingScoreRecord(
+    val applied: List<String>,
+    val approved: MissingScoreDefault?,
+)
+
 data class Arbitration(
     val formula: String,
     /** The function that produced these priorities, by id and version. */
     val utility: UtilityRef,
+    val missingScore: MissingScoreRecord,
     val winner: String?,
     val runnerUp: String?,
 )

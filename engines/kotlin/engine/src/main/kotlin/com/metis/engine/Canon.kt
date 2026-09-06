@@ -46,6 +46,19 @@ object Canon {
                 "id" to str(d.arbitration.utility.id),
                 "version" to str(d.arbitration.utility.version),
             ),
+            "missingScore" to obj(
+                "applied" to arr(d.arbitration.missingScore.applied.map { str(it) }),
+                "approved" to (
+                    d.arbitration.missingScore.approved?.let {
+                        obj(
+                            "propensity" to num(it.propensity),
+                            "context" to num(it.context),
+                            "approvedBy" to str(it.approvedBy),
+                            "approvedAt" to str(it.approvedAt),
+                        )
+                    } ?: Value.Null
+                ),
+            ),
             "winner" to strOrNull(d.arbitration.winner),
             "runnerUp" to strOrNull(d.arbitration.runnerUp),
         ),

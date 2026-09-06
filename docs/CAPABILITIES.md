@@ -33,10 +33,11 @@ names the check so the claim can be audited rather than trusted.
 Integration         15 passed  - author -> compile -> execute -> replay, plus the
                                  API-path reconciliation and source hygiene
                                  checks, which span packages and belong to none
-Runtime            188 passed  - determinism, byte-identical replay, integration
+Runtime            196 passed  - determinism, byte-identical replay, integration
                                  resolution, ADR-003 values, the 22-decision
                                  corpus, ranking functions, idempotency, shadow,
-                                 and no network egress in the decision path
+                                 no network egress in the decision path, and
+                                 the approved default for a missing score
 Compiler            43 passed  - graph validation, version pinning, budgets
 Registry            68 passed  - one behaviour suite, run against memory and a
                                  real PostgreSQL
@@ -57,7 +58,7 @@ Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
 Typecheck           clean      - root config and the console's, separately
 Lint                0 errors   - root and console, separate configs
                    ---
-                    680 tests, two languages, two engines
+                    688 tests, two languages, two engines
 ```
 
 The OpenAPI spec validates at **34 paths, 41 operations (39 built, 2 proposed),
@@ -89,7 +90,7 @@ corpora changed on that date, because the rename reached the hashed decision.
 | Idempotency — same key and hash returns the original | BUILT | `runtime/tests/idempotency.test.ts`, `e2e/idempotency.spec.ts`. A reused key with a different request is a 409, not a silently stale answer |
 | Durable decision ledger | BUILT | `packages/ledger`, 50 tests against both stores; append-only triggers |
 | Outcome capture | BUILT | `POST /outcomes/{tenantId}/{decisionId}`, `e2e/ledger.spec.ts`. Storage only — learning from outcomes is §7 |
-| Missing score is never a silent zero | PARTIAL | The engine uses a neutral 1.0 under exponentiation rather than 0, which is correct arithmetic but not the *configurable approved default* §6 asks for |
+| Missing score is never a silent zero | BUILT | A flow declares a `missingScoreDefault` with its approver and date; the engine applies it, and every decision records which candidates fell back and what default stood in. Both engines agree via two new corpus cases. Verified: an engine that ignores the declared default fails two unit tests and the corpus |
 | Optimisation constraints, slate selection | OUT OF SCOPE | The engine returns a single action. Cardinality, mutual exclusion, diversity, budget, inventory and fairness are gate 2–3 |
 
 ## §7 — Intelligence

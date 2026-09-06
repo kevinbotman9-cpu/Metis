@@ -732,7 +732,7 @@ components:
             $ref: '#/components/schemas/ScoreBreakdown'
         arbitration:
           type: object
-          required: [formula, utility, winner, runnerUp]
+          required: [formula, utility, missingScore, winner, runnerUp]
           properties:
             formula:
               type: string
@@ -748,6 +748,35 @@ components:
               properties:
                 id: { type: string }
                 version: { type: string }
+            missingScore:
+              type: object
+              description: >
+                What ranking did about candidates nothing scored. A missing
+                score must never become a silent zero: a neutral term is 1
+                under exponentiation, not 0, and a flow may declare an approved
+                default instead of relying on that. Present on every decision,
+                including when nothing was missing, so "no default configured"
+                stays distinguishable from "written by an older engine".
+              required: [applied, approved]
+              properties:
+                applied:
+                  type: array
+                  description: >
+                    Candidate keys that fell back, sorted. Empty when every
+                    candidate was scored.
+                  items: { type: string }
+                approved:
+                  type: [object, 'null']
+                  description: >
+                    The default the flow declared, or null when it declared
+                    none and the engine used a neutral 1.0. The approver and
+                    date are what make this a default rather than a constant.
+                  required: [propensity, context, approvedBy, approvedAt]
+                  properties:
+                    propensity: { type: number }
+                    context: { type: number }
+                    approvedBy: { type: string }
+                    approvedAt: { type: string, format: date-time }
             winner:
               type: [string, 'null']
             runnerUp:

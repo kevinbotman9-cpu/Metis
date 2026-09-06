@@ -259,6 +259,8 @@ export function execute(
 ): DecisionRecord {
   const startedAt = Date.now();
   const timingsByNode: Record<string, number> = {};
+  /** Candidates that fell back because nothing scored them. */
+  const missingScoreApplied: string[] = [];
 
   const byKey = new Map(catalogue.offers.map((p) => [p.key, p]));
   const policyById = new Map(catalogue.targetingPolicies.map((p) => [p.id, p]));
@@ -504,15 +506,22 @@ export function execute(
 
         // A candidate with no model score is not disqualified. Some flows
         // legitimately rank without a propensity model - anonymous web traffic
-        // has no customer to score - and their formula says so. A missing term
-        // is neutral, which under exponentiation means 1.0, not 0.
+        // has no customer to score - and their formula says so.
+        //
+        // What stands in is the flow's *approved* default where it declares
+        // one, and a neutral 1.0 where it does not. Neutral is correct
+        // arithmetic - under exponentiation a missing term is 1, not 0 - but
+        // it is a number nobody chose, and "the engine assumes 1.0" is not an
+        // answer to why an unscored offer outranked a scored one.
+        const approvedDefault = artifact.missingScoreDefault ?? null;
         for (const p of candidates) {
           if (scores[p.key]) continue;
+          missingScoreApplied.push(p.key);
           scores[p.key] = {
-            propensity: 1,
+            propensity: approvedDefault ? approvedDefault.propensity : 1,
             value: round(Math.max(0.01, p.financials.expectedMargin.amount / 60000), 6),
             boost: effectiveBoost(catalogue.boosts, p, request.occurredAt),
-            context: 1,
+            context: approvedDefault ? approvedDefault.context : 1,
             // Cost is a catalogue fact, not a model output, so it is known
             // even when nothing scored this candidate. Neutral here means the
             // real number, not 1.
@@ -614,6 +623,12 @@ export function execute(
     arbitration: {
       formula: catalogue.arbitration.formula,
       utility: { id: utility.id, version: utility.version },
+      missingScore: {
+        // Sorted so the record is stable, and de-duplicated because a
+        // candidate cannot fall back twice.
+        applied: [...new Set(missingScoreApplied)].sort(),
+        approved: artifact.missingScoreDefault ?? null,
+      },
       winner,
       runnerUp,
     },

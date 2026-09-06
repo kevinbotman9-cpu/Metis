@@ -333,6 +333,21 @@ export interface DecisionRecord {
       id: string;
       version: string;
     };
+    /** What ranking did about candidates nothing scored. A missing score must never become a silent zero: a neutral term is 1 under exponentiation, not 0, and a flow may declare an approved default instead of relying on that. Present on every decision, including when nothing was missing, so "no default configured" stays distinguishable from "written by an older engine".
+ */
+    missingScore: {
+      /** Candidate keys that fell back, sorted. Empty when every candidate was scored.
+ */
+      applied: string[];
+      /** The default the flow declared, or null when it declared none and the engine used a neutral 1.0. The approver and date are what make this a default rather than a constant.
+ */
+      approved: {
+        propensity: number;
+        context: number;
+        approvedBy: string;
+        approvedAt: string;
+      } | null;
+    };
     winner: string | null;
     runnerUp: string | null;
   };

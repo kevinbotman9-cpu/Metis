@@ -80,6 +80,25 @@ export interface DecisionFlowSource {
   candidateKeys: string[];
   /** Requested package ranges, resolved and pinned during compilation. */
   packageRanges?: Record<string, string>;
+  /**
+   * What ranking uses for a candidate nothing scored.
+   *
+   * Declared by the flow because the flow is what determines whether anything
+   * scores at all. Carried into the compiled artifact unchanged, so the
+   * default a decision used is pinned by the artifact hash rather than read
+   * from wherever the catalogue happens to be at replay time.
+   */
+  missingScoreDefault?: MissingScoreDefault;
+}
+
+/** Mirrors `@metis/runtime`'s type. Repeated rather than imported because the
+ * compiler does not otherwise depend on the runtime, and one field is not
+ * worth the edge in the dependency graph. */
+export interface MissingScoreDefault {
+  propensity: number;
+  context: number;
+  approvedBy: string;
+  approvedAt: string;
 }
 
 export interface CompileContext {
@@ -131,6 +150,8 @@ export interface CompiledDecisionFlow {
   candidateKeys: string[];
   /** Exact versions, locked at compile time so a replay is reproducible. */
   packageVersions: Record<string, string>;
+  /** Carried from the source, pinned by the artifact hash. */
+  missingScoreDefault?: MissingScoreDefault;
   costManifest: CostManifest;
   /** sha256 over everything above. Changes if anything changes. */
   artifactHash: string;
@@ -803,6 +824,10 @@ export function compileDecisionFlow(
     candidateKeys: source.candidateKeys,
     packageVersions,
     costManifest,
+    // Spread so the field is absent rather than explicitly undefined when the
+    // flow declares none. The artifact hash is taken over this object, and
+    // `undefined` and absent are different strings once canonicalised.
+    ...(source.missingScoreDefault ? { missingScoreDefault: source.missingScoreDefault } : {}),
   };
 
   return {

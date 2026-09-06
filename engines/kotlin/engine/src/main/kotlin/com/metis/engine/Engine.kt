@@ -248,6 +248,8 @@ object Engine {
         val eliminations = mutableListOf<EliminationStep>()
         val scores = linkedMapOf<String, CandidateScore>()
         val constraintsApplied = mutableListOf<String>()
+        /** Candidates that fell back because nothing scored them. */
+        val missingScoreApplied = mutableListOf<String>()
         var winner: String? = null
         var runnerUp: String? = null
 
@@ -428,15 +430,19 @@ object Engine {
                     // A candidate with no model score is not disqualified. Some
                     // flows legitimately rank without a propensity model —
                     // anonymous web traffic has no customer to score — and their
-                    // formula says so. A missing term is neutral, which under
-                    // exponentiation means 1.0, not 0.
+                    // formula says so.
+                    //
+                    // What stands in is the flow's approved default where it
+                    // declares one, and a neutral 1.0 where it does not.
+                    val approvedDefault = artifact.missingScoreDefault
                     for (p in candidates) {
                         if (scores.containsKey(p.key)) continue
+                        missingScoreApplied.add(p.key)
                         scores[p.key] = CandidateScore(
-                            propensity = 1.0,
+                            propensity = approvedDefault?.propensity ?: 1.0,
                             value = round(maxOf(0.01, p.financials.expectedMargin.amount / 60000.0), 6),
                             boost = effectiveBoost(catalogue.boosts, p, request.occurredAt),
-                            context = 1.0,
+                            context = approvedDefault?.context ?: 1.0,
                             // A catalogue fact, not a model output, so it is
                             // known even when nothing scored this candidate.
                             cost = round(maxOf(0.0, p.financials.cost.amount / 60000.0), 6),
@@ -533,6 +539,12 @@ object Engine {
             arbitration = Arbitration(
                 catalogue.arbitration.formula,
                 UtilityRef(utility.id, utility.version),
+                MissingScoreRecord(
+                    // Sorted and de-duplicated, matching the TypeScript engine:
+                    // a candidate cannot fall back twice.
+                    applied = missingScoreApplied.distinct().sorted(),
+                    approved = artifact.missingScoreDefault,
+                ),
                 winner,
                 runnerUp,
             ),
