@@ -39,6 +39,31 @@ capability map.
 
 ---
 
+## Registered 2026-09-06 — the console edits a catalogue the engine does not read
+
+`apps/console/mocks/store.ts` deep-clones the fixture modules on seed, with the
+comment "so mutations never write back through to the fixture modules".
+`apps/console/mocks/fixtures/engine.ts` builds `catalogueSnapshot` from those
+same fixture modules. `executeDecision` is passed `catalogueSnapshot`.
+
+So the offers, boosts and ranking weights the console edits are a different
+object from the ones the engine ranks with. Changing the arbitration weights in
+`/arbitration` persists to the store and is audited — both true, and both what
+`EXPERIENCE_LAYER_STATUS.md` claims — but it does not change any decision.
+
+Established by reading both sides, not by running: the clone is explicit, and
+the snapshot's imports are the fixture exports.
+
+This is why W-005's second half is more than swapping a store. Repointing the
+console at `packages/catalogue` means deciding what the engine reads, which is
+a real design question — a decision records the hash of the catalogue it saw,
+so the engine cannot simply read whatever the console last wrote without that
+hash becoming a moving target mid-flight. The likely shape is a snapshot taken
+per decision and cached by hash, but it is a decision to make rather than a
+refactor to perform.
+
+---
+
 ## Build-system gaps
 
 Not platform APIs, but the same kind of problem: a check that appears to run

@@ -223,6 +223,7 @@ verified by breaking the thing it guards.
 | Nothing stopped a second document claiming things were built | **Closed** — `tests/docs-status.test.ts`. Verified: a "Decision ledger \| Built" row in README fails it |
 | Nothing tied the API paths to the spec | **Closed** — `tests/api-paths.test.ts`. Verified in both directions: a path renamed in the Kotlin router fails, and so does one renamed in the console's client |
 | There is no i18n mechanism; every string is inline in JSX | Open — [W-042](BACKLOG.md), and it grows every sprint |
+| The console edits a catalogue the engine does not read | Open — the store deep-clones the fixtures and the engine reads the fixture modules, so a ranking-weight change persists, is audited, and changes no decision. Registered in [`gaps.md`](gaps.md); it is what makes W-005's second half a design question rather than a refactor |
 | The console still writes its client URLs by hand | Open — they are now *checked* against the spec, but W-001 asked for them to be generated. That is a 33-call-site refactor and was left as its own change |
 
 Two things the typecheck found the moment it started running, both of which had

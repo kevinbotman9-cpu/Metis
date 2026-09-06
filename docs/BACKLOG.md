@@ -96,7 +96,7 @@ otherwise.
 | W-002 | 7 | Export / re-import — **done** | 1 |
 | W-003 | 8 | S1 benchmark and the p99 gate — **done, bounded** | 1 |
 | W-004 | 8 | No-network-egress assertion in the decision path — **done** | 1 |
-| W-005 | 9 | Catalogue, policies and taxonomy into PostgreSQL | 2 |
+| W-005 | 9 | Catalogue, policies and taxonomy into PostgreSQL — **half done** | 2 |
 | W-006 | 9 | Retention and erasure design | 2 |
 | W-007 | 9 | Configurable approved default for a missing score | 2 |
 | W-008 | 10 | Customer profile store and data model | 2 |
@@ -354,8 +354,25 @@ storage. Verify it bites by adding a `fetch` to a node implementation.
 
 ## Stage 9 — Storage completion and the erasure decision
 
-### W-005 — Catalogue, policies and taxonomy into PostgreSQL
+### W-005 — Catalogue, policies and taxonomy into PostgreSQL — **HALF DONE 2026-09-06**
 Gate 2 · Depends: none · Spec §8
+
+**Done:** `packages/catalogue` — 40 tests, one behaviour suite over memory and a
+real PostgreSQL, foreign keys, a unique offer key per tenant, RESTRICT rather
+than CASCADE on creatives, and an append-only edit log by trigger. The export
+carries all nine tables and the round trip asserts the catalogue survives.
+
+**Not done:** the console still writes to its in-memory store, so authored state
+is still lost on restart there.
+
+**And it is not a swap.** The console deep-clones the fixtures while the engine
+reads the fixture modules directly, so today a ranking-weight change persists,
+is audited, and changes no decision — registered in `gaps.md`. Repointing means
+deciding what the engine reads, and since a decision records the hash of the
+catalogue it saw, that hash cannot become a moving target mid-flight. The
+likely shape is a snapshot per decision, cached by hash. That is a decision to
+make, not a refactor to perform.
+
 
 Currently an in-memory store with process lifetime. This is a correctness
 problem, not tidiness: a restart loses authored state.
