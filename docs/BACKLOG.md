@@ -91,7 +91,7 @@ otherwise.
 
 | ID | Stage | Item | Gate |
 |---|---|---|---|
-| W-000 | 0 | CI check: only the capability map claims BUILT | 1 |
+| W-000 | 0 | CI check: only the capability map claims BUILT — **done** | 1 |
 | W-001 | 0 | Fix the holes in the checks themselves — **done** | 1 |
 | W-002 | 7 | Export / re-import — **done** | 1 |
 | W-003 | 8 | S1 benchmark and the p99 gate — **done, bounded** | 1 |
@@ -147,8 +147,14 @@ otherwise.
 
 ## Stage 0 — Hygiene, before anything else
 
-### W-000 — Stop any document but the capability map claiming BUILT
+### W-000 — Stop any document but the capability map claiming BUILT — **DONE 2026-09-06**
 Gate 1 · Depends: none
+
+**Closed.** `tests/docs-status.test.ts` fails when any markdown outside the
+three declared status documents carries a table row asserting something is
+built. Verified to bite with a "Decision ledger | Built" row in README. The two
+remaining references to the deleted `PHASES_SUMMARY.md` now point at the
+capability map.
 
 **The original half of this item is already done.** `docs/PHASES_SUMMARY.md`,
 579 lines marking Phases 0–4 complete, was deleted on 2026-09-05 in `7330292`.

@@ -11,7 +11,7 @@
 > See the Vocabulary section of `CLAUDE.md`, which is normative.
 
 **Audience:** Claude Code (implementation agent) and the product owner
-**Status:** Direction-setting. Extends `METIS_Vision_and_Build_Plan.md` §7. Where this conflicts with the "Phase 2 ✅ Complete" claims in `PHASES_SUMMARY.md`, this wins.
+**Status:** Direction-setting. Extends `METIS_Vision_and_Build_Plan.md` §7. It was written against `PHASES_SUMMARY.md`, which claimed Phases 0-4 complete and was deleted on 2026-09-05; for what is actually built, `docs/CAPABILITIES.md` is the single answer and this document does not compete with it.
 **Version:** 1.0 — September 2026
 
 ---
@@ -40,7 +40,7 @@ Three sharper consequences:
 
 ## 2. Before anything is built: the status document is ahead of the code
 
-`PHASES_SUMMARY.md` marks Phase 2 experience layer as ✅ Complete. The build transcript shows `apps/console/` and the canvas designer as "scaffolded." Those are not the same thing.
+`PHASES_SUMMARY.md` marked the Phase 2 experience layer complete while the build transcript showed `apps/console/` and the canvas designer as "scaffolded." Those are not the same thing, and that gap is why the file was deleted and replaced by `docs/CAPABILITIES.md`, whose rule is that BUILT means a test fails when it breaks.
 
 This matters specifically for an agentic build. If Claude Code is told the platform is complete, it will write a console against APIs that do not exist, invent plausible response shapes, hardcode sample data into components, and produce a beautiful demo that lies. That failure is very hard to detect from screenshots and very embarrassing to discover in a customer session.
 
