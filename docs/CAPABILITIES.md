@@ -197,19 +197,32 @@ proposed operation that nothing serves; `/simulations` says so on the page.
 ## Known holes in the checks themselves
 
 Recorded because a check that appears to run and does not is worse than no
-check, and every one of these was found the hard way:
+check. [W-001](BACKLOG.md) closed four of these on 2026-09-06; each fix was
+verified by breaking the thing it guards.
 
-- `tsc --build` does not work; `bench/*` is covered by no typecheck.
-- Route bundle size is in the definition of done and is checked by nothing.
-- There is no i18n mechanism; every string is inline in JSX.
-- `/decision-flows/[id]` is not in the axe sweep, which scans only the list page.
-- The console's hand-written client URLs and the Kotlin service router are
-  checked by nothing — four components must agree on API paths and one
-  typecheck covers one of them.
+| Hole | Status |
+|---|---|
+| The root typecheck checked zero files, and `bench/*` was covered by nothing | **Closed** — `tsconfig.typecheck.json` covers every package, its tests, bench and scripts. Verified: a type error in `bench/harness/src` fails `npm run typecheck` |
+| Route bundle size was in the definition of done and checked by nothing | **Closed** — `npm run test:bundle` measures what a browser downloads from the standalone build. Verified: a route over budget fails |
+| The axe sweep scanned no detail routes | **Closed** — `/decision-flows/[id]` and `/decisions/[id]` added, both clean. Verified: a nameless button fails `button-name` |
+| Nothing tied the API paths to the spec | **Closed** — `tests/api-paths.test.ts`. Verified in both directions: a path renamed in the Kotlin router fails, and so does one renamed in the console's client |
+| There is no i18n mechanism; every string is inline in JSX | Open — [W-042](BACKLOG.md), and it grows every sprint |
+| The console still writes its client URLs by hand | Open — they are now *checked* against the spec, but W-001 asked for them to be generated. That is a 33-call-site refactor and was left as its own change |
 
-Full detail, with dates and diagnoses, is in [`docs/gaps.md`](gaps.md). Fixing
-them is [W-001](BACKLOG.md), which is the highest return-per-hour work in the
-repository: each one is a check that appears to run and does not.
+Two things the typecheck found the moment it started running, both of which had
+been invisible for months: `packages/nodes-core` declared its node registry as
+an abstract constructor with the wrong arity, so `createNode` could never have
+worked — nothing imports that package's code, only its name as a version range
+— and two catalogue literals in tests omitted `connectors`, which is the same
+class of bug `gaps.md` had already recorded as "caught by a failing benchmark,
+not by the compiler".
+
+The bundle budget is honest about its own granularity: every authenticated
+route measures an identical 706.4 kB because the shared shell dominates, so it
+is close to a shell budget with two exceptions. It catches a heavy new
+dependency long before it catches a heavy new page.
+
+Full detail, with dates and diagnoses, is in [`docs/gaps.md`](gaps.md).
 
 ## Where the detail lives
 

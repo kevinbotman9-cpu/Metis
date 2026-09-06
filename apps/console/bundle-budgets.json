@@ -1,0 +1,39 @@
+{
+  "$comment": [
+    "First-load JavaScript per route, in kilobytes, measured as the decoded",
+    "bytes a browser downloads on a cold load of the standalone production",
+    "build. Uncompressed: what ships over the wire is smaller, but this is the",
+    "number that tracks what was added, and it does not move when compression",
+    "settings do.",
+    "",
+    "Measured rather than read out of Next's build output. The size columns are",
+    "gone from `next build` in 16.x and the manifests underneath are",
+    "undocumented internals that move between versions; what the browser",
+    "downloads is what the budget is about, and it survives the bundler being",
+    "replaced.",
+    "",
+    "The numbers below are the 2026-09-06 measurements plus ~15%. Read the",
+    "shape before trusting the granularity: every authenticated route measured",
+    "the same 706.4 kB, because the shared app shell dominates and per-route",
+    "code is lost in it. Only two routes differ — /login, which renders before",
+    "the shell exists, and the flow detail route, which loads the React Flow",
+    "canvas. So this is close to a shell budget with two exceptions, and it",
+    "will catch a heavy new dependency long before it catches a heavy new page.",
+    "Making it genuinely per-route means splitting the shell, which is a",
+    "performance change, not a test change.",
+    "",
+    "Raising a budget is a decision, not a formality: say in the commit message",
+    "what got bigger and why it earns its place."
+  ],
+  "default": 820,
+  "routes": {
+    "/": 820,
+    "/login": 590,
+    "/offers": 820,
+    "/decisions": 820,
+    "/decision-flows": 820,
+    "/decision-flows/next-best-action": 1010,
+    "/audit": 820,
+    "/settings": 820
+  }
+}

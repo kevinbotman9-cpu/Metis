@@ -92,7 +92,7 @@ otherwise.
 | ID | Stage | Item | Gate |
 |---|---|---|---|
 | W-000 | 0 | CI check: only the capability map claims BUILT | 1 |
-| W-001 | 0 | Fix the holes in the checks themselves | 1 |
+| W-001 | 0 | Fix the holes in the checks themselves — **done** | 1 |
 | W-002 | 7 | Export / re-import | 1 |
 | W-003 | 8 | S1 benchmark and the p99 gate | 1 |
 | W-004 | 8 | No-network-egress assertion in the decision path | 1 |
@@ -169,8 +169,28 @@ stale references at the capability map while there.
 - Verified to bite: add a "Decision ledger — Built" row to `README.md` and
   confirm the check goes red.
 
-### W-001 — Fix the holes in the checks themselves
+### W-001 — Fix the holes in the checks themselves — **DONE 2026-09-06**
 Gate 1 · Depends: none
+
+**Closed**, all four, each verified by breaking what it guards:
+
+- `tsconfig.typecheck.json` replaces `tsc --build`, covering every package, its
+  tests, bench and scripts. The root cause was `moduleResolution: "node"`,
+  which cannot resolve subpath exports; `packages/runtime` and
+  `packages/compiler` now declare real `exports` maps. It found three real
+  errors on its first run.
+- `npm run test:bundle` measures what a browser downloads from the standalone
+  build, against `bundle-budgets.json`. It shipped once measuring 0 kB on every
+  route — `content-length` is absent on chunked responses — which is why it now
+  fails a zero measurement rather than passing it.
+- `/decision-flows/[id]` and `/decisions/[id]` joined the axe sweep.
+- `tests/api-paths.test.ts` reconciles the spec, the console's client and the
+  Kotlin service's declared routes.
+
+One part deliberately not done: the console's hand-written client URLs are
+checked against the spec but not generated from it. That is a 33-call-site
+refactor and belongs in its own change.
+
 
 CAPABILITIES.md lists these under "Known holes". They are the highest
 return-per-hour work in the repo because each one is a check that appears to run

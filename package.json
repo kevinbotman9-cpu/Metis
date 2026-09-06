@@ -28,7 +28,8 @@
     "test:bench": "npm --prefix bench/harness run test",
     "bench": "npm --prefix bench/harness run bench",
     "test:e2e": "npm run test:e2e --prefix apps/console",
-    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json && npm run typecheck --prefix apps/console"
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json && npm run typecheck --prefix apps/console",
+    "test:bundle": "npm run test:bundle --prefix apps/console"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

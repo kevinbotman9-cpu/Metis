@@ -43,12 +43,15 @@ jobs:
         run: npm ci
         working-directory: .
 
-      # The root tsconfig has `"include": []` and only project references, and
-      # `tsc --noEmit -p` does not build references — so this step checked zero
-      # files. Kept, because it still catches a malformed root config, but it
-      # is not the check that matters.
-      - name: Typecheck (root config)
-        run: npx tsc --noEmit -p tsconfig.json
+      # This checked zero files until 2026-09-06: the root tsconfig has
+      # `"include": []` and `tsc --noEmit -p` does not build references.
+      # `tsconfig.typecheck.json` is a single non-composite program over every
+      # package, its tests, bench and scripts — the coverage the console's own
+      # typecheck cannot reach.
+      - name: Typecheck (packages, tests, bench, scripts)
+        run: npx tsc --noEmit -p tsconfig.typecheck.json
+        working-directory: .
+
 
       # This is the one with real coverage. The console resolves @metis/core,
       # @metis/runtime and @metis/compiler through path aliases, so its
@@ -119,6 +122,13 @@ jobs:
       # Covers navigation, auth, RBAC, persistence, and axe-core at WCAG 2.2 AA.
       - name: End-to-end and accessibility
         run: npm run test:e2e
+
+      # Builds and serves the standalone output, then measures what a browser
+      # actually downloads per route. Separate from the E2E step because that
+      # one runs `next dev`, whose unminified modules make a size budget
+      # meaningless.
+      - name: Route bundle budgets
+        run: npm run test:bundle
 
       - name: Upload Playwright report
         if: failure()
