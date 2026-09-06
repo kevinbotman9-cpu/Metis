@@ -133,7 +133,7 @@ otherwise.
 | W-039 | 22 | Authoring SDK and generated package docs | 3 |
 | W-040 | 22 | Industry and regulatory packs with change reports | 3 |
 | W-041 | 23 | Theming, layout manifests, pluggable panels | 3 |
-| W-042 | 23 | i18n mechanism | 3 |
+| W-042 | 23 | i18n mechanism — **ADR awaiting decision** | 3 |
 | W-043 | 24 | Identity and access: SSO, SCIM, ABAC | 3 |
 | W-044 | 24 | Artefact signing and SBOM | 3 |
 | W-045 | 24 | Degradation ladder | 3 |
@@ -834,8 +834,26 @@ permissions. Composition only — no arbitrary code into the runtime.
 tested. Axe passes on every route in every accessibility mode, extending the
 sweep fixed in W-001. Consult the `frontend-design` skill for visual execution.
 
-### W-042 — i18n mechanism
+### W-042 — i18n mechanism — **ADR WRITTEN 2026-09-06, awaiting a decision**
 Gate 3 · Depends: none
+
+[ADR-005](adr/ADR-005-internationalisation.md) recommends `next-intl`, messages
+keyed by surface rather than by English text, reason codes rendered from the
+code with a test that every member of the closed set has a message, and the
+lint rule this item asks for — with an explicit `untranslated()` marker so the
+strings that must *not* be translated (a chain hash, a version, a reason code)
+are greppable rather than accidental.
+
+**Not implemented, deliberately.** `CLAUDE.md` lists "any change to the i18n
+structure" as needing product and design review before code, and says of this
+exact gap: *do not add a new one-off i18n mechanism to satisfy this line; it
+needs a decision, not a workaround.* The ADR is written so the decision can be
+made.
+
+The ADR also argues this should move earlier than Stage 23: every sprint adds
+strings, and Stage 23's third-party panel and theme authors need to know how
+their strings reach a catalogue before they write any.
+
 
 There is no mechanism and every string is inline in JSX. It gets worse every
 sprint; do it before Stage 23 grows the surface.

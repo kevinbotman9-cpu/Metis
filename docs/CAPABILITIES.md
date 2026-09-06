@@ -224,7 +224,7 @@ verified by breaking the thing it guards.
 | The axe sweep scanned no detail routes | **Closed** — `/decision-flows/[id]` and `/decisions/[id]` added, both clean. Verified: a nameless button fails `button-name` |
 | Nothing stopped a second document claiming things were built | **Closed** — `tests/docs-status.test.ts`. Verified: a "Decision ledger \| Built" row in README fails it |
 | Nothing tied the API paths to the spec | **Closed** — `tests/api-paths.test.ts`. Verified in both directions: a path renamed in the Kotlin router fails, and so does one renamed in the console's client |
-| There is no i18n mechanism; every string is inline in JSX | Open — [W-042](BACKLOG.md), and it grows every sprint |
+| There is no i18n mechanism; every string is inline in JSX | Open — [ADR-005](adr/ADR-005-internationalisation.md) proposes one and is **awaiting a product decision**. `CLAUDE.md` lists i18n structure as needing review before code and says the gap needs a decision rather than a workaround, so nothing was built. It grows every sprint, and Stage 23's package authors will need the answer before they write a string |
 | The console edits a catalogue the engine does not read | Open — the store deep-clones the fixtures and the engine reads the fixture modules, so a ranking-weight change persists, is audited, and changes no decision. Registered in [`gaps.md`](gaps.md); it is what makes W-005's second half a design question rather than a refactor |
 | The console still writes its client URLs by hand | Open — they are now *checked* against the spec, but W-001 asked for them to be generated. That is a 33-call-site refactor and was left as its own change |
 
@@ -251,6 +251,6 @@ Full detail, with dates and diagnoses, is in [`docs/gaps.md`](gaps.md).
 | [`docs/BACKLOG.md`](BACKLOG.md) | What is next: 51 work items, W-000 to W-050, in stage order, each with the check that would close it |
 | [`docs/EXPERIENCE_LAYER_STATUS.md`](EXPERIENCE_LAYER_STATUS.md) | Console routes, one row each, and a narrative per stage — what each change surfaced, what it got wrong |
 | [`docs/gaps.md`](gaps.md) | The gap register: what is missing, per operation and per persona, with dates |
-| [`docs/adr/`](adr/) | Five decisions and their rationale. ADR-003 is normative for serialisation; ADR-004 is proposed and awaiting a product call |
+| [`docs/adr/`](adr/) | Six decisions and their rationale. ADR-003 is normative for serialisation; ADR-004 (erasure) and ADR-005 (i18n) are proposed and awaiting product calls |
 | [`docs/metis-api.openapi.yaml`](metis-api.openapi.yaml) | The contract. If an endpoint is not here, it does not exist |
 | [`docs/GETTING_STARTED.md`](GETTING_STARTED.md) | How to run it |
