@@ -111,6 +111,7 @@ corpus reproducible, and it is also why nothing here claims to learn.
 | PostgreSQL for the decision ledger | BUILT | Same pattern, `packages/ledger` |
 | Append-only enforced at the schema | BUILT | Triggers reject `UPDATE` and `DELETE` on versions, events and records — the application refusing is not enough |
 | A configured database that cannot be reached | BUILT | An error, never a silent fallback to storage that forgets |
+| Retention and erasure | PLANNED — [W-006](BACKLOG.md) | [ADR-004](adr/ADR-004-retention-and-erasure.md) proposes crypto-shredding per subject, so the ledger stays append-only while the plaintext becomes unrecoverable. **Proposed, not accepted** — it carries real operational cost and legal consequences, and needs a product decision before W-008 begins. Nothing implements it |
 | Catalogue, policies and taxonomy in PostgreSQL | PARTIAL | `packages/catalogue` is built and durable — one behaviour suite over memory and a real database, foreign keys, a unique offer key, and an append-only edit log enforced by trigger. The console has not been repointed at it yet, so authored state is still lost on restart there. [W-005](BACKLOG.md) |
 | Redis, ClickHouse, event broker, object storage, online feature service | OUT OF SCOPE | Gate 2–3 |
 
@@ -249,6 +250,6 @@ Full detail, with dates and diagnoses, is in [`docs/gaps.md`](gaps.md).
 | [`docs/BACKLOG.md`](BACKLOG.md) | What is next: 51 work items, W-000 to W-050, in stage order, each with the check that would close it |
 | [`docs/EXPERIENCE_LAYER_STATUS.md`](EXPERIENCE_LAYER_STATUS.md) | Console routes, one row each, and a narrative per stage — what each change surfaced, what it got wrong |
 | [`docs/gaps.md`](gaps.md) | The gap register: what is missing, per operation and per persona, with dates |
-| [`docs/adr/`](adr/) | Four decisions and their rationale, ADR-003 being normative for serialisation |
+| [`docs/adr/`](adr/) | Five decisions and their rationale. ADR-003 is normative for serialisation; ADR-004 is proposed and awaiting a product call |
 | [`docs/metis-api.openapi.yaml`](metis-api.openapi.yaml) | The contract. If an endpoint is not here, it does not exist |
 | [`docs/GETTING_STARTED.md`](GETTING_STARTED.md) | How to run it |

@@ -97,7 +97,7 @@ otherwise.
 | W-003 | 8 | S1 benchmark and the p99 gate — **done, bounded** | 1 |
 | W-004 | 8 | No-network-egress assertion in the decision path — **done** | 1 |
 | W-005 | 9 | Catalogue, policies and taxonomy into PostgreSQL — **half done** | 2 |
-| W-006 | 9 | Retention and erasure design | 2 |
+| W-006 | 9 | Retention and erasure design — **ADR awaiting decision** | 2 |
 | W-007 | 9 | Configurable approved default for a missing score | 2 |
 | W-008 | 10 | Customer profile store and data model | 2 |
 | W-009 | 10 | Online feature service | 2 |
@@ -381,8 +381,24 @@ problem, not tidiness: a restart loses authored state.
 against memory and a real PostgreSQL, so the rules are known to be
 storage-independent. Append-only where the entity is versioned.
 
-### W-006 — Retention and erasure design
+### W-006 — Retention and erasure design — **ADR WRITTEN 2026-09-06, awaiting a decision**
 Gate 2 · Depends: W-005 · Spec §8, §11 · **Needs an ADR**
+
+[ADR-004](adr/ADR-004-retention-and-erasure.md) proposes crypto-shredding with
+a per-subject key: rows stay, chain hashes stay valid, the append-only triggers
+are never bypassed, and destroying the key makes the plaintext unrecoverable.
+It states the consequence that matters most — a replay of an erased subject
+fails *explicitly*, naming the erasure, rather than returning a decision
+computed from nulls or an indistinguishable "could not reproduce".
+
+It is marked **Proposed, not Accepted**, deliberately. It commits the platform
+to infrastructure it cannot run without and has legal consequences; that is a
+product and legal call rather than an engineering one, and it should be taken
+before W-008 begins rather than after four stores hold production data.
+
+The implementation bullets in this item — the erasure test, the retention job —
+remain open and are blocked on that decision, not on code.
+
 
 Append-only storage plus a right to erasure is a genuine conflict and the answer
 is a design decision, most likely crypto-shredding of per-subject keys so the
