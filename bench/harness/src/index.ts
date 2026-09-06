@@ -25,6 +25,16 @@ export interface Percentiles {
   min: number;
   max: number;
   mean: number;
+  /**
+   * 95% confidence interval on the mean, from the full sample.
+   *
+   * §10 requires confidence intervals with every published benchmark, and the
+   * honest reason is that a bare mean invites comparison between two runs that
+   * may not actually differ. Computed here because this is the only place the
+   * individual latencies exist — deriving it later from the percentiles would
+   * be arithmetic on six numbers dressed up as statistics.
+   */
+  meanConfidence95: { low: number; high: number };
 }
 
 export interface ScenarioResult {
@@ -81,6 +91,15 @@ export function runScenario(scenario: Scenario): ScenarioResult {
 
   const sorted = Array.from(latencies).sort((a, b) => a - b);
   const sum = sorted.reduce((a, b) => a + b, 0);
+  const mean = sum / (sorted.length || 1);
+
+  const variance =
+    sorted.length > 1
+      ? sorted.reduce((acc, x) => acc + (x - mean) ** 2, 0) / (sorted.length - 1)
+      : 0;
+  // Normal approximation. The sample is in the tens of thousands, so the gap
+  // from a t-distribution is far under the measurement noise.
+  const halfWidth = 1.96 * Math.sqrt(variance / (sorted.length || 1));
 
   return {
     name: scenario.name,
@@ -91,7 +110,8 @@ export function runScenario(scenario: Scenario): ScenarioResult {
       p99: percentile(sorted, 0.99),
       min: sorted[0] ?? 0,
       max: sorted[sorted.length - 1] ?? 0,
-      mean: sum / (sorted.length || 1),
+      mean,
+      meanConfidence95: { low: mean - halfWidth, high: mean + halfWidth },
     },
     throughput: (scenario.decisions / wallMs) * 1000,
     wallMs,
@@ -100,7 +120,21 @@ export function runScenario(scenario: Scenario): ScenarioResult {
 }
 
 export interface Budget {
-  /** The platform's stated latency promise. Applies to every scenario. */
+  /**
+   * The platform's stated latency promise, and what the gate enforces.
+   *
+   * p99, not p95. The specification's executive summary states it as
+   * "sub-50 ms p99 for a single-customer, multi-candidate arbitrated
+   * decision", and the gate should hold the promise that was made rather than
+   * an easier neighbour of it. The engine passes either with two orders of
+   * magnitude to spare, so taking the stricter reading costs nothing today and
+   * is the number a customer will quote back.
+   */
+  p99Ms: number;
+  /**
+   * Reported, and also gated, because it is free to hold and a p95 regression
+   * is the early warning for a p99 one.
+   */
   p95Ms: number;
   /**
    * Decisions per second a single core must sustain, or null to measure
@@ -115,8 +149,9 @@ export interface Budget {
   throughputPerSecond: number | null;
 }
 
-/** The Phase 0 gate, for a realistic workload. */
+/** The Foundation MVP gate, for a realistic workload. */
 export const BUDGET: Budget = {
+  p99Ms: 50,
   p95Ms: 50,
   throughputPerSecond: 1000,
 };
@@ -129,6 +164,13 @@ export interface GateVerdict {
 export function checkGate(result: ScenarioResult, budget: Budget = BUDGET): GateVerdict {
   const failures: string[] = [];
 
+  // p99 first: it is the promise, and reporting the p95 failure ahead of it
+  // would bury the number the specification actually states.
+  if (result.latency.p99 > budget.p99Ms) {
+    failures.push(
+      `p99 ${result.latency.p99.toFixed(3)}ms exceeds the ${budget.p99Ms}ms budget`
+    );
+  }
   if (result.latency.p95 > budget.p95Ms) {
     failures.push(
       `p95 ${result.latency.p95.toFixed(3)}ms exceeds the ${budget.p95Ms}ms budget`

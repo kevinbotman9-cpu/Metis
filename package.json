@@ -30,7 +30,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json && npm run typecheck --prefix apps/console",
     "test:bundle": "npm run test:bundle --prefix apps/console",
     "test:portability": "npm --prefix packages/portability run test",
-    "export": "node --import tsx packages/portability/src/cli.ts"
+    "export": "node --import tsx packages/portability/src/cli.ts",
+    "bench:s1": "npm --prefix bench/harness run bench:s1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

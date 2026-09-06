@@ -6,7 +6,8 @@
   "types": "src/index.ts",
   "scripts": {
     "bench": "tsx src/run.ts",
-    "test": "vitest run --config ./vitest.config.ts"
+    "test": "vitest run --config ./vitest.config.ts",
+    "bench:s1": "node --import tsx src/run-s1.ts"
   },
   "dependencies": {
     "@metis/core": "*",

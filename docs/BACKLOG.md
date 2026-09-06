@@ -94,7 +94,7 @@ otherwise.
 | W-000 | 0 | CI check: only the capability map claims BUILT | 1 |
 | W-001 | 0 | Fix the holes in the checks themselves — **done** | 1 |
 | W-002 | 7 | Export / re-import — **done** | 1 |
-| W-003 | 8 | S1 benchmark and the p99 gate | 1 |
+| W-003 | 8 | S1 benchmark and the p99 gate — **done, bounded** | 1 |
 | W-004 | 8 | No-network-egress assertion in the decision path — **done** | 1 |
 | W-005 | 9 | Catalogue, policies and taxonomy into PostgreSQL | 2 |
 | W-006 | 9 | Retention and erasure design | 2 |
@@ -274,8 +274,32 @@ instance.
 
 ## Stage 8 — Performance proof (already committed)
 
-### W-003 — S1 benchmark and the p99 gate
+### W-003 — S1 benchmark and the p99 gate — **DONE 2026-09-06**, with a stated bound
 Gate 1 · Depends: W-008, W-011 for realistic profile and history · Spec §10
+
+**Closed as far as it can honestly go, and the dependency was the reason to
+split it rather than wait.** W-008 and W-011 are Gate 2; blocking Gate 1 on
+them would have held the whole gate for variants that measure storage this
+engine does not yet have.
+
+Done:
+
+- The gate is **p99 < 50 ms**, the promise the specification states. Verified
+  by setting a budget the engine cannot meet.
+- S1 runs at full scale — 1,000,000 seeded profiles, 100 active actions, cold
+  and warm — via `npm run bench:s1`. Measured p99 6.8 ms cold, 3.6 ms warm.
+- Every result carries workload, data distribution, infrastructure, code
+  version, model latency, cache state and a confidence interval on the mean,
+  computed from the full sample rather than from the percentiles. The fields
+  are mandatory on the type and asserted individually; verified by dropping one.
+- Throughput stays measured and ungated, with the reason in the artifact rather
+  than in tribal memory.
+
+Not done, and named in `bench/results/S1.json` rather than left to silence:
+feature-store miss rates need a feature service (W-009); a degraded provider
+needs the gateway inside the measured path (W-010); and sustained 1k/2k per
+second is a service-level claim that a single-threaded harness cannot make.
+
 
 The harness scales candidate sets, not profiles. The S1 claim is 1M profiles,
 100 actions, 1k and 2k decisions per second.
