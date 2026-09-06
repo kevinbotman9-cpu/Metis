@@ -83,6 +83,23 @@ describe('decision conformance (ADR-003)', () => {
     expect(ALL.filter((code) => !seen.has(code))).toEqual([]);
   });
 
+  /**
+   * The evaluator is only proven by a corpus that runs more than one function
+   * through it. With `multiplicative` alone, `expected-value` would be covered
+   * by unit tests on the TypeScript side and by nothing at all on the Kotlin
+   * side — which is the half that matters, since the whole point of a second
+   * engine is that it agrees.
+   */
+  it('exercises every built-in ranking function', () => {
+    const seen = new Set(
+      corpus.cases.map((c) => {
+        const u = c.expected.decision.arbitration.utility;
+        return `${u.id}@${u.version}`;
+      })
+    );
+    expect([...seen].sort()).toEqual(['expected-value@1.0.0', 'multiplicative@1.0.0']);
+  });
+
   for (const c of corpus.cases) {
     it(c.name, () => {
       const trace = execute(c.artifact, c.catalogue, c.request);

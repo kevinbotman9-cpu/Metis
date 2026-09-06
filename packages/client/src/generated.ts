@@ -152,7 +152,16 @@ export interface FrequencyPolicy {
 export interface ArbitrationConfig {
   id: string;
   tenantId: string;
-  /** Exponent weights for Priority = P^wP x V^wV x L^wL x C^wC */
+  /** Which ranking function computes priority. Required, with no default: a missing reference used to mean "whatever the engine hard-codes", which is the coupling this replaces. Publishing is gated on the function existing (UNKNOWN_UTILITY_FUNCTION) and on it reading only terms the engine produces (UTILITY_TERM_UNAVAILABLE).
+ */
+  utility: {
+    id: string;
+    /** Semver. Arithmetic changes are a new version, never an edit — decisions already point at the old one.
+ */
+    version: string;
+  };
+  /** Exponent weights for the multiplicative function. A function that reads no weights (expected-value) ignores these entirely.
+ */
   weights: {
     propensity: number;
     value: number;
@@ -246,12 +255,15 @@ export interface Elimination {
   survived: string[];
 }
 
-/** The four arbitration terms and the priority they produce. */
+/** Every term the engine produces for a candidate, and the priority the ranking function computed from them. All terms are present whichever function ran: a term appearing only when some function asks for it would make the decision shape depend on the ranking config, and two decisions from one tenant would hash over different structures.
+ */
 export interface ScoreBreakdown {
   propensity: number;
   value: number;
   boost: number;
   context: number;
+  /** Delivery cost, normalised on the same scale as value. */
+  cost: number;
   priority: number;
 }
 
@@ -302,6 +314,12 @@ export interface DecisionRecord {
   scores: Record<string, ScoreBreakdown>;
   arbitration: {
     formula: string;
+    /** Which ranking function produced these priorities. In the hashed decision because a decision has to identify every version that produced it — without this, two decisions ranked by different functions over the same catalogue are indistinguishable after the fact.
+ */
+    utility: {
+      id: string;
+      version: string;
+    };
     winner: string | null;
     runnerUp: string | null;
   };

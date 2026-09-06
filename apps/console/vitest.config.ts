@@ -13,6 +13,7 @@ export default defineConfig({
       // Import the domain module directly: packages/core/src/index.ts reads
       // schema files from disk at import time, which no browser or test needs.
       '@metis/core/domain': path.resolve(__dirname, '../../packages/core/src/domain.ts'),
+      '@metis/core/utility': path.resolve(__dirname, '../../packages/core/src/utility.ts'),
       '@metis/runtime/deterministic': path.resolve(
         __dirname,
         '../../packages/runtime/src/deterministic'

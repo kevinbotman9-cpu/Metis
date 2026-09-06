@@ -2,9 +2,12 @@
   "name": "@metis/core",
   "version": "0.0.1",
   "description": "METIS core - the domain types every plane shares",
-  "main": "dist/domain.js",
-  "types": "dist/domain.d.ts",
   "scripts": {
     "build": "tsc"
+  },
+  "exports": {
+    ".": "./src/domain.ts",
+    "./domain": "./src/domain.ts",
+    "./utility": "./src/utility.ts"
   }
 }

@@ -80,6 +80,7 @@ const catalogue: CatalogueSnapshot = {
     id: 'arb',
     tenantId: 't',
     weights: { propensity: 1, value: 1, boost: 1, context: 1 },
+    utility: { id: 'multiplicative', version: '1.0.0' },
     formula: 'P x V x L x C',
     updatedAt: '2020-01-01T00:00:00.000Z',
     updatedBy: 'test',

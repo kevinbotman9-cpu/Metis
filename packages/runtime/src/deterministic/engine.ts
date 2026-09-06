@@ -22,6 +22,12 @@ import type {
   PolicyScope,
   SourceBinding,
 } from '@metis/core/domain';
+import {
+  resolveUtility,
+  evaluateUtility,
+  utilityKey,
+  type UtilityFunction,
+} from '@metis/core/utility';
 import { canonicalise, hash, seededUnitInterval } from './canonical';
 import type {
   ExecArtifact,
@@ -278,6 +284,28 @@ export function execute(
    * knows why. Deriving here is what produced the node-level prose this
    * replaces.
    */
+  /**
+   * Resolved once, at the top, and thrown on rather than defaulted.
+   *
+   * A config naming a function that does not exist is a deployment fault. The
+   * alternative — quietly falling back to `multiplicative` — would produce a
+   * decision that looks correct, hashes correctly, and was ranked by something
+   * other than what the tenant configured. The compiler refuses to publish
+   * this case (UNKNOWN_UTILITY_FUNCTION), so reaching here means the artifact
+   * bypassed it.
+   */
+  const utility: UtilityFunction = (() => {
+    const found = resolveUtility(catalogue.arbitration.utility);
+    if (!found) {
+      throw new Error(
+        `Unknown ranking function ${utilityKey(catalogue.arbitration.utility)}. ` +
+          'Publish is gated on this, so an artifact reaching the engine with one ' +
+          'has skipped the compiler.'
+      );
+    }
+    return found;
+  })();
+
   const record = (
     node: ExecNode,
     reason: string,
@@ -461,7 +489,10 @@ export function execute(
             0.4 + seededUnitInterval(request.channel, p.key, request.placement) * 0.6,
             6
           );
-          scores[p.key] = { propensity, value, boost, context, priority: 0 };
+          // Normalised on the same scale as value, so a function can subtract
+          // one from the other and get a number that means something.
+          const cost = round(Math.max(0, p.financials.cost.amount / 60000), 6);
+          scores[p.key] = { propensity, value, boost, context, cost, priority: 0 };
         }
         // Scoring never removes a candidate, so there is nothing to deny.
         record(node, `Scored ${candidates.length} candidate(s) with ${modelKey}.`, candidates, []);
@@ -482,6 +513,10 @@ export function execute(
             value: round(Math.max(0.01, p.financials.expectedMargin.amount / 60000), 6),
             boost: effectiveBoost(catalogue.boosts, p, request.occurredAt),
             context: 1,
+            // Cost is a catalogue fact, not a model output, so it is known
+            // even when nothing scored this candidate. Neutral here means the
+            // real number, not 1.
+            cost: round(Math.max(0, p.financials.cost.amount / 60000), 6),
             priority: 0,
           };
         }
@@ -489,11 +524,22 @@ export function execute(
         for (const p of candidates) {
           const s = scores[p.key];
           if (!s) continue;
+          // Rounding stays here rather than inside the evaluator: it is a
+          // property of how this engine records a priority, not of the
+          // arithmetic the function describes, and moving it would make the
+          // same function round differently in a different caller.
           s.priority = round(
-            Math.pow(s.propensity, w.propensity) *
-              Math.pow(s.value, w.value) *
-              Math.pow(s.boost, w.boost) *
-              Math.pow(s.context, w.context),
+            evaluateUtility(
+              utility,
+              {
+                propensity: s.propensity,
+                value: s.value,
+                boost: s.boost,
+                context: s.context,
+                cost: s.cost,
+              },
+              w
+            ),
             8
           );
         }
@@ -565,7 +611,12 @@ export function execute(
     candidateKeys: artifact.candidateKeys,
     eliminations,
     scores,
-    arbitration: { formula: catalogue.arbitration.formula, winner, runnerUp },
+    arbitration: {
+      formula: catalogue.arbitration.formula,
+      utility: { id: utility.id, version: utility.version },
+      winner,
+      runnerUp,
+    },
     constraintsApplied: [...new Set(constraintsApplied)].sort(),
     consentState: consent,
     winner,

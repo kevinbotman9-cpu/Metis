@@ -242,7 +242,18 @@ function TraceView({ decisionId }: { decisionId: string }) {
             <Card>
               <CardHeader
                 title="Score composition"
-                description={trace.arbitration.formula}
+                description={
+                  <span className="flex flex-wrap items-baseline gap-x-2">
+                    <span>{trace.arbitration.formula}</span>
+                    {/* Which function computed this, by version. A decision has
+                        to identify every version that produced it, and the
+                        formula string alone is display text that two different
+                        functions could share. */}
+                    <span className="font-mono text-label text-content-subtle">
+                      {trace.arbitration.utility.id}@{trace.arbitration.utility.version}
+                    </span>
+                  </span>
+                }
               />
               <CardBody>
                 {ranked.length === 0 ? (

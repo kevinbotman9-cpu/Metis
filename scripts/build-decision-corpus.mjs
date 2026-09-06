@@ -98,6 +98,7 @@ function catalogue(over = {}) {
       id: 'arb',
       tenantId: 't',
       weights: { propensity: 1, value: 1, boost: 1, context: 1 },
+      utility: { id: 'multiplicative', version: '1.0.0' },
       formula: 'P^wP x V^wV x B^wB x C^wC',
       updatedAt: '2020-01-01T00:00:00.000Z',
       updatedBy: 'fixture',
@@ -195,6 +196,7 @@ const CASES = [
         id: 'arb',
         tenantId: 't',
         weights: { propensity: 1.5, value: 0.75, boost: 2, context: 0.3333333333333333 },
+        utility: { id: 'multiplicative', version: '1.0.0' },
         formula: 'P^wP x V^wV x B^wB x C^wC',
         updatedAt: '2020-01-01T00:00:00.000Z',
         updatedBy: 'fixture',
@@ -212,6 +214,38 @@ const CASES = [
         offer({ id: 'p_z', key: 'offer_z' }),
         offer({ id: 'p_a2', key: 'offer_a' }),
       ],
+    }),
+    request: request(),
+  },
+  {
+    // A second ranking function, so the corpus proves the evaluator and not
+    // just one hard-coded expression. Without this the `expected-value` AST
+    // would be exercised by unit tests on one engine and by nothing at all on
+    // the other.
+    name: 'expected-value ranking function instead of multiplicative',
+    artifact: artifact({
+      candidateKeys: threeKeys,
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source' },
+        { id: 'n2_score', type: 'score-adaptive', label: 'Score', model: { id: 'm', version: '1.0.0' } },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n2_score' },
+        { from: 'n2_score', to: 'n3_arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({
+      offers: three,
+      arbitration: {
+        id: 'arb_ev',
+        tenantId: 't',
+        weights: { propensity: 1, value: 1, boost: 1, context: 0.5 },
+        utility: { id: 'expected-value', version: '1.0.0' },
+        formula: '(P x V - Cost) x B',
+        updatedAt: '2020-01-01T00:00:00.000Z',
+        updatedBy: 'fixture',
+      },
     }),
     request: request(),
   },

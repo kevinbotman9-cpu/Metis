@@ -251,6 +251,16 @@ object Engine {
         var winner: String? = null
         var runnerUp: String? = null
 
+        // Resolved once and thrown on rather than defaulted. A config naming
+        // a function that does not exist is a deployment fault; falling back
+        // silently would rank by something other than what was configured.
+        // Publishing is gated on this, so reaching here means the artifact
+        // skipped the compiler.
+        val utility = Utility.resolve(catalogue.arbitration.utility)
+            ?: throw IllegalArgumentException(
+                "Unknown ranking function ${Utility.key(catalogue.arbitration.utility)}."
+            )
+
         // Denials are passed in, not derived from the before/after diff: the
         // diff knows which candidates went, only the removing code knows why.
         fun record(node: ExecNode, reason: String, after: List<Offer>, denials: List<Denial>) {
@@ -403,7 +413,10 @@ object Engine {
                         val context = round(
                             0.4 + seededUnitInterval(request.channel, p.key, request.placement) * 0.6, 6
                         )
-                        scores[p.key] = CandidateScore(propensity, value, boost, context, 0.0)
+                        // Same scale as value, so a function can subtract one
+                        // from the other and get a real number.
+                        val cost = round(maxOf(0.0, p.financials.cost.amount / 60000.0), 6)
+                        scores[p.key] = CandidateScore(propensity, value, boost, context, cost, 0.0)
                     }
                     // Scoring never removes a candidate, so nothing is denied.
                     record(node, "Scored ${candidates.size} candidate(s) with $modelKey.", candidates, emptyList())
@@ -424,6 +437,9 @@ object Engine {
                             value = round(maxOf(0.01, p.financials.expectedMargin.amount / 60000.0), 6),
                             boost = effectiveBoost(catalogue.boosts, p, request.occurredAt),
                             context = 1.0,
+                            // A catalogue fact, not a model output, so it is
+                            // known even when nothing scored this candidate.
+                            cost = round(maxOf(0.0, p.financials.cost.amount / 60000.0), 6),
                             priority = 0.0,
                         )
                     }
@@ -435,11 +451,26 @@ object Engine {
                         // they may differ by an ulp — which after rounding to
                         // 8dp can still change a hash. StrictMath is fdlibm,
                         // and so is V8's implementation, so they agree.
+                        // Rounding stays at the call site, not inside the
+                        // evaluator: it is how this engine records a priority,
+                        // not part of the arithmetic the function describes.
                         s.priority = round(
-                            StrictMath.pow(s.propensity, w.propensity) *
-                                StrictMath.pow(s.value, w.value) *
-                                StrictMath.pow(s.boost, w.boost) *
-                                StrictMath.pow(s.context, w.context),
+                            Utility.evaluate(
+                                utility,
+                                mapOf(
+                                    "propensity" to s.propensity,
+                                    "value" to s.value,
+                                    "boost" to s.boost,
+                                    "context" to s.context,
+                                    "cost" to s.cost,
+                                ),
+                                mapOf(
+                                    "propensity" to w.propensity,
+                                    "value" to w.value,
+                                    "boost" to w.boost,
+                                    "context" to w.context,
+                                ),
+                            ),
                             8,
                         )
                     }
@@ -499,7 +530,12 @@ object Engine {
             candidateKeys = artifact.candidateKeys,
             eliminations = eliminations,
             scores = scores,
-            arbitration = Arbitration(catalogue.arbitration.formula, winner, runnerUp),
+            arbitration = Arbitration(
+                catalogue.arbitration.formula,
+                UtilityRef(utility.id, utility.version),
+                winner,
+                runnerUp,
+            ),
             constraintsApplied = constraintsApplied.distinct().sorted(),
             consentState = consent,
             winner = winner,

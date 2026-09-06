@@ -19,7 +19,13 @@ package com.metis.engine
 
 data class Money(val amount: Double, val currency: String)
 
-data class Financials(val expectedMargin: Money)
+/**
+ * Only what the engine reads. `cost` joined when the expected-value ranking
+ * function did: a function that subtracts delivery cost needs the number, and
+ * a trimmed model that omitted it would have silently made that function
+ * unavailable on this engine alone.
+ */
+data class Financials(val expectedMargin: Money, val cost: Money)
 
 data class ValidityWindow(val startsAt: String, val endsAt: String?)
 
@@ -63,7 +69,14 @@ data class ArbitrationWeights(
     val context: Double,
 )
 
-data class ArbitrationConfig(val weights: ArbitrationWeights, val formula: String)
+data class UtilityRef(val id: String, val version: String)
+
+data class ArbitrationConfig(
+    val weights: ArbitrationWeights,
+    /** Which ranking function computes priority. Required, no default. */
+    val utility: UtilityRef,
+    val formula: String,
+)
 
 data class Boost(
     val id: String,
@@ -159,12 +172,20 @@ data class CandidateScore(
     val value: Double,
     val boost: Double,
     val context: Double,
+    /** Delivery cost, normalised on the same scale as value. */
+    val cost: Double,
     var priority: Double,
 )
 
 data class SourceBinding(val field: String, val connectorId: String, val nodeId: String)
 
-data class Arbitration(val formula: String, val winner: String?, val runnerUp: String?)
+data class Arbitration(
+    val formula: String,
+    /** The function that produced these priorities, by id and version. */
+    val utility: UtilityRef,
+    val winner: String?,
+    val runnerUp: String?,
+)
 
 /** The reproducible half. Field order here is irrelevant: canonicalise sorts. */
 data class DeterministicDecision(

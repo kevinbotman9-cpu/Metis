@@ -42,6 +42,10 @@ object Canon {
         "scores" to obj(*d.scores.map { (k, v) -> k to score(v) }.toTypedArray()),
         "arbitration" to obj(
             "formula" to str(d.arbitration.formula),
+            "utility" to obj(
+                "id" to str(d.arbitration.utility.id),
+                "version" to str(d.arbitration.utility.version),
+            ),
             "winner" to strOrNull(d.arbitration.winner),
             "runnerUp" to strOrNull(d.arbitration.runnerUp),
         ),
@@ -82,6 +86,7 @@ object Canon {
         "value" to num(s.value),
         "boost" to num(s.boost),
         "context" to num(s.context),
+        "cost" to num(s.cost),
         "priority" to num(s.priority),
     )
 

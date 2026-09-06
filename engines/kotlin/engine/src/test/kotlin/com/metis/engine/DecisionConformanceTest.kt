@@ -83,7 +83,11 @@ class DecisionConformanceTest {
             Money(
                 n["financials"]["expectedMargin"]["amount"].asDouble(),
                 n["financials"]["expectedMargin"]["currency"].asText(),
-            )
+            ),
+            Money(
+                n["financials"]["cost"]["amount"].asDouble(),
+                n["financials"]["cost"]["currency"].asText(),
+            ),
         ),
         validity = validity(n["validity"])!!,
         boost = n["boost"].asDouble(),
@@ -121,6 +125,9 @@ class DecisionConformanceTest {
                     it["boost"].asDouble(),
                     it["context"].asDouble(),
                 )
+            },
+            utility = n["arbitration"]["utility"].let {
+                UtilityRef(it["id"].asText(), it["version"].asText())
             },
             formula = n["arbitration"]["formula"].asText(),
         ),

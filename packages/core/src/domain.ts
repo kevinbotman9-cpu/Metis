@@ -258,6 +258,15 @@ export interface ArbitrationConfig {
     boost: number;
     context: number;
   };
+  /**
+   * Which ranking function computes priority, by id and version.
+   *
+   * Required, with no default. A missing reference used to mean "the one the
+   * engine happens to hard-code", which is exactly the coupling this replaces —
+   * and a silent fallback would let a config that names nothing keep working
+   * while claiming to be configurable.
+   */
+  utility: { id: string; version: string };
   /** Human-readable rendering of the formula for the trace and UI. */
   formula: string;
   updatedAt: string;

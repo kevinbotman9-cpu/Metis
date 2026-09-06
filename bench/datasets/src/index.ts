@@ -143,6 +143,7 @@ export function buildWorkload(options: WorkloadOptions = {}): Workload {
     id: 'arb_bench',
     tenantId: 'bench',
     weights: { propensity: 1, value: 1, boost: 1, context: 0.5 },
+    utility: { id: 'multiplicative', version: '1.0.0' },
     formula: 'P^wP x V^wV x L^wL x C^wC',
     updatedAt: '2020-01-01T00:00:00.000Z',
     updatedBy: 'bench',

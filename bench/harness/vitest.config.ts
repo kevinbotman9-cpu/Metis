@@ -13,6 +13,7 @@ export default defineConfig({
       // schema files from disk at import time, so consumers take the domain
       // module directly.
       '@metis/core/domain': path.resolve(__dirname, '../../packages/core/src/domain.ts'),
+      '@metis/core/utility': path.resolve(__dirname, '../../packages/core/src/utility.ts'),
       '@metis/runtime/deterministic': path.resolve(
         __dirname,
         '../../packages/runtime/src/deterministic'

@@ -1112,6 +1112,10 @@
         "boost": 1,
         "context": 0.5
       },
+      "utility": {
+        "id": "multiplicative",
+        "version": "1.0.0"
+      },
       "formula": "Priority = P^1.0 × V^1.0 × B^1.0 × C^0.5",
       "updatedAt": "2026-08-29T09:00:00.000Z",
       "updatedBy": "marcus.webb@telco.example"

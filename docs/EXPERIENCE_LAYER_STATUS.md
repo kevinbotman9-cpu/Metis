@@ -413,3 +413,73 @@ Recorded because the same script will be wanted again:
   as a UI and API word. Renaming the segment broke agreement between the spec,
   the console's hand-written client URL, the dev API route handler and the
   Kotlin service route — and only one of those four is covered by a typecheck.
+
+---
+
+## Ranking functions became typed and versioned, 2026-09-05
+
+§6 of the platform specification says it directly: *do not hard-code the
+multiplicative formula; make utility functions typed, versioned and testable.*
+The engine hard-coded `pow(propensity,wP) × pow(value,wV) × pow(boost,wB) ×
+pow(context,wC)`, so a tenant ranking on expected value minus cost needed an
+engine change.
+
+`packages/core/src/utility.ts` holds a small typed AST and an evaluator over a
+closed operation set. Two built-ins: `multiplicative@1.0.0`, which is the old
+formula bit for bit, and `expected-value@1.0.0`, which is `(P × V − Cost) × B`.
+
+### Choices worth knowing
+
+- **An AST, not an expression string.** A string needs either a parser in both
+  engines — two chances to disagree on precedence — or `eval`, which is neither
+  deterministic across runtimes nor inspectable by a compiler.
+- **`ArbitrationConfig.utility` is required, with no default.** A missing
+  reference used to mean "whatever the engine hard-codes", which is the exact
+  coupling being removed. A silent fallback would let a config that names
+  nothing keep working while claiming to be configurable.
+- **The version is inside the hashed decision.** Two decisions ranked by
+  different functions over the same catalogue would otherwise be
+  indistinguishable after the fact.
+- **`cost` is on every score, whichever function ran.** A term that appeared
+  only when some function asked for it would make the decision *shape* depend
+  on the ranking config, and two decisions from one tenant would then hash over
+  different structures.
+- **Rounding stayed at the call site**, not inside the evaluator. It is how
+  this engine records a priority, not part of the arithmetic the function
+  describes.
+- **No `riskPenalty`.** The specification's example is "expected value minus
+  cost and risk penalties", and there is no risk term in the model. A term that
+  always evaluated to zero would look like a considered feature and be a
+  placeholder.
+
+### How it is held
+
+- 13 tests on the evaluator, and the one that matters compares
+  `multiplicative@1.0.0` against the old hard-coded expression across **600
+  combinations** of the ranges the engine actually produces, with `Object.is`
+  rather than `toBe` so ±0 and NaN are not quietly equal. A refactor that
+  changes an answer is not a refactor.
+- Two tests assert each built-in declares exactly the terms and weights its AST
+  reads. A function reading an undeclared term would pass the compiler's
+  availability check and then throw at execution.
+- The corpus gained a 25th case using `expected-value`, and a test that fails
+  if the corpus stops exercising either function. Without it the second
+  function would be covered by unit tests on the TypeScript side and by nothing
+  at all on the Kotlin side — which is the half that matters.
+- The compiler gained `UNKNOWN_UTILITY_FUNCTION` and `UTILITY_TERM_UNAVAILABLE`,
+  so a bad reference is refused at publish rather than thrown on live traffic.
+
+Chain hashes moved again, for two written-down reasons — `cost` joined the
+score and the function version joined the record — and not because the
+arithmetic drifted. The 600-combination test is what separates those two
+explanations.
+
+### Two things this surfaced
+
+- **`packages/core` had no `exports` map.** `@metis/core/domain` resolved by
+  luck through the workspace symlink; `@metis/core/utility` did not resolve at
+  all for the corpus generators, which run under tsx rather than vitest. Now
+  explicit, pointing at source, which is how every consumer already reads it.
+- **The root vitest config had no aliases.** The integration suite was
+  resolving package imports through the same symlink, to a `dist` that no build
+  step produces.

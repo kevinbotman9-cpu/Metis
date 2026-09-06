@@ -968,6 +968,7 @@ export const arbitrationConfig: ArbitrationConfig = {
   id: 'arb_telco_uk',
   tenantId: 'telco-uk',
   weights: { propensity: 1.0, value: 1.0, boost: 1.0, context: 0.5 },
+  utility: { id: 'multiplicative', version: '1.0.0' },
   formula: 'Priority = P^1.0 × V^1.0 × B^1.0 × C^0.5',
   updatedAt: iso(-72),
   updatedBy: 'marcus.webb@telco.example',

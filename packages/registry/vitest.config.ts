@@ -8,6 +8,7 @@ export default defineConfig({
       // packages/core/src/index.ts reads schema files from disk at import time,
       // so consumers take the domain module directly.
       '@metis/core/domain': path.resolve(__dirname, '../core/src/domain.ts'),
+      '@metis/core/utility': path.resolve(__dirname, '../core/src/utility.ts'),
       '@metis/compiler/decision-flow': path.resolve(__dirname, '../compiler/src/decision-flow/index.ts'),
     },
   },

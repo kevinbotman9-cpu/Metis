@@ -184,6 +184,15 @@ export interface CandidateScore {
   value: number;
   boost: number;
   context: number;
+  /**
+   * Delivery cost, normalised the same way value is.
+   *
+   * Present on every score even though `multiplicative` ignores it: a term
+   * that appears only when some function asks for it would make the decision
+   * shape depend on the ranking config, and two decisions from one tenant
+   * would then hash over different structures.
+   */
+  cost: number;
   priority: number;
 }
 
@@ -216,7 +225,20 @@ export interface DeterministicDecision {
   candidateKeys: string[];
   eliminations: EliminationStep[];
   scores: Record<string, CandidateScore>;
-  arbitration: { formula: string; winner: string | null; runnerUp: string | null };
+  arbitration: {
+    formula: string;
+    /**
+     * Which ranking function produced the priorities, by id and version.
+     *
+     * In the hashed decision because §14 requires a decision to identify every
+     * version that produced it. Without this, two decisions ranked by
+     * different functions on the same catalogue are indistinguishable after
+     * the fact.
+     */
+    utility: { id: string; version: string };
+    winner: string | null;
+    runnerUp: string | null;
+  };
   constraintsApplied: string[];
   consentState: { marketing: boolean; profiling: boolean; thirdParty: boolean };
   winner: string | null;

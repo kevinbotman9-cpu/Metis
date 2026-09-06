@@ -84,6 +84,7 @@ const arbitration = {
   id: 'arb',
   tenantId: 'telco-uk',
   weights: { propensity: 1, value: 1, boost: 1, context: 0.5 },
+  utility: { id: 'multiplicative', version: '1.0.0' },
   formula: 'Priority = P^1 x V^1 x L^1 x C^0.5',
   updatedAt: '2026-01-01T00:00:00Z',
   updatedBy: 'test',

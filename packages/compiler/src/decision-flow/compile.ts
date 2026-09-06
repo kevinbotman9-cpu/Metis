@@ -26,6 +26,12 @@ import type {
   Connector,
 } from '@metis/core/domain';
 import {
+  resolveUtility,
+  utilityKey,
+  KNOWN_TERMS,
+  BUILT_IN_UTILITY_FUNCTIONS,
+} from '@metis/core/utility';
+import {
   type Diagnostic,
   error,
   warning,
@@ -379,6 +385,41 @@ export function compileDecisionFlow(
         'Add an arbitrate node as the final step.'
       )
     );
+  }
+
+  // --- The ranking function ----------------------------------------------
+  //
+  // Checked here rather than trusted at execution time, because the engine's
+  // only options at that point are to throw on a live decision or to fall back
+  // silently to a function the tenant did not configure. Both are worse than
+  // refusing to publish.
+
+  if (arbitrateNodes.length > 0) {
+    const ref = ctx.arbitration.utility;
+    const fn = resolveUtility(ref);
+    if (!fn) {
+      d.push(
+        error(
+          'UNKNOWN_UTILITY_FUNCTION',
+          `Arbitration names ranking function '${utilityKey(ref)}', which does not exist.`,
+          `Use one of: ${BUILT_IN_UTILITY_FUNCTIONS.map(utilityKey).join(', ')}.`
+        )
+      );
+    } else {
+      // A function can only read terms the engine produces. This is the check
+      // that makes a custom function safe to accept: without it, one naming a
+      // term nobody computes would publish cleanly and throw on live traffic.
+      const unknown = fn.terms.filter((t) => !KNOWN_TERMS.includes(t));
+      for (const t of unknown) {
+        d.push(
+          error(
+            'UTILITY_TERM_UNAVAILABLE',
+            `Ranking function '${utilityKey(ref)}' reads term '${t}', which the engine does not produce.`,
+            `Available terms: ${KNOWN_TERMS.join(', ')}.`
+          )
+        );
+      }
+    }
   }
 
   // --- The bug this compiler exists to catch -----------------------------

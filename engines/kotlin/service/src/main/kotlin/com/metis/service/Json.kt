@@ -79,7 +79,11 @@ object Json {
             Money(
                 req(n["financials"]?.get("expectedMargin")?.get("amount"), "expectedMargin.amount").asDouble(),
                 n["financials"]["expectedMargin"]["currency"]?.asText() ?: "GBP",
-            )
+            ),
+            Money(
+                req(n["financials"]?.get("cost")?.get("amount"), "financials.cost.amount").asDouble(),
+                n["financials"]["cost"]["currency"]?.asText() ?: "GBP",
+            ),
         ),
         validity = validity(n["validity"]) ?: throw BadRequest("offer.validity is required"),
         boost = req(n["boost"], "offer.boost").asDouble(),
@@ -120,6 +124,15 @@ object Json {
                     req(it["value"], "weights.value").asDouble(),
                     req(it["boost"], "weights.boost").asDouble(),
                     req(it["context"], "weights.context").asDouble(),
+                )
+            },
+            // Required, not defaulted. A bundle without it is a bundle whose
+            // ranking function is unknown, and guessing `multiplicative` here
+            // would silently rank by something the tenant did not configure.
+            utility = req(n["arbitration"]?.get("utility"), "arbitration.utility").let {
+                UtilityRef(
+                    req(it["id"], "arbitration.utility.id").asText(),
+                    req(it["version"], "arbitration.utility.version").asText(),
                 )
             },
             formula = req(n["arbitration"]?.get("formula"), "arbitration.formula").asText(),

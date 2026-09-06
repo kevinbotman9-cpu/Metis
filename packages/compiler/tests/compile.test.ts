@@ -81,6 +81,7 @@ const ctx: CompileContext = {
     id: 'arb',
     tenantId: 't',
     weights: { propensity: 1, value: 1, boost: 1, context: 0.5 },
+    utility: { id: 'multiplicative', version: '1.0.0' },
     formula: 'P x V x L x C',
     updatedAt: '2026-01-01T00:00:00Z',
     updatedBy: 'test',
@@ -267,11 +268,59 @@ describe('the arbitration-without-scoring bug', () => {
       arbitration: {
         ...ctx.arbitration,
         weights: { propensity: 0, value: 1, boost: 1, context: 0 },
+      utility: { id: 'multiplicative', version: '1.0.0' },
       },
     };
     expect(codes(compileDecisionFlow(noScore, valueOnly))).not.toContain(
       'ARBITRATION_MISSING_SCORE'
     );
+  });
+});
+
+describe('the ranking function', () => {
+  it('refuses a function that does not exist, and lists the ones that do', () => {
+    // Checked at compile time because the engine's only options later are to
+    // throw on live traffic or to fall back to a function the tenant did not
+    // configure. Both are worse than refusing to publish.
+    const r = compileDecisionFlow(valid, {
+      ...ctx,
+      arbitration: {
+        ...ctx.arbitration,
+        utility: { id: 'bayesian-surprise', version: '9.0.0' },
+      },
+    });
+    expect(r.ok).toBe(false);
+    const diag = r.diagnostics.find((x) => x.code === 'UNKNOWN_UTILITY_FUNCTION')!;
+    expect(diag).toBeDefined();
+    expect(diag.message).toContain('bayesian-surprise@9.0.0');
+    // The remedy names the real options rather than saying "check the config".
+    expect(diag.remedy).toContain('multiplicative@1.0.0');
+    expect(diag.remedy).toContain('expected-value@1.0.0');
+  });
+
+  it('treats a version that does not exist as unknown, not as the nearest one', () => {
+    const r = compileDecisionFlow(valid, {
+      ...ctx,
+      arbitration: { ...ctx.arbitration, utility: { id: 'multiplicative', version: '2.0.0' } },
+    });
+    expect(r.ok).toBe(false);
+    expect(r.diagnostics.some((x) => x.code === 'UNKNOWN_UTILITY_FUNCTION')).toBe(true);
+  });
+
+  it('accepts both built-ins', () => {
+    for (const utility of [
+      { id: 'multiplicative', version: '1.0.0' },
+      { id: 'expected-value', version: '1.0.0' },
+    ]) {
+      const r = compileDecisionFlow(valid, {
+        ...ctx,
+        arbitration: { ...ctx.arbitration, utility },
+      });
+      expect(
+        r.diagnostics.filter((x) => x.code.startsWith('UTILITY_') || x.code === 'UNKNOWN_UTILITY_FUNCTION'),
+        `${utility.id}@${utility.version}`
+      ).toEqual([]);
+    }
   });
 });
 
