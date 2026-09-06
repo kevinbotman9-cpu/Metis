@@ -111,7 +111,7 @@ corpus reproducible, and it is also why nothing here claims to learn.
 |---|---|---|
 | OpenAPI 3.1 as the source of truth | BUILT | `packages/client` is generated; the console compiles against it, so spec drift is a compile error |
 | Contract tested in both directions | BUILT | The compiler catches spec→console; `e2e/contract.spec.ts` asserts every non-proposed operation is served and returns what the spec declares. Verified to bite by pointing a spec path at an unserved route |
-| **Export / re-import** | **PLANNED — Stage 7** | `packages/portability`, and the conformance utility that validates round-trip fidelity. This is the exitability claim, so it is the one that most needs building rather than asserting |
+| **Export / re-import** | **PLANNED — Stage 7, [W-002](BACKLOG.md)** | `packages/portability`, and the conformance utility that validates round-trip fidelity. This is the exitability claim, so it is the one that most needs building rather than asserting |
 | AsyncAPI, CloudEvents, OpenTelemetry | OUT OF SCOPE | Gate 2–3 |
 
 ## §10 — Performance
@@ -120,7 +120,7 @@ corpus reproducible, and it is also why nothing here claims to learn.
 |---|---|---|
 | Latency gate in CI | BUILT | `bench/harness/tests/gate.test.ts`. Currently **p95 < 50 ms**; measured 1.04 ms at 40 candidates |
 | Tighten the gate to **p99 < 50 ms** | PLANNED — Stage 8 | The PDF states the promise as p99, which is the stricter reading and already passes |
-| **S1 benchmark** — 1M profiles, 100 actions, 1k/2k decisions per second | **PLANNED — Stage 8** | The harness scales candidate sets, not profiles. Variants needed: warm, cold, 1/5/20% miss, degraded provider |
+| **S1 benchmark** — 1M profiles, 100 actions, 1k/2k decisions per second | **PLANNED — Stage 8, [W-003](BACKLOG.md)** | The harness scales candidate sets, not profiles. Variants needed: warm, cold, 1/5/20% miss, degraded provider |
 | Publishing workload, data distribution, code version, cache state and confidence intervals with every result | PLANNED — Stage 8 | So a number cannot be quoted without its context |
 
 Throughput is measured and deliberately **not** gated: it swung 3× under machine
@@ -207,13 +207,16 @@ check, and every one of these was found the hard way:
   checked by nothing — four components must agree on API paths and one
   typecheck covers one of them.
 
-Full detail, with dates and diagnoses, is in [`docs/gaps.md`](gaps.md).
+Full detail, with dates and diagnoses, is in [`docs/gaps.md`](gaps.md). Fixing
+them is [W-001](BACKLOG.md), which is the highest return-per-hour work in the
+repository: each one is a check that appears to run and does not.
 
 ## Where the detail lives
 
 | Document | What it is for |
 |---|---|
-| **This file** | The capability map. Start here |
+| **This file** | The capability map: what is built, now. Start here |
+| [`docs/BACKLOG.md`](BACKLOG.md) | What is next: 51 work items, W-000 to W-050, in stage order, each with the check that would close it |
 | [`docs/EXPERIENCE_LAYER_STATUS.md`](EXPERIENCE_LAYER_STATUS.md) | Console routes, one row each, and a narrative per stage — what each change surfaced, what it got wrong |
 | [`docs/gaps.md`](gaps.md) | The gap register: what is missing, per operation and per persona, with dates |
 | [`docs/adr/`](adr/) | Four decisions and their rationale, ADR-003 being normative for serialisation |

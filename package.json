@@ -26,7 +26,9 @@
     "test:registry": "npm --prefix packages/registry run test",
     "test:ledger": "npm --prefix packages/ledger run test",
     "test:bench": "npm --prefix bench/harness run test",
-    "bench": "npm --prefix bench/harness run bench"
+    "bench": "npm --prefix bench/harness run bench",
+    "test:e2e": "npm run test:e2e --prefix apps/console",
+    "typecheck": "tsc --noEmit -p tsconfig.json && npm run typecheck --prefix apps/console"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
