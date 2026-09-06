@@ -30,7 +30,12 @@ describe('a tenant survives being exported and imported', () => {
     const first = await exportTenant(source, { tenantId: TENANT, exportedAt: AT });
 
     const target = emptyInstance();
-    await importTenant(first, { registryStore: target.registryStore, ledger: target.ledger });
+    await importTenant(first, {
+      registryStore: target.registryStore,
+      ledger: target.ledger,
+      catalogue: target.catalogue,
+      catalogueStore: target.catalogueStore,
+    });
 
     const second = await exportTenant(target, { tenantId: TENANT, exportedAt: AT });
 
@@ -46,7 +51,12 @@ describe('a tenant survives being exported and imported', () => {
     const bundle = await exportTenant(source, { tenantId: TENANT, exportedAt: AT });
 
     const target = emptyInstance();
-    await importTenant(bundle, { registryStore: target.registryStore, ledger: target.ledger });
+    await importTenant(bundle, {
+      registryStore: target.registryStore,
+      ledger: target.ledger,
+      catalogue: target.catalogue,
+      catalogueStore: target.catalogueStore,
+    });
 
     const before = await source.registry.versions(TENANT, FLOW);
     const after = await target.registry.versions(TENANT, FLOW);
@@ -65,7 +75,12 @@ describe('a tenant survives being exported and imported', () => {
     const bundle = await exportTenant(source, { tenantId: TENANT, exportedAt: AT });
 
     const target = emptyInstance();
-    await importTenant(bundle, { registryStore: target.registryStore, ledger: target.ledger });
+    await importTenant(bundle, {
+      registryStore: target.registryStore,
+      ledger: target.ledger,
+      catalogue: target.catalogue,
+      catalogueStore: target.catalogueStore,
+    });
 
     const production = (await target.registry.environments(TENANT, FLOW)).find(
       (e) => e.environment === 'production'
@@ -76,12 +91,46 @@ describe('a tenant survives being exported and imported', () => {
     expect(production?.shadowVersion).toBe('1.1.0');
   });
 
+  it('keeps the catalogue — what the engine decides from', async () => {
+    const source = await populatedInstance();
+    const bundle = await exportTenant(source, { tenantId: TENANT, exportedAt: AT });
+
+    const target = emptyInstance();
+    await importTenant(bundle, {
+      registryStore: target.registryStore,
+      ledger: target.ledger,
+      catalogue: target.catalogue,
+      catalogueStore: target.catalogueStore,
+    });
+
+    const before = await source.catalogue.read(TENANT);
+    const after = await target.catalogue.read(TENANT);
+
+    // Exporting the decisions without the catalogue would carry the answers
+    // and leave behind the thing that produced them — a replay on the new
+    // instance would have nothing to rank.
+    expect(JSON.stringify(after)).toBe(JSON.stringify(before));
+    expect(after.offers.length).toBeGreaterThan(0);
+    expect(after.arbitration).not.toBeNull();
+
+    // The authoring history moves too: who changed a boost, and when, is part
+    // of what a regulated tenant is taking with them.
+    const events = await target.catalogue.events({ tenantId: TENANT });
+    expect(events.length).toBe(bundle.catalogue_events.length);
+    expect(events.length).toBeGreaterThan(0);
+  });
+
   it('keeps every ledger record and its outcomes', async () => {
     const source = await populatedInstance();
     const bundle = await exportTenant(source, { tenantId: TENANT, exportedAt: AT });
 
     const target = emptyInstance();
-    await importTenant(bundle, { registryStore: target.registryStore, ledger: target.ledger });
+    await importTenant(bundle, {
+      registryStore: target.registryStore,
+      ledger: target.ledger,
+      catalogue: target.catalogue,
+      catalogueStore: target.catalogueStore,
+    });
 
     const before = await source.ledger.query({ tenantId: TENANT });
     const after = await target.ledger.query({ tenantId: TENANT });
@@ -99,7 +148,12 @@ describe('a tenant survives being exported and imported', () => {
     const bundle = await exportTenant(source, { tenantId: TENANT, exportedAt: AT });
 
     const target = emptyInstance();
-    await importTenant(bundle, { registryStore: target.registryStore, ledger: target.ledger });
+    await importTenant(bundle, {
+      registryStore: target.registryStore,
+      ledger: target.ledger,
+      catalogue: target.catalogue,
+      catalogueStore: target.catalogueStore,
+    });
 
     const [entry] = await target.ledger.query({ tenantId: TENANT });
     const original = (await source.ledger.query({ tenantId: TENANT }))[0];
@@ -156,7 +210,12 @@ describe('a bundle that cannot be trusted is refused', () => {
 
     const target = emptyInstance();
     await expect(
-      importTenant(bundle, { registryStore: target.registryStore, ledger: target.ledger })
+      importTenant(bundle, {
+      registryStore: target.registryStore,
+      ledger: target.ledger,
+      catalogue: target.catalogue,
+      catalogueStore: target.catalogueStore,
+    })
     ).rejects.toThrow(PortabilityError);
 
     // Nothing landed. A half-import is worse than a refusal because it looks
@@ -179,7 +238,12 @@ describe('a bundle that cannot be trusted is refused', () => {
 
     const target = await populatedInstance();
     await expect(
-      importTenant(bundle, { registryStore: target.registryStore, ledger: target.ledger })
+      importTenant(bundle, {
+      registryStore: target.registryStore,
+      ledger: target.ledger,
+      catalogue: target.catalogue,
+      catalogueStore: target.catalogueStore,
+    })
     ).rejects.toThrow(/already exists in the target/);
   });
 });

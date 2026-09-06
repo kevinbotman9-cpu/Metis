@@ -10,7 +10,7 @@
     "apps/*"
   ],
   "scripts": {
-    "test": "npm run test:integration && npm run test:runtime && npm run test:compiler && npm run test:registry && npm run test:ledger && npm run test:portability && npm run test:bench && npm run test:console",
+    "test": "npm run test:integration && npm run test:runtime && npm run test:compiler && npm run test:registry && npm run test:catalogue && npm run test:ledger && npm run test:portability && npm run test:bench && npm run test:console",
     "lint": "eslint packages bench --ext .ts",
     "dev": "docker-compose up",
     "generate": "npm run generate -w @metis/client",
@@ -31,7 +31,8 @@
     "test:bundle": "npm run test:bundle --prefix apps/console",
     "test:portability": "npm --prefix packages/portability run test",
     "export": "node --import tsx packages/portability/src/cli.ts",
-    "bench:s1": "npm --prefix bench/harness run bench:s1"
+    "bench:s1": "npm --prefix bench/harness run bench:s1",
+    "test:catalogue": "npm --prefix packages/catalogue run test"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

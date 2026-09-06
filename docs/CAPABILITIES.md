@@ -40,8 +40,11 @@ Runtime            188 passed  - determinism, byte-identical replay, integration
 Compiler            43 passed  - graph validation, version pinning, budgets
 Registry            68 passed  - one behaviour suite, run against memory and a
                                  real PostgreSQL
+Catalogue           40 passed  - taxonomy, offers, creatives, policies, boosts
+                                 and the ranking function; one suite over
+                                 memory and a real PostgreSQL
 Ledger              50 passed  - the same pattern: one suite, both stores
-Portability         21 passed  - export, re-import, round-trip conformance, and
+Portability         22 passed  - export, re-import, round-trip conformance, and
                                  the guard that stops the export rotting
 Performance         12 passed  - bench/harness: the p99 gate, and S1 over a
                                  million seeded profiles
@@ -54,7 +57,7 @@ Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
 Typecheck           clean      - root config and the console's, separately
 Lint                0 errors   - root and console, separate configs
                    ---
-                    639 tests, two languages, two engines
+                    680 tests, two languages, two engines
 ```
 
 The OpenAPI spec validates at **34 paths, 41 operations (39 built, 2 proposed),
@@ -108,7 +111,7 @@ corpus reproducible, and it is also why nothing here claims to learn.
 | PostgreSQL for the decision ledger | BUILT | Same pattern, `packages/ledger` |
 | Append-only enforced at the schema | BUILT | Triggers reject `UPDATE` and `DELETE` on versions, events and records — the application refusing is not enough |
 | A configured database that cannot be reached | BUILT | An error, never a silent fallback to storage that forgets |
-| Catalogue, policies and taxonomy in PostgreSQL | PARTIAL | Still an in-memory store with process lifetime |
+| Catalogue, policies and taxonomy in PostgreSQL | PARTIAL | `packages/catalogue` is built and durable — one behaviour suite over memory and a real database, foreign keys, a unique offer key, and an append-only edit log enforced by trigger. The console has not been repointed at it yet, so authored state is still lost on restart there. [W-005](BACKLOG.md) |
 | Redis, ClickHouse, event broker, object storage, online feature service | OUT OF SCOPE | Gate 2–3 |
 
 ## §9 — Contracts and portability
@@ -119,7 +122,8 @@ corpus reproducible, and it is also why nothing here claims to learn.
 | Contract tested in both directions | BUILT | The compiler catches spec→console; `e2e/contract.spec.ts` asserts every non-proposed operation is served and returns what the spec declares. Verified to bite by pointing a spec path at an unserved route |
 | **Export / re-import** | **BUILT** | `packages/portability`. A populated tenant exports, imports into an empty instance and re-exports byte-identically; version hashes, ledger records and environment state including a running shadow all survive; and a pre-export decision replayed on the imported instance produces the same chain hash. `npm run export -- --tenant <id> --out <dir>` writes one readable JSON file per entity plus a manifest, and `--verify` checks a bundle against it |
 | Export completeness does not rot | BUILT | `completeness.test.ts` reads the migrations and requires every table to be exported or excluded with a written reason. Verified: adding a table fails the suite until somebody decides what the export does with it |
-| Export covers the catalogue, policies, approvals and audit | PARTIAL | Those still live in the console's in-memory store, so there is nothing durable to export. Blocked on [W-005](BACKLOG.md), not on the exporter |
+| Export covers the catalogue and its authoring history | BUILT | Nine catalogue tables travel in the bundle, and the round trip asserts what the engine decides *from* comes back with what it decided |
+| Export covers approvals and the audit log | PARTIAL | Both are still in the console's in-memory store, so there is nothing durable to export |
 | AsyncAPI, CloudEvents, OpenTelemetry | OUT OF SCOPE | Gate 2–3 |
 
 ## §10 — Performance

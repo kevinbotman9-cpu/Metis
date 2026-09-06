@@ -1,5 +1,16 @@
 import type { PublishedVersion, EnvironmentState, RegistryEvent } from '@metis/registry';
 import type { LedgerEntry, OutcomeEvent } from '@metis/ledger';
+import type { CatalogueEvent } from '@metis/catalogue';
+import type {
+  ArbitrationConfig,
+  Boost,
+  Category,
+  Creative,
+  FrequencyPolicy,
+  Objective,
+  Offer,
+  TargetingPolicy,
+} from '@metis/core/domain';
 import type { EntityName } from './entities';
 
 /**
@@ -56,6 +67,16 @@ export interface BundledEnvironment {
 
 export interface TenantBundle {
   manifest: BundleManifest;
+  catalogue_objectives: Objective[];
+  catalogue_categories: Category[];
+  catalogue_offers: Offer[];
+  catalogue_creatives: Creative[];
+  catalogue_targeting_policies: TargetingPolicy[];
+  catalogue_frequency_policies: FrequencyPolicy[];
+  catalogue_boosts: Boost[];
+  /** Zero or one. An array so every file in the bundle has the same shape. */
+  catalogue_arbitration: ArbitrationConfig[];
+  catalogue_events: CatalogueEvent[];
   registry_versions: PublishedVersion[];
   registry_environments: BundledEnvironment[];
   registry_events: RegistryEvent[];

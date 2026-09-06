@@ -15,6 +15,15 @@
  */
 
 export type EntityName =
+  | 'catalogue_objectives'
+  | 'catalogue_categories'
+  | 'catalogue_offers'
+  | 'catalogue_creatives'
+  | 'catalogue_targeting_policies'
+  | 'catalogue_frequency_policies'
+  | 'catalogue_boosts'
+  | 'catalogue_arbitration'
+  | 'catalogue_events'
   | 'registry_versions'
   | 'registry_environments'
   | 'registry_events'
@@ -30,6 +39,24 @@ export interface EntityDeclaration {
 }
 
 export const ENTITIES: EntityDeclaration[] = [
+  // The catalogue: what the engine decides *from*. One file per table rather
+  // than one snapshot file, for the same reason the bundle is a directory and
+  // not an archive — somebody should be able to open `catalogue_offers.json`
+  // and read it. `readBundle` refuses a bundle missing any of them, so the
+  // hazard of importing eight of nine is closed by the reader rather than by
+  // fusing them into one file.
+  { table: 'catalogue_objectives', included: true },
+  { table: 'catalogue_categories', included: true },
+  { table: 'catalogue_offers', included: true },
+  { table: 'catalogue_creatives', included: true },
+  { table: 'catalogue_targeting_policies', included: true },
+  { table: 'catalogue_frequency_policies', included: true },
+  { table: 'catalogue_boosts', included: true },
+  // Zero or one row. An array either way, so every file in the bundle has the
+  // same shape and nothing downstream special-cases it.
+  { table: 'catalogue_arbitration', included: true },
+  { table: 'catalogue_events', included: true },
+
   // Configuration and its history. A flow's compiled artifact is what makes
   // the export replayable elsewhere, so this is the part that matters most.
   { table: 'registry_versions', included: true },

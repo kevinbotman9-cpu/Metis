@@ -1,5 +1,6 @@
 import type { RegistryStore } from '@metis/registry';
 import type { DecisionLedger } from '@metis/ledger';
+import type { Catalogue, CatalogueStore } from '@metis/catalogue';
 import { verifyBundle } from './verify';
 import { PortabilityError, type TenantBundle } from './types';
 
@@ -22,6 +23,14 @@ import { PortabilityError, type TenantBundle } from './types';
 export interface ImportTargets {
   registryStore: RegistryStore;
   ledger: DecisionLedger;
+  catalogue: Catalogue;
+  /**
+   * Written through the store, not the facade, for the same reason registry
+   * versions are: `Catalogue` enforces authoring rules — an offer needs its
+   * category to exist *first* — and a restore has to land rows in whatever
+   * order the bundle holds them, not re-run the authoring conversation.
+   */
+  catalogueStore: CatalogueStore;
 }
 
 export interface ImportSummary {
@@ -40,8 +49,10 @@ async function assertEmpty(bundle: TenantBundle, targets: ImportTargets): Promis
   const { tenantId } = bundle.manifest;
   const flows = await targets.registryStore.listFlows(tenantId);
   const decisions = await targets.ledger.query({ tenantId, limit: 1 });
+  const catalogue = await targets.catalogue.read(tenantId);
+  const hasCatalogue = catalogue.offers.length > 0 || catalogue.objectives.length > 0;
 
-  if (flows.length > 0 || decisions.length > 0) {
+  if (flows.length > 0 || decisions.length > 0 || hasCatalogue) {
     throw new PortabilityError(
       'TARGET_NOT_EMPTY',
       `Tenant ${tenantId} already exists in the target: ${flows.length} flow(s) ` +
@@ -67,6 +78,27 @@ export async function importTenant(
   }
 
   await assertEmpty(bundle, targets);
+
+  const tenantId = bundle.manifest.tenantId;
+
+  // Taxonomy before what hangs off it. The order is the schema's foreign keys
+  // read out loud, and getting it wrong is a restore that fails halfway.
+  for (const o of bundle.catalogue_objectives) await targets.catalogueStore.putObjective(tenantId, o);
+  for (const c of bundle.catalogue_categories) await targets.catalogueStore.putCategory(tenantId, c);
+  for (const o of bundle.catalogue_offers) await targets.catalogueStore.putOffer(tenantId, o);
+  for (const c of bundle.catalogue_creatives) await targets.catalogueStore.putCreative(tenantId, c);
+  for (const p of bundle.catalogue_targeting_policies)
+    await targets.catalogueStore.putTargetingPolicy(tenantId, p);
+  for (const p of bundle.catalogue_frequency_policies)
+    await targets.catalogueStore.putFrequencyPolicy(tenantId, p);
+  for (const b of bundle.catalogue_boosts) await targets.catalogueStore.putBoost(tenantId, b);
+  for (const a of bundle.catalogue_arbitration)
+    await targets.catalogueStore.putArbitration(tenantId, a);
+
+  for (const event of [...bundle.catalogue_events].sort((a, b) => a.seq - b.seq)) {
+    const { seq: _catSeq, ...rest } = event;
+    await targets.catalogueStore.appendEvent(rest);
+  }
 
   for (const version of bundle.registry_versions) {
     await targets.registryStore.putVersion(version);
@@ -95,6 +127,9 @@ export async function importTenant(
   return {
     tenantId: bundle.manifest.tenantId,
     counts: {
+      catalogue_offers: bundle.catalogue_offers.length,
+      catalogue_creatives: bundle.catalogue_creatives.length,
+      catalogue_events: bundle.catalogue_events.length,
       registry_versions: bundle.registry_versions.length,
       registry_environments: bundle.registry_environments.length,
       registry_events: bundle.registry_events.length,

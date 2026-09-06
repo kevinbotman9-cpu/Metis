@@ -1,5 +1,6 @@
 import { ArtifactRegistry, InMemoryRegistryStore, type RegistryStore } from '@metis/registry';
 import { DecisionLedger, InMemoryLedgerStore, subjectHash } from '@metis/ledger';
+import { Catalogue, InMemoryCatalogueStore, type CatalogueStore } from '@metis/catalogue';
 import { execute } from '@metis/runtime/deterministic/engine';
 import type {
   CatalogueSnapshot,
@@ -125,14 +126,19 @@ export interface Instance {
   registry: ArtifactRegistry;
   registryStore: RegistryStore;
   ledger: DecisionLedger;
+  catalogue: Catalogue;
+  catalogueStore: CatalogueStore;
 }
 
 export function emptyInstance(): Instance {
   const registryStore = new InMemoryRegistryStore();
+  const catalogueStore = new InMemoryCatalogueStore();
   return {
     registryStore,
     registry: new ArtifactRegistry(registryStore),
     ledger: new DecisionLedger(new InMemoryLedgerStore()),
+    catalogueStore,
+    catalogue: new Catalogue(catalogueStore),
   };
 }
 
@@ -146,6 +152,63 @@ export function emptyInstance(): Instance {
 export async function populatedInstance(): Promise<Instance> {
   const inst = emptyInstance();
   const ctx = context();
+
+  // A catalogue too: the export is only complete if it carries what the engine
+  // decides *from*, not only what it decided.
+  await inst.catalogue.putObjective(
+    TENANT,
+    { id: 'i1', name: 'Acquisition', description: '' } as never,
+    'sarah',
+    AT
+  );
+  await inst.catalogue.putCategory(
+    TENANT,
+    { id: 'g1', objectiveId: 'i1', name: 'Broadband', description: '' } as never,
+    'sarah',
+    AT
+  );
+  await inst.catalogue.putOffer(TENANT, ctx.offers[0] as never, 'sarah', AT);
+  await inst.catalogue.putTargetingPolicy(
+    TENANT,
+    {
+      id: 'tp1', name: 'Adults', description: '', kind: 'eligibility',
+      conditions: [], scope: { level: 'tenant', targetId: null }, active: true,
+    } as never,
+    'sarah',
+    AT
+  );
+  await inst.catalogue.putFrequencyPolicy(
+    TENANT,
+    {
+      id: 'fp1', name: 'Weekly', description: '', channel: null, maxContacts: 3,
+      period: 'week', cooldownDaysAfterReject: 14,
+      scope: { level: 'tenant', targetId: null }, active: true,
+    } as never,
+    'sarah',
+    AT
+  );
+  await inst.catalogue.putBoost(
+    TENANT,
+    {
+      id: 'b1', name: 'Push', description: '', multiplier: 1.2,
+      scope: { level: 'tenant', targetId: null },
+      validity: { startsAt: '2020-01-01', endsAt: null }, active: true,
+    } as never,
+    'sarah',
+    AT
+  );
+  await inst.catalogue.putCreative(
+    TENANT,
+    {
+      id: 't_a', offerId: 'p_a', name: 'Offer A email', channel: 'email',
+      status: 'approved',
+      content: { subject: 'Offer A', preheader: '', body: '' },
+      createdAt: AT, updatedAt: AT, updatedBy: 'sarah',
+    } as never,
+    'sarah',
+    AT
+  );
+  await inst.catalogue.putArbitration(TENANT, ctx.arbitration as never, 'marcus', AT);
 
   await inst.registry.publish(
     { tenantId: TENANT, flowName: FLOW, version: '1.0.0', source: source(), actor: 'sarah', occurredAt: AT },

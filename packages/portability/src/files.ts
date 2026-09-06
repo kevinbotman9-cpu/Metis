@@ -66,6 +66,19 @@ export function readBundle(dir: string): TenantBundle {
   // somebody else's instance.
   return {
     manifest: JSON.parse(readFileSync(manifestPath, 'utf8')),
+    catalogue_objectives: read('catalogue_objectives') as TenantBundle['catalogue_objectives'],
+    catalogue_categories: read('catalogue_categories') as TenantBundle['catalogue_categories'],
+    catalogue_offers: read('catalogue_offers') as TenantBundle['catalogue_offers'],
+    catalogue_creatives: read('catalogue_creatives') as TenantBundle['catalogue_creatives'],
+    catalogue_targeting_policies: read(
+      'catalogue_targeting_policies'
+    ) as TenantBundle['catalogue_targeting_policies'],
+    catalogue_frequency_policies: read(
+      'catalogue_frequency_policies'
+    ) as TenantBundle['catalogue_frequency_policies'],
+    catalogue_boosts: read('catalogue_boosts') as TenantBundle['catalogue_boosts'],
+    catalogue_arbitration: read('catalogue_arbitration') as TenantBundle['catalogue_arbitration'],
+    catalogue_events: read('catalogue_events') as TenantBundle['catalogue_events'],
     registry_versions: read('registry_versions') as TenantBundle['registry_versions'],
     registry_environments: read('registry_environments') as TenantBundle['registry_environments'],
     registry_events: read('registry_events') as TenantBundle['registry_events'],

@@ -1,6 +1,7 @@
 import { hash } from '@metis/runtime/deterministic/canonical';
 import type { ArtifactRegistry } from '@metis/registry';
 import type { DecisionLedger } from '@metis/ledger';
+import type { Catalogue } from '@metis/catalogue';
 import { ENTITIES, EXPORTED_ENTITIES } from './entities';
 import { FORMAT_VERSION, type BundleFile, type TenantBundle } from './types';
 
@@ -15,6 +16,7 @@ import { FORMAT_VERSION, type BundleFile, type TenantBundle } from './types';
 export interface ExportSources {
   registry: ArtifactRegistry;
   ledger: DecisionLedger;
+  catalogue: Catalogue;
 }
 
 export interface ExportOptions {
@@ -43,7 +45,7 @@ export async function exportTenant(
   options: ExportOptions
 ): Promise<TenantBundle> {
   const { tenantId } = options;
-  const { registry, ledger } = sources;
+  const { registry, ledger, catalogue } = sources;
 
   const flows = await registry.flows(tenantId);
 
@@ -85,7 +87,25 @@ export async function exportTenant(
     await Promise.all(records.map((r) => ledger.outcomesFor(tenantId, r.decisionId)))
   ).flat();
 
+  // Read as one snapshot, because that is how the engine consumes it: a
+  // decision records the hash of the catalogue it saw, so assembling a bundle
+  // from several reads could describe a moment that never existed.
+  const cat = await catalogue.read(tenantId);
+  const catEvents = (await catalogue.events({ tenantId }))
+    .slice()
+    .sort((a, b) => a.seq - b.seq)
+    .map((event, i) => ({ ...event, seq: i + 1 }));
+
   const data = {
+    catalogue_objectives: cat.objectives,
+    catalogue_categories: cat.categories,
+    catalogue_offers: cat.offers,
+    catalogue_creatives: cat.creatives,
+    catalogue_targeting_policies: cat.targetingPolicies,
+    catalogue_frequency_policies: cat.frequencyPolicies,
+    catalogue_boosts: cat.boosts,
+    catalogue_arbitration: cat.arbitration ? [cat.arbitration] : [],
+    catalogue_events: catEvents,
     registry_versions: versions,
     registry_environments: environments,
     registry_events: events,

@@ -17,6 +17,7 @@ export default defineConfig({
       '@metis/runtime': path.resolve(__dirname, '../runtime/src/index.ts'),
       '@metis/registry': path.resolve(__dirname, '../registry/src/index.ts'),
       '@metis/ledger': path.resolve(__dirname, '../ledger/src/index.ts'),
+      '@metis/catalogue': path.resolve(__dirname, '../catalogue/src/index.ts'),
     },
   },
 });

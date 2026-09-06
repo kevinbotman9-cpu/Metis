@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ENTITIES, EXPORTED_ENTITIES } from '../src/entities';
 import { exportTenant } from '../src/export';
@@ -21,17 +21,33 @@ import { TENANT, populatedInstance } from './fixtures';
 
 const root = resolve(__dirname, '../../..');
 
-const MIGRATIONS = [
-  'packages/registry/migrations/001_registry.sql',
-  'packages/ledger/migrations/001_ledger.sql',
-];
+/**
+ * Every migration in the repository, discovered rather than listed.
+ *
+ * This was a hardcoded pair of paths, and `packages/catalogue` — a whole new
+ * package with eight tables — walked straight past it. A guard against
+ * forgetting that itself has to be remembered is not a guard.
+ */
+function migrationFiles(): string[] {
+  const packagesDir = resolve(root, 'packages');
+  const found: string[] = [];
+  for (const pkg of readdirSync(packagesDir, { withFileTypes: true })) {
+    if (!pkg.isDirectory()) continue;
+    const dir = resolve(packagesDir, pkg.name, 'migrations');
+    if (!existsSync(dir)) continue;
+    for (const file of readdirSync(dir)) {
+      if (file.endsWith('.sql')) found.push(resolve(dir, file));
+    }
+  }
+  return found.sort();
+}
 
 function tablesInMigrations(): string[] {
   const found = new Set<string>();
-  for (const file of MIGRATIONS) {
-    // Comments stripped first: both migrations discuss `CREATE TABLE IF NOT
+  for (const file of migrationFiles()) {
+    // Comments stripped first: the migrations discuss `CREATE TABLE IF NOT
     // EXISTS` in prose, and matching that captured the word "if" as a table.
-    const sql = readFileSync(resolve(root, file), 'utf8').replace(/--.*$/gm, '');
+    const sql = readFileSync(file, 'utf8').replace(/--.*$/gm, '');
     // The opening paren is required, so only a real definition matches.
     for (const m of sql.matchAll(
       /create\s+table\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)\s*\(/gi
@@ -46,6 +62,10 @@ describe('the export knows about everything that is persisted', () => {
   it('finds the migrations it is checking against', () => {
     // Without this, a moved migration file makes every assertion below pass by
     // finding nothing — the failure mode this whole file exists to prevent.
+    expect(
+      migrationFiles().length,
+      'no migrations discovered; has the packages tree moved?'
+    ).toBeGreaterThan(1);
     const tables = tablesInMigrations();
     expect(tables.length, 'no CREATE TABLE found; have the migrations moved?').toBeGreaterThan(4);
   });
