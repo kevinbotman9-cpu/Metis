@@ -36,6 +36,17 @@ object Engine {
         "suitability" to "Suitability",
     )
 
+    /**
+     * One code per qualification tier, not one per policy: the tier is what a
+     * customer or a regulator can act on, and the specific policy travels
+     * alongside in `ruleId`. Must match KIND_CODE in the TypeScript engine.
+     */
+    private val KIND_CODE = mapOf(
+        "eligibility" to "ELIGIBILITY_FAILED",
+        "relevance" to "RELEVANCE_FAILED",
+        "suitability" to "SUITABILITY_FAILED",
+    )
+
     // --- Policy evaluation ---------------------------------------------------
 
     /** Read a dotted path such as "customer.age" out of the request input. */
@@ -240,15 +251,15 @@ object Engine {
         var winner: String? = null
         var runnerUp: String? = null
 
-        fun record(node: ExecNode, reason: String, before: List<Offer>, after: List<Offer>) {
+        // Denials are passed in, not derived from the before/after diff: the
+        // diff knows which candidates went, only the removing code knows why.
+        fun record(node: ExecNode, reason: String, after: List<Offer>, denials: List<Denial>) {
             eliminations.add(
                 EliminationStep(
                     nodeId = node.id,
                     nodeType = node.type,
                     reason = reason,
-                    // Identity, not equality: the TypeScript uses `includes`,
-                    // and two offers can be structurally equal.
-                    eliminated = before.filter { b -> after.none { it === b } }.map { it.key },
+                    denials = denials.sortedBy { it.key },
                     survived = after.map { it.key },
                 )
             )
@@ -270,8 +281,20 @@ object Engine {
                         }
                     }
 
-                    candidates = before.filter {
-                        it.status == "active" && withinValidity(it, request.occurredAt)
+                    // Status before validity, so a retired offer that is also
+                    // out of window reports as retired — the more fundamental
+                    // fact, and the one that has to change first.
+                    val sourceDenials = mutableListOf<Denial>()
+                    candidates = before.filter { p ->
+                        when {
+                            p.status != "active" -> {
+                                sourceDenials.add(Denial(p.key, "NOT_ACTIVE", null)); false
+                            }
+                            !withinValidity(p, request.occurredAt) -> {
+                                sourceDenials.add(Denial(p.key, "OUT_OF_VALIDITY_WINDOW", null)); false
+                            }
+                            else -> true
+                        }
                     }
 
                     val ids = node.connectorIds ?: emptyList()
@@ -286,7 +309,7 @@ object Engine {
                     } else {
                         "Loaded profile for ${request.customerId}. Removed ${before.size - candidates.size} candidate(s) that were retired, paused or outside their validity window."
                     }
-                    record(node, base + sourced, before, candidates)
+                    record(node, base + sourced, candidates, sourceDenials)
                 }
 
                 "filter", "constraint" -> {
@@ -294,16 +317,24 @@ object Engine {
                         .mapNotNull { policyById[it] }
                         .filter { it.active }
 
+                    val denials = mutableListOf<Denial>()
+
+                    // The first failing policy, in the artifact's declared
+                    // order. A candidate can breach several; one thing to fix
+                    // is more useful than all of them, and the order is the
+                    // artifact's own so the choice is deterministic.
                     candidates = before.filter { p ->
-                        policies.all { policy ->
-                            // A policy applies where its scope covers the
-                            // candidate, and where the candidate opted in.
-                            if (!scopeCovers(policy.scope, p)) return@all true
+                        val failed = policies.firstOrNull { policy ->
+                            if (!scopeCovers(policy.scope, p)) return@firstOrNull false
                             if (!p.policyIds.contains(policy.id) && policy.scope.level == "offer") {
-                                return@all true
+                                return@firstOrNull false
                             }
-                            policyPasses(policy, request.input)
+                            !policyPasses(policy, request.input)
                         }
+                        if (failed != null) {
+                            denials.add(Denial(p.key, KIND_CODE.getValue(failed.kind), failed.id))
+                            false
+                        } else true
                     }
 
                     if (node.type == "constraint") {
@@ -325,11 +356,23 @@ object Engine {
                             // not duty-of-care messages, which is why a scope
                             // can raise its own cap.
                             candidates.filter { p ->
-                                relevantTo(p).any { it.maxContacts >= SERVICE_EXEMPT_THRESHOLD }
+                                val exempt = relevantTo(p).any { it.maxContacts >= SERVICE_EXEMPT_THRESHOLD }
+                                if (!exempt) denials.add(Denial(p.key, "CONSENT_WITHHELD", null))
+                                exempt
                             }
                         } else {
                             candidates.filter { p ->
-                                relevantTo(p).none { (used[it.period] ?: 0.0) >= it.maxContacts }
+                                // The first breached cap, in catalogue order.
+                                // Naming which one is the difference between
+                                // "contacted too much" and a policy someone can
+                                // go and look at.
+                                val breached = relevantTo(p).firstOrNull {
+                                    (used[it.period] ?: 0.0) >= it.maxContacts
+                                }
+                                if (breached != null) {
+                                    denials.add(Denial(p.key, "FREQUENCY_CAP_BREACHED", breached.id))
+                                }
+                                breached == null
                             }
                         }
                     }
@@ -344,8 +387,8 @@ object Engine {
                         } else {
                             "All ${before.size} candidate(s) passed ${joined.ifEmpty { node.label }.lowercase()}."
                         },
-                        before,
                         candidates,
+                        denials,
                     )
                 }
 
@@ -362,7 +405,8 @@ object Engine {
                         )
                         scores[p.key] = CandidateScore(propensity, value, boost, context, 0.0)
                     }
-                    record(node, "Scored ${candidates.size} candidate(s) with $modelKey.", before, candidates)
+                    // Scoring never removes a candidate, so nothing is denied.
+                    record(node, "Scored ${candidates.size} candidate(s) with $modelKey.", candidates, emptyList())
                 }
 
                 "arbitrate" -> {
@@ -420,13 +464,17 @@ object Engine {
                         } else {
                             "No candidates reached arbitration; decision returned no offer."
                         },
-                        before,
                         candidates,
+                        // NOT_RANKED is not a fault: these passed every gate
+                        // and were beaten. Identity, not equality — two offers
+                        // can be structurally equal.
+                        before.filter { b -> candidates.none { it === b } }
+                            .map { Denial(it.key, "NOT_RANKED", null) },
                     )
                 }
 
                 "switch", "explain-annotate" ->
-                    record(node, "${node.label} passed ${before.size} candidate(s) through.", before, candidates)
+                    record(node, "${node.label} passed ${before.size} candidate(s) through.", candidates, emptyList())
 
                 else -> throw IllegalArgumentException("Unhandled node type: ${node.type}")
             }

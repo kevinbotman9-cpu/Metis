@@ -135,11 +135,22 @@ data class DecisionRequest(
 
 // --- Trace -------------------------------------------------------------------
 
+/**
+ * Why one candidate was removed. See the TypeScript `Denial`: same fields, same
+ * order in the canonical form, and `ruleId` is always present rather than
+ * omitted when null, so neither engine has to decide when to drop it.
+ */
+data class Denial(
+    val key: String,
+    val code: String,
+    val ruleId: String?,
+)
+
 data class EliminationStep(
     val nodeId: String,
     val nodeType: String,
     val reason: String,
-    val eliminated: List<String>,
+    val denials: List<Denial>,
     val survived: List<String>,
 )
 

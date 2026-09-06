@@ -6,317 +6,49 @@
       "artifactId": "next-best-action",
       "request": {
         "tenantId": "telco-uk",
-        "customerId": "cust_q8g7",
-        "channel": "push",
-        "placement": "app_inbox",
-        "occurredAt": "2026-08-31T00:13:30.000Z",
+        "customerId": "cust_kmfs",
+        "channel": "sms",
+        "placement": "triggered_outbound",
+        "occurredAt": "2026-08-31T14:00:00.000Z",
         "input": {
           "customer": {
-            "age": 24,
+            "age": 56,
             "credit_status": "pass",
             "account_status": "active",
             "current_plan": "standard",
-            "bill_to_income_ratio": 0.0444,
+            "bill_to_income_ratio": 0.0159,
             "arrears_count_12mo": 0
           },
           "address": {
             "fibre_available": false
           },
           "usage": {
-            "pct_of_allowance_3mo_avg": 0.5072,
-            "months_of_history": 11
+            "pct_of_allowance_3mo_avg": 0.8817,
+            "months_of_history": 0
           },
           "contract": {
-            "days_to_end": 168
+            "days_to_end": 149
           },
           "events": {
-            "pac_requested_within_days": 1
+            "pac_requested_within_days": 29
           },
           "device": {
-            "residual_value": 31237
+            "residual_value": 2764
           },
           "offer": {
             "monthly_delta": 300
           },
-          "monthlySpend": 7455,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 66.93,
-          "roamingDays": 3,
-          "tenureMonths": 67,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "push",
-          "withinPeriod": {
-            "day": 0,
-            "week": 2,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_0187c9ded9fec7c2",
-        "chainHash": "0187c9ded9fec7c2426b8e51d5c7bb3dd2abb15fcfc1ff22fa5b990dc0c725dc",
-        "inputSnapshotHash": "6bc32905e0e02be0edfae0716cb002363dd1e0096b329f69585f3165f34bf4e7",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "upsell_5g"
-      }
-    },
-    {
-      "artifactId": "retention-outbound",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_x76z",
-        "channel": "web",
-        "placement": "account_dashboard_hero",
-        "occurredAt": "2026-08-26T16:55:30.000Z",
-        "input": {
-          "customer": {
-            "age": 65,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.0211,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.7733,
-            "months_of_history": 8
-          },
-          "contract": {
-            "days_to_end": 87
-          },
-          "events": {
-            "pac_requested_within_days": 37
-          },
-          "device": {
-            "residual_value": 16812
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 9472,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 99.76,
-          "roamingDays": 2,
-          "tenureMonths": 24,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "web",
-          "withinPeriod": {
-            "day": 1,
-            "week": 2,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_042e00fceb6ce1af",
-        "chainHash": "042e00fceb6ce1afa44a9d41228a6c1ab9651cd8732840c3d95b9d13b45766de",
-        "inputSnapshotHash": "622f52c937b55d72adb3f20b620b68406b294c1493b8642a9ee55234759c0592",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "retention_offer"
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_kmr7",
-        "channel": "push",
-        "placement": "app_inbox",
-        "occurredAt": "2026-09-02T22:55:30.000Z",
-        "input": {
-          "customer": {
-            "age": 45,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0601,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.7434,
-            "months_of_history": 0
-          },
-          "contract": {
-            "days_to_end": 78
-          },
-          "events": {
-            "pac_requested_within_days": 13
-          },
-          "device": {
-            "residual_value": 11605
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 6314,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 106.6,
-          "roamingDays": 9,
-          "tenureMonths": 25,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "push",
-          "withinPeriod": {
-            "day": 1,
-            "week": 3,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": false,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_044a5755d44053a5",
-        "chainHash": "044a5755d44053a5d3152585e819430541128287ec78c0103f1f03502aea3e3a",
-        "inputSnapshotHash": "76180843dd467f3a21d61c51ccf0ec39af949ed453218bb70b9e17a46d6a8605",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "inbound-web-offers",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_w2hu",
-        "channel": "sms",
-        "placement": "triggered_outbound",
-        "occurredAt": "2026-08-27T07:33:00.000Z",
-        "input": {
-          "customer": {
-            "age": 20,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0329,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.8131,
-            "months_of_history": 3
-          },
-          "contract": {
-            "days_to_end": 109
-          },
-          "events": {
-            "pac_requested_within_days": 38
-          },
-          "device": {
-            "residual_value": 9079
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 7182,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 3.66,
-          "roamingDays": 12,
-          "tenureMonths": 16,
+          "monthlySpend": 8692,
+          "arrearsDays": 14,
+          "inGoodStanding": false,
+          "dataUsageGb": 38.69,
+          "roamingDays": 11,
+          "tenureMonths": 41,
           "marketingConsent": true,
           "profilingConsent": true
         },
         "contactHistory": {
           "channel": "sms",
-          "withinPeriod": {
-            "day": 1,
-            "week": 0,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": false,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_0641bca63143a982",
-        "chainHash": "0641bca63143a982f88c0127356e5313795febec17af41956708ed93eceed4ec",
-        "inputSnapshotHash": "e4c940a93ae6738262be1f56c6d4c6acd37b7aee9977371e4d7dad2a35733a6c",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "acq_fibre_900"
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_tx0d",
-        "channel": "web",
-        "placement": "account_dashboard_hero",
-        "occurredAt": "2026-08-29T23:52:30.000Z",
-        "input": {
-          "customer": {
-            "age": 34,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0568,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.1703,
-            "months_of_history": 16
-          },
-          "contract": {
-            "days_to_end": 151
-          },
-          "events": {
-            "pac_requested_within_days": 24
-          },
-          "device": {
-            "residual_value": 27070
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 2724,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 96.41,
-          "roamingDays": 9,
-          "tenureMonths": 3,
-          "marketingConsent": false,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "web",
           "withinPeriod": {
             "day": 1,
             "week": 1,
@@ -330,210 +62,9 @@
         }
       },
       "expected": {
-        "id": "dec_09a6f5def6fd3a6a",
-        "chainHash": "09a6f5def6fd3a6afbd4f907fdbdc8ba41b62f211c162e7a51a760aeef4c0a18",
-        "inputSnapshotHash": "ed325c6f6512986fbe4d0ae6fc188b4ec279435036663ba131b5e55e8f0c16ca",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "retention-outbound",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_jdxn",
-        "channel": "email",
-        "placement": "weekly_offers_send",
-        "occurredAt": "2026-09-04T03:31:30.000Z",
-        "input": {
-          "customer": {
-            "age": 73,
-            "credit_status": "refer",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0188,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.1336,
-            "months_of_history": 8
-          },
-          "contract": {
-            "days_to_end": 102
-          },
-          "events": {
-            "pac_requested_within_days": 6
-          },
-          "device": {
-            "residual_value": 5999
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 8908,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 108.77,
-          "roamingDays": 6,
-          "tenureMonths": 67,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "email",
-          "withinPeriod": {
-            "day": 0,
-            "week": 3,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_120375e7bcb91ac7",
-        "chainHash": "120375e7bcb91ac774799fb44cd1fda2263154f7aef01f0cf8c47f9b4924936b",
-        "inputSnapshotHash": "8bb3b67c68230d33036f26c069fdd7d3f359d17c2b4b2afa9be0e94c73e21f52",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "inbound-web-offers",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_rp76",
-        "channel": "sms",
-        "placement": "triggered_outbound",
-        "occurredAt": "2026-08-29T10:45:00.000Z",
-        "input": {
-          "customer": {
-            "age": 69,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.0666,
-            "arrears_count_12mo": 1
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.6748,
-            "months_of_history": 13
-          },
-          "contract": {
-            "days_to_end": 80
-          },
-          "events": {
-            "pac_requested_within_days": 3
-          },
-          "device": {
-            "residual_value": 17241
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 7183,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 92.76,
-          "roamingDays": 7,
-          "tenureMonths": 55,
-          "marketingConsent": true,
-          "profilingConsent": false
-        },
-        "contactHistory": {
-          "channel": "sms",
-          "withinPeriod": {
-            "day": 0,
-            "week": 3,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_137f9e4d727501a8",
-        "chainHash": "137f9e4d727501a887d651a4ee6f370a11d5199cd06e99469af0efd5865382db",
-        "inputSnapshotHash": "9c889918f46d82f5b4fd8481e31fef82d13e363446da371d0711eae17dd0fc06",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "acq_sim_30"
-      }
-    },
-    {
-      "artifactId": "retention-outbound",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_jbeb",
-        "channel": "push",
-        "placement": "app_inbox",
-        "occurredAt": "2026-08-30T22:07:30.000Z",
-        "input": {
-          "customer": {
-            "age": 69,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.0113,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.6477,
-            "months_of_history": 5
-          },
-          "contract": {
-            "days_to_end": 193
-          },
-          "events": {
-            "pac_requested_within_days": 33
-          },
-          "device": {
-            "residual_value": 24742
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 4887,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 54.49,
-          "roamingDays": 12,
-          "tenureMonths": 36,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "push",
-          "withinPeriod": {
-            "day": 0,
-            "week": 0,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_1642a17657313667",
-        "chainHash": "1642a176573136672dfb4d5110595c13e83ffe9342780a9fc1a0e727afe8e62e",
-        "inputSnapshotHash": "c9cf8fab264cb5609a3f195dc02047ac8216a151fc7e0bf24ca8874892f6f86b",
+        "id": "dec_09649707adc64520",
+        "chainHash": "09649707adc64520cb91d9a77a68652a0f8d0fa82787a87fb7371a50dd663db8",
+        "inputSnapshotHash": "4b9af6832357d9a78e1f894943da5d398d0262d7d1a21d5d42a6331c9741d5f3",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": null
       }
@@ -598,1081 +129,9 @@
         }
       },
       "expected": {
-        "id": "dec_16f8c0342b2752bd",
-        "chainHash": "16f8c0342b2752bd13c1e28fbc2854b931c61933a5e94bb21edb2503a8ac2e1d",
+        "id": "dec_0ad466ca4c5eb44d",
+        "chainHash": "0ad466ca4c5eb44d53fc32c509bd8ac1ff5a622c713f23baf1b3e43167992c78",
         "inputSnapshotHash": "1a9586cbf7041a30c62adb2b7749b50b7a9c55f77e28bcd5fdd567a94f57a92e",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_v4gg",
-        "channel": "sms",
-        "placement": "triggered_outbound",
-        "occurredAt": "2026-08-25T19:36:00.000Z",
-        "input": {
-          "customer": {
-            "age": 43,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0205,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.2783,
-            "months_of_history": 10
-          },
-          "contract": {
-            "days_to_end": 146
-          },
-          "events": {
-            "pac_requested_within_days": 4
-          },
-          "device": {
-            "residual_value": 9072
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 8496,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 30.17,
-          "roamingDays": 1,
-          "tenureMonths": 52,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "sms",
-          "withinPeriod": {
-            "day": 0,
-            "week": 1,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_1a5b81316be6440d",
-        "chainHash": "1a5b81316be6440d3ef4d8035899e5c69a7ed1402db9bdc3c9ea938fa5b587e6",
-        "inputSnapshotHash": "37b646d4bc5676219f250d4d6cb309298f643866ee87331c523d17dfb1b62b9c",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "upsell_5g"
-      }
-    },
-    {
-      "artifactId": "inbound-web-offers",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_m28i",
-        "channel": "push",
-        "placement": "app_inbox",
-        "occurredAt": "2026-08-27T14:45:00.000Z",
-        "input": {
-          "customer": {
-            "age": 69,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0656,
-            "arrears_count_12mo": 1
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.1081,
-            "months_of_history": 7
-          },
-          "contract": {
-            "days_to_end": 24
-          },
-          "events": {
-            "pac_requested_within_days": 4
-          },
-          "device": {
-            "residual_value": 2798
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 1504,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 113.3,
-          "roamingDays": 2,
-          "tenureMonths": 46,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "push",
-          "withinPeriod": {
-            "day": 0,
-            "week": 2,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": true
-        }
-      },
-      "expected": {
-        "id": "dec_228bee1b64fc2315",
-        "chainHash": "228bee1b64fc23156bd22eefda7c5c10c06ab977be3c8029d1ec533c9f86f8f8",
-        "inputSnapshotHash": "9554ed321296a772d549d1defc59204743106617d2f0af647881b80557406a07",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "acq_fibre_900"
-      }
-    },
-    {
-      "artifactId": "retention-outbound",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_qw4n",
-        "channel": "outbound_call",
-        "placement": "retention_queue",
-        "occurredAt": "2026-08-29T06:37:30.000Z",
-        "input": {
-          "customer": {
-            "age": 42,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0278,
-            "arrears_count_12mo": 1
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.787,
-            "months_of_history": 15
-          },
-          "contract": {
-            "days_to_end": 117
-          },
-          "events": {
-            "pac_requested_within_days": 25
-          },
-          "device": {
-            "residual_value": 34763
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 6600,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 77.47,
-          "roamingDays": 4,
-          "tenureMonths": 45,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "outbound_call",
-          "withinPeriod": {
-            "day": 0,
-            "week": 3,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": false,
-          "profiling": false,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_261853617dabdc2d",
-        "chainHash": "261853617dabdc2d6750acb6f11b47a7e61119a3bd32f06fc30813e3757aef41",
-        "inputSnapshotHash": "a9c8e6958566b22ba67f86a9b47577d004278ddb6655201f410532dfa1115654",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "inbound-web-offers",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_j67u",
-        "channel": "web",
-        "placement": "account_dashboard_hero",
-        "occurredAt": "2026-09-04T05:21:00.000Z",
-        "input": {
-          "customer": {
-            "age": 20,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.0396,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.9841,
-            "months_of_history": 6
-          },
-          "contract": {
-            "days_to_end": 150
-          },
-          "events": {
-            "pac_requested_within_days": 25
-          },
-          "device": {
-            "residual_value": 22031
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 6694,
-          "arrearsDays": 47,
-          "inGoodStanding": false,
-          "dataUsageGb": 0.79,
-          "roamingDays": 10,
-          "tenureMonths": 22,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "web",
-          "withinPeriod": {
-            "day": 0,
-            "week": 3,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": true
-        }
-      },
-      "expected": {
-        "id": "dec_274df904df83f2dd",
-        "chainHash": "274df904df83f2dd535a5db2b059156e526962911e6cf5dd3206140dbf9eee3c",
-        "inputSnapshotHash": "d240eebe782445d1d6fda7dd39911f063e369c48f0bc840b2ec16e2a765c559a",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "acq_fibre_900"
-      }
-    },
-    {
-      "artifactId": "inbound-web-offers",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_osjo",
-        "channel": "outbound_call",
-        "placement": "retention_queue",
-        "occurredAt": "2026-09-01T08:30:00.000Z",
-        "input": {
-          "customer": {
-            "age": 35,
-            "credit_status": "refer",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0237,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.7585,
-            "months_of_history": 10
-          },
-          "contract": {
-            "days_to_end": 176
-          },
-          "events": {
-            "pac_requested_within_days": 4
-          },
-          "device": {
-            "residual_value": 17876
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 4007,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 64.57,
-          "roamingDays": 13,
-          "tenureMonths": 11,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "outbound_call",
-          "withinPeriod": {
-            "day": 0,
-            "week": 1,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_3e186e1427cbe8d9",
-        "chainHash": "3e186e1427cbe8d944764c6113f75d831a60dc51a470e820d3c4bb0fa4b327ad",
-        "inputSnapshotHash": "321441eec461390efd69fa2c3ac54c7c1a919b5625a63eef0b8c4b6b79a1966a",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "acq_sim_30"
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_p7nv",
-        "channel": "outbound_call",
-        "placement": "retention_queue",
-        "occurredAt": "2026-08-30T16:55:30.000Z",
-        "input": {
-          "customer": {
-            "age": 35,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0105,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.9456,
-            "months_of_history": 17
-          },
-          "contract": {
-            "days_to_end": 15
-          },
-          "events": {
-            "pac_requested_within_days": 17
-          },
-          "device": {
-            "residual_value": 8632
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 4330,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 23.05,
-          "roamingDays": 4,
-          "tenureMonths": 60,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "outbound_call",
-          "withinPeriod": {
-            "day": 0,
-            "week": 0,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_3fd448f5e3c8cfcd",
-        "chainHash": "3fd448f5e3c8cfcdf58e99b3346c511135eb274c3645926d9ca512b7139fa84c",
-        "inputSnapshotHash": "78fa8ad49baa2df6277c1e70f3f2a9db10c327bbcf2208be685cf6c5fb713a5c",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "upsell_5g"
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_p0da",
-        "channel": "sms",
-        "placement": "triggered_outbound",
-        "occurredAt": "2026-08-28T01:39:00.000Z",
-        "input": {
-          "customer": {
-            "age": 18,
-            "credit_status": "refer",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0363,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.6027,
-            "months_of_history": 8
-          },
-          "contract": {
-            "days_to_end": 34
-          },
-          "events": {
-            "pac_requested_within_days": 24
-          },
-          "device": {
-            "residual_value": 20096
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 1213,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 57.18,
-          "roamingDays": 11,
-          "tenureMonths": 47,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "sms",
-          "withinPeriod": {
-            "day": 0,
-            "week": 0,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": false,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_46f965f050b025dc",
-        "chainHash": "46f965f050b025dc9b6055aae824bd33728f0ae60c1b82a94444bf84b83aa89b",
-        "inputSnapshotHash": "438eec4184b05baa01aeb6709a044c10c8dd1c96b19d2a1380126b65eeaf0dde",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_vgia",
-        "channel": "email",
-        "placement": "weekly_offers_send",
-        "occurredAt": "2026-08-24T14:45:00.000Z",
-        "input": {
-          "customer": {
-            "age": 67,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0579,
-            "arrears_count_12mo": 1
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.8342,
-            "months_of_history": 8
-          },
-          "contract": {
-            "days_to_end": 0
-          },
-          "events": {
-            "pac_requested_within_days": 27
-          },
-          "device": {
-            "residual_value": 1155
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 5432,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 60.2,
-          "roamingDays": 5,
-          "tenureMonths": 23,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "email",
-          "withinPeriod": {
-            "day": 0,
-            "week": 1,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": true
-        }
-      },
-      "expected": {
-        "id": "dec_4744f470aff8f15f",
-        "chainHash": "4744f470aff8f15fccb6614a107c7f434ac0ed6694cafd420ff9ee7280cf8a7c",
-        "inputSnapshotHash": "69bcd1f123ce77b9ba4121997c84567196bc7dad84806a3264afd2c5c54a467f",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "inbound-web-offers",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_sgsf",
-        "channel": "sms",
-        "placement": "triggered_outbound",
-        "occurredAt": "2026-08-30T04:13:30.000Z",
-        "input": {
-          "customer": {
-            "age": 66,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0362,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.8692,
-            "months_of_history": 0
-          },
-          "contract": {
-            "days_to_end": 187
-          },
-          "events": {
-            "pac_requested_within_days": 2
-          },
-          "device": {
-            "residual_value": 32778
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 5803,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 116.17,
-          "roamingDays": 8,
-          "tenureMonths": 8,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "sms",
-          "withinPeriod": {
-            "day": 0,
-            "week": 0,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": false,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_48a0f861a4da5764",
-        "chainHash": "48a0f861a4da5764167055e24b8541aa13e7433819d1f893989eb8d0851dbc3d",
-        "inputSnapshotHash": "2ae71ce80f55b07136626e3f8811110b46562d969140545c7c05f6793f77b999",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "acq_fibre_900"
-      }
-    },
-    {
-      "artifactId": "retention-outbound",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_vfrn",
-        "channel": "outbound_call",
-        "placement": "retention_queue",
-        "occurredAt": "2026-08-27T14:55:30.000Z",
-        "input": {
-          "customer": {
-            "age": 49,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0113,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.436,
-            "months_of_history": 15
-          },
-          "contract": {
-            "days_to_end": 109
-          },
-          "events": {
-            "pac_requested_within_days": 32
-          },
-          "device": {
-            "residual_value": 10605
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 9959,
-          "arrearsDays": 25,
-          "inGoodStanding": false,
-          "dataUsageGb": 0.38,
-          "roamingDays": 7,
-          "tenureMonths": 58,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "outbound_call",
-          "withinPeriod": {
-            "day": 0,
-            "week": 3,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_4ee63e4532abe767",
-        "chainHash": "4ee63e4532abe7678328fe03bec19fff0530fa567b3d52bac82e1626969893e2",
-        "inputSnapshotHash": "919a44fb35087dd4efc23c38829c30cba8bcabeb187d73f34ba11d0360049b55",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "retention-outbound",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_qujk",
-        "channel": "web",
-        "placement": "account_dashboard_hero",
-        "occurredAt": "2026-08-30T16:00:00.000Z",
-        "input": {
-          "customer": {
-            "age": 47,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.028,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.4329,
-            "months_of_history": 6
-          },
-          "contract": {
-            "days_to_end": 13
-          },
-          "events": {
-            "pac_requested_within_days": 33
-          },
-          "device": {
-            "residual_value": 23028
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 5526,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 33.89,
-          "roamingDays": 6,
-          "tenureMonths": 17,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "web",
-          "withinPeriod": {
-            "day": 0,
-            "week": 3,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": false,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_504cac558f1286a6",
-        "chainHash": "504cac558f1286a64f48ad2f6bce509058ca991dc9d53c9adf5120502f6e6a2b",
-        "inputSnapshotHash": "bfabe969ea072b7589e7d584bf8a58ec0e4c2ed455970916b43599455eae6338",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "inbound-web-offers",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_pjti",
-        "channel": "email",
-        "placement": "weekly_offers_send",
-        "occurredAt": "2026-08-27T00:03:00.000Z",
-        "input": {
-          "customer": {
-            "age": 62,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0682,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.043,
-            "months_of_history": 12
-          },
-          "contract": {
-            "days_to_end": 136
-          },
-          "events": {
-            "pac_requested_within_days": 15
-          },
-          "device": {
-            "residual_value": 18334
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 9646,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 11.76,
-          "roamingDays": 8,
-          "tenureMonths": 70,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "email",
-          "withinPeriod": {
-            "day": 0,
-            "week": 1,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_5092cc79d9d1122c",
-        "chainHash": "5092cc79d9d1122c0d38d8b0182edaf2f1af8e4ab8584cd0d54647d71c51507a",
-        "inputSnapshotHash": "e28e0b54e3b6db15746f4893f684c53548a214e1369ec29811405488bf365a71",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "acq_sim_30"
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_k6ky",
-        "channel": "email",
-        "placement": "weekly_offers_send",
-        "occurredAt": "2026-08-30T10:45:00.000Z",
-        "input": {
-          "customer": {
-            "age": 29,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.0508,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.1707,
-            "months_of_history": 1
-          },
-          "contract": {
-            "days_to_end": 192
-          },
-          "events": {
-            "pac_requested_within_days": 19
-          },
-          "device": {
-            "residual_value": 17641
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 7033,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 37.16,
-          "roamingDays": 11,
-          "tenureMonths": 20,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "email",
-          "withinPeriod": {
-            "day": 0,
-            "week": 0,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": false,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_5490def21bfedf60",
-        "chainHash": "5490def21bfedf60da62333d67ff4d80835b541957fb29437069c39e905de574",
-        "inputSnapshotHash": "870fda1c65682f30fae3f4974297722e6a20d1a016ea1355f065ada2d094a623",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_mg31",
-        "channel": "web",
-        "placement": "account_dashboard_hero",
-        "occurredAt": "2026-09-02T17:28:30.000Z",
-        "input": {
-          "customer": {
-            "age": 22,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0143,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.6044,
-            "months_of_history": 13
-          },
-          "contract": {
-            "days_to_end": 67
-          },
-          "events": {
-            "pac_requested_within_days": 27
-          },
-          "device": {
-            "residual_value": 14689
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 6074,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 65.33,
-          "roamingDays": 12,
-          "tenureMonths": 7,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "web",
-          "withinPeriod": {
-            "day": 0,
-            "week": 2,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_5e189969d8114615",
-        "chainHash": "5e189969d8114615930d7035ef9c72350ecfbf09a4f82c81938e6f0105ea12f1",
-        "inputSnapshotHash": "ab8220a8061d8aa3e303a4d2a87f2beba608f005bbb8e774140aa04eeba5c489",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "upsell_5g"
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_xi2y",
-        "channel": "sms",
-        "placement": "triggered_outbound",
-        "occurredAt": "2026-08-25T08:21:00.000Z",
-        "input": {
-          "customer": {
-            "age": 36,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0179,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.6436,
-            "months_of_history": 10
-          },
-          "contract": {
-            "days_to_end": 19
-          },
-          "events": {
-            "pac_requested_within_days": 35
-          },
-          "device": {
-            "residual_value": 10290
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 5492,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 67.66,
-          "roamingDays": 1,
-          "tenureMonths": 63,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "sms",
-          "withinPeriod": {
-            "day": 0,
-            "week": 1,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": true
-        }
-      },
-      "expected": {
-        "id": "dec_62e6aefee5c4659b",
-        "chainHash": "62e6aefee5c4659b73b0661f40bd4a49f7d55d9cef88e86411d8ad6ac2f3b849",
-        "inputSnapshotHash": "e76d5d14b2b7c0c588d9f52de0ad506ea329aaccca95af4e3f040e9740da58cc",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "upsell_5g"
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_wtcg",
-        "channel": "web",
-        "placement": "account_dashboard_hero",
-        "occurredAt": "2026-08-29T17:12:00.000Z",
-        "input": {
-          "customer": {
-            "age": 41,
-            "credit_status": "refer",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0573,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.7774,
-            "months_of_history": 8
-          },
-          "contract": {
-            "days_to_end": 185
-          },
-          "events": {
-            "pac_requested_within_days": 21
-          },
-          "device": {
-            "residual_value": 37976
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 1516,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 62.37,
-          "roamingDays": 1,
-          "tenureMonths": 65,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "web",
-          "withinPeriod": {
-            "day": 0,
-            "week": 3,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_7052515a1082ba54",
-        "chainHash": "7052515a1082ba54613361c53d35a2af4b35ff2358543e9112edb7d4ae9ff6ba",
-        "inputSnapshotHash": "1052f20afb4ed435b782e73ca1f510aef66d1fc2a06459201619f9d3ad37914c",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": null
       }
@@ -1737,8 +196,8 @@
         }
       },
       "expected": {
-        "id": "dec_731753afcb8536ef",
-        "chainHash": "731753afcb8536ef47e8540af12934765a6030c8bc8c3b316a1fb4bd9eaa2c1e",
+        "id": "dec_0cb6546a8badc5a4",
+        "chainHash": "0cb6546a8badc5a423f7bbacc868444e0d552800668be97b00e04a682a4af8cf",
         "inputSnapshotHash": "d606bc007a98b42fb981d209f7884fe321b70a0b71aaf4d0f4abb4c977c97fab",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": "acq_fibre_900"
@@ -1748,782 +207,45 @@
       "artifactId": "next-best-action",
       "request": {
         "tenantId": "telco-uk",
-        "customerId": "cust_le11",
-        "channel": "email",
-        "placement": "weekly_offers_send",
-        "occurredAt": "2026-08-28T07:28:30.000Z",
-        "input": {
-          "customer": {
-            "age": 54,
-            "credit_status": "refer",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.0469,
-            "arrears_count_12mo": 1
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.7421,
-            "months_of_history": 6
-          },
-          "contract": {
-            "days_to_end": 44
-          },
-          "events": {
-            "pac_requested_within_days": 23
-          },
-          "device": {
-            "residual_value": 19775
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 1428,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 54.57,
-          "roamingDays": 2,
-          "tenureMonths": 51,
-          "marketingConsent": false,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "email",
-          "withinPeriod": {
-            "day": 0,
-            "week": 1,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_73d9a0c3f67f3ae8",
-        "chainHash": "73d9a0c3f67f3ae8d4321775ed5e2a92cedcaf6a8894b2c1a76dea82c4424c04",
-        "inputSnapshotHash": "fb4ad6222b9ef162da730c943e6782aa1640d1c036261610842661a25a955853",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_m0jm",
-        "channel": "push",
-        "placement": "app_inbox",
-        "occurredAt": "2026-08-28T22:09:00.000Z",
-        "input": {
-          "customer": {
-            "age": 22,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0494,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.4663,
-            "months_of_history": 0
-          },
-          "contract": {
-            "days_to_end": 152
-          },
-          "events": {
-            "pac_requested_within_days": 2
-          },
-          "device": {
-            "residual_value": 18094
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 5297,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 89.88,
-          "roamingDays": 0,
-          "tenureMonths": 57,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "push",
-          "withinPeriod": {
-            "day": 1,
-            "week": 1,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": true
-        }
-      },
-      "expected": {
-        "id": "dec_7534a3f4f33768a2",
-        "chainHash": "7534a3f4f33768a27721f490ecf3181dbca436cb40196e2d226f52ff5be37be2",
-        "inputSnapshotHash": "a3e667142045f69e661ba4ceafd53d155dddd324d1aaec0a74f2e26bd99f581f",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "upsell_5g"
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_mmfd",
+        "customerId": "cust_p0da",
         "channel": "sms",
         "placement": "triggered_outbound",
-        "occurredAt": "2026-08-28T12:58:30.000Z",
+        "occurredAt": "2026-08-28T01:39:00.000Z",
         "input": {
           "customer": {
-            "age": 26,
+            "age": 18,
             "credit_status": "refer",
             "account_status": "active",
             "current_plan": "standard",
-            "bill_to_income_ratio": 0.0394,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.2014,
-            "months_of_history": 7
-          },
-          "contract": {
-            "days_to_end": 193
-          },
-          "events": {
-            "pac_requested_within_days": 35
-          },
-          "device": {
-            "residual_value": 17554
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 1524,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 2.15,
-          "roamingDays": 5,
-          "tenureMonths": 30,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "sms",
-          "withinPeriod": {
-            "day": 0,
-            "week": 3,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_7541138a8807633b",
-        "chainHash": "7541138a8807633bd9a628389ba9094b4231d54e5f428c81632d1dffc604e0b2",
-        "inputSnapshotHash": "5b8a172c1dbd5a3196b0937371122c4f112099971707bb4b830d67e580ae6c07",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "inbound-web-offers",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_u26u",
-        "channel": "web",
-        "placement": "account_dashboard_hero",
-        "occurredAt": "2026-08-26T07:39:00.000Z",
-        "input": {
-          "customer": {
-            "age": 57,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.0185,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.8073,
-            "months_of_history": 16
-          },
-          "contract": {
-            "days_to_end": 24
-          },
-          "events": {
-            "pac_requested_within_days": 5
-          },
-          "device": {
-            "residual_value": 16388
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 4426,
-          "arrearsDays": 36,
-          "inGoodStanding": false,
-          "dataUsageGb": 16.46,
-          "roamingDays": 1,
-          "tenureMonths": 43,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "web",
-          "withinPeriod": {
-            "day": 0,
-            "week": 2,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": true
-        }
-      },
-      "expected": {
-        "id": "dec_8b7eacc71fed860e",
-        "chainHash": "8b7eacc71fed860ef1475ffa8c0e97f14840fe2ad2fef8acce002e7f4303d2ed",
-        "inputSnapshotHash": "b65a63766b0a8220d25b0ac9d1fe5a40e9cf2971e0765a5860dc2574cf77dd8e",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "acq_sim_30"
-      }
-    },
-    {
-      "artifactId": "retention-outbound",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_w1ne",
-        "channel": "sms",
-        "placement": "triggered_outbound",
-        "occurredAt": "2026-08-27T00:45:00.000Z",
-        "input": {
-          "customer": {
-            "age": 36,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.0676,
+            "bill_to_income_ratio": 0.0363,
             "arrears_count_12mo": 0
           },
           "address": {
             "fibre_available": true
           },
           "usage": {
-            "pct_of_allowance_3mo_avg": 0.3469,
-            "months_of_history": 12
-          },
-          "contract": {
-            "days_to_end": 0
-          },
-          "events": {
-            "pac_requested_within_days": 33
-          },
-          "device": {
-            "residual_value": 6423
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 4545,
-          "arrearsDays": 36,
-          "inGoodStanding": false,
-          "dataUsageGb": 61.58,
-          "roamingDays": 9,
-          "tenureMonths": 36,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "sms",
-          "withinPeriod": {
-            "day": 0,
-            "week": 1,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_8d04ffabfc598856",
-        "chainHash": "8d04ffabfc598856f5e7665e7d7e1ef95ad752626eaf949a6265c221ea6253be",
-        "inputSnapshotHash": "d1452d8b0c6155bb69989862bfd43a49819f9c08bd1307aac2e7fc3c6873db74",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_x2uy",
-        "channel": "web",
-        "placement": "account_dashboard_hero",
-        "occurredAt": "2026-08-25T07:57:00.000Z",
-        "input": {
-          "customer": {
-            "age": 68,
-            "credit_status": "refer",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.0656,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.2566,
-            "months_of_history": 7
-          },
-          "contract": {
-            "days_to_end": 78
-          },
-          "events": {
-            "pac_requested_within_days": 37
-          },
-          "device": {
-            "residual_value": 25293
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 5717,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 26.22,
-          "roamingDays": 13,
-          "tenureMonths": 65,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "web",
-          "withinPeriod": {
-            "day": 1,
-            "week": 0,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": true
-        }
-      },
-      "expected": {
-        "id": "dec_acb614dbc9c29f90",
-        "chainHash": "acb614dbc9c29f907102f4f107a58c986126a93eca486f5aeb328651e3dafc06",
-        "inputSnapshotHash": "b53698650fe1455da28753e38c8ff1ef7b2f7283059d3e5e8ebf97021e7ad184",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "retention-outbound",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_tadz",
-        "channel": "web",
-        "placement": "account_dashboard_hero",
-        "occurredAt": "2026-08-29T12:13:30.000Z",
-        "input": {
-          "customer": {
-            "age": 40,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.0564,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.0568,
-            "months_of_history": 6
-          },
-          "contract": {
-            "days_to_end": 155
-          },
-          "events": {
-            "pac_requested_within_days": 34
-          },
-          "device": {
-            "residual_value": 7120
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 10023,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 111.55,
-          "roamingDays": 13,
-          "tenureMonths": 58,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "web",
-          "withinPeriod": {
-            "day": 1,
-            "week": 0,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_b518c7b97e903978",
-        "chainHash": "b518c7b97e9039788cb4431f96313f32b71445529501938b3dfd91a6d481fce5",
-        "inputSnapshotHash": "0fddf6d8ee1714e16795217837ad593aeaead8642a0ca67e6af2e659c9693a87",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "inbound-web-offers",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_krau",
-        "channel": "push",
-        "placement": "app_inbox",
-        "occurredAt": "2026-08-31T14:51:00.000Z",
-        "input": {
-          "customer": {
-            "age": 27,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0336,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.4088,
-            "months_of_history": 6
-          },
-          "contract": {
-            "days_to_end": 167
-          },
-          "events": {
-            "pac_requested_within_days": 13
-          },
-          "device": {
-            "residual_value": 34680
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 9591,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 18.33,
-          "roamingDays": 5,
-          "tenureMonths": 14,
-          "marketingConsent": true,
-          "profilingConsent": false
-        },
-        "contactHistory": {
-          "channel": "push",
-          "withinPeriod": {
-            "day": 0,
-            "week": 0,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": false,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_b6000958d1524d36",
-        "chainHash": "b6000958d1524d36c122c09d0431bfb1c0cacc20178c98099f60dfda096a7c2b",
-        "inputSnapshotHash": "ecc49e6a0a0ebf275422f6c6b8056fe818025889d122592c6f7d40ff71454d4e",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "acq_sim_30"
-      }
-    },
-    {
-      "artifactId": "inbound-web-offers",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_q27o",
-        "channel": "email",
-        "placement": "weekly_offers_send",
-        "occurredAt": "2026-08-28T12:42:00.000Z",
-        "input": {
-          "customer": {
-            "age": 29,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0676,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.1312,
-            "months_of_history": 0
-          },
-          "contract": {
-            "days_to_end": 178
-          },
-          "events": {
-            "pac_requested_within_days": 33
-          },
-          "device": {
-            "residual_value": 36712
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 3121,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 1.56,
-          "roamingDays": 0,
-          "tenureMonths": 48,
-          "marketingConsent": false,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "email",
-          "withinPeriod": {
-            "day": 0,
-            "week": 0,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_b8f012ddcefacb91",
-        "chainHash": "b8f012ddcefacb91d999d9735da8a96b654cb2bc8186ad3357d0e2dbd1d85677",
-        "inputSnapshotHash": "8801f57c990e3520885569818336069786f09e9cdd9c8ce095bf5be4c16039ce",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "acq_fibre_900"
-      }
-    },
-    {
-      "artifactId": "retention-outbound",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_nste",
-        "channel": "sms",
-        "placement": "triggered_outbound",
-        "occurredAt": "2026-08-31T05:57:00.000Z",
-        "input": {
-          "customer": {
-            "age": 32,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.041,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.5463,
-            "months_of_history": 13
-          },
-          "contract": {
-            "days_to_end": 83
-          },
-          "events": {
-            "pac_requested_within_days": 30
-          },
-          "device": {
-            "residual_value": 37475
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 4290,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 110.74,
-          "roamingDays": 11,
-          "tenureMonths": 69,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "sms",
-          "withinPeriod": {
-            "day": 1,
-            "week": 2,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_be2bc3684e33d99e",
-        "chainHash": "be2bc3684e33d99e5673f6ea60db7a0d32cc99450594b3a26748140f120d0812",
-        "inputSnapshotHash": "3a64883e85dd35448f15ad9b95eb880248c1d3f9ecc247533de264ae99df3965",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "inbound-web-offers",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_n6tu",
-        "channel": "outbound_call",
-        "placement": "retention_queue",
-        "occurredAt": "2026-08-29T16:09:00.000Z",
-        "input": {
-          "customer": {
-            "age": 34,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0381,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.3743,
+            "pct_of_allowance_3mo_avg": 0.6027,
             "months_of_history": 8
           },
           "contract": {
-            "days_to_end": 44
+            "days_to_end": 34
           },
           "events": {
-            "pac_requested_within_days": 35
+            "pac_requested_within_days": 24
           },
           "device": {
-            "residual_value": 25852
+            "residual_value": 20096
           },
           "offer": {
             "monthly_delta": 300
           },
-          "monthlySpend": 3194,
+          "monthlySpend": 1213,
           "arrearsDays": 0,
           "inGoodStanding": true,
-          "dataUsageGb": 0.42,
-          "roamingDays": 5,
-          "tenureMonths": 12,
+          "dataUsageGb": 57.18,
+          "roamingDays": 11,
+          "tenureMonths": 47,
           "marketingConsent": true,
-          "profilingConsent": false
-        },
-        "contactHistory": {
-          "channel": "outbound_call",
-          "withinPeriod": {
-            "day": 0,
-            "week": 0,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": true
-        }
-      },
-      "expected": {
-        "id": "dec_c06ddcfaf4a3d962",
-        "chainHash": "c06ddcfaf4a3d96268e967b687c1c5ac3f61ee175f14e5e87925bf81ae1b6338",
-        "inputSnapshotHash": "4e2265bc0a463389c14efbee9d9df80a5e5a694caba22a8f1139ff41ff38eeb0",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "acq_fibre_900"
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_vugm",
-        "channel": "sms",
-        "placement": "triggered_outbound",
-        "occurredAt": "2026-08-28T17:27:00.000Z",
-        "input": {
-          "customer": {
-            "age": 23,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.0443,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.9479,
-            "months_of_history": 0
-          },
-          "contract": {
-            "days_to_end": 64
-          },
-          "events": {
-            "pac_requested_within_days": 17
-          },
-          "device": {
-            "residual_value": 23438
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 1784,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 35.48,
-          "roamingDays": 4,
-          "tenureMonths": 26,
-          "marketingConsent": false,
           "profilingConsent": true
         },
         "contactHistory": {
@@ -2531,421 +253,19 @@
           "withinPeriod": {
             "day": 0,
             "week": 0,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_c27f1d67935dc6c4",
-        "chainHash": "c27f1d67935dc6c4ee814b4b2143549d566b1210f5aab053610033b3c221a647",
-        "inputSnapshotHash": "c78e2739a430c88e645c28a14cb28cbb573277a45a8534dda49c031e942afa88",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "retention_offer"
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_ugcs",
-        "channel": "web",
-        "placement": "account_dashboard_hero",
-        "occurredAt": "2026-08-30T10:18:00.000Z",
-        "input": {
-          "customer": {
-            "age": 55,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0235,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.5098,
-            "months_of_history": 16
-          },
-          "contract": {
-            "days_to_end": 75
-          },
-          "events": {
-            "pac_requested_within_days": 26
-          },
-          "device": {
-            "residual_value": 12579
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 6130,
-          "arrearsDays": 43,
-          "inGoodStanding": false,
-          "dataUsageGb": 116.47,
-          "roamingDays": 12,
-          "tenureMonths": 11,
-          "marketingConsent": true,
-          "profilingConsent": false
-        },
-        "contactHistory": {
-          "channel": "web",
-          "withinPeriod": {
-            "day": 0,
-            "week": 1,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": true
-        }
-      },
-      "expected": {
-        "id": "dec_c42d2ec1a9aebc76",
-        "chainHash": "c42d2ec1a9aebc76dc214b7778805bfdb7e1591cb9226e38dc96014e9861d812",
-        "inputSnapshotHash": "33ae9c8a069975aa3236e09d03595b1d6da0f329be916a39902b4e43dd552134",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "upsell_5g"
-      }
-    },
-    {
-      "artifactId": "retention-outbound",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_uoht",
-        "channel": "email",
-        "placement": "weekly_offers_send",
-        "occurredAt": "2026-08-29T01:22:30.000Z",
-        "input": {
-          "customer": {
-            "age": 26,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.0562,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.4636,
-            "months_of_history": 9
-          },
-          "contract": {
-            "days_to_end": 166
-          },
-          "events": {
-            "pac_requested_within_days": 27
-          },
-          "device": {
-            "residual_value": 21459
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 8003,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 62.12,
-          "roamingDays": 10,
-          "tenureMonths": 17,
-          "marketingConsent": true,
-          "profilingConsent": false
-        },
-        "contactHistory": {
-          "channel": "email",
-          "withinPeriod": {
-            "day": 1,
-            "week": 3,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_c4c952cbce9de9d1",
-        "chainHash": "c4c952cbce9de9d194ea95f379d77ba483ea7926de0c75155279b67885bd8c86",
-        "inputSnapshotHash": "32cbfeed76197f8a4cc391c7556bc7690a50da88314814eb27b712e0553b123c",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "retention-outbound",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_u0pk",
-        "channel": "push",
-        "placement": "app_inbox",
-        "occurredAt": "2026-08-25T20:00:00.000Z",
-        "input": {
-          "customer": {
-            "age": 55,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.0259,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.7074,
-            "months_of_history": 7
-          },
-          "contract": {
-            "days_to_end": 45
-          },
-          "events": {
-            "pac_requested_within_days": 36
-          },
-          "device": {
-            "residual_value": 720
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 2377,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 68.38,
-          "roamingDays": 2,
-          "tenureMonths": 58,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "push",
-          "withinPeriod": {
-            "day": 0,
-            "week": 3,
             "month": 0
           }
         },
         "consent": {
           "marketing": false,
           "profiling": true,
-          "thirdParty": true
-        }
-      },
-      "expected": {
-        "id": "dec_c8bb204d9e90ca34",
-        "chainHash": "c8bb204d9e90ca344f6df99b0f36e0b33204fb7f647f3505903511cc64a91e17",
-        "inputSnapshotHash": "d1a465a1378a585fa1645183063c8b54f8c33aadc115797695f06d34bf40eec4",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "retention-outbound",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_nvcq",
-        "channel": "push",
-        "placement": "app_inbox",
-        "occurredAt": "2026-08-27T20:21:00.000Z",
-        "input": {
-          "customer": {
-            "age": 64,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0531,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.5394,
-            "months_of_history": 3
-          },
-          "contract": {
-            "days_to_end": 45
-          },
-          "events": {
-            "pac_requested_within_days": 4
-          },
-          "device": {
-            "residual_value": 13786
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 10011,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 23.73,
-          "roamingDays": 11,
-          "tenureMonths": 32,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "push",
-          "withinPeriod": {
-            "day": 0,
-            "week": 3,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
           "thirdParty": false
         }
       },
       "expected": {
-        "id": "dec_d4f96d4ee1393164",
-        "chainHash": "d4f96d4ee1393164030ccd1eb19cde9f8bfaba20b9cd6b0163be23b3a9505cc3",
-        "inputSnapshotHash": "d375f3a173ed0ca5044f1ee5f2f3b84fd4ae488e8b8b2fcbf8e2c7c15780ca06",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_kmfs",
-        "channel": "sms",
-        "placement": "triggered_outbound",
-        "occurredAt": "2026-08-31T14:00:00.000Z",
-        "input": {
-          "customer": {
-            "age": 56,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0159,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.8817,
-            "months_of_history": 0
-          },
-          "contract": {
-            "days_to_end": 149
-          },
-          "events": {
-            "pac_requested_within_days": 29
-          },
-          "device": {
-            "residual_value": 2764
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 8692,
-          "arrearsDays": 14,
-          "inGoodStanding": false,
-          "dataUsageGb": 38.69,
-          "roamingDays": 11,
-          "tenureMonths": 41,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "sms",
-          "withinPeriod": {
-            "day": 1,
-            "week": 1,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_d9f91d9f9bfcb6c1",
-        "chainHash": "d9f91d9f9bfcb6c1082f8ce101157f267ac3c3498189e135ca193b8142e18d26",
-        "inputSnapshotHash": "4b9af6832357d9a78e1f894943da5d398d0262d7d1a21d5d42a6331c9741d5f3",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "next-best-action",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_t53p",
-        "channel": "outbound_call",
-        "placement": "retention_queue",
-        "occurredAt": "2026-08-30T05:28:30.000Z",
-        "input": {
-          "customer": {
-            "age": 16,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "5g_unlimited",
-            "bill_to_income_ratio": 0.0523,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.7366,
-            "months_of_history": 5
-          },
-          "contract": {
-            "days_to_end": 177
-          },
-          "events": {
-            "pac_requested_within_days": 35
-          },
-          "device": {
-            "residual_value": 23246
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 7058,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 42.65,
-          "roamingDays": 13,
-          "tenureMonths": 3,
-          "marketingConsent": true,
-          "profilingConsent": false
-        },
-        "contactHistory": {
-          "channel": "outbound_call",
-          "withinPeriod": {
-            "day": 1,
-            "week": 0,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_dbb71ac42697c4de",
-        "chainHash": "dbb71ac42697c4deac4b78500296c6bc7e9de8aa7b9402e2d4c4ea387ad23bcb",
-        "inputSnapshotHash": "83fe590f1af78472e6f3795ff3e7ac4ddfa5af5033e94683b212654184bf5888",
+        "id": "dec_0ee8ae2583d4af9e",
+        "chainHash": "0ee8ae2583d4af9eef00d693d8aea0f7b02fa19441a25bdd30f86612695204bb",
+        "inputSnapshotHash": "438eec4184b05baa01aeb6709a044c10c8dd1c96b19d2a1380126b65eeaf0dde",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": null
       }
@@ -3010,60 +330,60 @@
         }
       },
       "expected": {
-        "id": "dec_ddaaad5150c4ab8f",
-        "chainHash": "ddaaad5150c4ab8f09e1a1154a1fc4b3be41ff1162eb431e0ff05943a848e804",
+        "id": "dec_11383c6cd04c67cd",
+        "chainHash": "11383c6cd04c67cdba94509f2d9fda8938e184548546268800e875da71e73bfa",
         "inputSnapshotHash": "62dbe350a74fef062b1bfcadb38cf9e292d947347383bdb419724abb7ebfc66d",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": "acq_sim_30"
       }
     },
     {
-      "artifactId": "retention-outbound",
+      "artifactId": "next-best-action",
       "request": {
         "tenantId": "telco-uk",
-        "customerId": "cust_qyze",
-        "channel": "push",
-        "placement": "app_inbox",
-        "occurredAt": "2026-08-31T21:57:00.000Z",
+        "customerId": "cust_ugcs",
+        "channel": "web",
+        "placement": "account_dashboard_hero",
+        "occurredAt": "2026-08-30T10:18:00.000Z",
         "input": {
           "customer": {
-            "age": 73,
+            "age": 55,
             "credit_status": "pass",
             "account_status": "active",
             "current_plan": "standard",
-            "bill_to_income_ratio": 0.0132,
+            "bill_to_income_ratio": 0.0235,
             "arrears_count_12mo": 0
           },
           "address": {
-            "fibre_available": true
+            "fibre_available": false
           },
           "usage": {
-            "pct_of_allowance_3mo_avg": 0.5722,
-            "months_of_history": 17
+            "pct_of_allowance_3mo_avg": 0.5098,
+            "months_of_history": 16
           },
           "contract": {
-            "days_to_end": 24
+            "days_to_end": 75
           },
           "events": {
-            "pac_requested_within_days": 29
+            "pac_requested_within_days": 26
           },
           "device": {
-            "residual_value": 35240
+            "residual_value": 12579
           },
           "offer": {
             "monthly_delta": -500
           },
-          "monthlySpend": 1807,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 53.75,
-          "roamingDays": 4,
-          "tenureMonths": 70,
+          "monthlySpend": 6130,
+          "arrearsDays": 43,
+          "inGoodStanding": false,
+          "dataUsageGb": 116.47,
+          "roamingDays": 12,
+          "tenureMonths": 11,
           "marketingConsent": true,
-          "profilingConsent": true
+          "profilingConsent": false
         },
         "contactHistory": {
-          "channel": "push",
+          "channel": "web",
           "withinPeriod": {
             "day": 0,
             "week": 1,
@@ -3077,11 +397,212 @@
         }
       },
       "expected": {
-        "id": "dec_dfc2ea8559df1d36",
-        "chainHash": "dfc2ea8559df1d36db0e1bac81f2a8733e416527d55315d41647979c705d171a",
-        "inputSnapshotHash": "7dae4f0c8e63be5979677e341b5cf4341b26949377baf8ff6d3a653ea9557411",
+        "id": "dec_13cfb263ee71db77",
+        "chainHash": "13cfb263ee71db7755ce07f91fbcd2056929a4c066a580f817ae3a4f9723f7d6",
+        "inputSnapshotHash": "33ae9c8a069975aa3236e09d03595b1d6da0f329be916a39902b4e43dd552134",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "retention_offer"
+        "winner": "upsell_5g"
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_u0pk",
+        "channel": "push",
+        "placement": "app_inbox",
+        "occurredAt": "2026-08-25T20:00:00.000Z",
+        "input": {
+          "customer": {
+            "age": 55,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.0259,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.7074,
+            "months_of_history": 7
+          },
+          "contract": {
+            "days_to_end": 45
+          },
+          "events": {
+            "pac_requested_within_days": 36
+          },
+          "device": {
+            "residual_value": 720
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 2377,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 68.38,
+          "roamingDays": 2,
+          "tenureMonths": 58,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "push",
+          "withinPeriod": {
+            "day": 0,
+            "week": 3,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": false,
+          "profiling": true,
+          "thirdParty": true
+        }
+      },
+      "expected": {
+        "id": "dec_14210be9387abb6c",
+        "chainHash": "14210be9387abb6c41134066fab42849f32a1f063a351085f31006ce62c09ebc",
+        "inputSnapshotHash": "d1a465a1378a585fa1645183063c8b54f8c33aadc115797695f06d34bf40eec4",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_nste",
+        "channel": "sms",
+        "placement": "triggered_outbound",
+        "occurredAt": "2026-08-31T05:57:00.000Z",
+        "input": {
+          "customer": {
+            "age": 32,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.041,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.5463,
+            "months_of_history": 13
+          },
+          "contract": {
+            "days_to_end": 83
+          },
+          "events": {
+            "pac_requested_within_days": 30
+          },
+          "device": {
+            "residual_value": 37475
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 4290,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 110.74,
+          "roamingDays": 11,
+          "tenureMonths": 69,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "sms",
+          "withinPeriod": {
+            "day": 1,
+            "week": 2,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_17732d5779b4dc6c",
+        "chainHash": "17732d5779b4dc6cc6825367084d22709f771663f60320636e961cc90ad820ae",
+        "inputSnapshotHash": "3a64883e85dd35448f15ad9b95eb880248c1d3f9ecc247533de264ae99df3965",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_p7nv",
+        "channel": "outbound_call",
+        "placement": "retention_queue",
+        "occurredAt": "2026-08-30T16:55:30.000Z",
+        "input": {
+          "customer": {
+            "age": 35,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0105,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.9456,
+            "months_of_history": 17
+          },
+          "contract": {
+            "days_to_end": 15
+          },
+          "events": {
+            "pac_requested_within_days": 17
+          },
+          "device": {
+            "residual_value": 8632
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 4330,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 23.05,
+          "roamingDays": 4,
+          "tenureMonths": 60,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "outbound_call",
+          "withinPeriod": {
+            "day": 0,
+            "week": 0,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_177531e117e1f783",
+        "chainHash": "177531e117e1f783c55ca2a127b10bc458ef1ea2ea507745fe3859753f8cc8b2",
+        "inputSnapshotHash": "78fa8ad49baa2df6277c1e70f3f2a9db10c327bbcf2208be685cf6c5fb713a5c",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "upsell_5g"
       }
     },
     {
@@ -3144,11 +665,145 @@
         }
       },
       "expected": {
-        "id": "dec_e09a646ee5a8c8c9",
-        "chainHash": "e09a646ee5a8c8c94ef74e4bcb5aa5d3b376deadb546957e165cc17538104fd8",
+        "id": "dec_199e4a5418fb53d1",
+        "chainHash": "199e4a5418fb53d10f0e6445c3320c7ac8da759d027486be780828daa6c88da3",
         "inputSnapshotHash": "282be738390ab2859ff4302e9ce556a5db9eb7c0976ddd5b8a0a6a67dc036838",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": "acq_fibre_900"
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_k6ky",
+        "channel": "email",
+        "placement": "weekly_offers_send",
+        "occurredAt": "2026-08-30T10:45:00.000Z",
+        "input": {
+          "customer": {
+            "age": 29,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.0508,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.1707,
+            "months_of_history": 1
+          },
+          "contract": {
+            "days_to_end": 192
+          },
+          "events": {
+            "pac_requested_within_days": 19
+          },
+          "device": {
+            "residual_value": 17641
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 7033,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 37.16,
+          "roamingDays": 11,
+          "tenureMonths": 20,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "email",
+          "withinPeriod": {
+            "day": 0,
+            "week": 0,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": false,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_21e39d56168657d7",
+        "chainHash": "21e39d56168657d78b9d5e2abbc6e6ff9201ab5dd6149e26933c6d5a58d30772",
+        "inputSnapshotHash": "870fda1c65682f30fae3f4974297722e6a20d1a016ea1355f065ada2d094a623",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_vugm",
+        "channel": "sms",
+        "placement": "triggered_outbound",
+        "occurredAt": "2026-08-28T17:27:00.000Z",
+        "input": {
+          "customer": {
+            "age": 23,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.0443,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.9479,
+            "months_of_history": 0
+          },
+          "contract": {
+            "days_to_end": 64
+          },
+          "events": {
+            "pac_requested_within_days": 17
+          },
+          "device": {
+            "residual_value": 23438
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 1784,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 35.48,
+          "roamingDays": 4,
+          "tenureMonths": 26,
+          "marketingConsent": false,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "sms",
+          "withinPeriod": {
+            "day": 0,
+            "week": 0,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_27cb2a5da7e06172",
+        "chainHash": "27cb2a5da7e06172e1bd5d1ce8c7367da73b75455c557cb5024cd7e8f8654579",
+        "inputSnapshotHash": "c78e2739a430c88e645c28a14cb28cbb573277a45a8534dda49c031e942afa88",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "retention_offer"
       }
     },
     {
@@ -3211,9 +866,411 @@
         }
       },
       "expected": {
-        "id": "dec_e107ac8508fafa17",
-        "chainHash": "e107ac8508fafa17cb3598dea997c4dc7ad4e6b5a43defc96161437a0bb13876",
+        "id": "dec_34dda1b11e46979d",
+        "chainHash": "34dda1b11e46979d3b9ffd9c3e03d115a0a22da33c34320399407a05c6966ba9",
         "inputSnapshotHash": "7b5f05d042b3a1672d5b12f905c5eedba30db4dbed5ed7dd458bed2a357b3e27",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "inbound-web-offers",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_u26u",
+        "channel": "web",
+        "placement": "account_dashboard_hero",
+        "occurredAt": "2026-08-26T07:39:00.000Z",
+        "input": {
+          "customer": {
+            "age": 57,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.0185,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.8073,
+            "months_of_history": 16
+          },
+          "contract": {
+            "days_to_end": 24
+          },
+          "events": {
+            "pac_requested_within_days": 5
+          },
+          "device": {
+            "residual_value": 16388
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 4426,
+          "arrearsDays": 36,
+          "inGoodStanding": false,
+          "dataUsageGb": 16.46,
+          "roamingDays": 1,
+          "tenureMonths": 43,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "web",
+          "withinPeriod": {
+            "day": 0,
+            "week": 2,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": true
+        }
+      },
+      "expected": {
+        "id": "dec_383a5c8f4c910de1",
+        "chainHash": "383a5c8f4c910de169dc68b0dff12259408207d0459f2a0c10ce7d0d13065727",
+        "inputSnapshotHash": "b65a63766b0a8220d25b0ac9d1fe5a40e9cf2971e0765a5860dc2574cf77dd8e",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "acq_sim_30"
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_mg31",
+        "channel": "web",
+        "placement": "account_dashboard_hero",
+        "occurredAt": "2026-09-02T17:28:30.000Z",
+        "input": {
+          "customer": {
+            "age": 22,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0143,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.6044,
+            "months_of_history": 13
+          },
+          "contract": {
+            "days_to_end": 67
+          },
+          "events": {
+            "pac_requested_within_days": 27
+          },
+          "device": {
+            "residual_value": 14689
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 6074,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 65.33,
+          "roamingDays": 12,
+          "tenureMonths": 7,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "web",
+          "withinPeriod": {
+            "day": 0,
+            "week": 2,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_3b1d835d4b99584f",
+        "chainHash": "3b1d835d4b99584f680c24ef694f2ff4ed762853927478ac1d89b8333b5af1c8",
+        "inputSnapshotHash": "ab8220a8061d8aa3e303a4d2a87f2beba608f005bbb8e774140aa04eeba5c489",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "upsell_5g"
+      }
+    },
+    {
+      "artifactId": "inbound-web-offers",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_mn60",
+        "channel": "web",
+        "placement": "account_dashboard_hero",
+        "occurredAt": "2026-09-01T17:48:00.000Z",
+        "input": {
+          "customer": {
+            "age": 46,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.068,
+            "arrears_count_12mo": 1
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.4094,
+            "months_of_history": 3
+          },
+          "contract": {
+            "days_to_end": 168
+          },
+          "events": {
+            "pac_requested_within_days": 3
+          },
+          "device": {
+            "residual_value": 19891
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 3653,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 108.81,
+          "roamingDays": 1,
+          "tenureMonths": 9,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "web",
+          "withinPeriod": {
+            "day": 0,
+            "week": 0,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_430894a5c99d113c",
+        "chainHash": "430894a5c99d113cf63a29a05e986a889e9b8a5b42a19670039223070a7b8645",
+        "inputSnapshotHash": "71ff563e423d8d39ad151ea28845f79a1ec3ed75e07c6760699437efe26c4eb0",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "acq_fibre_900"
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_xi2y",
+        "channel": "sms",
+        "placement": "triggered_outbound",
+        "occurredAt": "2026-08-25T08:21:00.000Z",
+        "input": {
+          "customer": {
+            "age": 36,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0179,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.6436,
+            "months_of_history": 10
+          },
+          "contract": {
+            "days_to_end": 19
+          },
+          "events": {
+            "pac_requested_within_days": 35
+          },
+          "device": {
+            "residual_value": 10290
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 5492,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 67.66,
+          "roamingDays": 1,
+          "tenureMonths": 63,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "sms",
+          "withinPeriod": {
+            "day": 0,
+            "week": 1,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": true
+        }
+      },
+      "expected": {
+        "id": "dec_4312d4e72ea9dd50",
+        "chainHash": "4312d4e72ea9dd502f5d5d28a61ae3a38f9138cb61e76500dcf0e0b30ca1120f",
+        "inputSnapshotHash": "e76d5d14b2b7c0c588d9f52de0ad506ea329aaccca95af4e3f040e9740da58cc",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "upsell_5g"
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_qujk",
+        "channel": "web",
+        "placement": "account_dashboard_hero",
+        "occurredAt": "2026-08-30T16:00:00.000Z",
+        "input": {
+          "customer": {
+            "age": 47,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.028,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.4329,
+            "months_of_history": 6
+          },
+          "contract": {
+            "days_to_end": 13
+          },
+          "events": {
+            "pac_requested_within_days": 33
+          },
+          "device": {
+            "residual_value": 23028
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 5526,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 33.89,
+          "roamingDays": 6,
+          "tenureMonths": 17,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "web",
+          "withinPeriod": {
+            "day": 0,
+            "week": 3,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": false,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_4448183bf349a032",
+        "chainHash": "4448183bf349a0327a34e6e209d6c3379ba3efd574bd5643bb3697926aee99b8",
+        "inputSnapshotHash": "bfabe969ea072b7589e7d584bf8a58ec0e4c2ed455970916b43599455eae6338",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_wtcg",
+        "channel": "web",
+        "placement": "account_dashboard_hero",
+        "occurredAt": "2026-08-29T17:12:00.000Z",
+        "input": {
+          "customer": {
+            "age": 41,
+            "credit_status": "refer",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0573,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.7774,
+            "months_of_history": 8
+          },
+          "contract": {
+            "days_to_end": 185
+          },
+          "events": {
+            "pac_requested_within_days": 21
+          },
+          "device": {
+            "residual_value": 37976
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 1516,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 62.37,
+          "roamingDays": 1,
+          "tenureMonths": 65,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "web",
+          "withinPeriod": {
+            "day": 0,
+            "week": 3,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_457bfc3a070d4a14",
+        "chainHash": "457bfc3a070d4a147fd08a3dfc90934f882ad58dbe1abed2e8670958f0cf4302",
+        "inputSnapshotHash": "1052f20afb4ed435b782e73ca1f510aef66d1fc2a06459201619f9d3ad37914c",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": null
       }
@@ -3278,210 +1335,143 @@
         }
       },
       "expected": {
-        "id": "dec_e5ad8d25092bbc0b",
-        "chainHash": "e5ad8d25092bbc0b290e51113fda4784213ebdc7a8dbc87ceaa3460d9b659542",
+        "id": "dec_459d559912b5b0b5",
+        "chainHash": "459d559912b5b0b5090f2324908cc43a7247376625c3b06d42fed4724bea05c7",
         "inputSnapshotHash": "6aa0a2c1b18a50c134effcf8ba72eae6e5b0fab14eef525449c9c80fbfca1e76",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": "acq_sim_30"
       }
     },
     {
-      "artifactId": "retention-outbound",
+      "artifactId": "next-best-action",
       "request": {
         "tenantId": "telco-uk",
-        "customerId": "cust_q8ce",
-        "channel": "web",
-        "placement": "account_dashboard_hero",
-        "occurredAt": "2026-09-01T06:15:00.000Z",
+        "customerId": "cust_m0jm",
+        "channel": "push",
+        "placement": "app_inbox",
+        "occurredAt": "2026-08-28T22:09:00.000Z",
         "input": {
           "customer": {
-            "age": 35,
-            "credit_status": "refer",
+            "age": 22,
+            "credit_status": "pass",
             "account_status": "active",
             "current_plan": "standard",
-            "bill_to_income_ratio": 0.0691,
+            "bill_to_income_ratio": 0.0494,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.4663,
+            "months_of_history": 0
+          },
+          "contract": {
+            "days_to_end": 152
+          },
+          "events": {
+            "pac_requested_within_days": 2
+          },
+          "device": {
+            "residual_value": 18094
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 5297,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 89.88,
+          "roamingDays": 0,
+          "tenureMonths": 57,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "push",
+          "withinPeriod": {
+            "day": 1,
+            "week": 1,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": true
+        }
+      },
+      "expected": {
+        "id": "dec_4d89de39f175695e",
+        "chainHash": "4d89de39f175695eb2e1b296368964a5ad2248da0a4184b580b68b1d75952dd7",
+        "inputSnapshotHash": "a3e667142045f69e661ba4ceafd53d155dddd324d1aaec0a74f2e26bd99f581f",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "upsell_5g"
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_x2uy",
+        "channel": "web",
+        "placement": "account_dashboard_hero",
+        "occurredAt": "2026-08-25T07:57:00.000Z",
+        "input": {
+          "customer": {
+            "age": 68,
+            "credit_status": "refer",
+            "account_status": "active",
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.0656,
             "arrears_count_12mo": 0
           },
           "address": {
             "fibre_available": false
           },
           "usage": {
-            "pct_of_allowance_3mo_avg": 0.7917,
-            "months_of_history": 0
+            "pct_of_allowance_3mo_avg": 0.2566,
+            "months_of_history": 7
           },
           "contract": {
-            "days_to_end": 129
+            "days_to_end": 78
           },
           "events": {
-            "pac_requested_within_days": 36
+            "pac_requested_within_days": 37
           },
           "device": {
-            "residual_value": 216
+            "residual_value": 25293
           },
           "offer": {
             "monthly_delta": 300
           },
-          "monthlySpend": 6655,
+          "monthlySpend": 5717,
           "arrearsDays": 0,
           "inGoodStanding": true,
-          "dataUsageGb": 15.1,
-          "roamingDays": 9,
-          "tenureMonths": 34,
+          "dataUsageGb": 26.22,
+          "roamingDays": 13,
+          "tenureMonths": 65,
           "marketingConsent": true,
-          "profilingConsent": false
+          "profilingConsent": true
         },
         "contactHistory": {
           "channel": "web",
           "withinPeriod": {
-            "day": 0,
-            "week": 1,
+            "day": 1,
+            "week": 0,
             "month": 0
           }
         },
         "consent": {
-          "marketing": false,
-          "profiling": false,
-          "thirdParty": true
-        }
-      },
-      "expected": {
-        "id": "dec_e5d380a171d5405e",
-        "chainHash": "e5d380a171d5405e2e68dcc0e73a50788728a644c4e7e5768c361b3900327e86",
-        "inputSnapshotHash": "b31a44663b6b611013cbc5779b7b80cd33badc76255aad827bc4db26f0b8a951",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "inbound-web-offers",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_nuao",
-        "channel": "web",
-        "placement": "account_dashboard_hero",
-        "occurredAt": "2026-08-27T20:36:00.000Z",
-        "input": {
-          "customer": {
-            "age": 34,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0507,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.0251,
-            "months_of_history": 10
-          },
-          "contract": {
-            "days_to_end": 50
-          },
-          "events": {
-            "pac_requested_within_days": 10
-          },
-          "device": {
-            "residual_value": 12685
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 4731,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 11.97,
-          "roamingDays": 11,
-          "tenureMonths": 60,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "web",
-          "withinPeriod": {
-            "day": 0,
-            "week": 3,
-            "month": 1
-          }
-        },
-        "consent": {
           "marketing": true,
           "profiling": true,
           "thirdParty": true
         }
       },
       "expected": {
-        "id": "dec_e7a6ed56347b5acd",
-        "chainHash": "e7a6ed56347b5acd6c348677f3d7b161b99ddbeb46972184c598d788420bf820",
-        "inputSnapshotHash": "947a3d2fc27117560239acba2549549f92841e7554e541ba73471d9b2498594f",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "acq_fibre_900"
-      }
-    },
-    {
-      "artifactId": "retention-outbound",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_qfbk",
-        "channel": "outbound_call",
-        "placement": "retention_queue",
-        "occurredAt": "2026-08-27T08:36:00.000Z",
-        "input": {
-          "customer": {
-            "age": 51,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0456,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.6166,
-            "months_of_history": 16
-          },
-          "contract": {
-            "days_to_end": 189
-          },
-          "events": {
-            "pac_requested_within_days": 4
-          },
-          "device": {
-            "residual_value": 13866
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 8784,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 72.61,
-          "roamingDays": 10,
-          "tenureMonths": 34,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "outbound_call",
-          "withinPeriod": {
-            "day": 1,
-            "week": 1,
-            "month": 1
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_ed65d1798e4bbf40",
-        "chainHash": "ed65d1798e4bbf40231e65ed0b7720aa4564c85e30440264718809cd02ca6b55",
-        "inputSnapshotHash": "0591af25275b90d5cf6e41a4fa9124b8fecc5a0b7d4dc5901e44358390d9428c",
+        "id": "dec_501ff48acf10ab9a",
+        "chainHash": "501ff48acf10ab9ae6ccc3a1207a4bfea5fb9a6b2f147086ef8307a02c016963",
+        "inputSnapshotHash": "b53698650fe1455da28753e38c8ff1ef7b2f7283059d3e5e8ebf97021e7ad184",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": null
       }
@@ -3546,9 +1536,277 @@
         }
       },
       "expected": {
-        "id": "dec_f195b9b895b2678a",
-        "chainHash": "f195b9b895b2678aae2804f5fcb925878151dd26fd2d96b2e00c74f1d5f2cacb",
+        "id": "dec_57286d87e39e94c2",
+        "chainHash": "57286d87e39e94c2cbbf31c8370994e65bf9d31c9530e4f8ab394071f0bfe545",
         "inputSnapshotHash": "9cc8c4e0c246d45fe547b65bab01b7b91cb374ae463b367090e6be67510078d3",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_le11",
+        "channel": "email",
+        "placement": "weekly_offers_send",
+        "occurredAt": "2026-08-28T07:28:30.000Z",
+        "input": {
+          "customer": {
+            "age": 54,
+            "credit_status": "refer",
+            "account_status": "active",
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.0469,
+            "arrears_count_12mo": 1
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.7421,
+            "months_of_history": 6
+          },
+          "contract": {
+            "days_to_end": 44
+          },
+          "events": {
+            "pac_requested_within_days": 23
+          },
+          "device": {
+            "residual_value": 19775
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 1428,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 54.57,
+          "roamingDays": 2,
+          "tenureMonths": 51,
+          "marketingConsent": false,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "email",
+          "withinPeriod": {
+            "day": 0,
+            "week": 1,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_589f9f73534475f7",
+        "chainHash": "589f9f73534475f74b6e5762e3899475f5097721f1ad8828f3327c9f55bf3336",
+        "inputSnapshotHash": "fb4ad6222b9ef162da730c943e6782aa1640d1c036261610842661a25a955853",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "inbound-web-offers",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_krau",
+        "channel": "push",
+        "placement": "app_inbox",
+        "occurredAt": "2026-08-31T14:51:00.000Z",
+        "input": {
+          "customer": {
+            "age": 27,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0336,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.4088,
+            "months_of_history": 6
+          },
+          "contract": {
+            "days_to_end": 167
+          },
+          "events": {
+            "pac_requested_within_days": 13
+          },
+          "device": {
+            "residual_value": 34680
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 9591,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 18.33,
+          "roamingDays": 5,
+          "tenureMonths": 14,
+          "marketingConsent": true,
+          "profilingConsent": false
+        },
+        "contactHistory": {
+          "channel": "push",
+          "withinPeriod": {
+            "day": 0,
+            "week": 0,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": false,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_590ea0cbcc9c9694",
+        "chainHash": "590ea0cbcc9c9694732860b60757017bffc72167bd1c3dd28dac9526ddbea0fc",
+        "inputSnapshotHash": "ecc49e6a0a0ebf275422f6c6b8056fe818025889d122592c6f7d40ff71454d4e",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "acq_sim_30"
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_qyze",
+        "channel": "push",
+        "placement": "app_inbox",
+        "occurredAt": "2026-08-31T21:57:00.000Z",
+        "input": {
+          "customer": {
+            "age": 73,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0132,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.5722,
+            "months_of_history": 17
+          },
+          "contract": {
+            "days_to_end": 24
+          },
+          "events": {
+            "pac_requested_within_days": 29
+          },
+          "device": {
+            "residual_value": 35240
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 1807,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 53.75,
+          "roamingDays": 4,
+          "tenureMonths": 70,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "push",
+          "withinPeriod": {
+            "day": 0,
+            "week": 1,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": true
+        }
+      },
+      "expected": {
+        "id": "dec_5ab9380c424024a8",
+        "chainHash": "5ab9380c424024a833d62ed38097e4923a133a03303e993d73430b941c38059d",
+        "inputSnapshotHash": "7dae4f0c8e63be5979677e341b5cf4341b26949377baf8ff6d3a653ea9557411",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "retention_offer"
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_mmfd",
+        "channel": "sms",
+        "placement": "triggered_outbound",
+        "occurredAt": "2026-08-28T12:58:30.000Z",
+        "input": {
+          "customer": {
+            "age": 26,
+            "credit_status": "refer",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0394,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.2014,
+            "months_of_history": 7
+          },
+          "contract": {
+            "days_to_end": 193
+          },
+          "events": {
+            "pac_requested_within_days": 35
+          },
+          "device": {
+            "residual_value": 17554
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 1524,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 2.15,
+          "roamingDays": 5,
+          "tenureMonths": 30,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "sms",
+          "withinPeriod": {
+            "day": 0,
+            "week": 3,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_5ae30baacc399c31",
+        "chainHash": "5ae30baacc399c31f2f02278b2bddf45cc5089695841103e187929d64efb2f81",
+        "inputSnapshotHash": "5b8a172c1dbd5a3196b0937371122c4f112099971707bb4b830d67e580ae6c07",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": null
       }
@@ -3613,130 +1871,63 @@
         }
       },
       "expected": {
-        "id": "dec_f2f0920d78792b3f",
-        "chainHash": "f2f0920d78792b3f55d37111e841730f76f4caf2a5fdc11ef94c5c94cd4d0748",
+        "id": "dec_60081680f1278008",
+        "chainHash": "60081680f12780083efe962768fc2714c555db355d59e4af8d883a6f1f503823",
         "inputSnapshotHash": "4577fcbe203cbdfc90bb544cd9ffef172b9c53030077531b935887ee179416f8",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": "acq_sim_30"
       }
     },
     {
-      "artifactId": "inbound-web-offers",
+      "artifactId": "retention-outbound",
       "request": {
         "tenantId": "telco-uk",
-        "customerId": "cust_mn60",
-        "channel": "web",
-        "placement": "account_dashboard_hero",
-        "occurredAt": "2026-09-01T17:48:00.000Z",
-        "input": {
-          "customer": {
-            "age": 46,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.068,
-            "arrears_count_12mo": 1
-          },
-          "address": {
-            "fibre_available": true
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.4094,
-            "months_of_history": 3
-          },
-          "contract": {
-            "days_to_end": 168
-          },
-          "events": {
-            "pac_requested_within_days": 3
-          },
-          "device": {
-            "residual_value": 19891
-          },
-          "offer": {
-            "monthly_delta": -500
-          },
-          "monthlySpend": 3653,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 108.81,
-          "roamingDays": 1,
-          "tenureMonths": 9,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "web",
-          "withinPeriod": {
-            "day": 0,
-            "week": 0,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_f4ee1580c22972a9",
-        "chainHash": "f4ee1580c22972a9d031fa4ce879be225ddec02d88289c3fb310374244e520bb",
-        "inputSnapshotHash": "71ff563e423d8d39ad151ea28845f79a1ec3ed75e07c6760699437efe26c4eb0",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": "acq_fibre_900"
-      }
-    },
-    {
-      "artifactId": "inbound-web-offers",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_mor3",
+        "customerId": "cust_w1ne",
         "channel": "sms",
         "placement": "triggered_outbound",
-        "occurredAt": "2026-08-28T07:25:30.000Z",
+        "occurredAt": "2026-08-27T00:45:00.000Z",
         "input": {
           "customer": {
-            "age": 65,
+            "age": 36,
             "credit_status": "pass",
             "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0332,
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.0676,
             "arrears_count_12mo": 0
           },
           "address": {
             "fibre_available": true
           },
           "usage": {
-            "pct_of_allowance_3mo_avg": 0.2877,
-            "months_of_history": 4
+            "pct_of_allowance_3mo_avg": 0.3469,
+            "months_of_history": 12
           },
           "contract": {
-            "days_to_end": 129
+            "days_to_end": 0
           },
           "events": {
-            "pac_requested_within_days": 32
+            "pac_requested_within_days": 33
           },
           "device": {
-            "residual_value": 16129
+            "residual_value": 6423
           },
           "offer": {
-            "monthly_delta": -500
+            "monthly_delta": 300
           },
-          "monthlySpend": 10010,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 77.48,
-          "roamingDays": 2,
-          "tenureMonths": 18,
-          "marketingConsent": false,
+          "monthlySpend": 4545,
+          "arrearsDays": 36,
+          "inGoodStanding": false,
+          "dataUsageGb": 61.58,
+          "roamingDays": 9,
+          "tenureMonths": 36,
+          "marketingConsent": true,
           "profilingConsent": true
         },
         "contactHistory": {
           "channel": "sms",
           "withinPeriod": {
             "day": 0,
-            "week": 3,
+            "week": 1,
             "month": 1
           }
         },
@@ -3747,11 +1938,413 @@
         }
       },
       "expected": {
-        "id": "dec_fb03412e528524ed",
-        "chainHash": "fb03412e528524edfa66b58a6fde273e924462cf7bfdb619ccfa69b59d0e3d9c",
-        "inputSnapshotHash": "ccf0fac57616e27845311996446a334f14f51f4daeef8e1edc3bf1266123dd3f",
+        "id": "dec_67a2ec01eeda352e",
+        "chainHash": "67a2ec01eeda352e68200752b170dbc453b566aeb49550bc352f100bea24b989",
+        "inputSnapshotHash": "d1452d8b0c6155bb69989862bfd43a49819f9c08bd1307aac2e7fc3c6873db74",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_t53p",
+        "channel": "outbound_call",
+        "placement": "retention_queue",
+        "occurredAt": "2026-08-30T05:28:30.000Z",
+        "input": {
+          "customer": {
+            "age": 16,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.0523,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.7366,
+            "months_of_history": 5
+          },
+          "contract": {
+            "days_to_end": 177
+          },
+          "events": {
+            "pac_requested_within_days": 35
+          },
+          "device": {
+            "residual_value": 23246
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 7058,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 42.65,
+          "roamingDays": 13,
+          "tenureMonths": 3,
+          "marketingConsent": true,
+          "profilingConsent": false
+        },
+        "contactHistory": {
+          "channel": "outbound_call",
+          "withinPeriod": {
+            "day": 1,
+            "week": 0,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_72e957e8e11d2aef",
+        "chainHash": "72e957e8e11d2aef62991121ebc1797273bc7683c9bf0dd911ba4b94471cfd11",
+        "inputSnapshotHash": "83fe590f1af78472e6f3795ff3e7ac4ddfa5af5033e94683b212654184bf5888",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_tx0d",
+        "channel": "web",
+        "placement": "account_dashboard_hero",
+        "occurredAt": "2026-08-29T23:52:30.000Z",
+        "input": {
+          "customer": {
+            "age": 34,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0568,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.1703,
+            "months_of_history": 16
+          },
+          "contract": {
+            "days_to_end": 151
+          },
+          "events": {
+            "pac_requested_within_days": 24
+          },
+          "device": {
+            "residual_value": 27070
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 2724,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 96.41,
+          "roamingDays": 9,
+          "tenureMonths": 3,
+          "marketingConsent": false,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "web",
+          "withinPeriod": {
+            "day": 1,
+            "week": 1,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_763f9c7539717fae",
+        "chainHash": "763f9c7539717faef14bc7575891db81e7d68700391a1db211d60469b6c6f774",
+        "inputSnapshotHash": "ed325c6f6512986fbe4d0ae6fc188b4ec279435036663ba131b5e55e8f0c16ca",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "inbound-web-offers",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_m28i",
+        "channel": "push",
+        "placement": "app_inbox",
+        "occurredAt": "2026-08-27T14:45:00.000Z",
+        "input": {
+          "customer": {
+            "age": 69,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0656,
+            "arrears_count_12mo": 1
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.1081,
+            "months_of_history": 7
+          },
+          "contract": {
+            "days_to_end": 24
+          },
+          "events": {
+            "pac_requested_within_days": 4
+          },
+          "device": {
+            "residual_value": 2798
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 1504,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 113.3,
+          "roamingDays": 2,
+          "tenureMonths": 46,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "push",
+          "withinPeriod": {
+            "day": 0,
+            "week": 2,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": true
+        }
+      },
+      "expected": {
+        "id": "dec_7798ad6699a7d67a",
+        "chainHash": "7798ad6699a7d67a340936167bf14ebdb2f07abd62a5a5bfc028f4fb6a82f6ea",
+        "inputSnapshotHash": "9554ed321296a772d549d1defc59204743106617d2f0af647881b80557406a07",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": "acq_fibre_900"
+      }
+    },
+    {
+      "artifactId": "inbound-web-offers",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_w2hu",
+        "channel": "sms",
+        "placement": "triggered_outbound",
+        "occurredAt": "2026-08-27T07:33:00.000Z",
+        "input": {
+          "customer": {
+            "age": 20,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0329,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.8131,
+            "months_of_history": 3
+          },
+          "contract": {
+            "days_to_end": 109
+          },
+          "events": {
+            "pac_requested_within_days": 38
+          },
+          "device": {
+            "residual_value": 9079
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 7182,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 3.66,
+          "roamingDays": 12,
+          "tenureMonths": 16,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "sms",
+          "withinPeriod": {
+            "day": 1,
+            "week": 0,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": false,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_7bd26c116c743bb4",
+        "chainHash": "7bd26c116c743bb470f603438953179694981fb2a7421a3086586324adcadf31",
+        "inputSnapshotHash": "e4c940a93ae6738262be1f56c6d4c6acd37b7aee9977371e4d7dad2a35733a6c",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "acq_fibre_900"
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_mf0z",
+        "channel": "push",
+        "placement": "app_inbox",
+        "occurredAt": "2026-09-02T04:43:30.000Z",
+        "input": {
+          "customer": {
+            "age": 17,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0539,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.5207,
+            "months_of_history": 14
+          },
+          "contract": {
+            "days_to_end": 171
+          },
+          "events": {
+            "pac_requested_within_days": 36
+          },
+          "device": {
+            "residual_value": 8643
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 4177,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 104.1,
+          "roamingDays": 4,
+          "tenureMonths": 24,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "push",
+          "withinPeriod": {
+            "day": 0,
+            "week": 2,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_7c0b26b6ec81e74e",
+        "chainHash": "7c0b26b6ec81e74ead90d53cb4b6de6158a26b06373e39714f05c4070f58d688",
+        "inputSnapshotHash": "ceb9106041bdc29f06080982a0d02fa13964cc4a88cbd2bac10e9bd4bd88e0ba",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_v4gg",
+        "channel": "sms",
+        "placement": "triggered_outbound",
+        "occurredAt": "2026-08-25T19:36:00.000Z",
+        "input": {
+          "customer": {
+            "age": 43,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0205,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.2783,
+            "months_of_history": 10
+          },
+          "contract": {
+            "days_to_end": 146
+          },
+          "events": {
+            "pac_requested_within_days": 4
+          },
+          "device": {
+            "residual_value": 9072
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 8496,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 30.17,
+          "roamingDays": 1,
+          "tenureMonths": 52,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "sms",
+          "withinPeriod": {
+            "day": 0,
+            "week": 1,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_7e8a7d3f6b0a92ed",
+        "chainHash": "7e8a7d3f6b0a92ed291f18561850b93baf1598200663f617f81f66d35445b062",
+        "inputSnapshotHash": "37b646d4bc5676219f250d4d6cb309298f643866ee87331c523d17dfb1b62b9c",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "upsell_5g"
       }
     },
     {
@@ -3814,9 +2407,679 @@
         }
       },
       "expected": {
-        "id": "dec_fbf283da3470a264",
-        "chainHash": "fbf283da3470a264a044e32949c911b8ab422928745881193569b7f9946b68aa",
+        "id": "dec_7fdf8226c7d4747a",
+        "chainHash": "7fdf8226c7d4747a3bca1b15e6ef4ba5e4a3d2c2fbc410b39de785535d03c015",
         "inputSnapshotHash": "19dba3cfa993ac6cc207ba012b893be466c285e5522136f1d48e14c030d93f11",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "inbound-web-offers",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_sgsf",
+        "channel": "sms",
+        "placement": "triggered_outbound",
+        "occurredAt": "2026-08-30T04:13:30.000Z",
+        "input": {
+          "customer": {
+            "age": 66,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0362,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.8692,
+            "months_of_history": 0
+          },
+          "contract": {
+            "days_to_end": 187
+          },
+          "events": {
+            "pac_requested_within_days": 2
+          },
+          "device": {
+            "residual_value": 32778
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 5803,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 116.17,
+          "roamingDays": 8,
+          "tenureMonths": 8,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "sms",
+          "withinPeriod": {
+            "day": 0,
+            "week": 0,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": false,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_866492eb987dd9ee",
+        "chainHash": "866492eb987dd9eeef93072854b811e112cf985a0470727019c4f0ca6c56874c",
+        "inputSnapshotHash": "2ae71ce80f55b07136626e3f8811110b46562d969140545c7c05f6793f77b999",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "acq_fibre_900"
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_qw4n",
+        "channel": "outbound_call",
+        "placement": "retention_queue",
+        "occurredAt": "2026-08-29T06:37:30.000Z",
+        "input": {
+          "customer": {
+            "age": 42,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0278,
+            "arrears_count_12mo": 1
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.787,
+            "months_of_history": 15
+          },
+          "contract": {
+            "days_to_end": 117
+          },
+          "events": {
+            "pac_requested_within_days": 25
+          },
+          "device": {
+            "residual_value": 34763
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 6600,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 77.47,
+          "roamingDays": 4,
+          "tenureMonths": 45,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "outbound_call",
+          "withinPeriod": {
+            "day": 0,
+            "week": 3,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": false,
+          "profiling": false,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_87c774707ec31a35",
+        "chainHash": "87c774707ec31a35e46a7d5af481787c80ad8b4cf4b181432974a5dc33c0be1b",
+        "inputSnapshotHash": "a9c8e6958566b22ba67f86a9b47577d004278ddb6655201f410532dfa1115654",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_qfbk",
+        "channel": "outbound_call",
+        "placement": "retention_queue",
+        "occurredAt": "2026-08-27T08:36:00.000Z",
+        "input": {
+          "customer": {
+            "age": 51,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0456,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.6166,
+            "months_of_history": 16
+          },
+          "contract": {
+            "days_to_end": 189
+          },
+          "events": {
+            "pac_requested_within_days": 4
+          },
+          "device": {
+            "residual_value": 13866
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 8784,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 72.61,
+          "roamingDays": 10,
+          "tenureMonths": 34,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "outbound_call",
+          "withinPeriod": {
+            "day": 1,
+            "week": 1,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_94121f427a3cf834",
+        "chainHash": "94121f427a3cf8346eb1f368fe094395a854113226c6f205c677bd06781d71ea",
+        "inputSnapshotHash": "0591af25275b90d5cf6e41a4fa9124b8fecc5a0b7d4dc5901e44358390d9428c",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_uoht",
+        "channel": "email",
+        "placement": "weekly_offers_send",
+        "occurredAt": "2026-08-29T01:22:30.000Z",
+        "input": {
+          "customer": {
+            "age": 26,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.0562,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.4636,
+            "months_of_history": 9
+          },
+          "contract": {
+            "days_to_end": 166
+          },
+          "events": {
+            "pac_requested_within_days": 27
+          },
+          "device": {
+            "residual_value": 21459
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 8003,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 62.12,
+          "roamingDays": 10,
+          "tenureMonths": 17,
+          "marketingConsent": true,
+          "profilingConsent": false
+        },
+        "contactHistory": {
+          "channel": "email",
+          "withinPeriod": {
+            "day": 1,
+            "week": 3,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_9422e8697700a9fd",
+        "chainHash": "9422e8697700a9fdc37032f849dd3fae26f012b25660f272c8d1fc7aca0bf28d",
+        "inputSnapshotHash": "32cbfeed76197f8a4cc391c7556bc7690a50da88314814eb27b712e0553b123c",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_vgia",
+        "channel": "email",
+        "placement": "weekly_offers_send",
+        "occurredAt": "2026-08-24T14:45:00.000Z",
+        "input": {
+          "customer": {
+            "age": 67,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0579,
+            "arrears_count_12mo": 1
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.8342,
+            "months_of_history": 8
+          },
+          "contract": {
+            "days_to_end": 0
+          },
+          "events": {
+            "pac_requested_within_days": 27
+          },
+          "device": {
+            "residual_value": 1155
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 5432,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 60.2,
+          "roamingDays": 5,
+          "tenureMonths": 23,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "email",
+          "withinPeriod": {
+            "day": 0,
+            "week": 1,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": true
+        }
+      },
+      "expected": {
+        "id": "dec_9dc9ed032f5e546a",
+        "chainHash": "9dc9ed032f5e546a4ac8f0a482a80ad88d4f34906f92546e7940b57dd5968b57",
+        "inputSnapshotHash": "69bcd1f123ce77b9ba4121997c84567196bc7dad84806a3264afd2c5c54a467f",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "inbound-web-offers",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_nuao",
+        "channel": "web",
+        "placement": "account_dashboard_hero",
+        "occurredAt": "2026-08-27T20:36:00.000Z",
+        "input": {
+          "customer": {
+            "age": 34,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0507,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.0251,
+            "months_of_history": 10
+          },
+          "contract": {
+            "days_to_end": 50
+          },
+          "events": {
+            "pac_requested_within_days": 10
+          },
+          "device": {
+            "residual_value": 12685
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 4731,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 11.97,
+          "roamingDays": 11,
+          "tenureMonths": 60,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "web",
+          "withinPeriod": {
+            "day": 0,
+            "week": 3,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": true
+        }
+      },
+      "expected": {
+        "id": "dec_a2628ec12dae77ac",
+        "chainHash": "a2628ec12dae77ac97da948f0ab46973c5ecfeefacbcc187a1fa564a15a9edbc",
+        "inputSnapshotHash": "947a3d2fc27117560239acba2549549f92841e7554e541ba73471d9b2498594f",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "acq_fibre_900"
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_q8g7",
+        "channel": "push",
+        "placement": "app_inbox",
+        "occurredAt": "2026-08-31T00:13:30.000Z",
+        "input": {
+          "customer": {
+            "age": 24,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0444,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.5072,
+            "months_of_history": 11
+          },
+          "contract": {
+            "days_to_end": 168
+          },
+          "events": {
+            "pac_requested_within_days": 1
+          },
+          "device": {
+            "residual_value": 31237
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 7455,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 66.93,
+          "roamingDays": 3,
+          "tenureMonths": 67,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "push",
+          "withinPeriod": {
+            "day": 0,
+            "week": 2,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_a370bb69d7c27468",
+        "chainHash": "a370bb69d7c27468a9ce377769e27c13524cb13c430ee97c1ec1a7f98b67937d",
+        "inputSnapshotHash": "6bc32905e0e02be0edfae0716cb002363dd1e0096b329f69585f3165f34bf4e7",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "upsell_5g"
+      }
+    },
+    {
+      "artifactId": "inbound-web-offers",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_n6tu",
+        "channel": "outbound_call",
+        "placement": "retention_queue",
+        "occurredAt": "2026-08-29T16:09:00.000Z",
+        "input": {
+          "customer": {
+            "age": 34,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0381,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.3743,
+            "months_of_history": 8
+          },
+          "contract": {
+            "days_to_end": 44
+          },
+          "events": {
+            "pac_requested_within_days": 35
+          },
+          "device": {
+            "residual_value": 25852
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 3194,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 0.42,
+          "roamingDays": 5,
+          "tenureMonths": 12,
+          "marketingConsent": true,
+          "profilingConsent": false
+        },
+        "contactHistory": {
+          "channel": "outbound_call",
+          "withinPeriod": {
+            "day": 0,
+            "week": 0,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": true
+        }
+      },
+      "expected": {
+        "id": "dec_a82c4e948bebdd5d",
+        "chainHash": "a82c4e948bebdd5d5874c69e167dbbcf826ca724858c3c7fb0d8e425463a7dcf",
+        "inputSnapshotHash": "4e2265bc0a463389c14efbee9d9df80a5e5a694caba22a8f1139ff41ff38eeb0",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "acq_fibre_900"
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_jbeb",
+        "channel": "push",
+        "placement": "app_inbox",
+        "occurredAt": "2026-08-30T22:07:30.000Z",
+        "input": {
+          "customer": {
+            "age": 69,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.0113,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.6477,
+            "months_of_history": 5
+          },
+          "contract": {
+            "days_to_end": 193
+          },
+          "events": {
+            "pac_requested_within_days": 33
+          },
+          "device": {
+            "residual_value": 24742
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 4887,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 54.49,
+          "roamingDays": 12,
+          "tenureMonths": 36,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "push",
+          "withinPeriod": {
+            "day": 0,
+            "week": 0,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_ac13bb1942cb221c",
+        "chainHash": "ac13bb1942cb221c6289cfd571d55e737f2113b3db350c1f8345e9e32e69b1e3",
+        "inputSnapshotHash": "c9cf8fab264cb5609a3f195dc02047ac8216a151fc7e0bf24ca8874892f6f86b",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_jdxn",
+        "channel": "email",
+        "placement": "weekly_offers_send",
+        "occurredAt": "2026-09-04T03:31:30.000Z",
+        "input": {
+          "customer": {
+            "age": 73,
+            "credit_status": "refer",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0188,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.1336,
+            "months_of_history": 8
+          },
+          "contract": {
+            "days_to_end": 102
+          },
+          "events": {
+            "pac_requested_within_days": 6
+          },
+          "device": {
+            "residual_value": 5999
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 8908,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 108.77,
+          "roamingDays": 6,
+          "tenureMonths": 67,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "email",
+          "withinPeriod": {
+            "day": 0,
+            "week": 3,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_b6f98c617b3c48b0",
+        "chainHash": "b6f98c617b3c48b0176b836227e6f5f66f2a8a955b06c0f08aaf45c54192c925",
+        "inputSnapshotHash": "8bb3b67c68230d33036f26c069fdd7d3f359d17c2b4b2afa9be0e94c73e21f52",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": null
       }
@@ -3881,11 +3144,815 @@
         }
       },
       "expected": {
-        "id": "dec_fd3b3e96f0d9a443",
-        "chainHash": "fd3b3e96f0d9a443289947567b6cea7e71244e9a00d0147311bf20ce88256534",
+        "id": "dec_b776b08957b876c6",
+        "chainHash": "b776b08957b876c65cb932115b16abb8377e5330e7c9738de5c1c49739bf0bd5",
         "inputSnapshotHash": "9996d6f9c841d600a7260449dd691595d2894cbe552aef31abd1cc5dca844974",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": "acq_fibre_900"
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_q8ce",
+        "channel": "web",
+        "placement": "account_dashboard_hero",
+        "occurredAt": "2026-09-01T06:15:00.000Z",
+        "input": {
+          "customer": {
+            "age": 35,
+            "credit_status": "refer",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0691,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.7917,
+            "months_of_history": 0
+          },
+          "contract": {
+            "days_to_end": 129
+          },
+          "events": {
+            "pac_requested_within_days": 36
+          },
+          "device": {
+            "residual_value": 216
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 6655,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 15.1,
+          "roamingDays": 9,
+          "tenureMonths": 34,
+          "marketingConsent": true,
+          "profilingConsent": false
+        },
+        "contactHistory": {
+          "channel": "web",
+          "withinPeriod": {
+            "day": 0,
+            "week": 1,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": false,
+          "profiling": false,
+          "thirdParty": true
+        }
+      },
+      "expected": {
+        "id": "dec_bd6f2b48dfc56522",
+        "chainHash": "bd6f2b48dfc565229269f216c71e890685e7de9142b1dd8a926ecb01a0b773b6",
+        "inputSnapshotHash": "b31a44663b6b611013cbc5779b7b80cd33badc76255aad827bc4db26f0b8a951",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "inbound-web-offers",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_q27o",
+        "channel": "email",
+        "placement": "weekly_offers_send",
+        "occurredAt": "2026-08-28T12:42:00.000Z",
+        "input": {
+          "customer": {
+            "age": 29,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0676,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.1312,
+            "months_of_history": 0
+          },
+          "contract": {
+            "days_to_end": 178
+          },
+          "events": {
+            "pac_requested_within_days": 33
+          },
+          "device": {
+            "residual_value": 36712
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 3121,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 1.56,
+          "roamingDays": 0,
+          "tenureMonths": 48,
+          "marketingConsent": false,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "email",
+          "withinPeriod": {
+            "day": 0,
+            "week": 0,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_c680bae1df62d030",
+        "chainHash": "c680bae1df62d030f8d22784265c5c57dc52e9a733636408bbd4a1137134feba",
+        "inputSnapshotHash": "8801f57c990e3520885569818336069786f09e9cdd9c8ce095bf5be4c16039ce",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "acq_fibre_900"
+      }
+    },
+    {
+      "artifactId": "inbound-web-offers",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_j67u",
+        "channel": "web",
+        "placement": "account_dashboard_hero",
+        "occurredAt": "2026-09-04T05:21:00.000Z",
+        "input": {
+          "customer": {
+            "age": 20,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.0396,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.9841,
+            "months_of_history": 6
+          },
+          "contract": {
+            "days_to_end": 150
+          },
+          "events": {
+            "pac_requested_within_days": 25
+          },
+          "device": {
+            "residual_value": 22031
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 6694,
+          "arrearsDays": 47,
+          "inGoodStanding": false,
+          "dataUsageGb": 0.79,
+          "roamingDays": 10,
+          "tenureMonths": 22,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "web",
+          "withinPeriod": {
+            "day": 0,
+            "week": 3,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": true
+        }
+      },
+      "expected": {
+        "id": "dec_cfd6b4ec15fc8ecb",
+        "chainHash": "cfd6b4ec15fc8ecb6de81a33528eeca0823cf3cdbdfbd43b27a4345648373689",
+        "inputSnapshotHash": "d240eebe782445d1d6fda7dd39911f063e369c48f0bc840b2ec16e2a765c559a",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "acq_fibre_900"
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_x76z",
+        "channel": "web",
+        "placement": "account_dashboard_hero",
+        "occurredAt": "2026-08-26T16:55:30.000Z",
+        "input": {
+          "customer": {
+            "age": 65,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.0211,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.7733,
+            "months_of_history": 8
+          },
+          "contract": {
+            "days_to_end": 87
+          },
+          "events": {
+            "pac_requested_within_days": 37
+          },
+          "device": {
+            "residual_value": 16812
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 9472,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 99.76,
+          "roamingDays": 2,
+          "tenureMonths": 24,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "web",
+          "withinPeriod": {
+            "day": 1,
+            "week": 2,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_d062d7647e1abc23",
+        "chainHash": "d062d7647e1abc237fb010726a55fd8cfc90a27279b9a003e62bf77a2ff1c9d2",
+        "inputSnapshotHash": "622f52c937b55d72adb3f20b620b68406b294c1493b8642a9ee55234759c0592",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "retention_offer"
+      }
+    },
+    {
+      "artifactId": "inbound-web-offers",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_mor3",
+        "channel": "sms",
+        "placement": "triggered_outbound",
+        "occurredAt": "2026-08-28T07:25:30.000Z",
+        "input": {
+          "customer": {
+            "age": 65,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0332,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": true
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.2877,
+            "months_of_history": 4
+          },
+          "contract": {
+            "days_to_end": 129
+          },
+          "events": {
+            "pac_requested_within_days": 32
+          },
+          "device": {
+            "residual_value": 16129
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 10010,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 77.48,
+          "roamingDays": 2,
+          "tenureMonths": 18,
+          "marketingConsent": false,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "sms",
+          "withinPeriod": {
+            "day": 0,
+            "week": 3,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_d159aaf5f104e1be",
+        "chainHash": "d159aaf5f104e1be711c6e60d620003b2bb12e89c5ba1c30ced07038f05257f7",
+        "inputSnapshotHash": "ccf0fac57616e27845311996446a334f14f51f4daeef8e1edc3bf1266123dd3f",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "acq_fibre_900"
+      }
+    },
+    {
+      "artifactId": "next-best-action",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_kmr7",
+        "channel": "push",
+        "placement": "app_inbox",
+        "occurredAt": "2026-09-02T22:55:30.000Z",
+        "input": {
+          "customer": {
+            "age": 45,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0601,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.7434,
+            "months_of_history": 0
+          },
+          "contract": {
+            "days_to_end": 78
+          },
+          "events": {
+            "pac_requested_within_days": 13
+          },
+          "device": {
+            "residual_value": 11605
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 6314,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 106.6,
+          "roamingDays": 9,
+          "tenureMonths": 25,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "push",
+          "withinPeriod": {
+            "day": 1,
+            "week": 3,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": false,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_d269fe39a7be5a78",
+        "chainHash": "d269fe39a7be5a78949e3e6afe8998e17ff403d863a7af1fdab0b811d17c6087",
+        "inputSnapshotHash": "76180843dd467f3a21d61c51ccf0ec39af949ed453218bb70b9e17a46d6a8605",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_vfrn",
+        "channel": "outbound_call",
+        "placement": "retention_queue",
+        "occurredAt": "2026-08-27T14:55:30.000Z",
+        "input": {
+          "customer": {
+            "age": 49,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0113,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.436,
+            "months_of_history": 15
+          },
+          "contract": {
+            "days_to_end": 109
+          },
+          "events": {
+            "pac_requested_within_days": 32
+          },
+          "device": {
+            "residual_value": 10605
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 9959,
+          "arrearsDays": 25,
+          "inGoodStanding": false,
+          "dataUsageGb": 0.38,
+          "roamingDays": 7,
+          "tenureMonths": 58,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "outbound_call",
+          "withinPeriod": {
+            "day": 0,
+            "week": 3,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_d85c52f9acf6458f",
+        "chainHash": "d85c52f9acf6458f51e14de5207bafde7fa915a965b997b82dd8a380a0cd0ed1",
+        "inputSnapshotHash": "919a44fb35087dd4efc23c38829c30cba8bcabeb187d73f34ba11d0360049b55",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "inbound-web-offers",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_rp76",
+        "channel": "sms",
+        "placement": "triggered_outbound",
+        "occurredAt": "2026-08-29T10:45:00.000Z",
+        "input": {
+          "customer": {
+            "age": 69,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.0666,
+            "arrears_count_12mo": 1
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.6748,
+            "months_of_history": 13
+          },
+          "contract": {
+            "days_to_end": 80
+          },
+          "events": {
+            "pac_requested_within_days": 3
+          },
+          "device": {
+            "residual_value": 17241
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 7183,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 92.76,
+          "roamingDays": 7,
+          "tenureMonths": 55,
+          "marketingConsent": true,
+          "profilingConsent": false
+        },
+        "contactHistory": {
+          "channel": "sms",
+          "withinPeriod": {
+            "day": 0,
+            "week": 3,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_de86739269a5a0dc",
+        "chainHash": "de86739269a5a0dcac1d0910c8b75277777206539309396963347559da848833",
+        "inputSnapshotHash": "9c889918f46d82f5b4fd8481e31fef82d13e363446da371d0711eae17dd0fc06",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "acq_sim_30"
+      }
+    },
+    {
+      "artifactId": "inbound-web-offers",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_pjti",
+        "channel": "email",
+        "placement": "weekly_offers_send",
+        "occurredAt": "2026-08-27T00:03:00.000Z",
+        "input": {
+          "customer": {
+            "age": 62,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0682,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.043,
+            "months_of_history": 12
+          },
+          "contract": {
+            "days_to_end": 136
+          },
+          "events": {
+            "pac_requested_within_days": 15
+          },
+          "device": {
+            "residual_value": 18334
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 9646,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 11.76,
+          "roamingDays": 8,
+          "tenureMonths": 70,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "email",
+          "withinPeriod": {
+            "day": 0,
+            "week": 1,
+            "month": 0
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_e3db73d7262bb1c4",
+        "chainHash": "e3db73d7262bb1c42adabcb5394799a957283d27da06670290c0be812873df8d",
+        "inputSnapshotHash": "e28e0b54e3b6db15746f4893f684c53548a214e1369ec29811405488bf365a71",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "acq_sim_30"
+      }
+    },
+    {
+      "artifactId": "inbound-web-offers",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_osjo",
+        "channel": "outbound_call",
+        "placement": "retention_queue",
+        "occurredAt": "2026-09-01T08:30:00.000Z",
+        "input": {
+          "customer": {
+            "age": 35,
+            "credit_status": "refer",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0237,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.7585,
+            "months_of_history": 10
+          },
+          "contract": {
+            "days_to_end": 176
+          },
+          "events": {
+            "pac_requested_within_days": 4
+          },
+          "device": {
+            "residual_value": 17876
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 4007,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 64.57,
+          "roamingDays": 13,
+          "tenureMonths": 11,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "outbound_call",
+          "withinPeriod": {
+            "day": 0,
+            "week": 1,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_e6ff8ceb38cbb727",
+        "chainHash": "e6ff8ceb38cbb727593d46b8afac40b9e2025f9cb2235f30e750482ed9c7e365",
+        "inputSnapshotHash": "321441eec461390efd69fa2c3ac54c7c1a919b5625a63eef0b8c4b6b79a1966a",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": "acq_sim_30"
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_tadz",
+        "channel": "web",
+        "placement": "account_dashboard_hero",
+        "occurredAt": "2026-08-29T12:13:30.000Z",
+        "input": {
+          "customer": {
+            "age": 40,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "5g_unlimited",
+            "bill_to_income_ratio": 0.0564,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.0568,
+            "months_of_history": 6
+          },
+          "contract": {
+            "days_to_end": 155
+          },
+          "events": {
+            "pac_requested_within_days": 34
+          },
+          "device": {
+            "residual_value": 7120
+          },
+          "offer": {
+            "monthly_delta": -500
+          },
+          "monthlySpend": 10023,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 111.55,
+          "roamingDays": 13,
+          "tenureMonths": 58,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "web",
+          "withinPeriod": {
+            "day": 1,
+            "week": 0,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_eedeb1cd68f36c19",
+        "chainHash": "eedeb1cd68f36c19f33f185cbe833c4169f71fa701385b9329230cf4d151dcb0",
+        "inputSnapshotHash": "0fddf6d8ee1714e16795217837ad593aeaead8642a0ca67e6af2e659c9693a87",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
+      }
+    },
+    {
+      "artifactId": "retention-outbound",
+      "request": {
+        "tenantId": "telco-uk",
+        "customerId": "cust_nvcq",
+        "channel": "push",
+        "placement": "app_inbox",
+        "occurredAt": "2026-08-27T20:21:00.000Z",
+        "input": {
+          "customer": {
+            "age": 64,
+            "credit_status": "pass",
+            "account_status": "active",
+            "current_plan": "standard",
+            "bill_to_income_ratio": 0.0531,
+            "arrears_count_12mo": 0
+          },
+          "address": {
+            "fibre_available": false
+          },
+          "usage": {
+            "pct_of_allowance_3mo_avg": 0.5394,
+            "months_of_history": 3
+          },
+          "contract": {
+            "days_to_end": 45
+          },
+          "events": {
+            "pac_requested_within_days": 4
+          },
+          "device": {
+            "residual_value": 13786
+          },
+          "offer": {
+            "monthly_delta": 300
+          },
+          "monthlySpend": 10011,
+          "arrearsDays": 0,
+          "inGoodStanding": true,
+          "dataUsageGb": 23.73,
+          "roamingDays": 11,
+          "tenureMonths": 32,
+          "marketingConsent": true,
+          "profilingConsent": true
+        },
+        "contactHistory": {
+          "channel": "push",
+          "withinPeriod": {
+            "day": 0,
+            "week": 3,
+            "month": 1
+          }
+        },
+        "consent": {
+          "marketing": true,
+          "profiling": true,
+          "thirdParty": false
+        }
+      },
+      "expected": {
+        "id": "dec_f84afdaf5cfac2b6",
+        "chainHash": "f84afdaf5cfac2b65e7941884c958a28efe7864276b57e39cf0622d379cabc9a",
+        "inputSnapshotHash": "d375f3a173ed0ca5044f1ee5f2f3b84fd4ae488e8b8b2fcbf8e2c7c15780ca06",
+        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
+        "winner": null
       }
     },
     {
@@ -3948,76 +4015,9 @@
         }
       },
       "expected": {
-        "id": "dec_ffdfdee9660912c1",
-        "chainHash": "ffdfdee9660912c190c9b6636c1c9f7b95a13841deb1233d77101f7e2edbf194",
+        "id": "dec_fed2d1a85e7ea9ec",
+        "chainHash": "fed2d1a85e7ea9ec8a189f2871dfe31faea44c1298ff97d243f64f79175491ea",
         "inputSnapshotHash": "a6b0790bc1ad45ea00ff7f417618f279e44cb2425383f1a838b25fb2b7832076",
-        "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
-        "winner": null
-      }
-    },
-    {
-      "artifactId": "retention-outbound",
-      "request": {
-        "tenantId": "telco-uk",
-        "customerId": "cust_mf0z",
-        "channel": "push",
-        "placement": "app_inbox",
-        "occurredAt": "2026-09-02T04:43:30.000Z",
-        "input": {
-          "customer": {
-            "age": 17,
-            "credit_status": "pass",
-            "account_status": "active",
-            "current_plan": "standard",
-            "bill_to_income_ratio": 0.0539,
-            "arrears_count_12mo": 0
-          },
-          "address": {
-            "fibre_available": false
-          },
-          "usage": {
-            "pct_of_allowance_3mo_avg": 0.5207,
-            "months_of_history": 14
-          },
-          "contract": {
-            "days_to_end": 171
-          },
-          "events": {
-            "pac_requested_within_days": 36
-          },
-          "device": {
-            "residual_value": 8643
-          },
-          "offer": {
-            "monthly_delta": 300
-          },
-          "monthlySpend": 4177,
-          "arrearsDays": 0,
-          "inGoodStanding": true,
-          "dataUsageGb": 104.1,
-          "roamingDays": 4,
-          "tenureMonths": 24,
-          "marketingConsent": true,
-          "profilingConsent": true
-        },
-        "contactHistory": {
-          "channel": "push",
-          "withinPeriod": {
-            "day": 0,
-            "week": 2,
-            "month": 0
-          }
-        },
-        "consent": {
-          "marketing": true,
-          "profiling": true,
-          "thirdParty": false
-        }
-      },
-      "expected": {
-        "id": "dec_fff3af43e9374939",
-        "chainHash": "fff3af43e93749390892cd48400ed71847431b672fd55982b96e3703761b812a",
-        "inputSnapshotHash": "ceb9106041bdc29f06080982a0d02fa13964cc4a88cbd2bac10e9bd4bd88e0ba",
         "catalogueSnapshotHash": "78cf27518c4b4b1832bc69417e3d9e50d046c17dcc4c10cea7d3c0285e0944be",
         "winner": null
       }

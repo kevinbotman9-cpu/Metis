@@ -176,7 +176,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
               <ol className="space-y-0">
                 {trace.eliminations.map((step, i) => {
                   const last = i === trace.eliminations.length - 1;
-                  const removed = step.eliminated.length;
+                  const removed = step.denials.length;
                   return (
                     <li key={step.nodeId} className="relative flex gap-3 pb-4 last:pb-0">
                       {!last && (
@@ -209,13 +209,25 @@ function TraceView({ decisionId }: { decisionId: string }) {
                         </div>
                         <p className="mt-1 text-body text-content-muted">{step.reason}</p>
                         {removed > 0 && (
-                          <div className="mt-1.5 flex flex-wrap gap-1">
-                            {step.eliminated.map((e) => (
-                              <Badge key={e} tone="block">
-                                {e}
-                              </Badge>
+                          <ul className="mt-1.5 space-y-1">
+                            {step.denials.map((d) => (
+                              <li key={d.key} className="flex flex-wrap items-baseline gap-1.5">
+                                <Badge tone="block">{d.key}</Badge>
+                                {/* The code is the answer to "why not this
+                                    one"; the prose above is about the node.
+                                    Shown to every audience, because a support
+                                    agent needs it as much as an engineer. */}
+                                <span className="font-mono text-label font-medium text-block">
+                                  {d.code}
+                                </span>
+                                {d.ruleId && show('engineer', 'analyst', 'regulator') ? (
+                                  <span className="font-mono text-label text-content-subtle">
+                                    {d.ruleId}
+                                  </span>
+                                ) : null}
+                              </li>
                             ))}
-                          </div>
+                          </ul>
                         )}
                       </div>
                     </li>

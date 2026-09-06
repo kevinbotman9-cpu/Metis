@@ -35,6 +35,8 @@ export type {
   DeterministicDecision,
   Measurements,
   EliminationStep,
+  Denial,
+  ReasonCode,
   CandidateScore,
   ReplayResult,
 } from './deterministic/types';

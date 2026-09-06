@@ -215,12 +215,46 @@ describe('determinism', () => {
 });
 
 describe('decision logic', () => {
-  it('removes retired offers at the source node', () => {
+  it('removes retired offers at the source node, and says why', () => {
     const trace = execute(artifact, catalogue, request);
     const source = trace.decision.eliminations.find((e) => e.nodeId === 'source')!;
 
-    expect(source.eliminated).toContain('legacy');
+    const legacy = source.denials.find((d) => d.key === 'legacy');
+    expect(legacy).toBeDefined();
+    // The code is the load-bearing part. "It went" is what the old
+    // `eliminated` array said; a support agent answering "why did my customer
+    // not get this offer" needs the reason, and needs it to be the same string
+    // every time so it can be looked up or translated.
+    expect(legacy!.code).toBe('NOT_ACTIVE');
+    // No rule did this — being retired is a property of the offer itself.
+    expect(legacy!.ruleId).toBeNull();
     expect(source.survived).not.toContain('legacy');
+  });
+
+  it('sorts denials by key, so two engines cannot disagree on order', () => {
+    const trace = execute(artifact, catalogue, request);
+    for (const step of trace.decision.eliminations) {
+      const keys = step.denials.map((d) => d.key);
+      expect(keys, `${step.nodeId} denials out of order`).toEqual([...keys].sort());
+    }
+  });
+
+  it('gives every removed candidate a reason, and never one that survived', () => {
+    // The invariant that makes the cascade answerable: at every node, the
+    // candidates that left and the candidates that were denied are the same
+    // set. A node that quietly drops one would otherwise look identical.
+    const trace = execute(artifact, catalogue, request);
+    let carried = artifact.candidateKeys.slice();
+
+    for (const step of trace.decision.eliminations) {
+      const denied = step.denials.map((d) => d.key).sort();
+      const gone = carried.filter((k) => !step.survived.includes(k)).sort();
+      expect(denied, `${step.nodeId} denials do not match what it removed`).toEqual(gone);
+      for (const d of step.denials) {
+        expect(step.survived, `${step.nodeId} denied a survivor`).not.toContain(d.key);
+      }
+      carried = step.survived.slice();
+    }
   });
 
   it('eliminates every candidate when an eligibility rule fails', () => {

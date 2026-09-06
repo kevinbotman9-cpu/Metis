@@ -116,11 +116,66 @@ export interface DecisionRequest {
   consent?: { marketing: boolean; profiling: boolean; thirdParty: boolean };
 }
 
+/**
+ * Why one candidate was removed.
+ *
+ * Stable, parseable and translatable, which the prose `reason` on the step is
+ * not. A denial has to answer "why was *this* action not offered to me" —
+ * a question a regulator, a customer and a support agent all ask about a single
+ * action, and which a node-level sentence like "Eligibility and Relevance
+ * removed 2 candidate(s)" cannot answer at all.
+ *
+ * Codes are a closed set and never renamed. Adding one is a decision-shape
+ * change: it enters the hashed decision, so the conformance corpora regenerate
+ * and the Kotlin engine has to agree.
+ */
+export type ReasonCode =
+  /** Hard filter: we cannot legally or contractually offer this. */
+  | 'ELIGIBILITY_FAILED'
+  /** Situational: we could offer it, but not to this customer right now. */
+  | 'RELEVANCE_FAILED'
+  /** Affordability and ethics: it is not right for this customer. */
+  | 'SUITABILITY_FAILED'
+  /** A frequency cap or cooldown was already spent. */
+  | 'FREQUENCY_CAP_BREACHED'
+  /** Marketing consent withheld, and the offer is not service-exempt. */
+  | 'CONSENT_WITHHELD'
+  /** Outside its start/end window at the moment of the decision. */
+  | 'OUT_OF_VALIDITY_WINDOW'
+  /** Retired, paused or draft — never really a candidate. */
+  | 'NOT_ACTIVE'
+  /** Survived every gate but did not win arbitration. */
+  | 'NOT_RANKED';
+
+export interface Denial {
+  /** The candidate this is about. */
+  key: string;
+  code: ReasonCode;
+  /**
+   * The rule that did it, where one is identifiable — a targeting policy id, a
+   * frequency policy id. `null` for the codes that are properties of the
+   * candidate itself rather than of a rule.
+   *
+   * Always present, never omitted. An optional key would mean two engines each
+   * deciding when to drop it, and the canonical form differs if they disagree.
+   */
+  ruleId: string | null;
+}
+
 export interface EliminationStep {
   nodeId: string;
   nodeType: ExecNodeType;
+  /** Human sentence for the trace view. Not stable; do not parse it. */
   reason: string;
-  eliminated: string[];
+  /**
+   * One entry per candidate removed here, sorted by key.
+   *
+   * Sorted rather than left in evaluation order because within a single node
+   * the removals are simultaneous — no candidate is removed *because* another
+   * was — so evaluation order carries no information and would only be a way
+   * for two engines to disagree.
+   */
+  denials: Denial[];
   survived: string[];
 }
 

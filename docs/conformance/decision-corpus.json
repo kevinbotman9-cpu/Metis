@@ -101,8 +101,8 @@
         }
       },
       "expected": {
-        "id": "dec_c2be3c106d395d31",
-        "chainHash": "c2be3c106d395d315db2f9774c4367298d90f66744f65267d38c22133ea4e31a",
+        "id": "dec_ac45da56fba0f356",
+        "chainHash": "ac45da56fba0f356032397a3231d1335bf50d15135990ffc93c5da126b50dd66",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "f65171a4d1dceb354e8c38607648f6b6f85cf44b9e77dbbfaa81813ddb24b619",
         "decision": {
@@ -127,7 +127,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 1 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -136,7 +136,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -353,8 +353,8 @@
         }
       },
       "expected": {
-        "id": "dec_6b4801e2ee2be35b",
-        "chainHash": "6b4801e2ee2be35bb888f1c4c8e0b7bc95f11884138c7b7973efc1497c976568",
+        "id": "dec_52a9d6f05dc1acf0",
+        "chainHash": "52a9d6f05dc1acf09a140e9503d6f48d67ebbc00e678ad9a9d4346c24e4a8e3d",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
         "decision": {
@@ -381,7 +381,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -392,7 +392,7 @@
               "nodeId": "n2_score",
               "nodeType": "score-model",
               "reason": "Scored 3 candidate(s) with m_prop@3.1.0.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -403,9 +403,17 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 3 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_b.",
-              "eliminated": [
-                "offer_a",
-                "offer_c"
+              "denials": [
+                {
+                  "key": "offer_a",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                },
+                {
+                  "key": "offer_c",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                }
               ],
               "survived": [
                 "offer_b"
@@ -624,8 +632,8 @@
         }
       },
       "expected": {
-        "id": "dec_1c17b6c97ff8c4d6",
-        "chainHash": "1c17b6c97ff8c4d6bec92799f7ed3c7a28cc459562a1d3fdd53ec07ff9727d96",
+        "id": "dec_b152ed48ac087a61",
+        "chainHash": "b152ed48ac087a61f8604d937d7483f089f0cfb46b388f1a0b6f543806d9a728",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
         "decision": {
@@ -652,7 +660,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -663,9 +671,17 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 3 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
-              "eliminated": [
-                "offer_b",
-                "offer_c"
+              "denials": [
+                {
+                  "key": "offer_b",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                },
+                {
+                  "key": "offer_c",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                }
               ],
               "survived": [
                 "offer_a"
@@ -897,8 +913,8 @@
         }
       },
       "expected": {
-        "id": "dec_1e4dc437512b46eb",
-        "chainHash": "1e4dc437512b46ebc3d2a87aa3afc94c25adbfa4c7a55c5fde49ed4126e2aeb4",
+        "id": "dec_fdaa585a9f619a81",
+        "chainHash": "fdaa585a9f619a81a19852abaeba44b3bf76e4bf5d2d7cb1e67eaa7cb59e4144",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "b61965ff2f0dae10b45bfda028f13058b73fa613372e7c62d865fe77dbc637cb",
         "decision": {
@@ -925,7 +941,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -936,7 +952,7 @@
               "nodeId": "n2_score",
               "nodeType": "score-model",
               "reason": "Scored 3 candidate(s) with m_prop@3.1.0.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -947,9 +963,17 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 3 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
-              "eliminated": [
-                "offer_b",
-                "offer_c"
+              "denials": [
+                {
+                  "key": "offer_b",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                },
+                {
+                  "key": "offer_c",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                }
               ],
               "survived": [
                 "offer_a"
@@ -1131,8 +1155,8 @@
         }
       },
       "expected": {
-        "id": "dec_16d5abbac955c4c6",
-        "chainHash": "16d5abbac955c4c62592efb5c41e8c85ac32bc31290626ccc0070634d59ae32d",
+        "id": "dec_abcff62235888e2e",
+        "chainHash": "abcff62235888e2e9a0bd5fa1691dc74b1e45bc8b56980d14c64f16dbc962537",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "0f980712d88fbd6c1a2fba7dea90631162d86238cabf4bef79b2b6572ff6ccc7",
         "decision": {
@@ -1158,7 +1182,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 2 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_z",
                 "offer_a"
@@ -1168,8 +1192,12 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 2 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
-              "eliminated": [
-                "offer_z"
+              "denials": [
+                {
+                  "key": "offer_z",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                }
               ],
               "survived": [
                 "offer_a"
@@ -1414,8 +1442,8 @@
         }
       },
       "expected": {
-        "id": "dec_66f3b97f8575f47f",
-        "chainHash": "66f3b97f8575f47fa57e6a0de2e6b76b80cf7504a916110bba06b51579d70712",
+        "id": "dec_63958091b94e5679",
+        "chainHash": "63958091b94e5679b08e2773b9a8f83ffb502af07ce1d2cc9a9c3185d0732b88",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "95b8e86db7dc541c485f0e9368066edad493e5591f70c9c58689f5eda6c6759b",
         "decision": {
@@ -1442,7 +1470,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -1453,10 +1481,22 @@
               "nodeId": "n2_filter",
               "nodeType": "filter",
               "reason": "Eligibility removed 3 candidate(s).",
-              "eliminated": [
-                "offer_a",
-                "offer_b",
-                "offer_c"
+              "denials": [
+                {
+                  "key": "offer_a",
+                  "code": "ELIGIBILITY_FAILED",
+                  "ruleId": "pol_tenure"
+                },
+                {
+                  "key": "offer_b",
+                  "code": "ELIGIBILITY_FAILED",
+                  "ruleId": "pol_tenure"
+                },
+                {
+                  "key": "offer_c",
+                  "code": "ELIGIBILITY_FAILED",
+                  "ruleId": "pol_tenure"
+                }
               ],
               "survived": []
             },
@@ -1464,7 +1504,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "No candidates reached arbitration; decision returned no offer.",
-              "eliminated": [],
+              "denials": [],
               "survived": []
             }
           ],
@@ -1691,8 +1731,8 @@
         }
       },
       "expected": {
-        "id": "dec_091a01c3d4c7a24c",
-        "chainHash": "091a01c3d4c7a24c2fc183808027658b4604b9669f0702bb94ebc1257fb04dca",
+        "id": "dec_ee4b240ea03523bb",
+        "chainHash": "ee4b240ea03523bb2c48244da8d82444ec5362e3a025ee7011d11061f5fd0078",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "91f0c3265722745b54a42ab64c9ea5c53ddd8513c896a8d2193253c627be5140",
         "decision": {
@@ -1719,7 +1759,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -1730,9 +1770,17 @@
               "nodeId": "n2_filter",
               "nodeType": "filter",
               "reason": "Eligibility removed 2 candidate(s).",
-              "eliminated": [
-                "offer_b",
-                "offer_c"
+              "denials": [
+                {
+                  "key": "offer_b",
+                  "code": "ELIGIBILITY_FAILED",
+                  "ruleId": "pol_grp"
+                },
+                {
+                  "key": "offer_c",
+                  "code": "ELIGIBILITY_FAILED",
+                  "ruleId": "pol_grp"
+                }
               ],
               "survived": [
                 "offer_a"
@@ -1742,7 +1790,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -1903,8 +1951,8 @@
         "input": {}
       },
       "expected": {
-        "id": "dec_7d6be3bc72f09908",
-        "chainHash": "7d6be3bc72f099080fd42b85f052e86b33e4ba8c6a6ef2f5823bb7ef654b30c7",
+        "id": "dec_bc72026a0c566ede",
+        "chainHash": "bc72026a0c566edefc87dbdb339637cfcbc5cddfff749c4671826755f2b29d04",
         "inputSnapshotHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
         "catalogueSnapshotHash": "7a1c45d0bc8650460b0dfcfeef7635a44e7998ab09a861273356cf7ed352db99",
         "decision": {
@@ -1929,7 +1977,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 1 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -1938,8 +1986,12 @@
               "nodeId": "n2_filter",
               "nodeType": "filter",
               "reason": "Eligibility removed 1 candidate(s).",
-              "eliminated": [
-                "offer_a"
+              "denials": [
+                {
+                  "key": "offer_a",
+                  "code": "ELIGIBILITY_FAILED",
+                  "ruleId": "pol_missing"
+                }
               ],
               "survived": []
             },
@@ -1947,7 +1999,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "No candidates reached arbitration; decision returned no offer.",
-              "eliminated": [],
+              "denials": [],
               "survived": []
             }
           ],
@@ -2177,8 +2229,8 @@
         }
       },
       "expected": {
-        "id": "dec_8b79a509ffd4830c",
-        "chainHash": "8b79a509ffd4830c17a6a99a2980094ed8b6ec6a6e0aac79aee9be4c20b46cf6",
+        "id": "dec_9142c26dc19ce5b1",
+        "chainHash": "9142c26dc19ce5b1eb34d560e0503841c61a3cdd96d97f0d7b08cff50b8b3e00",
         "inputSnapshotHash": "76ba7db6de00801343db3d1c472c701d6a95339964bf85d26abf8abf98cd9568",
         "catalogueSnapshotHash": "82194527f6449b1a817c4d255ca58207d5c1e0ffeec250d78cbca3b72a925683",
         "decision": {
@@ -2203,7 +2255,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 1 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -2212,7 +2264,7 @@
               "nodeId": "n2_filter",
               "nodeType": "filter",
               "reason": "All 1 candidate(s) passed eligibility.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -2221,7 +2273,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -2458,8 +2510,8 @@
         }
       },
       "expected": {
-        "id": "dec_c1dcff8c3da0b923",
-        "chainHash": "c1dcff8c3da0b9236bd5fd737fa610406e7e8faaec325fdbe8f80ff9712af60e",
+        "id": "dec_671585a2aaa546e8",
+        "chainHash": "671585a2aaa546e80d3f9bc19a53b579c7c4329676dc4802174b219198f980b0",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "c471b1a2c7b24481e23326a4c2a64e890ce270cfb3d19598dd944a8afe2afe91",
         "decision": {
@@ -2486,7 +2538,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -2497,10 +2549,22 @@
               "nodeId": "n2_constraint",
               "nodeType": "constraint",
               "reason": "Frequency policy removed 3 candidate(s).",
-              "eliminated": [
-                "offer_a",
-                "offer_b",
-                "offer_c"
+              "denials": [
+                {
+                  "key": "offer_a",
+                  "code": "FREQUENCY_CAP_BREACHED",
+                  "ruleId": "cp_1"
+                },
+                {
+                  "key": "offer_b",
+                  "code": "FREQUENCY_CAP_BREACHED",
+                  "ruleId": "cp_1"
+                },
+                {
+                  "key": "offer_c",
+                  "code": "FREQUENCY_CAP_BREACHED",
+                  "ruleId": "cp_1"
+                }
               ],
               "survived": []
             },
@@ -2508,7 +2572,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "No candidates reached arbitration; decision returned no offer.",
-              "eliminated": [],
+              "denials": [],
               "survived": []
             }
           ],
@@ -2737,8 +2801,8 @@
         }
       },
       "expected": {
-        "id": "dec_63e52cd5cd1b75c3",
-        "chainHash": "63e52cd5cd1b75c3320d5007ecafdc46d0b921d543b9aff15773a854bf5032b6",
+        "id": "dec_7581fe29a47b2fde",
+        "chainHash": "7581fe29a47b2fdee1876a6d61afe9fdfaa3f049d1242013324f5236575582d0",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "1cbc4d99eea072d035cb0d2bb5a5af5cda7415a642370398c09fa038eb856a41",
         "decision": {
@@ -2765,7 +2829,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -2776,9 +2840,17 @@
               "nodeId": "n2_constraint",
               "nodeType": "constraint",
               "reason": "Frequency policy removed 2 candidate(s).",
-              "eliminated": [
-                "offer_b",
-                "offer_c"
+              "denials": [
+                {
+                  "key": "offer_b",
+                  "code": "FREQUENCY_CAP_BREACHED",
+                  "ruleId": "cp_grp"
+                },
+                {
+                  "key": "offer_c",
+                  "code": "FREQUENCY_CAP_BREACHED",
+                  "ruleId": "cp_grp"
+                }
               ],
               "survived": [
                 "offer_a"
@@ -2788,7 +2860,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -3040,8 +3112,8 @@
         }
       },
       "expected": {
-        "id": "dec_8ed7569cb0105bec",
-        "chainHash": "8ed7569cb0105beca77671e6c3fcdb7c5ef7e2051ab6a919c576058fbaa093bc",
+        "id": "dec_431649b868300cb3",
+        "chainHash": "431649b868300cb33a95fa7af84d90eb93260e85533cf48748edd348d7ef5531",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "75b5acfb927ab39388b97aefe4bea25012997fd9309915ac8edc1f75a0fb1980",
         "decision": {
@@ -3068,7 +3140,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -3079,9 +3151,17 @@
               "nodeId": "n2_constraint",
               "nodeType": "constraint",
               "reason": "Frequency policy removed 2 candidate(s).",
-              "eliminated": [
-                "offer_b",
-                "offer_c"
+              "denials": [
+                {
+                  "key": "offer_b",
+                  "code": "CONSENT_WITHHELD",
+                  "ruleId": null
+                },
+                {
+                  "key": "offer_c",
+                  "code": "CONSENT_WITHHELD",
+                  "ruleId": null
+                }
               ],
               "survived": [
                 "offer_a"
@@ -3091,7 +3171,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -3257,8 +3337,8 @@
         }
       },
       "expected": {
-        "id": "dec_529a6271ce9c0610",
-        "chainHash": "529a6271ce9c06103bd81241a15dcd799cf5864be94ff70a6d38a80bca64ddf1",
+        "id": "dec_1c48c080033d8a56",
+        "chainHash": "1c48c080033d8a5621317e1102075399b2c2075bf5ffce80b64e5786ca9a29ce",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "cce09eb2ee2d0dcae48a6365d54afa2e6f8001a2f0a51d5115106637fca12064",
         "decision": {
@@ -3283,7 +3363,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 1 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -3292,7 +3372,7 @@
               "nodeId": "n2_constraint",
               "nodeType": "constraint",
               "reason": "All 1 candidate(s) passed frequency policy.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -3301,7 +3381,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -3558,8 +3638,8 @@
         }
       },
       "expected": {
-        "id": "dec_b0b0abc50df5af09",
-        "chainHash": "b0b0abc50df5af09e6db771a48ef025f6fb5075b09cad7795f0600162b676f71",
+        "id": "dec_642d287f8d04e938",
+        "chainHash": "642d287f8d04e9382b9c7a1143e5218893a276189ce5098cdcefe53b963554d2",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "7687f47f6b4b1db0bf568c33b7a24e1f2765195382b8f976adea16911fe93c1c",
         "decision": {
@@ -3586,7 +3666,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -3597,7 +3677,7 @@
               "nodeId": "n2_score",
               "nodeType": "score-model",
               "reason": "Scored 3 candidate(s) with m_prop@3.1.0.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -3608,9 +3688,17 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 3 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_b.",
-              "eliminated": [
-                "offer_a",
-                "offer_c"
+              "denials": [
+                {
+                  "key": "offer_a",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                },
+                {
+                  "key": "offer_c",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                }
               ],
               "survived": [
                 "offer_b"
@@ -3785,8 +3873,8 @@
         }
       },
       "expected": {
-        "id": "dec_debdd06238c997dc",
-        "chainHash": "debdd06238c997dc95faccc95c67d36612ca6adc0c00557168b258e675fb671f",
+        "id": "dec_c1aa9a1b240ba405",
+        "chainHash": "c1aa9a1b240ba405ea202e6be818618f71ef5affcbe5ea84299d4cdbfe0651c3",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "02d5ed6709ce90149d8b7968468c0830e681e60a711d59d959e24c5904b5ff24",
         "decision": {
@@ -3811,7 +3899,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 1 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -3820,7 +3908,7 @@
               "nodeId": "n2_score",
               "nodeType": "score-model",
               "reason": "Scored 1 candidate(s) with m_prop@3.1.0.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -3829,7 +3917,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -4033,8 +4121,8 @@
         }
       },
       "expected": {
-        "id": "dec_8d3df49bdd7a6569",
-        "chainHash": "8d3df49bdd7a65696ba86678b2e7853684ed7c566cf25d190120457226f0c2ba",
+        "id": "dec_75ad535dca5096bb",
+        "chainHash": "75ad535dca5096bb05284fdb41779a761a686312240cd011fe30e2682f0b9b46",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "c6b7a1b5523734d7c1c703e96a955b86f5497f1715ad54ae09fc690d9d69b347",
         "decision": {
@@ -4061,9 +4149,17 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. Removed 2 candidate(s) that were retired, paused or outside their validity window.",
-              "eliminated": [
-                "offer_retired",
-                "offer_future"
+              "denials": [
+                {
+                  "key": "offer_future",
+                  "code": "OUT_OF_VALIDITY_WINDOW",
+                  "ruleId": null
+                },
+                {
+                  "key": "offer_retired",
+                  "code": "NOT_ACTIVE",
+                  "ruleId": null
+                }
               ],
               "survived": [
                 "offer_a"
@@ -4073,7 +4169,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -4236,8 +4332,8 @@
         }
       },
       "expected": {
-        "id": "dec_b84a0a02c4352571",
-        "chainHash": "b84a0a02c435257129ffc471b0a626a2e80cdf68158da248b1d4d80f6b597307",
+        "id": "dec_a5a44d05c5d82f29",
+        "chainHash": "a5a44d05c5d82f299d8f677ec51c92bdf3ae4bfae25afd55483542b6aa9cbc97",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "54199b282e644416fb910743def2ab3786ddd3ed2a56f85ffcfd972060f7943a",
         "decision": {
@@ -4262,7 +4358,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 1 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -4271,8 +4367,12 @@
               "nodeId": "n2_filter",
               "nodeType": "filter",
               "reason": "Eligibility removed 1 candidate(s).",
-              "eliminated": [
-                "offer_a"
+              "denials": [
+                {
+                  "key": "offer_a",
+                  "code": "ELIGIBILITY_FAILED",
+                  "ruleId": "pol_never"
+                }
               ],
               "survived": []
             },
@@ -4280,7 +4380,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "No candidates reached arbitration; decision returned no offer.",
-              "eliminated": [],
+              "denials": [],
               "survived": []
             }
           ],
@@ -4452,8 +4552,8 @@
         }
       },
       "expected": {
-        "id": "dec_ec262fe8aa9ff045",
-        "chainHash": "ec262fe8aa9ff045028bba954e5accbfcbe25533bc8046c4b2354106977af658",
+        "id": "dec_add8f6d4ad8cf3e0",
+        "chainHash": "add8f6d4ad8cf3e0d053a1668ac3c302b2671042ec56cdd0fda3f41bb922428e",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "b76defde7dee747bd7d975489519baab05cee8156b7757d5f0a0c0c2e733bf53",
         "decision": {
@@ -4484,7 +4584,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 1 candidates are active and in their validity window. Fields from 2 connector(s): tenureMonths.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -4493,7 +4593,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -4719,8 +4819,8 @@
         }
       },
       "expected": {
-        "id": "dec_5c26abd260e3f040",
-        "chainHash": "5c26abd260e3f0400eff9bdde7e871457bba48df55f15c4ca457b9d5b089c6fa",
+        "id": "dec_6ffcd418561afafa",
+        "chainHash": "6ffcd418561afafaafd43089142721d6f336e67eccfd5a8db7b40836806da0f7",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
         "decision": {
@@ -4747,7 +4847,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -4758,7 +4858,7 @@
               "nodeId": "a_switch",
               "nodeType": "switch",
               "reason": "Switch passed 3 candidate(s) through.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -4769,7 +4869,7 @@
               "nodeId": "z_annotate",
               "nodeType": "explain-annotate",
               "reason": "Annotate passed 3 candidate(s) through.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b",
@@ -4780,9 +4880,17 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 3 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
-              "eliminated": [
-                "offer_b",
-                "offer_c"
+              "denials": [
+                {
+                  "key": "offer_b",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                },
+                {
+                  "key": "offer_c",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                }
               ],
               "survived": [
                 "offer_a"
@@ -4999,8 +5107,8 @@
         }
       },
       "expected": {
-        "id": "dec_a6162098971e8611",
-        "chainHash": "a6162098971e8611a12bde6b357714a8b63bf55d9b8473eff6e187b8c6f78b19",
+        "id": "dec_f09a1fc0a984c079",
+        "chainHash": "f09a1fc0a984c079d54068b254fc886f07a7764a3ecb238cbc13fbbabca23565",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "a049714f6bf258767035171eadbe9b8fa3fb5d977ac35448475c8059477ced41",
         "decision": {
@@ -5026,7 +5134,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 2 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a",
                 "offer_b"
@@ -5036,8 +5144,12 @@
               "nodeId": "n2_filter",
               "nodeType": "filter",
               "reason": "Eligibility removed 1 candidate(s).",
-              "eliminated": [
-                "offer_a"
+              "denials": [
+                {
+                  "key": "offer_a",
+                  "code": "ELIGIBILITY_FAILED",
+                  "ruleId": "pol_opt"
+                }
               ],
               "survived": [
                 "offer_b"
@@ -5047,7 +5159,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_b.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_b"
               ]
@@ -5210,8 +5322,8 @@
         }
       },
       "expected": {
-        "id": "dec_d19e81047a2fbf14",
-        "chainHash": "d19e81047a2fbf1404f4589c9df89e7fbe8972e15182839fd0d3ccdc453c4673",
+        "id": "dec_00e2104d10e67e00",
+        "chainHash": "00e2104d10e67e0079e4b36bba05c04964894335d110df6a27fc841876f99c08",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "8755c9514f684c8e55b587df7ad5459b1e648f4cade83451f5b844ed7377d808",
         "decision": {
@@ -5236,7 +5348,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 1 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -5245,7 +5357,7 @@
               "nodeId": "n2_filter",
               "nodeType": "filter",
               "reason": "All 1 candidate(s) passed eligibility.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -5254,7 +5366,7 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_a"
               ]
@@ -5434,8 +5546,8 @@
         }
       },
       "expected": {
-        "id": "dec_27c8d5999085c083",
-        "chainHash": "27c8d5999085c0836056b0042c41f5f7d4e55b5b3c3ec7f2779ff204e9f0e4da",
+        "id": "dec_8503aca62ab129cc",
+        "chainHash": "8503aca62ab129cc73d84d7c4f070de3a631782d755ade01a1c7986b085c9cd2",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "51ebf6d93fd972cc0639724eeb36c97c1210240305fda85a731141d8b09225d6",
         "decision": {
@@ -5461,7 +5573,7 @@
               "nodeId": "n1_source",
               "nodeType": "source",
               "reason": "Loaded profile for cust_1. All 2 candidates are active and in their validity window.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_rich",
                 "offer_zero"
@@ -5471,7 +5583,7 @@
               "nodeId": "n2_score",
               "nodeType": "score-model",
               "reason": "Scored 2 candidate(s) with m_prop@3.1.0.",
-              "eliminated": [],
+              "denials": [],
               "survived": [
                 "offer_rich",
                 "offer_zero"
@@ -5481,8 +5593,12 @@
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
               "reason": "Ranked 2 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_rich.",
-              "eliminated": [
-                "offer_zero"
+              "denials": [
+                {
+                  "key": "offer_zero",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                }
               ],
               "survived": [
                 "offer_rich"

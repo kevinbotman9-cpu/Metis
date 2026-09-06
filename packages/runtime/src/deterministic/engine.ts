@@ -33,6 +33,8 @@ import type {
   EliminationStep,
   CandidateScore,
   ReplayResult,
+  Denial,
+  ReasonCode,
 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -230,6 +232,20 @@ const KIND_LABEL = {
   suitability: 'Suitability',
 } as const;
 
+/**
+ * The three qualification tiers, as reason codes.
+ *
+ * Deliberately one code per tier rather than one per policy: the tier is what
+ * a customer or a regulator can act on ("we cannot offer you this" is a
+ * different conversation from "not right now"), and the specific policy is
+ * carried alongside in `ruleId`.
+ */
+const KIND_CODE: Record<TargetingPolicy['kind'], ReasonCode> = {
+  eligibility: 'ELIGIBILITY_FAILED',
+  relevance: 'RELEVANCE_FAILED',
+  suitability: 'SUITABILITY_FAILED',
+};
+
 export function execute(
   artifact: ExecArtifact,
   catalogue: CatalogueSnapshot,
@@ -255,14 +271,25 @@ export function execute(
   let winner: string | null = null;
   let runnerUp: string | null = null;
 
-  const record = (node: ExecNode, reason: string, before: Offer[], after: Offer[]) => {
-    const survivedKeys = after.map((p) => p.key);
+  /**
+   * `denials` is passed in rather than derived from the before/after diff.
+   *
+   * The diff can say which candidates went; only the code that removed them
+   * knows why. Deriving here is what produced the node-level prose this
+   * replaces.
+   */
+  const record = (
+    node: ExecNode,
+    reason: string,
+    after: Offer[],
+    denials: Denial[]
+  ) => {
     eliminations.push({
       nodeId: node.id,
       nodeType: node.type,
       reason,
-      eliminated: before.filter((p) => !after.includes(p)).map((p) => p.key),
-      survived: survivedKeys,
+      denials: [...denials].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
+      survived: after.map((p) => p.key),
     });
   };
 
@@ -287,10 +314,22 @@ export function execute(
         }
 
         // Validity and status are intrinsic to the candidate set: a retired or
-        // out-of-window offer was never really a candidate.
-        candidates = before.filter(
-          (p) => p.status === 'active' && withinValidity(p, request.occurredAt)
-        );
+        // out-of-window offer was never really a candidate. Status is checked
+        // first, so a retired offer that is also out of window is reported as
+        // retired — the more fundamental fact, and the one that has to change
+        // first.
+        const sourceDenials: Denial[] = [];
+        candidates = before.filter((p) => {
+          if (p.status !== 'active') {
+            sourceDenials.push({ key: p.key, code: 'NOT_ACTIVE', ruleId: null });
+            return false;
+          }
+          if (!withinValidity(p, request.occurredAt)) {
+            sourceDenials.push({ key: p.key, code: 'OUT_OF_VALIDITY_WINDOW', ruleId: null });
+            return false;
+          }
+          return true;
+        });
 
         const sourced = node.connectorIds?.length
           ? ` Fields from ${node.connectorIds.length} connector(s): ${sourceBindings
@@ -305,8 +344,8 @@ export function execute(
             ? `Loaded profile for ${request.customerId}. All ${before.length} candidates are active and in their validity window.`
             : `Loaded profile for ${request.customerId}. Removed ${before.length - candidates.length} candidate(s) that were retired, paused or outside their validity window.`) +
             sourced,
-          before,
-          candidates
+          candidates,
+          sourceDenials
         );
         break;
       }
@@ -317,17 +356,29 @@ export function execute(
           .map((id) => policyById.get(id))
           .filter((p): p is TargetingPolicy => Boolean(p) && p!.active);
 
-        candidates = before.filter((p) =>
-          policies.every((policy) => {
+        const denials: Denial[] = [];
+
+        // The first failing policy is the one recorded. A candidate can breach
+        // several at once, and reporting all of them would be honest but not
+        // useful: the answer to "why not this offer" is one thing to fix, and
+        // policy order is the artifact's own declared order, so the choice is
+        // deterministic rather than arbitrary.
+        candidates = before.filter((p) => {
+          const failed = policies.find((policy) => {
             // A policy only applies where its scope covers the candidate, and
             // where the candidate has opted into it.
-            if (!scopeCovers(policy.scope, p)) return true;
+            if (!scopeCovers(policy.scope, p)) return false;
             if (!p.policyIds.includes(policy.id) && policy.scope.level === 'offer') {
-              return true;
+              return false;
             }
-            return policyPasses(policy, request.input);
-          })
-        );
+            return !policyPasses(policy, request.input);
+          });
+          if (failed) {
+            denials.push({ key: p.key, code: KIND_CODE[failed.kind], ruleId: failed.id });
+            return false;
+          }
+          return true;
+        });
 
         // Frequency policy and consent are enforced at constraint nodes only.
         if (node.type === 'constraint') {
@@ -352,14 +403,30 @@ export function execute(
           if (!consent.marketing) {
             // Withheld consent removes commercial offers, but not duty-of-care
             // messages, which are the reason a scope can raise its own cap.
-            candidates = candidates.filter((p) =>
-              relevantTo(p).some((c) => c.maxContacts >= SERVICE_EXEMPT_THRESHOLD)
-            );
+            candidates = candidates.filter((p) => {
+              const exempt = relevantTo(p).some(
+                (c) => c.maxContacts >= SERVICE_EXEMPT_THRESHOLD
+              );
+              if (!exempt) {
+                denials.push({ key: p.key, code: 'CONSENT_WITHHELD', ruleId: null });
+              }
+              return exempt;
+            });
           } else {
             candidates = candidates.filter((p) => {
               const breached = relevantTo(p).filter(
                 (c) => (used[c.period] ?? 0) >= c.maxContacts
               );
+              if (breached.length > 0) {
+                // The first breached cap, in catalogue order. Naming which one
+                // is the difference between "we contacted them too much" and a
+                // policy someone can go and look at.
+                denials.push({
+                  key: p.key,
+                  code: 'FREQUENCY_CAP_BREACHED',
+                  ruleId: breached[0].id,
+                });
+              }
               return breached.length === 0;
             });
           }
@@ -372,8 +439,8 @@ export function execute(
           removed > 0
             ? `${kinds.join(' and ') || node.label} removed ${removed} candidate(s).`
             : `All ${before.length} candidate(s) passed ${kinds.join(' and ').toLowerCase() || node.label.toLowerCase()}.`,
-          before,
-          candidates
+          candidates,
+          denials
         );
         break;
       }
@@ -396,7 +463,8 @@ export function execute(
           );
           scores[p.key] = { propensity, value, boost, context, priority: 0 };
         }
-        record(node, `Scored ${candidates.length} candidate(s) with ${modelKey}.`, before, candidates);
+        // Scoring never removes a candidate, so there is nothing to deny.
+        record(node, `Scored ${candidates.length} candidate(s) with ${modelKey}.`, candidates, []);
         break;
       }
 
@@ -442,20 +510,26 @@ export function execute(
         runnerUp = ranked[1]?.key ?? null;
         candidates = ranked.slice(0, 1);
 
+        // Everyone who reached ranking and did not win. NOT_RANKED is not a
+        // fault: these candidates passed every gate and were simply beaten, so
+        // the code has to be distinguishable from the ones that mean something
+        // was wrong.
         record(
           node,
           winner
             ? `Ranked ${ranked.length} finalist(s) by ${catalogue.arbitration.formula}. Winner: ${winner}.`
             : 'No candidates reached arbitration; decision returned no offer.',
-          before,
-          candidates
+          candidates,
+          before
+            .filter((p) => !candidates.includes(p))
+            .map((p) => ({ key: p.key, code: 'NOT_RANKED' as const, ruleId: null }))
         );
         break;
       }
 
       case 'switch':
       case 'explain-annotate':
-        record(node, `${node.label} passed ${before.length} candidate(s) through.`, before, candidates);
+        record(node, `${node.label} passed ${before.length} candidate(s) through.`, candidates, []);
         break;
 
       default: {

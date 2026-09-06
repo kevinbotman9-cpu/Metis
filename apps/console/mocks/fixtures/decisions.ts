@@ -15,11 +15,17 @@ import { creatives, connectors } from './catalogue';
 import { generated, type GeneratedDecision } from './engine';
 import type { SourceBinding, SourceCall } from '@metis/core/domain';
 
+export interface Denial {
+  key: string;
+  code: string;
+  ruleId: string | null;
+}
+
 export interface EliminationStep {
   nodeId: string;
   nodeType: string;
   reason: string;
-  eliminated: string[];
+  denials: Denial[];
   survived: string[];
 }
 

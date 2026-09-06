@@ -221,12 +221,28 @@ export interface AuthUser {
   tenantId: string;
 }
 
+/** Why one candidate was removed. Stable, parseable and translatable, which the node's prose `reason` is not — this is what answers "why was this action not offered to me" for a single action.
+ */
+export interface Denial {
+  /** The candidate this is about. */
+  key: string;
+  /** A closed set, never renamed. NOT_RANKED is not a fault: the candidate passed every gate and was beaten.
+ */
+  code: "ELIGIBILITY_FAILED" | "RELEVANCE_FAILED" | "SUITABILITY_FAILED" | "FREQUENCY_CAP_BREACHED" | "CONSENT_WITHHELD" | "OUT_OF_VALIDITY_WINDOW" | "NOT_ACTIVE" | "NOT_RANKED";
+  /** The targeting or frequency policy that did it, where one is identifiable. Null for codes that are properties of the candidate rather than of a rule. Always present, never omitted — an optional key would mean two engines each deciding when to drop it, and the canonical form differs if they disagree.
+ */
+  ruleId: string | null;
+}
+
 /** One node's verdict on the candidate set, in execution order. */
 export interface Elimination {
   nodeId: string;
   nodeType: string;
+  /** Human sentence for the trace view. Not stable; do not parse it. */
   reason: string;
-  eliminated: string[];
+  /** One entry per candidate removed here, sorted by key. Sorted rather than left in evaluation order because within a node the removals are simultaneous, so order carries no information and would only be a way for two engines to disagree.
+ */
+  denials: Denial[];
   survived: string[];
 }
 

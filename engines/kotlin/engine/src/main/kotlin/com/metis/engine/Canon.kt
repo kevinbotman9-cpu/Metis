@@ -61,11 +61,19 @@ object Canon {
         "nodeId" to str(b.nodeId),
     )
 
+    private fun denial(d: Denial): Value = obj(
+        "key" to str(d.key),
+        "code" to str(d.code),
+        // Null, not absent. The TypeScript emits `null` here too; an omitted
+        // key would put the two canonical forms one byte apart.
+        "ruleId" to (d.ruleId?.let { str(it) } ?: Value.Null),
+    )
+
     private fun elimination(e: EliminationStep): Value = obj(
         "nodeId" to str(e.nodeId),
         "nodeType" to str(e.nodeType),
         "reason" to str(e.reason),
-        "eliminated" to arr(e.eliminated.map { str(it) }),
+        "denials" to arr(e.denials.map { denial(it) }),
         "survived" to arr(e.survived.map { str(it) }),
     )
 
