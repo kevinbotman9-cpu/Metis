@@ -30,7 +30,9 @@ names the check so the claim can be audited rather than trusted.
 ## The suites, and what each covers
 
 ```
-Integration          6 passed  - author -> compile -> execute -> replay
+Integration         11 passed  - author -> compile -> execute -> replay, plus the
+                                 API-path reconciliation and source hygiene
+                                 checks, which span packages and belong to none
 Runtime            184 passed  - determinism, byte-identical replay, integration
                                  resolution, ADR-003 values, the 22-decision
                                  corpus, ranking functions, idempotency, shadow
@@ -38,6 +40,8 @@ Compiler            43 passed  - graph validation, version pinning, budgets
 Registry            68 passed  - one behaviour suite, run against memory and a
                                  real PostgreSQL
 Ledger              50 passed  - the same pattern: one suite, both stores
+Portability         21 passed  - export, re-import, round-trip conformance, and
+                                 the guard that stops the export rotting
 Performance          6 passed  - bench/harness, the latency gate
 Unit (Vitest)       45 passed  - apps/console
 E2E (Playwright)   184 passed  - contract, cross-engine, axe, registry, ledger,
@@ -48,7 +52,7 @@ Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
 Typecheck           clean      - root config and the console's, separately
 Lint                0 errors   - root and console, separate configs
                    ---
-                    599 tests, two languages, two engines
+                    625 tests, two languages, two engines
 ```
 
 The OpenAPI spec validates at **34 paths, 41 operations (39 built, 2 proposed),
@@ -111,7 +115,9 @@ corpus reproducible, and it is also why nothing here claims to learn.
 |---|---|---|
 | OpenAPI 3.1 as the source of truth | BUILT | `packages/client` is generated; the console compiles against it, so spec drift is a compile error |
 | Contract tested in both directions | BUILT | The compiler catches spec→console; `e2e/contract.spec.ts` asserts every non-proposed operation is served and returns what the spec declares. Verified to bite by pointing a spec path at an unserved route |
-| **Export / re-import** | **PLANNED — Stage 7, [W-002](BACKLOG.md)** | `packages/portability`, and the conformance utility that validates round-trip fidelity. This is the exitability claim, so it is the one that most needs building rather than asserting |
+| **Export / re-import** | **BUILT** | `packages/portability`. A populated tenant exports, imports into an empty instance and re-exports byte-identically; version hashes, ledger records and environment state including a running shadow all survive; and a pre-export decision replayed on the imported instance produces the same chain hash. `npm run export -- --tenant <id> --out <dir>` writes one readable JSON file per entity plus a manifest, and `--verify` checks a bundle against it |
+| Export completeness does not rot | BUILT | `completeness.test.ts` reads the migrations and requires every table to be exported or excluded with a written reason. Verified: adding a table fails the suite until somebody decides what the export does with it |
+| Export covers the catalogue, policies, approvals and audit | PARTIAL | Those still live in the console's in-memory store, so there is nothing durable to export. Blocked on [W-005](BACKLOG.md), not on the exporter |
 | AsyncAPI, CloudEvents, OpenTelemetry | OUT OF SCOPE | Gate 2–3 |
 
 ## §10 — Performance
@@ -119,7 +125,7 @@ corpus reproducible, and it is also why nothing here claims to learn.
 | Capability | Status | Evidence |
 |---|---|---|
 | Latency gate in CI | BUILT | `bench/harness/tests/gate.test.ts`. Currently **p95 < 50 ms**; measured 1.04 ms at 40 candidates |
-| Tighten the gate to **p99 < 50 ms** | PLANNED — Stage 8 | The PDF states the promise as p99, which is the stricter reading and already passes |
+| Tighten the gate to **p99 < 50 ms** | PLANNED — Stage 8, [W-003](BACKLOG.md) | The PDF states the promise as p99, which is the stricter reading and already passes |
 | **S1 benchmark** — 1M profiles, 100 actions, 1k/2k decisions per second | **PLANNED — Stage 8, [W-003](BACKLOG.md)** | The harness scales candidate sets, not profiles. Variants needed: warm, cold, 1/5/20% miss, degraded provider |
 | Publishing workload, data distribution, code version, cache state and confidence intervals with every result | PLANNED — Stage 8 | So a number cannot be quoted without its context |
 
@@ -167,12 +173,12 @@ The four exit criteria:
 | | Status |
 |---|---|
 | Semantic tests pass | **Met** — three corpora, two languages, two engines |
-| Complete export / re-import | **Not met** — Stage 7 |
+| Complete export / re-import | **Met for everything durably stored.** The round-trip conformance utility passes on the registry and the ledger. The catalogue, policies and approvals are still in memory, so they are outside the export until they are outside memory — [W-005](BACKLOG.md) |
 | S1 benchmark | **Not met** — Stage 8 |
 | No LLM dependency | **Met in fact**, not yet guarded by a test asserting no network egress in the decision path |
 
-**Two of eight capabilities' worth of work remain, both in the exit criteria
-rather than the capability list.**
+**All eight capabilities are built. One exit criterion remains outright — the
+S1 benchmark — and one is met only as far as the storage goes.**
 
 ## §14 — Differentiators
 
@@ -182,7 +188,7 @@ rather than the capability list.**
 | Deterministic governance | BUILT — publish/promote separated, immutable versions, append-only audit |
 | Cloud and runtime neutrality | PARTIAL — two independent engines (TypeScript, Kotlin) agree on a shared corpus, which is the substance of the claim; deployment neutrality is untested |
 | Coexistence-led migration | PARTIAL — shadow mode is built; the migration factory is not |
-| **Provable exitability** | **PLANNED — Stage 7.** The headline differentiator, and currently the least evidenced |
+| **Provable exitability** | **BUILT, and bounded.** The claim is now evidenced rather than asserted: a tenant round-trips byte-identically and a decision replayed after the move produces the same chain hash. Bounded because it covers what is persisted, which today is the registry and the ledger |
 | Replaceable intelligence | OUT OF SCOPE — gate 2 |
 
 ---

@@ -93,7 +93,7 @@ otherwise.
 |---|---|---|---|
 | W-000 | 0 | CI check: only the capability map claims BUILT | 1 |
 | W-001 | 0 | Fix the holes in the checks themselves — **done** | 1 |
-| W-002 | 7 | Export / re-import | 1 |
+| W-002 | 7 | Export / re-import — **done** | 1 |
 | W-003 | 8 | S1 benchmark and the p99 gate | 1 |
 | W-004 | 8 | No-network-egress assertion in the decision path | 1 |
 | W-005 | 9 | Catalogue, policies and taxonomy into PostgreSQL | 2 |
@@ -218,8 +218,37 @@ and does not.
 
 ## Stage 7 — Export / re-import (already committed)
 
-### W-002 — Export / re-import
+### W-002 — Export / re-import — **DONE 2026-09-06**
 Gate 1 · Depends: none · Spec §9, §14
+
+**Closed.** `packages/portability`, 21 tests. All three "done when" bullets are
+met, each verified by breaking what it guards:
+
+- Round trip: export a populated tenant, import into an empty instance,
+  re-export byte-identically. Version hashes, ledger records and environment
+  state — including a shadow mid-migration — all survive, and a pre-export
+  decision replayed on the imported instance produces the same chain hash.
+  Verified: an import that drops `shadowVersion` fails both the byte-identical
+  assertion and the explicit one.
+- Format versioned, with refusal rather than partial import. A bundle from a
+  newer major is refused and nothing lands; a newer patch of the same major is
+  accepted. Row tampering fails the file hash, and a manifest edited to match
+  still fails the bundle hash.
+- Completeness guarded against the migrations rather than a maintained list.
+  Verified: adding a table fails the suite until somebody records what the
+  export does with it.
+
+`npm run export -- --tenant <id> --out <dir>` writes one readable JSON file per
+entity plus a manifest; `--verify <dir>` checks a bundle and exits non-zero.
+
+**Bounded, and the bound is the interesting part.** It exports what is durably
+stored: the registry and the ledger. The catalogue, policies, approvals and
+audit log still live in the console's in-memory store, so there is nothing
+durable to export — that is W-005, not a gap in the exporter. `GET /export`
+and `POST /import` were deliberately not added for the same reason: an HTTP
+export today would serve the dev fixtures, which would be a worse claim than
+no endpoint.
+
 
 The headline differentiator and the least evidenced. Provable exitability means
 a customer can take everything out and stand it up elsewhere, and that this is

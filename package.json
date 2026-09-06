@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "build": "tsc --build",
-    "test": "npm run test:integration && npm run test:runtime && npm run test:compiler && npm run test:registry && npm run test:ledger && npm run test:bench && npm run test:console",
+    "test": "npm run test:integration && npm run test:runtime && npm run test:compiler && npm run test:registry && npm run test:ledger && npm run test:portability && npm run test:bench && npm run test:console",
     "lint": "eslint packages bench --ext .ts",
     "dev": "docker-compose up",
     "generate": "npm run generate -w @metis/client",
@@ -29,7 +29,9 @@
     "bench": "npm --prefix bench/harness run bench",
     "test:e2e": "npm run test:e2e --prefix apps/console",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json && npm run typecheck --prefix apps/console",
-    "test:bundle": "npm run test:bundle --prefix apps/console"
+    "test:bundle": "npm run test:bundle --prefix apps/console",
+    "test:portability": "npm --prefix packages/portability run test",
+    "export": "node --import tsx packages/portability/src/cli.ts"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

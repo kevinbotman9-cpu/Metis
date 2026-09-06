@@ -1,0 +1,21 @@
+{
+  "name": "@metis/portability",
+  "version": "1.0.0",
+  "description": "METIS tenant export, re-import and the round-trip conformance utility",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run --config ./vitest.config.ts"
+  },
+  "dependencies": {
+    "@metis/ledger": "*",
+    "@metis/registry": "*",
+    "@metis/runtime": "*"
+  },
+  "devDependencies": {
+    "vitest": "^1.0.0"
+  }
+}
