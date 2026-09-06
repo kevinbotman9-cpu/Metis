@@ -249,6 +249,7 @@ Full detail, with dates and diagnoses, is in [`docs/gaps.md`](gaps.md).
 | Document | What it is for |
 |---|---|
 | **This file** | The capability map: what is built, now. Start here |
+| [`docs/review/METIS_REVIEW_BRIEF.md`](review/METIS_REVIEW_BRIEF.md) | A six-phase platform review, not yet run. Its Phase A verifies this file claim by claim, by breaking each thing and confirming a check goes red |
 | [`docs/BACKLOG.md`](BACKLOG.md) | What is next: 51 work items, W-000 to W-050, in stage order, each with the check that would close it |
 | [`docs/EXPERIENCE_LAYER_STATUS.md`](EXPERIENCE_LAYER_STATUS.md) | Console routes, one row each, and a narrative per stage — what each change surfaced, what it got wrong |
 | [`docs/gaps.md`](gaps.md) | The gap register: what is missing, per operation and per persona, with dates |
