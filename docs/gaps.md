@@ -25,9 +25,17 @@ Run `node scripts/validate-spec.mjs` for the current count.
 
 | | Operations |
 |---|---|
-| Built, served, and contract-tested | 26 |
-| Declared and marked `proposed` | 8 |
+| Built, served, and contract-tested | 39 |
+| Declared and marked `proposed` | 2 |
 | Wanted but not yet in the spec | see persona sections below |
+
+Counts from `node scripts/validate-spec.mjs` on 2026-09-06, which reports 34
+paths, 41 operations and 46 schemas. They previously read 26 and 8 and had not
+been touched for several stages.
+
+This file is the **gap register** — what is missing, why, and since when. For
+what *is* built, see [`CAPABILITIES.md`](CAPABILITIES.md), which is the single
+capability map.
 
 ---
 

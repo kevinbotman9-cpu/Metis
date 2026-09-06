@@ -2,30 +2,11 @@
 
 **Last verified:** 2026-09-06 by an automated suite, not by eye.
 
-```
-Integration          6 passed  - author -> compile -> execute -> replay
-Runtime            184 passed  - packages/runtime: determinism, byte-identical
-                                 replay, integration resolution, ADR-003
-                                 value corpus, the 22-decision corpus,
-                                 idempotency and shadow comparison
-Compiler            43 passed  - packages/compiler
-Registry            68 passed  - packages/registry; one behaviour suite run
-                                 against memory and a real PostgreSQL,
-                                 including shadow start/stop
-Ledger              50 passed  - packages/ledger; the same behaviour suite run
-                                 against both stores
-Performance          6 passed  - bench/harness, the p95 < 50ms gate
-Unit (Vitest)       45 passed  - apps/console
-E2E (Playwright)   184 passed  - contract + cross-engine, axe, registry, shadow
-                                 (13 skipped: write operations covered by
-                                 permissions-and-writes and registry instead)
-Conformance (JVM)   13 passed  - engines/kotlin :engine and :service; 67 values,
-                                 22 decisions, 60 real decisions over HTTP
-Typecheck           clean      - root config and the console's, separately
-Lint                0 errors   - root and console, which are separate configs
-                   ---
-                    599 tests, two languages, two engines
-```
+This file covers the **console**: one row per route, plus a narrative per stage
+of what each change surfaced and what it got wrong. The platform-wide capability
+map and the suite counts live in [`CAPABILITIES.md`](CAPABILITIES.md), and are
+not repeated here — they were duplicated in three documents and had drifted in
+all three.
 
 The E2E gate was checked by breaking it: a deliberate failing assertion in
 `app-shell.spec.ts` made Playwright exit 1, which is the only evidence that
@@ -89,8 +70,8 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | Canvas | PARTIAL | Read-only. Node positions are authored, not laid out — a layout algorithm needs design review. |
 | Dev API | BUILT | `app/api/[...path]/route.ts` over the store. |
 | MSW | OPT-IN | `NEXT_PUBLIC_USE_MSW=true`. Service workers do not register in every embedded browser, so route handlers are the default. |
-| Vitest | BUILT | 31 tests: autonomy resolution, money formatting, fixture referential integrity. |
-| Playwright | BUILT | 52 tests: navigation, auth, decisions, RBAC, persistence, appearance. |
+| Vitest | BUILT | 45 tests: autonomy resolution, money formatting, fixture referential integrity. |
+| Playwright | BUILT | 184 tests: navigation, auth, decisions, RBAC, persistence, appearance, registry, ledger, idempotency, shadow, and the contract in both directions. |
 | axe-core | BUILT | 14 pages, light and dark. Zero violations at WCAG 2.2 AA. |
 | Execution engine | BUILT | `packages/runtime/src/deterministic`. Byte-identical across 100 runs; replay compares chain hashes. |
 | Compiler | BUILT | `packages/compiler/src/decision-flow`. Validates the graph, pins versions and models, computes the critical path, and refuses anything the runtime could not execute safely. |

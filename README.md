@@ -1,6 +1,6 @@
 # METIS — AI-Native Decisioning with Deterministic Execution
 
-![Phase 0](https://img.shields.io/badge/Phase-0%20(Foundations)-blue) ![Status](https://img.shields.io/badge/Status-Active%20Development-green) ![License](https://img.shields.io/badge/License-Proprietary-red)
+![Foundation MVP](https://img.shields.io/badge/Gate-Foundation%20MVP-blue) ![Status](https://img.shields.io/badge/Status-Active%20Development-green) ![License](https://img.shields.io/badge/License-Proprietary-red)
 
 **One-line positioning:** *Agents author. A deterministic engine executes. Everything explains itself.*
 
@@ -82,28 +82,17 @@ npx ts-node -e "
 
 ### Key Components
 
-Status here means *covered by a test that fails when it breaks*. Anything else
-is listed as not built, however much design exists for it.
+Status means *covered by a test that fails when it breaks*. Anything else is
+listed as not built, however much design exists for it.
 
-| Component | Purpose | Status |
-|-----------|---------|--------|
-| **Compiler** | Validates the graph, pins versions, content-hashes the artifact | Built |
-| **Runtime** | Deterministic execution; byte-identical replay | Built |
-| **Canonical serialisation** | ADR-003, conformance-tested in TypeScript and Kotlin | Built |
-| **Artifact registry** | Immutable versions, compilation-gated publish, promote and roll back | Built |
-| **Durable storage** | PostgreSQL, append-only at the schema level | Built — registry only |
-| **OpenAPI contract** | Generated client; drift is a compile error | Built |
-| **Decision ledger** | Durable decision records and outcome capture | Not built |
-| **Idempotency** | Duplicate requests return the original decision | Not built |
-| **Shadow mode** | Run a candidate version beside the active one and diff | Not built |
-| **Export / re-import** | Leave without professional-services intervention | Not built |
-| **Adaptive models** | Online learning, contextual bandits, drift | Not built |
-| **Simulation** | What-if, counterfactual, bias gates | Not built |
-| **Package system** | Extensible node, channel and model-provider packages | Not built |
+**The capability map lives in [`docs/CAPABILITIES.md`](docs/CAPABILITIES.md)** —
+what is built, what is planned with a stage number, and what is deliberately out
+of scope, each row naming the check that guards it.
 
-The unbuilt rows are tracked with their reasons in [`docs/gaps.md`](docs/gaps.md);
-which console surfaces are real is in
-[`docs/EXPERIENCE_LAYER_STATUS.md`](docs/EXPERIENCE_LAYER_STATUS.md).
+It is not repeated here. The table that used to sit in this spot said the
+decision ledger, idempotency and shadow mode were not built for three stages
+after they were built: a second copy of a status is a second chance to be
+wrong, and the copy nobody runs is the one that rots.
 
 ---
 
