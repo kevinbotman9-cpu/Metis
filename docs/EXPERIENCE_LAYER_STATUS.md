@@ -1,26 +1,30 @@
 # Experience Layer — Status
 
-**Last verified:** 2026-09-05 by an automated suite, not by eye.
+**Last verified:** 2026-09-06 by an automated suite, not by eye.
 
 ```
 Integration          6 passed  - author -> compile -> execute -> replay
-Runtime            140 passed  - packages/runtime: determinism, byte-identical
+Runtime            184 passed  - packages/runtime: determinism, byte-identical
                                  replay, integration resolution, ADR-003
-                                 value corpus and the 22-decision corpus
-Compiler            40 passed  - packages/compiler
-Registry            50 passed  - packages/registry; one behaviour suite run
-                                 against memory and a real PostgreSQL
+                                 value corpus, the 22-decision corpus,
+                                 idempotency and shadow comparison
+Compiler            43 passed  - packages/compiler
+Registry            68 passed  - packages/registry; one behaviour suite run
+                                 against memory and a real PostgreSQL,
+                                 including shadow start/stop
+Ledger              50 passed  - packages/ledger; the same behaviour suite run
+                                 against both stores
 Performance          6 passed  - bench/harness, the p95 < 50ms gate
-Unit (Vitest)       39 passed  - apps/console
-E2E (Playwright)   133 passed  - 27 contract + cross-engine, 19 axe, 16 registry
-                                 (11 skipped: write operations covered by
+Unit (Vitest)       45 passed  - apps/console
+E2E (Playwright)   184 passed  - contract + cross-engine, axe, registry, shadow
+                                 (13 skipped: write operations covered by
                                  permissions-and-writes and registry instead)
 Conformance (JVM)   13 passed  - engines/kotlin :engine and :service; 67 values,
                                  22 decisions, 60 real decisions over HTTP
 Typecheck           clean      - root config and the console's, separately
 Lint                0 errors   - root and console, which are separate configs
                    ---
-                    427 tests, two languages, two engines
+                    599 tests, two languages, two engines
 ```
 
 The E2E gate was checked by breaking it: a deliberate failing assertion in
