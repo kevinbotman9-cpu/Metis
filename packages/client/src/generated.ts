@@ -651,7 +651,7 @@ export const OPERATIONS = {
     path: '/decisions',
     pathParams: [],
     queryParams: [],
-    statuses: ['200', '400', '404'],
+    statuses: ['200', '400', '404', '409'],
   },
   getArbitrationConfig: {
     method: 'GET',
@@ -922,6 +922,13 @@ export type ExecuteDecisionRequest = {
     input: Record<string, unknown>;
     contactHistory?: Record<string, unknown>;
     consent?: Record<string, unknown>;
+    /** Makes a retry safe. The same key with the same request returns the original decision without re-executing; the same key with a *different* request is a 409, because the caller reused a token for a different question and answering quietly would hand them a decision about someone else's customer.
+Excluded from the request hash — it identifies the attempt, not the question. Scoped per tenant.
+ */
+    idempotencyKey?: string;
+    /** Tracing id, echoed back in the measured half of the trace. Never hashed, and excluded from the request hash: it differs on every retry, so including it would make each retry a new request.
+ */
+    correlationId?: string;
   };
 };
 

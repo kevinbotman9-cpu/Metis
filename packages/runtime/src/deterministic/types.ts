@@ -114,6 +114,24 @@ export interface DecisionRequest {
   /** Prior contact counts, for frequency-policy enforcement. */
   contactHistory?: { channel: string; withinPeriod: Record<string, number> };
   consent?: { marketing: boolean; profiling: boolean; thirdParty: boolean };
+  /**
+   * A caller-chosen token that makes a retry safe.
+   *
+   * Deliberately outside the request hash: it identifies the *attempt*, not the
+   * question. Same key and same hash returns the original decision; same key
+   * and a different hash is a conflict, because the caller reused a token for a
+   * different question and quietly answering would hand them a decision about
+   * someone else's customer.
+   */
+  idempotencyKey?: string;
+  /**
+   * Caller-supplied tracing id, carried through to the measured half.
+   *
+   * Never hashed, and not part of the request hash either: it differs on every
+   * call, so including it would make each retry look like a new request — the
+   * exact failure idempotency exists to prevent.
+   */
+  correlationId?: string;
 }
 
 /**
@@ -250,6 +268,14 @@ export interface Measurements {
   timingsByNode: Record<string, number>;
   totalMs: number;
   executedAt: string;
+  /**
+   * The caller's tracing id, echoed back.
+   *
+   * In the measured half because it is real and useful and cannot be part of
+   * decision identity: two retries of one request are the same decision with
+   * different correlation ids.
+   */
+  correlationId?: string;
   /**
    * What the integrations actually did: latency, cache hits, failures.
    *

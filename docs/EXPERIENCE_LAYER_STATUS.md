@@ -483,3 +483,71 @@ explanations.
 - **The root vitest config had no aliases.** The integration suite was
   resolving package imports through the same symlink, to a `dist` that no build
   step produces.
+
+---
+
+## Idempotency, 2026-09-05
+
+§6: *validate tenant, caller, purpose, schema and idempotency key*, and on a
+duplicate *return the original result for the same tenant, key and canonical
+request hash*. There were zero occurrences of the word in the repository
+outside two documents.
+
+### The distinction the design turns on
+
+Two things are kept apart, and conflating them is the bug this is built around:
+
+- The **key** is a token the caller chose. It says *this is the same attempt*,
+  usually because a retry crossed a timeout.
+- The **request hash** is what the decision was computed from. It says *this is
+  the same question*.
+
+Matching both is a retry, and the honest answer is the original decision.
+Matching only the key is a caller bug — one token reused for a different
+question — and returning the stored answer would hand them a decision about
+someone else's customer **while looking entirely successful**. That is a 409.
+
+### What is deliberately outside the request hash
+
+- **`idempotencyKey`**, because it is the token being looked up, not part of
+  the question.
+- **`correlationId`**, because it differs on every call. Including it would
+  make every retry hash differently and therefore look like a new request —
+  the exact failure idempotency exists to prevent.
+
+Optionals are normalised to `null` rather than omitted, so a caller that sends
+`contactHistory: null` and one that leaves the field out hash identically and
+do not see spurious conflicts.
+
+### Where the checks are
+
+- **Both engines compute the request hash**, through the same ADR-003
+  canonicaliser. That is not optional: a retry that lands on a different
+  instance has to resolve the same way. `service-cases.json` now carries
+  `expected.requestHash` and the Kotlin suite asserts it on all 60 cases —
+  chain-hash agreement does **not** imply it, since the request hash covers a
+  different set of fields computed in a different place.
+- **The rule is a pure function** (`classify`), so it is tested without a store
+  and shared by every store that follows.
+- **First write wins under a race**, and `put` returns the winner rather than
+  the record passed in. Two concurrent retries can both classify as fresh and
+  both execute; only one decision id can be the answer for that key, and it has
+  to be the one already handed to whoever got there first. A caller that
+  assumed its own write landed would return the other id.
+- **Keys are scoped per tenant**, and the store key is length-prefixed rather
+  than joined on a separator, so tenant `a:b` key `c` cannot read tenant `a`
+  key `b:c`. Tenant isolation is not a thing to leave to a delimiter.
+- Six E2E tests on the console and eight on the JVM service, covering the same
+  statements: repeat, conflict, tenant scoping, input reordering, a changed
+  correlation id, and no key at all.
+
+### Not done
+
+- **Storage is process-lifetime** on both implementations. Durable idempotency
+  is Stage 5, alongside the decision ledger, and the store is already behind an
+  interface so it can move without the rule changing.
+- **A freshly executed decision still cannot be fetched by `GET /decisions/{id}/trace`.**
+  The console's seeded decisions are a flattened display shape, not engine
+  output, and converting between them is the ledger's job. Idempotent replay
+  works because it keeps the real engine trace separately; the trace endpoint
+  was left alone rather than half-fixed with a shim.

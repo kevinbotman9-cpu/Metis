@@ -34,6 +34,9 @@ class Store(
      */
     private val traces = ConcurrentHashMap<String, StoredDecision>()
 
+    /** Keys seen this process. Same lifetime as the traces above. */
+    val idempotency = IdempotencyStore()
+
     fun remember(
         trace: DecisionRecord,
         artifactId: String,

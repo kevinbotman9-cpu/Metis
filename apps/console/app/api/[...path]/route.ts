@@ -16,6 +16,11 @@
 import { NextResponse } from 'next/server';
 import { store, resetStore, recordAudit } from '@/mocks/store';
 import { findTrace, decisions } from '@/mocks/fixtures/decisions';
+import {
+  requestHash,
+  classify,
+  IdempotencyConflict,
+} from '@metis/runtime';
 import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
 import { compilations, findCompilation, compileContext } from '@/mocks/fixtures/compiled';
 import type { DecisionFlowSource } from '@metis/compiler/decision-flow';
@@ -32,7 +37,8 @@ type DecisionRequestBody = Partial<DecisionRequest> &
 
 type Ctx = { params: Promise<{ path: string[] }> };
 
-const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
+const json = (body: unknown, status = 200, headers?: Record<string, string>) =>
+  NextResponse.json(body, { status, headers });
 const notFound = (message = 'Not found') => json({ error: 'not_found', message }, 404);
 const forbidden = (permission: string) =>
   json(
@@ -350,7 +356,7 @@ export async function POST(req: Request, { params }: Ctx) {
           );
         }
 
-        const trace = executeDecision(artifact, catalogueSnapshot, {
+        const decisionRequest = {
           tenantId: body.request.tenantId,
           customerId: body.request.customerId,
           channel: body.request.channel,
@@ -359,8 +365,68 @@ export async function POST(req: Request, { params }: Ctx) {
           input: body.request.input ?? {},
           contactHistory: body.request.contactHistory,
           consent: body.request.consent,
-        });
+          idempotencyKey: body.request.idempotencyKey,
+          correlationId: body.request.correlationId,
+        };
 
+        // Idempotency, before execution rather than after.
+        //
+        // Executing and then discovering the key was taken would be wasted
+        // work in the happy case and, in the conflict case, would have already
+        // made a decision the caller must not be given.
+        const key = decisionRequest.idempotencyKey;
+        if (key) {
+          const attempted = requestHash(decisionRequest);
+          const outcome = classify(await store.idempotency.get(decisionRequest.tenantId, key), attempted);
+
+          if (outcome.kind === 'conflict') {
+            const e = new IdempotencyConflict(key, outcome.record.requestHash, attempted);
+            return json({ error: 'idempotency_conflict', message: e.message }, 409);
+          }
+          if (outcome.kind === 'replay') {
+            const prior = store.executed.get(outcome.record.decisionId);
+            if (prior) {
+              // The original decision, not a fresh one that happens to match.
+              // Re-executing would usually agree, and the one time it did not
+              // — a catalogue edit between the two calls — the caller would
+              // silently get a different answer to the same question.
+              return json(
+                { id: prior.id, decision: prior.decision, chainHash: prior.chainHash },
+                200,
+                { 'Idempotent-Replay': 'true' }
+              );
+            }
+          }
+        }
+
+        const trace = executeDecision(artifact, catalogueSnapshot, decisionRequest);
+
+        if (key) {
+          // The store decides which write wins under a race, so use what comes
+          // back rather than assuming ours landed.
+          const stored = await store.idempotency.put({
+            tenantId: decisionRequest.tenantId,
+            key,
+            requestHash: requestHash(decisionRequest),
+            decisionId: trace.id,
+            storedAt: new Date().toISOString(),
+          });
+          if (stored.decisionId !== trace.id) {
+            const winner = store.executed.get(stored.decisionId);
+            if (winner) {
+              return json(
+                { id: winner.id, decision: winner.decision, chainHash: winner.chainHash },
+                200,
+                { 'Idempotent-Replay': 'true' }
+              );
+            }
+          }
+        }
+
+        // Kept whether or not a key was supplied, so an idempotent replay has
+        // the original decision to return rather than a re-execution that
+        // happens to agree. Process-lifetime; the durable ledger replaces it.
+        store.executed.set(trace.id, trace);
         return json({ id: trace.id, decision: trace.decision, chainHash: trace.chainHash });
       }
 

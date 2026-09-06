@@ -40,3 +40,15 @@ export type {
   CandidateScore,
   ReplayResult,
 } from './deterministic/types';
+
+export {
+  requestHash,
+  classify,
+  InMemoryIdempotencyStore,
+  IdempotencyConflict,
+} from './idempotency';
+export type {
+  IdempotencyRecord,
+  IdempotencyOutcome,
+  IdempotencyStore,
+} from './idempotency';

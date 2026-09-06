@@ -144,6 +144,10 @@ data class DecisionRequest(
     val input: Map<String, Any?>,
     val contactHistory: ContactHistory? = null,
     val consent: Consent? = null,
+    /** Caller-chosen token that makes a retry safe. Outside the request hash. */
+    val idempotencyKey: String? = null,
+    /** Tracing id, echoed into the measured half. Never hashed. */
+    val correlationId: String? = null,
 )
 
 // --- Trace -------------------------------------------------------------------

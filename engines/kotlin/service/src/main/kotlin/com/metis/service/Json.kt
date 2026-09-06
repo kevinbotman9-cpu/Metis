@@ -209,6 +209,8 @@ object Json {
                 it["thirdParty"]?.asBoolean() ?: false,
             )
         },
+        idempotencyKey = n["idempotencyKey"]?.takeIf { !it.isNull }?.asText(),
+        correlationId = n["correlationId"]?.takeIf { !it.isNull }?.asText(),
     )
 }
 

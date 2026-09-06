@@ -1,6 +1,7 @@
 package com.metis.service
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URI
@@ -147,6 +148,62 @@ class ServiceConformanceTest {
      * the cases and the bug surfaced immediately — which is an argument for
      * covering the whole corpus rather than for regenerating more often.
      */
+    /**
+     * Both engines must agree on what "the same request" is, or a retry that
+     * lands on a different instance resolves differently. Chain-hash agreement
+     * does not imply this: the request hash covers a different set of fields
+     * and is computed in a different place.
+     */
+    @Test
+    fun `the request hash agrees with the TypeScript engine on every case`() {
+        var checked = 0
+        for (case in cases["cases"]) {
+            val request = Json.request(case["request"])
+            assertEquals(
+                case["expected"]["requestHash"].asText(),
+                Idempotency.requestHash(request),
+                "request hash disagreed for ${case["expected"]["id"].asText()}",
+            )
+            checked++
+        }
+        assertEquals(cases["cases"].size(), checked, "not every case was compared")
+    }
+
+    @Test
+    fun `a repeated idempotency key returns the original decision`() {
+        val case = cases["cases"][0]
+        val key = "conformance-" + case["expected"]["id"].asText()
+
+        fun call(withKey: String?, mutate: (ObjectNode) -> Unit = {}): Pair<Int, JsonNode> {
+            val request = case["request"].deepCopy<ObjectNode>()
+            if (withKey != null) request.put("idempotencyKey", withKey)
+            mutate(request)
+            val payload = Json.mapper.createObjectNode()
+            payload.put("artifactId", case["artifactId"].asText())
+            payload.set<JsonNode>("request", request)
+            return call("POST", "/api/decisions", Json.mapper.writeValueAsString(payload))
+        }
+
+        val (firstStatus, first) = call(key)
+        assertEquals(200, firstStatus)
+
+        val (secondStatus, second) = call(key)
+        assertEquals(200, secondStatus)
+        // The same decision id, not merely the same hash: a re-execution that
+        // happened to agree would pass a hash check and still be a new record.
+        assertEquals(first["id"].asText(), second["id"].asText())
+
+        // Same key, different question. A caller reusing a token for another
+        // customer must not be handed the first customer's decision.
+        val (conflictStatus, conflict) = call(key) { it.put("customerId", "someone_else") }
+        assertEquals(409, conflictStatus)
+        assertEquals("idempotency_conflict", conflict["error"].asText())
+
+        // No key at all still works, and is a fresh decision every time.
+        val (plainStatus, _) = call(null)
+        assertEquals(200, plainStatus)
+    }
+
     @Test
     fun `every decision can be fetched and replayed`() {
         var offered = 0

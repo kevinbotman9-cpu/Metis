@@ -25,6 +25,7 @@ import {
   execArtifacts,
   generated,
 } from '../apps/console/mocks/fixtures/engine.ts';
+import { requestHash } from '../packages/runtime/src/idempotency/index.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'docs/conformance');
@@ -80,6 +81,11 @@ const cases = sample.map(({ trace, request, artifact }) => ({
     inputSnapshotHash: trace.decision.inputSnapshotHash,
     catalogueSnapshotHash: trace.decision.catalogueSnapshotHash,
     winner: trace.decision.winner,
+    // Idempotency only works across instances if both engines agree on what
+    // "the same request" is. Chain-hash agreement does not imply it: the
+    // request hash covers a different set of fields, computed in a different
+    // place, and could drift without a single decision hash changing.
+    requestHash: requestHash(request),
   },
 }));
 

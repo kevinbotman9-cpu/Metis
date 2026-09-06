@@ -1850,9 +1850,32 @@ paths:
                       type: object
                     consent:
                       type: object
+                    idempotencyKey:
+                      type: string
+                      description: >
+                        Makes a retry safe. The same key with the same request
+                        returns the original decision without re-executing; the
+                        same key with a *different* request is a 409, because
+                        the caller reused a token for a different question and
+                        answering quietly would hand them a decision about
+                        someone else's customer.
+
+                        Excluded from the request hash — it identifies the
+                        attempt, not the question. Scoped per tenant.
+                      example: 4f9a1c22-8b1e-4f2a-9c31-1d0f7a6b5c2e
+                    correlationId:
+                      type: string
+                      description: >
+                        Tracing id, echoed back in the measured half of the
+                        trace. Never hashed, and excluded from the request hash:
+                        it differs on every retry, so including it would make
+                        each retry a new request.
       responses:
         '200':
-          description: The decision and its trace
+          description: >
+            The decision and its trace. A response to a repeated idempotency
+            key carries `Idempotent-Replay: true` and is the original decision,
+            not a re-execution that happens to agree.
           content:
             application/json:
               schema:
@@ -1869,6 +1892,22 @@ paths:
                     type: string
         '400':
           description: Malformed request, or an artifact the engine cannot execute
+        '409':
+          description: >
+            The idempotency key was already used for a different request.
+            Deliberately not a 200 with the stored decision: that would answer a
+            question the caller did not ask, and look successful doing it.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, message]
+                properties:
+                  error:
+                    type: string
+                    enum: [idempotency_conflict]
+                  message:
+                    type: string
         '404':
           description: No such artifact
 

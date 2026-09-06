@@ -10,6 +10,8 @@
  * the store is stashed on globalThis to survive a hot reload.
  */
 
+import { InMemoryIdempotencyStore } from '@metis/runtime';
+import type { DecisionRecord } from '@metis/runtime';
 import {
   objectives as seedObjectives,
   categories as seedCategories,
@@ -42,6 +44,16 @@ type Store = {
   targetingPolicies: typeof seedTargetingPolicies;
   frequencyPolicies: typeof seedFrequencyPolicies;
   arbitration: typeof seedArbitration;
+  /** Keys seen this process. Cleared by the test reset, like everything else. */
+  idempotency: InMemoryIdempotencyStore;
+  /**
+   * Engine traces executed this process, by decision id.
+   *
+   * Separate from the seeded `decisions` fixtures, which are the console's
+   * flattened display shape rather than engine output. Idempotent replay has
+   * to return the decision that was actually made, so it needs the real thing.
+   */
+  executed: Map<string, DecisionRecord>;
   boosts: typeof seedBoosts;
   autonomy: typeof seedAutonomy;
   activity: typeof seedActivity;
@@ -84,6 +96,8 @@ function seed(): Store {
     targetingPolicies: clone(seedTargetingPolicies),
     frequencyPolicies: clone(seedFrequencyPolicies),
     arbitration: clone(seedArbitration),
+    idempotency: new InMemoryIdempotencyStore(),
+    executed: new Map(),
     boosts: clone(seedBoosts),
     autonomy: clone(seedAutonomy),
     activity: clone(seedActivity),

@@ -98,6 +98,26 @@ class DecisionService(private val store: Store, port: Int = 0) {
         // typed model omits fields the engine never reads.
         val inputHash = Canonical.hash(Json.toValue(requestNode["input"] ?: Json.mapper.createObjectNode()))
 
+        // Idempotency before execution, not after. Executing first would waste
+        // the work on a retry and, on a conflict, would already have made a
+        // decision the caller must not be given.
+        val key = request.idempotencyKey
+        if (key != null) {
+            val attempted = Idempotency.requestHash(request)
+            when (val outcome = Idempotency.classify(store.idempotency.get(request.tenantId, key), attempted)) {
+                is IdempotencyOutcome.Conflict ->
+                    throw IdempotencyConflict(key, outcome.record.requestHash, attempted)
+                is IdempotencyOutcome.Replay -> {
+                    val prior = store.recall(outcome.record.decisionId)
+                    // The original decision, not a re-execution that happens to
+                    // agree: a catalogue edit between the two calls would
+                    // otherwise silently change the answer to one question.
+                    if (prior != null) return 200 to traceJson(prior.trace)
+                }
+                IdempotencyOutcome.Fresh -> Unit
+            }
+        }
+
         val trace = Engine.execute(
             artifact = loaded.artifact,
             catalogue = store.catalogue,
@@ -106,6 +126,23 @@ class DecisionService(private val store: Store, port: Int = 0) {
             inputSnapshotHash = inputHash,
         )
         store.remember(trace, artifactId, request.input, request.contactHistory)
+
+        if (key != null) {
+            // The store decides which write wins under a race, so use what it
+            // returns rather than assuming ours landed.
+            val stored = store.idempotency.put(
+                IdempotencyRecord(
+                    tenantId = request.tenantId,
+                    key = key,
+                    requestHash = Idempotency.requestHash(request),
+                    decisionId = trace.id,
+                    storedAt = java.time.Instant.now().toString(),
+                )
+            )
+            if (stored.decisionId != trace.id) {
+                store.recall(stored.decisionId)?.let { return 200 to traceJson(it.trace) }
+            }
+        }
 
         return 200 to traceJson(trace)
     }
@@ -188,6 +225,12 @@ class DecisionService(private val store: Store, port: Int = 0) {
             400 to error("bad_request", e.message ?: "Malformed request")
         } catch (e: NotFound) {
             404 to error("not_found", e.message ?: "Not found")
+        } catch (e: IdempotencyConflict) {
+            // Before the IllegalArgumentException arm below, which would
+            // otherwise swallow this as a 400. A reused key is a conflict, not
+            // a malformed request, and the distinction is what tells a caller
+            // to change the key rather than the payload.
+            409 to error("idempotency_conflict", e.message ?: "Idempotency key reused")
         } catch (e: MethodNotAllowed) {
             405 to error("method_not_allowed", "${exchange.requestMethod} is not allowed here")
         } catch (e: IllegalArgumentException) {

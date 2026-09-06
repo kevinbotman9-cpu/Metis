@@ -160,3 +160,4 @@ const byId = new Map(traces.map((t) => [t.id, t]));
 export function findTrace(id: string): TraceRecord | undefined {
   return byId.get(id);
 }
+

@@ -637,6 +637,12 @@ export function execute(
       timingsByNode,
       totalMs: round(Date.now() - startedAt, 3),
       executedAt: new Date().toISOString(),
+      // Echoed, not generated. If the caller sent no correlation id there is
+      // nothing to correlate, and inventing one would put a value in the trace
+      // that appears nowhere in their logs.
+      ...(request.correlationId === undefined
+        ? {}
+        : { correlationId: request.correlationId }),
     },
     chainHash,
   };
