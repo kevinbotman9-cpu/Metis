@@ -95,7 +95,7 @@ otherwise.
 | W-001 | 0 | Fix the holes in the checks themselves — **done** | 1 |
 | W-002 | 7 | Export / re-import — **done** | 1 |
 | W-003 | 8 | S1 benchmark and the p99 gate | 1 |
-| W-004 | 8 | No-network-egress assertion in the decision path | 1 |
+| W-004 | 8 | No-network-egress assertion in the decision path — **done** | 1 |
 | W-005 | 9 | Catalogue, policies and taxonomy into PostgreSQL | 2 |
 | W-006 | 9 | Retention and erasure design | 2 |
 | W-007 | 9 | Configurable approved default for a missing score | 2 |
@@ -293,8 +293,24 @@ cold, 1% / 5% / 20% feature-store miss, degraded provider.
 - Throughput stays measured and ungated, with the reason recorded in the report
   rather than in tribal memory.
 
-### W-004 — No-network-egress assertion in the decision path
+### W-004 — No-network-egress assertion in the decision path — **DONE 2026-09-06**
 Gate 1 · Depends: none · Spec §13
+
+**Closed.** `packages/runtime/tests/no-egress.test.ts` blocks fetch, http,
+https, net, `Socket.prototype.connect`, and dns at the process level, then
+decides and replays successfully with zero attempts recorded. A fourth
+assertion checks the blocker still intercepts, so the other three cannot pass
+by measuring nothing.
+
+Verified to bite: a `fetch` planted at the top of `execute` fails three of the
+four tests.
+
+The boundary is stated in the file rather than implied: the deterministic core
+reaches nothing, while integration resolution deliberately sits outside it —
+connectors are read before the core runs and their output is hashed into the
+input snapshot, which is what lets a decision be reproducible and still read
+live data.
+
 
 "No LLM dependency" is met in fact and guarded by nothing. This is a cheap test
 and a strong artifact in a technical evaluation.

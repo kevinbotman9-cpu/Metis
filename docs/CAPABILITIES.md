@@ -30,12 +30,13 @@ names the check so the claim can be audited rather than trusted.
 ## The suites, and what each covers
 
 ```
-Integration         11 passed  - author -> compile -> execute -> replay, plus the
+Integration         12 passed  - author -> compile -> execute -> replay, plus the
                                  API-path reconciliation and source hygiene
                                  checks, which span packages and belong to none
-Runtime            184 passed  - determinism, byte-identical replay, integration
+Runtime            188 passed  - determinism, byte-identical replay, integration
                                  resolution, ADR-003 values, the 22-decision
-                                 corpus, ranking functions, idempotency, shadow
+                                 corpus, ranking functions, idempotency, shadow,
+                                 and no network egress in the decision path
 Compiler            43 passed  - graph validation, version pinning, budgets
 Registry            68 passed  - one behaviour suite, run against memory and a
                                  real PostgreSQL
@@ -52,7 +53,7 @@ Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
 Typecheck           clean      - root config and the console's, separately
 Lint                0 errors   - root and console, separate configs
                    ---
-                    625 tests, two languages, two engines
+                    630 tests, two languages, two engines
 ```
 
 The OpenAPI spec validates at **34 paths, 41 operations (39 built, 2 proposed),
@@ -175,10 +176,10 @@ The four exit criteria:
 | Semantic tests pass | **Met** — three corpora, two languages, two engines |
 | Complete export / re-import | **Met for everything durably stored.** The round-trip conformance utility passes on the registry and the ledger. The catalogue, policies and approvals are still in memory, so they are outside the export until they are outside memory — [W-005](BACKLOG.md) |
 | S1 benchmark | **Not met** — Stage 8 |
-| No LLM dependency | **Met in fact**, not yet guarded by a test asserting no network egress in the decision path |
+| No LLM dependency | **Met, and guarded.** `no-egress.test.ts` blocks fetch, http, https, net, socket and dns at the process level, then decides and replays successfully with zero attempts. Verified: a `fetch` planted in the engine fails it |
 
 **All eight capabilities are built. One exit criterion remains outright — the
-S1 benchmark — and one is met only as far as the storage goes.**
+S1 benchmark — and one is met as far as the storage goes.**
 
 ## §14 — Differentiators
 

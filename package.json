@@ -10,7 +10,6 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "tsc --build",
     "test": "npm run test:integration && npm run test:runtime && npm run test:compiler && npm run test:registry && npm run test:ledger && npm run test:portability && npm run test:bench && npm run test:console",
     "lint": "eslint packages bench --ext .ts",
     "dev": "docker-compose up",
