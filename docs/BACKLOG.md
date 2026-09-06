@@ -114,7 +114,7 @@ otherwise.
 | W-020 | 16 | Distribution and version-diff simulation | 2 |
 | W-021 | 16 | Bias gate as a pre-publish blocker | 2 |
 | W-022 | 16 | Simulation evidence attached to change sets | 2 |
-| W-023 | 16 | Flow unit tests with deterministic fixtures | 2 |
+| W-023 | 16 | Flow unit tests with deterministic fixtures — **done** | 2 |
 | W-024 | 17 | Writable canvas | 2 |
 | W-025 | 17 | Natural-language authoring that compiles to a diff | 2 |
 | W-026 | 18 | Eligibility / applicability / suitability layers | 2 |
@@ -633,8 +633,33 @@ delta, and — for agent-proposed changes — the agent's reasoning. The autonom
 ladder consults them: an L3/L4 auto-approval is refused if simulation or bias
 evidence is absent or stale relative to the diff. Test the staleness case.
 
-### W-023 — Flow unit tests with deterministic fixtures
+### W-023 — Flow unit tests with deterministic fixtures — **DONE 2026-09-06**
 Gate 2 · Depends: none · Spec §11
+
+**Closed.** A flow version may attach cases — a request and what should happen:
+which offer wins, or that none does, which candidates are ruled out, and on
+which reason codes. `registry.publish` runs them and refuses the version if any
+fail, recording which ones in the append-only log.
+
+Three decisions worth knowing:
+
+- **The runner is injected, not imported.** The registry depends on the
+  compiler and deliberately not on the engine; reversing that so the store
+  layer could execute decisions would be the wrong direction.
+- **A version that attaches cases and is published with no runner is refused.**
+  An optional gate is not a gate — if a caller could skip the tests by omitting
+  an argument, the first hurried deploy would.
+- **Cases are not part of the artifact hash.** A test does not change how a
+  flow decides, so treating one as new content would force a version bump for
+  no behavioural change, or refuse to let anyone add a test to a published
+  version. Results are stored with the version instead.
+
+Writing the runner's own tests found a real flaw in it: `denied` originally
+matched any denial, and the engine records `NOT_RANKED` against every candidate
+that reached arbitration and lost — so the assertion was true for almost any
+non-winner and could barely fail. It now means *ruled out*, and says so when a
+candidate merely lost.
+
 
 **Done when:** A flow author can attach test cases to a flow version; they run
 in CI; a publish is refused if they fail. This is what makes "business users

@@ -60,3 +60,11 @@ export type {
   Divergence,
   DivergenceKind,
 } from './shadow';
+
+export { createFlowTestRunner } from './flow-tests';
+export type {
+  FlowTestCase,
+  FlowTestResult,
+  FlowTestRunner,
+  FlowTestExpectation,
+} from './flow-tests';

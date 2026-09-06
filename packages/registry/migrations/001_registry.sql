@@ -63,6 +63,11 @@ BEGIN
 END $$;
 ALTER INDEX IF EXISTS registry_events_by_strategy RENAME TO registry_events_by_flow;
 
+-- Added 2026-09-06 with the flow-test gate. `CREATE TABLE IF NOT EXISTS` does
+-- not add a column to a table that already exists, so this runs beside it.
+ALTER TABLE IF EXISTS registry_versions
+  ADD COLUMN IF NOT EXISTS tests jsonb NOT NULL DEFAULT '[]'::jsonb;
+
 CREATE TABLE IF NOT EXISTS registry_versions (
     tenant_id      text        NOT NULL,
     flow_name  text        NOT NULL,

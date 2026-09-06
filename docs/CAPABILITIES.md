@@ -33,13 +33,13 @@ names the check so the claim can be audited rather than trusted.
 Integration         15 passed  - author -> compile -> execute -> replay, plus the
                                  API-path reconciliation and source hygiene
                                  checks, which span packages and belong to none
-Runtime            196 passed  - determinism, byte-identical replay, integration
+Runtime            205 passed  - determinism, byte-identical replay, integration
                                  resolution, ADR-003 values, the 22-decision
                                  corpus, ranking functions, idempotency, shadow,
                                  no network egress in the decision path, and
                                  the approved default for a missing score
 Compiler            43 passed  - graph validation, version pinning, budgets
-Registry            68 passed  - one behaviour suite, run against memory and a
+Registry            75 passed  - one behaviour suite, run against memory and a
                                  real PostgreSQL
 Catalogue           40 passed  - taxonomy, offers, creatives, policies, boosts
                                  and the ranking function; one suite over
@@ -58,7 +58,7 @@ Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
 Typecheck           clean      - root config and the console's, separately
 Lint                0 errors   - root and console, separate configs
                    ---
-                    688 tests, two languages, two engines
+                    704 tests, two languages, two engines
 ```
 
 The OpenAPI spec validates at **34 paths, 41 operations (39 built, 2 proposed),
@@ -147,6 +147,7 @@ S1 variant, so a real collapse is still visible.
 |---|---|---|
 | Immutable audit log | BUILT | Every write lands in it; `/audit` is filterable by actor type |
 | Segregation of duties | BUILT | `publish:flows` and `promote:flows` are separate permissions, refused server-side with a 403, not merely hidden in the UI |
+| Publishing runs the version's own tests | BUILT | A flow version may attach cases; `registry.publish` runs them through an injected runner and refuses the publish if any fail, recording which. A version attaching cases with no runner supplied is refused too — an optional gate is not a gate. `packages/runtime/src/flow-tests` |
 | Publishing compiles first | BUILT | A flow that does not compile never enters the registry, and the refusal is recorded — an audit that only shows successes cannot answer whether anyone tried |
 | Versions immutable, bound to an artifact hash | BUILT | Same content republished is a no-op; different content under the same version is refused |
 | Change sets and approvals | BUILT | `/approvals`, agent vs person provenance, diff applied on approval |

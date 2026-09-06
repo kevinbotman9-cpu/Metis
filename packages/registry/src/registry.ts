@@ -7,6 +7,8 @@ import type {
   PublishOutcome,
   PublishedVersion,
   RegistryEvent,
+  FlowTestResult,
+  FlowTestRunner,
 } from './types';
 import { RegistryError } from './types';
 
@@ -63,7 +65,24 @@ export class ArtifactRegistry {
    * the registry, so it cannot be promoted, so it cannot reach execution. The
    * compiler already knew — nothing was listening.
    */
-  async publish(command: PublishCommand, ctx: CompileContext): Promise<PublishOutcome> {
+  /**
+   * Publish a version, if it compiles and its own tests pass.
+   *
+   * The compilation gate is why a broken flow cannot reach production.
+   * Compilation only proves the graph is well-formed, though — it says nothing
+   * about whether the flow still offers what its author said it offers, which
+   * is the change someone editing a policy is actually making. So a version
+   * may attach cases, and they run here.
+   *
+   * A version that attaches cases and is published without a runner is
+   * **refused**. An optional gate is not a gate: if a caller could skip the
+   * tests by omitting an argument, the first hurried deploy would.
+   */
+  async publish(
+    command: PublishCommand,
+    ctx: CompileContext,
+    runner?: FlowTestRunner
+  ): Promise<PublishOutcome> {
     const { tenantId, flowName, version, source, actor, occurredAt } = command;
 
     const result = compileDecisionFlow(source, ctx);
@@ -86,6 +105,46 @@ export class ArtifactRegistry {
         diagnostics: result.diagnostics,
       });
       return { status: 'rejected', reason: 'compilation', diagnostics: result.diagnostics };
+    }
+
+    const cases = (source as { tests?: unknown[] }).tests ?? [];
+    let tests: FlowTestResult[] = [];
+
+    if (cases.length > 0) {
+      if (!runner) {
+        await this.store.appendEvent({
+          at: occurredAt,
+          actor,
+          type: 'PublishRejected',
+          tenantId,
+          flowName,
+          version,
+          summary:
+            `Refused ${flowName} ${version}: it attaches ${cases.length} test case(s) ` +
+            'and no runner was supplied, so they could not be run. A gate that ' +
+            'can be skipped by omitting an argument is not a gate.',
+          diagnostics: result.diagnostics,
+        });
+        return { status: 'rejected', reason: 'tests', diagnostics: result.diagnostics, tests: [] };
+      }
+
+      tests = await runner.run(result.artifact, cases);
+      const failed = tests.filter((t) => !t.passed);
+      if (failed.length > 0) {
+        await this.store.appendEvent({
+          at: occurredAt,
+          actor,
+          type: 'PublishRejected',
+          tenantId,
+          flowName,
+          version,
+          summary:
+            `Refused ${flowName} ${version}: ${failed.length} of ${tests.length} ` +
+            `test(s) failed — ${failed.map((t) => t.name).join(', ')}`,
+          diagnostics: result.diagnostics,
+        });
+        return { status: 'rejected', reason: 'tests', diagnostics: result.diagnostics, tests };
+      }
     }
 
     const existing = await this.store.getVersion(tenantId, flowName, version);
@@ -124,6 +183,7 @@ export class ArtifactRegistry {
       publishedAt: occurredAt,
       publishedBy: actor,
       warnings,
+      tests,
     });
 
     // Read it back rather than returning the compiler's object. What publish

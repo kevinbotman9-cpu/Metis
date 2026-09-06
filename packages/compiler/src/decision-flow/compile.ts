@@ -89,6 +89,16 @@ export interface DecisionFlowSource {
    * from wherever the catalogue happens to be at replay time.
    */
   missingScoreDefault?: MissingScoreDefault;
+  /**
+   * Cases the author attaches to this version, run at publish.
+   *
+   * Typed loosely here because the compiler does not execute them — the
+   * registry does, through an injected runner. What the compiler owns is that
+   * a case naming a candidate key this flow cannot select is an error, since
+   * such a case can never pass and would block every publish until someone
+   * noticed why.
+   */
+  tests?: { name: string; expect?: { winner?: string | null; denied?: string[] } }[];
 }
 
 /** Mirrors `@metis/runtime`'s type. Repeated rather than imported because the

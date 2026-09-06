@@ -38,6 +38,7 @@ interface VersionRow {
   published_at: Date | string;
   published_by: string;
   warnings: unknown;
+  tests: unknown;
 }
 
 interface EnvironmentRow {
@@ -84,7 +85,7 @@ export class PostgresRegistryStore implements RegistryStore {
     version: string
   ): Promise<PublishedVersion | undefined> {
     const { rows } = await this.db.query<VersionRow>(
-      `SELECT tenant_id, flow_name, version, artifact, published_at, published_by, warnings
+      `SELECT tenant_id, flow_name, version, artifact, published_at, published_by, warnings, tests
          FROM registry_versions
         WHERE tenant_id = $1 AND flow_name = $2 AND version = $3`,
       [tenantId, name, version]
@@ -94,7 +95,7 @@ export class PostgresRegistryStore implements RegistryStore {
 
   async listVersions(tenantId: string, name: string): Promise<PublishedVersion[]> {
     const { rows } = await this.db.query<VersionRow>(
-      `SELECT tenant_id, flow_name, version, artifact, published_at, published_by, warnings
+      `SELECT tenant_id, flow_name, version, artifact, published_at, published_by, warnings, tests
          FROM registry_versions
         WHERE tenant_id = $1 AND flow_name = $2
         ORDER BY published_at DESC, version DESC`,
@@ -110,8 +111,8 @@ export class PostgresRegistryStore implements RegistryStore {
     // refuse anyway, but a unique violation is the clearer error.
     await this.db.query(
       `INSERT INTO registry_versions
-         (tenant_id, flow_name, version, artifact, artifact_hash, published_at, published_by, warnings)
-       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8::jsonb)`,
+         (tenant_id, flow_name, version, artifact, artifact_hash, published_at, published_by, warnings, tests)
+       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8::jsonb, $9::jsonb)`,
       [
         v.tenantId,
         v.flowName,
@@ -121,6 +122,7 @@ export class PostgresRegistryStore implements RegistryStore {
         v.publishedAt,
         v.publishedBy,
         JSON.stringify(v.warnings),
+        JSON.stringify(v.tests),
       ]
     );
   }
@@ -134,6 +136,7 @@ export class PostgresRegistryStore implements RegistryStore {
       publishedAt: iso(r.published_at),
       publishedBy: r.published_by,
       warnings: (r.warnings ?? []) as PublishedVersion['warnings'],
+      tests: (r.tests ?? []) as PublishedVersion['tests'],
     };
   }
 
