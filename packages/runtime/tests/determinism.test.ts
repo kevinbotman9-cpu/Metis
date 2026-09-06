@@ -89,6 +89,7 @@ const catalogue: CatalogueSnapshot = {
     updatedBy: 'test',
   },
   boosts: [],
+  connectors: [],
 };
 
 const artifact: ExecArtifact = {

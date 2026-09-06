@@ -362,7 +362,17 @@ export class SwitchNode extends BaseNode {
 /**
  * Registry of all core node types
  */
-const NODE_REGISTRY: Record<string, typeof BaseNode> = {
+/**
+ * A concrete node constructor, not `typeof BaseNode`.
+ *
+ * `typeof BaseNode` is an *abstract* constructor type, so `new NodeClass(...)`
+ * below was never legal — and it declared a four-argument constructor while
+ * every subclass takes two. Both errors sat here unreported because the root
+ * typecheck resolved zero files and this package is outside the console's.
+ */
+type NodeConstructor = new (id: string, config: Record<string, unknown>) => BaseNode;
+
+const NODE_REGISTRY: Record<string, NodeConstructor> = {
   source: SourceNode,
   filter: FilterNode,
   'set-property': SetPropertyNode,
@@ -376,7 +386,11 @@ const NODE_REGISTRY: Record<string, typeof BaseNode> = {
 /**
  * Factory function to create a node by type
  */
-export function createNode(id: string, type: string, config: any): BaseNode {
+export function createNode(
+  id: string,
+  type: string,
+  config: Record<string, unknown>
+): BaseNode {
   const NodeClass = NODE_REGISTRY[type];
   if (!NodeClass) {
     throw new Error(`Unknown node type: ${type}`);

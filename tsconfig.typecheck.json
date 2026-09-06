@@ -1,0 +1,39 @@
+{
+  // Whole-repo typecheck, replacing `tsc --build`.
+  //
+  // `tsc --build` was broken for months and, once fixed, was still the wrong
+  // tool: it exists to emit declaration output into `dist`, and nothing here
+  // consumes that. Every package is imported from source through the exports
+  // maps in its package.json. Emitting artifacts we do not read is how stale
+  // build output ended up committed inside `packages/*/src` once already.
+  //
+  // So this is a single non-composite program over everything, with no emit.
+  // It covers what the console's own typecheck cannot reach: bench, scripts,
+  // and every package's tests.
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ES2020"],
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    // Honours the `exports` maps, so `@metis/runtime/deterministic/types`
+    // resolves the same way here, in vitest and in the console. Under the old
+    // "node" setting it resolved nowhere, and each tsconfig that needed a
+    // subpath hand-listed it in `paths` instead.
+    "moduleResolution": "bundler",
+    "types": ["node"]
+  },
+  "include": [
+    "packages/*/src/**/*.ts",
+    "packages/*/tests/**/*.ts",
+    "bench/*/src/**/*.ts",
+    "bench/*/tests/**/*.ts",
+    "tests/**/*.ts",
+    "scripts/**/*.ts"
+  ],
+  "exclude": ["**/node_modules", "**/dist"]
+}

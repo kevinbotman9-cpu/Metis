@@ -56,24 +56,48 @@ class DecisionService(private val store: Store, port: Int = 0) {
         200 to body
     }
 
+    companion object {
+        /**
+         * Every route this service serves, in OpenAPI path form.
+         *
+         * Declared as data rather than left implicit in the `when` below,
+         * because this is one of several places that must agree on a path —
+         * the spec, the generated client, the console's client and this — and
+         * only the generated one was checked. `api-paths.test.ts` reads this
+         * list and asserts every entry is a path the spec declares, so a route
+         * renamed here and nowhere else fails rather than 404s in production.
+         *
+         * Keep it in step with the `when` below: the not-found message is
+         * built from it, so a stale entry shows up in the error a caller sees.
+         */
+        val ROUTES = listOf(
+            "POST /decisions",
+            "GET /decisions/{decisionId}/trace",
+            "POST /decisions/{decisionId}/replay",
+        )
+    }
+
     private fun decisions(exchange: HttpExchange) = handle(exchange) {
         val path = exchange.requestURI.path.removePrefix("/api/decisions").trim('/')
         val segments = if (path.isEmpty()) emptyList() else path.split("/")
 
         when {
-            // POST /api/decisions — make a decision
+            // POST /decisions — make a decision
             segments.isEmpty() && exchange.requestMethod == "POST" -> execute(exchange)
 
-            // GET /api/decisions/{id}/trace
+            // GET /decisions/{decisionId}/trace
             segments.size == 2 && segments[1] == "trace" && exchange.requestMethod == "GET" ->
                 trace(segments[0])
 
-            // POST /api/decisions/{id}/replay
+            // POST /decisions/{decisionId}/replay
             segments.size == 2 && segments[1] == "replay" && exchange.requestMethod == "POST" ->
                 replay(segments[0])
 
             segments.isEmpty() || segments.size == 2 -> throw MethodNotAllowed()
-            else -> throw NotFound("No route for /api/decisions/$path")
+            else -> throw NotFound(
+                "No route for /api/decisions/$path. This service serves: " +
+                    ROUTES.joinToString(", ")
+            )
         }
     }
 

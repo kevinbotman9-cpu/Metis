@@ -10,5 +10,11 @@
   },
   "dependencies": {
     "@metis/core": "*"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./deterministic/types": "./src/deterministic/types.ts",
+    "./deterministic/engine": "./src/deterministic/engine.ts",
+    "./deterministic/canonical": "./src/deterministic/canonical.ts"
   }
 }

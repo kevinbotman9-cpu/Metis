@@ -10,5 +10,10 @@
   },
   "dependencies": {
     "@metis/core": "*"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./decision-flow": "./src/decision-flow/index.ts",
+    "./decision-flow/compile": "./src/decision-flow/compile.ts"
   }
 }

@@ -106,6 +106,7 @@ const catalogue: CatalogueSnapshot = {
   frequencyPolicies: [],
   arbitration,
   boosts: [],
+  connectors: [],
 };
 
 const source: DecisionFlowSource = {
