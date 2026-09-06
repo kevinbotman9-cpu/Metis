@@ -50,7 +50,7 @@ Portability         22 passed  - export, re-import, round-trip conformance, and
 Performance         12 passed  - bench/harness: the p99 gate, and S1 over a
                                  million seeded profiles
 Unit (Vitest)       45 passed  - apps/console
-E2E (Playwright)   184 passed  - contract, cross-engine, axe, registry, ledger,
+E2E (Playwright)   187 passed  - contract, cross-engine, axe, registry, ledger,
                                  idempotency, shadow (13 skipped: writes covered
                                  by permissions-and-writes and registry instead)
 Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
@@ -226,7 +226,7 @@ verified by breaking the thing it guards.
 | Nothing tied the API paths to the spec | **Closed** — `tests/api-paths.test.ts`. Verified in both directions: a path renamed in the Kotlin router fails, and so does one renamed in the console's client |
 | There is no i18n mechanism; every string is inline in JSX | Open — [ADR-005](adr/ADR-005-internationalisation.md) proposes one and is **awaiting a product decision**. `CLAUDE.md` lists i18n structure as needing review before code and says the gap needs a decision rather than a workaround, so nothing was built. It grows every sprint, and Stage 23's package authors will need the answer before they write a string |
 | The console edits a catalogue the engine does not read | Open — the store deep-clones the fixtures and the engine reads the fixture modules, so a ranking-weight change persists, is audited, and changes no decision. Registered in [`gaps.md`](gaps.md); it is what makes W-005's second half a design question rather than a refactor |
-| The console still writes its client URLs by hand | Open — they are now *checked* against the spec, but W-001 asked for them to be generated. That is a 33-call-site refactor and was left as its own change |
+| The console still writes its client URLs by hand | **Closed** — `api-client.ts` derives both path and method from `OPERATIONS`. The check inverted with it, from "the hand-written paths match" to "there are no hand-written paths". Verified: a literal path fails it |
 
 Two things the typecheck found the moment it started running, both of which had
 been invisible for months: `packages/nodes-core` declared its node registry as

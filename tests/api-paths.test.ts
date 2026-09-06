@@ -4,22 +4,24 @@ import { resolve } from 'node:path';
 import { OPERATIONS } from '@metis/client';
 
 /**
- * Four components must agree on every API path, and only one of them was checked.
+ * Every component must agree on every API path, and only one of them was checked.
  *
  * The set is: the OpenAPI spec; `packages/client`, generated from it; the
- * console's `lib/api-client.ts`, which writes its URLs by hand; the console's
- * dev route handler, a string switch; and the Kotlin service's router, another
- * string switch. `contract.spec.ts` covers the spec against the dev handler and
- * does bite. Nothing covered the other two, so a path renamed in the spec left
- * the console calling the old URL and the Kotlin service serving it — each
- * internally consistent, and wrong together.
+ * console's `lib/api-client.ts`; the console's dev route handler, a string
+ * switch; and the Kotlin service's router, another string switch.
+ * `contract.spec.ts` covers the spec against the dev handler and does bite.
+ * Nothing covered the other two, so a path renamed in the spec left the console
+ * calling the old URL and the Kotlin service serving it — each internally
+ * consistent, and wrong together.
  *
- * This is that check. It runs in `npm test` rather than the E2E suite because
- * it needs no server: it reads source and compares strings.
+ * The console has since stopped writing paths at all: `api-client.ts` derives
+ * both path and method from `OPERATIONS`. So the assertion about it inverted,
+ * from "the hand-written paths match" to "there are no hand-written paths",
+ * which is the stronger statement. The Kotlin service still writes its own, and
+ * declares them as data here for that reason.
  *
- * It deliberately does not try to parse routing logic. The Kotlin service
- * declares its routes as data for this purpose, and the console's client is
- * matched on the URL templates it actually passes to `apiCall`.
+ * This runs in `npm test` rather than the E2E suite because it needs no server:
+ * it reads source and compares strings.
  */
 
 const root = resolve(__dirname, '..');
@@ -42,16 +44,38 @@ describe('every component agrees on the API surface', () => {
     expect(specPaths.size).toBeGreaterThan(20);
   });
 
-  it("the console's hand-written client only calls paths the spec declares", () => {
+  it('the console writes no API paths by hand', () => {
     const src = read('apps/console/lib/api-client.ts');
 
-    // `apiCall<T>(`/registry/${tenantId}/${flowName}`, {...})` — the first
-    // template literal argument is the path.
-    const calls = [...src.matchAll(/apiCall<[^>]*>\(\s*`([^`]+)`/g)].map((m) => m[1]);
-    expect(calls.length, 'found no apiCall templates — the regex has rotted').toBeGreaterThan(20);
+    // Stronger than the check this replaces. That one compared the console's
+    // hand-written templates against the spec and passed while they existed;
+    // `api-client.ts` now derives both path and method from OPERATIONS, so the
+    // invariant is that no literal path remains to drift.
+    const literals = [
+      ...src.matchAll(/apiCall<[^>]*>\(\s*[`'"]\/[^`'"]*/g),
+    ].map((m) => m[0].slice(-60));
 
-    const unknown = [...new Set(calls.map(normalise))].filter((p) => !specPaths.has(p));
-    expect(unknown, 'console client calls paths the spec does not declare').toEqual([]);
+    expect(
+      literals,
+      'A literal path here is a fifth place the URL is written. Pass an ' +
+        'operation id instead — the path and method come from the spec.'
+    ).toEqual([]);
+  });
+
+  it('every operation the console calls exists in the spec', () => {
+    const src = read('apps/console/lib/api-client.ts');
+    const called = [...src.matchAll(/apiCall<[\s\S]*?>\(\s*'([a-zA-Z][a-zA-Z0-9]*)'/g)].map(
+      (m) => m[1]
+    );
+    expect(called.length, 'found no apiCall operation ids — the regex has rotted').toBeGreaterThan(
+      20
+    );
+
+    const known = new Set(Object.keys(OPERATIONS));
+    expect(
+      [...new Set(called)].filter((id) => !known.has(id)),
+      'console calls an operation the spec does not declare'
+    ).toEqual([]);
   });
 
   it('the Kotlin service only serves paths the spec declares', () => {

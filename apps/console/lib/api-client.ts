@@ -4,8 +4,18 @@
  * One function per operationId in docs/metis-api.openapi.yaml. Components call
  * these; never `fetch` directly. In development MSW intercepts the requests; in
  * production they reach the execution plane unchanged.
+ *
+ * Neither the path nor the method is written here any more — both come from
+ * `OPERATIONS`, generated from the spec. See `resolve` below.
+ *
+ * Four functions are named differently from the operation they call:
+ * `getArbitration`, `updateArbitration`, `getAuditLog` and `getArtifact`. The
+ * names are kept because components import them and renaming would churn call
+ * sites for no behavioural gain; the operation id beside each is the truth, and
+ * `tests/api-paths.test.ts` checks every one exists.
  */
 
+import { OPERATIONS, type OperationId } from '@metis/client';
 import type {
   AgentActivity as AgentActivityDto,
   ArbitrationConfig as ArbitrationConfigDto,
@@ -58,7 +68,9 @@ export class ApiError extends Error {
 }
 
 interface ApiOptions {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  // No `method`: it comes from the spec now. Leaving it settable would let a
+  // caller send a POST to an operation the spec declares as a GET, which is
+  // the drift this change removes.
   body?: unknown;
   query?: Record<string, string | number | undefined | null>;
 }
@@ -73,11 +85,60 @@ function buildQuery(query?: ApiOptions['query']): string {
   return s ? `?${s}` : '';
 }
 
-async function apiCall<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
+/**
+ * Build a request from the spec rather than from a string written here.
+ *
+ * The path and the method both come from `OPERATIONS`, generated from
+ * `docs/metis-api.openapi.yaml`. This file used to write both by hand, which
+ * made it one of five components that had to agree about every URL and the
+ * only one nothing checked. `tests/api-paths.test.ts` closed that by
+ * comparing them; deriving them closes it by construction, which is better —
+ * a spec path that moves now moves here too, and an operation id that does
+ * not exist is a compile error rather than a 404 at runtime.
+ *
+ * A missing path parameter throws here rather than sending a URL with a
+ * literal brace in it, which a server answers with a confusing 404.
+ */
+function resolve(
+  operationId: OperationId,
+  params: Record<string, string | number> = {}
+): { path: string; method: string } {
+  const op = OPERATIONS[operationId];
+
+  const path = op.path.replace(/\{(\w+)\}/g, (_match, name: string) => {
+    const value = params[name];
+    if (value === undefined || value === null || value === '') {
+      throw new Error(
+        `${operationId} needs a \"${name}\" path parameter. Sending the template ` +
+          'unresolved would reach the server as a literal brace and come back a 404.'
+      );
+    }
+    return encodeURIComponent(String(value));
+  });
+
+  // Widened because `pathParams` is inferred as a literal tuple, and an
+  // operation with none has element type `never`.
+  const declared: readonly string[] = op.pathParams;
+  const extra = Object.keys(params).filter((k) => !declared.includes(k));
+  if (extra.length > 0) {
+    throw new Error(
+      `${operationId} takes no path parameter named ${extra.join(', ')}. ` +
+        'A parameter the path does not use is a rename nobody finished.'
+    );
+  }
+
+  return { path, method: op.method };
+}
+
+async function apiCall<T>(
+  operationId: OperationId,
+  options: ApiOptions & { params?: Record<string, string | number> } = {}
+): Promise<T> {
   const token = typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+  const { path: endpoint, method } = resolve(operationId, options.params);
 
   const response = await fetch(`${API_BASE}${endpoint}${buildQuery(options.query)}`, {
-    method: options.method || 'GET',
+    method,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -106,117 +167,133 @@ const TENANT = 'telco-uk';
 export const apiClient = {
   // --- Auth ---------------------------------------------------------------
   login: (email: string, password: string) =>
-    apiCall<{ token: string; user: AuthUserDto }>('/auth/login', {
-      method: 'POST',
+    apiCall<{ token: string; user: AuthUserDto }>('login', {
       body: { email, password },
     }),
 
-  getSession: () => apiCall<{ user: AuthUserDto }>('/auth/session'),
+  getSession: () => apiCall<{ user: AuthUserDto }>('getSession'),
 
   // --- Offers -------------------------------------------------------
   getTaxonomy: (tenantId: string = TENANT) =>
-    apiCall<TaxonomyDto>(`/taxonomy/${tenantId}`),
+    apiCall<TaxonomyDto>('getTaxonomy', { params: { tenantId } }),
 
   listOffers: (
     filters: { objectiveId?: string; categoryId?: string; status?: string; q?: string } = {},
     tenantId: string = TENANT
   ) =>
-    apiCall<{ offers: OfferDto[]; total: number }>(
-      `/offers/${tenantId}`,
-      { query: filters }
-    ),
+    apiCall<{ offers: OfferDto[]; total: number }>('listOffers', {
+      params: { tenantId },
+      query: filters,
+    }),
 
   getOffer: (offerId: string, tenantId: string = TENANT) =>
-    apiCall<OfferDetailDto>(`/offers/${tenantId}/${offerId}`),
+    apiCall<OfferDetailDto>('getOffer', { params: { tenantId, offerId } }),
 
   listCreatives: (offerId: string, tenantId: string = TENANT) =>
-    apiCall<{ creatives: CreativeDto[] }>(`/creatives/${tenantId}/${offerId}`),
+    apiCall<{ creatives: CreativeDto[] }>('listCreatives', {
+      params: { tenantId, offerId },
+    }),
 
   updateOffer: (
     offerId: string,
     changes: Partial<OfferDto>,
     tenantId: string = TENANT
   ) =>
-    apiCall<OfferDto>(`/offers/${tenantId}/${offerId}`, {
-      method: 'PUT',
+    apiCall<OfferDto>('updateOffer', {
+      params: { tenantId, offerId },
       body: changes,
     }),
 
   // --- Policies and arbitration -------------------------------------------
   listTargetingPolicies: (kind?: string, tenantId: string = TENANT) =>
-    apiCall<{ policies: TargetingPolicyDto[] }>(`/targeting-policies/${tenantId}`, {
+    apiCall<{ policies: TargetingPolicyDto[] }>('listTargetingPolicies', {
+      params: { tenantId },
       query: { kind },
     }),
 
   listFrequencyPolicies: (tenantId: string = TENANT) =>
-    apiCall<{ policies: FrequencyPolicyDto[] }>(`/frequency-policies/${tenantId}`),
+    apiCall<{ policies: FrequencyPolicyDto[] }>('listFrequencyPolicies', {
+      params: { tenantId },
+    }),
 
   getArbitration: (tenantId: string = TENANT) =>
-    apiCall<{ config: ArbitrationConfigDto; boosts: BoostDto[] }>(`/arbitration/${tenantId}`),
+    apiCall<{ config: ArbitrationConfigDto; boosts: BoostDto[] }>('getArbitrationConfig', {
+      params: { tenantId },
+    }),
 
   updateArbitration: (
     weights: ArbitrationConfigDto['weights'],
     tenantId: string = TENANT
   ) =>
-    apiCall<ArbitrationConfigDto>(`/arbitration/${tenantId}`, {
-      method: 'PUT',
+    apiCall<ArbitrationConfigDto>('updateArbitrationConfig', {
+      params: { tenantId },
       body: { weights },
     }),
 
   // --- Agentic ------------------------------------------------------------
   listAutonomySettings: (tenantId: string = TENANT) =>
-    apiCall<{ settings: AutonomySettingDto[] }>(`/autonomy/${tenantId}`),
+    apiCall<{ settings: AutonomySettingDto[] }>('listAutonomySettings', {
+      params: { tenantId },
+    }),
 
   updateAutonomySetting: (
     setting: Pick<AutonomySettingDto, 'id'> & Partial<AutonomySettingDto>,
     tenantId: string = TENANT
   ) =>
-    apiCall<AutonomySettingDto>(`/autonomy/${tenantId}`, { method: 'PUT', body: setting }),
+    apiCall<AutonomySettingDto>('updateAutonomySetting', {
+      params: { tenantId },
+      body: setting,
+    }),
 
   listAgentActivity: (
     filters: { outcome?: string; limit?: number } = {},
     tenantId: string = TENANT
-  ) => apiCall<{ activity: AgentActivityDto[] }>(`/agent-activity/${tenantId}`, { query: filters }),
+  ) => apiCall<{ activity: AgentActivityDto[] }>('listAgentActivity', {
+      params: { tenantId },
+      query: filters,
+    }),
 
   // --- Decisions ----------------------------------------------------------
   searchDecisions: (filters: DecisionSearchFilters = {}) =>
-    apiCall<{ decisions: DecisionDto[]; total: number }>('/decisions/search', {
+    apiCall<{ decisions: DecisionDto[]; total: number }>('searchDecisions', {
       query: filters as Record<string, string | number | undefined>,
     }),
 
   getDecisionRecord: (decisionId: string) =>
-    apiCall<TraceDto>(`/decisions/${decisionId}/trace`),
+    apiCall<TraceDto>('getDecisionRecord', { params: { decisionId } }),
 
   replayDecision: (decisionId: string) =>
-    apiCall<ReplayResultDto>(`/decisions/${decisionId}/replay`, { method: 'POST' }),
+    apiCall<ReplayResultDto>('replayDecision', { params: { decisionId } }),
 
   // --- Governance ---------------------------------------------------------
   listChangeSets: (status?: string) =>
-    apiCall<{ changeSets: ChangeSetDto[]; total: number }>('/change-sets', {
+    apiCall<{ changeSets: ChangeSetDto[]; total: number }>('listChangeSets', {
       query: { status },
     }),
 
-  getChangeSet: (id: string) => apiCall<ChangeSetDto>(`/change-sets/${id}`),
+  getChangeSet: (id: string) => apiCall<ChangeSetDto>('getChangeSet', { params: { changeSetId: id } }),
 
   approveChangeSet: (id: string) =>
-    apiCall<ChangeSetDto>(`/change-sets/${id}/approve`, { method: 'POST' }),
+    apiCall<ChangeSetDto>('approveChangeSet', { params: { changeSetId: id } }),
 
   rejectChangeSet: (id: string, reason: string) =>
-    apiCall<ChangeSetDto>(`/change-sets/${id}/reject`, {
-      method: 'POST',
+    apiCall<ChangeSetDto>('rejectChangeSet', {
+      params: { changeSetId: id },
       body: { reason },
     }),
 
   getAuditLog: (limit = 100) =>
-    apiCall<{ events: AuditEventDto[]; total: number }>('/audit', { query: { limit } }),
+    apiCall<{ events: AuditEventDto[]; total: number }>('listAuditEvents', {
+      query: { limit },
+    }),
 
   // --- Integrations -------------------------------------------------------
   listConnectors: (tenantId: string = TENANT) =>
-    apiCall<{ connectors: ConnectorDto[] }>(`/connectors/${tenantId}`),
+    apiCall<{ connectors: ConnectorDto[] }>('listConnectors', { params: { tenantId } }),
 
   updateConnector: (connector: ConnectorDto, tenantId: string = TENANT) =>
-    apiCall<ConnectorDto>(`/connectors/${tenantId}/${connector.id}`, {
-      method: 'PUT',
+    apiCall<ConnectorDto>('updateConnector', {
+      params: { tenantId, connectorId: connector.id },
       body: connector,
     }),
 
@@ -226,12 +303,15 @@ export const apiClient = {
       flowName: string;
       versions: PublishedVersionDto[];
       environments: EnvironmentStateDto[];
-    }>(`/registry/${tenantId}/${flowName}`),
+    }>('getRegistryEntry', { params: { tenantId, flowName } }),
 
   listRegistryEvents: (
     filters: { flowName?: string; limit?: number } = {},
     tenantId: string = TENANT
-  ) => apiCall<{ events: RegistryEventDto[] }>(`/registry/${tenantId}/events`, { query: filters }),
+  ) => apiCall<{ events: RegistryEventDto[] }>('listRegistryEvents', {
+      params: { tenantId },
+      query: filters,
+    }),
 
   promoteVersion: (
     flowName: string,
@@ -239,14 +319,14 @@ export const apiClient = {
     environment: string,
     tenantId: string = TENANT
   ) =>
-    apiCall<EnvironmentStateDto>(`/registry/${tenantId}/${flowName}/promote`, {
-      method: 'POST',
+    apiCall<EnvironmentStateDto>('promoteVersion', {
+      params: { tenantId, flowName },
       body: { version, environment },
     }),
 
   rollbackVersion: (flowName: string, environment: string, tenantId: string = TENANT) =>
-    apiCall<EnvironmentStateDto>(`/registry/${tenantId}/${flowName}/rollback`, {
-      method: 'POST',
+    apiCall<EnvironmentStateDto>('rollbackVersion', {
+      params: { tenantId, flowName },
       body: { environment },
     }),
 
@@ -257,20 +337,22 @@ export const apiClient = {
     environment: string,
     tenantId: string = TENANT
   ) =>
-    apiCall<EnvironmentStateDto>(`/registry/${tenantId}/${flowName}/shadow`, {
-      method: 'POST',
+    apiCall<EnvironmentStateDto>('setShadow', {
+      params: { tenantId, flowName },
       body: { version, environment },
     }),
 
   getShadowReport: (flowName: string, tenantId: string = TENANT) =>
-    apiCall<ShadowReportDto>(`/registry/${tenantId}/${flowName}/shadow-report`),
+    apiCall<ShadowReportDto>('getShadowReport', { params: { tenantId, flowName } }),
 
   // --- Flows ---------------------------------------------------------
   listArtifacts: (tenantId: string = TENANT) =>
-    apiCall<{ artifacts: ArtifactSummaryDto[] }>(`/artifacts/${tenantId}`),
+    apiCall<{ artifacts: ArtifactSummaryDto[] }>('listArtifacts', { params: { tenantId } }),
 
   getArtifact: (artifactId: string, tenantId: string = TENANT) =>
-    apiCall<ArtifactSummaryDto>(`/artifacts/${tenantId}/${artifactId}`),
+    apiCall<ArtifactSummaryDto>('getArtifactSummary', {
+      params: { tenantId, artifactId },
+    }),
 };
 
 // ---------------------------------------------------------------------------
