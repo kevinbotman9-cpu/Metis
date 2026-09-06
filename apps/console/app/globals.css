@@ -43,10 +43,17 @@
   --text-subtle: var(--n-600);
   --text-inverse: 255 255 255;
 
-  /* Brand + state */
-  --accent: 37 99 199;
-  --accent-hover: 29 78 160;
-  --accent-subtle: 232 240 252;
+  /* Brand + state.
+     Teal, adopted 2026-09-05 from the Drawer direction. The reference value
+     was #0E7C6E; it measured 4.45:1 on --surface-sunken and 4.49:1 on its own
+     subtle tint, so it broke the invariant two comments above — every step
+     clears 4.5:1 against both --surface and --surface-sunken. Darkened to
+     #0D7366, which holds at 5.74 / 5.02 / 5.29 across surface, sunken and
+     page, with the subtle tint lightened so the accent-on-subtle pair is not
+     the binding constraint. */
+  --accent: 13 115 102;
+  --accent-hover: 10 90 80;
+  --accent-subtle: 232 245 242;
   /* Text placed ON a strong fill. In dark mode the fills become light, so
      this flips to near-black — white on the dark-mode accent measured 2.75:1. */
   --on-accent: 255 255 255;
@@ -64,9 +71,9 @@
      A saturated band across the top, deliberately outside the neutral ramp and
      identical in both themes: it is the frame, not content. White measures
      13.5:1 on the burgundy end, so everything on it clears AA comfortably. */
-  --header-from: 88 20 52;
-  --header-via: 71 19 62;
-  --header-to: 45 18 72;
+  --header-from: 14 71 68;
+  --header-via: 12 51 64;
+  --header-to: 10 42 51;
   --on-header: 255 255 255;
   --header-border: 122 44 84;
 
@@ -150,11 +157,12 @@
   --text-muted: var(--n-700);
   --text-subtle: var(--n-600);
 
-  /* Saturated enough to carry a dark canvas. The previous accent was a muted
-     mid-blue that disappeared against it. */
-  --accent: 77 163 255;
-  --accent-hover: 122 186 255;
-  --accent-subtle: 20 42 74;
+  /* Saturated enough to carry a dark canvas. Measured against this block's own
+     ramp, which is a step darker than the media-query one: 9.43 on surface,
+     8.46 on sunken. */
+  --accent: 79 209 185;
+  --accent-hover: 111 220 199;
+  --accent-subtle: 18 49 44;
   --on-accent: 8 10 14;
   --on-block: 8 10 14;
   --pass: 62 207 142;
@@ -202,9 +210,9 @@
     --text: var(--n-900);
     --text-muted: var(--n-700);
     --text-subtle: var(--n-600);
-    --accent: 96 155 255;
-    --accent-hover: 130 176 255;
-    --accent-subtle: 24 42 70;
+    --accent: 79 209 185;
+    --accent-hover: 111 220 199;
+    --accent-subtle: 18 49 44;
     --on-accent: 13 17 24;
     --on-block: 13 17 24;
     --pass: 74 190 133;

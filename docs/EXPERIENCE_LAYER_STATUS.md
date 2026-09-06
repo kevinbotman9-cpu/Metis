@@ -50,7 +50,7 @@ Nothing is marked BUILT unless a test would fail if it broke.
 |---|---|---|
 | `/login` | BUILT | Three demo accounts with different roles. Session restore, guard, logout. |
 | `/` | BUILT | Catalogue counts, decision volume, approval queue, agent activity. |
-| `/offers` | BUILT | Objective › Category tree with counts, sortable catalogue, search and status filter. |
+| `/offers` | BUILT | Objective › Category tree, sortable catalogue, search and status filter. The summary figures are the filter, creative coverage is a bar rather than a count, and a row opens a detail drawer with paging — see the note below. |
 | `/offers/[id]` | BUILT | Financials, per-channel creatives, three-tier policy, resolved autonomy. |
 | `/targeting-policies` | BUILT | Eligibility / relevance / suitability with conditions rendered. |
 | `/frequency-policy` | BUILT | Frequency caps, cooldowns, scope. |
@@ -75,7 +75,7 @@ Nothing is marked BUILT unless a test would fail if it broke.
 |---|---|---|
 | Auth | BUILT | Role-filtered nav; actions gated in the UI *and* refused server-side (403). |
 | Persistence | BUILT | In-memory store, process-lifetime. Writes are audited. `POST /api/_test/reset` restores the seed. |
-| Design tokens | BUILT | RGB-channel custom properties. Dark mode is a token swap. |
+| Design tokens | BUILT | RGB-channel custom properties. Dark mode is a token swap. Accent moved from blue to teal on 2026-09-05 — see the note on the offer catalogue below. |
 | Density | BUILT | compact / comfortable drive row height, padding and type scale. |
 | Data grid | BUILT | Windowed above 80 rows: 5,000 decisions render ~30 DOM rows. Sortable, keyboard-operable, responsive column hiding. |
 | Search | BUILT | One box with facet suggestions and dismissible chips, replacing a labelled input per parameter. |
@@ -415,6 +415,83 @@ Recorded because the same script will be wanted again:
   Kotlin service route — and only one of those four is covered by a typecheck.
 
 ---
+
+## The offer catalogue, 2026-09-05
+
+Four design directions were built and reviewed against real catalogue data.
+The one adopted is master-detail, on the argument that the question people
+bring to an offer is not what it costs but where it is used and what breaks if
+it changes. Two ideas were taken from the directions that were not adopted,
+because both are component improvements rather than style: coverage as a bar
+instead of a count, and summary figures that are also the filter.
+
+### What changed
+
+- **The summary is the filter.** Four inert `Metric` tiles became a
+  `FilterBlocks` radio group. Previously you could read "1 cannot be delivered"
+  and then had to construct that filter by hand. Two of the four lenses are not
+  statuses and could not be expressed by the status dropdown: *blocked* is
+  derived (no creative **and** not retired, so it will actually stop a publish)
+  and *boosted* is a catalogue property.
+- **Coverage, not a count.** `CoverageBar` renders zero as a full block-coloured
+  track rather than an empty one. Zero is not one less than one — it is the
+  state where the compiler refuses to publish. An empty bar reads as "nothing
+  measured yet".
+- **A drawer, not a navigation.** Rows open `OfferDrawer` over the list, so a
+  reviewer walking the catalogue keeps their filter and scroll position. Paging
+  moves through the *filtered* list: narrowed to the undeliverable offers, next
+  means the next one of those. The full record is still a route and still
+  linked, so nothing lives only in the drawer.
+- **Which offer is open lives in the URL.** Navigation state belongs there per
+  the architecture decisions: the back button closes the drawer instead of
+  leaving the page, and a reviewer can send someone the offer they are looking
+  at.
+
+### The accent moved from blue to teal
+
+`--accent` is now `13 115 102`, from `37 99 199`. The reference value for the
+direction was `#0E7C6E`, and it did not survive contact with this token system:
+it measured **4.45:1 on `--surface-sunken`** and **4.49:1 on its own subtle
+tint**, against the invariant this file's own token comment states — every step
+clears 4.5:1 on both `--surface` and `--surface-sunken`. Darkened to `#0D7366`,
+which holds at 5.74 / 5.02 / 5.29 across surface, sunken and page, with the
+subtle tint lightened so the accent-on-subtle pair is not the binding
+constraint.
+
+There are **three** accent definitions, not two — the bare `:root`, an explicit
+`:root[data-theme='dark']` with its own darker ramp, and the
+`prefers-color-scheme` block. The first pass missed the middle one. Dark
+measures 9.43 on surface and 8.46 on sunken against that block's ramp.
+
+The header band moved from burgundy to petrol so it does not fight the accent;
+white clears 10.48:1 on its lightest stop.
+
+### What writing the tests found
+
+- **The `aria-label` on the paging controls.** The first version put only the
+  offer name on them, so a screen reader announced "Data Boost +10GB, button" —
+  a destination with no action. They now read "Next offer: Data Boost +10GB".
+  The E2E test could not find the control, which is how it surfaced.
+- **A test that measured the loading state.** The first version read the
+  "cannot be delivered" figure as soon as the `h1` appeared and concluded the
+  seed had no undeliverable offer. The heading renders before the catalogue
+  query resolves and the blocks count an empty array until it does. The fixture
+  does contain one; the test was reading too early.
+- **Radix hides the page behind a modal, correctly.** An assertion that the
+  catalogue heading was still visible with the drawer open failed, because
+  `aria-hidden` on the rest of the page is what a modal dialog is supposed to
+  do. The test now proves the list was never left by closing and finding the
+  heading again.
+
+### Not done
+
+- **Typeface.** The direction used DM Sans; the console stays on Inter. Changing
+  the body face touches every screen and every visual assertion, and is a
+  separate change from the structure and palette adopted here.
+- **The other two directions.** Rail's KPI-stack-as-navigation and Sand's card
+  treatment are not shipped. Shipping all three as live options would mean three
+  layouts of every screen across four existing theme axes — twelve combinations
+  per component, each needing a story and an axe pass.
 
 ## Ranking functions became typed and versioned, 2026-09-05
 
