@@ -10,8 +10,7 @@
  * the store is stashed on globalThis to survive a hot reload.
  */
 
-import { InMemoryIdempotencyStore } from '@metis/runtime';
-import type { DecisionRecord } from '@metis/runtime';
+import { DecisionLedger, InMemoryLedgerStore } from '@metis/ledger';
 import {
   objectives as seedObjectives,
   categories as seedCategories,
@@ -44,16 +43,16 @@ type Store = {
   targetingPolicies: typeof seedTargetingPolicies;
   frequencyPolicies: typeof seedFrequencyPolicies;
   arbitration: typeof seedArbitration;
-  /** Keys seen this process. Cleared by the test reset, like everything else. */
-  idempotency: InMemoryIdempotencyStore;
   /**
-   * Engine traces executed this process, by decision id.
+   * The decision ledger: records, outcomes and idempotency keys.
    *
-   * Separate from the seeded `decisions` fixtures, which are the console's
-   * flattened display shape rather than engine output. Idempotent replay has
-   * to return the decision that was actually made, so it needs the real thing.
+   * Replaces the two ad-hoc maps this used to carry. In development it is the
+   * in-memory store, so it still forgets on restart — but the rules are now
+   * the ledger's, and the same behaviour suite runs them against PostgreSQL.
    */
-  executed: Map<string, DecisionRecord>;
+  ledger: DecisionLedger;
+  /** The concrete store, so the test reset can clear it. */
+  ledgerStore: InMemoryLedgerStore;
   boosts: typeof seedBoosts;
   autonomy: typeof seedAutonomy;
   activity: typeof seedActivity;
@@ -88,6 +87,7 @@ function seed(): Store {
   const registryStore = new InMemoryRegistryStore();
   const registry = new ArtifactRegistry(registryStore);
   const registryReady = seedRegistry(registry);
+  const ledgerStore = new InMemoryLedgerStore();
   return {
     objectives: clone(seedObjectives),
     categories: clone(seedCategories),
@@ -96,8 +96,8 @@ function seed(): Store {
     targetingPolicies: clone(seedTargetingPolicies),
     frequencyPolicies: clone(seedFrequencyPolicies),
     arbitration: clone(seedArbitration),
-    idempotency: new InMemoryIdempotencyStore(),
-    executed: new Map(),
+    ledger: new DecisionLedger(ledgerStore),
+    ledgerStore,
     boosts: clone(seedBoosts),
     autonomy: clone(seedAutonomy),
     activity: clone(seedActivity),

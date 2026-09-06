@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "build": "tsc --build",
-    "test": "npm run test:integration && npm run test:runtime && npm run test:compiler && npm run test:registry && npm run test:bench && npm run test:console",
+    "test": "npm run test:integration && npm run test:runtime && npm run test:compiler && npm run test:registry && npm run test:ledger && npm run test:bench && npm run test:console",
     "lint": "eslint packages bench --ext .ts",
     "dev": "docker-compose up",
     "generate": "npm run generate -w @metis/client",
@@ -24,6 +24,7 @@
     "test:integration": "vitest run --config ./vitest.config.ts",
     "test:compiler": "npm --prefix packages/compiler run test",
     "test:registry": "npm --prefix packages/registry run test",
+    "test:ledger": "npm --prefix packages/ledger run test",
     "test:bench": "npm --prefix bench/harness run test",
     "bench": "npm --prefix bench/harness run bench"
   },

@@ -551,3 +551,77 @@ do not see spurious conflicts.
   output, and converting between them is the ledger's job. Idempotent replay
   works because it keeps the real engine trace separately; the trace endpoint
   was left alone rather than half-fixed with a shim.
+
+---
+
+## The decision ledger, 2026-09-05
+
+§6: *synchronously durably record the minimum decision envelope; asynchronously
+enrich.* `packages/ledger` follows the registry's shape exactly, because that
+pattern is proven: the rules live in `DecisionLedger`, the store only persists,
+and **one behaviour suite runs against both stores** — 21 assertions each,
+in-memory and a real PostgreSQL. That is what makes "durable storage changes
+nothing" a checked claim rather than an assurance.
+
+### What is stored, and what is not
+
+The engine record goes in whole, as `jsonb`, for the same reason the registry
+stores a compiled artifact whole: the chain hash is taken over that exact
+shape, and decomposing it into columns would put a serialisation between the
+record and its own hash. The columns beside it are not a second copy of the
+truth — they are the handful of fields a query needs, because you cannot index
+into `jsonb` and still satisfy §8's "index by tenant, subject and time".
+
+**The customer reference is not stored in clear.** `subject_hash` is a one-way
+digest, salted per tenant. "Every decision about this customer" is a
+right-of-access query and should be answerable without the audit store becoming
+a second copy of the customer database; the salt is there so two tenants cannot
+confirm they share a customer by comparing ledgers.
+
+### Immutability, twice
+
+`decision_records` and `outcome_events` carry triggers rejecting UPDATE and
+DELETE, and the suite asserts them — a convention enforced only in application
+code survives exactly until somebody writes a migration script. Foreign keys
+refuse an outcome or an idempotency key pointing at a decision that does not
+exist, so a pointer cannot outlive its target.
+
+`idempotency_keys` is deliberately **not** append-only. It is a cache of a
+promise rather than a record of an event: expiring a key is a normal
+operational act, and a table nobody can prune grows without limit. The promise
+itself is safe because the decision it points at cannot change.
+
+### What this closed
+
+Two things Stage 4 left open:
+
+- **Idempotency is durable.** It was process memory, so a retry arriving after
+  a restart got a second decision under a key that had already promised one.
+  The suite asserts a reopened ledger still replays.
+- **A freshly executed decision can be fetched.** `POST /decisions` used to
+  return an id that `GET /decisions/{id}/trace` said did not exist — the seeded
+  decisions were findable and real ones were not. The trace route now falls
+  through to the ledger, and the seeded ones still resolve.
+
+### Outcomes
+
+`POST /outcomes/{tenantId}/{decisionId}` links impression, click, acceptance,
+rejection and conversion back to a decision. Storage only; learning is a later
+gate, and a table that quietly fed a model would be the opposite of the point.
+
+Two details that are easy to get wrong and expensive to fix later: `occurredAt`
+is required and never defaulted to the clock, the same rule the decision
+follows; and `valueMinor` is null rather than zero when an outcome carries no
+value, because a click is not a conversion worth nothing and averaging over
+zeros would say it was.
+
+### Not done
+
+- The console still runs the **in-memory** store, so it forgets on restart. The
+  rules are the ledger's now and `METIS_DATABASE_URL` selects PostgreSQL, but
+  nothing in the development flow sets it.
+- `searchDecisions` still reads the seeded fixtures rather than querying the
+  ledger. The ledger's `query` is built and tested — including the
+  subject-and-window access pattern — but repointing the search surface means
+  reconciling the console's flattened display shape with engine output, and
+  that is a change worth making on its own.

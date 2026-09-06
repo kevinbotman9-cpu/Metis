@@ -267,6 +267,19 @@ export interface ScoreBreakdown {
   priority: number;
 }
 
+/** Something that happened to a decision afterwards. Storage only — nothing learns from these yet, and a table that quietly fed a model would be the opposite of the point.
+ */
+export interface OutcomeEvent {
+  decisionId: string;
+  type: "impression" | "click" | "acceptance" | "rejection" | "conversion";
+  occurredAt: string;
+  /** Realised value in minor units, where the outcome carries one. Null rather than zero when there is none: a click is not a conversion worth nothing, and averaging over zeros would say it was.
+ */
+  valueMinor: number | null;
+  /** Whatever the channel reported. Never read by the engine. */
+  detail?: Record<string, unknown>;
+}
+
 export interface ConsentState {
   marketing: boolean;
   profiling: boolean;
@@ -779,6 +792,13 @@ export const OPERATIONS = {
     queryParams: ['objectiveId', 'categoryId', 'status', 'q'],
     statuses: ['200'],
   },
+  listOutcomes: {
+    method: 'GET',
+    path: '/outcomes/{tenantId}/{decisionId}',
+    pathParams: ['tenantId', 'decisionId'],
+    queryParams: [],
+    statuses: ['200'],
+  },
   listRegistryEvents: {
     method: 'GET',
     path: '/registry/{tenantId}/events',
@@ -820,6 +840,13 @@ export const OPERATIONS = {
     pathParams: ['tenantId', 'flowName'],
     queryParams: [],
     statuses: ['201', '403', '409'],
+  },
+  recordOutcome: {
+    method: 'POST',
+    path: '/outcomes/{tenantId}/{decisionId}',
+    pathParams: ['tenantId', 'decisionId'],
+    queryParams: [],
+    statuses: ['201', '404'],
   },
   rejectChangeSet: {
     method: 'POST',
@@ -1027,6 +1054,11 @@ export type ListOffersResponse = {
   total: number;
 };
 
+/** Outcomes recorded against a decision */
+export type ListOutcomesResponse = {
+  outcomes: OutcomeEvent[];
+};
+
 /** The registry's append-only log */
 export type ListRegistryEventsResponse = {
   events: RegistryEvent[];
@@ -1065,6 +1097,15 @@ export type PublishArtifactRequest = {
   version: string;
   /** The flow as authored, before compilation. */
   source: Record<string, unknown>;
+};
+
+/** Record what happened to a decision */
+export type RecordOutcomeResponse = OutcomeEvent;
+export type RecordOutcomeRequest = {
+  type: "impression" | "click" | "acceptance" | "rejection" | "conversion";
+  occurredAt: string;
+  valueMinor?: number | null;
+  detail?: Record<string, unknown>;
 };
 
 /** Reject a change set */
@@ -1144,12 +1185,14 @@ export interface ResponseOf {
   listCreatives: ListCreativesResponse;
   listFrequencyPolicies: ListFrequencyPoliciesResponse;
   listOffers: ListOffersResponse;
+  listOutcomes: ListOutcomesResponse;
   listRegistryEvents: ListRegistryEventsResponse;
   listRegistryFlows: ListRegistryFlowsResponse;
   listTargetingPolicies: ListTargetingPoliciesResponse;
   login: LoginResponse;
   promoteVersion: PromoteVersionResponse;
   publishArtifact: PublishArtifactResponse;
+  recordOutcome: RecordOutcomeResponse;
   rejectChangeSet: RejectChangeSetResponse;
   replayDecision: ReplayDecisionResponse;
   rollbackVersion: RollbackVersionResponse;

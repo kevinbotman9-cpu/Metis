@@ -16,11 +16,8 @@
 import { NextResponse } from 'next/server';
 import { store, resetStore, recordAudit } from '@/mocks/store';
 import { findTrace, decisions } from '@/mocks/fixtures/decisions';
-import {
-  requestHash,
-  classify,
-  IdempotencyConflict,
-} from '@metis/runtime';
+import { IdempotencyConflict } from '@metis/runtime';
+import type { OutcomeType } from '@metis/ledger';
 import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
 import { compilations, findCompilation, compileContext } from '@/mocks/fixtures/compiled';
 import type { DecisionFlowSource } from '@metis/compiler/decision-flow';
@@ -193,10 +190,33 @@ export async function GET(req: Request, { params }: Ctx) {
 
       if (rest[1] === 'trace') {
         const trace = findTrace(rest[0]);
-        if (!trace) return notFound(`No decision with id ${rest[0]}`);
-        return json(trace);
+        if (trace) return json(trace);
+        // Seeded decisions are the console's flattened display shape; anything
+        // executed since is in the ledger as real engine output. Before the
+        // ledger existed, POST /decisions returned an id this endpoint then
+        // said did not exist.
+        // The development store is single-tenant, and the trace route
+        // carries no tenant segment. A multi-tenant deployment resolves this
+        // from the caller's session rather than a constant.
+        const entry = await store.ledger.get('telco-uk', rest[0]);
+        if (entry) return json(entry.record);
+        return notFound(`No decision with id ${rest[0]}`);
       }
       return notFound();
+    }
+
+    case 'outcomes': {
+      // GET /api/outcomes/{tenantId}/{decisionId}
+      const [tenantId, decisionId] = rest;
+      if (!tenantId || !decisionId) return notFound();
+      // Existence is the same question the trace route asks: seeded decisions
+      // are real to this console even though they predate the ledger. A
+      // decision with no outcomes yet is an empty list, not a 404 — "nothing
+      // happened" and "no such decision" are different answers.
+      const known =
+        Boolean(findTrace(decisionId)) || Boolean(await store.ledger.get(tenantId, decisionId));
+      if (!known) return notFound(`No decision with id ${decisionId}`);
+      return json({ outcomes: await store.ledger.outcomesFor(tenantId, decisionId) });
     }
 
     case 'change-sets': {
@@ -311,6 +331,51 @@ export async function POST(req: Request, { params }: Ctx) {
       return json({ token: `metis.${user.id}`, user: publicUser(user) });
     }
 
+    case 'outcomes': {
+      // POST /api/outcomes/{tenantId}/{decisionId}
+      //
+      // The decision must exist. An outcome for one nobody made is a
+      // mis-routed event or a mis-typed id, and storing it would leave a row
+      // that can never be joined to anything — found years later by whoever
+      // tries to measure uplift.
+      const [tenantId, decisionId] = rest;
+      if (!tenantId || !decisionId) return notFound();
+
+      const body = (await req.json().catch(() => null)) as {
+        type?: OutcomeType;
+        occurredAt?: string;
+        valueMinor?: number | null;
+        detail?: Record<string, unknown>;
+      } | null;
+      if (!body) return json({ error: 'bad_request', message: 'Request body must be JSON' }, 400);
+      if (!body.type) {
+        return json({ error: 'bad_request', message: 'Missing required field: type' }, 400);
+      }
+      if (!body.occurredAt) {
+        // An input, never the clock — the same rule the decision itself
+        // follows, and the reason an outcome can be replayed alongside it.
+        return json({ error: 'bad_request', message: 'Missing required field: occurredAt' }, 400);
+      }
+
+      const event = {
+        tenantId,
+        decisionId,
+        type: body.type,
+        occurredAt: body.occurredAt,
+        // Explicitly null when absent: an impression is not a conversion worth
+        // nothing, and defaulting to 0 would say it was.
+        valueMinor: body.valueMinor ?? null,
+        ...(body.detail ? { detail: body.detail } : {}),
+      };
+
+      try {
+        await store.ledger.recordOutcome(event);
+      } catch (e) {
+        return json({ error: 'not_found', message: (e as Error).message }, 404);
+      }
+      return json(event, 201);
+    }
+
     case 'decisions': {
       // POST /api/decisions — make a decision.
       //
@@ -369,53 +434,62 @@ export async function POST(req: Request, { params }: Ctx) {
           correlationId: body.request.correlationId,
         };
 
-        // Idempotency, before execution rather than after.
+        // Idempotency and durability, through the ledger.
         //
-        // Executing and then discovering the key was taken would be wasted
-        // work in the happy case and, in the conflict case, would have already
-        // made a decision the caller must not be given.
-        const key = decisionRequest.idempotencyKey;
-        if (key) {
-          const attempted = requestHash(decisionRequest);
-          const outcome = classify(await store.idempotency.get(decisionRequest.tenantId, key), attempted);
+        // Resolved before execution: executing and then discovering the key was
+        // taken would be wasted work on a retry and, on a conflict, would have
+        // already made a decision the caller must not be given.
+        const resolved = await store.ledger.resolve(decisionRequest);
 
-          if (outcome.kind === 'conflict') {
-            const e = new IdempotencyConflict(key, outcome.record.requestHash, attempted);
-            return json({ error: 'idempotency_conflict', message: e.message }, 409);
-          }
-          if (outcome.kind === 'replay') {
-            const prior = store.executed.get(outcome.record.decisionId);
-            if (prior) {
-              // The original decision, not a fresh one that happens to match.
-              // Re-executing would usually agree, and the one time it did not
-              // — a catalogue edit between the two calls — the caller would
-              // silently get a different answer to the same question.
-              return json(
-                { id: prior.id, decision: prior.decision, chainHash: prior.chainHash },
-                200,
-                { 'Idempotent-Replay': 'true' }
-              );
-            }
-          }
+        if (resolved.kind === 'conflict') {
+          const e = new IdempotencyConflict(
+            decisionRequest.idempotencyKey as string,
+            resolved.storedHash,
+            resolved.attemptedHash
+          );
+          return json({ error: 'idempotency_conflict', message: e.message }, 409);
+        }
+
+        if (resolved.kind === 'replay') {
+          // The original decision, not a re-execution that happens to agree.
+          // A catalogue edit between the two calls is all it takes for it not
+          // to agree, and the caller asked one question.
+          const prior = resolved.entry.record;
+          return json(
+            { id: prior.id, decision: prior.decision, chainHash: prior.chainHash },
+            200,
+            { 'Idempotent-Replay': 'true' }
+          );
         }
 
         const trace = executeDecision(artifact, catalogueSnapshot, decisionRequest);
 
+        // Recorded synchronously, before answering. §6 asks for the envelope to
+        // be durable before the caller is told what was decided — a decision
+        // the platform made and cannot produce afterwards is worse than one it
+        // failed to make.
+        await store.ledger.record(store.ledger.entryFor(trace, decisionRequest.tenantId));
+
+        const key = decisionRequest.idempotencyKey;
         if (key) {
-          // The store decides which write wins under a race, so use what comes
-          // back rather than assuming ours landed.
-          const stored = await store.idempotency.put({
+          const claimed = await store.ledger.claim({
             tenantId: decisionRequest.tenantId,
             key,
-            requestHash: requestHash(decisionRequest),
+            requestHash: resolved.hash,
             decisionId: trace.id,
             storedAt: new Date().toISOString(),
           });
-          if (stored.decisionId !== trace.id) {
-            const winner = store.executed.get(stored.decisionId);
+          // The store decides which claim wins under a race; use what comes
+          // back rather than assuming ours landed.
+          if (claimed.decisionId !== trace.id) {
+            const winner = await store.ledger.get(decisionRequest.tenantId, claimed.decisionId);
             if (winner) {
               return json(
-                { id: winner.id, decision: winner.decision, chainHash: winner.chainHash },
+                {
+                  id: winner.record.id,
+                  decision: winner.record.decision,
+                  chainHash: winner.record.chainHash,
+                },
                 200,
                 { 'Idempotent-Replay': 'true' }
               );
@@ -423,10 +497,6 @@ export async function POST(req: Request, { params }: Ctx) {
           }
         }
 
-        // Kept whether or not a key was supplied, so an idempotent replay has
-        // the original decision to return rather than a re-execution that
-        // happens to agree. Process-lifetime; the durable ledger replaces it.
-        store.executed.set(trace.id, trace);
         return json({ id: trace.id, decision: trace.decision, chainHash: trace.chainHash });
       }
 

@@ -610,6 +610,33 @@ components:
         priority:
           type: number
 
+    OutcomeEvent:
+      type: object
+      description: >
+        Something that happened to a decision afterwards. Storage only —
+        nothing learns from these yet, and a table that quietly fed a model
+        would be the opposite of the point.
+      required: [decisionId, type, occurredAt, valueMinor]
+      properties:
+        decisionId:
+          type: string
+        type:
+          type: string
+          enum: [impression, click, acceptance, rejection, conversion]
+        occurredAt:
+          type: string
+          format: date-time
+        valueMinor:
+          type: [integer, 'null']
+          description: >
+            Realised value in minor units, where the outcome carries one. Null
+            rather than zero when there is none: a click is not a conversion
+            worth nothing, and averaging over zeros would say it was.
+        detail:
+          type: object
+          description: Whatever the channel reported. Never read by the engine.
+          additionalProperties: true
+
     ConsentState:
       type: object
       required: [marketing, profiling, thirdParty]
@@ -2056,6 +2083,81 @@ paths:
                 $ref: '#/components/schemas/ChangeSet'
         '403':
           description: Caller lacks approve:changes
+
+  /outcomes/{tenantId}/{decisionId}:
+    post:
+      summary: Record what happened to a decision
+      description: |
+        Links an impression, click, acceptance, rejection or conversion back to
+        the decision that produced it.
+
+        The decision must already exist. An outcome for a decision nobody made
+        is a mis-routed event or a mis-typed id, and storing it would put a row
+        in the ledger that can never be joined to anything — the kind of orphan
+        found years later when someone tries to measure uplift.
+
+        Append-only, like the decision it points at. Storage only: learning
+        from outcomes is a later gate.
+      operationId: recordOutcome
+      x-metis-status: built
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: decisionId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, occurredAt]
+              properties:
+                type:
+                  type: string
+                  enum: [impression, click, acceptance, rejection, conversion]
+                occurredAt:
+                  type: string
+                  format: date-time
+                valueMinor:
+                  type: [integer, 'null']
+                detail:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '201':
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutcomeEvent'
+        '404':
+          description: No such decision, so nothing to attach the outcome to
+
+    get:
+      summary: Outcomes recorded against a decision
+      operationId: listOutcomes
+      x-metis-status: built
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: decisionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Outcomes, oldest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [outcomes]
+                properties:
+                  outcomes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OutcomeEvent'
 
   /audit:
     get:

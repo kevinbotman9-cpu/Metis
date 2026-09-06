@@ -80,6 +80,16 @@ jobs:
         run: npm run test:compiler
         working-directory: .
 
+      # The decision ledger: append-only records, outcomes and durable
+      # idempotency. Same shape as the registry — one behaviour suite run
+      # against memory and a real PostgreSQL, so "durable storage changes
+      # nothing" stays a checked claim.
+      - name: Ledger
+        run: npm run test:ledger
+        working-directory: .
+        env:
+          METIS_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/metis_registry_test
+
       # Nothing that fails to compile can enter the registry, so nothing that
       # fails to compile can be promoted to an environment.
       - name: Registry

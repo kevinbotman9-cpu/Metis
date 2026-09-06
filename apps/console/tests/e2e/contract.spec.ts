@@ -158,6 +158,10 @@ const SAFE_TO_CALL: Record<string, unknown | undefined> = {
  */
 const COVERED_BY_WRITE_SUITES = new Set([
   'updateConnector',
+  // Appends to the decision ledger, so it cannot be called speculatively here
+  // against an arbitrary decision id. ledger.spec.ts covers it, including the
+  // 404 for a decision nobody made and the required occurredAt.
+  'recordOutcome',
   // Registry writes: publishing, promoting and rolling back all mutate the
   // registry, and registry.spec.ts covers them with the reset discipline.
   'publishArtifact',
