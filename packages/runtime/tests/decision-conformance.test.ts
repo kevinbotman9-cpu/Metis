@@ -54,6 +54,35 @@ describe('decision conformance (ADR-003)', () => {
     expect(hashes.size).toBe(corpus.cases.length);
   });
 
+  /**
+   * A reason code the corpus never produces is a code no second engine is held
+   * to. Two of the eight shipped that way on the first pass — RELEVANCE_FAILED
+   * and SUITABILITY_FAILED — because the corpus had an eligibility case and
+   * neither of the other two tiers.
+   *
+   * The list is written out rather than derived from what the corpus emits,
+   * which would pass no matter what it contained.
+   */
+  it('exercises every reason code, so none ships unverified in a second engine', () => {
+    const ALL = [
+      'ELIGIBILITY_FAILED',
+      'RELEVANCE_FAILED',
+      'SUITABILITY_FAILED',
+      'FREQUENCY_CAP_BREACHED',
+      'CONSENT_WITHHELD',
+      'OUT_OF_VALIDITY_WINDOW',
+      'NOT_ACTIVE',
+      'NOT_RANKED',
+    ];
+    const seen = new Set<string>();
+    for (const c of corpus.cases) {
+      for (const e of c.expected.decision.eliminations) {
+        for (const d of e.denials) seen.add(d.code);
+      }
+    }
+    expect(ALL.filter((code) => !seen.has(code))).toEqual([]);
+  });
+
   for (const c of corpus.cases) {
     it(c.name, () => {
       const trace = execute(c.artifact, c.catalogue, c.request);

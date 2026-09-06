@@ -83,7 +83,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -101,10 +101,10 @@
         }
       },
       "expected": {
-        "id": "dec_ac45da56fba0f356",
-        "chainHash": "ac45da56fba0f356032397a3231d1335bf50d15135990ffc93c5da126b50dd66",
+        "id": "dec_e930987cc80c193d",
+        "chainHash": "e930987cc80c193d2211b2a55e6d1c4856e2667ae40b7e120d94e2010b10c2e0",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "f65171a4d1dceb354e8c38607648f6b6f85cf44b9e77dbbfaa81813ddb24b619",
+        "catalogueSnapshotHash": "d7d6e70373072ab6279dcbdbdead7577da770c7301c5207075b71c2a793f04e3",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -114,7 +114,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "f65171a4d1dceb354e8c38607648f6b6f85cf44b9e77dbbfaa81813ddb24b619",
+          "catalogueSnapshotHash": "d7d6e70373072ab6279dcbdbdead7577da770c7301c5207075b71c2a793f04e3",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -135,7 +135,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
+              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
               "denials": [],
               "survived": [
                 "offer_a"
@@ -152,7 +152,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_a",
             "runnerUp": null
           },
@@ -335,7 +335,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -353,10 +353,10 @@
         }
       },
       "expected": {
-        "id": "dec_52a9d6f05dc1acf0",
-        "chainHash": "52a9d6f05dc1acf09a140e9503d6f48d67ebbc00e678ad9a9d4346c24e4a8e3d",
+        "id": "dec_6ebef16e74826b8c",
+        "chainHash": "6ebef16e74826b8c4c4dc4004fb4b74c17eb6c28640a5d942bd5d572f19386e7",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
+        "catalogueSnapshotHash": "4e23a41efe83dc3343a1296474e37ed89596f58e4080d0e48d6322b55e0d3244",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -366,7 +366,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
+          "catalogueSnapshotHash": "4e23a41efe83dc3343a1296474e37ed89596f58e4080d0e48d6322b55e0d3244",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -402,7 +402,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 3 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_b.",
+              "reason": "Ranked 3 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_b.",
               "denials": [
                 {
                   "key": "offer_a",
@@ -444,7 +444,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_b",
             "runnerUp": "offer_a"
           },
@@ -614,7 +614,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -632,10 +632,10 @@
         }
       },
       "expected": {
-        "id": "dec_b152ed48ac087a61",
-        "chainHash": "b152ed48ac087a61f8604d937d7483f089f0cfb46b388f1a0b6f543806d9a728",
+        "id": "dec_ceb1da9c06a1ee5c",
+        "chainHash": "ceb1da9c06a1ee5cf5135e64152a7f386a2dcae328d921cf647599210c2ba4c2",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
+        "catalogueSnapshotHash": "4e23a41efe83dc3343a1296474e37ed89596f58e4080d0e48d6322b55e0d3244",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -645,7 +645,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
+          "catalogueSnapshotHash": "4e23a41efe83dc3343a1296474e37ed89596f58e4080d0e48d6322b55e0d3244",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -670,7 +670,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 3 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
+              "reason": "Ranked 3 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
               "denials": [
                 {
                   "key": "offer_b",
@@ -712,7 +712,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_a",
             "runnerUp": "offer_c"
           },
@@ -895,7 +895,7 @@
             "boost": 2,
             "context": 0.3333333333333333
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -913,10 +913,10 @@
         }
       },
       "expected": {
-        "id": "dec_fdaa585a9f619a81",
-        "chainHash": "fdaa585a9f619a81a19852abaeba44b3bf76e4bf5d2d7cb1e67eaa7cb59e4144",
+        "id": "dec_b538bd50d7cc8cc8",
+        "chainHash": "b538bd50d7cc8cc85fbbe25b315523322a0f287430e87c337099b19ddeb6eb5c",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "b61965ff2f0dae10b45bfda028f13058b73fa613372e7c62d865fe77dbc637cb",
+        "catalogueSnapshotHash": "cb9cdc2a01f65ea9b83ed39a743292acc656d48aff7779ac1e0d2bd7f8ddbe39",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -926,7 +926,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "b61965ff2f0dae10b45bfda028f13058b73fa613372e7c62d865fe77dbc637cb",
+          "catalogueSnapshotHash": "cb9cdc2a01f65ea9b83ed39a743292acc656d48aff7779ac1e0d2bd7f8ddbe39",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -962,7 +962,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 3 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
+              "reason": "Ranked 3 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
               "denials": [
                 {
                   "key": "offer_b",
@@ -1004,7 +1004,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_a",
             "runnerUp": "offer_b"
           },
@@ -1137,7 +1137,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -1155,10 +1155,10 @@
         }
       },
       "expected": {
-        "id": "dec_abcff62235888e2e",
-        "chainHash": "abcff62235888e2e9a0bd5fa1691dc74b1e45bc8b56980d14c64f16dbc962537",
+        "id": "dec_bd7a042ad4092957",
+        "chainHash": "bd7a042ad4092957a324e14d7db0a07275dfdeb97eac90c578a81a796d4105f5",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "0f980712d88fbd6c1a2fba7dea90631162d86238cabf4bef79b2b6572ff6ccc7",
+        "catalogueSnapshotHash": "e13ce8497226e35f5edfbbdb64a51371e419fcc835c0fd2bee12b44794cb6b7b",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -1168,7 +1168,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "0f980712d88fbd6c1a2fba7dea90631162d86238cabf4bef79b2b6572ff6ccc7",
+          "catalogueSnapshotHash": "e13ce8497226e35f5edfbbdb64a51371e419fcc835c0fd2bee12b44794cb6b7b",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -1191,7 +1191,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 2 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
+              "reason": "Ranked 2 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
               "denials": [
                 {
                   "key": "offer_z",
@@ -1221,7 +1221,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_a",
             "runnerUp": "offer_z"
           },
@@ -1233,6 +1233,584 @@
           },
           "winner": "offer_a",
           "winnerOfferId": "p_a2"
+        }
+      }
+    },
+    {
+      "name": "relevance filter removes a candidate",
+      "artifact": {
+        "id": "art_fixture",
+        "version": "1.0.0",
+        "tenantId": "t",
+        "nodes": [
+          {
+            "id": "n1_source",
+            "type": "source",
+            "label": "Source"
+          },
+          {
+            "id": "n2_filter",
+            "type": "filter",
+            "label": "Relevance",
+            "policyIds": [
+              "pol_recent"
+            ]
+          },
+          {
+            "id": "n3_arbitrate",
+            "type": "arbitrate",
+            "label": "Arbitrate"
+          }
+        ],
+        "edges": [
+          {
+            "from": "n1_source",
+            "to": "n2_filter"
+          },
+          {
+            "from": "n2_filter",
+            "to": "n3_arbitrate"
+          }
+        ],
+        "candidateKeys": [
+          "offer_a",
+          "offer_b",
+          "offer_c"
+        ],
+        "packageVersions": {
+          "@metis/nodes-core": "2.0.0"
+        }
+      },
+      "catalogue": {
+        "offers": [
+          {
+            "id": "p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
+            "key": "offer_a",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 1.25,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          },
+          {
+            "id": "p_b",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
+            "key": "offer_b",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 0.8,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          },
+          {
+            "id": "p_c",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
+            "key": "offer_c",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 1,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          }
+        ],
+        "targetingPolicies": [
+          {
+            "id": "pol_recent",
+            "name": "Fixture policy",
+            "kind": "relevance",
+            "description": "Fixture.",
+            "conditions": [
+              {
+                "field": "daysSinceContact",
+                "operator": "gte",
+                "value": 30
+              }
+            ],
+            "scope": {
+              "level": "tenant",
+              "targetId": null
+            },
+            "active": true,
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z"
+          }
+        ],
+        "frequencyPolicies": [],
+        "arbitration": {
+          "id": "arb",
+          "tenantId": "t",
+          "weights": {
+            "propensity": 1,
+            "value": 1,
+            "boost": 1,
+            "context": 1
+          },
+          "formula": "P^wP x V^wV x B^wB x C^wC",
+          "updatedAt": "2020-01-01T00:00:00.000Z",
+          "updatedBy": "fixture"
+        },
+        "boosts": [],
+        "connectors": []
+      },
+      "request": {
+        "tenantId": "t",
+        "customerId": "cust_1",
+        "channel": "web",
+        "placement": "hero",
+        "occurredAt": "2026-06-01T12:00:00.000Z",
+        "input": {
+          "daysSinceContact": 3
+        }
+      },
+      "expected": {
+        "id": "dec_02f99d77f493a8a6",
+        "chainHash": "02f99d77f493a8a667ca12c4d6bc1540b1e33425190fd9a68c1045917bc72f83",
+        "inputSnapshotHash": "1507f0e43026165f54b2f00b683c6e640e3cda1df3f2d761f8794d97f5b88f5b",
+        "catalogueSnapshotHash": "9724821a1dfc5dc2cc51910c3525547a06783140669aa3533e6a4289b4b13552",
+        "decision": {
+          "tenantId": "t",
+          "artifactId": "art_fixture",
+          "artifactVersion": "1.0.0",
+          "customerRef": "cust_1",
+          "occurredAt": "2026-06-01T12:00:00.000Z",
+          "channel": "web",
+          "placement": "hero",
+          "inputSnapshotHash": "1507f0e43026165f54b2f00b683c6e640e3cda1df3f2d761f8794d97f5b88f5b",
+          "catalogueSnapshotHash": "9724821a1dfc5dc2cc51910c3525547a06783140669aa3533e6a4289b4b13552",
+          "sourceBindings": [],
+          "packageVersions": {
+            "@metis/nodes-core": "2.0.0"
+          },
+          "candidateKeys": [
+            "offer_a",
+            "offer_b",
+            "offer_c"
+          ],
+          "eliminations": [
+            {
+              "nodeId": "n1_source",
+              "nodeType": "source",
+              "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
+              "denials": [],
+              "survived": [
+                "offer_a",
+                "offer_b",
+                "offer_c"
+              ]
+            },
+            {
+              "nodeId": "n2_filter",
+              "nodeType": "filter",
+              "reason": "Relevance removed 3 candidate(s).",
+              "denials": [
+                {
+                  "key": "offer_a",
+                  "code": "RELEVANCE_FAILED",
+                  "ruleId": "pol_recent"
+                },
+                {
+                  "key": "offer_b",
+                  "code": "RELEVANCE_FAILED",
+                  "ruleId": "pol_recent"
+                },
+                {
+                  "key": "offer_c",
+                  "code": "RELEVANCE_FAILED",
+                  "ruleId": "pol_recent"
+                }
+              ],
+              "survived": []
+            },
+            {
+              "nodeId": "n3_arbitrate",
+              "nodeType": "arbitrate",
+              "reason": "No candidates reached arbitration; decision returned no offer.",
+              "denials": [],
+              "survived": []
+            }
+          ],
+          "scores": {},
+          "arbitration": {
+            "formula": "P^wP x V^wV x B^wB x C^wC",
+            "winner": null,
+            "runnerUp": null
+          },
+          "constraintsApplied": [],
+          "consentState": {
+            "marketing": true,
+            "profiling": true,
+            "thirdParty": false
+          },
+          "winner": null,
+          "winnerOfferId": null
+        }
+      }
+    },
+    {
+      "name": "suitability constraint removes a candidate",
+      "artifact": {
+        "id": "art_fixture",
+        "version": "1.0.0",
+        "tenantId": "t",
+        "nodes": [
+          {
+            "id": "n1_source",
+            "type": "source",
+            "label": "Source"
+          },
+          {
+            "id": "n2_filter",
+            "type": "filter",
+            "label": "Suitability",
+            "policyIds": [
+              "pol_afford"
+            ]
+          },
+          {
+            "id": "n3_arbitrate",
+            "type": "arbitrate",
+            "label": "Arbitrate"
+          }
+        ],
+        "edges": [
+          {
+            "from": "n1_source",
+            "to": "n2_filter"
+          },
+          {
+            "from": "n2_filter",
+            "to": "n3_arbitrate"
+          }
+        ],
+        "candidateKeys": [
+          "offer_a",
+          "offer_b",
+          "offer_c"
+        ],
+        "packageVersions": {
+          "@metis/nodes-core": "2.0.0"
+        }
+      },
+      "catalogue": {
+        "offers": [
+          {
+            "id": "p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
+            "key": "offer_a",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 1.25,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          },
+          {
+            "id": "p_b",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
+            "key": "offer_b",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 0.8,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          },
+          {
+            "id": "p_c",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
+            "key": "offer_c",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 1,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          }
+        ],
+        "targetingPolicies": [
+          {
+            "id": "pol_afford",
+            "name": "Fixture policy",
+            "kind": "suitability",
+            "description": "Fixture.",
+            "conditions": [
+              {
+                "field": "billToIncome",
+                "operator": "lte",
+                "value": 0.08
+              }
+            ],
+            "scope": {
+              "level": "tenant",
+              "targetId": null
+            },
+            "active": true,
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z"
+          }
+        ],
+        "frequencyPolicies": [],
+        "arbitration": {
+          "id": "arb",
+          "tenantId": "t",
+          "weights": {
+            "propensity": 1,
+            "value": 1,
+            "boost": 1,
+            "context": 1
+          },
+          "formula": "P^wP x V^wV x B^wB x C^wC",
+          "updatedAt": "2020-01-01T00:00:00.000Z",
+          "updatedBy": "fixture"
+        },
+        "boosts": [],
+        "connectors": []
+      },
+      "request": {
+        "tenantId": "t",
+        "customerId": "cust_1",
+        "channel": "web",
+        "placement": "hero",
+        "occurredAt": "2026-06-01T12:00:00.000Z",
+        "input": {
+          "billToIncome": 0.19
+        }
+      },
+      "expected": {
+        "id": "dec_0bc63d0f57c2b0fe",
+        "chainHash": "0bc63d0f57c2b0fe126b89ed12bcfeb40a4cd3a3181d0e5256edfc21626549d6",
+        "inputSnapshotHash": "d3e2b965c447462c911026996fe1c627647f74ea435dcd4c10cc675c01008f72",
+        "catalogueSnapshotHash": "f2932bef3b13ac5a41ea6dd80cecbf0d85d6fb80888f67aa8c8a68ad32fe781e",
+        "decision": {
+          "tenantId": "t",
+          "artifactId": "art_fixture",
+          "artifactVersion": "1.0.0",
+          "customerRef": "cust_1",
+          "occurredAt": "2026-06-01T12:00:00.000Z",
+          "channel": "web",
+          "placement": "hero",
+          "inputSnapshotHash": "d3e2b965c447462c911026996fe1c627647f74ea435dcd4c10cc675c01008f72",
+          "catalogueSnapshotHash": "f2932bef3b13ac5a41ea6dd80cecbf0d85d6fb80888f67aa8c8a68ad32fe781e",
+          "sourceBindings": [],
+          "packageVersions": {
+            "@metis/nodes-core": "2.0.0"
+          },
+          "candidateKeys": [
+            "offer_a",
+            "offer_b",
+            "offer_c"
+          ],
+          "eliminations": [
+            {
+              "nodeId": "n1_source",
+              "nodeType": "source",
+              "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
+              "denials": [],
+              "survived": [
+                "offer_a",
+                "offer_b",
+                "offer_c"
+              ]
+            },
+            {
+              "nodeId": "n2_filter",
+              "nodeType": "filter",
+              "reason": "Suitability removed 3 candidate(s).",
+              "denials": [
+                {
+                  "key": "offer_a",
+                  "code": "SUITABILITY_FAILED",
+                  "ruleId": "pol_afford"
+                },
+                {
+                  "key": "offer_b",
+                  "code": "SUITABILITY_FAILED",
+                  "ruleId": "pol_afford"
+                },
+                {
+                  "key": "offer_c",
+                  "code": "SUITABILITY_FAILED",
+                  "ruleId": "pol_afford"
+                }
+              ],
+              "survived": []
+            },
+            {
+              "nodeId": "n3_arbitrate",
+              "nodeType": "arbitrate",
+              "reason": "No candidates reached arbitration; decision returned no offer.",
+              "denials": [],
+              "survived": []
+            }
+          ],
+          "scores": {},
+          "arbitration": {
+            "formula": "P^wP x V^wV x B^wB x C^wC",
+            "winner": null,
+            "runnerUp": null
+          },
+          "constraintsApplied": [],
+          "consentState": {
+            "marketing": true,
+            "profiling": true,
+            "thirdParty": false
+          },
+          "winner": null,
+          "winnerOfferId": null
         }
       }
     },
@@ -1424,7 +2002,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -1442,10 +2020,10 @@
         }
       },
       "expected": {
-        "id": "dec_63958091b94e5679",
-        "chainHash": "63958091b94e5679b08e2773b9a8f83ffb502af07ce1d2cc9a9c3185d0732b88",
+        "id": "dec_cc6ba6b393130aae",
+        "chainHash": "cc6ba6b393130aae4d7326afaaed1985306fd708cf49512c465b5bf0c6b3bafa",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "95b8e86db7dc541c485f0e9368066edad493e5591f70c9c58689f5eda6c6759b",
+        "catalogueSnapshotHash": "ec47fed6d1c6ef68a999c8348dc6ca0a8dfe402fc00e559b99dc6221f36c1265",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -1455,7 +2033,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "95b8e86db7dc541c485f0e9368066edad493e5591f70c9c58689f5eda6c6759b",
+          "catalogueSnapshotHash": "ec47fed6d1c6ef68a999c8348dc6ca0a8dfe402fc00e559b99dc6221f36c1265",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -1510,7 +2088,7 @@
           ],
           "scores": {},
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": null,
             "runnerUp": null
           },
@@ -1713,7 +2291,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -1731,10 +2309,10 @@
         }
       },
       "expected": {
-        "id": "dec_ee4b240ea03523bb",
-        "chainHash": "ee4b240ea03523bb2c48244da8d82444ec5362e3a025ee7011d11061f5fd0078",
+        "id": "dec_bd93e221db08dd6e",
+        "chainHash": "bd93e221db08dd6e5b0891e8f50913fdd5a0d3c734365a9ecddf8b650ddbdbaa",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "91f0c3265722745b54a42ab64c9ea5c53ddd8513c896a8d2193253c627be5140",
+        "catalogueSnapshotHash": "433a70bfe4198f641682aa655e80b4fe936438113637a767dfc1ab4d7b640e38",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -1744,7 +2322,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "91f0c3265722745b54a42ab64c9ea5c53ddd8513c896a8d2193253c627be5140",
+          "catalogueSnapshotHash": "433a70bfe4198f641682aa655e80b4fe936438113637a767dfc1ab4d7b640e38",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -1789,7 +2367,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
+              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
               "denials": [],
               "survived": [
                 "offer_a"
@@ -1806,7 +2384,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_a",
             "runnerUp": null
           },
@@ -1935,7 +2513,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -1951,10 +2529,10 @@
         "input": {}
       },
       "expected": {
-        "id": "dec_bc72026a0c566ede",
-        "chainHash": "bc72026a0c566edefc87dbdb339637cfcbc5cddfff749c4671826755f2b29d04",
+        "id": "dec_0bc2bb14e5e163a7",
+        "chainHash": "0bc2bb14e5e163a771f5899dee1504ed0fe4fca05fa2145ec5ba14edab0f3a61",
         "inputSnapshotHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-        "catalogueSnapshotHash": "7a1c45d0bc8650460b0dfcfeef7635a44e7998ab09a861273356cf7ed352db99",
+        "catalogueSnapshotHash": "6f5a8e6c22d5ab84ca880a05cf3d2a8dba9842a236867c5fcc2794e5771d93bc",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -1964,7 +2542,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-          "catalogueSnapshotHash": "7a1c45d0bc8650460b0dfcfeef7635a44e7998ab09a861273356cf7ed352db99",
+          "catalogueSnapshotHash": "6f5a8e6c22d5ab84ca880a05cf3d2a8dba9842a236867c5fcc2794e5771d93bc",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -2005,7 +2583,7 @@
           ],
           "scores": {},
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": null,
             "runnerUp": null
           },
@@ -2199,7 +2777,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -2229,10 +2807,10 @@
         }
       },
       "expected": {
-        "id": "dec_9142c26dc19ce5b1",
-        "chainHash": "9142c26dc19ce5b1eb34d560e0503841c61a3cdd96d97f0d7b08cff50b8b3e00",
+        "id": "dec_0d1cc4a50d7b9727",
+        "chainHash": "0d1cc4a50d7b9727273423c66d2604256c3ef429cfab39a5f1f31ca882b971ce",
         "inputSnapshotHash": "76ba7db6de00801343db3d1c472c701d6a95339964bf85d26abf8abf98cd9568",
-        "catalogueSnapshotHash": "82194527f6449b1a817c4d255ca58207d5c1e0ffeec250d78cbca3b72a925683",
+        "catalogueSnapshotHash": "41a72124278ed86bd763f8673f8bb18c68de2218b30aa258848b4685cf235e40",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -2242,7 +2820,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "76ba7db6de00801343db3d1c472c701d6a95339964bf85d26abf8abf98cd9568",
-          "catalogueSnapshotHash": "82194527f6449b1a817c4d255ca58207d5c1e0ffeec250d78cbca3b72a925683",
+          "catalogueSnapshotHash": "41a72124278ed86bd763f8673f8bb18c68de2218b30aa258848b4685cf235e40",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -2272,7 +2850,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
+              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
               "denials": [],
               "survived": [
                 "offer_a"
@@ -2289,7 +2867,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_a",
             "runnerUp": null
           },
@@ -2486,7 +3064,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -2510,10 +3088,10 @@
         }
       },
       "expected": {
-        "id": "dec_671585a2aaa546e8",
-        "chainHash": "671585a2aaa546e80d3f9bc19a53b579c7c4329676dc4802174b219198f980b0",
+        "id": "dec_1fb7107faca8c15a",
+        "chainHash": "1fb7107faca8c15acbb980a0b43d06cd59292b3d93d496424c69d60eb3c583c4",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "c471b1a2c7b24481e23326a4c2a64e890ce270cfb3d19598dd944a8afe2afe91",
+        "catalogueSnapshotHash": "5941ffcdbd51905b2221a9947e1bbcc853b00ceeea69669d790117729041a113",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -2523,7 +3101,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "c471b1a2c7b24481e23326a4c2a64e890ce270cfb3d19598dd944a8afe2afe91",
+          "catalogueSnapshotHash": "5941ffcdbd51905b2221a9947e1bbcc853b00ceeea69669d790117729041a113",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -2578,7 +3156,7 @@
           ],
           "scores": {},
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": null,
             "runnerUp": null
           },
@@ -2777,7 +3355,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -2801,10 +3379,10 @@
         }
       },
       "expected": {
-        "id": "dec_7581fe29a47b2fde",
-        "chainHash": "7581fe29a47b2fdee1876a6d61afe9fdfaa3f049d1242013324f5236575582d0",
+        "id": "dec_1e1e2f762117a82a",
+        "chainHash": "1e1e2f762117a82a942027a95ed852f6b046686a8d63a0bbdf918c41b0ec8c8c",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "1cbc4d99eea072d035cb0d2bb5a5af5cda7415a642370398c09fa038eb856a41",
+        "catalogueSnapshotHash": "3bfc1402354b226b99e654bde6a3ec28bc418f82c720361702d43f5a507d7745",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -2814,7 +3392,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "1cbc4d99eea072d035cb0d2bb5a5af5cda7415a642370398c09fa038eb856a41",
+          "catalogueSnapshotHash": "3bfc1402354b226b99e654bde6a3ec28bc418f82c720361702d43f5a507d7745",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -2859,7 +3437,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
+              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
               "denials": [],
               "survived": [
                 "offer_a"
@@ -2876,7 +3454,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_a",
             "runnerUp": null
           },
@@ -3089,7 +3667,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -3112,10 +3690,10 @@
         }
       },
       "expected": {
-        "id": "dec_431649b868300cb3",
-        "chainHash": "431649b868300cb33a95fa7af84d90eb93260e85533cf48748edd348d7ef5531",
+        "id": "dec_9385d12f05745d19",
+        "chainHash": "9385d12f05745d194062f36971006eba802062e24efaad7a6d4ebcad1f8cd384",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "75b5acfb927ab39388b97aefe4bea25012997fd9309915ac8edc1f75a0fb1980",
+        "catalogueSnapshotHash": "3089bae86c719d6adcdb8d1bf6f3bd80835f540c7867f04af68258bcbe999a0a",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -3125,7 +3703,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "75b5acfb927ab39388b97aefe4bea25012997fd9309915ac8edc1f75a0fb1980",
+          "catalogueSnapshotHash": "3089bae86c719d6adcdb8d1bf6f3bd80835f540c7867f04af68258bcbe999a0a",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -3170,7 +3748,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
+              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
               "denials": [],
               "survived": [
                 "offer_a"
@@ -3187,7 +3765,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_a",
             "runnerUp": null
           },
@@ -3313,7 +3891,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -3337,10 +3915,10 @@
         }
       },
       "expected": {
-        "id": "dec_1c48c080033d8a56",
-        "chainHash": "1c48c080033d8a5621317e1102075399b2c2075bf5ffce80b64e5786ca9a29ce",
+        "id": "dec_25ea46d8b15de56d",
+        "chainHash": "25ea46d8b15de56dbc0abc52038f68f96a4cb40e5050510e6710ceb29cb0c427",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "cce09eb2ee2d0dcae48a6365d54afa2e6f8001a2f0a51d5115106637fca12064",
+        "catalogueSnapshotHash": "bb5922e5d6d7eb9853421000dcd2f7007e20cbad9b6e30f82ea325ba04316424",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -3350,7 +3928,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "cce09eb2ee2d0dcae48a6365d54afa2e6f8001a2f0a51d5115106637fca12064",
+          "catalogueSnapshotHash": "bb5922e5d6d7eb9853421000dcd2f7007e20cbad9b6e30f82ea325ba04316424",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -3380,7 +3958,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
+              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
               "denials": [],
               "survived": [
                 "offer_a"
@@ -3397,7 +3975,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_a",
             "runnerUp": null
           },
@@ -3580,7 +4158,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -3638,10 +4216,10 @@
         }
       },
       "expected": {
-        "id": "dec_642d287f8d04e938",
-        "chainHash": "642d287f8d04e9382b9c7a1143e5218893a276189ce5098cdcefe53b963554d2",
+        "id": "dec_06bf1b6c886b6724",
+        "chainHash": "06bf1b6c886b672436ca44d9999c6b3951debf08732c124e5ff6e15d724a7d22",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "7687f47f6b4b1db0bf568c33b7a24e1f2765195382b8f976adea16911fe93c1c",
+        "catalogueSnapshotHash": "f54fbd2b411a80fa67c8e982f2b92cf705e506684a7ef2e5dce0d562a251eeef",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -3651,7 +4229,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "7687f47f6b4b1db0bf568c33b7a24e1f2765195382b8f976adea16911fe93c1c",
+          "catalogueSnapshotHash": "f54fbd2b411a80fa67c8e982f2b92cf705e506684a7ef2e5dce0d562a251eeef",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -3687,7 +4265,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 3 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_b.",
+              "reason": "Ranked 3 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_b.",
               "denials": [
                 {
                   "key": "offer_a",
@@ -3729,7 +4307,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_b",
             "runnerUp": "offer_a"
           },
@@ -3838,7 +4416,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -3873,10 +4451,10 @@
         }
       },
       "expected": {
-        "id": "dec_c1aa9a1b240ba405",
-        "chainHash": "c1aa9a1b240ba405ea202e6be818618f71ef5affcbe5ea84299d4cdbfe0651c3",
+        "id": "dec_c5094afd2fddcded",
+        "chainHash": "c5094afd2fddcded6762ef0e89f62f83e6f18a7a9983d20f6a85a58016de970c",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "02d5ed6709ce90149d8b7968468c0830e681e60a711d59d959e24c5904b5ff24",
+        "catalogueSnapshotHash": "81d08c8f057172dd9c35a7c5f07c77c68af4a8a5cb0f4c2eb3583d6b1632b4a9",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -3886,7 +4464,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "02d5ed6709ce90149d8b7968468c0830e681e60a711d59d959e24c5904b5ff24",
+          "catalogueSnapshotHash": "81d08c8f057172dd9c35a7c5f07c77c68af4a8a5cb0f4c2eb3583d6b1632b4a9",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -3916,7 +4494,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
+              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
               "denials": [],
               "survived": [
                 "offer_a"
@@ -3933,7 +4511,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_a",
             "runnerUp": null
           },
@@ -4103,7 +4681,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -4121,10 +4699,10 @@
         }
       },
       "expected": {
-        "id": "dec_75ad535dca5096bb",
-        "chainHash": "75ad535dca5096bb05284fdb41779a761a686312240cd011fe30e2682f0b9b46",
+        "id": "dec_0a60f596e7b7cb9a",
+        "chainHash": "0a60f596e7b7cb9a9c6499d4f8dcfd02bc094ada3fb65974a556ed52dc0f516d",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "c6b7a1b5523734d7c1c703e96a955b86f5497f1715ad54ae09fc690d9d69b347",
+        "catalogueSnapshotHash": "1233c5dd9f748be08e9249fd4b4cfc044b3370c77404f81d073b837448653153",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -4134,7 +4712,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "c6b7a1b5523734d7c1c703e96a955b86f5497f1715ad54ae09fc690d9d69b347",
+          "catalogueSnapshotHash": "1233c5dd9f748be08e9249fd4b4cfc044b3370c77404f81d073b837448653153",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -4168,7 +4746,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
+              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
               "denials": [],
               "survived": [
                 "offer_a"
@@ -4185,7 +4763,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_a",
             "runnerUp": null
           },
@@ -4314,7 +4892,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -4332,10 +4910,10 @@
         }
       },
       "expected": {
-        "id": "dec_a5a44d05c5d82f29",
-        "chainHash": "a5a44d05c5d82f299d8f677ec51c92bdf3ae4bfae25afd55483542b6aa9cbc97",
+        "id": "dec_0ba533e7d427c448",
+        "chainHash": "0ba533e7d427c448459fed39ffcc1b6d37307c586dcecef50671448d4e0dda94",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "54199b282e644416fb910743def2ab3786ddd3ed2a56f85ffcfd972060f7943a",
+        "catalogueSnapshotHash": "229357e58261ea9d2ac7ef96dd47a83845a793072734272e63328ea89716f167",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -4345,7 +4923,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "54199b282e644416fb910743def2ab3786ddd3ed2a56f85ffcfd972060f7943a",
+          "catalogueSnapshotHash": "229357e58261ea9d2ac7ef96dd47a83845a793072734272e63328ea89716f167",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -4386,7 +4964,7 @@
           ],
           "scores": {},
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": null,
             "runnerUp": null
           },
@@ -4486,7 +5064,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -4552,10 +5130,10 @@
         }
       },
       "expected": {
-        "id": "dec_add8f6d4ad8cf3e0",
-        "chainHash": "add8f6d4ad8cf3e0d053a1668ac3c302b2671042ec56cdd0fda3f41bb922428e",
+        "id": "dec_353b1b3e97c8f133",
+        "chainHash": "353b1b3e97c8f133128efda8565a34016ce54076821685936fc88f93d0ae19d6",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "b76defde7dee747bd7d975489519baab05cee8156b7757d5f0a0c0c2e733bf53",
+        "catalogueSnapshotHash": "b887d772094a99eea1c1d87bb01e171c53eed9a0ac7a252614fb934e5c145b27",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -4565,7 +5143,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "b76defde7dee747bd7d975489519baab05cee8156b7757d5f0a0c0c2e733bf53",
+          "catalogueSnapshotHash": "b887d772094a99eea1c1d87bb01e171c53eed9a0ac7a252614fb934e5c145b27",
           "sourceBindings": [
             {
               "field": "tenureMonths",
@@ -4592,7 +5170,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
+              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
               "denials": [],
               "survived": [
                 "offer_a"
@@ -4609,7 +5187,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_a",
             "runnerUp": null
           },
@@ -4801,7 +5379,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -4819,10 +5397,10 @@
         }
       },
       "expected": {
-        "id": "dec_6ffcd418561afafa",
-        "chainHash": "6ffcd418561afafaafd43089142721d6f336e67eccfd5a8db7b40836806da0f7",
+        "id": "dec_d45ca0f88977fcdb",
+        "chainHash": "d45ca0f88977fcdbe02861c284fa665d73465ffb8d44571222da19f1dc2361a4",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
+        "catalogueSnapshotHash": "4e23a41efe83dc3343a1296474e37ed89596f58e4080d0e48d6322b55e0d3244",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -4832,7 +5410,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "a71821b7d2d7d50a198572509d08995f48da6ade3dde120767304221846e78c6",
+          "catalogueSnapshotHash": "4e23a41efe83dc3343a1296474e37ed89596f58e4080d0e48d6322b55e0d3244",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -4879,7 +5457,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 3 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
+              "reason": "Ranked 3 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
               "denials": [
                 {
                   "key": "offer_b",
@@ -4921,7 +5499,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_a",
             "runnerUp": "offer_c"
           },
@@ -5089,7 +5667,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -5107,10 +5685,10 @@
         }
       },
       "expected": {
-        "id": "dec_f09a1fc0a984c079",
-        "chainHash": "f09a1fc0a984c079d54068b254fc886f07a7764a3ecb238cbc13fbbabca23565",
+        "id": "dec_e3587f1878e30d1e",
+        "chainHash": "e3587f1878e30d1e810a3ead58186a826793c5bf4aa479395517f399438b4f53",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "a049714f6bf258767035171eadbe9b8fa3fb5d977ac35448475c8059477ced41",
+        "catalogueSnapshotHash": "c9c421743eff87cae4adf1dbecee2591e32b3a957cf67b4c7e2d6988a4be89b3",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -5120,7 +5698,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "a049714f6bf258767035171eadbe9b8fa3fb5d977ac35448475c8059477ced41",
+          "catalogueSnapshotHash": "c9c421743eff87cae4adf1dbecee2591e32b3a957cf67b4c7e2d6988a4be89b3",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -5158,7 +5736,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_b.",
+              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_b.",
               "denials": [],
               "survived": [
                 "offer_b"
@@ -5175,7 +5753,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_b",
             "runnerUp": null
           },
@@ -5304,7 +5882,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -5322,10 +5900,10 @@
         }
       },
       "expected": {
-        "id": "dec_00e2104d10e67e00",
-        "chainHash": "00e2104d10e67e0079e4b36bba05c04964894335d110df6a27fc841876f99c08",
+        "id": "dec_c35b23bd9be6474d",
+        "chainHash": "c35b23bd9be6474d010bd377c04262c560c2d1ff73220d52762d303f70888367",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "8755c9514f684c8e55b587df7ad5459b1e648f4cade83451f5b844ed7377d808",
+        "catalogueSnapshotHash": "1faebf5aa267853fa9b91c73edf5c63a5fa7e6c4e44d44602cff77fccc56c63e",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -5335,7 +5913,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "8755c9514f684c8e55b587df7ad5459b1e648f4cade83451f5b844ed7377d808",
+          "catalogueSnapshotHash": "1faebf5aa267853fa9b91c73edf5c63a5fa7e6c4e44d44602cff77fccc56c63e",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -5365,7 +5943,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_a.",
+              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
               "denials": [],
               "survived": [
                 "offer_a"
@@ -5382,7 +5960,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_a",
             "runnerUp": null
           },
@@ -5528,7 +6106,7 @@
             "boost": 1,
             "context": 1
           },
-          "formula": "P^wP x V^wV x L^wL x C^wC",
+          "formula": "P^wP x V^wV x B^wB x C^wC",
           "updatedAt": "2020-01-01T00:00:00.000Z",
           "updatedBy": "fixture"
         },
@@ -5546,10 +6124,10 @@
         }
       },
       "expected": {
-        "id": "dec_8503aca62ab129cc",
-        "chainHash": "8503aca62ab129cc73d84d7c4f070de3a631782d755ade01a1c7986b085c9cd2",
+        "id": "dec_5e8c6b86a51bf4a2",
+        "chainHash": "5e8c6b86a51bf4a2b1111636171d3795e839678ee26365c6f5c377ee1041fc45",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-        "catalogueSnapshotHash": "51ebf6d93fd972cc0639724eeb36c97c1210240305fda85a731141d8b09225d6",
+        "catalogueSnapshotHash": "ff9be9a41b67b56d8564707fb7fe5347d0e4f96c6c71b227865ed85001ee31fa",
         "decision": {
           "tenantId": "t",
           "artifactId": "art_fixture",
@@ -5559,7 +6137,7 @@
           "channel": "web",
           "placement": "hero",
           "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
-          "catalogueSnapshotHash": "51ebf6d93fd972cc0639724eeb36c97c1210240305fda85a731141d8b09225d6",
+          "catalogueSnapshotHash": "ff9be9a41b67b56d8564707fb7fe5347d0e4f96c6c71b227865ed85001ee31fa",
           "sourceBindings": [],
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
@@ -5592,7 +6170,7 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 2 finalist(s) by P^wP x V^wV x L^wL x C^wC. Winner: offer_rich.",
+              "reason": "Ranked 2 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_rich.",
               "denials": [
                 {
                   "key": "offer_zero",
@@ -5622,7 +6200,7 @@
             }
           },
           "arbitration": {
-            "formula": "P^wP x V^wV x L^wL x C^wC",
+            "formula": "P^wP x V^wV x B^wB x C^wC",
             "winner": "offer_rich",
             "runnerUp": "offer_zero"
           },

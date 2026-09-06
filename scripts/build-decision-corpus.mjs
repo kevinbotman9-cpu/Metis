@@ -98,7 +98,7 @@ function catalogue(over = {}) {
       id: 'arb',
       tenantId: 't',
       weights: { propensity: 1, value: 1, boost: 1, context: 1 },
-      formula: 'P^wP x V^wV x L^wL x C^wC',
+      formula: 'P^wP x V^wV x B^wB x C^wC',
       updatedAt: '2020-01-01T00:00:00.000Z',
       updatedBy: 'fixture',
     },
@@ -195,7 +195,7 @@ const CASES = [
         id: 'arb',
         tenantId: 't',
         weights: { propensity: 1.5, value: 0.75, boost: 2, context: 0.3333333333333333 },
-        formula: 'P^wP x V^wV x L^wL x C^wC',
+        formula: 'P^wP x V^wV x B^wB x C^wC',
         updatedAt: '2020-01-01T00:00:00.000Z',
         updatedBy: 'fixture',
       },
@@ -214,6 +214,62 @@ const CASES = [
       ],
     }),
     request: request(),
+  },
+  {
+    // The three qualification tiers each carry their own reason code, and a
+    // second engine can get one right and another wrong. Without a case per
+    // tier the corpus would only prove ELIGIBILITY_FAILED, and RELEVANCE_FAILED
+    // and SUITABILITY_FAILED would ship unverified.
+    name: 'relevance filter removes a candidate',
+    artifact: artifact({
+      candidateKeys: threeKeys,
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source' },
+        { id: 'n2_filter', type: 'filter', label: 'Relevance', policyIds: ['pol_recent'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n2_filter' },
+        { from: 'n2_filter', to: 'n3_arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({
+      offers: three,
+      targetingPolicies: [
+        policy({
+          id: 'pol_recent',
+          kind: 'relevance',
+          conditions: [{ field: 'daysSinceContact', operator: 'gte', value: 30 }],
+        }),
+      ],
+    }),
+    request: request({ input: { daysSinceContact: 3 } }),
+  },
+  {
+    name: 'suitability constraint removes a candidate',
+    artifact: artifact({
+      candidateKeys: threeKeys,
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source' },
+        { id: 'n2_filter', type: 'filter', label: 'Suitability', policyIds: ['pol_afford'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n2_filter' },
+        { from: 'n2_filter', to: 'n3_arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({
+      offers: three,
+      targetingPolicies: [
+        policy({
+          id: 'pol_afford',
+          kind: 'suitability',
+          conditions: [{ field: 'billToIncome', operator: 'lte', value: 0.08 }],
+        }),
+      ],
+    }),
+    request: request({ input: { billToIncome: 0.19 } }),
   },
   {
     name: 'eligibility filter removes a candidate',
