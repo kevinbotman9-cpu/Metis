@@ -11,22 +11,31 @@
    --------------------------------------------------------------------------- */
 
 :root {
-  /* Neutral ramp. Light theme: 50 is the page, 900 is the strongest text. */
-  --n-50: 250 251 252;
-  --n-100: 244 246 248;
-  --n-150: 237 240 244;
-  --n-200: 227 231 237;
-  --n-300: 205 212 222;
-  --n-400: 156 166 181;
-  --n-500: 111 123 141;
-  --n-600: 84 96 114;
-  --n-700: 60 71 87;
-  --n-800: 35 43 56;
-  --n-900: 17 23 33;
+  /* Neutral ramp. Light theme: 100 is the page, 900 is the strongest text.
+     Cooler than the ramp it replaces — the design direction asks for "a cool
+     neutral base rather than warm cream, because the product is instrumentation,
+     not editorial". */
+  --n-50: 250 252 253;
+  --n-100: 244 247 249;
+  --n-150: 237 241 244;
+  --n-200: 227 233 237;
+  --n-300: 203 213 220;
+  /* 3.41:1 on surface. The step it replaces measured 2.46 and is used for
+     control boundaries and canvas edges, which SC 1.4.11 asks to clear 3:1 —
+     a pre-existing shortfall, fixed while the file was open. */
+  --n-400: 126 141 153;
+  --n-500: 108 124 138;
+  /* 5.20 on surface, 4.55 on sunken. The reference value was #61727F, which
+     held on white and measured 4.35 on the sunken surface — the same invariant
+     the teal broke, caught by scripts/check-contrast.mjs rather than by eye. */
+  --n-600: 94 111 124;
+  --n-700: 62 80 94;
+  --n-800: 38 54 67;
+  --n-900: 22 34 44;
 
   /* Semantic surfaces. --chrome is the shell (sidebar and header); it sits
      one step away from the page so the frame reads as distinct from content. */
-  --chrome: 255 255 255;
+  --chrome: var(--rail-bg);
   --page: var(--n-100);
   --surface: 255 255 255;
   --surface-raised: 255 255 255;
@@ -40,14 +49,20 @@
      light panel, and the frame does not have to. Keeping them separate is what
      lets the frame go dark in both themes without dragging every `text-content`
      in the sidebar onto a background it was never measured against. */
-  --rail-bg: 255 255 255;
-  --rail-fg: var(--n-900);
-  --rail-muted: var(--n-700);
-  --rail-dim: var(--n-600);
-  --rail-line: var(--n-300);
-  --rail-accent: var(--accent);
-  --rail-hover: var(--surface);
-  --rail-ok: var(--pass);
+  --rail-bg: 44 58 71;
+  --rail-fg: 255 255 255;
+  --rail-muted: 190 205 217;
+  --rail-dim: 143 166 184;
+  --rail-line: 59 75 89;
+  /* Lighter than --accent, twice over. The interactive blue is measured against
+     a white panel and reaches only 2.05 on the frame. And the active nav item
+     renders the accent as text on a 10% tint of itself, so the ground it has to
+     clear is lighter than the rail: Rail's own #63A8E8 holds 4.60 on the frame
+     and only 3.91 on that tint, which is what the axe sweep caught. This holds
+     6.19 and 5.02. */
+  --rail-accent: 143 194 242;
+  --rail-hover: 255 255 255;
+  --rail-ok: 63 191 140;
 
   /* The dim behind a modal.
      A token rather than `bg-black/40` — the last literal colours in app code —
@@ -66,55 +81,86 @@
   --text-inverse: 255 255 255;
 
   /* Brand + state.
-     Teal, adopted 2026-09-05 from the Drawer direction. The reference value
-     was #0E7C6E; it measured 4.45:1 on --surface-sunken and 4.49:1 on its own
-     subtle tint, so it broke the invariant two comments above — every step
-     clears 4.5:1 against both --surface and --surface-sunken. Darkened to
-     #0D7366, which holds at 5.74 / 5.02 / 5.29 across surface, sunken and
-     page, with the subtle tint lightened so the accent-on-subtle pair is not
-     the binding constraint. */
-  --accent: 13 115 102;
-  --accent-hover: 10 90 80;
-  --accent-subtle: 232 245 242;
+     Blue, adopted 2026-09-07 from the Rail direction, replacing the teal taken
+     from Drawer on 2026-09-05. Drawer used its teal as both the brand and the
+     "gain" state, which is the collision the design direction warns about — if
+     green means approved in the change set inbox and also means brand accent in
+     the header, the trace loses its readability.
+
+     Rail's reference blue is #3D82C4 and measures 4.05 on surface, under the
+     4.5 an accent owes as link text. Darkening it in hue lands on #2563C7 —
+     which is the value the design direction specifies. The two documents agree
+     once contrast is applied. Holds 5.69 / 5.29 / 5.01 across surface, page and
+     sunken. */
+  --accent: 37 99 199;
+  --accent-hover: 28 76 156;
+  --accent-subtle: 234 242 250;
   /* Text placed ON a strong fill. In dark mode the fills become light, so
      this flips to near-black — white on the dark-mode accent measured 2.75:1. */
   --on-accent: 255 255 255;
   --on-block: 255 255 255;
-  --pass: 21 122 78;
-  --pass-subtle: 226 244 235;
-  --block: 178 58 58;
-  --block-subtle: 253 232 232;
+  --pass: 23 124 85;
+  --pass-subtle: 232 245 237;
+  --block: 195 58 46;
+  --block-subtle: 251 237 236;
+  /* Unchanged. Rail's amber is #E58A34, which measures 2.62 on surface and
+     cannot be the text half of a chip. Darkening it to AA arrives within a
+     hair of this value and reads brown, so the semantic amber stays where it
+     is and Rail's amber goes to the chrome instead, where it sits on dark. */
   --hold: 140 90 0;
   --hold-subtle: 253 243 224;
-  --info: 55 108 176;
-  --info-subtle: 232 240 250;
+  /* Cyan, not blue. Under a blue accent an "informational" blue would read as
+     interactive — the Data nodes on the flow canvas are coloured with this and
+     would look clickable. */
+  --info: 14 110 122;
+  --info-subtle: 226 242 244;
 
-  /* Application header.
-     A saturated band across the top, deliberately outside the neutral ramp and
-     identical in both themes: it is the frame, not content. White measures
-     13.5:1 on the burgundy end, so everything on it clears AA comfortably. */
-  --header-from: 14 71 68;
-  --header-via: 12 51 64;
-  --header-to: 10 42 51;
-  --on-header: 255 255 255;
-  --header-border: 122 44 84;
+  /* Application header — the top of the same L-shaped frame as the sidebar,
+     so it takes the rail's colour rather than a gradient of its own. Two token
+     families for one continuous surface was a seam with nothing to gain from
+     it, and the old comment described a burgundy that a recolour had already
+     replaced with teal. White measures 11.65:1 on the band. */
+  --header-from: var(--rail-bg);
+  --header-via: var(--rail-bg);
+  --header-to: var(--rail-bg);
+  --on-header: var(--rail-fg);
+  --header-border: var(--rail-line);
 
-  /* Brand panel.
-     A fixed, saturated surface that does not follow the light/dark ramp - it is
-     the same in both themes, the way a printed cover is. White measures 9.0:1
-     on the violet end and 8.7:1 on the blue, so text on it is safe everywhere. */
-  --brand-from: 91 33 182;
-  --brand-via: 67 56 202;
-  --brand-to: 30 64 175;
+  /* Brand panel — the login page.
+     A fixed, saturated surface that does not follow the light/dark ramp: it is
+     the same in both themes, the way a printed cover is.
+
+     Recoloured with the palette. It ran violet through indigo, chosen against
+     the old teal, and next to a slate-and-blue console it read as a different
+     product's sign-in page — which is the first screen anyone sees. Now it runs
+     from the rail's own slate into the accent's blue, so the frame a user
+     signs into is the frame they arrive in. White measures 13.48 / 10.91 / 8.57
+     across the three stops, and the 70% and 80% text the page renders holds
+     5.11 at the tightest. */
+  --brand-from: 34 48 61;
+  --brand-via: 30 62 99;
+  --brand-to: 27 75 143;
   --on-brand: 255 255 255;
 
-  /* Autonomy ladder — L0 coolest, L4 warmest.
-     Each must clear 4.5:1 on --surface at the 11px badge size. */
-  --l0: 84 96 114;
-  --l1: 55 108 176;
-  --l2: 37 99 199;
+  /* Autonomy ladder — L0 coolest, L4 warmest, escalating authority.
+     Each must clear 4.5:1 on --surface at the 11px badge size, and each pairs
+     with an explicit tint rather than an alpha of itself: the badge used to
+     render bg-lN/12, a token as text over 12% of itself, and L3 measured 4.37
+     on the sunken surface. A named tint is a pair that can be measured.
+
+     None of these is the accent. L2 used to be #2563C7 exactly — the value the
+     accent now takes — so the badge would have rendered in the one colour
+     reserved for "you can interact with this". */
+  --l0: 94 111 124;
+  --l0-subtle: 237 240 243;
+  --l1: 14 110 122;
+  --l1-subtle: 226 242 244;
+  --l2: 85 80 143;
+  --l2-subtle: 237 236 246;
   --l3: 140 90 0;
-  --l4: 178 58 58;
+  --l3-subtle: 253 243 224;
+  --l4: 195 58 46;
+  --l4-subtle: 251 237 236;
 
   /* Density: comfortable is the default */
   --row-h: 2.75rem;
@@ -155,28 +201,31 @@
    step of each other, so nothing read as lifting off the canvas and the whole
    console looked flat. */
 :root[data-theme='dark'] {
-  --n-50: 8 10 14;
-  --n-100: 13 16 22;
-  --n-150: 20 24 33;
-  --n-200: 28 34 46;
-  --n-300: 42 51 68;
-  --n-400: 71 86 110;
-  --n-500: 110 126 150;
-  --n-600: 155 170 194;
-  --n-700: 196 208 226;
-  --n-800: 226 233 243;
-  --n-900: 246 249 253;
+  --n-50: 13 20 26;
+  --n-100: 19 27 34;
+  --n-150: 24 34 43;
+  --n-200: 34 48 58;
+  --n-300: 51 69 79;
+  --n-400: 92 114 128;
+  --n-500: 110 130 145;
+  /* 6.11 on surface, 5.13 on sunken. Rail's dark dim is #8497A4, which measures
+     4.47 on the sunken surface — three hundredths short, and the kind of miss
+     only arithmetic finds. */
+  --n-600: 143 162 175;
+  --n-700: 186 202 213;
+  --n-800: 214 226 235;
+  --n-900: 231 238 243;
 
   --chrome: var(--n-50);
 
-  --rail-bg: var(--n-50);
-  --rail-fg: var(--n-900);
-  --rail-muted: var(--n-700);
-  --rail-dim: var(--n-600);
-  --rail-line: var(--n-300);
-  --rail-accent: var(--accent);
-  --rail-hover: var(--surface);
-  --rail-ok: var(--pass);
+  --rail-bg: 13 20 26;
+  --rail-fg: 234 241 246;
+  --rail-muted: 182 198 210;
+  --rail-dim: 126 147 163;
+  --rail-line: 28 40 49;
+  --rail-accent: 143 194 242;
+  --rail-hover: 255 255 255;
+  --rail-ok: 63 191 140;
   /* Darker than the darkest surface, so a dialog still sits *above* something
      rather than dissolving into it. */
   --scrim: 0 0 0;
@@ -191,28 +240,34 @@
   --text-muted: var(--n-700);
   --text-subtle: var(--n-600);
 
-  /* Saturated enough to carry a dark canvas. Measured against this block's own
-     ramp, which is a step darker than the media-query one: 9.43 on surface,
-     8.46 on sunken. */
-  --accent: 79 209 185;
-  --accent-hover: 111 220 199;
-  --accent-subtle: 18 49 44;
-  --on-accent: 8 10 14;
-  --on-block: 8 10 14;
-  --pass: 62 207 142;
+  /* Saturated enough to carry a dark canvas: 6.37 on surface, 5.35 on sunken.
+     Rail's dark blue needs no darkening — only the light one did. */
+  --accent: 99 168 232;
+  --accent-hover: 138 192 240;
+  --accent-subtle: 18 33 46;
+  --on-accent: 13 20 26;
+  --on-block: 13 20 26;
+  --pass: 63 191 140;
   --pass-subtle: 12 46 33;
-  --block: 255 107 107;
+  --block: 240 115 106;
   --block-subtle: 62 22 22;
-  --hold: 245 176 66;
+  /* Rail's amber lands here, where the light theme could not take it: 8.03 on
+     surface. Warm on a dark ground is legible in a way it is not on white. */
+  --hold: 240 168 92;
   --hold-subtle: 58 40 10;
-  --info: 122 186 255;
-  --info-subtle: 18 36 60;
+  --info: 79 201 216;
+  --info-subtle: 14 46 51;
 
-  --l0: 155 170 194;
-  --l1: 122 186 255;
-  --l2: 77 163 255;
-  --l3: 245 176 66;
-  --l4: 255 107 107;
+  --l0: 143 162 175;
+  --l0-subtle: 30 40 48;
+  --l1: 79 201 216;
+  --l1-subtle: 14 46 51;
+  --l2: 169 155 240;
+  --l2-subtle: 34 30 58;
+  --l3: 240 168 92;
+  --l3-subtle: 58 40 10;
+  --l4: 240 115 106;
+  --l4-subtle: 62 22 22;
 
   /* Depth on a dark canvas comes from a ring of light, not a drop shadow. */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.6);

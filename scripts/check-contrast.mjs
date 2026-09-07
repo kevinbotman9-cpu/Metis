@@ -120,7 +120,20 @@ function declarations(source, inherited = {}) {
   return resolved;
 }
 
-export function parseTokens(css = readFileSync(CSS_PATH, 'utf8')) {
+/**
+ * Comments out, before anything looks for a declaration.
+ *
+ * Learned the hard way: a comment reading "Lighter than --accent: ..." matched
+ * the declaration regex, and `[^;]+` then ran greedily past the end of the
+ * comment and swallowed the real `--rail-accent` after it. The token vanished
+ * from the checks and the script reported it missing rather than wrong — which
+ * is at least the right failure, but only because missing tokens are treated as
+ * broken assertions.
+ */
+const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
+
+export function parseTokens(rawCss = readFileSync(CSS_PATH, 'utf8')) {
+  const css = stripComments(rawCss);
   const light = declarations(block(css, ':root {'));
   // Dark re-declares part of the ramp and inherits the rest, exactly as the
   // cascade does. Seeding with light is what makes an un-redeclared token
@@ -200,12 +213,17 @@ export const PAIRS = [
   ),
   // Non-text: the focus ring has to be distinguishable from what it rings.
   // axe has no rule for this one, which is the argument for asserting it here.
-  ...['surface', 'page', 'chrome'].map((bg) => ({
+  // The accent rings anything on the work area. It does not ring the frame —
+  // `[data-rail]` and `[data-header-band]` override the colour, because the
+  // accent reaches only 2.05 there. Asserting it against the frame would be
+  // asserting something the stylesheet deliberately does not do.
+  ...['surface', 'page'].map((bg) => ({
     fg: 'accent',
     bg,
     min: AA_LARGE,
-    why: 'focus ring, SC 1.4.11',
+    why: 'focus ring on the work area, SC 1.4.11',
   })),
+  { fg: 'on-header', bg: 'header-via', min: AA_LARGE, why: 'focus ring on the header band' },
   // The shell frame. Its own family, so it has to be checked against its own
   // ground rather than inheriting the analytic pairs above.
   ...['rail-fg', 'rail-muted', 'rail-dim', 'rail-accent'].map((fg) => ({
@@ -214,17 +232,27 @@ export const PAIRS = [
     min: AA_TEXT,
     why: 'sidebar text on the shell frame',
   })),
+  {
+    fg: 'rail-accent',
+    bg: 'rail-accent',
+    bgAlpha: 0.1,
+    bgBase: 'rail-bg',
+    min: AA_TEXT,
+    why: 'the active nav item: accent text on a 10% tint of itself',
+  },
   { fg: 'rail-ok', bg: 'rail-bg', min: AA_LARGE, why: 'status dot, non-text' },
   { fg: 'rail-fg', bg: 'rail-bg', min: AA_LARGE, why: 'focus ring on the rail, SC 1.4.11' },
-  ...['l0', 'l1', 'l2', 'l3', 'l4'].flatMap((fg) =>
-    ['surface', 'surface-sunken'].map((bg) => ({
+  // The autonomy ladder. `required` now: the badge renders a named tint rather
+  // than an alpha of itself, so the pair is one the palette controls.
+  ...['l0', 'l1', 'l2', 'l3', 'l4'].flatMap((fg) => [
+    ...['surface', 'surface-sunken'].map((bg) => ({
       fg,
       bg,
       min: AA_TEXT,
-      tier: 'known',
-      why: 'autonomy badge renders bg-lN/12 text-lN; L3 fails on sunken today',
-    }))
-  ),
+      why: 'autonomy badge text',
+    })),
+    { fg, bg: `${fg}-subtle`, min: AA_TEXT, why: 'autonomy badge on its own tint' },
+  ]),
 ];
 
 export function check(tokens = parseTokens()) {
@@ -246,11 +274,18 @@ export function check(tokens = parseTokens()) {
         });
         continue;
       }
-      const front = pair.alpha ? over(fg, bg, pair.alpha) : fg;
+      // A background can itself be a composite: the active nav item renders
+      // `text-rail-accent` on `bg-rail-accent/10`, so what the text sits on is
+      // the tint, not the rail. Checking the plain ground passes at 4.60 while
+      // the rendered pair fails at 3.91 — which is exactly what happened.
+      const ground = pair.bgAlpha
+        ? over(bg, tokens[theme][pair.bgBase], pair.bgAlpha)
+        : bg;
+      const front = pair.alpha ? over(fg, ground, pair.alpha) : fg;
       results.push({
         ...pair,
         theme,
-        measured: ratio(front, bg),
+        measured: ratio(front, ground),
         tier: pair.tier ?? 'required',
       });
     }

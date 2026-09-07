@@ -130,11 +130,15 @@ export function StatusBadge({ status }: { status: string }) {
 /** The autonomy ladder gets its own colour scale, L0 cool through L4 warm. */
 export function AutonomyBadge({ level, name }: { level: string; name?: string }) {
   const cls: Record<string, string> = {
-    L0: 'bg-l0/12 text-l0 border-l0/30',
-    L1: 'bg-l1/12 text-l1 border-l1/30',
-    L2: 'bg-l2/12 text-l2 border-l2/30',
-    L3: 'bg-l3/12 text-l3 border-l3/30',
-    L4: 'bg-l4/12 text-l4 border-l4/30',
+    // Named tints rather than `bg-lN/12`. A token as text over 12% of itself is
+    // a pair nothing can measure without compositing it, and L3 was failing:
+    // 4.37 on the sunken surface. The tints are now tokens, so the contrast
+    // script checks them like every other chip.
+    L0: 'bg-l0-subtle text-l0 border-l0/30',
+    L1: 'bg-l1-subtle text-l1 border-l1/30',
+    L2: 'bg-l2-subtle text-l2 border-l2/30',
+    L3: 'bg-l3-subtle text-l3 border-l3/30',
+    L4: 'bg-l4-subtle text-l4 border-l4/30',
   };
   return (
     <span

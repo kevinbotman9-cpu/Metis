@@ -48,7 +48,7 @@ export function RootLayoutClient({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultColorScheme="dark" defaultDensity="comfortable">
+      <ThemeProvider defaultColorScheme="light" defaultDensity="comfortable">
         <AuthProvider>{ready ? children : null}</AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

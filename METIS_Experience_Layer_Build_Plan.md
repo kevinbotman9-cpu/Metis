@@ -137,6 +137,8 @@ Working the frontend-design process here rather than defaulting.
 
 Semantic colours are load-bearing. If green means "approved" in the change set inbox and also means "brand accent" in the header, the trace loses its readability. Reserve them.
 
+**Adopted 2026-09-07.** The console took the teal from a reference direction on 2026-09-05 and then hit exactly the collision described above — that teal was both the brand and the "gain" state. It now runs the palette this section asks for: a slate frame, a cool light work area, `--accent 37 99 199` (the `#2563C7` named here), and `--info` moved to cyan so that "informational" and "interactive" are not both blue. The amber stayed out of the semantic set: the reference's `#E58A34` measures 2.62:1 as text and lives on the chrome instead. Every value is measured by `scripts/check-contrast.mjs` rather than asserted here.
+
 Dark mode is a first-class axis, not an afterthought. Operators run this on wall displays.
 
 **Type.** One family with a strong numeric set, because most of this product is numbers in tables. Something like Inter Tight or IBM Plex Sans for the interface, with tabular figures enabled globally for any numeric column, and a mono face used only where characters must be counted (IDs, hashes, rule expressions, DIR source). Not a mono face for small labels as a style choice — that is the template tell.

@@ -225,6 +225,15 @@ benchmark can honestly claim.**
 
 ---
 
+## The token layer
+
+| Capability | Status | Evidence |
+|---|---|---|
+| One place colour is decided | BUILT | `app/globals.css` is the only stylesheet; 48 of 59 files consume it through Tailwind utilities and, since 2026-09-07, **no file in the console contains a literal colour** — the three modal scrims became `--scrim`. A palette change reaches every surface by changing values |
+| Four theme axes | BUILT | light/dark × compact/comfortable, as two independent attributes on `documentElement`. Storybook drives all four from the toolbar; `app-shell.spec.ts` and `permissions-and-writes.spec.ts` assert they persist across a reload |
+| Contrast is measured, not claimed | BUILT | `scripts/check-contrast.mjs` resolves the token aliases and measures 146 pairs across both themes, including alpha composites and the focus ring — two things axe cannot see. `tests/contrast.test.ts` fails the build on any required pair. Verified to bite: it reproduced the exact ratio the axe sweep reported for the active nav item, 3.91 |
+| Every surface clears WCAG 2.2 AA | BUILT | The contrast script on the token layer, plus `accessibility.spec.ts` running axe over ~19 routes in **both** themes on what actually renders |
+
 ## Authoring, which is worth stating plainly
 
 The canvas is **read-only**. A flow can be compiled, published, promoted, rolled

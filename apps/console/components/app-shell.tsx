@@ -388,7 +388,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                             'relative block rounded-md px-3 py-1.5 text-body transition-colors',
                             isActive(item.href)
                               ? 'bg-rail-accent/10 font-medium text-rail-accent before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-r before:bg-rail-accent'
-                              : 'text-rail-muted hover:bg-rail-hover/70 hover:text-rail-fg'
+                              : 'text-rail-muted hover:bg-rail-hover/10 hover:text-rail-fg'
                           )}
                         >
                           {item.label}

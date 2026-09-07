@@ -26,7 +26,7 @@ const DENSITY_KEY = 'metis.theme.density';
 
 export function ThemeProvider({
   children,
-  defaultColorScheme = 'dark',
+  defaultColorScheme = 'light',
   defaultDensity = 'comfortable',
 }: {
   children: ReactNode;
