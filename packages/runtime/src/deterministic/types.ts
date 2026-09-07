@@ -182,23 +182,39 @@ export interface DecisionRequest {
  * change: it enters the hashed decision, so the conformance corpora regenerate
  * and the Kotlin engine has to agree.
  */
-export type ReasonCode =
-  /** Hard filter: we cannot legally or contractually offer this. */
-  | 'ELIGIBILITY_FAILED'
-  /** Situational: we could offer it, but not to this customer right now. */
-  | 'RELEVANCE_FAILED'
-  /** Affordability and ethics: it is not right for this customer. */
-  | 'SUITABILITY_FAILED'
-  /** A frequency cap or cooldown was already spent. */
-  | 'FREQUENCY_CAP_BREACHED'
-  /** Marketing consent withheld, and the offer is not service-exempt. */
-  | 'CONSENT_WITHHELD'
-  /** Outside its start/end window at the moment of the decision. */
-  | 'OUT_OF_VALIDITY_WINDOW'
+/**
+ * The closed set, as a value.
+ *
+ * A value rather than only a union because the conformance corpus has to check
+ * that every code is exercised, and a type cannot be read at run time. That
+ * check used to hold its own copy of this list, so a ninth code would have been
+ * added here, shipped to a second engine, and never noticed by the guard whose
+ * stated purpose is noticing exactly that. Now there is one list and the type
+ * is derived from it.
+ *
+ * Order is the order a decision meets them, which is also the order they read
+ * in a trace. Nothing depends on it, and keeping it meaningful costs nothing.
+ */
+export const REASON_CODES = [
   /** Retired, paused or draft — never really a candidate. */
-  | 'NOT_ACTIVE'
+  'NOT_ACTIVE',
+  /** Outside its start/end window at the moment of the decision. */
+  'OUT_OF_VALIDITY_WINDOW',
+  /** Hard filter: we cannot legally or contractually offer this. */
+  'ELIGIBILITY_FAILED',
+  /** Situational: we could offer it, but not to this customer right now. */
+  'RELEVANCE_FAILED',
+  /** Affordability and ethics: it is not right for this customer. */
+  'SUITABILITY_FAILED',
+  /** Marketing consent withheld, and the offer is not service-exempt. */
+  'CONSENT_WITHHELD',
+  /** A frequency cap or cooldown was already spent. */
+  'FREQUENCY_CAP_BREACHED',
   /** Survived every gate but did not win arbitration. */
-  | 'NOT_RANKED';
+  'NOT_RANKED',
+] as const;
+
+export type ReasonCode = (typeof REASON_CODES)[number];
 
 export interface Denial {
   /** The candidate this is about. */
