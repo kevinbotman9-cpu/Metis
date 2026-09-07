@@ -3,8 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
+import { useAuth } from '@/components/auth-provider';
+import { OfferFormDialog } from '@/components/offer-form-dialog';
+import { CreativeFormDialog } from '@/components/creative-form-dialog';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import {
   PageBody,
@@ -66,6 +69,30 @@ function CreativeBody({ creative }: { creative: CreativeDto }) {
 
 function OfferDetail({ offerId }: { offerId: string }) {
   const [activeCreative, setActiveCreative] = useState<string | null>(null);
+  const [editingOffer, setEditingOffer] = useState(false);
+  const [creativeDialog, setCreativeDialog] = useState<
+    { mode: 'closed' } | { mode: 'new' } | { mode: 'edit'; creative: CreativeDto }
+  >({ mode: 'closed' });
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('edit:offers');
+  const queryClient = useQueryClient();
+
+  /**
+   * Activate or pause the offer.
+   *
+   * Kept here rather than in the edit form because the reason it can be refused
+   * is on this page: an offer with no active creative cannot go active, and the
+   * creatives are three inches below. The server's message is shown verbatim —
+   * it names the offer and says what to do, and paraphrasing it here would be a
+   * second place to keep that wording right.
+   */
+  const setStatus = useMutation({
+    mutationFn: (status: string) => apiClient.updateOffer(offerId, { status } as never),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['offer', offerId] });
+      queryClient.invalidateQueries({ queryKey: ['offers'] });
+    },
+  });
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['offer', offerId],
@@ -141,16 +168,54 @@ function OfferDetail({ offerId }: { offerId: string }) {
         }
         description={p.description}
         actions={
-          <>
-            <Button variant="secondary" size="md">
-              Edit
-            </Button>
-            <Button variant="primary" size="md">
-              Request change
-            </Button>
-          </>
+          canEdit ? (
+            <>
+              <Button variant="secondary" size="md" onClick={() => setEditingOffer(true)}>
+                Edit
+              </Button>
+              {/* `createChangeSet` exists, and proposing one means building a
+                  diff of what would change — the approval surface reads a diff,
+                  not a form. Disabled with the reason until that is built. */}
+              <Button
+                variant="secondary"
+                size="md"
+                disabled
+                title="Not built: proposing a change set from this screen needs a diff builder."
+              >
+                Request change
+              </Button>
+              {p.status === 'active' ? (
+                <Button
+                  variant="secondary"
+                  size="md"
+                  disabled={setStatus.isPending}
+                  onClick={() => setStatus.mutate('paused')}
+                >
+                  Pause
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  size="md"
+                  disabled={setStatus.isPending}
+                  onClick={() => setStatus.mutate('active')}
+                >
+                  Activate
+                </Button>
+              )}
+            </>
+          ) : null
         }
       />
+
+      {setStatus.error instanceof ApiError ? (
+        <p
+          role="alert"
+          className="mb-stack rounded border border-block/40 bg-block-subtle px-3 py-2 text-body text-block"
+        >
+          {setStatus.error.message}
+        </p>
+      ) : null}
 
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Metric
@@ -187,16 +252,28 @@ function OfferDetail({ offerId }: { offerId: string }) {
               title="Creatives"
               description="The content delivered on each channel."
               actions={
-                <Button variant="secondary" size="sm">
-                  Add creative
-                </Button>
+                canEdit ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setCreativeDialog({ mode: 'new' })}
+                  >
+                    Add creative
+                  </Button>
+                ) : null
               }
             />
             {creatives.length === 0 ? (
               <EmptyState
                 title="No creatives yet"
                 description="An offer needs at least one active creative before it can be delivered. This one cannot currently win a decision."
-                action={<Button variant="primary">Add the first creative</Button>}
+                action={
+                  canEdit ? (
+                    <Button variant="primary" onClick={() => setCreativeDialog({ mode: 'new' })}>
+                      Add the first creative
+                    </Button>
+                  ) : undefined
+                }
               />
             ) : (
               <>
@@ -231,9 +308,22 @@ function OfferDetail({ offerId }: { offerId: string }) {
                           {selected.id} · {selected.locale}
                         </p>
                       </div>
-                      <Badge tone={selected.active ? 'pass' : 'hold'}>
-                        {selected.active ? 'active' : 'inactive'}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge tone={selected.active ? 'pass' : 'hold'}>
+                          {selected.active ? 'active' : 'inactive'}
+                        </Badge>
+                        {canEdit ? (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() =>
+                              setCreativeDialog({ mode: 'edit', creative: selected })
+                            }
+                          >
+                            Edit
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
                     <div className="rounded border border-border bg-surface-sunken p-3">
                       <CreativeBody creative={selected} />
@@ -417,6 +507,15 @@ function OfferDetail({ offerId }: { offerId: string }) {
           </Card>
         </div>
       </div>
+
+      <OfferFormDialog open={editingOffer} onOpenChange={setEditingOffer} offer={p} />
+
+      <CreativeFormDialog
+        open={creativeDialog.mode !== 'closed'}
+        onOpenChange={(open) => !open && setCreativeDialog({ mode: 'closed' })}
+        offerId={offerId}
+        creative={creativeDialog.mode === 'edit' ? creativeDialog.creative : undefined}
+      />
     </PageBody>
   );
 }

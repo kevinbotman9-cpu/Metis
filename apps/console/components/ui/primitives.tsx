@@ -48,11 +48,21 @@ export function Field({
   label,
   htmlFor,
   hint,
+  error,
   children,
 }: {
   label: string;
   htmlFor?: string;
   hint?: string;
+  /**
+   * Why this field was refused.
+   *
+   * Beside the input rather than in a summary at the top of the form: a
+   * validation message the person has to go and find is a validation message
+   * that gets read as "something went wrong". The id is derived from `htmlFor`
+   * so the input can point at it with `aria-describedby`.
+   */
+  error?: string;
   children: ReactNode;
 }) {
   return (
@@ -64,7 +74,13 @@ export function Field({
         {label}
       </label>
       {children}
-      {hint ? <p className="text-label text-content-subtle">{hint}</p> : null}
+      {error ? (
+        <p id={htmlFor ? `${htmlFor}-error` : undefined} className="text-label text-block">
+          {error}
+        </p>
+      ) : hint ? (
+        <p className="text-label text-content-subtle">{hint}</p>
+      ) : null}
     </div>
   );
 }

@@ -58,8 +58,8 @@ in §1.2 rather than repeated across twelve columns.
 | Node within a flow | FIXTURE | FIXTURE | CONSOLE | — | — | — | — | — | — | — | FIXTURE | — |
 | Node layout / position | FIXTURE | FIXTURE | N/A | — | — | — | — | — | — | — | — | — |
 | Taxonomy: objective, category | FIXTURE | FIXTURE | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | FIXTURE | N/A |
-| Offer | API-ONLY | API-ONLY | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | FIXTURE | CONSOLE (read) |
-| Creative | FIXTURE | FIXTURE | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | FIXTURE | N/A |
+| Offer | **CONSOLE** | **CONSOLE** | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | FIXTURE | **CONSOLE** |
+| Creative | **CONSOLE** | **CONSOLE** | **CONSOLE** | N/A | N/A | N/A | N/A | N/A | N/A | N/A | FIXTURE | **CONSOLE** |
 | Eligibility policy | FIXTURE | FIXTURE | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | FIXTURE | N/A |
 | Relevance policy | FIXTURE | FIXTURE | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | FIXTURE | N/A |
 | Suitability policy | FIXTURE | FIXTURE | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | FIXTURE | N/A |
@@ -87,6 +87,9 @@ capabilities; here they are also, necessarily, absent configuration surfaces.
 Five things, and it is worth naming them exactly because they are the entire
 answer to the requirement today:
 
+0. **Offer and creative authoring** — added 2026-09-07, after this audit was
+   written: create and edit an offer, add and edit its creatives, activate and
+   pause it. The list below was the whole answer on the day it was made.
 1. **Arbitration weights** — four sliders, `Publish weights`, `Reset`. Persists
    and audits.
 2. **Autonomy tier per scope** — `Change level` reveals L0–L4 inline.
@@ -252,7 +255,7 @@ packages can configure anything at all.
 
 ## 5. Findings
 
-### C-1 — Six create/edit affordances are inert · S1
+### C-1 — Six create/edit affordances are inert · S1 · **PARTLY CLOSED 2026-09-07**
 
 `New offer` (`offers/page.tsx:226`), `New boost` (`arbitration/page.tsx:289`),
 `New scope rule` (`agentic/page.tsx:243`), and `Edit`, `Add creative`,
@@ -266,6 +269,20 @@ screen does not have — the brief's definition of a false claim.
 Cheapest honest remedy is not to wire them: it is to remove or disable them and
 record the gap, until §3's decision is made. A disabled button with a tooltip is
 an honest absence; an enabled one is a false promise.
+
+**Both halves are now done.** `New offer`, `Edit` and `Add creative` are wired,
+with the creative's own edit and an activation control beside it — offers and
+creatives are authored from the console, and the matrix rows above move from
+API-ONLY and FIXTURE to CONSOLE. The other three took the advice in the
+paragraph above: `New boost` and `New scope rule` have no write operation in the
+spec to call, and `Request change` needs a diff builder, so all three are
+disabled and say why.
+
+What this does **not** change is C-3. Every one of these surfaces is a bespoke
+React form keyed to a specific entity, so the console is further down the
+hand-built path than it was this morning, not less far. That was the trade: the
+demo needed a working authoring path, and the metadata-driven question is still
+open and still gets more expensive with each form.
 
 ### C-2 — Targeting policies and frequency caps have no write path anywhere · S1
 

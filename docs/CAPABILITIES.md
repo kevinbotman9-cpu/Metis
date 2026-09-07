@@ -55,7 +55,7 @@ Portability         22 passed  - export, re-import, round-trip conformance, and
 Performance         12 passed  - bench/harness: the p99 gate, and S1 over a
                                  million seeded profiles
 Unit (Vitest)       63 passed  - apps/console
-E2E (Playwright)   200 passed  - contract, cross-engine, axe, registry, ledger,
+E2E (Playwright)   207 passed  - contract, cross-engine, axe, registry, ledger,
                                  idempotency, shadow (13 skipped: writes covered
                                  by permissions-and-writes and registry instead)
 Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
@@ -63,7 +63,7 @@ Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
 Typecheck           clean      - root config and the console's, separately
 Lint                0 errors   - root and console, separate configs
                    ---
-                    776 tests, two languages, two engines
+                    783 tests, two languages, two engines
 ```
 
 The OpenAPI spec validates at **36 paths, 43 operations (41 built, 2 proposed),
@@ -132,6 +132,8 @@ corpus reproducible, and it is also why nothing here claims to learn.
 | Capability | Status | Evidence |
 |---|---|---|
 | OpenAPI 3.1 as the source of truth | BUILT | `packages/client` is generated; the console compiles against it, so spec drift is a compile error |
+| Authoring an offer and its content **from the console** | BUILT | `New offer`, `Edit`, `Add creative` and the creative's own `Edit` open Radix dialogs and write through the generated client. Activation is a control on the detail page, beside the creatives, because that is where the reason it can be refused is visible. `offer-authoring.spec.ts` drives the whole path as a person does — create, be refused, add content, activate — plus axe on both dialogs, which the route sweep cannot reach because a dialog is not a route |
+| Server refusals land on the field they are about | BUILT | The 400 from `createCreative` carries `problems[]`, each naming a field; `ApiError` carries them and the form renders each against its own input, with `aria-invalid` and `aria-describedby`. Asserted on the 160-character and sender-id rules at once |
 | Authoring a creative through the API | PARTIAL | `createCreative` and `updateCreative` are served, permission-gated, audited and validated per channel — required fields, the 160-character SMS segment limit, a carrier-legal sender id, an address that is an address, a call to action that goes somewhere; every problem reported at once. **Not built:** uploading an asset. `imageUrl` is a reference the caller supplies and nothing stores or serves the file. Approval, effective dating and expiry are [W-015](BACKLOG.md) |
 | An offer cannot go active with nothing to deliver | BUILT | `domain.ts` said "at least one is required to go active" and enforced it nowhere, so an offer could be active, win a decision and render nothing. Now refused at creation, at activation, and when switching off the last active creative of an active offer. `permissions-and-writes.spec.ts`; verified to bite by disabling each guard |
 | Authoring an offer through the API | PARTIAL | `createOffer` and `updateOffer` are served, permission-gated server-side, audited, and covered by `permissions-and-writes.spec.ts`. `createOffer` was **declared built and served by nothing** until 2026-09-07, and `updateOffer` was served and exercised by nothing. **The limit:** an offer created this way cannot be decided — the engine reads a different catalogue (W-005) and a flow's candidate set is fixed (W-024). Registered in `gaps.md` |

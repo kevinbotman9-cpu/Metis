@@ -56,11 +56,26 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api';
 
 export const TOKEN_KEY = 'metis.auth.token';
 
+/** One field a write was refused over. Mirrors `CreativeRejected` in the spec. */
+export interface FieldProblem {
+  /** Dotted path into the submitted object, e.g. `content.text`. */
+  field: string;
+  message: string;
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
     public code: string,
-    message: string
+    message: string,
+    /**
+     * Per-field reasons, where the server sent them.
+     *
+     * Carried rather than flattened into the message so a form can put each
+     * one against the input it is about. A validation error rendered as one
+     * sentence at the top of a dialog makes the person hunt for the field.
+     */
+    public problems: FieldProblem[] = []
   ) {
     super(message);
     this.name = 'ApiError';
@@ -149,14 +164,16 @@ async function apiCall<T>(
   if (!response.ok) {
     let code = 'http_error';
     let message = `${response.status} ${response.statusText}`;
+    let problems: FieldProblem[] = [];
     try {
       const payload = await response.json();
       code = payload.error || code;
       message = payload.message || message;
+      if (Array.isArray(payload.problems)) problems = payload.problems as FieldProblem[];
     } catch {
       // Non-JSON error body; keep the status text.
     }
-    throw new ApiError(response.status, code, message);
+    throw new ApiError(response.status, code, message, problems);
   }
 
   return response.json() as Promise<T>;
@@ -194,6 +211,9 @@ export const apiClient = {
       params: { tenantId, offerId },
     }),
 
+  createOffer: (offer: Partial<OfferDto>, tenantId: string = TENANT) =>
+    apiCall<OfferDto>('createOffer', { params: { tenantId }, body: offer }),
+
   updateOffer: (
     offerId: string,
     changes: Partial<OfferDto>,
@@ -201,6 +221,27 @@ export const apiClient = {
   ) =>
     apiCall<OfferDto>('updateOffer', {
       params: { tenantId, offerId },
+      body: changes,
+    }),
+
+  createCreative: (
+    offerId: string,
+    creative: Partial<CreativeDto>,
+    tenantId: string = TENANT
+  ) =>
+    apiCall<CreativeDto>('createCreative', {
+      params: { tenantId, offerId },
+      body: creative,
+    }),
+
+  updateCreative: (
+    offerId: string,
+    creativeId: string,
+    changes: Partial<CreativeDto>,
+    tenantId: string = TENANT
+  ) =>
+    apiCall<CreativeDto>('updateCreative', {
+      params: { tenantId, offerId, creativeId },
       body: changes,
     }),
 
