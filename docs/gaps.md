@@ -735,3 +735,39 @@ Not fixed here because the fix is a change to a shared gate and this was found
 in the middle of unrelated work; recorded so the next red run is understood
 rather than re-diagnosed. Every other route in the sweep — 44 of 45, both
 themes — passes consistently.
+
+---
+
+## Resolved 2026-09-07 — outcomes are read
+
+`POST /outcomes` had written to a store nothing read since the ledger existed,
+so the platform could say what it decided and never whether it worked.
+`GET /performance/{tenantId}` joins them, and `/performance` renders it.
+
+Counting only. Attribution modelling, uplift and incrementality are statistical
+claims that would be unfalsifiable inside a platform whose selling point is
+that every number is traceable to its source, so they are deliberately absent
+and the page says so.
+
+**Two defects found by looking at the rendered page rather than the tests.**
+
+1. **Rates were over offers, not observations.** The first version divided 0
+   acceptances by 146 offers and printed `0.0%`, which reads as "we measured and
+   nobody took it" when the truth was that no channel had reported anything.
+   The denominator is now decisions with an outcome, coverage is shown beside
+   it, and a row nobody reported on shows a dash.
+2. **`POST /outcomes` refused a seeded decision while `GET` accepted one.** The
+   five thousand decisions the console displays could be read for outcomes and
+   never given one, so the measurement loop could not be exercised against any
+   of them. The route now materialises a seeded decision into the ledger on its
+   first outcome, which keeps the ledger's invariant — an outcome always joins
+   to a decision — without paying for five thousand inserts nobody may measure.
+
+**Known and deliberate:** the report fetches outcomes one decision at a time.
+Correct and slow, and the right shape to replace with a join when there is a
+store that can do one. An approximation would have been a number nobody could
+check.
+
+**Still absent:** experiments and holdouts, volume and budget constraints, a
+model registry behind the scoring seam, and channel adapters. Nothing sends an
+outcome yet (W-017), which is why every rate on the page is currently a dash.

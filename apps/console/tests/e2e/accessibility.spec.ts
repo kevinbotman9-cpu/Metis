@@ -21,6 +21,7 @@ const PAGES = [
   // the shadow panel had never been scanned.
   { path: '/decision-flows/next-best-action', name: 'flow detail' },
   { path: '/decisions', name: 'decisions' },
+  { path: '/performance', name: 'performance' },
   { path: '/data-model', name: 'data model' },
   { path: '/data-model/intake', name: 'intake' },
   { path: '/integrations', name: 'integrations' },

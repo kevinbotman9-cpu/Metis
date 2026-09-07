@@ -59,6 +59,7 @@ const NAV: NavSection[] = [
     items: [
       { href: '/decision-flows', label: 'Decision flows', permission: 'view:flows' },
       { href: '/decisions', label: 'Decisions', permission: 'view:decisions' },
+      { href: '/performance', label: 'Performance', permission: 'view:decisions' },
       { href: '/simulations', label: 'Simulations' },
       {
         href: '/integrations',

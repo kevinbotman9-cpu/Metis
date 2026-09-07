@@ -55,6 +55,8 @@ import type {
   SchemaField as SchemaFieldDto,
   SchemaAggregation as SchemaAggregationDto,
   DataSource as DataSourceDto,
+  PerformanceReport as PerformanceReportDto,
+  PerformanceRow as PerformanceRowDto,
   FieldMapping as FieldMappingDto,
   ValidationReport as ValidationReportDto,
   ColumnSummary as ColumnSummaryDto,
@@ -411,6 +413,13 @@ export const apiClient = {
   activateDataSource: (sourceId: string, tenantId: string = TENANT) =>
     apiCall<DataSourceDto>('activateDataSource', { params: { tenantId, sourceId } }),
 
+  // --- Measurement --------------------------------------------------------
+  /** Outcomes joined to the decisions they belong to. Counting, not modelling. */
+  getPerformance: (
+    filters: { flowId?: string; channel?: string; limit?: number } = {},
+    tenantId: string = TENANT
+  ) => apiCall<PerformanceReportDto>('getPerformance', { params: { tenantId }, query: filters }),
+
   // --- Data model ---------------------------------------------------------
   /**
    * The tenant's data model, and the paths a policy may reference.
@@ -556,6 +565,8 @@ export type {
   SchemaFieldDto,
   SchemaAggregationDto,
   DataSourceDto,
+  PerformanceReportDto,
+  PerformanceRowDto,
   FieldMappingDto,
   ValidationReportDto,
   ColumnSummaryDto,

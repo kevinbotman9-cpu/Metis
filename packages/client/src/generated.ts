@@ -229,6 +229,38 @@ export interface DataSource {
   updatedBy: string;
 }
 
+export interface PerformanceRow {
+  action: string;
+  channel: string;
+  flowId: string;
+  /** Decisions where this action won. */
+  offered: number;
+  /** Decisions with any outcome recorded. The denominator for every rate here - a rate over `offered` would divide by decisions nobody reported on, turning silence into 0%. */
+  measured: number;
+  impressions: number;
+  clicks: number;
+  acceptances: number;
+  rejections: number;
+  conversions: number;
+  /** Null when no outcome carried a value, which is distinct from zero - zero would claim the offers were worth nothing rather than that nobody said. */
+  valueMinor: number;
+  /** Null when nothing was measured. Zero would claim the offer was seen and refused; null says nobody reported back. */
+  acceptanceRate: number;
+  clickRate: number;
+}
+
+export interface PerformanceReport {
+  rows: PerformanceRow[];
+  decisions: number;
+  offered: number;
+  /** Decisions that offered nothing. Reported beside the rest rather than hidden - on a platform whose suitability tier exists to refuse profitable offers, suppression is a result, not a shortfall. */
+  suppressed: number;
+  /** Decisions with at least one outcome recorded against them. */
+  measured: number;
+  from?: string;
+  to?: string;
+}
+
 /** The tenant's customer data model. A contract about what fields exist and how entities relate; it says nothing about where values come from, which is already two separate answers (the caller sends them, or a connector resolves them). */
 export interface ProfileSchema {
   id: string;
@@ -1038,6 +1070,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '404'],
   },
+  getPerformance: {
+    method: 'GET',
+    path: '/performance/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: ['flowId', 'channel', 'limit'],
+    statuses: ['200'],
+  },
   getProfileSchema: {
     method: 'GET',
     path: '/profile-schema/{tenantId}',
@@ -1470,6 +1509,9 @@ export type GetDecisionRecordResponse = DecisionRecord;
 /** An offer with its creatives, policies and effective autonomy */
 export type GetOfferResponse = OfferDetail;
 
+/** What happened after the decisions */
+export type GetPerformanceResponse = PerformanceReport;
+
 /** The tenant's customer data model */
 export type GetProfileSchemaResponse = {
   schema: ProfileSchema;
@@ -1746,6 +1788,7 @@ export interface ResponseOf {
   getCounterfactual: GetCounterfactualResponse;
   getDecisionRecord: GetDecisionRecordResponse;
   getOffer: GetOfferResponse;
+  getPerformance: GetPerformanceResponse;
   getProfileSchema: GetProfileSchemaResponse;
   getRegistryEntry: GetRegistryEntryResponse;
   getSession: GetSessionResponse;

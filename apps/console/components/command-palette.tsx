@@ -55,6 +55,7 @@ const PAGES: Result[] = [
   { kind: 'page', id: 'arbitration', title: 'Arbitration & Boosts', subtitle: 'P x V x L x C', href: '/arbitration' },
   { kind: 'page', id: 'flows', title: 'Decision flows', subtitle: 'Compiled decision graphs', href: '/decision-flows' },
   { kind: 'page', id: 'decisions', title: 'Decisions', subtitle: 'Search traces and replay', href: '/decisions' },
+  { kind: 'page', id: 'performance', title: 'Performance', subtitle: 'Outcomes joined to decisions', href: '/performance' },
   { kind: 'page', id: 'simulations', title: 'Simulations', href: '/simulations' },
   { kind: 'page', id: 'approvals', title: 'Approvals', subtitle: 'Change set queue', href: '/approvals' },
   { kind: 'page', id: 'agentic', title: 'Agentic AI', subtitle: 'Autonomy levels and guardrails', href: '/agentic' },

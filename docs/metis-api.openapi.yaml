@@ -437,6 +437,65 @@ components:
         updatedAt: { type: string, format: date-time }
         updatedBy: { type: string }
 
+    PerformanceRow:
+      type: object
+      required: [action, channel, flowId, offered, measured, impressions, clicks, acceptances, rejections, conversions, valueMinor, acceptanceRate, clickRate]
+      properties:
+        action: { type: string }
+        channel: { type: string }
+        flowId: { type: string }
+        offered:
+          type: integer
+          description: Decisions where this action won.
+        measured:
+          type: integer
+          description: >-
+            Decisions with any outcome recorded. The denominator for every rate
+            here - a rate over `offered` would divide by decisions nobody
+            reported on, turning silence into 0%.
+        impressions: { type: integer }
+        clicks: { type: integer }
+        acceptances: { type: integer }
+        rejections: { type: integer }
+        conversions: { type: integer }
+        valueMinor:
+          type: integer
+          nullable: true
+          description: >-
+            Null when no outcome carried a value, which is distinct from zero -
+            zero would claim the offers were worth nothing rather than that
+            nobody said.
+        acceptanceRate:
+          type: number
+          nullable: true
+          description: >-
+            Null when nothing was measured. Zero would claim the offer was seen
+            and refused; null says nobody reported back.
+        clickRate:
+          type: number
+          nullable: true
+
+    PerformanceReport:
+      type: object
+      required: [rows, decisions, offered, suppressed, measured]
+      properties:
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/PerformanceRow' }
+        decisions: { type: integer }
+        offered: { type: integer }
+        suppressed:
+          type: integer
+          description: >-
+            Decisions that offered nothing. Reported beside the rest rather than
+            hidden - on a platform whose suitability tier exists to refuse
+            profitable offers, suppression is a result, not a shortfall.
+        measured:
+          type: integer
+          description: Decisions with at least one outcome recorded against them.
+        from: { type: string, nullable: true, format: date-time }
+        to: { type: string, nullable: true, format: date-time }
+
     ProfileSchema:
       type: object
       description: >-
@@ -2520,6 +2579,34 @@ paths:
                     items: { type: string }
         '403':
           description: Requires edit:integrations
+
+  /performance/{tenantId}:
+    get:
+      summary: What happened after the decisions
+      description: |
+        Joins recorded outcomes to the decisions they belong to. Counting only -
+        attribution modelling and uplift are statistical claims that would be
+        unfalsifiable inside a platform whose selling point is that every number
+        is traceable to its source.
+
+        Counts distinct decisions rather than events, so a channel that fires an
+        impression twice reports one and no rate can exceed 1.
+      operationId: getPerformance
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: flowId
+          in: query
+          schema: { type: string }
+        - name: channel
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: The report
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PerformanceReport' }
 
   /profile-schema/{tenantId}:
     get:

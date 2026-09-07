@@ -33,6 +33,7 @@ import { RecordedIntegrationGateway } from '@/mocks/gateway';
 import { recorded, listCalls, clearCalls, isEnabled as callLogEnabled } from '@/mocks/call-log';
 import type { DecisionRecord } from '@metis/runtime';
 import type { OutcomeType } from '@metis/ledger';
+import { buildPerformance } from '@metis/ledger';
 import type { Creative, Offer } from '@metis/core/domain';
 import { validateCreativeContent, offerMayBeActive } from '@metis/core/creative';
 import {
@@ -49,7 +50,7 @@ import {
   type DataSourceDefinition,
   type FieldMapping,
 } from '@metis/core/intake';
-import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
+import { findGenerated, generated, catalogueSnapshot } from '@/mocks/fixtures/engine';
 import {
   currentCatalogue,
   catalogueByHash,
@@ -723,6 +724,65 @@ async function handleGet(req: Request, { params }: Ctx) {
     // the editor must agree about which operators a type admits, and the only
     // way to guarantee that is one implementation — an operator the editor
     // does not offer has to be one the compiler rejects.
+    // GET /api/performance/{tenantId} — outcomes joined to their decisions.
+    //
+    // Outcomes had been recorded since the ledger existed and nothing read
+    // them, so the platform could say what it decided and never whether it
+    // worked.
+    //
+    // Read over the same corpus `/decisions` lists, not over the ledger alone.
+    // The console has two decision stores — the generated corpus it displays,
+    // and the ledger that runtime decisions land in — and `POST /outcomes`
+    // deliberately accepts either, because a seeded decision is real to this
+    // console even though it predates the ledger. A report that covered only
+    // the ledger would say "0 decisions" on a console showing five thousand,
+    // which is a worse answer than a slow one.
+    case 'performance': {
+      const tenantId = rest[0];
+      if (!tenantId) return notFound();
+
+      const flowId = q.get('flowId');
+      const channel = q.get('channel');
+      const limit = Math.min(Number(q.get('limit') || 5000), 20000);
+
+      // The corpus, in the shape the read model takes. Only the fields it
+      // reads are filled: this is a projection for counting, not a second copy
+      // of the ledger pretending to be one.
+      const fromCorpus = generated.map((g) => ({
+        tenantId,
+        decisionId: g.trace.id,
+        subjectHash: '',
+        occurredAt: g.trace.decision.occurredAt,
+        flowId: g.trace.decision.artifactId,
+        flowVersion: g.trace.decision.artifactVersion,
+        chainHash: g.trace.chainHash,
+        record: g.trace,
+      }));
+
+      // Runtime decisions too, deduped by id — a decision made through the API
+      // is in the ledger and not in the corpus.
+      const seen = new Set(fromCorpus.map((e) => e.decisionId));
+      const fromLedger = (await store.ledger.query({ tenantId, limit })).filter(
+        (e) => !seen.has(e.decisionId)
+      );
+
+      const all = [...fromCorpus, ...fromLedger]
+        .filter((e) => (flowId ? e.flowId === flowId : true))
+        .filter((e) => (channel ? e.record.decision.channel === channel : true))
+        .slice(0, limit);
+
+      // One fetch per decision. Correct and slow, and the right shape to
+      // replace with a join when there is a store that can do one — an
+      // approximation would have been a number nobody could check.
+      const outcomes = new Map<string, Awaited<ReturnType<typeof store.ledger.outcomesFor>>>();
+      for (const entry of all) {
+        const events = await store.ledger.outcomesFor(tenantId, entry.decisionId);
+        if (events.length > 0) outcomes.set(entry.decisionId, events);
+      }
+
+      return json(buildPerformance(all, outcomes));
+    }
+
     case 'profile-schema': {
       if (!rest[0]) return notFound();
       const schema = store.profileSchema;
@@ -911,6 +971,23 @@ async function handlePost(req: Request, { params }: Ctx) {
         valueMinor: body.valueMinor ?? null,
         ...(body.detail ? { detail: body.detail } : {}),
       };
+
+      // A seeded decision is real to this console even though it predates the
+      // ledger — `GET /outcomes` has always said so. The POST did not, so the
+      // five thousand decisions the console displays could be read for
+      // outcomes and never given one, and the measurement loop could not be
+      // exercised against any of them.
+      //
+      // Materialised on first outcome rather than seeded at startup: the
+      // ledger's invariant is that an outcome always joins to a decision, and
+      // writing the decision first keeps that true without paying for five
+      // thousand inserts nobody may ever measure.
+      if (!(await store.ledger.get(tenantId, decisionId))) {
+        const seeded = findGenerated(decisionId);
+        if (seeded) {
+          await store.ledger.record(store.ledger.entryFor(seeded.trace, tenantId));
+        }
+      }
 
       try {
         await store.ledger.recordOutcome(event);
