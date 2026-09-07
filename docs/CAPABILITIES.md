@@ -33,8 +33,9 @@ names the check so the claim can be audited rather than trusted.
 Integration         15 passed  - author -> compile -> execute -> replay, plus the
                                  API-path reconciliation and source hygiene
                                  checks, which span packages and belong to none
-Runtime            205 passed  - determinism, byte-identical replay, integration
-                                 resolution, ADR-003 values, the 22-decision
+Runtime            217 passed  - determinism, byte-identical replay, integration
+                                 resolution over a real HTTP gateway, ADR-003
+                                 values, the 22-decision
                                  corpus, ranking functions, idempotency, shadow,
                                  no network egress in the decision path, and
                                  the approved default for a missing score
@@ -49,7 +50,7 @@ Portability         22 passed  - export, re-import, round-trip conformance, and
                                  the guard that stops the export rotting
 Performance         12 passed  - bench/harness: the p99 gate, and S1 over a
                                  million seeded profiles
-Unit (Vitest)       45 passed  - apps/console
+Unit (Vitest)       49 passed  - apps/console
 E2E (Playwright)   187 passed  - contract, cross-engine, axe, registry, ledger,
                                  idempotency, shadow (13 skipped: writes covered
                                  by permissions-and-writes and registry instead)
@@ -58,7 +59,7 @@ Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
 Typecheck           clean      - root config and the console's, separately
 Lint                0 errors   - root and console, separate configs
                    ---
-                    704 tests, two languages, two engines
+                    720 tests, two languages, two engines
 ```
 
 The OpenAPI spec validates at **34 paths, 41 operations (39 built, 2 proposed),
@@ -91,6 +92,10 @@ corpora changed on that date, because the rename reached the hashed decision.
 | Durable decision ledger | BUILT | `packages/ledger`, 50 tests against both stores; append-only triggers |
 | Outcome capture | BUILT | `POST /outcomes/{tenantId}/{decisionId}`, `e2e/ledger.spec.ts`. Storage only — learning from outcomes is §7 |
 | Missing score is never a silent zero | BUILT | A flow declares a `missingScoreDefault` with its approver and date; the engine applies it, and every decision records which candidates fell back and what default stood in. Both engines agree via two new corpus cases. Verified: an engine that ignores the declared default fails two unit tests and the corpus |
+| Integration resolution on the decision path | BUILT | Connectors are fetched before the deterministic core, their values are hashed into the input snapshot, and the fields the caller supplied win. `HttpIntegrationGateway` does the I/O; `packages/runtime/tests/http-gateway.test.ts` drives it against a real HTTP server, and `apps/console/tests/unit/decision-resolution.test.ts` asserts the endpoint resolves. Verified to bite: executing on the unresolved request loses the provenance and fails |
+| Replay calls no connector | BUILT | Replay re-executes against the recorded snapshot, and `no-egress.test.ts` asserts `execute` and `replay` open no socket. Wire timings live on the measured half, so a decision cannot depend on whether it was lucky with a cache |
+| Connector authentication | PLANNED — [ADR-007](adr/ADR-007-secrets-and-connector-authentication.md) | The gateway sends no credentials, because `Connector` has no field for one. A secret in connector configuration is a secret in an append-only audit log and in every export made from it, so the shape needs deciding before the field exists. Integrations therefore work against internal and unauthenticated endpoints and fail against a real bureau. **Proposed, not accepted** |
+| Reading a `feature-store` connector | PLANNED — [W-009](BACKLOG.md) | No feature service exists. The gateway says so by name rather than attempting a `featurestore://` URL |
 | Optimisation constraints, slate selection | OUT OF SCOPE | The engine returns a single action. Cardinality, mutual exclusion, diversity, budget, inventory and fairness are gate 2–3 |
 
 ## §7 — Intelligence

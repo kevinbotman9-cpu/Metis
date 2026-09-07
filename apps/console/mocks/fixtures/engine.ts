@@ -168,9 +168,11 @@ function buildRequest(index: number): DecisionRequest {
       // input snapshot resolution produced - so the traces carry genuine
       // provenance and the console can show where each field came from.
       //
-      // The live path really does resolve. `POST /api/decisions` runs
-      // resolveInputs through a gateway before executing, and the resolver
-      // itself is covered by 19 tests in packages/runtime.
+      // The live path really does resolve — as of 2026-09-07, and not before.
+      // `POST /api/decisions` runs resolveInputs through a gateway before
+      // executing; this comment claimed as much for some time while nothing
+      // called the resolver at all. `decision-resolution.test.ts` is what makes
+      // the claim checkable, and it fails if the wiring is removed.
       ...connectorPayload(index),
     },
     contactHistory: {

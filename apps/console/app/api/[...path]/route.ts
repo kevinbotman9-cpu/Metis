@@ -16,7 +16,17 @@
 import { NextResponse } from 'next/server';
 import { store, resetStore, recordAudit } from '@/mocks/store';
 import { findTrace, decisions } from '@/mocks/fixtures/decisions';
-import { IdempotencyConflict, compareShadow, buildShadowReport } from '@metis/runtime';
+import {
+  IdempotencyConflict,
+  compareShadow,
+  buildShadowReport,
+  resolveInputs,
+  IntegrationError,
+  HttpIntegrationGateway,
+  MemoryIntegrationCache,
+} from '@metis/runtime';
+import type { IntegrationGateway } from '@metis/runtime';
+import { RecordedIntegrationGateway } from '@/mocks/gateway';
 import type { DecisionRecord } from '@metis/runtime';
 import type { OutcomeType } from '@metis/ledger';
 import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
@@ -35,6 +45,24 @@ type DecisionRequestBody = Partial<DecisionRequest> &
   Pick<DecisionRequest, 'tenantId' | 'customerId' | 'channel' | 'placement'>;
 
 type Ctx = { params: Promise<{ path: string[] }> };
+
+/**
+ * The gateway integration resolution runs through.
+ *
+ * Recorded by default, HTTP when `METIS_INTEGRATIONS=live` is set. The default
+ * is not squeamishness about the network: the fixture connectors target
+ * `bureau.example` and `consent.telco.example`, which do not resolve, and two
+ * of them are configured `onFailure: 'fail'` — so a dev console pointed at them
+ * would answer 503 to every decision. Live mode is what a deployment with real
+ * endpoints sets, and `HttpIntegrationGateway` is the same code either way.
+ *
+ * Module scope so the cache outlives a request, which is the only way a
+ * `cacheTtlSeconds` of 300 means anything.
+ */
+const integrationGateway: IntegrationGateway =
+  process.env.METIS_INTEGRATIONS === 'live'
+    ? new HttpIntegrationGateway({ cache: new MemoryIntegrationCache() })
+    : new RecordedIntegrationGateway();
 
 /**
  * Run the shadow version of a flow and record how it compared.
@@ -542,7 +570,52 @@ export async function POST(req: Request, { params }: Ctx) {
           );
         }
 
-        const trace = executeDecision(artifact, catalogueSnapshot, decisionRequest);
+        // Integrations resolve here, before the deterministic core and after
+        // the idempotency check — a retry that is going to be answered from the
+        // ledger must not pay for a bureau call first.
+        //
+        // Against `catalogueSnapshot.connectors` rather than `store.connectors`
+        // on purpose. The engine records which connector supplied which field
+        // from the catalogue it hashes; resolving from a different copy would
+        // let provenance and resolution disagree about whether a connector was
+        // active. That the console's toggle writes to a store neither of them
+        // reads is W-005's open decision, unchanged by this and registered in
+        // docs/gaps.md.
+        let resolvedInputs;
+        try {
+          resolvedInputs = await resolveInputs(
+            artifact,
+            catalogueSnapshot.connectors ?? [],
+            decisionRequest,
+            integrationGateway
+          );
+        } catch (e) {
+          if (e instanceof IntegrationError) {
+            // A connector configured `onFailure: 'fail'` failed, so there is no
+            // decision to give. 503 rather than 500: the flow is fine and the
+            // request is fine, a dependency is not, and a caller can retry.
+            return json(
+              {
+                error: 'integration_failed',
+                message: e.message,
+                connectorId: e.connectorId,
+                outcome: e.outcome,
+              },
+              503
+            );
+          }
+          throw e;
+        }
+
+        // Fields the caller supplied win, which `resolveInputs` guarantees; the
+        // 60 service cases carry theirs, which is why they still hash the same.
+        const resolvedRequest = { ...decisionRequest, input: resolvedInputs.input };
+
+        const trace = executeDecision(artifact, catalogueSnapshot, resolvedRequest);
+
+        // Measured, never hashed, and absent from a replay: what the wire cost
+        // is not part of what was decided.
+        if (resolvedInputs.calls.length > 0) trace.measured.sourceCalls = resolvedInputs.calls;
 
         // Recorded synchronously, before answering. §6 asks for the envelope to
         // be durable before the caller is told what was decided — a decision
@@ -590,7 +663,10 @@ export async function POST(req: Request, { params }: Ctx) {
         // Tracked in `store.shadowInFlight` so tests can wait for quiescence
         // instead of sleeping — an async mechanism tested with a sleep is a
         // flake with a timer attached.
-        void runShadow(trace, decisionRequest);
+        // The resolved request, not the caller's: a shadow run against different
+        // inputs would report a divergence that is about resolution rather than
+        // about the two versions, which is the one thing it must not do.
+        void runShadow(trace, resolvedRequest);
 
         return json({ id: trace.id, decision: trace.decision, chainHash: trace.chainHash });
       }

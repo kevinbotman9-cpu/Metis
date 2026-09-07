@@ -24,6 +24,8 @@ export type {
   ResolutionContext,
   ResolvedInput,
 } from './integration/resolve';
+export { HttpIntegrationGateway, MemoryIntegrationCache } from './integration/http-gateway';
+export type { HttpGatewayOptions } from './integration/http-gateway';
 export type {
   ExecArtifact,
   ExecNode,

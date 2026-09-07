@@ -1908,9 +1908,14 @@ paths:
         Execute a flow against a request and return the trace.
 
         Integrations are resolved before the deterministic core runs and their
-        values arrive in `request.input`; this operation does not fetch them.
-        A caller that wants resolution asks for it by supplying the fields, or
-        by calling a service configured with a gateway.
+        values arrive in `request.input`. A service configured with a gateway
+        resolves the connectors its flow names and merges the result; fields the
+        caller supplied always win, so a request that carries every field is
+        unaffected by whether resolution ran. A service configured without one
+        fetches nothing and decides on what it was given.
+
+        A connector configured `onFailure: fail` that fails is a 503: the flow
+        and the request are both fine and a dependency is not.
 
         `occurredAt` is required and is never defaulted to the current time.
         Defaulting it would make a decision depend on when it was made, which
@@ -2013,6 +2018,27 @@ paths:
                     type: string
         '404':
           description: No such artifact
+        '503':
+          description: >
+            A connector the flow requires could not be read, and it is
+            configured to fail rather than omit or default. No decision was
+            made and none was recorded; the caller may retry.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, message, connectorId, outcome]
+                properties:
+                  error:
+                    type: string
+                    enum: [integration_failed]
+                  message:
+                    type: string
+                  connectorId:
+                    type: string
+                  outcome:
+                    type: string
+                    enum: [timeout, error]
 
   /decisions/{decisionId}/trace:
     get:

@@ -701,7 +701,7 @@ export const OPERATIONS = {
     path: '/decisions',
     pathParams: [],
     queryParams: [],
-    statuses: ['200', '400', '404', '409'],
+    statuses: ['200', '400', '404', '409', '503'],
   },
   getArbitrationConfig: {
     method: 'GET',

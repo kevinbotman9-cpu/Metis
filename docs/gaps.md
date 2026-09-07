@@ -64,6 +64,28 @@ refactor to perform.
 
 ---
 
+## Registered 2026-09-07 — integrations resolve, and cannot authenticate
+
+`resolveInputs` has been able to fetch since it was written and had nothing to
+fetch with: `IntegrationGateway` was an interface whose only implementations
+were test doubles, and nothing on any decision path called it. A comment in
+`apps/console/mocks/fixtures/engine.ts` asserted the opposite — "`POST
+/api/decisions` runs resolveInputs through a gateway before executing" — which
+was not true when it was written. Both are fixed: `HttpIntegrationGateway` does
+the I/O, `RecordedIntegrationGateway` serves development, and the console's
+endpoint resolves before it executes.
+
+Four gaps remain, and none is worked around in code.
+
+| Gap | Notes |
+|---|---|
+| **No connector can authenticate** | `Connector` has no credential field and the gateway sends no headers. That is [ADR-007](adr/ADR-007-secrets-and-connector-authentication.md), which is **Proposed**: a secret in connector configuration is a secret in an append-only audit log and in every export made from it, so the shape has to be decided before the field exists. Until then, integrations work against internal and unauthenticated endpoints and fail against a real bureau. |
+| **`feature-store` connectors cannot be read** | There is no feature service (W-009). Two of the five fixture connectors declare that kind, and in live mode the gateway names W-009 rather than attempting a `featurestore://` URL that was never going to resolve. |
+| **The JVM service does not resolve** | The console does; `engines/kotlin` takes `input` as given. `service-cases.json` carries every field in its requests, so the 60 conformance cases still agree exactly — but the two are not interchangeable for a request that *omits* a connector-supplied field, and the corpus cannot see the difference. Resolution is outside the deterministic core, so this is a plane-level asymmetry rather than an engine divergence; it is recorded here because "either service, same answer" is a claim the project makes. |
+| **The console's connector toggle still reaches neither** | Resolution reads `catalogueSnapshot.connectors`, deliberately, so provenance and resolution cannot disagree about whether a connector was active. `/integrations` writes to `store.connectors`, which neither reads. Same root cause as the entry above, and it resolves with W-005's second half rather than separately. |
+
+---
+
 ## Build-system gaps
 
 Not platform APIs, but the same kind of problem: a check that appears to run

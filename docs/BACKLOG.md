@@ -142,6 +142,7 @@ otherwise.
 | W-048 | 24 | OpenTelemetry, SLOs, quotas | 3 |
 | W-049 | 25 | Evidence packs: AI Act, NIST AI RMF, SR 11-7 | 3 |
 | W-050 | 25 | DR: backup, tested restore, chaos | 3 |
+| W-051 | 9 | Secret provider and connector authentication — **ADR awaiting decision** | 2 |
 
 ---
 
@@ -415,6 +416,33 @@ this list.
   store, and that the append-only triggers are still intact.
 - Retention policy is configurable per tenant and enforced by a job with its own
   test.
+
+### W-051 — Secret provider and connector authentication — **ADR WRITTEN 2026-09-07, awaiting a decision**
+Gate 2 · Depends: none · Spec §8, §11 · **Needs an ADR** — written
+
+[ADR-007](adr/ADR-007-secrets-and-connector-authentication.md) proposes that
+configuration holds a credential *reference* and never a value, resolved at
+fetch time through a `SecretProvider` interface. The argument is the same shape
+as ADR-004's: the audit log is append-only and the export leaves the platform,
+so a secret written into a connector row is permanent in one and copied by the
+other, and neither is undoable after the fact.
+
+Integration resolution runs on the decision path as of 2026-09-07 and sends no
+credentials, because there is nowhere to put one. That is the whole of the gap:
+connectors work against internal and unauthenticated endpoints and fail against
+a real bureau, a CRM or a consent registry.
+
+**Blocks:** any authenticated inbound integration, and W-017 — an outbound email
+adapter needs a credential before it can send anything.
+
+**Done when:**
+- The ADR is Accepted or replaced.
+- `Connector.auth` is in the spec, the client is regenerated, and no schema in
+  the spec can carry a credential value.
+- A test provisions a secret, drives a connector that uses it, and asserts the
+  value appears in no audit entry, no export bundle and no decision record.
+- A missing credential fails resolution explicitly and does **not** fall through
+  to `onFailure`, with its own test.
 
 ### W-007 — Configurable approved default for a missing score — **DONE 2026-09-06**
 Gate 2 · Depends: none · Spec §6
