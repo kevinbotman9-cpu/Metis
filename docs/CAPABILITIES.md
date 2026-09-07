@@ -33,7 +33,7 @@ names the check so the claim can be audited rather than trusted.
 Core                15 passed  - creative content per channel, and the
                                  invariant that an offer needs deliverable
                                  content before it can go active
-Integration         16 passed  - author -> compile -> execute -> replay, plus the
+Integration         19 passed  - author -> compile -> execute -> replay, plus the
                                  API-path reconciliation and source hygiene
                                  checks, which span packages and belong to none
 Runtime            227 passed  - determinism, byte-identical replay, integration
@@ -63,7 +63,7 @@ Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
 Typecheck           clean      - root config and the console's, separately
 Lint                0 errors   - root and console, separate configs
                    ---
-                    783 tests, two languages, two engines
+                    786 tests, two languages, two engines
 ```
 
 The OpenAPI spec validates at **36 paths, 43 operations (41 built, 2 proposed),
@@ -75,7 +75,7 @@ The OpenAPI spec validates at **36 paths, 43 operations (41 built, 2 proposed),
 
 | Capability | Status | Evidence |
 |---|---|---|
-| Vendor-neutral vocabulary in code, API, UI and docs | BUILT | The rename landed 2026-09-05 (`1d3da31`). `CLAUDE.md` holds the normative catalogue |
+| Vendor-neutral vocabulary in code, API, UI and docs | BUILT | `tests/vocabulary.test.ts` scans tracked source for the eight words the platform was renamed away from, excluding its own list and the docs that have to name them. Verified to bite by Phase A's own experiment: `export type Proposition = Offer` now fails, where it used to pass typecheck, lint and every suite. The retained `arbitration` and `propensity` are deliberately not flagged |
 | `offer` / `action` split | PARTIAL | An offer carries the `key` used as the action. Splitting them is a modelling change, not a rename, and has not been done |
 
 The vocabulary was Pega's almost verbatim — proposition, treatment, engagement
