@@ -11,6 +11,7 @@
     "./domain": "./src/domain.ts",
     "./utility": "./src/utility.ts",
     "./creative": "./src/creative.ts",
-    "./profile-schema": "./src/profile-schema.ts"
+    "./profile-schema": "./src/profile-schema.ts",
+    "./intake": "./src/intake.ts"
   }
 }

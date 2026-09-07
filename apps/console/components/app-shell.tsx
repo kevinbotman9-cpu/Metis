@@ -44,7 +44,11 @@ const NAV: NavSection[] = [
     items: [
       { href: '/offers', label: 'Offers', permission: 'view:offers' },
       { href: '/creatives', label: 'Creatives', permission: 'view:offers' },
-      { href: '/data-model', label: 'Data model' },
+      {
+        href: '/data-model',
+        label: 'Data model',
+        children: [{ href: '/data-model/intake', label: 'Intake' }],
+      },
       { href: '/targeting-policies', label: 'Targeting Policies' },
       { href: '/frequency-policy', label: 'Frequency Policy' },
       { href: '/arbitration', label: 'Arbitration & Boosts' },

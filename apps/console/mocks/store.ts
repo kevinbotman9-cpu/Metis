@@ -29,6 +29,7 @@ import {
 } from './fixtures/catalogue';
 import { profileSchema as seedProfileSchema } from './fixtures/profile-schema';
 import type { ProfileSchema } from '@metis/core/profile-schema';
+import type { DataSourceDefinition, ValidationReport } from '@metis/core/intake';
 import { artifacts as seedArtifacts, type ArtifactSummary } from './fixtures/artifacts';
 import { compileContext, toSource } from './fixtures/compiled';
 import { ArtifactRegistry, InMemoryRegistryStore } from '@metis/registry';
@@ -47,6 +48,19 @@ type Store = {
   targetingPolicies: typeof seedTargetingPolicies;
   /** The tenant's data model. Editable, so it lives here rather than in the fixture. */
   profileSchema: ProfileSchema;
+  /** Configured sources of customer records. */
+  dataSources: DataSourceDefinition[];
+  /**
+   * Rows as they were landed, by source id.
+   *
+   * Held in memory only and never written to disk. These are customer records
+   * in their original shape, which is the one thing ADR-004 has not yet decided
+   * how to retain — so they live where a restart clears them, and the
+   * per-source cap keeps a bad import from becoming an unbounded one.
+   */
+  landedRows: Map<string, Record<string, unknown>[]>;
+  /** The most recent report per source. Cleared when new rows land. */
+  validationReports: Map<string, ValidationReport>;
   frequencyPolicies: typeof seedFrequencyPolicies;
   arbitration: typeof seedArbitration;
   /**
@@ -111,6 +125,9 @@ function seed(): Store {
     creatives: clone(seedCreatives),
     targetingPolicies: clone(seedTargetingPolicies),
     profileSchema: clone(seedProfileSchema),
+    dataSources: [],
+    landedRows: new Map(),
+    validationReports: new Map(),
     frequencyPolicies: clone(seedFrequencyPolicies),
     arbitration: clone(seedArbitration),
     ledger: new DecisionLedger(ledgerStore),

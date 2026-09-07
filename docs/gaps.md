@@ -640,3 +640,36 @@ When flow authoring lands it should become the opposite assertion.
 
 **What does work today:** editing an existing policy that a node already names.
 That reaches the engine, and the rollup tests use it.
+
+---
+
+## Registered 2026-09-07 — intake holds customer records, and ADR-004 is still Proposed
+
+`/data-model/intake` lands rows, maps them onto the model, validates and
+activates. The landed rows are customer records in their original shape, which
+is the one thing the platform has so far refused to retain — a `DecisionRecord`
+keeps `inputSnapshotHash` and never the values, precisely so a trace can be kept
+without the data it was made from.
+
+So the shape of what is held is deliberately conservative, and none of it is a
+substitute for the decision:
+
+- **Memory only.** `store.landedRows` is a `Map`, never written to disk, and a
+  restart clears it.
+- **Bounded.** `MAX_LANDED_ROWS` is 5,000 per source, so a bad import is finite
+  rather than somebody else's problem later.
+- **Classified.** Every field the model declares carries `sensitivity`
+  (`none | personal | special_category`), recorded at declaration time — which
+  ADR-004 itself argues is far cheaper than classifying a populated store.
+
+**What is still owed, and this is the whole entry:** durable storage, an
+erasure path, and a retention period. ADR-004 proposes crypto-shredding —
+encrypt per subject, destroy the key on erasure, let a replay of an erased
+subject fail explicitly rather than return a decision computed from nulls. None
+of that is built. Nothing here should be pointed at a real customer file until
+it is.
+
+The stage after this one is the profile store, and it is the stage that makes
+retention unavoidable. The order is deliberate: schema, mapping and validation
+all landed without retaining anything, so the decision can still be taken
+before it is expensive.

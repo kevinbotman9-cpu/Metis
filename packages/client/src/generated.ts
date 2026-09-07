@@ -179,6 +179,56 @@ export interface SchemaAggregation {
   type: "string" | "integer" | "decimal" | "boolean" | "timestamp" | "enum" | "money";
 }
 
+/** A declared transform. The set is closed on purpose: an arbitrary expression in a mapping is code running over customer data on an ingest path, versioned nowhere and reviewed by nobody. */
+export interface Transform {
+  kind: "none" | "trim" | "lowercase" | "uppercase" | "to_number" | "to_boolean" | "map_values" | "years_since";
+  /** For map_values. Exhaustive - a source value with no entry is a problem rather than a pass-through. */
+  values?: Record<string, string>;
+}
+
+export interface FieldMapping {
+  /** Column name in the landed rows. */
+  column: string;
+  /** Dotted path in the data model. */
+  path: string;
+  transform?: Transform;
+}
+
+export interface ColumnSummary {
+  column: string;
+  path: string;
+  filled: number;
+  failed: number;
+  examples: string[];
+}
+
+/** Summarised by column rather than by row. An import fails for a handful of reasons repeated thousands of times, and the question is which column is wrong and what the bad value looks like. */
+export interface ValidationReport {
+  rows: number;
+  /** Rows with no problem in any column. */
+  clean: number;
+  columns: ColumnSummary[];
+  missingRequired: string[];
+  unmapped: string[];
+  errors: number;
+}
+
+/** A source of customer records, and the mapping from its shape onto the data model. Land, map, validate, activate - a source that has not validated cleanly cannot be activated. */
+export interface DataSource {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string;
+  kind: "file" | "http" | "inline";
+  /** Column names observed when rows were landed. */
+  columns: string[];
+  mappings: FieldMapping[];
+  status: "draft" | "validated" | "active";
+  landedRows: number;
+  updatedAt: string;
+  updatedBy: string;
+}
+
 /** The tenant's customer data model. A contract about what fields exist and how entities relate; it says nothing about where values come from, which is already two separate answers (the caller sends them, or a connector resolves them). */
 export interface ProfileSchema {
   id: string;
@@ -876,6 +926,13 @@ export interface ArtifactSummary {
 
 /** Every operation the spec declares, keyed by operationId. */
 export const OPERATIONS = {
+  activateDataSource: {
+    method: 'POST',
+    path: '/data-sources/{tenantId}/{sourceId}/activation',
+    pathParams: ['tenantId', 'sourceId'],
+    queryParams: [],
+    statuses: ['200', '403', '409'],
+  },
   approveChangeSet: {
     method: 'POST',
     path: '/change-sets/{changeSetId}/approve',
@@ -903,6 +960,13 @@ export const OPERATIONS = {
     pathParams: ['tenantId', 'offerId'],
     queryParams: [],
     statuses: ['201', '400', '403', '404', '409'],
+  },
+  createDataSource: {
+    method: 'POST',
+    path: '/data-sources/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['201', '403'],
   },
   createOffer: {
     method: 'POST',
@@ -1009,6 +1073,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200'],
   },
+  landRows: {
+    method: 'POST',
+    path: '/data-sources/{tenantId}/{sourceId}/rows',
+    pathParams: ['tenantId', 'sourceId'],
+    queryParams: [],
+    statuses: ['200', '403'],
+  },
   listAgentActivity: {
     method: 'GET',
     path: '/agent-activity/{tenantId}',
@@ -1062,6 +1133,13 @@ export const OPERATIONS = {
     method: 'GET',
     path: '/creatives/{tenantId}/{offerId}',
     pathParams: ['tenantId', 'offerId'],
+    queryParams: [],
+    statuses: ['200'],
+  },
+  listDataSources: {
+    method: 'GET',
+    path: '/data-sources/{tenantId}',
+    pathParams: ['tenantId'],
     queryParams: [],
     statuses: ['200'],
   },
@@ -1219,6 +1297,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '400', '403', '404', '409'],
   },
+  updateDataSource: {
+    method: 'PUT',
+    path: '/data-sources/{tenantId}/{sourceId}',
+    pathParams: ['tenantId', 'sourceId'],
+    queryParams: [],
+    statuses: ['200', '403', '404'],
+  },
   updateOffer: {
     method: 'PUT',
     path: '/offers/{tenantId}/{offerId}',
@@ -1233,11 +1318,21 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '400', '403', '404'],
   },
+  validateDataSource: {
+    method: 'POST',
+    path: '/data-sources/{tenantId}/{sourceId}/validation',
+    pathParams: ['tenantId', 'sourceId'],
+    queryParams: [],
+    statuses: ['200'],
+  },
 } as const;
 
 export type OperationId = keyof typeof OPERATIONS;
 
 // --- Request and response bodies --------------------------------------------
+
+/** Activate a validated source */
+export type ActivateDataSourceResponse = DataSource;
 
 /** Approve a change set, applying its diff */
 export type ApproveChangeSetResponse = ChangeSet;
@@ -1254,6 +1349,14 @@ export type CreateChangeSetRequest = ChangeSet;
 /** Add a creative to an offer */
 export type CreateCreativeResponse = Creative;
 export type CreateCreativeRequest = Creative;
+
+/** Define a source */
+export type CreateDataSourceResponse = DataSource;
+export type CreateDataSourceRequest = {
+  name: string;
+  description?: string;
+  kind: "file" | "http" | "inline";
+};
 
 /** Create an offer */
 export type CreateOfferResponse = Offer;
@@ -1386,6 +1489,14 @@ export type GetShadowReportResponse = ShadowReport;
 /** The whole offer taxonomy in one call */
 export type GetTaxonomyResponse = Taxonomy;
 
+/** Land rows against a source */
+export type LandRowsResponse = DataSource;
+export type LandRowsRequest = {
+  rows: Record<string, unknown>[];
+  /** Discard what was landed before rather than appending. */
+  replace?: boolean;
+};
+
 /** What the agents did, and what the guardrails stopped */
 export type ListAgentActivityResponse = {
   activity: AgentActivity[];
@@ -1427,6 +1538,11 @@ export type ListConnectorsResponse = {
 /** Creatives for an offer, one per channel */
 export type ListCreativesResponse = {
   creatives: Creative[];
+};
+
+/** Configured sources of customer records */
+export type ListDataSourcesResponse = {
+  sources: DataSource[];
 };
 
 /** Frequency caps and cooldowns */
@@ -1572,6 +1688,14 @@ export type UpdateConnectorRequest = Connector;
 export type UpdateCreativeResponse = Creative;
 export type UpdateCreativeRequest = Creative;
 
+/** Update a source and its mappings */
+export type UpdateDataSourceResponse = DataSource;
+export type UpdateDataSourceRequest = {
+  name?: string;
+  description?: string;
+  mappings?: FieldMapping[];
+};
+
 /** Update an offer */
 export type UpdateOfferResponse = Offer;
 export type UpdateOfferRequest = Offer;
@@ -1580,12 +1704,20 @@ export type UpdateOfferRequest = Offer;
 export type UpdateTargetingPolicyResponse = TargetingPolicy;
 export type UpdateTargetingPolicyRequest = TargetingPolicyWrite;
 
+/** Check the landed rows against the data model */
+export type ValidateDataSourceResponse = {
+  source: DataSource;
+  report: ValidationReport;
+};
+
 /** Response body type for each operation, by id. */
 export interface ResponseOf {
+  activateDataSource: ActivateDataSourceResponse;
   approveChangeSet: ApproveChangeSetResponse;
   clearInboundCalls: ClearInboundCallsResponse;
   createChangeSet: CreateChangeSetResponse;
   createCreative: CreateCreativeResponse;
+  createDataSource: CreateDataSourceResponse;
   createOffer: CreateOfferResponse;
   createTargetingPolicy: CreateTargetingPolicyResponse;
   decidePlacement: DecidePlacementResponse;
@@ -1601,6 +1733,7 @@ export interface ResponseOf {
   getSession: GetSessionResponse;
   getShadowReport: GetShadowReportResponse;
   getTaxonomy: GetTaxonomyResponse;
+  landRows: LandRowsResponse;
   listAgentActivity: ListAgentActivityResponse;
   listAllCreatives: ListAllCreativesResponse;
   listArtifacts: ListArtifactsResponse;
@@ -1609,6 +1742,7 @@ export interface ResponseOf {
   listChangeSets: ListChangeSetsResponse;
   listConnectors: ListConnectorsResponse;
   listCreatives: ListCreativesResponse;
+  listDataSources: ListDataSourcesResponse;
   listFrequencyPolicies: ListFrequencyPoliciesResponse;
   listInboundCalls: ListInboundCallsResponse;
   listOffers: ListOffersResponse;
@@ -1631,6 +1765,8 @@ export interface ResponseOf {
   updateAutonomySetting: UpdateAutonomySettingResponse;
   updateConnector: UpdateConnectorResponse;
   updateCreative: UpdateCreativeResponse;
+  updateDataSource: UpdateDataSourceResponse;
   updateOffer: UpdateOfferResponse;
   updateTargetingPolicy: UpdateTargetingPolicyResponse;
+  validateDataSource: ValidateDataSourceResponse;
 }

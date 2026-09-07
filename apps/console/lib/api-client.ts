@@ -54,6 +54,10 @@ import type {
   SchemaEntity as SchemaEntityDto,
   SchemaField as SchemaFieldDto,
   SchemaAggregation as SchemaAggregationDto,
+  DataSource as DataSourceDto,
+  FieldMapping as FieldMappingDto,
+  ValidationReport as ValidationReportDto,
+  ColumnSummary as ColumnSummaryDto,
   Taxonomy as TaxonomyDto,
   Creative as CreativeDto,
   Placement as PlacementDto,
@@ -357,6 +361,36 @@ export const apiClient = {
       body: connector,
     }),
 
+  // --- Intake -------------------------------------------------------------
+  listDataSources: (tenantId: string = TENANT) =>
+    apiCall<{ sources: DataSourceDto[] }>('listDataSources', { params: { tenantId } }),
+
+  createDataSource: (
+    source: { name: string; description?: string; kind: DataSourceDto['kind'] },
+    tenantId: string = TENANT
+  ) => apiCall<DataSourceDto>('createDataSource', { params: { tenantId }, body: source }),
+
+  updateDataSource: (
+    sourceId: string,
+    patch: { name?: string; description?: string; mappings?: FieldMappingDto[] },
+    tenantId: string = TENANT
+  ) => apiCall<DataSourceDto>('updateDataSource', { params: { tenantId, sourceId }, body: patch }),
+
+  landRows: (
+    sourceId: string,
+    rows: Record<string, unknown>[],
+    replace = false,
+    tenantId: string = TENANT
+  ) => apiCall<DataSourceDto>('landRows', { params: { tenantId, sourceId }, body: { rows, replace } }),
+
+  validateDataSource: (sourceId: string, tenantId: string = TENANT) =>
+    apiCall<{ source: DataSourceDto; report: ValidationReportDto }>('validateDataSource', {
+      params: { tenantId, sourceId },
+    }),
+
+  activateDataSource: (sourceId: string, tenantId: string = TENANT) =>
+    apiCall<DataSourceDto>('activateDataSource', { params: { tenantId, sourceId } }),
+
   // --- Data model ---------------------------------------------------------
   /**
    * The tenant's data model, and the paths a policy may reference.
@@ -501,6 +535,10 @@ export type {
   SchemaEntityDto,
   SchemaFieldDto,
   SchemaAggregationDto,
+  DataSourceDto,
+  FieldMappingDto,
+  ValidationReportDto,
+  ColumnSummaryDto,
 };
 
 /** Query parameters for searchDecisions, matching the spec's declared set. */

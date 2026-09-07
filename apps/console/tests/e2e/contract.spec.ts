@@ -206,6 +206,14 @@ const COVERED_BY_WRITE_SUITES: Record<string, string> = {
   // file — or would exercise only the refusal.
   createTargetingPolicy: 'policy-authoring.spec.ts',
   updateTargetingPolicy: 'policy-authoring.spec.ts',
+  // Intake is a four-stage pipeline whose value is entirely in the ordering,
+  // so a speculative call to any one stage would exercise the refusal rather
+  // than the operation.
+  createDataSource: 'intake.spec.ts',
+  updateDataSource: 'intake.spec.ts',
+  landRows: 'intake.spec.ts',
+  validateDataSource: 'intake.spec.ts',
+  activateDataSource: 'intake.spec.ts',
 };
 
 test.describe('OpenAPI contract', () => {

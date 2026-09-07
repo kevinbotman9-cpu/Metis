@@ -349,6 +349,94 @@ components:
           type: string
           enum: [string, integer, decimal, boolean, timestamp, enum, money]
 
+    Transform:
+      type: object
+      description: >-
+        A declared transform. The set is closed on purpose: an arbitrary
+        expression in a mapping is code running over customer data on an ingest
+        path, versioned nowhere and reviewed by nobody.
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [none, trim, lowercase, uppercase, to_number, to_boolean, map_values, years_since]
+        values:
+          type: object
+          additionalProperties: { type: string }
+          description: >-
+            For map_values. Exhaustive - a source value with no entry is a
+            problem rather than a pass-through.
+
+    FieldMapping:
+      type: object
+      required: [column, path]
+      properties:
+        column: { type: string, description: Column name in the landed rows. }
+        path: { type: string, description: Dotted path in the data model. }
+        transform: { $ref: '#/components/schemas/Transform' }
+
+    ColumnSummary:
+      type: object
+      required: [column, path, filled, failed, examples]
+      properties:
+        column: { type: string }
+        path: { type: string }
+        filled: { type: integer }
+        failed: { type: integer }
+        examples:
+          type: array
+          items: { type: string }
+
+    ValidationReport:
+      type: object
+      description: >-
+        Summarised by column rather than by row. An import fails for a handful
+        of reasons repeated thousands of times, and the question is which column
+        is wrong and what the bad value looks like.
+      required: [rows, clean, columns, missingRequired, unmapped, errors]
+      properties:
+        rows: { type: integer }
+        clean: { type: integer, description: Rows with no problem in any column. }
+        columns:
+          type: array
+          items: { $ref: '#/components/schemas/ColumnSummary' }
+        missingRequired:
+          type: array
+          items: { type: string }
+        unmapped:
+          type: array
+          items: { type: string }
+        errors: { type: integer }
+
+    DataSource:
+      type: object
+      description: >-
+        A source of customer records, and the mapping from its shape onto the
+        data model. Land, map, validate, activate - a source that has not
+        validated cleanly cannot be activated.
+      required: [id, tenantId, name, description, kind, columns, mappings, status, landedRows, updatedAt, updatedBy]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        kind:
+          type: string
+          enum: [file, http, inline]
+        columns:
+          type: array
+          items: { type: string }
+          description: Column names observed when rows were landed.
+        mappings:
+          type: array
+          items: { $ref: '#/components/schemas/FieldMapping' }
+        status:
+          type: string
+          enum: [draft, validated, active]
+        landedRows: { type: integer }
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+
     ProfileSchema:
       type: object
       description: >-
@@ -1773,6 +1861,11 @@ components:
           description: Full compiler output. Present on the detail endpoint.
 
   parameters:
+    SourceId:
+      name: sourceId
+      in: path
+      required: true
+      schema: { type: string }
     TenantId:
       name: tenantId
       in: path
@@ -2260,6 +2353,173 @@ paths:
           description: Requires edit:policies
         '404':
           description: No such policy
+
+  /data-sources/{tenantId}:
+    get:
+      summary: Configured sources of customer records
+      operationId: listDataSources
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Sources
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sources]
+                properties:
+                  sources:
+                    type: array
+                    items: { $ref: '#/components/schemas/DataSource' }
+    post:
+      summary: Define a source
+      operationId: createDataSource
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, kind]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                kind:
+                  type: string
+                  enum: [file, http, inline]
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataSource' }
+        '403':
+          description: Requires edit:integrations
+
+  /data-sources/{tenantId}/{sourceId}:
+    put:
+      summary: Update a source and its mappings
+      operationId: updateDataSource
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/SourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                mappings:
+                  type: array
+                  items: { $ref: '#/components/schemas/FieldMapping' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataSource' }
+        '403':
+          description: Requires edit:integrations
+        '404':
+          description: No such source
+
+  /data-sources/{tenantId}/{sourceId}/rows:
+    post:
+      summary: Land rows against a source
+      description: |
+        Records are held as they arrived, unmapped. Landing observes the column
+        names and does not interpret them - the mapping is a separate,
+        reviewable step, because a source is another system's schema and changes
+        without asking.
+
+        Landing resets the source to `draft`: rows that arrived after a
+        validation were not the rows that were validated.
+      operationId: landRows
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/SourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rows]
+              properties:
+                rows:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+                replace:
+                  type: boolean
+                  description: Discard what was landed before rather than appending.
+      responses:
+        '200':
+          description: Landed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataSource' }
+        '403':
+          description: Requires edit:integrations
+
+  /data-sources/{tenantId}/{sourceId}/validation:
+    post:
+      summary: Check the landed rows against the data model
+      operationId: validateDataSource
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/SourceId'
+      responses:
+        '200':
+          description: The report, and the source with its new status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [source, report]
+                properties:
+                  source: { $ref: '#/components/schemas/DataSource' }
+                  report: { $ref: '#/components/schemas/ValidationReport' }
+
+  /data-sources/{tenantId}/{sourceId}/activation:
+    post:
+      summary: Activate a validated source
+      description: |
+        Refused unless the most recent validation found no errors and every
+        required field is filled. The point of landing and mapping first is to
+        fail before anything reads the data.
+      operationId: activateDataSource
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/SourceId'
+      responses:
+        '200':
+          description: Activated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataSource' }
+        '409':
+          description: The source cannot be activated yet
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, message, problems]
+                properties:
+                  error: { type: string }
+                  message: { type: string }
+                  problems:
+                    type: array
+                    items: { type: string }
+        '403':
+          description: Requires edit:integrations
 
   /profile-schema/{tenantId}:
     get:

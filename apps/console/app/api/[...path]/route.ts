@@ -43,6 +43,12 @@ import {
   typeOf,
 } from '@metis/core/profile-schema';
 import type { TargetingPolicy } from '@metis/core/domain';
+import {
+  validateRows,
+  activationProblems,
+  type DataSourceDefinition,
+  type FieldMapping,
+} from '@metis/core/intake';
 import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
 import {
   currentCatalogue,
@@ -152,6 +158,16 @@ async function runShadow(active: DecisionRecord, request: DecisionRequest): Prom
   store.shadowInFlight.add(done);
   await done.finally(() => store.shadowInFlight.delete(done));
 }
+
+/**
+ * How many landed rows are held per source.
+ *
+ * A bound rather than a policy. These are customer records in their original
+ * shape and ADR-004 has not decided how they are retained, so the pipeline is
+ * built to make a bad import finite rather than to make retention someone
+ * else's problem later.
+ */
+const MAX_LANDED_ROWS = 5000;
 
 const json = (body: unknown, status = 200, headers?: Record<string, string>) =>
   NextResponse.json(body, { status, headers });
@@ -631,6 +647,11 @@ async function handleGet(req: Request, { params }: Ctx) {
 
     case 'placements': {
       return json({ placements: store.placements });
+    }
+
+    case 'data-sources': {
+      if (!rest[0]) return notFound();
+      return json({ sources: store.dataSources });
     }
 
     // GET /api/profile-schema/{tenantId} — the data model, and the paths a
@@ -1183,6 +1204,126 @@ async function handlePost(req: Request, { params }: Ctx) {
       return json({ cleared: true });
     }
 
+    case 'data-sources': {
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      if (!user.permissions.includes('edit:integrations')) return forbidden('edit:integrations');
+
+      const [tenantId, sourceId, action] = rest;
+      if (!tenantId) return notFound();
+
+      // POST /api/data-sources/{tenantId} - define a source.
+      if (!sourceId) {
+        const body = (await req.json().catch(() => null)) as {
+          name?: string;
+          description?: string;
+          kind?: DataSourceDefinition['kind'];
+        } | null;
+        if (!body?.name || !body.kind) {
+          return json({ error: 'bad_request', message: 'name and kind are required.' }, 400);
+        }
+
+        const source: DataSourceDefinition = {
+          id: `src_${Math.random().toString(36).slice(2, 10)}`,
+          tenantId,
+          name: body.name,
+          description: body.description ?? '',
+          kind: body.kind,
+          columns: [],
+          mappings: [],
+          status: 'draft',
+          landedRows: 0,
+          updatedAt: new Date().toISOString(),
+          updatedBy: user.email,
+        };
+        store.dataSources.push(source);
+        recordAudit({
+          actor: user.email,
+          actorType: 'human',
+          eventType: 'DataSourceCreated',
+          scope: source.id,
+          summary: `Defined ${body.kind} source '${body.name}'.`,
+        });
+        return json(source, 201);
+      }
+
+      const source = store.dataSources.find((d) => d.id === sourceId);
+      if (!source) return notFound(`No source ${sourceId}`);
+
+      // POST .../rows - land records as they arrived.
+      if (action === 'rows') {
+        const body = (await req.json().catch(() => null)) as {
+          rows?: Record<string, unknown>[];
+          replace?: boolean;
+        } | null;
+        if (!Array.isArray(body?.rows)) {
+          return json({ error: 'bad_request', message: 'rows must be an array.' }, 400);
+        }
+
+        const existing = body.replace ? [] : (store.landedRows.get(sourceId) ?? []);
+        const rows = [...existing, ...body.rows].slice(0, MAX_LANDED_ROWS);
+        store.landedRows.set(sourceId, rows);
+
+        // Observed, never interpreted. Which column means what is the mapping's
+        // job, and keeping the two apart is why a source changing shape shows
+        // up as an unmapped column rather than as silently absent data.
+        source.columns = [...new Set(rows.flatMap((r) => Object.keys(r)))].sort();
+        source.landedRows = rows.length;
+        // Rows that arrived after a validation were not the rows that were
+        // validated, so the verdict no longer describes what is held.
+        source.status = 'draft';
+        store.validationReports.delete(sourceId);
+        source.updatedAt = new Date().toISOString();
+        source.updatedBy = user.email;
+
+        recordAudit({
+          actor: user.email,
+          actorType: 'human',
+          eventType: 'RowsLanded',
+          scope: source.id,
+          summary: `Landed ${body.rows.length} row(s) against '${source.name}'; ${rows.length} held.`,
+        });
+        return json(source);
+      }
+
+      // POST .../validation - check what is held against the model.
+      if (action === 'validation') {
+        const rows = store.landedRows.get(sourceId) ?? [];
+        const report = validateRows(store.profileSchema, source, rows);
+        store.validationReports.set(sourceId, report);
+        source.status = report.errors === 0 && report.rows > 0 ? 'validated' : 'draft';
+        source.updatedAt = new Date().toISOString();
+        return json({ source, report });
+      }
+
+      // POST .../activation - refuse unless the last validation was clean.
+      if (action === 'activation') {
+        const problems = activationProblems(source, store.validationReports.get(sourceId) ?? null);
+        if (problems.length > 0) {
+          return json(
+            {
+              error: 'not_activatable',
+              message: `This source cannot go live yet: ${problems.length} problem(s).`,
+              problems,
+            },
+            409
+          );
+        }
+        source.status = 'active';
+        source.updatedAt = new Date().toISOString();
+        source.updatedBy = user.email;
+        recordAudit({
+          actor: user.email,
+          actorType: 'human',
+          eventType: 'DataSourceActivated',
+          scope: source.id,
+          summary: `Activated '${source.name}' over ${source.landedRows} row(s).`,
+        });
+        return json(source);
+      }
+
+      return notFound();
+    }
     case 'targeting-policies': {
       // POST /api/targeting-policies/{tenantId}
       const user = actor(req);
@@ -1612,6 +1753,42 @@ async function handlePut(req: Request, { params }: Ctx) {
   if (!user) return json({ error: 'no_session' }, 401);
 
   switch (head) {
+    case 'data-sources': {
+      if (!user.permissions.includes('edit:integrations')) return forbidden('edit:integrations');
+      const [, sourceId] = rest;
+      const source = store.dataSources.find((d) => d.id === sourceId);
+      if (!source) return notFound(`No source ${sourceId}`);
+
+      const body = (await req.json().catch(() => null)) as {
+        name?: string;
+        description?: string;
+        mappings?: FieldMapping[];
+      } | null;
+      if (!body) return json({ error: 'bad_request', message: 'Body required.' }, 400);
+
+      source.name = body.name ?? source.name;
+      source.description = body.description ?? source.description;
+      if (body.mappings) {
+        source.mappings = body.mappings;
+        // A changed mapping means the last verdict was about a different
+        // mapping. Keeping the status would let an edit slip past the check it
+        // was supposed to pass.
+        source.status = 'draft';
+        store.validationReports.delete(source.id);
+      }
+      source.updatedAt = new Date().toISOString();
+      source.updatedBy = user.email;
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'DataSourceChanged',
+        scope: source.id,
+        summary: `Updated source '${source.name}' with ${source.mappings.length} mapping(s).`,
+      });
+      return json(source);
+    }
+
     case 'targeting-policies': {
       // PUT /api/targeting-policies/{tenantId}/{policyId}
       if (!user.permissions.includes('edit:policies')) return forbidden('edit:policies');
