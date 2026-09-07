@@ -49,6 +49,13 @@
   --rail-hover: var(--surface);
   --rail-ok: var(--pass);
 
+  /* The dim behind a modal.
+     A token rather than `bg-black/40` — the last literal colours in app code —
+     because black over a light page is a dim, and black over the dark theme's
+     near-black page is a void with a dialog floating in it. Same idea, two
+     values. */
+  --scrim: 12 18 26;
+
   /* Text.
      Every step must clear WCAG AA 4.5:1 against both --surface and
      --surface-sunken, including at the 10-11px label sizes. n-500 measured
@@ -170,6 +177,9 @@
   --rail-accent: var(--accent);
   --rail-hover: var(--surface);
   --rail-ok: var(--pass);
+  /* Darker than the darkest surface, so a dialog still sits *above* something
+     rather than dissolving into it. */
+  --scrim: 0 0 0;
   --page: var(--n-100);
   --surface: var(--n-150);
   --surface-raised: var(--n-200);

@@ -61,7 +61,7 @@ export function FormDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-scrim/40" />
         <Dialog.Content
           className={cn(
             'fixed left-1/2 top-1/2 z-50 flex max-h-[88vh] w-[min(42rem,calc(100vw-2rem))]',

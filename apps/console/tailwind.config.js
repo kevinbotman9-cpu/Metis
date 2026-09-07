@@ -20,6 +20,7 @@ module.exports = {
       colors: {
         page: rgb('page'),
         chrome: rgb('chrome'),
+        scrim: rgb('scrim'),
         rail: {
           DEFAULT: rgb('rail-bg'),
           fg: rgb('rail-fg'),
