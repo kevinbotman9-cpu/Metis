@@ -104,11 +104,16 @@ export interface Creative {
   channel: "email" | "sms" | "web" | "push" | "outbound_call";
   /** Channel-specific content; shape is discriminated by channel.
 
-On `web`, `placement` names the kind of slot the creative was
-designed for — one of carousel, feature_band, footer_bar, hero,
-page_takeover, tile — or is empty, in which case it can fill any
-slot on the channel. It is the shape, not the slot: one hero
-creative serves every hero placement.
+On `web`, two separate fields describe where it goes and how it
+looks. `placement` is a slot key, joining to a configured
+`Placement`; empty means the creative can fill any slot on the
+channel. `placementType` is the shape — one of carousel,
+feature_band, footer_bar, hero, page_takeover, tile.
+
+Separate because they are separate decisions, usually made by
+different people: a slot and a design. A slot declares its own
+`type`, so a creative can inherit one and the two can be compared
+rather than assumed to agree.
  */
   content: Record<string, unknown>;
   active: boolean;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { Field, Input, Select } from '@/components/ui/primitives';
 import { apiClient, ApiError, type CreativeDto } from '@/lib/api-client';
@@ -38,6 +38,13 @@ interface FieldSpec {
   multiline?: boolean;
   /** Renders a closed set instead of a text box. */
   options?: { id: string; label: string }[];
+  /**
+   * Renders the tenant's configured slots, fetched when the dialog opens.
+   *
+   * A separate flag rather than options passed in, because which slots exist is
+   * tenant data and this table is a static description of the channels.
+   */
+  slots?: boolean;
   /**
    * An example, shown when the input is empty.
    *
@@ -113,10 +120,17 @@ const CHANNELS: { id: ChannelId; label: string; fields: FieldSpec[] }[] = [
       },
       {
         name: 'placement',
+        label: 'Placement',
+        optional: true,
+        slots: true,
+        hint: 'The slot this is for. Left out, it can fill any slot on the channel.',
+      },
+      {
+        name: 'placementType',
         label: 'Placement type',
         optional: true,
         options: PLACEMENT_TYPES,
-        hint: 'Where this is designed to appear, and how it looks there. Left out, it can fill any slot on the channel.',
+        hint: 'How it is designed to look — a hero, a tile, a carousel.',
       },
     ],
   },
@@ -186,6 +200,34 @@ export function CreativeFormDialog({
   }, [open, creative]);
 
   const spec = CHANNELS.find((c) => c.id === channel) ?? CHANNELS[0];
+
+  const { data: placements } = useQuery({
+    queryKey: ['placements'],
+    queryFn: () => apiClient.listPlacements(),
+    enabled: open && spec.fields.some((f) => f.slots),
+  });
+
+  /** Slots on this channel. A hero placement is not an option for an SMS. */
+  const slotOptions = (placements?.placements ?? [])
+    .filter((p) => p.channel === channel && p.active)
+    .map((p) => ({ id: p.key, label: p.name, type: p.type }));
+
+  /**
+   * Choosing a slot suggests the shape it renders in.
+   *
+   * A suggestion, not a rule: the slot and the design are separate decisions,
+   * and somebody may deliberately put a tile-shaped creative in a hero while
+   * they test something. It only fills an empty field, so it never overwrites a
+   * choice already made.
+   */
+  const chooseSlot = (key: string) => {
+    const slot = slotOptions.find((o) => o.id === key);
+    setContent((c) => ({
+      ...c,
+      placement: key,
+      placementType: c.placementType || (slot?.type ?? ''),
+    }));
+  };
 
   const save = useMutation({
     mutationFn: async () => {
@@ -286,7 +328,22 @@ export function CreativeFormDialog({
               hint={f.hint}
               error={error}
             >
-              {f.options ? (
+              {f.slots ? (
+                <Select
+                  id={id}
+                  value={content[f.name] ?? ''}
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? `${id}-error` : undefined}
+                  onChange={(e) => chooseSlot(e.target.value)}
+                >
+                  <option value="">Any slot</option>
+                  {slotOptions.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+              ) : f.options ? (
                 <Select
                   id={id}
                   value={content[f.name] ?? ''}

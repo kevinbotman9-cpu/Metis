@@ -39,7 +39,8 @@ const web = (over: Partial<Record<string, unknown>> = {}): CreativeContent =>
     imageUrl: '/assets/offers/fibre-900.jpg',
     ctaLabel: 'Check availability',
     ctaUrl: '/broadband/fibre-900',
-    placement: 'hero',
+    placement: 'homepage_hero',
+    placementType: 'hero',
     ...over,
   }) as CreativeContent;
 
@@ -188,19 +189,24 @@ describe('validateCreativeContent', () => {
   });
 
   it('refuses a placement type outside the closed set', () => {
-    // It used to be free text that had to match a configured slot key exactly,
-    // which is a way of asking someone to guess. A typo now says so.
-    const problems = validateCreativeContent('web', web({ placement: 'homepage_hero' }));
-    expect(fields(problems)).toEqual(['content.placement']);
+    const problems = validateCreativeContent('web', web({ placementType: 'banner' }));
+    expect(fields(problems)).toEqual(['content.placementType']);
     expect(problems[0].message).toMatch(/carousel, feature_band, footer_bar, hero/);
   });
 
-  it('accepts every placement type, and no placement at all', () => {
+  it('accepts every placement type, and neither field at all', () => {
     for (const { id } of PLACEMENT_TYPES) {
-      expect(validateCreativeContent('web', web({ placement: id })), id).toEqual([]);
+      expect(validateCreativeContent('web', web({ placementType: id })), id).toEqual([]);
     }
-    // A creative designed for no particular shape fills any slot on the channel.
-    expect(validateCreativeContent('web', web({ placement: '' }))).toEqual([]);
+    // The slot and the shape are separate decisions, and both are optional: a
+    // creative with neither fills any slot on the channel.
+    expect(validateCreativeContent('web', web({ placement: '', placementType: '' }))).toEqual([]);
+  });
+
+  it('leaves the slot key to the endpoint that knows the slots', () => {
+    // Which slots exist is tenant configuration, and this package cannot see
+    // it. A key it cannot check is not a key it should guess about.
+    expect(validateCreativeContent('web', web({ placement: 'anything_at_all' }))).toEqual([]);
   });
 
   it('refuses a deeplink with no scheme or path', () => {

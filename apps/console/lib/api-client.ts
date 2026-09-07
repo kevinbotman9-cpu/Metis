@@ -50,6 +50,7 @@ import type {
   SourceCall as SourceCallDto,
   Taxonomy as TaxonomyDto,
   Creative as CreativeDto,
+  Placement as PlacementDto,
 } from '@metis/client';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api';
@@ -223,6 +224,9 @@ export const apiClient = {
       params: { tenantId, offerId },
       body: changes,
     }),
+
+  listPlacements: (tenantId: string = TENANT) =>
+    apiCall<{ placements: PlacementDto[] }>('listPlacements', { params: { tenantId } }),
 
   createCreative: (
     offerId: string,

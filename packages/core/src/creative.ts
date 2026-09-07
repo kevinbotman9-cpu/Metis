@@ -177,15 +177,19 @@ export function validateCreativeContent(
 
     case 'web':
       // A closed set, so a value outside it is a typo or a stale import rather
-      // than a design somebody meant. Blank is allowed: a creative designed for
-      // no particular shape can fill any slot on the channel.
+      // than a design somebody meant. Blank is allowed.
+      //
+      // `placement` itself is not checked here: it is a slot key, and which
+      // slots exist is tenant configuration this package cannot see. The
+      // endpoint checks it against the configured placements, where that is
+      // knowable.
       if (
-        !blank(content.placement) &&
-        !PLACEMENT_TYPES.some((p) => p.id === content.placement)
+        !blank(content.placementType) &&
+        !PLACEMENT_TYPES.some((p) => p.id === content.placementType)
       ) {
         problems.push({
-          field: 'content.placement',
-          message: `'${content.placement}' is not a placement type. One of: ${PLACEMENT_TYPES.map((p) => p.id).join(', ')}.`,
+          field: 'content.placementType',
+          message: `'${content.placementType}' is not a placement type. One of: ${PLACEMENT_TYPES.map((p) => p.id).join(', ')}.`,
         });
       }
 

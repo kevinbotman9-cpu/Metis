@@ -117,16 +117,16 @@ export interface SmsContent {
 }
 
 /**
- * Where a web creative is designed to appear, and how it looks there.
+ * The shape a web creative takes wherever it appears.
  *
- * A closed set, because it is a design decision with a small number of real
- * answers and it was a free-text field that had to match a configured slot key
- * exactly — which is a way of asking someone to guess.
+ * A closed set: a design decision with a small number of real answers, and one
+ * a person should pick from rather than type.
  *
- * Distinct from `Placement`, which is a configured *slot*: `homepage_grid`
- * holds three actions and is answered by a named flow. This is the shape that
- * slot renders in. One creative designed for a hero serves every hero slot,
- * which is why the creative names the type and not the slot.
+ * Distinct from `Placement`, which is a configured *slot* — `homepage_grid`
+ * holds three actions and is answered by a named flow. A creative names both:
+ * the slot it is for, and the shape it was designed in. They are different
+ * decisions, and a slot can declare its own type so the two can be checked
+ * against each other rather than assumed to agree.
  */
 export type PlacementType =
   /** A rotating strip of images. */
@@ -159,12 +159,23 @@ export interface WebContent {
   ctaLabel: string;
   ctaUrl: string;
   /**
-   * The kind of slot this is designed for.
+   * The slot this creative is for, by key.
    *
-   * Optional: a creative with none can fill any slot on the channel, which is
-   * what a site falls back to when nothing is designed for the shape it wants.
+   * The join to a configured `Placement`. Optional in practice: a creative with
+   * no slot named can fill any slot on the channel, which is what a site falls
+   * back to.
    */
-  placement: PlacementType | '';
+  placement: string;
+  /**
+   * How it is designed to look wherever it appears.
+   *
+   * Separate from `placement` on purpose. The slot says *where* — the homepage
+   * grid, the account dashboard. This says *what shape* — a hero, a tile, a
+   * carousel. A slot and a design are different decisions, usually made by
+   * different people, and collapsing them into one field means neither can be
+   * changed without the other.
+   */
+  placementType?: PlacementType;
 }
 
 export interface PushContent {

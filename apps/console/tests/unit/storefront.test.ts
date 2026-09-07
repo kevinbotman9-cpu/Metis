@@ -57,26 +57,24 @@ describe('the storefront demo names things that exist', () => {
     }
   });
 
-  it('asks for slot shapes some web creative was designed for', () => {
-    // A creative names the *shape* it is for — hero, tile, feature band — and a
-    // slot declares the shape it renders in. So the join is on the type, not
-    // the slot key: one hero creative serves every hero placement. Asserting
-    // the old way would require a creative per page, which is not how anyone
-    // writes them.
-    const designedFor = new Set(
+  it('uses slots the catalogue has web creatives for', () => {
+    const written = new Set(
       creatives
         .filter((c) => c.channel === 'web' && c.active)
         .map((c) => (c.content as { placement?: string }).placement)
         .filter(Boolean)
     );
+    for (const { placement } of declared) {
+      expect(written, `no web creative is written for ${placement}`).toContain(placement);
+    }
+  });
 
+  it('gives every slot a placement type, so a creative can inherit one', () => {
+    // The slot says where, the creative says what shape. A slot with no type
+    // cannot suggest one, and the person authoring is back to guessing.
     for (const { placement } of declared) {
       const slot = placements.find((p) => p.key === placement);
       expect(slot?.type, `${placement} declares no placement type`).toBeTruthy();
-      expect(
-        designedFor,
-        `nothing is designed for a ${slot?.type}, which ${placement} renders`
-      ).toContain(slot?.type);
     }
   });
 

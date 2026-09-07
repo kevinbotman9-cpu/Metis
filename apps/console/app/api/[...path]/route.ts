@@ -152,6 +152,24 @@ const blankString = (v: unknown) => typeof v !== 'string' || v.trim() === '';
 
 function creativeProblems(channel: Creative['channel'], content: Creative['content']) {
   const problems = validateCreativeContent(channel, content);
+
+  // The slot key is checked here rather than in `@metis/core`, because which
+  // slots exist is tenant configuration and that package cannot see it. A
+  // creative naming a slot nobody configured would simply never be chosen —
+  // silently, which is the worst way for content to fail.
+  if (channel === 'web') {
+    const named = (content as { placement?: string }).placement;
+    if (named && !store.placements.some((p) => p.key === named)) {
+      problems.push({
+        field: 'content.placement',
+        message: `No placement '${named}'. Configured: ${store.placements
+          .map((p) => p.key)
+          .sort()
+          .join(', ')}.`,
+      });
+    }
+  }
+
   if (problems.length === 0) return null;
   return json(
     {

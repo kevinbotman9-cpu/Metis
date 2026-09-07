@@ -693,30 +693,20 @@ async function loadOffer(offerId) {
 }
 
 /**
- * The creative for this channel and, where one exists, this slot's shape.
+ * The creative for this channel and, where one exists, this exact slot.
  *
- * By shape rather than by slot name: a creative designed for a hero serves
- * every hero placement, and one designed for nothing in particular fills
- * whatever is left. Matching on the slot key meant a creative belonged to one
- * page, which is not how anyone writes them.
+ * A creative written for a slot wins it. One written for no slot in particular
+ * fills whatever is left, which is what makes a general creative useful rather
+ * than a fallback nobody reaches.
  */
-function creativeFor(creatives, placementType) {
+function creativeFor(creatives, placementId) {
   const web = (creatives || []).filter((c) => c.channel === 'web' && c.active);
   return (
-    web.find((c) => placementType && c.content?.placement === placementType) ||
+    web.find((c) => c.content?.placement === placementId) ||
     web.find((c) => !c.content?.placement) ||
     web[0] ||
     null
   );
-}
-
-/** The configured slots, so the page knows what shape each one wants. */
-let placementTypes = {};
-async function loadPlacements() {
-  const res = await fetch(`${API}/placements/${TENANT}`);
-  if (!res.ok) return;
-  const { placements } = await res.json();
-  placementTypes = Object.fromEntries(placements.map((p) => [p.key, p.type]));
 }
 
 // ------------------------------------------------------------ rendering ---
@@ -918,7 +908,7 @@ async function runPlacement(placement) {
     for (const entry of slate.entries) {
       if (!entry.offerId) continue;
       const { offer, creatives } = await loadOffer(entry.offerId);
-      filled.push({ entry, offer, creative: creativeFor(creatives, placementTypes[placement.id]) });
+      filled.push({ entry, offer, creative: creativeFor(creatives, placement.id) });
     }
 
     r = { status: filled.length ? 'filled' : 'empty', slate, decision, filled, ms: slate.ms };
@@ -940,7 +930,6 @@ async function runPlacement(placement) {
 async function decideAll() {
   results.clear();
   offerCache.clear();
-  if (Object.keys(placementTypes).length === 0) await loadPlacements();
   await Promise.all(PLACEMENTS.filter((p) => p.view === view).map(runPlacement));
 }
 
