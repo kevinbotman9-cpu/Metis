@@ -205,6 +205,29 @@ author choosing it gets ordinary scoring, and the trace says so.
 
 ---
 
+## Registered 2026-09-07 — `packages/nodes-core` is imported by nothing
+
+Fourteen node classes with `execute` methods, and no code path reaches them: the
+engine implements node behaviour in `packages/runtime`, the compiler holds its
+own `FlowNodeType` union, and nothing in the repository imports the package. It
+also declares a dependency on `@metis/types`, which does not exist.
+
+Found while clearing the twelve lint warnings, all of which were in this file —
+so the only thing the package contributed to the build was noise in front of the
+next real warning.
+
+**Kept rather than deleted**, because the name is load-bearing where the code is
+not: `@metis/nodes-core` is the package id every flow pins a version of, and
+every decision records that pin — `packageVersions` is in the hashed decision.
+Deleting the directory would leave a version identifier referring to nothing,
+which is worse than dead code that says at the top of the file that it is dead.
+Which it now does.
+
+W-038's package system is where this either becomes real or goes. Until then it
+is a stub with a name that matters.
+
+---
+
 ## Build-system gaps
 
 Not platform APIs, but the same kind of problem: a check that appears to run

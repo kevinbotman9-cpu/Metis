@@ -61,7 +61,8 @@ E2E (Playwright)   210 passed  - contract, cross-engine, axe, registry, ledger,
 Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
                                  60 real decisions over HTTP
 Typecheck           clean      - root config and the console's, separately
-Lint                0 errors   - root and console, separate configs
+Lint                clean      - root and console; 0 errors and, since
+                                 2026-09-07, 0 warnings
                    ---
                     790 tests, two languages, two engines
 ```
