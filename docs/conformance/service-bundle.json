@@ -112,7 +112,7 @@
     },
     {
       "id": "inbound-web-offers",
-      "version": "1.8.2",
+      "version": "1.9.0",
       "tenantId": "telco-uk",
       "candidateKeys": [
         "acq_sim_30",
@@ -146,6 +146,11 @@
           ]
         },
         {
+          "id": "constraint_web_contact",
+          "type": "constraint",
+          "label": "Consent & contact"
+        },
+        {
           "id": "arbitrate_web",
           "type": "arbitrate",
           "label": "Arbitrate"
@@ -162,6 +167,10 @@
         },
         {
           "from": "filter_web_eligibility",
+          "to": "constraint_web_contact"
+        },
+        {
+          "from": "constraint_web_contact",
           "to": "arbitrate_web"
         }
       ]

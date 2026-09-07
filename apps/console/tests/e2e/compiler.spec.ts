@@ -70,11 +70,16 @@ test.describe('compiler output in the console', () => {
     await page.goto('/decision-flows/inbound-web-offers');
 
     await expect(page.getByText('ARBITRATION_MISSING_SCORE', { exact: true }).first()).toBeVisible();
-    // Four times on this page: once in the compile report, and once for each of
-    // the three published versions, which each kept the warning they shipped
-    // with. All of them should say it — a version that shipped with a warning
-    // is a different thing to explain later than one that shipped clean, and
-    // that is a fact about the version, not about the flow.
-    await expect(page.getByText(/no scoring node runs before it/)).toHaveCount(4);
+    // Once in the compile report, and once for each published version, which
+    // each kept the warning it shipped with. All of them should say it — a
+    // version that shipped with a warning is a different thing to explain
+    // later than one that shipped clean, and that is a fact about the version,
+    // not about the flow.
+    //
+    // Five since 1.9.0 added the consent-and-contact gate. The warning is
+    // unrelated to that change and correctly survives it: the flow still has
+    // no scoring node, so arbitration still has no propensity term. Adding a
+    // constraint gates candidates; it does not score them.
+    await expect(page.getByText(/no scoring node runs before it/)).toHaveCount(5);
   });
 });

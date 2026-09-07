@@ -123,16 +123,25 @@ test.describe('inbound traffic', () => {
   test('does not record reads of itself', async ({ page }) => {
     // Regression. Recording the poll nests the whole log inside the next
     // response, and the ring fills with copies of itself in about a minute.
+    //
+    // The reads are issued here rather than waited for. Sleeping five seconds
+    // to let the page's own timer fire made this the one test in the file that
+    // failed under a loaded server, and a regression test that goes red for
+    // reasons unrelated to the regression is worse than no test.
     await callAsStorefront(page);
     await page.goto('/integrations/traffic');
     await expect(page.getByRole('button', { name: /homepage_hero/ })).toBeVisible();
 
-    // Let the poll run several times over.
-    await page.waitForTimeout(5000);
+    for (let i = 0; i < 5; i++) {
+      expect((await page.request.get('/api/inbound-calls?limit=250')).ok()).toBeTruthy();
+    }
 
     const res = await page.request.get('/api/inbound-calls?limit=250');
     const { calls } = (await res.json()) as { calls: { path: string }[] };
     expect(calls.filter((c) => c.path === '/api/inbound-calls')).toHaveLength(0);
+    // And the call that matters is still there, so this cannot pass by the log
+    // simply being empty.
+    expect(calls.some((c) => c.path.includes('homepage_hero'))).toBe(true);
   });
 
   test('clears on request', async ({ page }) => {

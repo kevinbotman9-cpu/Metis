@@ -489,3 +489,41 @@ platform capability by accident, which is what this entry is for.
 
 **Bounds it holds today, by construction rather than by policy:** memory only,
 250 calls, 32 kB per body, lost on restart, `METIS_CALL_LOG=off` to disable.
+
+---
+
+## Registered 2026-09-07 — a flow can ignore consent and nothing says so
+
+`inbound-web-offers` ran for as long as it has existed with four filter nodes
+and no constraint node. Consent and frequency are enforced at constraint nodes
+only, so a website could post `marketing: false` and a full week of contacts,
+the engine would read both off the request, and offer anyway. Fixed in 1.9.0 by
+adding `constraint_web_contact`.
+
+The fix is not the interesting part. **Nothing detected it**, and nothing would
+detect the next one.
+
+The compiler already emits `ARBITRATION_MISSING_SCORE` when a flow arbitrates
+with no scoring node in front of it — the same shape of defect, caught. The
+missing sibling is a diagnostic for a flow that reaches arbitration with no
+constraint node: its candidates have passed no consent check and no frequency
+cap, and the trace says so only by omission, which is the hardest thing to
+notice in an audit.
+
+Worth noting why it hid for so long: the flow's own description called it
+"lighter", the arbitration formula honestly said `V^1.0 × B^1.0`, and every
+decision it made was correct *given its nodes*. Every artefact was truthful.
+The absent gate was the only evidence, and absence is what a diagnostic is for.
+
+Two smaller findings from the same investigation:
+
+- **`ExecNode.frequencyPolicyIds` is declared and never populated or read.**
+  `toExecArtifact` does not map it, and the engine draws frequency policies
+  from `catalogue.frequencyPolicies` by scope instead. So a flow author who
+  set it would get no error and no effect. Either wire it or delete it.
+- **The storefront's signed-in preset fails `pol_afford_5g`**
+  (`bill_to_income_ratio: 0.092` against a `lt 0.05` threshold, and
+  `arrears_count_12mo: 1` against `eq 0`), so `account_dashboard_hero` is
+  suppressed at suitability before consent is ever reached. Correct behaviour,
+  confusing demo: the account page shows nothing and the reason is two screens
+  away.

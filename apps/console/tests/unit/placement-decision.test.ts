@@ -144,6 +144,52 @@ describe('POST /api/placements/{tenantId}/{key}/decisions', () => {
     expect(body.message as unknown as string).toContain('homepage_hero');
   });
 
+  describe('every web slot honours consent and frequency', () => {
+    /**
+     * The gap this closes: `inbound-web-offers` was four filter nodes and no
+     * constraint, and consent and frequency are enforced at constraint nodes
+     * only. So a website could post `marketing: false` and a full week of
+     * contacts, the engine would read both, and offer anyway.
+     *
+     * Asserted per placement rather than once, because the failure was per
+     * flow — two web slots were governed and two were not, and nothing said
+     * which was which.
+     */
+    const WEB_SLOTS = placements.filter((p) => p.channel === 'web' && p.active).map((p) => p.key);
+
+    it('has web slots to check', () => {
+      // A guard on the guard: an empty list would make every case below pass
+      // by iterating nothing.
+      expect(WEB_SLOTS.length).toBeGreaterThan(1);
+    });
+
+    for (const key of WEB_SLOTS) {
+      it(`${key} offers nothing when marketing consent is withheld`, async () => {
+        const { status, body } = await decide(key, {
+          consent: { marketing: false, profiling: false, thirdParty: false },
+        });
+        expect(status).toBe(200);
+        expect(body.entries as unknown as unknown[]).toHaveLength(0);
+      });
+
+      it(`${key} offers nothing once the weekly cap is spent`, async () => {
+        // Three a week, tenant-wide and channel-agnostic — the cap that covers
+        // these offers. Two is under it, three is not, so the pair proves the
+        // boundary is being read rather than the request being rejected for
+        // some unrelated reason.
+        const under = await decide(key, {
+          contactHistory: { channel: 'web', withinPeriod: { day: 0, week: 2, month: 0 } },
+        });
+        const over = await decide(key, {
+          contactHistory: { channel: 'web', withinPeriod: { day: 0, week: 3, month: 0 } },
+        });
+
+        expect((under.body.entries as unknown as unknown[]).length).toBeGreaterThan(0);
+        expect(over.body.entries as unknown as unknown[]).toHaveLength(0);
+      });
+    }
+  });
+
   it('will not default occurredAt to now', async () => {
     const res = await call(['placements', 'telco-uk', 'homepage_grid', 'decisions'], {
       request: { ...request().request, occurredAt: undefined },

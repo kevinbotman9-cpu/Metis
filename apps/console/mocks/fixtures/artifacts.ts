@@ -188,11 +188,14 @@ export const artifacts: ArtifactSummary[] = [
   {
     id: 'inbound-web-offers',
     name: 'Inbound Web Offers',
-    description: 'Lighter decision flow for anonymous and logged-in web placements.',
-    activeVersion: '1.8.2',
-    versions: ['1.8.2', '1.8.1', '1.7.0'],
-    nodeCount: 4,
-    estimatedP95LatencyMs: 8.1,
+    description:
+      'Lighter decision flow for anonymous and logged-in web placements. Lighter in scoring, not in governance: consent and frequency are enforced here exactly as they are outbound.',
+    // 1.9.0, not 1.8.3: adding a gate changes what the flow decides, and a
+    // patch bump would say it did not.
+    activeVersion: '1.9.0',
+    versions: ['1.9.0', '1.8.2', '1.8.1', '1.7.0'],
+    nodeCount: 5,
+    estimatedP95LatencyMs: 8.7,
     status: 'active',
     candidateKeys: ['acq_sim_30', 'acq_fibre_900', 'upsell_data'],
     nodes: [
@@ -225,19 +228,39 @@ export const artifacts: ArtifactSummary[] = [
         position: { x: COL[2], y: 100 },
       },
       {
+        // The node the flow was missing, and the reason a website could tick
+        // "marketing: off" and still be shown a marketing offer. Consent and
+        // frequency are enforced at constraint nodes only — a flow of filters
+        // reads the input and ignores both — so the storefront's consent
+        // checkboxes and contact-history counters reached the engine and had
+        // nothing to act on them.
+        //
+        // Consent is not a property of the channel. A visitor who has withheld
+        // it has withheld it on the website too, and "lighter flow for web"
+        // was never a reason to skip asking.
+        id: 'constraint_web_contact',
+        type: 'constraint',
+        label: 'Consent & contact',
+        description:
+          'Marketing consent, and the frequency caps whose scope covers these offers.',
+        estimatedMs: 0.6,
+        position: { x: COL[3], y: 100 },
+      },
+      {
         id: 'arbitrate_web',
         type: 'arbitrate',
         label: 'Arbitrate',
         description: 'Ranks by value and boost only; no propensity model on anonymous traffic.',
         estimatedMs: 1.6,
         formula: 'Priority = V^1.0 × B^1.0',
-        position: { x: COL[3], y: 100 },
+        position: { x: COL[4], y: 100 },
       },
     ],
     edges: [
       { id: 'w1', source: 'source_session', target: 'switch_known' },
       { id: 'w2', source: 'switch_known', target: 'filter_web_eligibility', label: 'either' },
-      { id: 'w3', source: 'filter_web_eligibility', target: 'arbitrate_web' },
+      { id: 'w3', source: 'filter_web_eligibility', target: 'constraint_web_contact' },
+      { id: 'w4', source: 'constraint_web_contact', target: 'arbitrate_web' },
     ],
     updatedAt: iso(-96),
     updatedBy: 'sarah.chen@telco.example',
