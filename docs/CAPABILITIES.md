@@ -50,7 +50,7 @@ Portability         22 passed  - export, re-import, round-trip conformance, and
                                  the guard that stops the export rotting
 Performance         12 passed  - bench/harness: the p99 gate, and S1 over a
                                  million seeded profiles
-Unit (Vitest)       49 passed  - apps/console
+Unit (Vitest)       53 passed  - apps/console
 E2E (Playwright)   187 passed  - contract, cross-engine, axe, registry, ledger,
                                  idempotency, shadow (13 skipped: writes covered
                                  by permissions-and-writes and registry instead)
@@ -59,7 +59,7 @@ Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
 Typecheck           clean      - root config and the console's, separately
 Lint                0 errors   - root and console, separate configs
                    ---
-                    720 tests, two languages, two engines
+                    724 tests, two languages, two engines
 ```
 
 The OpenAPI spec validates at **34 paths, 41 operations (39 built, 2 proposed),

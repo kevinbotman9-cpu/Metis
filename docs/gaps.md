@@ -86,6 +86,28 @@ Four gaps remain, and none is worked around in code.
 
 ---
 
+## Registered 2026-09-07 — a live decision can be traced but not replayed
+
+`GET /decisions/{id}/trace` looks in the seeded fixture corpus and then falls
+back to the ledger, so a decision the platform actually made returns its record.
+`POST /decisions/{id}/replay` only looks in the fixture corpus, so the same
+decision is a 404. Found by making one from the storefront demo and asking for
+both.
+
+The asymmetry is the tell: somebody hit this on the trace route and fixed it
+there. Replay needs slightly more than the same fallback — the record names its
+artifact and version, so replay has to fetch that artifact from the registry
+rather than from the fixture bundle the seeded decisions carry with them — which
+is presumably why it was left.
+
+It matters more than it looks. Replay is a headline capability and the one an
+evaluation asks to see; "we can replay any decision, except the ones we just
+made" is a bad sentence. Registered rather than fixed because choosing which
+catalogue snapshot a live replay runs against is the same open question as
+W-005's second half.
+
+---
+
 ## Build-system gaps
 
 Not platform APIs, but the same kind of problem: a check that appears to run
