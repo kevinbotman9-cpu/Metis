@@ -33,6 +33,14 @@ import type { DecisionRecord } from '@metis/runtime';
 import type { OutcomeType } from '@metis/ledger';
 import type { Creative, Offer } from '@metis/core/domain';
 import { validateCreativeContent, offerMayBeActive } from '@metis/core/creative';
+import {
+  conditionProblems,
+  listFieldPaths,
+  schemaProblems,
+  operatorsFor,
+  typeOf,
+} from '@metis/core/profile-schema';
+import type { TargetingPolicy } from '@metis/core/domain';
 import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
 import {
   currentCatalogue,
@@ -171,6 +179,53 @@ function publicUser(u: (typeof store.users)[number]) {
  * edited into a state it could not be created in is the kind of asymmetry
  * nobody finds until it matters.
  */
+
+/**
+ * Refuse a policy whose conditions the data model cannot satisfy.
+ *
+ * Returns a response, or null when there is nothing wrong. Shared by create and
+ * update, so a policy cannot be edited into a state it could not be created in.
+ *
+ * This is the server half of the field picker. The editor offers only what the
+ * model has, but the API is reachable without it, and the failure being
+ * prevented is severe enough to check on both sides: a condition naming a field
+ * that does not exist fails every comparison, so the rule suppresses every
+ * candidate while the trace reports a confident ELIGIBILITY_FAILED against a
+ * real policy id.
+ */
+function policyProblems(conditions: TargetingPolicy['conditions']) {
+  const problems: { field: string; message: string; code: string }[] = [];
+
+  if (!Array.isArray(conditions) || conditions.length === 0) {
+    return json(
+      {
+        error: 'invalid_policy',
+        message: 'A policy with no conditions matches everything, which is never what was meant.',
+        problems: [{ field: 'conditions', message: 'Add at least one condition.', code: 'EMPTY' }],
+      },
+      400
+    );
+  }
+
+  conditions.forEach((condition, i) => {
+    for (const p of conditionProblems(store.profileSchema, condition)) {
+      // Indexed so the dialog can put each message against the row that
+      // produced it rather than at the top of the form.
+      problems.push({ field: `conditions.${i}`, message: p.message, code: p.code });
+    }
+  });
+
+  if (problems.length === 0) return null;
+  return json(
+    {
+      error: 'invalid_policy',
+      message: `${problems.length} condition(s) do not match the data model.`,
+      problems,
+    },
+    400
+  );
+}
+
 const blankString = (v: unknown) => typeof v !== 'string' || v.trim() === '';
 
 function creativeProblems(channel: Creative['channel'], content: Creative['content']) {
@@ -562,6 +617,34 @@ async function handleGet(req: Request, { params }: Ctx) {
 
     case 'placements': {
       return json({ placements: store.placements });
+    }
+
+    // GET /api/profile-schema/{tenantId} — the data model, and the paths a
+    // policy may reference.
+    //
+    // The paths are served rather than derived in the client. The compiler and
+    // the editor must agree about which operators a type admits, and the only
+    // way to guarantee that is one implementation — an operator the editor
+    // does not offer has to be one the compiler rejects.
+    case 'profile-schema': {
+      if (!rest[0]) return notFound();
+      const schema = store.profileSchema;
+      return json({
+        schema,
+        paths: listFieldPaths(schema).map((r) => ({
+          path: r.path,
+          kind: r.kind,
+          type: typeOf(r),
+          operators: operatorsFor(typeOf(r)),
+          description:
+            r.kind === 'field' ? r.field.description : r.aggregation.description,
+          entity: r.kind === 'field' ? r.entity.name : undefined,
+          members: r.kind === 'field' ? r.field.members : undefined,
+          unit: r.kind === 'field' ? r.field.unit : undefined,
+          sensitivity: r.kind === 'field' ? r.field.sensitivity : undefined,
+        })),
+        problems: schemaProblems(schema),
+      });
     }
 
     // GET /api/inbound-calls — the traffic this API has served.
@@ -1086,6 +1169,49 @@ async function handlePost(req: Request, { params }: Ctx) {
       return json({ cleared: true });
     }
 
+    case 'targeting-policies': {
+      // POST /api/targeting-policies/{tenantId}
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      if (!user.permissions.includes('edit:policies')) return forbidden('edit:policies');
+      if (!rest[0]) return notFound();
+
+      const body = (await req.json().catch(() => null)) as Partial<TargetingPolicy> | null;
+      if (!body?.name || !body.kind || !body.scope) {
+        return json(
+          { error: 'bad_request', message: 'name, kind and scope are required.' },
+          400
+        );
+      }
+
+      const refused = policyProblems(body.conditions ?? []);
+      if (refused) return refused;
+
+      const now = new Date().toISOString();
+      const policy: TargetingPolicy = {
+        id: `pol_${Math.random().toString(36).slice(2, 10)}`,
+        name: body.name,
+        kind: body.kind,
+        description: body.description ?? '',
+        conditions: body.conditions!,
+        scope: body.scope,
+        active: body.active ?? false,
+        createdAt: now,
+        updatedAt: now,
+      };
+      store.targetingPolicies.push(policy);
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'TargetingPolicyCreated',
+        scope: policy.id,
+        summary: `Created ${policy.kind} policy '${policy.name}' with ${policy.conditions.length} condition(s).`,
+      });
+
+      return json(policy, 201);
+    }
+
     case 'placements': {
       // POST /api/placements/{tenantId}/{placementKey}/decisions — fill a slot.
       //
@@ -1472,6 +1598,45 @@ async function handlePut(req: Request, { params }: Ctx) {
   if (!user) return json({ error: 'no_session' }, 401);
 
   switch (head) {
+    case 'targeting-policies': {
+      // PUT /api/targeting-policies/{tenantId}/{policyId}
+      if (!user.permissions.includes('edit:policies')) return forbidden('edit:policies');
+      const [, policyId] = rest;
+      if (!policyId) return notFound();
+
+      const existing = store.targetingPolicies.find((p) => p.id === policyId);
+      if (!existing) return notFound(`No policy ${policyId}`);
+
+      const body = (await req.json().catch(() => null)) as Partial<TargetingPolicy> | null;
+      if (!body) return json({ error: 'bad_request', message: 'Body required.' }, 400);
+
+      const conditions = body.conditions ?? existing.conditions;
+      const refused = policyProblems(conditions);
+      if (refused) return refused;
+
+      // Mutated in place rather than replaced: `currentCatalogue()` reads
+      // `store.targetingPolicies`, and swapping the array element would be
+      // equivalent — but other references to this object are held elsewhere in
+      // the store, and two policies with one id is worse than either.
+      existing.name = body.name ?? existing.name;
+      existing.kind = body.kind ?? existing.kind;
+      existing.description = body.description ?? existing.description;
+      existing.conditions = conditions;
+      existing.scope = body.scope ?? existing.scope;
+      if (typeof body.active === 'boolean') existing.active = body.active;
+      existing.updatedAt = new Date().toISOString();
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'TargetingPolicyChanged',
+        scope: existing.id,
+        summary: `Updated ${existing.kind} policy '${existing.name}'.`,
+      });
+
+      return json(existing);
+    }
+
     case 'arbitration': {
       if (!user.permissions.includes('edit:arbitration')) return forbidden('edit:arbitration');
       const body = (await req.json().catch(() => ({}))) as Partial<typeof store.arbitration>;

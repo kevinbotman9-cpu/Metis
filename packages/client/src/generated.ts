@@ -135,6 +135,99 @@ export interface PolicyCondition {
   value: unknown;
 }
 
+export interface SchemaField {
+  /** The path segment, e.g. `age` in `customer.age`. */
+  name: string;
+  /** integer and decimal are separate because the difference is a real authoring constraint, and because the value control differs. */
+  type: "string" | "integer" | "decimal" | "boolean" | "timestamp" | "enum" | "money";
+  description: string;
+  /** Allowed values, for `enum`. The editor renders these and the compiler checks them. */
+  members?: string[];
+  required?: boolean;
+  /** Retention's input, not decoration. Classifying at declaration time is far cheaper than classifying a populated store later. */
+  sensitivity?: "none" | "personal" | "special_category";
+  /** days, pence, ratio, months. Shown beside the value input. */
+  unit?: string;
+}
+
+export interface SchemaRelationship {
+  name: string;
+  /** Target entity name. */
+  entity: string;
+  cardinality: "one" | "many";
+  description: string;
+}
+
+export interface SchemaEntity {
+  name: string;
+  description: string;
+  fields: SchemaField[];
+  relationships?: SchemaRelationship[];
+}
+
+/** A rollup over a `many` relationship, resolved before the deterministic core and entering the hashed input as a scalar. Declared on the schema rather than written inside a policy, so it is a named reviewable object and the cost of a decision stays predictable. */
+export interface SchemaAggregation {
+  /** The flat path it produces in the input, e.g. `accounts.worst_arrears_days`. */
+  produces: string;
+  description: string;
+  /** Relationship names from the root entity. */
+  over: string[];
+  fn: "count" | "sum" | "min" | "max" | "any" | "all";
+  /** Field on the target entity. Omitted for `count`, required otherwise. */
+  field?: string;
+  where?: PolicyCondition[];
+  type: "string" | "integer" | "decimal" | "boolean" | "timestamp" | "enum" | "money";
+}
+
+/** The tenant's customer data model. A contract about what fields exist and how entities relate; it says nothing about where values come from, which is already two separate answers (the caller sends them, or a connector resolves them). */
+export interface ProfileSchema {
+  id: string;
+  tenantId: string;
+  /** Bumped whenever the shape changes. */
+  version: string;
+  /** The entity the decision input *is*. */
+  root: string;
+  entities: SchemaEntity[];
+  aggregations: SchemaAggregation[];
+  updatedAt: string;
+  updatedBy: string;
+}
+
+/** One selectable path, as the policy editor's field picker lists them. */
+export interface SchemaFieldPath {
+  path: string;
+  type: "string" | "integer" | "decimal" | "boolean" | "timestamp" | "enum" | "money";
+  kind: "field" | "aggregation";
+  description: string;
+  entity?: string;
+  members?: string[];
+  unit?: string;
+  sensitivity?: "none" | "personal" | "special_category";
+  /** The operators this type admits. Served rather than derived in the client so the editor and the compiler cannot offer different sets. */
+  operators: string[];
+}
+
+export interface TargetingPolicyWrite {
+  name: string;
+  kind: "eligibility" | "relevance" | "suitability";
+  description: string;
+  conditions: PolicyCondition[];
+  scope: PolicyScope;
+  active: boolean;
+}
+
+/** Per-condition reasons, so a form can put each one against the control that produced it. A validation error rendered as one sentence at the top of a dialog makes the person hunt for the field. */
+export interface PolicyRejected {
+  error: string;
+  message: string;
+  problems: {
+    /** Dotted path into the submitted object, e.g. `conditions.0.value`. */
+    field: string;
+    message: string;
+    code?: string;
+  }[];
+}
+
 export interface TargetingPolicy {
   id: string;
   name: string;
@@ -818,6 +911,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['201', '403'],
   },
+  createTargetingPolicy: {
+    method: 'POST',
+    path: '/targeting-policies/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['201', '400', '403'],
+  },
   decidePlacement: {
     method: 'POST',
     path: '/placements/{tenantId}/{placementKey}/decisions',
@@ -873,6 +973,13 @@ export const OPERATIONS = {
     pathParams: ['tenantId', 'offerId'],
     queryParams: [],
     statuses: ['200', '404'],
+  },
+  getProfileSchema: {
+    method: 'GET',
+    path: '/profile-schema/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['200'],
   },
   getRegistryEntry: {
     method: 'GET',
@@ -1119,6 +1226,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '403'],
   },
+  updateTargetingPolicy: {
+    method: 'PUT',
+    path: '/targeting-policies/{tenantId}/{policyId}',
+    pathParams: ['tenantId', 'policyId'],
+    queryParams: [],
+    statuses: ['200', '400', '403', '404'],
+  },
 } as const;
 
 export type OperationId = keyof typeof OPERATIONS;
@@ -1144,6 +1258,10 @@ export type CreateCreativeRequest = Creative;
 /** Create an offer */
 export type CreateOfferResponse = Offer;
 export type CreateOfferRequest = Offer;
+
+/** Create a targeting policy */
+export type CreateTargetingPolicyResponse = TargetingPolicy;
+export type CreateTargetingPolicyRequest = TargetingPolicyWrite;
 
 /** Decide what fills a placement */
 export type DecidePlacementResponse = {
@@ -1241,6 +1359,14 @@ export type GetDecisionRecordResponse = DecisionRecord;
 
 /** An offer with its creatives, policies and effective autonomy */
 export type GetOfferResponse = OfferDetail;
+
+/** The tenant's customer data model */
+export type GetProfileSchemaResponse = {
+  schema: ProfileSchema;
+  paths: SchemaFieldPath[];
+  /** Structural problems with the model itself, if any. */
+  problems?: string[];
+};
 
 /** Published versions and where each is running */
 export type GetRegistryEntryResponse = {
@@ -1450,6 +1576,10 @@ export type UpdateCreativeRequest = Creative;
 export type UpdateOfferResponse = Offer;
 export type UpdateOfferRequest = Offer;
 
+/** Update a targeting policy */
+export type UpdateTargetingPolicyResponse = TargetingPolicy;
+export type UpdateTargetingPolicyRequest = TargetingPolicyWrite;
+
 /** Response body type for each operation, by id. */
 export interface ResponseOf {
   approveChangeSet: ApproveChangeSetResponse;
@@ -1457,6 +1587,7 @@ export interface ResponseOf {
   createChangeSet: CreateChangeSetResponse;
   createCreative: CreateCreativeResponse;
   createOffer: CreateOfferResponse;
+  createTargetingPolicy: CreateTargetingPolicyResponse;
   decidePlacement: DecidePlacementResponse;
   executeDecision: ExecuteDecisionResponse;
   getArbitrationConfig: GetArbitrationConfigResponse;
@@ -1465,6 +1596,7 @@ export interface ResponseOf {
   getCounterfactual: GetCounterfactualResponse;
   getDecisionRecord: GetDecisionRecordResponse;
   getOffer: GetOfferResponse;
+  getProfileSchema: GetProfileSchemaResponse;
   getRegistryEntry: GetRegistryEntryResponse;
   getSession: GetSessionResponse;
   getShadowReport: GetShadowReportResponse;
@@ -1500,4 +1632,5 @@ export interface ResponseOf {
   updateConnector: UpdateConnectorResponse;
   updateCreative: UpdateCreativeResponse;
   updateOffer: UpdateOfferResponse;
+  updateTargetingPolicy: UpdateTargetingPolicyResponse;
 }

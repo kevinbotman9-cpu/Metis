@@ -201,6 +201,11 @@ const COVERED_BY_WRITE_SUITES: Record<string, string> = {
   createChangeSet: 'permissions-and-writes.spec.ts',
   approveChangeSet: 'permissions-and-writes.spec.ts',
   rejectChangeSet: 'permissions-and-writes.spec.ts',
+  // Conditions are validated against the data model, so a speculative call
+  // here would either need a valid field path — duplicating the schema in this
+  // file — or would exercise only the refusal.
+  createTargetingPolicy: 'policy-authoring.spec.ts',
+  updateTargetingPolicy: 'policy-authoring.spec.ts',
 };
 
 test.describe('OpenAPI contract', () => {

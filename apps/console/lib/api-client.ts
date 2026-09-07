@@ -49,6 +49,11 @@ import type {
   SourceBinding as SourceBindingDto,
   SourceCall as SourceCallDto,
   InboundCall as InboundCallDto,
+  ProfileSchema as ProfileSchemaDto,
+  SchemaFieldPath as SchemaFieldPathDto,
+  SchemaEntity as SchemaEntityDto,
+  SchemaField as SchemaFieldDto,
+  SchemaAggregation as SchemaAggregationDto,
   Taxonomy as TaxonomyDto,
   Creative as CreativeDto,
   Placement as PlacementDto,
@@ -352,6 +357,34 @@ export const apiClient = {
       body: connector,
     }),
 
+  // --- Data model ---------------------------------------------------------
+  /**
+   * The tenant's data model, and the paths a policy may reference.
+   *
+   * `paths` comes from the server rather than being derived here, so the
+   * editor and the compiler cannot offer different operator sets.
+   */
+  getProfileSchema: (tenantId: string = TENANT) =>
+    apiCall<{ schema: ProfileSchemaDto; paths: SchemaFieldPathDto[]; problems?: string[] }>(
+      'getProfileSchema',
+      { params: { tenantId } }
+    ),
+
+  createTargetingPolicy: (
+    policy: Omit<TargetingPolicyDto, 'id' | 'createdAt' | 'updatedAt'>,
+    tenantId: string = TENANT
+  ) =>
+    apiCall<TargetingPolicyDto>('createTargetingPolicy', {
+      params: { tenantId },
+      body: policy,
+    }),
+
+  updateTargetingPolicy: (policy: TargetingPolicyDto, tenantId: string = TENANT) =>
+    apiCall<TargetingPolicyDto>('updateTargetingPolicy', {
+      params: { tenantId, policyId: policy.id },
+      body: policy,
+    }),
+
   /** Traffic served by the API — the inbound half of integration. */
   listInboundCalls: (limit = 100) =>
     apiCall<{ enabled: boolean; calls: InboundCallDto[] }>('listInboundCalls', {
@@ -463,6 +496,11 @@ export type {
   SourceBindingDto,
   SourceCallDto,
   InboundCallDto,
+  ProfileSchemaDto,
+  SchemaFieldPathDto,
+  SchemaEntityDto,
+  SchemaFieldDto,
+  SchemaAggregationDto,
 };
 
 /** Query parameters for searchDecisions, matching the spec's declared set. */

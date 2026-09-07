@@ -582,3 +582,38 @@ startup so the 5,000 seeded decisions stay replayable.
   `identical: true`.
 
 See `docs/review/PLATFORM_DIRECTION.md` for what this unblocks and in what order.
+
+---
+
+## Updated 2026-09-07 — targeting policies are authored from the screen
+
+Phase C recorded targeting policies as `FIXTURE` for create and edit. They now
+have a write path: `POST /targeting-policies/{tenantId}` and
+`PUT /targeting-policies/{tenantId}/{policyId}`, gated on `edit:policies` —
+which the fixtures give to compliance and the administrator, and deliberately
+not to the decision architect.
+
+The editor is a picker over the data model rather than a text field, and that
+is the point rather than a nicety. `PolicyCondition.field` was a free-text
+dotted path, and one character wrong in a leaf did not error — it decided.
+
+Three controls, each derived from the one before:
+
+1. **Field** — a list built from `getProfileSchema`. There is nowhere to type a
+   path, so the demonstrated defect is unrepresentable rather than merely
+   rejected.
+2. **Operator** — the set the server sent for that field's type. `contains`
+   cannot appear on a number.
+3. **Value** — typed, and an enum renders its declared members, so `passed`
+   cannot be written where the model says `pass`.
+
+The server checks the same rules again through `conditionProblems`. The editor
+cannot be the only guard: the API is reachable without it.
+
+**Still `FIXTURE` for create and edit:** decision flows and their nodes,
+frequency caps, boosts, the taxonomy, and the data model itself. The model is
+served and browsable at `/data-model`; editing it is the next surface owed.
+
+**Not yet resolved by any of this:** creating an offer still does not make it
+decidable, because a flow's candidate set is a fixed `candidateKeys` list. That
+needs flow authoring.

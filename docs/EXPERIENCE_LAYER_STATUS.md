@@ -49,6 +49,7 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | `/agentic` | BUILT | L0–L4 ladder, per-scope guardrails, editable level, agent activity feed. |
 | `/audit` | BUILT | Append-only log, filterable by actor type. Every write lands here. |
 | `/settings` | BUILT | Account, roles, permissions, appearance, environment. |
+| `/data-model` | BUILT | The tenant's data model: entities, typed fields with units and personal-data classification, relationships, and the rollups declared over one-to-many. Two views — entities for the modeller, paths for whoever is about to write a rule. |
 | `/integrations` | BUILT | Configured connectors, what each supplies, declared latency against the budget, and activate/deactivate gated on `edit:integrations`. |
 | `/integrations/traffic` | BUILT | Every call the API served, request and response in full, attributed to its caller and linked to the decision it produced. Records the development API only; the production form of this is W-048's spans, and the operations are `proposed` in the spec for that reason. See `docs/gaps.md`. |
 | `/simulations` | PARTIAL | Shows simulations attached to change sets. Ad-hoc simulation is **not built**, and the page says so. |

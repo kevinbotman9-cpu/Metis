@@ -27,6 +27,8 @@ import {
   placements as seedPlacements,
   users as seedUsers,
 } from './fixtures/catalogue';
+import { profileSchema as seedProfileSchema } from './fixtures/profile-schema';
+import type { ProfileSchema } from '@metis/core/profile-schema';
 import { artifacts as seedArtifacts, type ArtifactSummary } from './fixtures/artifacts';
 import { compileContext, toSource } from './fixtures/compiled';
 import { ArtifactRegistry, InMemoryRegistryStore } from '@metis/registry';
@@ -43,6 +45,8 @@ type Store = {
   offers: typeof seedOffers;
   creatives: typeof seedCreatives;
   targetingPolicies: typeof seedTargetingPolicies;
+  /** The tenant's data model. Editable, so it lives here rather than in the fixture. */
+  profileSchema: ProfileSchema;
   frequencyPolicies: typeof seedFrequencyPolicies;
   arbitration: typeof seedArbitration;
   /**
@@ -106,6 +110,7 @@ function seed(): Store {
     offers: clone(seedOffers),
     creatives: clone(seedCreatives),
     targetingPolicies: clone(seedTargetingPolicies),
+    profileSchema: clone(seedProfileSchema),
     frequencyPolicies: clone(seedFrequencyPolicies),
     arbitration: clone(seedArbitration),
     ledger: new DecisionLedger(ledgerStore),

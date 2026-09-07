@@ -48,6 +48,7 @@ const KIND_TONE: Record<ResultKind, string> = {
 const PAGES: Result[] = [
   { kind: 'page', id: 'home', title: 'Home', href: '/' },
   { kind: 'page', id: 'offers', title: 'Offers', subtitle: 'Offer catalogue', href: '/offers' },
+  { kind: 'page', id: 'datamodel', title: 'Data model', subtitle: 'Entities, fields and rollups', href: '/data-model' },
   { kind: 'page', id: 'engagement', title: 'Targeting Policies', subtitle: 'Eligibility, relevance, suitability', href: '/targeting-policies' },
   { kind: 'page', id: 'contact', title: 'Frequency Policy', subtitle: 'Frequency caps and cooldowns', href: '/frequency-policy' },
   { kind: 'page', id: 'arbitration', title: 'Arbitration & Boosts', subtitle: 'P x V x L x C', href: '/arbitration' },

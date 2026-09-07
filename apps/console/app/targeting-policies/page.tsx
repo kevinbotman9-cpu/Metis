@@ -13,6 +13,9 @@ import {
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { apiClient, type TargetingPolicyDto } from '@/lib/api-client';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/components/auth-provider';
+import { PolicyFormDialog } from '@/components/policy-form-dialog';
 import { cn } from '@/lib/cn';
 
 const KINDS = [
@@ -49,6 +52,11 @@ function PoliciesView() {
 
   const all = data?.policies ?? [];
   const rows = kind ? all.filter((p) => p.kind === kind) : all;
+
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('edit:policies');
+  const [editing, setEditing] = useState<TargetingPolicyDto | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const columns: Column<TargetingPolicyDto>[] = [
     {
@@ -113,6 +121,22 @@ function PoliciesView() {
         <Badge tone={p.active ? 'pass' : 'neutral'}>{p.active ? 'active' : 'off'}</Badge>
       ),
     },
+    // Offered only to somebody who can act on it. An enabled control that
+    // answers 403 is the defect this console has had before.
+    ...(canEdit
+      ? [
+          {
+            key: 'edit',
+            header: '',
+            width: 'w-20',
+            cell: (p: TargetingPolicyDto) => (
+              <Button variant="secondary" onClick={() => setEditing(p)}>
+                Edit
+              </Button>
+            ),
+          } as Column<TargetingPolicyDto>,
+        ]
+      : []),
   ];
 
   if (error) {
@@ -128,6 +152,22 @@ function PoliciesView() {
       <PageHeader
         title="Targeting policies"
         description="Three tiers decide whether an offer may reach a customer. Every trace records which tier removed a candidate and why."
+        actions={
+          canEdit ? (
+            <Button variant="primary" onClick={() => setCreating(true)}>
+              New policy
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <PolicyFormDialog open={creating} onOpenChange={setCreating} />
+      <PolicyFormDialog
+        open={editing !== null}
+        onOpenChange={(o) => {
+          if (!o) setEditing(null);
+        }}
+        policy={editing ?? undefined}
       />
 
       <div className="mb-stack grid gap-3 lg:grid-cols-3">

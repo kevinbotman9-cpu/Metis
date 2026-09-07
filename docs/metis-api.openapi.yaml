@@ -266,6 +266,181 @@ components:
           enum: [eq, ne, gt, gte, lt, lte, in, not_in, contains, exists, not_exists]
         value: {}
 
+    SchemaField:
+      type: object
+      required: [name, type, description]
+      properties:
+        name:
+          type: string
+          description: The path segment, e.g. `age` in `customer.age`.
+        type:
+          type: string
+          enum: [string, integer, decimal, boolean, timestamp, enum, money]
+          description: >-
+            integer and decimal are separate because the difference is a real
+            authoring constraint, and because the value control differs.
+        description: { type: string }
+        members:
+          type: array
+          items: { type: string }
+          description: Allowed values, for `enum`. The editor renders these and the compiler checks them.
+        required: { type: boolean }
+        sensitivity:
+          type: string
+          enum: [none, personal, special_category]
+          description: >-
+            Retention's input, not decoration. Classifying at declaration time
+            is far cheaper than classifying a populated store later.
+        unit:
+          type: string
+          description: days, pence, ratio, months. Shown beside the value input.
+
+    SchemaRelationship:
+      type: object
+      required: [name, entity, cardinality, description]
+      properties:
+        name: { type: string }
+        entity: { type: string, description: Target entity name. }
+        cardinality:
+          type: string
+          enum: [one, many]
+        description: { type: string }
+
+    SchemaEntity:
+      type: object
+      required: [name, description, fields]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        fields:
+          type: array
+          items: { $ref: '#/components/schemas/SchemaField' }
+        relationships:
+          type: array
+          items: { $ref: '#/components/schemas/SchemaRelationship' }
+
+    SchemaAggregation:
+      type: object
+      description: >-
+        A rollup over a `many` relationship, resolved before the deterministic
+        core and entering the hashed input as a scalar. Declared on the schema
+        rather than written inside a policy, so it is a named reviewable object
+        and the cost of a decision stays predictable.
+      required: [produces, description, over, fn, type]
+      properties:
+        produces:
+          type: string
+          description: The flat path it produces in the input, e.g. `accounts.worst_arrears_days`.
+        description: { type: string }
+        over:
+          type: array
+          items: { type: string }
+          description: Relationship names from the root entity.
+        fn:
+          type: string
+          enum: [count, sum, min, max, any, all]
+        field:
+          type: string
+          description: Field on the target entity. Omitted for `count`, required otherwise.
+        where:
+          type: array
+          items: { $ref: '#/components/schemas/PolicyCondition' }
+        type:
+          type: string
+          enum: [string, integer, decimal, boolean, timestamp, enum, money]
+
+    ProfileSchema:
+      type: object
+      description: >-
+        The tenant's customer data model. A contract about what fields exist and
+        how entities relate; it says nothing about where values come from, which
+        is already two separate answers (the caller sends them, or a connector
+        resolves them).
+      required: [id, tenantId, version, root, entities, aggregations, updatedAt, updatedBy]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        version:
+          type: string
+          description: Bumped whenever the shape changes.
+        root:
+          type: string
+          description: The entity the decision input *is*.
+        entities:
+          type: array
+          items: { $ref: '#/components/schemas/SchemaEntity' }
+        aggregations:
+          type: array
+          items: { $ref: '#/components/schemas/SchemaAggregation' }
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+
+    SchemaFieldPath:
+      type: object
+      description: One selectable path, as the policy editor's field picker lists them.
+      required: [path, type, kind, description, operators]
+      properties:
+        path: { type: string }
+        type:
+          type: string
+          enum: [string, integer, decimal, boolean, timestamp, enum, money]
+        kind:
+          type: string
+          enum: [field, aggregation]
+        description: { type: string }
+        entity: { type: string }
+        members:
+          type: array
+          items: { type: string }
+        unit: { type: string }
+        sensitivity:
+          type: string
+          enum: [none, personal, special_category]
+        operators:
+          type: array
+          items: { type: string }
+          description: >-
+            The operators this type admits. Served rather than derived in the
+            client so the editor and the compiler cannot offer different sets.
+
+    TargetingPolicyWrite:
+      type: object
+      required: [name, kind, description, conditions, scope, active]
+      properties:
+        name: { type: string }
+        kind:
+          type: string
+          enum: [eligibility, relevance, suitability]
+        description: { type: string }
+        conditions:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/PolicyCondition' }
+        scope: { $ref: '#/components/schemas/PolicyScope' }
+        active: { type: boolean }
+
+    PolicyRejected:
+      type: object
+      description: >-
+        Per-condition reasons, so a form can put each one against the control
+        that produced it. A validation error rendered as one sentence at the top
+        of a dialog makes the person hunt for the field.
+      required: [error, message, problems]
+      properties:
+        error: { type: string }
+        message: { type: string }
+        problems:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+                description: Dotted path into the submitted object, e.g. `conditions.0.value`.
+              message: { type: string }
+              code: { type: string }
+
     TargetingPolicy:
       type: object
       required:
@@ -2019,6 +2194,102 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/TargetingPolicy'
+
+    post:
+      summary: Create a targeting policy
+      description: |
+        Conditions are checked against the tenant's data model before the policy
+        is stored. A condition naming a field the model does not have, or
+        comparing a type it cannot compare, is refused here rather than
+        silently suppressing every candidate at decision time.
+      operationId: createTargetingPolicy
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TargetingPolicyWrite'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetingPolicy'
+        '400':
+          description: The conditions do not satisfy the data model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRejected'
+        '403':
+          description: Requires edit:policies
+
+  /targeting-policies/{tenantId}/{policyId}:
+    put:
+      summary: Update a targeting policy
+      operationId: updateTargetingPolicy
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TargetingPolicyWrite'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetingPolicy'
+        '400':
+          description: The conditions do not satisfy the data model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRejected'
+        '403':
+          description: Requires edit:policies
+        '404':
+          description: No such policy
+
+  /profile-schema/{tenantId}:
+    get:
+      summary: The tenant's customer data model
+      description: |
+        Returns the model and the flat list of selectable paths the policy
+        editor's field picker renders. The paths are served rather than derived
+        client-side so the editor and the compiler cannot offer different sets
+        — an operator the editor does not show must also be one the compiler
+        rejects.
+      operationId: getProfileSchema
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: The data model
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [schema, paths]
+                properties:
+                  schema: { $ref: '#/components/schemas/ProfileSchema' }
+                  paths:
+                    type: array
+                    items: { $ref: '#/components/schemas/SchemaFieldPath' }
+                  problems:
+                    type: array
+                    items: { type: string }
+                    description: Structural problems with the model itself, if any.
 
   /frequency-policies/{tenantId}:
     get:
