@@ -214,7 +214,14 @@ components:
           enum: [email, sms, web, push, outbound_call]
         content:
           type: object
-          description: Channel-specific content; shape is discriminated by channel
+          description: |
+            Channel-specific content; shape is discriminated by channel.
+
+            On `web`, `placement` names the kind of slot the creative was
+            designed for — one of carousel, feature_band, footer_bar, hero,
+            page_takeover, tile — or is empty, in which case it can fill any
+            slot on the channel. It is the shape, not the slot: one hero
+            creative serves every hero placement.
           additionalProperties: true
         active: { type: boolean }
         locale: { type: string, example: en-GB }
@@ -1366,6 +1373,14 @@ components:
         channel:
           type: string
           enum: [email, sms, web, push, outbound_call]
+        type:
+          type: string
+          enum: [carousel, feature_band, footer_bar, hero, page_takeover, tile]
+          description: |
+            The shape this slot renders in. Web only — a hero and a tile are
+            different designs, and a creative declares which it was made for.
+            An email placement carries none rather than a value that means
+            nothing.
         slotCount:
           type: integer
           minimum: 1

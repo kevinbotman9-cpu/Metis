@@ -116,6 +116,41 @@ export interface SmsContent {
   senderId: string;
 }
 
+/**
+ * Where a web creative is designed to appear, and how it looks there.
+ *
+ * A closed set, because it is a design decision with a small number of real
+ * answers and it was a free-text field that had to match a configured slot key
+ * exactly — which is a way of asking someone to guess.
+ *
+ * Distinct from `Placement`, which is a configured *slot*: `homepage_grid`
+ * holds three actions and is answered by a named flow. This is the shape that
+ * slot renders in. One creative designed for a hero serves every hero slot,
+ * which is why the creative names the type and not the slot.
+ */
+export type PlacementType =
+  /** A rotating strip of images. */
+  | 'carousel'
+  /** A full-width band partway down a page. */
+  | 'feature_band'
+  /** Anchored to the bottom of the page. */
+  | 'footer_bar'
+  /** The large central banner above the fold. */
+  | 'hero'
+  /** Covers the page until dismissed. */
+  | 'page_takeover'
+  /** One card among several. */
+  | 'tile';
+
+export const PLACEMENT_TYPES: { id: PlacementType; label: string }[] = [
+  { id: 'carousel', label: 'Carousel' },
+  { id: 'feature_band', label: 'Feature band' },
+  { id: 'footer_bar', label: 'Footer bar' },
+  { id: 'hero', label: 'Hero' },
+  { id: 'page_takeover', label: 'Page takeover' },
+  { id: 'tile', label: 'Tile' },
+];
+
 export interface WebContent {
   channel: 'web';
   headline: string;
@@ -123,8 +158,13 @@ export interface WebContent {
   imageUrl: string;
   ctaLabel: string;
   ctaUrl: string;
-  /** Named slot in the customer journey this can fill. */
-  placement: string;
+  /**
+   * The kind of slot this is designed for.
+   *
+   * Optional: a creative with none can fill any slot on the channel, which is
+   * what a site falls back to when nothing is designed for the shape it wants.
+   */
+  placement: PlacementType | '';
 }
 
 export interface PushContent {
@@ -556,6 +596,14 @@ export interface Placement {
   name: string;
   description: string;
   channel: Channel;
+  /**
+   * The shape this slot renders in.
+   *
+   * Web only: a hero and a tile are different designs, and a creative declares
+   * which it was made for. An email placement has no equivalent, so it carries
+   * none rather than a value that means nothing.
+   */
+  type?: PlacementType;
   /**
    * How many actions this slot can show, at most.
    *

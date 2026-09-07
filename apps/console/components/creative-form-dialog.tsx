@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { Field, Input, Select } from '@/components/ui/primitives';
 import { apiClient, ApiError, type CreativeDto } from '@/lib/api-client';
+import { PLACEMENT_TYPES } from '@metis/core/domain';
 
 /**
  * Authoring the content an offer is delivered with.
@@ -35,8 +36,19 @@ interface FieldSpec {
   label: string;
   hint?: string;
   multiline?: boolean;
-  /** Shown in the input when empty. Never a default value. */
+  /** Renders a closed set instead of a text box. */
+  options?: { id: string; label: string }[];
+  /**
+   * An example, shown when the input is empty.
+   *
+   * Written "e.g. …" without exception. A bare `/plans/example` sitting in an
+   * empty box reads as a value — it was reported as one, next to a message
+   * saying the field was required — and no amount of grey makes a path look
+   * like an invitation to type a path.
+   */
   placeholder?: string;
+  /** Marked in the label, so nobody fills a field to get past a form. */
+  optional?: boolean;
 }
 
 const CHANNELS: { id: ChannelId; label: string; fields: FieldSpec[] }[] = [
@@ -45,10 +57,20 @@ const CHANNELS: { id: ChannelId; label: string; fields: FieldSpec[] }[] = [
     label: 'Email',
     fields: [
       { name: 'subject', label: 'Subject' },
-      { name: 'preheader', label: 'Preheader', hint: 'The line inboxes show after the subject.' },
+      {
+        name: 'preheader',
+        label: 'Preheader',
+        optional: true,
+        hint: 'The line inboxes show after the subject. Left out, they show the start of the body.',
+      },
       { name: 'body', label: 'Body', multiline: true },
-      { name: 'fromName', label: 'From name' },
-      { name: 'fromAddress', label: 'From address', placeholder: 'offers@example.com' },
+      {
+        name: 'fromName',
+        label: 'From name',
+        optional: true,
+        hint: 'Left out, recipients see the address.',
+      },
+      { name: 'fromAddress', label: 'From address', placeholder: 'e.g. offers@example.com' },
     ],
   },
   {
@@ -69,16 +91,33 @@ const CHANNELS: { id: ChannelId; label: string; fields: FieldSpec[] }[] = [
     label: 'Web',
     fields: [
       { name: 'headline', label: 'Headline' },
-      { name: 'subheadline', label: 'Subheadline' },
+      { name: 'subheadline', label: 'Subheadline', optional: true },
       {
         name: 'imageUrl',
         label: 'Image reference',
+        optional: true,
         hint: 'A path or URL. Nothing here stores or serves the file — see W-015.',
-        placeholder: '/assets/offers/example.jpg',
+        placeholder: 'e.g. /assets/offers/example.jpg',
       },
-      { name: 'ctaLabel', label: 'Call to action' },
-      { name: 'ctaUrl', label: 'Call to action link', placeholder: '/plans/example' },
-      { name: 'placement', label: 'Placement', hint: 'The slot this can fill.' },
+      {
+        name: 'ctaLabel',
+        label: 'Call to action',
+        optional: true,
+        hint: 'A label and a link, or neither.',
+      },
+      {
+        name: 'ctaUrl',
+        label: 'Call to action link',
+        optional: true,
+        placeholder: 'e.g. /plans/example',
+      },
+      {
+        name: 'placement',
+        label: 'Placement type',
+        optional: true,
+        options: PLACEMENT_TYPES,
+        hint: 'Where this is designed to appear, and how it looks there. Left out, it can fill any slot on the channel.',
+      },
     ],
   },
   {
@@ -87,7 +126,13 @@ const CHANNELS: { id: ChannelId; label: string; fields: FieldSpec[] }[] = [
     fields: [
       { name: 'title', label: 'Title' },
       { name: 'body', label: 'Body', multiline: true },
-      { name: 'deeplink', label: 'Deeplink', placeholder: 'app://addons/example' },
+      {
+        name: 'deeplink',
+        label: 'Deeplink',
+        optional: true,
+        hint: 'Left out, the notification opens the app.',
+        placeholder: 'e.g. app://addons/example',
+      },
     ],
   },
   {
@@ -95,7 +140,7 @@ const CHANNELS: { id: ChannelId; label: string; fields: FieldSpec[] }[] = [
     label: 'Outbound call',
     fields: [
       { name: 'script', label: 'Script', multiline: true },
-      { name: 'objectionHandling', label: 'Objection handling', multiline: true },
+      { name: 'objectionHandling', label: 'Objection handling', multiline: true, optional: true },
     ],
   },
 ];
@@ -234,8 +279,29 @@ export function CreativeFormDialog({
           const id = `creative-${f.name}`;
           const error = problemFor(f.name);
           return (
-            <Field key={f.name} label={f.label} htmlFor={id} hint={f.hint} error={error}>
-              {f.multiline ? (
+            <Field
+              key={f.name}
+              label={f.optional ? `${f.label} (optional)` : f.label}
+              htmlFor={id}
+              hint={f.hint}
+              error={error}
+            >
+              {f.options ? (
+                <Select
+                  id={id}
+                  value={content[f.name] ?? ''}
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? `${id}-error` : undefined}
+                  onChange={(e) => setContent((c) => ({ ...c, [f.name]: e.target.value }))}
+                >
+                  <option value="">Any</option>
+                  {f.options.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+              ) : f.multiline ? (
                 <textarea
                   id={id}
                   rows={f.name === 'text' ? 3 : 4}

@@ -102,7 +102,14 @@ export interface Creative {
   offerId: string;
   name: string;
   channel: "email" | "sms" | "web" | "push" | "outbound_call";
-  /** Channel-specific content; shape is discriminated by channel */
+  /** Channel-specific content; shape is discriminated by channel.
+
+On `web`, `placement` names the kind of slot the creative was
+designed for — one of carousel, feature_band, footer_bar, hero,
+page_takeover, tile — or is empty, in which case it can fill any
+slot on the channel. It is the shape, not the slot: one hero
+creative serves every hero placement.
+ */
   content: Record<string, unknown>;
   active: boolean;
   locale: string;
@@ -648,6 +655,12 @@ export interface Placement {
   name: string;
   description: string;
   channel: "email" | "sms" | "web" | "push" | "outbound_call";
+  /** The shape this slot renders in. Web only — a hero and a tile are
+different designs, and a creative declares which it was made for.
+An email placement carries none rather than a value that means
+nothing.
+ */
+  type?: "carousel" | "feature_band" | "footer_bar" | "hero" | "page_takeover" | "tile";
   /** At most this many actions. A hero is 1, a grid is 3. The decision is
 the same either way; this governs how much of the ranking the caller
 is given.

@@ -280,7 +280,7 @@ test.describe('creating an offer', () => {
           imageUrl: '/assets/offers/speed-boost.jpg',
           ctaLabel: 'Add Speed Boost',
           ctaUrl: '/broadband/speed-boost',
-          placement: 'usage_page_inline',
+          placement: 'feature_band',
         },
       },
     });

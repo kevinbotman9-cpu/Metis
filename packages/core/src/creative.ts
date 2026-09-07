@@ -18,6 +18,7 @@
  */
 
 import type { Channel, Creative, CreativeContent } from './domain';
+import { PLACEMENT_TYPES } from './domain';
 
 export interface CreativeProblem {
   /** Dotted path into the creative, so a caller can point at the field. */
@@ -46,13 +47,53 @@ export const SMS_SENDER_MAX_CHARS = 11;
 
 const blank = (v: unknown): boolean => typeof v !== 'string' || v.trim().length === 0;
 
-/** Fields that must carry something, per channel. Every one is rendered. */
+/**
+ * Fields whose absence breaks delivery, per channel.
+ *
+ * The test is not "the renderer shows it" — that was the first version of this
+ * list and it required five fields on a web creative, including a subheadline
+ * and a placement. The test is: **what is broken if this is empty?**
+ *
+ * An empty headline renders an empty heading, and an empty SMS is not a
+ * message. An empty subheadline renders a shorter card, which is a design
+ * choice somebody is entitled to make. A creative refused for a field nobody
+ * needed is a rule that gets worked around, and the ones that matter get worked
+ * around with it.
+ *
+ * What each channel omits, and why:
+ *
+ * - **email** — `preheader` is the inbox preview line, and an inbox that has
+ *   none shows the first line of the body. `fromName` absent shows the address,
+ *   which is worse-looking and not broken.
+ * - **web** — `subheadline` and `imageUrl` are optional by the same argument;
+ *   there is no content store, so an image reference is often nothing anyone
+ *   can supply yet. `placement` is a *preference*: a site asks a slot and takes
+ *   the creative that names it, falling back to any creative on the channel, so
+ *   an unnamed one still delivers. The call to action is handled below.
+ * - **push** — a notification with no `deeplink` opens the app, which is what
+ *   most of them do.
+ * - **outbound_call** — `objectionHandling` is a second script for a
+ *   conversation that may not need one.
+ */
 const REQUIRED: Record<Channel, readonly string[]> = {
-  email: ['subject', 'preheader', 'body', 'fromName', 'fromAddress'],
+  email: ['subject', 'body', 'fromAddress'],
   sms: ['text', 'senderId'],
-  web: ['headline', 'subheadline', 'ctaLabel', 'ctaUrl', 'placement'],
-  push: ['title', 'body', 'deeplink'],
-  outbound_call: ['script', 'objectionHandling'],
+  web: ['headline'],
+  push: ['title', 'body'],
+  outbound_call: ['script'],
+};
+
+/**
+ * Fields that are optional alone and required together.
+ *
+ * A call to action is the case. Neither half is required — a web creative can
+ * be a banner that says something and asks nothing. But a label with no link is
+ * a control that looks clickable and is not, and a link with no label is a
+ * button with no accessible name. Either half alone is the defect; both or
+ * neither is the rule.
+ */
+const PAIRED: Partial<Record<Channel, readonly [string, string][]>> = {
+  web: [['ctaLabel', 'ctaUrl']],
 };
 
 /**
@@ -91,6 +132,19 @@ export function validateCreativeContent(
     }
   }
 
+  for (const [a, b] of PAIRED[channel] ?? []) {
+    const hasA = !blank(record[a]);
+    const hasB = !blank(record[b]);
+    if (hasA !== hasB) {
+      const missing = hasA ? b : a;
+      const given = hasA ? a : b;
+      problems.push({
+        field: `content.${missing}`,
+        message: `${given} is set, so ${missing} is required — a call to action needs both a label and a link, or neither.`,
+      });
+    }
+  }
+
   switch (content.channel) {
     case 'sms':
       if (typeof content.text === 'string' && content.text.length > SMS_MAX_CHARS) {
@@ -122,6 +176,19 @@ export function validateCreativeContent(
       break;
 
     case 'web':
+      // A closed set, so a value outside it is a typo or a stale import rather
+      // than a design somebody meant. Blank is allowed: a creative designed for
+      // no particular shape can fill any slot on the channel.
+      if (
+        !blank(content.placement) &&
+        !PLACEMENT_TYPES.some((p) => p.id === content.placement)
+      ) {
+        problems.push({
+          field: 'content.placement',
+          message: `'${content.placement}' is not a placement type. One of: ${PLACEMENT_TYPES.map((p) => p.id).join(', ')}.`,
+        });
+      }
+
       // A call to action that goes nowhere is worse than no call to action: it
       // looks clickable and is not.
       for (const field of ['ctaUrl', 'imageUrl'] as const) {
@@ -136,7 +203,9 @@ export function validateCreativeContent(
       break;
 
     case 'push':
-      if (typeof content.deeplink === 'string' && !/^[a-z][a-z0-9+.-]*:|^\//i.test(content.deeplink)) {
+      // Blank is allowed — a notification with no deeplink opens the app — so
+      // only a deeplink that was actually supplied is checked for shape.
+      if (!blank(content.deeplink) && !/^[a-z][a-z0-9+.-]*:|^\//i.test(content.deeplink)) {
         problems.push({
           field: 'content.deeplink',
           message: `'${content.deeplink}' is not a deeplink: expected a scheme like 'app://' or a path.`,

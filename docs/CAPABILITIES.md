@@ -30,7 +30,7 @@ names the check so the claim can be audited rather than trusted.
 ## The suites, and what each covers
 
 ```
-Core                15 passed  - creative content per channel, and the
+Core                20 passed  - creative content per channel, and the
                                  invariant that an offer needs deliverable
                                  content before it can go active
 Integration         19 passed  - author -> compile -> execute -> replay, plus the
@@ -64,7 +64,7 @@ Typecheck           clean      - root config and the console's, separately
 Lint                clean      - root and console; 0 errors and, since
                                  2026-09-07, 0 warnings
                    ---
-                    790 tests, two languages, two engines
+                    795 tests, two languages, two engines
 ```
 
 The OpenAPI spec validates at **36 paths, 43 operations (41 built, 2 proposed),
@@ -136,7 +136,7 @@ corpus reproducible, and it is also why nothing here claims to learn.
 | OpenAPI 3.1 as the source of truth | BUILT | `packages/client` is generated; the console compiles against it, so spec drift is a compile error |
 | Authoring an offer and its content **from the console** | BUILT | `New offer`, `Edit`, `Add creative` and the creative's own `Edit` open Radix dialogs and write through the generated client. Activation is a control on the detail page, beside the creatives, because that is where the reason it can be refused is visible. `offer-authoring.spec.ts` drives the whole path as a person does — create, be refused, add content, activate — plus axe on both dialogs, which the route sweep cannot reach because a dialog is not a route |
 | Server refusals land on the field they are about | BUILT | The 400 from `createCreative` carries `problems[]`, each naming a field; `ApiError` carries them and the form renders each against its own input, with `aria-invalid` and `aria-describedby`. Asserted on the 160-character and sender-id rules at once |
-| Authoring a creative through the API | PARTIAL | `createCreative` and `updateCreative` are served, permission-gated, audited and validated per channel — required fields, the 160-character SMS segment limit, a carrier-legal sender id, an address that is an address, a call to action that goes somewhere; every problem reported at once. **Not built:** uploading an asset. `imageUrl` is a reference the caller supplies and nothing stores or serves the file. Approval, effective dating and expiry are [W-015](BACKLOG.md) |
+| Authoring a creative through the API | PARTIAL | `createCreative` and `updateCreative` are served, permission-gated, audited and validated per channel. A field is required only where its absence breaks delivery; a call to action is required in *pairs*, since a label with no link looks clickable and is not; and `placement` is a closed set of six types — carousel, feature band, footer bar, hero, page takeover, tile. Plus the 160-character SMS segment limit, a carrier-legal sender id, and an address that is an address. Every problem reported at once. **Not built:** uploading an asset. `imageUrl` is a reference the caller supplies and nothing stores or serves the file. Approval, effective dating and expiry are [W-015](BACKLOG.md) |
 | An offer cannot go active with nothing to deliver | BUILT | `domain.ts` said "at least one is required to go active" and enforced it nowhere, so an offer could be active, win a decision and render nothing. Now refused at creation, at activation, and when switching off the last active creative of an active offer. `permissions-and-writes.spec.ts`; verified to bite by disabling each guard |
 | Authoring an offer through the API | PARTIAL | `createOffer` and `updateOffer` are served, permission-gated server-side, audited, and covered by `permissions-and-writes.spec.ts`. `createOffer` was **declared built and served by nothing** until 2026-09-07, and `updateOffer` was served and exercised by nothing. **The limit:** an offer created this way cannot be decided — the engine reads a different catalogue (W-005) and a flow's candidate set is fixed (W-024). Registered in `gaps.md` |
 | Every exempted operation names the suite that covers it | BUILT | The contract suite's exemption list was a bare set of ids and hid the defect above. It now maps each id to a spec file that must carry a matching `covers:` marker, and the check excludes its own file so it cannot pass on itself. Verified to bite twice: once with an uncovered id, once by finding three real exemptions nothing named |
