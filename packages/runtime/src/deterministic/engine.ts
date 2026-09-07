@@ -497,7 +497,20 @@ export function execute(
           scores[p.key] = { propensity, value, boost, context, cost, priority: 0 };
         }
         // Scoring never removes a candidate, so there is nothing to deny.
-        record(node, `Scored ${candidates.length} candidate(s) with ${modelKey}.`, candidates, []);
+        //
+        // The sentence says what kind of scorer ran, because the trace is the
+        // artefact this project asks people to trust literally and it used to
+        // read "Scored 3 candidate(s) with adm_accept_v4@4.2.0" while the
+        // propensity was a seeded function. Nobody wrote a false claim; a
+        // pinned id that looks like a trained model made one anyway. When the
+        // model gateway lands (W-029) this sentence changes, which is correct:
+        // by then it will be describing something else.
+        record(
+          node,
+          `Scored ${candidates.length} candidate(s) with ${modelKey} — a pinned deterministic function, not a trained model (W-029).`,
+          candidates,
+          []
+        );
         break;
       }
 

@@ -55,7 +55,7 @@ test.describe('compiler output in the console', () => {
     // Pinning is the reason replay works, so it has to be visible.
     await expect(page.getByText('Pinned at compile time')).toBeVisible();
     await expect(page.getByText(/@metis\/nodes-core@1\.4\.0/)).toBeVisible();
-    await expect(page.getByText(/adm_accept_v4@4\.2\.0/)).toBeVisible();
+    await expect(page.getByText(/propensity_accept_v4@4\.2\.0/)).toBeVisible();
 
     // Critical path against budget, not the sum of every node — and it now
     // includes the connectors the source node waits on, which is why this is

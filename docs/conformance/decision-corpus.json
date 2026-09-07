@@ -372,8 +372,8 @@
         }
       },
       "expected": {
-        "id": "dec_db0a925a7498cef8",
-        "chainHash": "db0a925a7498cef80b327c8878a7d92db65aa08ff0a5a265af67c1b71200eabc",
+        "id": "dec_95864f4ffd2c5fea",
+        "chainHash": "95864f4ffd2c5feaae28eab65b24105927eea68da793db985f420ece30f56f3a",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "c05a161a7901180e3eaf8e92ba14d59a6506b8c3bdbdfe9bb140216990325a2d",
         "decision": {
@@ -410,7 +410,7 @@
             {
               "nodeId": "n2_score",
               "nodeType": "score-model",
-              "reason": "Scored 3 candidate(s) with m_prop@3.1.0.",
+              "reason": "Scored 3 candidate(s) with m_prop@3.1.0 — a pinned deterministic function, not a trained model (W-029).",
               "denials": [],
               "survived": [
                 "offer_a",
@@ -1270,8 +1270,8 @@
         }
       },
       "expected": {
-        "id": "dec_22096fb8213d0b85",
-        "chainHash": "22096fb8213d0b85f20273ed76704961dc1513a07af324bedc9fc056b486a015",
+        "id": "dec_6386a2514614665f",
+        "chainHash": "6386a2514614665f79aa0b850a0bad2ba6c1855aefddfca451011bea44560df5",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "c05a161a7901180e3eaf8e92ba14d59a6506b8c3bdbdfe9bb140216990325a2d",
         "decision": {
@@ -1308,7 +1308,7 @@
             {
               "nodeId": "n2_score",
               "nodeType": "score-model",
-              "reason": "Scored 3 candidate(s) with m_prop@3.1.0.",
+              "reason": "Scored 3 candidate(s) with m_prop@3.1.0 — a pinned deterministic function, not a trained model (W-029).",
               "denials": [],
               "survived": [
                 "offer_a",
@@ -1582,8 +1582,8 @@
         }
       },
       "expected": {
-        "id": "dec_5f865c4015d7405e",
-        "chainHash": "5f865c4015d7405e03ad5f5f7945e32755f25f20c3da210ce8fdf27e30bdab33",
+        "id": "dec_0562f5b3cc887c96",
+        "chainHash": "0562f5b3cc887c9663af66b742e05f9c7b1fb1755d6cecd773842d5877620cc5",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "52867812e366625e508b6ab711158a9302e3b61040b15234055a602f88e69339",
         "decision": {
@@ -1620,7 +1620,7 @@
             {
               "nodeId": "n2_score",
               "nodeType": "score-model",
-              "reason": "Scored 3 candidate(s) with m_prop@3.1.0.",
+              "reason": "Scored 3 candidate(s) with m_prop@3.1.0 — a pinned deterministic function, not a trained model (W-029).",
               "denials": [],
               "survived": [
                 "offer_a",
@@ -2123,8 +2123,8 @@
         }
       },
       "expected": {
-        "id": "dec_ec9784d71aea418d",
-        "chainHash": "ec9784d71aea418dc58094fd3c5433656839d8b1704d33a080966d698b83ab73",
+        "id": "dec_b7ee06595f225f83",
+        "chainHash": "b7ee06595f225f8351985897b5e0321d4992a70b86899c17800bc3d9156472b0",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "f4bf1822ab6dacd33de27cff3ce661214ae515e88d274b5c205940f6d27c8fae",
         "decision": {
@@ -2161,7 +2161,7 @@
             {
               "nodeId": "n2_score",
               "nodeType": "score-adaptive",
-              "reason": "Scored 3 candidate(s) with m@1.0.0.",
+              "reason": "Scored 3 candidate(s) with m@1.0.0 — a pinned deterministic function, not a trained model (W-029).",
               "denials": [],
               "survived": [
                 "offer_a",
@@ -5359,8 +5359,8 @@
         }
       },
       "expected": {
-        "id": "dec_93e086abc3f746fb",
-        "chainHash": "93e086abc3f746fbd111f0aac2f2b8ccb19b9cd56500b5ef405891315275206f",
+        "id": "dec_c1519f0aa37787d6",
+        "chainHash": "c1519f0aa37787d68c327f142db104c1e7712e8002fe8968917c988f2b747ecd",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "474b804fc6fed3c9df9e356544fcc2fad7b117c71de975e71b4556a32a43e477",
         "decision": {
@@ -5397,7 +5397,7 @@
             {
               "nodeId": "n2_score",
               "nodeType": "score-model",
-              "reason": "Scored 3 candidate(s) with m_prop@3.1.0.",
+              "reason": "Scored 3 candidate(s) with m_prop@3.1.0 — a pinned deterministic function, not a trained model (W-029).",
               "denials": [],
               "survived": [
                 "offer_a",
@@ -5609,8 +5609,8 @@
         }
       },
       "expected": {
-        "id": "dec_65d4c6fe7d302d78",
-        "chainHash": "65d4c6fe7d302d78693bfb690e7cf76e60ee80a1c17766bc3eba9c9e4c601e63",
+        "id": "dec_abdb6ffef3932080",
+        "chainHash": "abdb6ffef3932080f31184fcbc59164f958e787b9a959c77da826033bcfbb9a0",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "d35e6165b9bd37761c3f76cd4d7bf86166454c4ada49f689123f67636a952d92",
         "decision": {
@@ -5643,7 +5643,7 @@
             {
               "nodeId": "n2_score",
               "nodeType": "score-model",
-              "reason": "Scored 1 candidate(s) with m_prop@3.1.0.",
+              "reason": "Scored 1 candidate(s) with m_prop@3.1.0 — a pinned deterministic function, not a trained model (W-029).",
               "denials": [],
               "survived": [
                 "offer_a"
@@ -7386,8 +7386,8 @@
         }
       },
       "expected": {
-        "id": "dec_0e0cd9e78740a6f0",
-        "chainHash": "0e0cd9e78740a6f0a7059e6c66e6eaeea0fecadb113b095fbbdf91a0c3b1c954",
+        "id": "dec_4869f3c2a8fca99c",
+        "chainHash": "4869f3c2a8fca99cc758bde195368b41b1fac1562bacbe9ba3334da6d14f73bc",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "c72e672a08d6884e85c73550ffcb10e0be0778182d89a76bdef44dbb38a9817e",
         "decision": {
@@ -7422,7 +7422,7 @@
             {
               "nodeId": "n2_score",
               "nodeType": "score-model",
-              "reason": "Scored 2 candidate(s) with m_prop@3.1.0.",
+              "reason": "Scored 2 candidate(s) with m_prop@3.1.0 — a pinned deterministic function, not a trained model (W-029).",
               "denials": [],
               "survived": [
                 "offer_rich",

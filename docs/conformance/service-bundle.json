@@ -48,10 +48,10 @@
         },
         {
           "id": "score_propensity",
-          "type": "score-adaptive",
+          "type": "score-model",
           "label": "Acceptance propensity",
           "model": {
-            "id": "adm_accept_v4",
+            "id": "propensity_accept_v4",
             "version": "4.2.0"
           }
         },

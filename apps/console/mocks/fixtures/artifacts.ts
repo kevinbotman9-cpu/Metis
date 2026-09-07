@@ -134,12 +134,12 @@ export const artifacts: ArtifactSummary[] = [
       },
       {
         id: 'score_propensity',
-        type: 'score-adaptive',
+        type: 'score-model',
         label: 'Acceptance propensity',
         description:
-          'Adaptive model predicting acceptance. Version is pinned at compile time so the decision replays identically.',
+          'Predicts acceptance. Pinned at compile time so the decision replays identically — and deterministic, because no model gateway is bound yet (W-029).',
         estimatedMs: 3.1,
-        model: { id: 'adm_accept_v4', version: '4.2.0' },
+        model: { id: 'propensity_accept_v4', version: '4.2.0' },
         position: { x: COL[2], y: 120 },
       },
       {

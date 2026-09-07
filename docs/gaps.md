@@ -175,6 +175,24 @@ W-015 is actually about:
 
 ---
 
+## Registered 2026-09-07 — `score-adaptive` is a node type with no behaviour of its own
+
+The compiler accepts it and the engine computes it exactly as `score-model`: a
+seeded deterministic function of customer, offer key and pinned model version.
+Nothing adaptive exists — W-032 — and the fixture flow that used it has been
+moved to `score-model`, which is what it always was.
+
+Kept rather than removed, because it is the seam W-032 fills and deleting it
+would move the question rather than answer it. Registered because a node type
+that claims a capability the engine does not have is the same species of problem
+as the trace that named an adaptive model: nobody writes a false claim, and the
+naming makes one.
+
+When W-032 lands, either the type gets behaviour or it goes. Until then a flow
+author choosing it gets ordinary scoring, and the trace says so.
+
+---
+
 ## Build-system gaps
 
 Not platform APIs, but the same kind of problem: a check that appears to run

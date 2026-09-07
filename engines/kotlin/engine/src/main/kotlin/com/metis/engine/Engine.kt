@@ -421,7 +421,12 @@ object Engine {
                         scores[p.key] = CandidateScore(propensity, value, boost, context, cost, 0.0)
                     }
                     // Scoring never removes a candidate, so nothing is denied.
-                    record(node, "Scored ${candidates.size} candidate(s) with $modelKey.", candidates, emptyList())
+                    //
+                    // The sentence names the kind of scorer. It must match the
+                    // TypeScript engine byte for byte: the reason is in the
+                    // hashed decision, so a difference here is a conformance
+                    // failure, not a wording preference.
+                    record(node, "Scored ${candidates.size} candidate(s) with $modelKey — a pinned deterministic function, not a trained model (W-029).", candidates, emptyList())
                 }
 
                 "arbitrate" -> {

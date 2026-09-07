@@ -36,7 +36,7 @@ Core                15 passed  - creative content per channel, and the
 Integration         19 passed  - author -> compile -> execute -> replay, plus the
                                  API-path reconciliation and source hygiene
                                  checks, which span packages and belong to none
-Runtime            227 passed  - determinism, byte-identical replay, integration
+Runtime            228 passed  - determinism, byte-identical replay, integration
                                  resolution over a real HTTP gateway, ADR-003
                                  values, the 22-decision corpus, ranking
                                  functions, slate composition, idempotency,
@@ -63,7 +63,7 @@ Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
 Typecheck           clean      - root config and the console's, separately
 Lint                0 errors   - root and console, separate configs
                    ---
-                    786 tests, two languages, two engines
+                    787 tests, two languages, two engines
 ```
 
 The OpenAPI spec validates at **36 paths, 43 operations (41 built, 2 proposed),

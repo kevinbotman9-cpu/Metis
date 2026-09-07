@@ -98,7 +98,7 @@ one decision rather than several, which is why no chain hash moved and neither
 engine changed. *Which* N is still W-028, and the limit that follows from it —
 the placement is not part of the hashed decision — is registered in `gaps.md`.
 
-### I-2 — The trace names an adaptive model that does not exist · S4
+### I-2 — The trace names an adaptive model that does not exist · S4 · **CLOSED 2026-09-07**
 
 `score-adaptive` is a node type in the closed set, and
 [`engine.ts:479`](../../packages/runtime/src/deterministic/engine.ts:479)
@@ -113,13 +113,17 @@ for, that sentence asserts an adaptive model ran. Nobody wrote a false claim;
 the naming makes one anyway, in the one artefact the project asks people to
 trust literally.
 
-**Remedy:** have the trace state what kind of scorer ran, and rename the fixture
-model so it stops borrowing another vendor's initialism for a capability that is
-not built. Neither is free — the model id is an input to the seeded propensity,
-so renaming it moves every chain hash in `service-cases.json` and regenerates
-that corpus, exactly as the vendor-neutral rename did. Annotating the trace is
-the smaller of the two and does most of the work. **Or** implement
-`score-adaptive`, but that is W-032, not a fix.
+**Closed.** Both remedies, since both move hashes and doing one alone would have
+paid the cost twice. The trace now reads "… — a pinned deterministic function,
+not a trained model (W-029)", identically in both engines because the reason is
+in the hashed decision. The fixture's model is `propensity_accept_v4`, and its
+node is `score-model` rather than `score-adaptive`, which is what it always
+was. Chain hashes moved in `decision-corpus.json` and `service-cases.json`, as
+the vendor-neutral rename did; both engines green on the regenerated corpora.
+
+`score-adaptive` survives as a declared node type with no behaviour distinct
+from `score-model`. Registered in `gaps.md` rather than removed: it is the seam
+W-032 fills, and deleting it would only move the question.
 
 ### I-3 — Contact policy and consent trust the caller · S3
 
