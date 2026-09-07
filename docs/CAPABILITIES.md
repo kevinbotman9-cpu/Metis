@@ -33,7 +33,7 @@ names the check so the claim can be audited rather than trusted.
 Core                21 passed  - creative content per channel, and the
                                  invariant that an offer needs deliverable
                                  content before it can go active
-Integration         19 passed  - author -> compile -> execute -> replay, plus the
+Integration         25 passed  - author -> compile -> execute -> replay, plus the
                                  API-path reconciliation and source hygiene
                                  checks, which span packages and belong to none
 Runtime            228 passed  - determinism, byte-identical replay, integration
