@@ -48,6 +48,7 @@ import type {
   ShadowReport as ShadowReportDto,
   SourceBinding as SourceBindingDto,
   SourceCall as SourceCallDto,
+  InboundCall as InboundCallDto,
   Taxonomy as TaxonomyDto,
   Creative as CreativeDto,
   Placement as PlacementDto,
@@ -351,6 +352,14 @@ export const apiClient = {
       body: connector,
     }),
 
+  /** Traffic served by the API — the inbound half of integration. */
+  listInboundCalls: (limit = 100) =>
+    apiCall<{ enabled: boolean; calls: InboundCallDto[] }>('listInboundCalls', {
+      query: { limit },
+    }),
+
+  clearInboundCalls: () => apiCall<{ cleared: boolean }>('clearInboundCalls', {}),
+
   // --- Registry -----------------------------------------------------------
   getRegistryEntry: (flowName: string, tenantId: string = TENANT) =>
     apiCall<{
@@ -453,6 +462,7 @@ export type {
   RegistryEventDto,
   SourceBindingDto,
   SourceCallDto,
+  InboundCallDto,
 };
 
 /** Query parameters for searchDecisions, matching the spec's declared set. */

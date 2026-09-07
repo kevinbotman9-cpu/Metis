@@ -1298,6 +1298,68 @@ components:
             - type: number
             - type: boolean
 
+    RecordedBody:
+      type: object
+      description: |
+        One side of a call. JSON bodies are parsed so a client can render them
+        structurally; anything else is kept as text, because a proxy's HTML
+        error page is exactly what somebody debugging needs to see. A body over
+        the cap is truncated and says so rather than being dropped.
+      required: [bytes, truncated]
+      properties:
+        json:
+          description: The parsed body, when it was JSON and within the cap.
+        text:
+          type: string
+          nullable: true
+          description: The raw body, when it was not JSON or was truncated.
+        bytes:
+          type: integer
+          description: Size of the original body in bytes, before any truncation.
+        truncated:
+          type: boolean
+
+    InboundCall:
+      type: object
+      description: A single request/response pair served by the API.
+      required: [id, at, method, path, status, durationMs, origin]
+      properties:
+        id:
+          type: string
+        at:
+          type: string
+          format: date-time
+          description: When the request arrived, not when it completed.
+        method:
+          type: string
+          enum: [GET, POST, PUT]
+        path:
+          type: string
+        query:
+          type: string
+          nullable: true
+        status:
+          type: integer
+        durationMs:
+          type: integer
+        request:
+          $ref: '#/components/schemas/RecordedBody'
+        response:
+          $ref: '#/components/schemas/RecordedBody'
+        origin:
+          type: string
+          enum: [storefront, console, unknown]
+          description: |
+            Derived from `Referer`. A label for reading the log, never
+            authentication — it is trivially spoofed and nothing is gated on it.
+        decisionId:
+          type: string
+          nullable: true
+          description: Lifted from the response when the call produced a decision, so the row can link to its trace.
+        error:
+          type: string
+          nullable: true
+
     Connector:
       type: object
       description: |
@@ -3172,3 +3234,62 @@ paths:
                           type: string
                         from: {}
                         to: {}
+
+  /inbound-calls:
+    get:
+      summary: The HTTP traffic this API has served
+      description: |
+        Request and response envelopes for recent calls, newest first — what a
+        caller sent and what came back, in full.
+
+        This exists because the decision ledger cannot answer it. A
+        `DecisionRecord` stores `inputSnapshotHash` and never the input values,
+        so "what did that site actually post" is deliberately unanswerable from
+        the audit trail. Integrators still need to know, so it is answered at
+        the edge, from a bounded in-memory buffer that is lost on restart, and
+        never from durable storage.
+
+        Proposed rather than built: the console's development API serves this
+        over its own fixture store. The execution plane does not, and the
+        production shape of this question is an OpenTelemetry span (W-048), not
+        a retained request body. See docs/gaps.md.
+      operationId: listInboundCalls
+      x-metis-status: proposed
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Recent calls, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled, calls]
+                properties:
+                  enabled:
+                    type: boolean
+                    description: False when recording is switched off; `calls` is then empty rather than stale.
+                  calls:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InboundCall'
+
+  /inbound-calls/clear:
+    post:
+      summary: Empty the traffic buffer
+      description: |
+        Discards every recorded call. Used before a demonstration so the rows
+        that follow are the ones the run produced.
+      operationId: clearInboundCalls
+      x-metis-status: proposed
+      responses:
+        '200':
+          description: Buffer emptied
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cleared]
+                properties:
+                  cleared:
+                    type: boolean

@@ -28,6 +28,7 @@ import {
 } from '@metis/runtime';
 import type { IntegrationGateway } from '@metis/runtime';
 import { RecordedIntegrationGateway } from '@/mocks/gateway';
+import { recorded, listCalls, clearCalls, isEnabled as callLogEnabled } from '@/mocks/call-log';
 import type { DecisionRecord } from '@metis/runtime';
 import type { OutcomeType } from '@metis/ledger';
 import type { Creative, Offer } from '@metis/core/domain';
@@ -339,7 +340,7 @@ async function decideAndRecord(
 // GET
 // ---------------------------------------------------------------------------
 
-export async function GET(req: Request, { params }: Ctx) {
+async function handleGet(req: Request, { params }: Ctx) {
   const { path } = await params;
   const q = new URL(req.url).searchParams;
   const [head, ...rest] = path;
@@ -541,6 +542,21 @@ export async function GET(req: Request, { params }: Ctx) {
       return json({ placements: store.placements });
     }
 
+    // GET /api/inbound-calls — the traffic this API has served.
+    //
+    // Deliberately unauthenticated, like the placement endpoint it exists to
+    // explain: a storefront integrating against a dev console has no session,
+    // and requiring one would mean the surface could not see the calls it was
+    // built for. That is defensible only because this route file is the
+    // development API over a fixture store and serves no real customer data.
+    case 'inbound-calls': {
+      const limit = Math.min(Number(q.get('limit') || 100), 250);
+      return json({
+        enabled: callLogEnabled(),
+        calls: callLogEnabled() ? listCalls(limit) : [],
+      });
+    }
+
     case 'registry': {
       // Seeding runs the fixtures through the real publish path, which is
       // asynchronous. Waiting here means a request during startup sees a
@@ -631,7 +647,7 @@ export async function GET(req: Request, { params }: Ctx) {
 // POST
 // ---------------------------------------------------------------------------
 
-export async function POST(req: Request, { params }: Ctx) {
+async function handlePost(req: Request, { params }: Ctx) {
   const { path } = await params;
   const [head, ...rest] = path;
 
@@ -1016,6 +1032,18 @@ export async function POST(req: Request, { params }: Ctx) {
       });
     }
 
+    // POST /api/inbound-calls/clear — empty the buffer.
+    //
+    // A clear before a demo run is the difference between "these six calls are
+    // what the site just did" and scrolling past yesterday's. It records itself
+    // — a log whose only row says it was just emptied beats one that is
+    // silently empty. Reads of the log are not recorded; see `shouldRecord`.
+    case 'inbound-calls': {
+      if (rest[0] !== 'clear') return notFound();
+      clearCalls();
+      return json({ cleared: true });
+    }
+
     case 'placements': {
       // POST /api/placements/{tenantId}/{placementKey}/decisions — fill a slot.
       //
@@ -1395,7 +1423,7 @@ function applyChangeSet(cr: (typeof store.changeSets)[number]) {
 // PUT
 // ---------------------------------------------------------------------------
 
-export async function PUT(req: Request, { params }: Ctx) {
+async function handlePut(req: Request, { params }: Ctx) {
   const { path } = await params;
   const [head, ...rest] = path;
   const user = actor(req);
@@ -1588,3 +1616,19 @@ export async function PUT(req: Request, { params }: Ctx) {
       return notFound(`No route for /${path.join('/')}`);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Recording
+// ---------------------------------------------------------------------------
+
+/**
+ * The handlers above are wrapped rather than instrumented case by case.
+ *
+ * Forty-odd cases each recording their own call is forty places to forget one,
+ * and the ones that would get forgotten are the error paths — which are the
+ * calls worth having. Wrapping records every route, including the ones added
+ * after this comment.
+ */
+export const GET = recorded('GET', handleGet);
+export const POST = recorded('POST', handlePost);
+export const PUT = recorded('PUT', handlePut);

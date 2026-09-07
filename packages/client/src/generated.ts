@@ -613,6 +613,42 @@ export interface FieldBinding {
   defaultValue?: string | number | boolean;
 }
 
+/** One side of a call. JSON bodies are parsed so a client can render them
+structurally; anything else is kept as text, because a proxy's HTML
+error page is exactly what somebody debugging needs to see. A body over
+the cap is truncated and says so rather than being dropped.
+ */
+export interface RecordedBody {
+  /** The parsed body, when it was JSON and within the cap. */
+  json?: unknown;
+  /** The raw body, when it was not JSON or was truncated. */
+  text?: string;
+  /** Size of the original body in bytes, before any truncation. */
+  bytes: number;
+  truncated: boolean;
+}
+
+/** A single request/response pair served by the API. */
+export interface InboundCall {
+  id: string;
+  /** When the request arrived, not when it completed. */
+  at: string;
+  method: "GET" | "POST" | "PUT";
+  path: string;
+  query?: string;
+  status: number;
+  durationMs: number;
+  request?: RecordedBody;
+  response?: RecordedBody;
+  /** Derived from `Referer`. A label for reading the log, never
+authentication — it is trivially spoofed and nothing is gated on it.
+ */
+  origin: "storefront" | "console" | "unknown";
+  /** Lifted from the response when the call produced a decision, so the row can link to its trace. */
+  decisionId?: string;
+  error?: string;
+}
+
 /** A configured route to data the platform does not hold. Used at decision
 time: a flow's source node names the connectors it needs, resolution
 fetches them before execution, and the values land in the input the
@@ -753,6 +789,13 @@ export const OPERATIONS = {
     pathParams: ['changeSetId'],
     queryParams: [],
     statuses: ['200', '403'],
+  },
+  clearInboundCalls: {
+    method: 'POST',
+    path: '/inbound-calls/clear',
+    pathParams: [],
+    queryParams: [],
+    statuses: ['200'],
   },
   createChangeSet: {
     method: 'POST',
@@ -922,6 +965,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200'],
   },
+  listInboundCalls: {
+    method: 'GET',
+    path: '/inbound-calls',
+    pathParams: [],
+    queryParams: ['limit'],
+    statuses: ['200'],
+  },
   listOffers: {
     method: 'GET',
     path: '/offers/{tenantId}',
@@ -1077,6 +1127,11 @@ export type OperationId = keyof typeof OPERATIONS;
 
 /** Approve a change set, applying its diff */
 export type ApproveChangeSetResponse = ChangeSet;
+
+/** Empty the traffic buffer */
+export type ClearInboundCallsResponse = {
+  cleared: boolean;
+};
 
 /** Propose a change */
 export type CreateChangeSetResponse = ChangeSet;
@@ -1253,6 +1308,13 @@ export type ListFrequencyPoliciesResponse = {
   policies: FrequencyPolicy[];
 };
 
+/** The HTTP traffic this API has served */
+export type ListInboundCallsResponse = {
+  /** False when recording is switched off; `calls` is then empty rather than stale. */
+  enabled: boolean;
+  calls: InboundCall[];
+};
+
 /** List offers, filtered */
 export type ListOffersResponse = {
   offers: Offer[];
@@ -1391,6 +1453,7 @@ export type UpdateOfferRequest = Offer;
 /** Response body type for each operation, by id. */
 export interface ResponseOf {
   approveChangeSet: ApproveChangeSetResponse;
+  clearInboundCalls: ClearInboundCallsResponse;
   createChangeSet: CreateChangeSetResponse;
   createCreative: CreateCreativeResponse;
   createOffer: CreateOfferResponse;
@@ -1415,6 +1478,7 @@ export interface ResponseOf {
   listConnectors: ListConnectorsResponse;
   listCreatives: ListCreativesResponse;
   listFrequencyPolicies: ListFrequencyPoliciesResponse;
+  listInboundCalls: ListInboundCallsResponse;
   listOffers: ListOffersResponse;
   listOutcomes: ListOutcomesResponse;
   listPlacements: ListPlacementsResponse;

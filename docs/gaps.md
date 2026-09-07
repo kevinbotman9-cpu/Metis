@@ -457,3 +457,35 @@ Also deleted, for the same reason:
   missing".
 - `docs/PHASES_SUMMARY.md`, which marked Phases 0–4 "✅ Complete".
 
+
+---
+
+## Registered 2026-09-07 — inbound traffic is recorded at the edge, not by the platform
+
+`listInboundCalls` and `clearInboundCalls` are in the spec as
+`x-metis-status: proposed`. The console's development API serves them from a
+bounded in-memory ring; the execution plane serves neither, and should not serve
+these in this shape.
+
+**Why the shape is wrong for production, stated now rather than discovered
+later.** The buffer holds full request bodies. Decision inputs are the one thing
+the platform deliberately does not retain — a `DecisionRecord` carries
+`inputSnapshotHash` and never the values, which is what makes the ledger safe to
+keep and what ADR-004 (retention and erasure, still Proposed) is about. A
+production endpoint that hands back request payloads would quietly reverse that,
+and it would do it on the one surface nobody thinks of as storage.
+
+So the production answer to the same question is an OpenTelemetry span — W-048 —
+carrying the same correlation (`decisionId`, path, status, duration) and *not*
+the payload. Whoever builds W-048 should treat these two operations as the
+requirement, not the design.
+
+**Why it exists anyway.** A partner site posting decisions could not demonstrate
+it was reaching METIS at all. A correct decision that does not change between
+reloads is indistinguishable from a hardcoded one, and the difference could only
+be seen in devtools on the integrator's own machine. That is a real gap in the
+development experience and it is worth a page. What it must not become is a
+platform capability by accident, which is what this entry is for.
+
+**Bounds it holds today, by construction rather than by policy:** memory only,
+250 calls, 32 kB per body, lost on restart, `METIS_CALL_LOG=off` to disable.
