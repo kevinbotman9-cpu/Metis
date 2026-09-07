@@ -117,7 +117,7 @@ otherwise.
 | W-023 | 16 | Flow unit tests with deterministic fixtures — **done** | 2 |
 | W-024 | 17 | Writable canvas | 2 |
 | W-025 | 17 | Natural-language authoring that compiles to a diff | 2 |
-| W-026 | 18 | Eligibility / applicability / suitability layers | 2 |
+| W-026 | 18 | Eligibility / relevance / suitability layers | 2 |
 | W-027 | 18 | Multi-level and channel-specific ranking | 2 |
 | W-028 | 18 | Slate selection and optimisation constraints | 2 |
 | W-029 | 19 | Model gateway and registry | 2 |
@@ -143,6 +143,7 @@ otherwise.
 | W-049 | 25 | Evidence packs: AI Act, NIST AI RMF, SR 11-7 | 3 |
 | W-050 | 25 | DR: backup, tested restore, chaos | 3 |
 | W-051 | 9 | Secret provider and connector authentication — **ADR awaiting decision** | 2 |
+| W-052 | 14 | Container object and the ranked-slate contract | 2 |
 
 ---
 
@@ -528,6 +529,13 @@ is blocked on this being fast, and it is designed for billions of rows.
 ### W-012 — Contact policy, suppression, frequency caps
 Gate 2 · Depends: W-011 · Spec §6
 
+**The caps are enforced today and their counts come from the caller.** The
+engine reads `request.contactHistory.withinPeriod`, so a website reports how
+often it has already shown an offer, and across channels it cannot know. This
+item is what makes the platform hold that state instead. It is the reason W-011
+is the linchpin of the inbound loop rather than one store among several —
+`docs/review/INBOUND_VS_CDH.md` finding I-3.
+
 **Build:** Outcome-conditioned suppression — "suppress action X for 30 days
 after 3 impressions with no response". Caps per channel, per period, per issue,
 with priority-based override.
@@ -586,10 +594,45 @@ Gate 2 · Depends: W-014 · Spec §12 adjacent, new §
 **Build:** Named placements with slot counts and per-placement policy. An
 embeddable SDK in `apps/embed`. Impression capture on render.
 
+`placement` is a string on the request today, read by the seeded propensity and
+written to the record, and by nothing else. Phase B left open whether it should
+become an object; `docs/review/INBOUND_VS_CDH.md` (I-5) answers it — the
+container is what a client integrates against, so it has to be a configurable
+artefact rather than a field. W-052 carries the response contract.
+
 **Done when:** Contract-tested like every other operation — in the spec, served,
 asserted by `e2e/contract.spec.ts`. Placement config is a versioned artifact.
 Impressions land in interaction history and a test asserts the round trip from
 render to suppression eligibility.
+
+### W-052 — Container object and the ranked-slate contract
+Gate 2 · Depends: W-016 · Spec: new operation
+
+The engine returns one action; a container answers with a list. The data already
+exists — `decision.scores` carries every ranked candidate with its priority and
+the record names a `runnerUp` — so what is missing is the contract that returns
+them and the rule that composes the slate.
+
+**Why this is here and not at Stage 18.** W-028 puts slate selection behind
+multi-level ranking, which is right for the optimisation half: cardinality,
+mutual exclusion, diversity, budget, inventory, fairness. The *contract* half
+cannot wait that long. The container response is what every client integrates
+against, and changing a single-action response into a list after partners have
+built on it is a breaking change to the most widely consumed surface in the
+platform. Land the shape with the container; land the optimisation later.
+
+See `docs/review/INBOUND_VS_CDH.md` finding I-1.
+
+**Done when:**
+- A container returns N candidates in priority order, N from the placement's
+  configured slot count, with the same reason codes and the same trace the
+  single-action path produces.
+- Slate composition is deterministic under ties, tested to 100 runs like the
+  single-action path, and identical in both engines.
+- The record explains the slate, not just the winner: why each slot holds what
+  it holds, and what was refused.
+- A slot that cannot be filled is stated as such and never padded.
+- The latency gate holds at S1 with slates.
 
 ### W-017 — Outbound channel adapter, one channel
 Gate 2 · Depends: W-014 · Spec new §
@@ -723,7 +766,7 @@ through `/approvals`. W-004 already guards the runtime; this guards the shape.
 
 ## Stage 18 — Decision richness
 
-### W-026 — Eligibility / applicability / suitability layers
+### W-026 — Eligibility / relevance / suitability layers
 Gate 2 · Depends: W-005 · Spec §6
 
 Three layers, distinct reason codes, distinct audit lines. Suitability matters
@@ -743,10 +786,14 @@ operation set and no `eval`, per `utility.ts`. Each level's contribution is
 visible in the record.
 
 ### W-028 — Slate selection and optimisation constraints
-Gate 2 · Depends: W-027 · Spec §6
+Gate 2 · Depends: W-027, W-052 · Spec §6
 
 The engine returns a single action. Real placements have N slots. Add
 cardinality, mutual exclusion, diversity, budget, inventory and fairness.
+
+**The contract half moved to W-052**, at Stage 14, with the container. What
+remains here is the optimisation: this item is now about *which* N, not about
+being able to return N at all.
 
 **Done when:** Slate selection is deterministic under ties, tested to 100 runs
 like the single-action path. The record explains slate composition, not just the
