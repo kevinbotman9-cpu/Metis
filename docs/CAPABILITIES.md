@@ -35,10 +35,10 @@ Integration         15 passed  - author -> compile -> execute -> replay, plus th
                                  checks, which span packages and belong to none
 Runtime            217 passed  - determinism, byte-identical replay, integration
                                  resolution over a real HTTP gateway, ADR-003
-                                 values, the 22-decision
-                                 corpus, ranking functions, idempotency, shadow,
-                                 no network egress in the decision path, and
-                                 the approved default for a missing score
+                                 values, the 22-decision corpus, ranking
+                                 functions, idempotency, shadow, no network
+                                 egress in the decision path, and the approved
+                                 default for a missing score
 Compiler            43 passed  - graph validation, version pinning, budgets
 Registry            75 passed  - one behaviour suite, run against memory and a
                                  real PostgreSQL
