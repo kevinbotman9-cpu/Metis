@@ -168,6 +168,36 @@ describe('determinism', () => {
     expect(result.replayedChainHash).toBe(original.chainHash);
   });
 
+  it('refuses a replay given the wrong inputs, and says that is what happened', () => {
+    /**
+     * The guard that distinguishes "this decision does not reproduce" from
+     * "you gave me the wrong inputs".
+     *
+     * Untested until now, and it passed every runtime test with the check
+     * disabled — because the chain-hash comparison downstream catches a wrong
+     * input anyway, with a much worse message. Today the two converge; when the
+     * feature service lands (W-009) they stop converging, because replay will
+     * read a snapshot and this is the thing that detects it read the wrong one.
+     *
+     * The distinction is the assertion: `$.inputSnapshotHash` and nothing else.
+     * A replay that reported a chain-hash divergence here would be blaming the
+     * engine for the caller's mistake.
+     */
+    const original = execute(artifact, catalogue, request);
+    const result = replay(artifact, catalogue, original, {
+      ...request.input,
+      customer: { ...(request.input.customer as object), age: 41 },
+    });
+
+    expect(result.identical).toBe(false);
+    expect(result.differences).toHaveLength(1);
+    expect(result.differences[0].path).toBe('$.inputSnapshotHash');
+    expect(result.differences[0].original).toBe(original.decision.inputSnapshotHash);
+    // Nothing was re-executed: there is no replayed decision to compare, and
+    // inventing one would be answering a question the caller did not ask.
+    expect(result.replayedChainHash).toBe('');
+  });
+
   it('reports what changed when a replay diverges', () => {
     const original = execute(artifact, catalogue, request);
 
