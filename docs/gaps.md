@@ -515,15 +515,30 @@ Worth noting why it hid for so long: the flow's own description called it
 decision it made was correct *given its nodes*. Every artefact was truthful.
 The absent gate was the only evidence, and absence is what a diagnostic is for.
 
-Two smaller findings from the same investigation:
+One smaller finding from the same investigation:
 
 - **`ExecNode.frequencyPolicyIds` is declared and never populated or read.**
   `toExecArtifact` does not map it, and the engine draws frequency policies
   from `catalogue.frequencyPolicies` by scope instead. So a flow author who
   set it would get no error and no effect. Either wire it or delete it.
-- **The storefront's signed-in preset fails `pol_afford_5g`**
-  (`bill_to_income_ratio: 0.092` against a `lt 0.05` threshold, and
-  `arrears_count_12mo: 1` against `eq 0`), so `account_dashboard_hero` is
-  suppressed at suitability before consent is ever reached. Correct behaviour,
-  confusing demo: the account page shows nothing and the reason is two screens
-  away.
+
+### Not a finding: the empty account hero
+
+This entry previously registered a second one, claiming the storefront's
+signed-in preset was suppressed at suitability and left "the account page
+showing nothing with the reason two screens away". That was wrong, and it is
+recorded rather than deleted because the mistake is the instructive part: it
+generalised from a single preset to the demo, and it was written without
+opening the page it described.
+
+There are five presets, three of them signed in. Four fill the account hero.
+The fifth — `affordability`, Jo Okafor — is empty *on purpose*, and its own
+note says so: every growth offer fails `pol_afford_5g`, the slot falls back to
+the site's own content, and the panel names the rule. Verified end to end: the
+page renders "Nothing offered here…" inline, the trace carries
+`ruleId: pol_afford_5g` on each denial, and the panel prints it.
+
+So the suppression is not a rough edge to smooth. It is the FCA-facing tier
+doing the thing the tier exists for, on the surface where a buyer can see it.
+Anyone tempted to make this preset "work" should change what the demo
+demonstrates deliberately, not quietly.
