@@ -771,3 +771,42 @@ check.
 **Still absent:** experiments and holdouts, volume and budget constraints, a
 model registry behind the scoring seam, and channel adapters. Nothing sends an
 outcome yet (W-017), which is why every rate on the page is currently a dash.
+
+---
+
+## Registered 2026-09-07 — experiments, and a plane asymmetry they extend
+
+`/experiments` assigns arms and holdouts. An arm is a pure function of the
+customer reference: nothing stores it, and it is recomputed from a decision
+record months later. That is what lets this platform answer "which arm was this
+customer in" for a decision made before the experiment ended, which most cannot
+— their assignment lived in a service that has since rebalanced.
+
+No engine change was needed. An arm reaches a policy as an ordinary field at
+`experiments.<key>`, so a holdout is an eligibility rule that refuses when the
+arm is the untreated one, written in the same editor as every other rule.
+
+**A running experiment is frozen, and that is the feature.** Recoverability
+depends on the assignment function being stable, so reweighting a live split
+would make every recomputed arm disagree with the one that actually applied and
+the trace would confidently report the wrong arm. Arms and key are editable in
+`draft` only; stopping and starting another is the supported way to change a
+split, which is what anybody running a real test would do anyway.
+
+**The asymmetry this extends.** Assignment happens in the console's decision
+path, beside integration resolution, and `engines/kotlin` does neither. So a
+request that omits `experiments.*` gets an arm from the console and not from the
+JVM service, exactly as it gets connector fields from one and not the other.
+The existing entry above records the resolution half; this is the same boundary.
+
+It was found rather than reasoned about: the fixtures originally seeded a
+*running* experiment, and the cross-engine hash test went red immediately —
+a running experiment adds a field to every decision's hashed input. Correct for
+an experiment somebody started, and precisely the wrong thing for a fixture to
+do on everybody's behalf. Both seeds are now draft or stopped, and starting one
+is a deliberate act with a visible consequence.
+
+**Not built:** significance testing. Reporting a p-value or a confidence
+interval would be a statistical claim of exactly the kind this platform refuses
+to make without showing the workings. Per-arm counts and rates are there; what
+to conclude from them is not the platform's to assert.

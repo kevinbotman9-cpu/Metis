@@ -57,6 +57,9 @@ import type {
   DataSource as DataSourceDto,
   PerformanceReport as PerformanceReportDto,
   PerformanceRow as PerformanceRowDto,
+  Experiment as ExperimentDto,
+  ExperimentArm as ExperimentArmDto,
+  ArmPerformance as ArmPerformanceDto,
   FieldMapping as FieldMappingDto,
   ValidationReport as ValidationReportDto,
   ColumnSummary as ColumnSummaryDto,
@@ -413,6 +416,25 @@ export const apiClient = {
   activateDataSource: (sourceId: string, tenantId: string = TENANT) =>
     apiCall<DataSourceDto>('activateDataSource', { params: { tenantId, sourceId } }),
 
+  // --- Experiments --------------------------------------------------------
+  listExperiments: (tenantId: string = TENANT) =>
+    apiCall<{ experiments: ExperimentDto[] }>('listExperiments', { params: { tenantId } }),
+
+  createExperiment: (
+    experiment: Pick<ExperimentDto, 'key' | 'name' | 'description' | 'arms'>,
+    tenantId: string = TENANT
+  ) => apiCall<ExperimentDto>('createExperiment', { params: { tenantId }, body: experiment }),
+
+  updateExperiment: (
+    experimentId: string,
+    patch: Partial<ExperimentDto>,
+    tenantId: string = TENANT
+  ) =>
+    apiCall<ExperimentDto>('updateExperiment', {
+      params: { tenantId, experimentId },
+      body: patch,
+    }),
+
   // --- Measurement --------------------------------------------------------
   /** Outcomes joined to the decisions they belong to. Counting, not modelling. */
   getPerformance: (
@@ -567,6 +589,9 @@ export type {
   DataSourceDto,
   PerformanceReportDto,
   PerformanceRowDto,
+  ExperimentDto,
+  ExperimentArmDto,
+  ArmPerformanceDto,
   FieldMappingDto,
   ValidationReportDto,
   ColumnSummaryDto,

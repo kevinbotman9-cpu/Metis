@@ -22,6 +22,7 @@ const PAGES = [
   { path: '/decision-flows/next-best-action', name: 'flow detail' },
   { path: '/decisions', name: 'decisions' },
   { path: '/performance', name: 'performance' },
+  { path: '/experiments', name: 'experiments' },
   { path: '/data-model', name: 'data model' },
   { path: '/data-model/intake', name: 'intake' },
   { path: '/integrations', name: 'integrations' },

@@ -45,6 +45,14 @@ import {
 } from '@metis/core/profile-schema';
 import type { TargetingPolicy } from '@metis/core/domain';
 import {
+  assignAll,
+  assignArm,
+  armPath,
+  experimentProblems,
+  editProblems,
+  type Experiment,
+} from '@metis/core/experiment';
+import {
   validateRows,
   activationProblems,
   type DataSourceDefinition,
@@ -449,11 +457,31 @@ async function decideAndRecord(
   // whose accounts were never loaded. `unresolved` carries the difference.
   const rolled = resolveAggregations(store.profileSchema, resolvedInputs.input);
 
+  // Experiment arms, assigned before the core and hashed with the input.
+  //
+  // An arm is a pure function of the customer reference, so nothing is written
+  // down: a decision record stores `customerRef`, and the arm is recomputed
+  // from it when the decision is explained months later. That is why a running
+  // experiment cannot be reweighted — the recomputed arm would stop matching
+  // the one that applied.
+  const arms = assignAll(store.experiments, decisionRequest.customerId);
+
   // Fields the caller supplied win, which `resolveInputs` guarantees; the
   // 60 service cases carry theirs, which is why they still hash the same.
   const resolvedRequest = {
     ...decisionRequest,
-    input: mergeAggregations(resolvedInputs.input, rolled.values),
+    input: {
+      ...mergeAggregations(resolvedInputs.input, rolled.values),
+      // Nested under `experiments` so a policy names `experiments.<key>` and
+      // `readPath` can walk to it.
+      ...(Object.keys(arms.values).length > 0
+        ? {
+            experiments: Object.fromEntries(
+              arms.assignments.map((a) => [a.experimentKey, a.arm])
+            ),
+          }
+        : {}),
+    },
   };
 
   const trace = executeDecision(artifact, catalogue, resolvedRequest);
@@ -717,6 +745,11 @@ async function handleGet(req: Request, { params }: Ctx) {
       return json({ sources: store.dataSources });
     }
 
+    case 'experiments': {
+      if (!rest[0]) return notFound();
+      return json({ experiments: store.experiments });
+    }
+
     // GET /api/profile-schema/{tenantId} — the data model, and the paths a
     // policy may reference.
     //
@@ -780,7 +813,57 @@ async function handleGet(req: Request, { params }: Ctx) {
         if (events.length > 0) outcomes.set(entry.decisionId, events);
       }
 
-      return json(buildPerformance(all, outcomes));
+      const report = buildPerformance(all, outcomes);
+
+      // Per-arm counts, recomputed from each decision's customer reference.
+      // Nothing stored the arm; it is a function of the reference and the
+      // experiment, which is what makes a months-old decision still explainable
+      // and what makes this join possible at all.
+      const armRows = store.experiments
+        .filter((e) => e.status !== 'draft')
+        .flatMap((experiment) =>
+          experiment.arms.map((arm) => {
+            let offered = 0;
+            let measured = 0;
+            let acceptances = 0;
+            let valueMinor: number | null = null;
+
+            for (const entry of all) {
+              if (!entry.record.decision.winner) continue;
+              const ref = entry.record.decision.customerRef;
+              if (!ref) continue;
+              // `assignArm` returns null for a stopped experiment, so the arm
+              // is taken from the arms list directly against the same bucket.
+              const assigned = assignArm({ ...experiment, status: 'running' }, ref);
+              if (assigned?.key !== arm.key) continue;
+
+              offered += 1;
+              const events = outcomes.get(entry.decisionId) ?? [];
+              if (events.length > 0) measured += 1;
+              if (events.some((e) => e.type === 'acceptance')) acceptances += 1;
+              for (const e of events) {
+                if (e.valueMinor !== null && e.valueMinor !== undefined) {
+                  valueMinor = (valueMinor ?? 0) + e.valueMinor;
+                }
+              }
+            }
+
+            return {
+              experimentKey: experiment.key,
+              arm: arm.key,
+              holdout: Boolean(arm.holdout),
+              offered,
+              measured,
+              acceptances,
+              // Over observations, never over offers — the same rule the rest
+              // of the report follows.
+              acceptanceRate: measured === 0 ? null : acceptances / measured,
+              valueMinor,
+            };
+          })
+        );
+
+      return json({ ...report, arms: armRows });
     }
 
     case 'profile-schema': {
@@ -800,6 +883,21 @@ async function handleGet(req: Request, { params }: Ctx) {
           unit: r.kind === 'field' ? r.field.unit : undefined,
           sensitivity: r.kind === 'field' ? r.field.sensitivity : undefined,
         })),
+        // Experiment arms are selectable fields too. A holdout is an
+        // eligibility rule that refuses when the arm is the untreated one, and
+        // it should be written in the same editor as every other rule rather
+        // than in a parallel experiment-only concept.
+        experimentPaths: store.experiments
+          .filter((e) => e.status !== 'draft')
+          .map((e) => ({
+            path: armPath(e.key),
+            kind: 'field' as const,
+            type: 'enum' as const,
+            operators: operatorsFor('enum'),
+            description: `Arm of '${e.name}'. Assigned from the customer reference; recomputable, never stored.`,
+            entity: 'Experiment',
+            members: e.arms.map((a) => a.key),
+          })),
         problems: schemaProblems(schema),
       });
     }
@@ -1463,6 +1561,62 @@ async function handlePost(req: Request, { params }: Ctx) {
 
       return notFound();
     }
+    case 'experiments': {
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      if (!user.permissions.includes('edit:flows')) return forbidden('edit:flows');
+      if (!rest[0]) return notFound();
+
+      const body = (await req.json().catch(() => null)) as Partial<Experiment> | null;
+      if (!body?.key || !body.name) {
+        return json({ error: 'bad_request', message: 'key and name are required.' }, 400);
+      }
+      if (store.experiments.some((e) => e.key === body.key)) {
+        return json(
+          {
+            error: 'conflict',
+            message: `An experiment already uses the key '${body.key}', and two would collide at ${armPath(body.key)}.`,
+          },
+          409
+        );
+      }
+
+      const now = new Date().toISOString();
+      const experiment: Experiment = {
+        id: `exp_${Math.random().toString(36).slice(2, 10)}`,
+        tenantId: rest[0],
+        key: body.key,
+        name: body.name,
+        description: body.description ?? '',
+        arms: body.arms ?? [],
+        // Always a draft. Created running would start splitting live traffic
+        // before anybody approved the split.
+        status: 'draft',
+        startedAt: null,
+        stoppedAt: null,
+        updatedAt: now,
+        updatedBy: user.email,
+      };
+
+      const problems = experimentProblems(experiment);
+      if (problems.length > 0) {
+        return json(
+          { error: 'invalid_experiment', message: `${problems.length} problem(s).`, problems },
+          400
+        );
+      }
+
+      store.experiments.push(experiment);
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'ExperimentCreated',
+        scope: experiment.id,
+        summary: `Drafted '${experiment.name}' with ${experiment.arms.length} arms.`,
+      });
+      return json(experiment, 201);
+    }
+
     case 'targeting-policies': {
       // POST /api/targeting-policies/{tenantId}
       const user = actor(req);
@@ -1968,6 +2122,60 @@ async function handlePut(req: Request, { params }: Ctx) {
       });
 
       return json({ artifact, compile });
+    }
+
+    case 'experiments': {
+      if (!user.permissions.includes('edit:flows')) return forbidden('edit:flows');
+      const [, experimentId] = rest;
+      const experiment = store.experiments.find((e) => e.id === experimentId);
+      if (!experiment) return notFound(`No experiment ${experimentId}`);
+
+      const body = (await req.json().catch(() => null)) as Partial<Experiment> | null;
+      if (!body) return json({ error: 'bad_request', message: 'Body required.' }, 400);
+
+      // Frozen once it starts. The refusal carries the reason because "you
+      // cannot edit this" without it invites somebody to work around it.
+      const refused = editProblems(experiment, body);
+      if (refused.length > 0) {
+        return json(
+          { error: 'experiment_frozen', message: refused[0], problems: refused },
+          409
+        );
+      }
+
+      const next: Experiment = {
+        ...experiment,
+        name: body.name ?? experiment.name,
+        description: body.description ?? experiment.description,
+        arms: body.arms ?? experiment.arms,
+        key: body.key ?? experiment.key,
+        status: body.status ?? experiment.status,
+      };
+
+      const problems = experimentProblems(next);
+      if (problems.length > 0) {
+        return json(
+          { error: 'invalid_experiment', message: `${problems.length} problem(s).`, problems },
+          400
+        );
+      }
+
+      const now = new Date().toISOString();
+      if (next.status === 'running' && experiment.status !== 'running') next.startedAt = now;
+      if (next.status === 'stopped' && experiment.status !== 'stopped') next.stoppedAt = now;
+      next.updatedAt = now;
+      next.updatedBy = user.email;
+
+      Object.assign(experiment, next);
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType:
+          next.status !== experiment.status ? 'ExperimentStatusChanged' : 'ExperimentChanged',
+        scope: experiment.id,
+        summary: `'${experiment.name}' is now ${experiment.status}.`,
+      });
+      return json(experiment);
     }
 
     case 'targeting-policies': {

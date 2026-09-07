@@ -218,6 +218,10 @@ const COVERED_BY_WRITE_SUITES: Record<string, string> = {
   // whole publish-and-promote chain, which a speculative call cannot stand in
   // for.
   updateDecisionFlowDraft: 'flow-authoring.spec.ts',
+  // Creating one and then starting it is the whole point; a speculative call
+  // would only exercise the draft state.
+  createExperiment: 'experiments.spec.ts',
+  updateExperiment: 'experiments.spec.ts',
 };
 
 test.describe('OpenAPI contract', () => {

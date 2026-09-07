@@ -229,6 +229,44 @@ export interface DataSource {
   updatedBy: string;
 }
 
+export interface ExperimentArm {
+  /** Stable identifier. Appears in policies and reports, so it must not change. */
+  key: string;
+  name: string;
+  /** Relative share. Not required to sum to 100 - weights are normalised. */
+  weight: number;
+  /** The untreated group. Marked rather than inferred from the name - control, holdout and baseline all appear in the wild. */
+  holdout?: boolean;
+}
+
+/** An arm assignment is an input to a decision, not a wrapper around one. It is a pure function of the customer reference, so an arm is recomputed from a decision record months later rather than stored - which is why a running experiment's arms are frozen. */
+export interface Experiment {
+  id: string;
+  tenantId: string;
+  /** The arm reaches policies at `experiments.<key>`. */
+  key: string;
+  name: string;
+  description: string;
+  arms: ExperimentArm[];
+  status: "draft" | "running" | "stopped";
+  startedAt: string;
+  stoppedAt: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface ArmPerformance {
+  experimentKey: string;
+  arm: string;
+  holdout: boolean;
+  offered: number;
+  measured: number;
+  acceptances: number;
+  /** Null when nothing was measured. Zero would claim the arm was seen and refused. */
+  acceptanceRate: number;
+  valueMinor: number;
+}
+
 export interface PerformanceRow {
   action: string;
   channel: string;
@@ -259,6 +297,8 @@ export interface PerformanceReport {
   measured: number;
   from?: string;
   to?: string;
+  /** Per-arm counts for every running or stopped experiment, recomputed from each decision's customer reference rather than read from a stored assignment. */
+  arms?: ArmPerformance[];
 }
 
 /** The tenant's customer data model. A contract about what fields exist and how entities relate; it says nothing about where values come from, which is already two separate answers (the caller sends them, or a connector resolves them). */
@@ -1000,6 +1040,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['201', '403'],
   },
+  createExperiment: {
+    method: 'POST',
+    path: '/experiments/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['201', '400', '403'],
+  },
   createOffer: {
     method: 'POST',
     path: '/offers/{tenantId}',
@@ -1182,6 +1229,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200'],
   },
+  listExperiments: {
+    method: 'GET',
+    path: '/experiments/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['200'],
+  },
   listFrequencyPolicies: {
     method: 'GET',
     path: '/frequency-policies/{tenantId}',
@@ -1350,6 +1404,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '403', '404'],
   },
+  updateExperiment: {
+    method: 'PUT',
+    path: '/experiments/{tenantId}/{experimentId}',
+    pathParams: ['tenantId', 'experimentId'],
+    queryParams: [],
+    statuses: ['200', '403', '404', '409'],
+  },
   updateOffer: {
     method: 'PUT',
     path: '/offers/{tenantId}/{offerId}',
@@ -1403,6 +1464,10 @@ export type CreateDataSourceRequest = {
   description?: string;
   kind: "file" | "http" | "inline";
 };
+
+/** Define an experiment */
+export type CreateExperimentResponse = Experiment;
+export type CreateExperimentRequest = Experiment;
 
 /** Create an offer */
 export type CreateOfferResponse = Offer;
@@ -1594,6 +1659,11 @@ export type ListDataSourcesResponse = {
   sources: DataSource[];
 };
 
+/** Experiments and holdouts */
+export type ListExperimentsResponse = {
+  experiments: Experiment[];
+};
+
 /** Frequency caps and cooldowns */
 export type ListFrequencyPoliciesResponse = {
   policies: FrequencyPolicy[];
@@ -1756,6 +1826,10 @@ export type UpdateDecisionFlowDraftRequest = {
   candidateKeys?: string[];
 };
 
+/** Edit an experiment, or start and stop it */
+export type UpdateExperimentResponse = Experiment;
+export type UpdateExperimentRequest = Experiment;
+
 /** Update an offer */
 export type UpdateOfferResponse = Offer;
 export type UpdateOfferRequest = Offer;
@@ -1778,6 +1852,7 @@ export interface ResponseOf {
   createChangeSet: CreateChangeSetResponse;
   createCreative: CreateCreativeResponse;
   createDataSource: CreateDataSourceResponse;
+  createExperiment: CreateExperimentResponse;
   createOffer: CreateOfferResponse;
   createTargetingPolicy: CreateTargetingPolicyResponse;
   decidePlacement: DecidePlacementResponse;
@@ -1804,6 +1879,7 @@ export interface ResponseOf {
   listConnectors: ListConnectorsResponse;
   listCreatives: ListCreativesResponse;
   listDataSources: ListDataSourcesResponse;
+  listExperiments: ListExperimentsResponse;
   listFrequencyPolicies: ListFrequencyPoliciesResponse;
   listInboundCalls: ListInboundCallsResponse;
   listOffers: ListOffersResponse;
@@ -1828,6 +1904,7 @@ export interface ResponseOf {
   updateCreative: UpdateCreativeResponse;
   updateDataSource: UpdateDataSourceResponse;
   updateDecisionFlowDraft: UpdateDecisionFlowDraftResponse;
+  updateExperiment: UpdateExperimentResponse;
   updateOffer: UpdateOfferResponse;
   updateTargetingPolicy: UpdateTargetingPolicyResponse;
   validateDataSource: ValidateDataSourceResponse;

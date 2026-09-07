@@ -30,6 +30,8 @@ import {
 import { profileSchema as seedProfileSchema } from './fixtures/profile-schema';
 import type { ProfileSchema } from '@metis/core/profile-schema';
 import type { DataSourceDefinition, ValidationReport } from '@metis/core/intake';
+import type { Experiment } from '@metis/core/experiment';
+import { experiments as seedExperiments } from './fixtures/experiments';
 import { artifacts as seedArtifacts, type ArtifactSummary } from './fixtures/artifacts';
 import { compileContext, toSource } from './fixtures/compiled';
 import { ArtifactRegistry, InMemoryRegistryStore } from '@metis/registry';
@@ -50,6 +52,8 @@ type Store = {
   profileSchema: ProfileSchema;
   /** Configured sources of customer records. */
   dataSources: DataSourceDefinition[];
+  /** Running experiments. Arms reach policies as `experiments.<key>`. */
+  experiments: Experiment[];
   /**
    * Rows as they were landed, by source id.
    *
@@ -126,6 +130,7 @@ function seed(): Store {
     targetingPolicies: clone(seedTargetingPolicies),
     profileSchema: clone(seedProfileSchema),
     dataSources: [],
+    experiments: clone(seedExperiments),
     landedRows: new Map(),
     validationReports: new Map(),
     frequencyPolicies: clone(seedFrequencyPolicies),

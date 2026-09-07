@@ -437,6 +437,66 @@ components:
         updatedAt: { type: string, format: date-time }
         updatedBy: { type: string }
 
+    ExperimentArm:
+      type: object
+      required: [key, name, weight]
+      properties:
+        key:
+          type: string
+          description: Stable identifier. Appears in policies and reports, so it must not change.
+        name: { type: string }
+        weight:
+          type: number
+          description: Relative share. Not required to sum to 100 - weights are normalised.
+        holdout:
+          type: boolean
+          description: >-
+            The untreated group. Marked rather than inferred from the name -
+            control, holdout and baseline all appear in the wild.
+
+    Experiment:
+      type: object
+      description: >-
+        An arm assignment is an input to a decision, not a wrapper around one.
+        It is a pure function of the customer reference, so an arm is recomputed
+        from a decision record months later rather than stored - which is why a
+        running experiment's arms are frozen.
+      required: [id, tenantId, key, name, description, arms, status, startedAt, stoppedAt, updatedAt, updatedBy]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        key:
+          type: string
+          description: The arm reaches policies at `experiments.<key>`.
+        name: { type: string }
+        description: { type: string }
+        arms:
+          type: array
+          items: { $ref: '#/components/schemas/ExperimentArm' }
+        status:
+          type: string
+          enum: [draft, running, stopped]
+        startedAt: { type: string, nullable: true, format: date-time }
+        stoppedAt: { type: string, nullable: true, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+
+    ArmPerformance:
+      type: object
+      required: [experimentKey, arm, holdout, offered, measured, acceptances, acceptanceRate, valueMinor]
+      properties:
+        experimentKey: { type: string }
+        arm: { type: string }
+        holdout: { type: boolean }
+        offered: { type: integer }
+        measured: { type: integer }
+        acceptances: { type: integer }
+        acceptanceRate:
+          type: number
+          nullable: true
+          description: Null when nothing was measured. Zero would claim the arm was seen and refused.
+        valueMinor: { type: integer, nullable: true }
+
     PerformanceRow:
       type: object
       required: [action, channel, flowId, offered, measured, impressions, clicks, acceptances, rejections, conversions, valueMinor, acceptanceRate, clickRate]
@@ -495,6 +555,13 @@ components:
           description: Decisions with at least one outcome recorded against them.
         from: { type: string, nullable: true, format: date-time }
         to: { type: string, nullable: true, format: date-time }
+        arms:
+          type: array
+          items: { $ref: '#/components/schemas/ArmPerformance' }
+          description: >-
+            Per-arm counts for every running or stopped experiment, recomputed
+            from each decision's customer reference rather than read from a
+            stored assignment.
 
     ProfileSchema:
       type: object
@@ -2579,6 +2646,89 @@ paths:
                     items: { type: string }
         '403':
           description: Requires edit:integrations
+
+  /experiments/{tenantId}:
+    get:
+      summary: Experiments and holdouts
+      operationId: listExperiments
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Experiments
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [experiments]
+                properties:
+                  experiments:
+                    type: array
+                    items: { $ref: '#/components/schemas/Experiment' }
+    post:
+      summary: Define an experiment
+      operationId: createExperiment
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Experiment' }
+      responses:
+        '201':
+          description: Created as a draft
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Experiment' }
+        '400':
+          description: The experiment is not well formed
+        '403':
+          description: Requires edit:flows
+
+  /experiments/{tenantId}/{experimentId}:
+    put:
+      summary: Edit an experiment, or start and stop it
+      description: |
+        Arms and key are editable only while the experiment is a draft. Once it
+        is running they are frozen: an arm is recomputed from the customer
+        reference when a decision is explained later, and reweighting would make
+        every recomputed arm disagree with the one that actually applied.
+      operationId: updateExperiment
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Experiment' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Experiment' }
+        '409':
+          description: The change is refused because the experiment is running
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, message, problems]
+                properties:
+                  error: { type: string }
+                  message: { type: string }
+                  problems:
+                    type: array
+                    items: { type: string }
+        '403':
+          description: Requires edit:flows
+        '404':
+          description: No such experiment
 
   /performance/{tenantId}:
     get:

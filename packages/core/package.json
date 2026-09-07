@@ -12,6 +12,7 @@
     "./utility": "./src/utility.ts",
     "./creative": "./src/creative.ts",
     "./profile-schema": "./src/profile-schema.ts",
-    "./intake": "./src/intake.ts"
+    "./intake": "./src/intake.ts",
+    "./experiment": "./src/experiment.ts"
   }
 }
