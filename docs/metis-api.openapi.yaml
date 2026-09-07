@@ -3409,6 +3409,59 @@ paths:
         '404':
           description: No such flow
 
+  /artifacts/{tenantId}/{artifactId}/draft:
+    put:
+      summary: Edit a flow's graph
+      description: |
+        Writes the authored source and compiles it, returning the report. The
+        draft is saved even when it does not compile: a graph is built in steps
+        and a half-connected one is a normal intermediate state, not an error to
+        refuse. What refuses is publish, which is where a broken flow is meant
+        to be stopped.
+
+        Editing a flow does not change any decision. Decisions run the version
+        promoted to an environment, so an edit reaches them through compile,
+        publish and promote - which is the difference between a console and a
+        deploy.
+      operationId: updateDecisionFlowDraft
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: artifactId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nodes:
+                  type: array
+                  items: { $ref: '#/components/schemas/FlowNode' }
+                edges:
+                  type: array
+                  items: { $ref: '#/components/schemas/FlowEdge' }
+                candidateKeys:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200':
+          description: The saved draft and what the compiler said about it
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [artifact, compile]
+                properties:
+                  artifact: { $ref: '#/components/schemas/ArtifactSummary' }
+                  compile: { $ref: '#/components/schemas/CompileResult' }
+        '403':
+          description: Requires edit:flows
+        '404':
+          description: No such flow
+
   # ---------------------------------------------------------------------------
   # PROPOSED - registered in docs/gaps.md, not built.
   #

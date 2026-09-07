@@ -55,7 +55,9 @@ import {
   catalogueByHash,
   registerCatalogue,
 } from '@/mocks/catalogue-state';
-import { compilations, findCompilation, compileContext } from '@/mocks/fixtures/compiled';
+import { compilations, findCompilation, compileContext, toSource } from '@/mocks/fixtures/compiled';
+import { compileDecisionFlow } from '@metis/compiler/decision-flow/compile';
+import type { ArtifactSummary } from '@/mocks/fixtures/artifacts';
 import type { DecisionFlowSource } from '@metis/compiler/decision-flow';
 import {
   replay as replayDecision,
@@ -168,6 +170,66 @@ async function runShadow(active: DecisionRecord, request: DecisionRequest): Prom
  * else's problem later.
  */
 const MAX_LANDED_ROWS = 5000;
+
+
+/**
+ * The artifact a decision should run: the version promoted to production.
+ *
+ * Decisions used to execute `execArtifacts`, derived from the fixture modules
+ * at import — so editing a flow changed nothing, exactly as editing the
+ * catalogue used to. This is the same seam one layer up, and it closes the
+ * same way, except that flows already have the machinery: they are compiled,
+ * versioned, published and promoted, and the registry holds every version.
+ *
+ * So the resolution order is the governance model rather than a convenience.
+ * An edit reaches decisions when it is published and promoted, not when it is
+ * saved — which is the difference between a console and a deploy.
+ *
+ * The fallback exists for a flow the registry has never accepted. Answering
+ * "no such flow" for something the placement configuration names would be a
+ * worse failure than running the last artifact known to work, and the
+ * compile-and-publish path is where a broken flow is supposed to be stopped.
+ *
+ * Chain hashes do not move: the record carries `artifactId`, `artifactVersion`,
+ * `packageVersions` and `candidateKeys`, none of which differ between the two
+ * copies. The published artifact additionally carries `compiledAt` and a cost
+ * manifest, and the engine reads neither.
+ */
+async function artifactFor(tenantId: string, flowId: string): Promise<ExecArtifact | undefined> {
+  await store.registryReady;
+  try {
+    const env = await store.registry.environment(tenantId, flowId, 'production');
+    if (env?.activeVersion) {
+      const published = await store.registry.version(tenantId, flowId, env.activeVersion);
+      if (published) return published.artifact;
+    }
+  } catch {
+    // A registry that cannot answer is not a reason to refuse the decision.
+  }
+  return execArtifacts.find((a) => a.id === flowId);
+}
+
+
+/**
+ * What a flow compiles against, from the store rather than the fixtures.
+ *
+ * Publish used the fixture `compileContext`, so a policy or offer created
+ * through the console was invisible to the compiler at publish time — a flow
+ * naming one would be rejected for referencing something that, as far as the
+ * compiler could see, did not exist. Same seam as the catalogue and the
+ * artifacts, in the one place it would have been hardest to notice.
+ */
+function currentCompileContext() {
+  return {
+    ...compileContext,
+    offers: store.offers,
+    targetingPolicies: store.targetingPolicies,
+    frequencyPolicies: store.frequencyPolicies,
+    connectors: store.connectors,
+    arbitration: store.arbitration,
+    profileSchema: store.profileSchema,
+  };
+}
 
 const json = (body: unknown, status = 200, headers?: Record<string, string>) =>
   NextResponse.json(body, { status, headers });
@@ -1050,7 +1112,7 @@ async function handlePost(req: Request, { params }: Ctx) {
           );
         }
 
-        const artifact = execArtifacts.find((a) => a.id === body.artifactId);
+        const artifact = await artifactFor(body.request.tenantId, body.artifactId);
         if (!artifact) {
           return json(
             {
@@ -1412,7 +1474,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         );
       }
 
-      const artifact = execArtifacts.find((a) => a.id === placement.artifactId);
+      const artifact = await artifactFor(tenantId, placement.artifactId);
       if (!artifact) {
         return notFound(
           `Placement '${placementKey}' is answered by flow '${placement.artifactId}', which is not loaded`
@@ -1642,7 +1704,7 @@ async function handlePost(req: Request, { params }: Ctx) {
           actor: user.email,
           occurredAt: new Date().toISOString(),
         },
-        compileContext
+        currentCompileContext()
       );
 
       if (outcome.status !== 'rejected') {
@@ -1787,6 +1849,48 @@ async function handlePut(req: Request, { params }: Ctx) {
         summary: `Updated source '${source.name}' with ${source.mappings.length} mapping(s).`,
       });
       return json(source);
+    }
+
+    case 'artifacts': {
+      // PUT /api/artifacts/{tenantId}/{artifactId}/draft
+      if (!user.permissions.includes('edit:flows')) return forbidden('edit:flows');
+      const [, artifactId, tail] = rest;
+      if (!artifactId || tail !== 'draft') return notFound();
+
+      const artifact = store.artifacts.find((a) => a.id === artifactId);
+      if (!artifact) return notFound(`No flow ${artifactId}`);
+
+      const body = (await req.json().catch(() => null)) as {
+        nodes?: ArtifactSummary['nodes'];
+        edges?: ArtifactSummary['edges'];
+        candidateKeys?: string[];
+      } | null;
+      if (!body) return json({ error: 'bad_request', message: 'Body required.' }, 400);
+
+      if (body.nodes) artifact.nodes = body.nodes;
+      if (body.edges) artifact.edges = body.edges;
+      if (body.candidateKeys) artifact.candidateKeys = body.candidateKeys;
+      artifact.nodeCount = artifact.nodes.length;
+      artifact.updatedAt = new Date().toISOString();
+      artifact.updatedBy = user.email;
+
+      // Compiled on every save, not on demand. A graph that will not compile is
+      // worth knowing about while it is being drawn, and the report is the same
+      // one publish will use — so nobody discovers at publish time that the
+      // thing they have been editing was never going to ship.
+      const compile = compileDecisionFlow(toSource(artifact), currentCompileContext());
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'DecisionFlowDraftSaved',
+        scope: artifact.id,
+        summary:
+          `Saved '${artifact.name}' with ${artifact.nodes.length} node(s); ` +
+          `${compile.diagnostics.filter((d) => d.severity === 'error').length} error(s).`,
+      });
+
+      return json({ artifact, compile });
     }
 
     case 'targeting-policies': {

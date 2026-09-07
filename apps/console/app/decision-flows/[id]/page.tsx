@@ -20,7 +20,8 @@ import {
   EmptyState,
 } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
-import { FlowCanvas } from '@/components/canvas/flow-canvas';
+import { FlowEditor } from '@/components/flow-editor';
+import { useAuth } from '@/components/auth-provider';
 import { CompileReport } from '@/components/compile-report';
 import { RegistryPanel } from '@/components/registry-panel';
 import { ShadowPanel } from '@/components/shadow-panel';
@@ -137,7 +138,8 @@ function NodeInspector({
 }
 
 function FlowDetail({ artifactId }: { artifactId: string }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { hasPermission } = useAuth();
+  const canEditFlows = hasPermission('edit:flows');
 
   const { data: artifact, isLoading, error, refetch } = useQuery({
     queryKey: ['artifact', artifactId],
@@ -193,7 +195,6 @@ function FlowDetail({ artifactId }: { artifactId: string }) {
   const policyNames = Object.fromEntries(
     (policies.data?.policies ?? []).map((p) => [p.id, p.name])
   );
-  const selected = artifact.nodes.find((n) => n.id === selectedId) ?? null;
   const overBudget = artifact.estimatedP95LatencyMs > 50;
 
   return (
@@ -250,82 +251,17 @@ function FlowDetail({ artifactId }: { artifactId: string }) {
         <CompileReport compilation={artifact.compilation ?? null} />
       </div>
 
+      <FlowEditor
+        artifactId={artifact.id}
+        nodes={artifact.nodes as unknown as FlowNode[]}
+        edges={artifact.edges as unknown as FlowEdge[]}
+        candidateKeys={artifact.candidateKeys}
+        canEdit={canEditFlows}
+      />
+
       <div className="grid gap-stack lg:grid-cols-[1fr_340px]">
-        <Card className="overflow-hidden">
-          <CardHeader
-            title="Decision graph"
-            description="Read-only. Select a node to inspect what it does."
-            actions={
-              <div className="hidden items-center gap-2 xl:flex">
-                {LEGEND.map((l) => (
-                  <span key={l.family} className="flex items-center gap-1" title={l.blurb}>
-                    <span className={cn('h-2.5 w-2.5 rounded-sm border', l.tone)} />
-                    <span className="text-[0.6875rem] text-content-muted">{l.family}</span>
-                  </span>
-                ))}
-              </div>
-            }
-          />
-          {/* React Flow needs an explicit height. */}
-          <div className="h-[460px] w-full bg-page">
-            <FlowCanvas
-              nodes={artifact.nodes as unknown as FlowNode[]}
-              edges={artifact.edges as unknown as FlowEdge[]}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-            />
-          </div>
-        </Card>
-
+        <div />
         <div className="space-y-stack">
-          <Card>
-            {selected ? (
-              <NodeInspector node={selected} policyNames={policyNames} />
-            ) : (
-              <>
-                <CardHeader title="Inspector" description="Nothing selected." />
-                <CardBody>
-                  <p className="text-body text-content-muted">
-                    Select a node in the graph to see what it evaluates, which policies it
-                    applies, and what it contributes to the latency budget.
-                  </p>
-                  <div className="mt-4 space-y-2 border-t border-border pt-3">
-                    {LEGEND.map((l) => (
-                      <div key={l.family} className="flex items-start gap-2">
-                        <span className={cn('mt-1 h-2.5 w-2.5 shrink-0 rounded-sm border', l.tone)} />
-                        <div>
-                          <p className="text-body font-medium text-content">{l.family}</p>
-                          <p className="text-label text-content-muted">{l.blurb}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardBody>
-              </>
-            )}
-          </Card>
-
-          <Card>
-            <CardHeader
-              title="Candidate set"
-              description="Offers this decision flow can select from."
-            />
-            <CardBody>
-              <ul className="space-y-1">
-                {artifact.candidateKeys.map((key) => (
-                  <li key={key}>
-                    <Link
-                      href={`/offers?q=${encodeURIComponent(key)}`}
-                      className="block rounded border border-border px-2 py-1.5 font-mono text-label text-accent transition-colors hover:bg-accent-subtle"
-                    >
-                      {key}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </CardBody>
-          </Card>
-
           <Card>
             <CardHeader title="Provenance" />
             <CardBody>

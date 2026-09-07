@@ -361,6 +361,26 @@ export const apiClient = {
       body: connector,
     }),
 
+  /**
+   * Save a flow's graph and get the compiler's verdict on it.
+   *
+   * Saving does not change any decision: those run the version promoted to an
+   * environment, so an edit reaches them through publish and promote.
+   */
+  updateDecisionFlowDraft: (
+    artifactId: string,
+    draft: {
+      nodes?: ArtifactSummaryDto['nodes'];
+      edges?: ArtifactSummaryDto['edges'];
+      candidateKeys?: string[];
+    },
+    tenantId: string = TENANT
+  ) =>
+    apiCall<{ artifact: ArtifactSummaryDto; compile: CompileResultDto }>(
+      'updateDecisionFlowDraft',
+      { params: { tenantId, artifactId }, body: draft }
+    ),
+
   // --- Intake -------------------------------------------------------------
   listDataSources: (tenantId: string = TENANT) =>
     apiCall<{ sources: DataSourceDto[] }>('listDataSources', { params: { tenantId } }),

@@ -673,3 +673,65 @@ The stage after this one is the profile store, and it is the stage that makes
 retention unavoidable. The order is deliberate: schema, mapping and validation
 all landed without retaining anything, so the decision can still be taken
 before it is expensive.
+
+---
+
+## Resolved 2026-09-07 — a created offer is decidable, and a created policy runs
+
+Both gaps registered earlier today are closed by flow authoring, and both for
+the same reason: the missing step was never the write path, it was that nothing
+could attach the new object to a flow.
+
+- **Candidate offers** are edited on the flow page. An offer absent from the
+  list is still never a candidate — that has not changed and should not — but
+  the list is now something a person can change.
+- **Policies bind to nodes.** A filter or constraint node names the policies it
+  applies, and the engine has always evaluated only those.
+
+`flow-authoring.test.ts` walks the whole chain for each: create the offer,
+give it a creative, add it to the candidate set, publish, promote, decide — and
+the same for a policy that suppresses everything. The compiler refused the
+first attempt with `NO_DELIVERABLE_CREATIVE`, which is the gate working, so the
+test walks the real path rather than routing around it.
+
+**What did not change, deliberately.** Saving a graph changes no decision.
+Decisions run the version promoted to an environment, so an edit reaches them
+through compile, publish and promote — three separate steps with two separate
+permissions. `an edit reaches decisions only through publish and promote`
+pins it, and if that test ever fails the console has quietly become a deploy
+button.
+
+**Found while doing it:** `publishArtifact` compiled against the *fixture*
+compile context, so an offer or policy created through the console was
+invisible to the compiler at publish time — a flow naming one would have been
+rejected for referencing something that, as far as the compiler could see, did
+not exist. Same seam as the catalogue and the artifacts, in the place it would
+have been hardest to notice. `currentCompileContext()` now builds it from the
+store, and publish and the draft save share it so they cannot disagree.
+
+**Still FIXTURE for create and edit:** the taxonomy, frequency caps, boosts,
+and the data model itself. Flows, offers, creatives, policies, connectors,
+arbitration weights, autonomy and data sources are all editable from the screen.
+
+---
+
+## Registered 2026-09-07 — the trace accessibility test asserts an arbitrary trace
+
+`accessibility.spec.ts` opens `/decisions` and clicks the first row, so which
+trace it checks depends on which decision sorts first — and that depends on
+what other specs have left in the process-wide store. It failed twice and
+passed twice across four runs on 2026-09-07 while flow authoring was being
+built, and the violation text was not captured on any of them.
+
+Two things are wrong with it and neither is the page:
+
+1. **The subject is not pinned.** A test that checks "some trace" cannot tell
+   you which trace is broken, and a red run cannot be reproduced from the
+   failure alone. It should open a named seeded decision.
+2. **The store is shared.** Specs that create decisions change what this test
+   looks at, so it is coupled to test execution order.
+
+Not fixed here because the fix is a change to a shared gate and this was found
+in the middle of unrelated work; recorded so the next red run is understood
+rather than re-diagnosed. Every other route in the sweep — 44 of 45, both
+themes — passes consistently.

@@ -1304,6 +1304,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '403', '404'],
   },
+  updateDecisionFlowDraft: {
+    method: 'PUT',
+    path: '/artifacts/{tenantId}/{artifactId}/draft',
+    pathParams: ['tenantId', 'artifactId'],
+    queryParams: [],
+    statuses: ['200', '403', '404'],
+  },
   updateOffer: {
     method: 'PUT',
     path: '/offers/{tenantId}/{offerId}',
@@ -1696,6 +1703,17 @@ export type UpdateDataSourceRequest = {
   mappings?: FieldMapping[];
 };
 
+/** Edit a flow's graph */
+export type UpdateDecisionFlowDraftResponse = {
+  artifact: ArtifactSummary;
+  compile: CompileResult;
+};
+export type UpdateDecisionFlowDraftRequest = {
+  nodes?: FlowNode[];
+  edges?: FlowEdge[];
+  candidateKeys?: string[];
+};
+
 /** Update an offer */
 export type UpdateOfferResponse = Offer;
 export type UpdateOfferRequest = Offer;
@@ -1766,6 +1784,7 @@ export interface ResponseOf {
   updateConnector: UpdateConnectorResponse;
   updateCreative: UpdateCreativeResponse;
   updateDataSource: UpdateDataSourceResponse;
+  updateDecisionFlowDraft: UpdateDecisionFlowDraftResponse;
   updateOffer: UpdateOfferResponse;
   updateTargetingPolicy: UpdateTargetingPolicyResponse;
   validateDataSource: ValidateDataSourceResponse;

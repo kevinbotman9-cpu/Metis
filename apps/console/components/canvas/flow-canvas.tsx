@@ -7,8 +7,10 @@ import ReactFlow, {
   Controls,
   MarkerType,
   ReactFlowProvider,
+  type Connection,
   type Edge,
   type Node,
+  type NodeChange,
   type NodeMouseHandler,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -22,6 +24,16 @@ interface FlowCanvasProps {
   edges: FlowEdge[];
   selectedId: string | null;
   onSelect: (nodeId: string | null) => void;
+  /**
+   * Editing handlers. All three or none.
+   *
+   * Absent means the canvas is read-only, which is what a person without
+   * `edit:flows` gets — a graph they can inspect and pan, with nothing that
+   * looks draggable and refuses.
+   */
+  onMove?: (nodeId: string, position: { x: number; y: number }) => void;
+  onConnect?: (edge: { source: string; target: string }) => void;
+  onDisconnect?: (edgeId: string) => void;
 }
 
 /**
@@ -36,7 +48,17 @@ interface FlowCanvasProps {
  */
 const DEFAULT_VIEWPORT = { x: 24, y: 24, zoom: 0.55 };
 
-function Canvas({ nodes, edges, selectedId, onSelect }: FlowCanvasProps) {
+function Canvas({
+  nodes,
+  edges,
+  selectedId,
+  onSelect,
+  onMove,
+  onConnect,
+  onDisconnect,
+}: FlowCanvasProps) {
+  const editable = Boolean(onMove && onConnect && onDisconnect);
+
   const flowNodes = useMemo<Node<FlowNodeData>[]>(
     () =>
       nodes.map((n) => ({
@@ -51,11 +73,10 @@ function Canvas({ nodes, edges, selectedId, onSelect }: FlowCanvasProps) {
           hasModel: Boolean(n.model),
           selected: n.id === selectedId,
         },
-        // Read-only: nodes can be inspected and panned past, not rearranged.
-        draggable: false,
-        connectable: false,
+        draggable: editable,
+        connectable: editable,
       })),
-    [nodes, selectedId]
+    [nodes, selectedId, editable]
   );
 
   const flowEdges = useMemo<Edge[]>(
@@ -84,6 +105,45 @@ function Canvas({ nodes, edges, selectedId, onSelect }: FlowCanvasProps) {
     [onSelect]
   );
 
+  /**
+   * Positions are reported on drag *end*, not on every frame.
+   *
+   * A save per animation frame would be a save per pixel. The layout is
+   * authored data — it is in the artifact, not computed — so it has to persist,
+   * but only once the hand has stopped moving.
+   */
+  const handleNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      if (!onMove) return;
+      for (const change of changes) {
+        if (change.type === 'position' && change.dragging === false && change.position) {
+          onMove(change.id, change.position);
+        }
+      }
+    },
+    [onMove]
+  );
+
+  const handleConnect = useCallback(
+    (connection: Connection) => {
+      if (!onConnect || !connection.source || !connection.target) return;
+      // A node cannot feed itself. React Flow allows it and the compiler would
+      // reject the cycle, but refusing at the gesture is a better answer than a
+      // diagnostic about a graph nobody meant to draw.
+      if (connection.source === connection.target) return;
+      onConnect({ source: connection.source, target: connection.target });
+    },
+    [onConnect]
+  );
+
+  const handleEdgesDelete = useCallback(
+    (deleted: Edge[]) => {
+      if (!onDisconnect) return;
+      for (const edge of deleted) onDisconnect(edge.id);
+    },
+    [onDisconnect]
+  );
+
   return (
     <ReactFlow
       nodes={flowNodes}
@@ -91,11 +151,15 @@ function Canvas({ nodes, edges, selectedId, onSelect }: FlowCanvasProps) {
       nodeTypes={nodeTypes}
       onNodeClick={handleNodeClick}
       onPaneClick={() => onSelect(null)}
+      onNodesChange={editable ? handleNodesChange : undefined}
+      onConnect={editable ? handleConnect : undefined}
+      onEdgesDelete={editable ? handleEdgesDelete : undefined}
+      deleteKeyCode={editable ? ['Backspace', 'Delete'] : null}
       defaultViewport={DEFAULT_VIEWPORT}
       minZoom={0.2}
       maxZoom={1.6}
-      nodesDraggable={false}
-      nodesConnectable={false}
+      nodesDraggable={editable}
+      nodesConnectable={editable}
       elementsSelectable
       aria-label="Decision graph"
     >
@@ -110,7 +174,13 @@ function Canvas({ nodes, edges, selectedId, onSelect }: FlowCanvasProps) {
   );
 }
 
-/** Read-only DIR graph. Positions are authored in the artifact, not computed. */
+/**
+ * The DIR graph. Positions are authored in the artifact, never computed.
+ *
+ * Editable when the handlers are supplied and read-only otherwise, so a person
+ * who cannot publish a flow is not offered a canvas that appears to let them
+ * rearrange one.
+ */
 export function FlowCanvas(props: FlowCanvasProps) {
   return (
     <ReactFlowProvider>

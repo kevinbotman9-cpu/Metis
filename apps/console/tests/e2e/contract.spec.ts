@@ -214,6 +214,10 @@ const COVERED_BY_WRITE_SUITES: Record<string, string> = {
   landRows: 'intake.spec.ts',
   validateDataSource: 'intake.spec.ts',
   activateDataSource: 'intake.spec.ts',
+  // Editing a graph and then proving the edit reached a decision needs the
+  // whole publish-and-promote chain, which a speculative call cannot stand in
+  // for.
+  updateDecisionFlowDraft: 'flow-authoring.spec.ts',
 };
 
 test.describe('OpenAPI contract', () => {
