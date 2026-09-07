@@ -30,7 +30,10 @@ names the check so the claim can be audited rather than trusted.
 ## The suites, and what each covers
 
 ```
-Integration         15 passed  - author -> compile -> execute -> replay, plus the
+Core                15 passed  - creative content per channel, and the
+                                 invariant that an offer needs deliverable
+                                 content before it can go active
+Integration         16 passed  - author -> compile -> execute -> replay, plus the
                                  API-path reconciliation and source hygiene
                                  checks, which span packages and belong to none
 Runtime            227 passed  - determinism, byte-identical replay, integration
@@ -52,7 +55,7 @@ Portability         22 passed  - export, re-import, round-trip conformance, and
 Performance         12 passed  - bench/harness: the p99 gate, and S1 over a
                                  million seeded profiles
 Unit (Vitest)       63 passed  - apps/console
-E2E (Playwright)   196 passed  - contract, cross-engine, axe, registry, ledger,
+E2E (Playwright)   200 passed  - contract, cross-engine, axe, registry, ledger,
                                  idempotency, shadow (13 skipped: writes covered
                                  by permissions-and-writes and registry instead)
 Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
@@ -60,7 +63,7 @@ Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
 Typecheck           clean      - root config and the console's, separately
 Lint                0 errors   - root and console, separate configs
                    ---
-                    753 tests, two languages, two engines
+                    776 tests, two languages, two engines
 ```
 
 The OpenAPI spec validates at **36 paths, 43 operations (41 built, 2 proposed),
@@ -129,6 +132,8 @@ corpus reproducible, and it is also why nothing here claims to learn.
 | Capability | Status | Evidence |
 |---|---|---|
 | OpenAPI 3.1 as the source of truth | BUILT | `packages/client` is generated; the console compiles against it, so spec drift is a compile error |
+| Authoring a creative through the API | PARTIAL | `createCreative` and `updateCreative` are served, permission-gated, audited and validated per channel — required fields, the 160-character SMS segment limit, a carrier-legal sender id, an address that is an address, a call to action that goes somewhere; every problem reported at once. **Not built:** uploading an asset. `imageUrl` is a reference the caller supplies and nothing stores or serves the file. Approval, effective dating and expiry are [W-015](BACKLOG.md) |
+| An offer cannot go active with nothing to deliver | BUILT | `domain.ts` said "at least one is required to go active" and enforced it nowhere, so an offer could be active, win a decision and render nothing. Now refused at creation, at activation, and when switching off the last active creative of an active offer. `permissions-and-writes.spec.ts`; verified to bite by disabling each guard |
 | Authoring an offer through the API | PARTIAL | `createOffer` and `updateOffer` are served, permission-gated server-side, audited, and covered by `permissions-and-writes.spec.ts`. `createOffer` was **declared built and served by nothing** until 2026-09-07, and `updateOffer` was served and exercised by nothing. **The limit:** an offer created this way cannot be decided — the engine reads a different catalogue (W-005) and a flow's candidate set is fixed (W-024). Registered in `gaps.md` |
 | Every exempted operation names the suite that covers it | BUILT | The contract suite's exemption list was a bare set of ids and hid the defect above. It now maps each id to a spec file that must carry a matching `covers:` marker, and the check excludes its own file so it cannot pass on itself. Verified to bite twice: once with an uncovered id, once by finding three real exemptions nothing named |
 | Contract tested in both directions | BUILT | The compiler catches spec→console; `e2e/contract.spec.ts` asserts every non-proposed operation is served and returns what the spec declares. Verified to bite by pointing a spec path at an unserved route |

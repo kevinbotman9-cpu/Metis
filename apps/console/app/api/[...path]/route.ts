@@ -30,7 +30,8 @@ import type { IntegrationGateway } from '@metis/runtime';
 import { RecordedIntegrationGateway } from '@/mocks/gateway';
 import type { DecisionRecord } from '@metis/runtime';
 import type { OutcomeType } from '@metis/ledger';
-import type { Offer } from '@metis/core/domain';
+import type { Creative, Offer } from '@metis/core/domain';
+import { validateCreativeContent, offerMayBeActive } from '@metis/core/creative';
 import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
 import { compilations, findCompilation, compileContext } from '@/mocks/fixtures/compiled';
 import type { DecisionFlowSource } from '@metis/compiler/decision-flow';
@@ -137,6 +138,29 @@ function actor(req: Request) {
 function publicUser(u: (typeof store.users)[number]) {
   const { password: _password, ...rest } = u;
   return rest;
+}
+
+/**
+ * Refuse a creative whose content does not satisfy the channel it declares.
+ *
+ * Returns a response, or null when there is nothing wrong. Shared by create and
+ * update so the two cannot enforce different rules — an offer that could be
+ * edited into a state it could not be created in is the kind of asymmetry
+ * nobody finds until it matters.
+ */
+const blankString = (v: unknown) => typeof v !== 'string' || v.trim() === '';
+
+function creativeProblems(channel: Creative['channel'], content: Creative['content']) {
+  const problems = validateCreativeContent(channel, content);
+  if (problems.length === 0) return null;
+  return json(
+    {
+      error: 'invalid_creative',
+      message: `${problems.length} problem(s) with this ${channel} creative.`,
+      problems,
+    },
+    400
+  );
 }
 
 /** Resolve the effective autonomy for an offer, most specific scope first. */
@@ -674,6 +698,22 @@ export async function POST(req: Request, { params }: Ctx) {
         );
       }
 
+      // An offer cannot go active with nothing to deliver. `domain.ts` has said
+      // "at least one is required to go active" since it was written and
+      // enforced it nowhere — so an offer could be active, win a decision, and
+      // render nothing. A new offer has no creatives by definition, so this
+      // amounts to: create it as a draft, give it content, then activate.
+      if ((body.status ?? 'draft') === 'active') {
+        return json(
+          {
+            error: 'conflict',
+            message:
+              'A new offer cannot be created active: it has no creative yet, and an offer with no active creative cannot be delivered. Create it as a draft, add a creative, then activate.',
+          },
+          409
+        );
+      }
+
       const now = new Date().toISOString();
       const offer: Offer = {
         // Content-addressed ids are for decisions; a catalogue entity is named
@@ -713,6 +753,68 @@ export async function POST(req: Request, { params }: Ctx) {
         summary: `Created ${offer.name} (${offer.key}), status ${offer.status}.`,
       });
       return json(offer, 201);
+    }
+
+    case 'creatives': {
+      // POST /api/creatives/{tenantId}/{offerId} — give an offer content.
+      //
+      // Until this existed, the only way to author a creative was to edit
+      // apps/console/mocks/fixtures/catalogue.ts and redeploy — which is what
+      // `Add creative` in the console still amounts to, since the button has no
+      // handler (C-1).
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
+
+      const [, offerId] = rest;
+      const offer = store.offers.find((p) => p.id === offerId);
+      if (!offer) return notFound(`No offer ${offerId}`);
+
+      const body = (await req.json().catch(() => null)) as Partial<Creative> | null;
+      if (!body) return json({ error: 'bad_request', message: 'Request body must be JSON' }, 400);
+      if (!body.channel) {
+        return json({ error: 'bad_request', message: 'Missing required field: channel' }, 400);
+      }
+      if (blankString(body.name)) {
+        return json({ error: 'bad_request', message: 'Missing required field: name' }, 400);
+      }
+
+      const rejected = creativeProblems(body.channel, body.content as Creative['content']);
+      if (rejected) return rejected;
+
+      const id = body.id ?? `trt_${offer.key}_${body.channel}`;
+      if (store.creatives.some((c) => c.id === id)) {
+        return json({ error: 'conflict', message: `A creative already uses the id '${id}'.` }, 409);
+      }
+
+      const now = new Date().toISOString();
+      const creative: Creative = {
+        id,
+        offerId: offer.id,
+        name: body.name as string,
+        channel: body.channel,
+        content: body.content as Creative['content'],
+        active: body.active ?? false,
+        locale: body.locale ?? 'en-GB',
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      store.creatives.push(creative);
+      // `Creative.offerId` is the foreign key — `packages/catalogue` treats it
+      // as such and refuses a creative whose offer does not exist. `creativeIds`
+      // is a denormalisation the offers list reads for its channel-coverage
+      // column, so it is maintained here rather than left to drift.
+      if (!offer.creativeIds.includes(creative.id)) offer.creativeIds.push(creative.id);
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'CreativeCreated',
+        scope: creative.id,
+        summary: `Added ${creative.name} (${creative.channel}) to ${offer.name}${creative.active ? '' : ', inactive'}.`,
+      });
+      return json(creative, 201);
     }
 
     case 'decisions': {
@@ -1281,6 +1383,67 @@ export async function PUT(req: Request, { params }: Ctx) {
       return json(setting);
     }
 
+    case 'creatives': {
+      // PUT /api/creatives/{tenantId}/{offerId}/{creativeId}
+      if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
+      const [, offerId, creativeId] = rest;
+
+      const offer = store.offers.find((p) => p.id === offerId);
+      if (!offer) return notFound(`No offer ${offerId}`);
+      const index = store.creatives.findIndex(
+        (c) => c.id === creativeId && c.offerId === offerId
+      );
+      if (index === -1) return notFound(`No creative ${creativeId} on offer ${offerId}`);
+
+      const before = store.creatives[index];
+      const body = (await req.json().catch(() => ({}))) as Partial<Creative>;
+      const updated: Creative = {
+        ...before,
+        ...body,
+        id: before.id,
+        offerId: before.offerId,
+        updatedAt: new Date().toISOString(),
+      };
+
+      const rejected = creativeProblems(updated.channel, updated.content);
+      if (rejected) return rejected;
+
+      // Switching off the last active creative of an active offer would leave
+      // the offer winning decisions with nothing to render. Refused rather than
+      // cascaded: retiring somebody's offer because they edited a creative is
+      // not a decision this endpoint gets to make.
+      if (before.active && !updated.active && offer.status === 'active') {
+        const remaining = store.creatives.filter(
+          (c) => c.offerId === offerId && c.id !== creativeId
+        );
+        if (!offerMayBeActive(remaining)) {
+          return json(
+            {
+              error: 'conflict',
+              message: `'${before.name}' is the only active creative on '${offer.name}', which is active. Pause or retire the offer first.`,
+            },
+            409
+          );
+        }
+      }
+
+      store.creatives[index] = updated;
+
+      const changed = Object.keys(body).filter(
+        (k) =>
+          JSON.stringify((before as unknown as Record<string, unknown>)[k]) !==
+          JSON.stringify((body as Record<string, unknown>)[k])
+      );
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'CreativeUpdated',
+        scope: updated.id,
+        summary: `Updated ${updated.name}${changed.length ? ` (${changed.join(', ')})` : ''}.`,
+      });
+      return json(updated);
+    }
+
     case 'offers': {
       if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
       const offerId = rest[1];
@@ -1289,6 +1452,21 @@ export async function PUT(req: Request, { params }: Ctx) {
 
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
       const before = store.offers[index];
+
+      // Same invariant as creation, at the other moment it can be broken.
+      if (body.status === 'active' && before.status !== 'active') {
+        const own = store.creatives.filter((c) => c.offerId === before.id);
+        if (!offerMayBeActive(own)) {
+          return json(
+            {
+              error: 'conflict',
+              message: `'${before.name}' has no active creative, so it cannot be activated — it would win decisions with nothing to render.`,
+            },
+            409
+          );
+        }
+      }
+
       const updated = {
         ...before,
         ...body,

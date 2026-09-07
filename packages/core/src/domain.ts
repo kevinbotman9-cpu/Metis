@@ -111,7 +111,7 @@ export interface EmailContent {
 
 export interface SmsContent {
   channel: 'sms';
-  /** Hard limit 160 chars; validated at compile time. */
+  /** Hard limit 160 chars, enforced by `validateCreativeContent` in ./creative. */
   text: string;
   senderId: string;
 }

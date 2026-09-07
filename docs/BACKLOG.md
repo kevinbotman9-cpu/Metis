@@ -574,6 +574,16 @@ chain hash to change, as with the vendor-neutral rename — plan for it rather
 than being surprised by it.
 
 ### W-015 — Content library with approval and effective dating
+
+**Partly overtaken 2026-09-07.** `createCreative` and `updateCreative` are
+served, validated per channel and audited, and an offer can no longer go active
+with nothing to deliver. What remains here is what the item is actually about:
+an asset store and an upload path — there is no `multipart` or `binary` anywhere
+in the spec and nothing serves a file, so `imageUrl` names an asset the platform
+has never seen — plus approval, effective dating, expiry and versioning. Editing
+a creative changes what is delivered immediately, with an audit entry and no
+review, while a flow change goes through change sets. Registered in `gaps.md`.
+
 Gate 2 · Depends: W-014 · Spec §3
 
 **Build:** Asset store with versions, review and approval, `valid_from` /

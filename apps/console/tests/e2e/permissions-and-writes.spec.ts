@@ -248,6 +248,122 @@ test.describe('creating an offer', () => {
     ).toBe(true);
   });
 
+  // covers: createCreative
+  test('gives the offer content, and only then can it go active', async ({ page }) => {
+    // The whole point of the invariant, in one test: a new offer cannot be
+    // created active, cannot be activated while it has nothing to deliver, and
+    // can be activated the moment it does.
+    const auth = await token(page, ACCOUNTS.sarah);
+    const headers = { Authorization: `Bearer ${auth}` };
+
+    const born = await page.request.post('/api/offers/telco-uk', { headers, data: body() });
+    const offer = await born.json();
+    expect(offer.status).toBe('draft');
+
+    const tooSoon = await page.request.put(`/api/offers/telco-uk/${offer.id}`, {
+      headers,
+      data: { status: 'active' },
+    });
+    expect(tooSoon.status()).toBe(409);
+
+    const creative = await page.request.post(`/api/creatives/telco-uk/${offer.id}`, {
+      headers,
+      data: {
+        name: 'Speed Boost — Web',
+        channel: 'web',
+        active: true,
+        locale: 'en-GB',
+        content: {
+          channel: 'web',
+          headline: 'Double your speed for six months',
+          subheadline: 'Then it reverts, unless you renew.',
+          imageUrl: '/assets/offers/speed-boost.jpg',
+          ctaLabel: 'Add Speed Boost',
+          ctaUrl: '/broadband/speed-boost',
+          placement: 'usage_page_inline',
+        },
+      },
+    });
+    expect(creative.status()).toBe(201);
+    expect((await creative.json()).offerId).toBe(offer.id);
+
+    const now = await page.request.put(`/api/offers/telco-uk/${offer.id}`, {
+      headers,
+      data: { status: 'active' },
+    });
+    expect(now.status()).toBe(200);
+
+    // And the console's list counts it as covered rather than undeliverable.
+    const listed = await (await page.request.get('/api/offers/telco-uk')).json();
+    const found = listed.offers.find((p: { id: string }) => p.id === offer.id);
+    expect(found.creativeIds).toHaveLength(1);
+  });
+
+  test('refuses a creative its channel cannot deliver, naming every problem', async ({ page }) => {
+    const auth = await token(page, ACCOUNTS.sarah);
+    const headers = { Authorization: `Bearer ${auth}` };
+    const offer = await (await page.request.post('/api/offers/telco-uk', { headers, data: body() })).json();
+
+    const res = await page.request.post(`/api/creatives/telco-uk/${offer.id}`, {
+      headers,
+      data: {
+        name: 'Too long',
+        channel: 'sms',
+        content: { channel: 'sms', text: 'x'.repeat(200), senderId: 'MeridianMobileTooLong' },
+      },
+    });
+    expect(res.status()).toBe(400);
+    const problems = (await res.json()).problems as { field: string }[];
+    // Both at once, not the first: a caller fixing one field per round trip is
+    // a caller making several.
+    expect(problems.map((p) => p.field).sort()).toEqual(['content.senderId', 'content.text']);
+  });
+
+  // covers: updateCreative
+  test('will not switch off the last creative an active offer has', async ({ page }) => {
+    const auth = await token(page, ACCOUNTS.sarah);
+    const headers = { Authorization: `Bearer ${auth}` };
+
+    // 5G Unlimited is active in the fixtures with several creatives; switch all
+    // but one off, then attempt the last.
+    const list = await (await page.request.get('/api/creatives/telco-uk/prop_5g_unlimited_24')).json();
+    const active = (list.creatives as { id: string; active: boolean }[]).filter((c) => c.active);
+    expect(active.length).toBeGreaterThan(1);
+
+    for (const c of active.slice(1)) {
+      const off = await page.request.put(`/api/creatives/telco-uk/prop_5g_unlimited_24/${c.id}`, {
+        headers,
+        data: { active: false },
+      });
+      expect(off.status()).toBe(200);
+    }
+
+    const last = await page.request.put(
+      `/api/creatives/telco-uk/prop_5g_unlimited_24/${active[0].id}`,
+      { headers, data: { active: false } }
+    );
+    expect(last.status()).toBe(409);
+    expect((await last.json()).message).toMatch(/Pause or retire the offer first/);
+  });
+
+  test('edits a creative, and the change is audited', async ({ page }) => {
+    const auth = await token(page, ACCOUNTS.sarah);
+    const res = await page.request.put(
+      '/api/creatives/telco-uk/prop_5g_unlimited_24/trt_5g_sms',
+      {
+        headers: { Authorization: `Bearer ${auth}` },
+        data: { content: { channel: 'sms', text: 'Unlimited 5G, £35/mo. Reply STOP to opt out.', senderId: 'Meridian' } },
+      }
+    );
+    expect(res.status()).toBe(200);
+    expect((await res.json()).content.text).toMatch(/Reply STOP/);
+
+    const audit = await (await page.request.get('/api/audit')).json();
+    expect(
+      (audit.events as { eventType: string }[]).some((e) => e.eventType === 'CreativeUpdated')
+    ).toBe(true);
+  });
+
   test('refuses an account without edit:offers, server-side', async ({ page }) => {
     // Priya approves changes and cannot author offers. The server has to say so
     // itself; there is no UI control to hide.

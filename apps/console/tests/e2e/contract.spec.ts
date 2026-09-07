@@ -193,6 +193,8 @@ const COVERED_BY_WRITE_SUITES: Record<string, string> = {
   promoteVersion: 'registry.spec.ts',
   rollbackVersion: 'registry.spec.ts',
   createOffer: 'permissions-and-writes.spec.ts',
+  createCreative: 'permissions-and-writes.spec.ts',
+  updateCreative: 'permissions-and-writes.spec.ts',
   updateOffer: 'permissions-and-writes.spec.ts',
   updateArbitrationConfig: 'permissions-and-writes.spec.ts',
   updateAutonomySetting: 'permissions-and-writes.spec.ts',

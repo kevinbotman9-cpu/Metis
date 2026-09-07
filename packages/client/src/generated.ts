@@ -670,6 +670,19 @@ export interface SlateEntry {
   offerId?: string | null;
 }
 
+/** Why a creative was refused, one entry per problem. Every problem at
+once: a caller fixing one field per round trip is a caller making five.
+ */
+export interface CreativeRejected {
+  error: "invalid_creative";
+  message: string;
+  problems: {
+    /** Dotted path into the creative, e.g. `content.text`. */
+    field: string;
+    message: string;
+  }[];
+}
+
 /** Which connector supplied a field. Reproducible; part of the hashed decision. */
 export interface SourceBinding {
   field: string;
@@ -729,6 +742,13 @@ export const OPERATIONS = {
     pathParams: [],
     queryParams: [],
     statuses: ['201'],
+  },
+  createCreative: {
+    method: 'POST',
+    path: '/creatives/{tenantId}/{offerId}',
+    pathParams: ['tenantId', 'offerId'],
+    queryParams: [],
+    statuses: ['201', '400', '403', '404', '409'],
   },
   createOffer: {
     method: 'POST',
@@ -1010,6 +1030,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '403'],
   },
+  updateCreative: {
+    method: 'PUT',
+    path: '/creatives/{tenantId}/{offerId}/{creativeId}',
+    pathParams: ['tenantId', 'offerId', 'creativeId'],
+    queryParams: [],
+    statuses: ['200', '400', '403', '404', '409'],
+  },
   updateOffer: {
     method: 'PUT',
     path: '/offers/{tenantId}/{offerId}',
@@ -1029,6 +1056,10 @@ export type ApproveChangeSetResponse = ChangeSet;
 /** Propose a change */
 export type CreateChangeSetResponse = ChangeSet;
 export type CreateChangeSetRequest = ChangeSet;
+
+/** Add a creative to an offer */
+export type CreateCreativeResponse = Creative;
+export type CreateCreativeRequest = Creative;
 
 /** Create an offer */
 export type CreateOfferResponse = Offer;
@@ -1313,6 +1344,10 @@ export type UpdateAutonomySettingRequest = AutonomySetting;
 export type UpdateConnectorResponse = Connector;
 export type UpdateConnectorRequest = Connector;
 
+/** Edit a creative, or switch it on and off */
+export type UpdateCreativeResponse = Creative;
+export type UpdateCreativeRequest = Creative;
+
 /** Update an offer */
 export type UpdateOfferResponse = Offer;
 export type UpdateOfferRequest = Offer;
@@ -1321,6 +1356,7 @@ export type UpdateOfferRequest = Offer;
 export interface ResponseOf {
   approveChangeSet: ApproveChangeSetResponse;
   createChangeSet: CreateChangeSetResponse;
+  createCreative: CreateCreativeResponse;
   createOffer: CreateOfferResponse;
   decidePlacement: DecidePlacementResponse;
   executeDecision: ExecuteDecisionResponse;
@@ -1361,5 +1397,6 @@ export interface ResponseOf {
   updateArbitrationConfig: UpdateArbitrationConfigResponse;
   updateAutonomySetting: UpdateAutonomySettingResponse;
   updateConnector: UpdateConnectorResponse;
+  updateCreative: UpdateCreativeResponse;
   updateOffer: UpdateOfferResponse;
 }

@@ -160,6 +160,21 @@ path from a new offer to a decision runs through a fixture edit and a redeploy.
 
 ---
 
+## Registered 2026-09-07 — creatives can be authored, and not uploaded
+
+`createCreative` and `updateCreative` exist as of today, with per-channel
+validation and the activation invariant. What is still missing, and is what
+W-015 is actually about:
+
+| Gap | Notes |
+|---|---|
+| **No asset upload, and no asset store** | There is no `multipart`, `binary` or `octet-stream` anywhere in the spec, no upload endpoint and nothing that serves a file. `imageUrl` is a string the caller supplies; `apps/console/public/assets` does not exist, so every fixture image path 404s — which is why the storefront draws a placeholder. A creative can name an asset the platform has never seen and does not check. |
+| **No content lifecycle** | No approval, no effective dating, no expiry, no versioning. A creative has `status`, `active` and `locale`. Editing one changes what is delivered immediately, with an audit entry and no review — while a *flow* change goes through change sets and approvals. Two governance regimes again, and content is the unguarded one. |
+| **The console still cannot author one** | `Add creative`, `Add the first creative` and `Edit` are present, enabled and have no handler — verified live: zero requests, zero dialogs. C-1. The API is now real and the only caller is the test suite. |
+| **`Offer.creativeIds` is a denormalisation** | `Creative.offerId` is the foreign key — `packages/catalogue` enforces it and refuses a creative whose offer does not exist. `creativeIds` exists because the offers list reads it for the channel-coverage column, and the write path maintains it. Two places holding one fact; it resolves when the console reads from the catalogue rather than the store (W-005). |
+
+---
+
 ## Build-system gaps
 
 Not platform APIs, but the same kind of problem: a check that appears to run

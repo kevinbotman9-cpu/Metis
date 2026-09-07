@@ -1401,6 +1401,30 @@ components:
           type: [string, 'null']
           description: The offer this action belongs to, resolved from the catalogue.
 
+    CreativeRejected:
+      type: object
+      description: |
+        Why a creative was refused, one entry per problem. Every problem at
+        once: a caller fixing one field per round trip is a caller making five.
+      required: [error, message, problems]
+      properties:
+        error:
+          type: string
+          enum: [invalid_creative]
+        message:
+          type: string
+        problems:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+                description: Dotted path into the creative, e.g. `content.text`.
+              message:
+                type: string
+
     SourceBinding:
       type: object
       description: Which connector supplied a field. Reproducible; part of the hashed decision.
@@ -1734,6 +1758,111 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Creative'
+
+    post:
+      summary: Add a creative to an offer
+      operationId: createCreative
+      x-metis-status: built
+      description: |
+        Content for one channel. An offer needs at least one active creative
+        before it can be delivered, which is why this exists: until it did, the
+        only way to give an offer content was to edit a fixture and redeploy.
+
+        The content is checked against the channel it declares — required
+        fields, the 160-character SMS segment limit, a sender id carriers will
+        accept, an address that is an address, a call to action that goes
+        somewhere. Every problem is reported at once rather than the first, so a
+        caller is not making one round trip per field.
+
+        **Not built here:** uploading an asset. `imageUrl` is a reference the
+        caller supplies, and nothing in the platform stores or serves the file
+        it names. Content approval, effective dating and expiry are W-015.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Creative'
+      responses:
+        '201':
+          description: Created, and attached to the offer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Creative'
+        '400':
+          description: |
+            The content does not satisfy its channel. The body lists every
+            problem, each naming the field it is about.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreativeRejected'
+        '403':
+          description: Caller lacks edit:offers
+        '404':
+          description: No such offer
+        '409':
+          description: A creative already uses that id
+
+  /creatives/{tenantId}/{offerId}/{creativeId}:
+    put:
+      summary: Edit a creative, or switch it on and off
+      operationId: updateCreative
+      x-metis-status: built
+      description: |
+        The same content rules as creation.
+
+        Deactivating is refused when it would leave an active offer with no
+        deliverable content — the offer would keep winning decisions and have
+        nothing to render, which is the state this and `createOffer` exist to
+        make unreachable. Pause or retire the offer first.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: creativeId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Creative'
+      responses:
+        '200':
+          description: Updated, and written to the audit log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Creative'
+        '400':
+          description: The content does not satisfy its channel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreativeRejected'
+        '403':
+          description: Caller lacks edit:offers
+        '404':
+          description: No such offer or creative
+        '409':
+          description: |
+            Switching this off would leave an active offer with no active
+            creative.
 
   # ---------------------------------------------------------------------------
   # Targeting policy, frequency policy, arbitration
