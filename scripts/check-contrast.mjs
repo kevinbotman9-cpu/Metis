@@ -241,6 +241,17 @@ export const PAIRS = [
     why: 'the active nav item: accent text on a 10% tint of itself',
   },
   { fg: 'rail-ok', bg: 'rail-bg', min: AA_LARGE, why: 'status dot, non-text' },
+  // The attention amber, both jobs. The marker is a 3px bar — non-text, 3:1 —
+  // and the approvals count is text, so the same token is held to both bars
+  // rather than to the easier one.
+  { fg: 'rail-attention', bg: 'rail-bg', min: AA_LARGE, why: 'the active-item marker, non-text' },
+  { fg: 'rail-attention', bg: 'rail-bg', min: AA_TEXT, why: 'the approvals count, as text' },
+  // The count is a solid pill, not a tint: a 15% tint of the amber lightens the
+  // ground to 4.30 and fails, and lightening the amber to clear it would wash
+  // out the one warm colour in the console. Dark text on the solid amber is the
+  // same 5.63 read the other way round, and it reads louder, which is right for
+  // a number that means somebody is waiting.
+  { fg: 'rail-bg', bg: 'rail-attention', min: AA_TEXT, why: 'the approvals count, on the amber pill' },
   { fg: 'rail-fg', bg: 'rail-bg', min: AA_LARGE, why: 'focus ring on the rail, SC 1.4.11' },
   // The autonomy ladder. `required` now: the badge renders a named tint rather
   // than an alpha of itself, so the pair is one the palette controls.

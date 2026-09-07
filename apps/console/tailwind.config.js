@@ -30,6 +30,7 @@ module.exports = {
           accent: rgb('rail-accent'),
           hover: rgb('rail-hover'),
           ok: rgb('rail-ok'),
+          attention: rgb('rail-attention'),
         },
         surface: {
           DEFAULT: rgb('surface'),

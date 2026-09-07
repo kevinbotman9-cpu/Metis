@@ -57,6 +57,9 @@ const PAGES: Result[] = [
   { kind: 'page', id: 'approvals', title: 'Approvals', subtitle: 'Change set queue', href: '/approvals' },
   { kind: 'page', id: 'agentic', title: 'Agentic AI', subtitle: 'Autonomy levels and guardrails', href: '/agentic' },
   { kind: 'page', id: 'audit', title: 'Audit Log', href: '/audit' },
+  { kind: 'page', id: 'creatives', title: 'Creatives', subtitle: 'Content library', href: '/creatives' },
+  { kind: 'page', id: 'integrations', title: 'Integrations', subtitle: 'Connectors and outbound calls', href: '/integrations' },
+  { kind: 'page', id: 'traffic', title: 'Inbound traffic', subtitle: 'Requests served, with full payloads', href: '/integrations/traffic' },
   { kind: 'page', id: 'settings', title: 'Settings', href: '/settings' },
 ];
 

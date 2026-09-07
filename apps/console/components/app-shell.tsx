@@ -8,12 +8,25 @@ import { useAuth } from './auth-provider';
 import { useTheme } from './theme-provider';
 import { Notifications } from './notifications';
 import { CommandPalette, useCommandPalette } from './command-palette';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
 
 interface NavItem {
   href: string;
   label: string;
   /** Permission required to see this item at all. */
   permission?: string;
+  /**
+   * Pages that belong to this one rather than beside it.
+   *
+   * Shown only while the parent's section of the app is open, so the rail
+   * stays a list of destinations rather than a sitemap. A child at the top
+   * level would claim to be a peer of Decisions and Simulations, which
+   * `/integrations/traffic` is not — it is a view of one integration surface.
+   */
+  children?: NavItem[];
+  /** A count worth interrupting for. Rendered as the amber pill. */
+  badge?: 'approvals';
 }
 
 interface NavSection {
@@ -42,13 +55,17 @@ const NAV: NavSection[] = [
       { href: '/decision-flows', label: 'Decision flows', permission: 'view:flows' },
       { href: '/decisions', label: 'Decisions', permission: 'view:decisions' },
       { href: '/simulations', label: 'Simulations' },
-      { href: '/integrations', label: 'Integrations' },
+      {
+        href: '/integrations',
+        label: 'Integrations',
+        children: [{ href: '/integrations/traffic', label: 'Inbound traffic' }],
+      },
     ],
   },
   {
     label: 'Governance',
     items: [
-      { href: '/approvals', label: 'Approvals' },
+      { href: '/approvals', label: 'Approvals', badge: 'approvals' },
       { href: '/agentic', label: 'Agentic AI' },
       { href: '/audit', label: 'Audit Log', permission: 'view:audit' },
     ],
@@ -58,6 +75,82 @@ const NAV: NavSection[] = [
     items: [{ href: '/settings', label: 'Settings' }],
   },
 ];
+
+/**
+ * One destination in the rail.
+ *
+ * Two states, not one. `current` is the page you are on and takes the amber
+ * marker; `within` is the section you are in, which a parent holds while you
+ * are on one of its children — it stays legible without competing with the
+ * child for the eye.
+ *
+ * The marker is the console's only warm colour. It is 3px of amber against the
+ * frame at 5.63:1, and exactly one is ever on screen, which is what makes
+ * spending the one non-semantic colour here defensible: it is not decorating
+ * the rail, it is answering "where am I" from the corner of the eye.
+ */
+function NavLink({
+  item,
+  current,
+  within,
+  nested = false,
+}: {
+  item: NavItem;
+  current: boolean;
+  within: boolean;
+  nested?: boolean;
+}) {
+  const pending = useApprovalCount(item.badge === 'approvals');
+
+  return (
+    <Link
+      href={item.href}
+      aria-current={current ? 'page' : undefined}
+      // Composed rather than left to accumulate from the children. The badge
+      // would otherwise join the link's name as a bare "2", and the name is
+      // what every keyboard and screen-reader path uses to find this item.
+      // Same shape the notifications bell already uses.
+      aria-label={pending > 0 ? `${item.label}, ${pending} awaiting approval` : undefined}
+      className={cn(
+        'relative flex items-center gap-2 rounded-md py-1.5 text-body transition-colors',
+        nested ? 'px-2.5 text-label' : 'px-3',
+        current
+          ? 'bg-rail-accent/10 font-medium text-rail-accent before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-r before:bg-rail-attention'
+          : within && !nested
+            ? 'text-rail-fg hover:bg-rail-hover/10'
+            : 'text-rail-muted hover:bg-rail-hover/10 hover:text-rail-fg'
+      )}
+    >
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      {pending > 0 ? (
+        <span
+          aria-hidden
+          className="tnum shrink-0 rounded-full bg-rail-attention px-1.5 py-px text-[0.6875rem] font-semibold tabular-nums text-rail"
+        >
+          {pending}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
+/**
+ * How many change sets are waiting on a person.
+ *
+ * The same `['change-sets']` query the notifications bell already runs on every
+ * page, so putting the number in the rail costs a cache read rather than a
+ * request. `enabled` keeps it to the one item that asks: every other nav link
+ * would otherwise subscribe to a query it never reads.
+ */
+function useApprovalCount(enabled: boolean): number {
+  const { data } = useQuery({
+    queryKey: ['change-sets'],
+    queryFn: () => apiClient.listChangeSets(),
+    enabled,
+  });
+  if (!enabled) return 0;
+  return (data?.changeSets ?? []).filter((c) => c.status === 'pending').length;
+}
 
 /**
  * Which environment this console is pointed at.
@@ -97,7 +190,20 @@ export function AppShell({ children }: { children: ReactNode }) {
     setTenantOpen(false);
   }, [pathname]);
 
-  function isActive(href: string) {
+  /** The page you are on. Exact, so a parent does not claim its child's page. */
+  function isCurrent(href: string) {
+    return pathname === href;
+  }
+
+  /**
+   * Whether this item's part of the app is open.
+   *
+   * Separate from `isCurrent` because they were one function and that was the
+   * bug: `startsWith` made `/integrations` read as the current page while you
+   * were on `/integrations/traffic`, so two items were highlighted and neither
+   * was where you were.
+   */
+  function isWithin(href: string) {
     if (href === '/') return pathname === '/';
     return pathname === href || pathname.startsWith(`${href}/`);
   }
@@ -379,22 +485,36 @@ export function AppShell({ children }: { children: ReactNode }) {
                     {section.label}
                   </p>
                   <ul className="space-y-0.5">
-                    {visible.map((item) => (
-                      <li key={item.href}>
-                        <Link
-                          href={item.href}
-                          aria-current={isActive(item.href) ? 'page' : undefined}
-                          className={cn(
-                            'relative block rounded-md px-3 py-1.5 text-body transition-colors',
-                            isActive(item.href)
-                              ? 'bg-rail-accent/10 font-medium text-rail-accent before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-r before:bg-rail-accent'
-                              : 'text-rail-muted hover:bg-rail-hover/10 hover:text-rail-fg'
-                          )}
-                        >
-                          {item.label}
-                        </Link>
-                      </li>
-                    ))}
+                    {visible.map((item) => {
+                      const open = isWithin(item.href);
+                      const kids = (item.children ?? []).filter(
+                        (child) => !child.permission || hasPermission(child.permission)
+                      );
+
+                      return (
+                        <li key={item.href}>
+                          <NavLink item={item} current={isCurrent(item.href)} within={open} />
+
+                          {/* Children appear only inside their own section. A
+                              sub-page listed permanently reads as a peer of the
+                              things beside it, which is the thing being fixed. */}
+                          {kids.length > 0 && open ? (
+                            <ul className="mt-0.5 space-y-0.5 border-l border-rail-line pl-2 ml-3">
+                              {kids.map((child) => (
+                                <li key={child.href}>
+                                  <NavLink
+                                    item={child}
+                                    current={isCurrent(child.href)}
+                                    within={isWithin(child.href)}
+                                    nested
+                                  />
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               );

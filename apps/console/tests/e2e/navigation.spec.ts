@@ -8,7 +8,13 @@ import { login, ACCOUNTS } from './helpers';
  * boundary. This is the check that was claimed but never actually run.
  */
 
-const NAV_ITEMS = [
+/**
+ * `linkName` is the item's accessible name where it differs from its visible
+ * label. Approvals folds its pending count into the name — the same shape the
+ * notifications bell uses — so an exact match on the label alone would look
+ * like a broken link when it is a working badge.
+ */
+const NAV_ITEMS: { label: string; heading: string | RegExp; linkName?: RegExp }[] = [
   { label: 'Home', heading: /Good to see you/ },
   { label: 'Offers', heading: 'Offers' },
   { label: 'Targeting Policies', heading: 'Targeting policies' },
@@ -17,7 +23,7 @@ const NAV_ITEMS = [
   { label: 'Decision flows', heading: 'Decision flows' },
   { label: 'Decisions', heading: 'Decisions' },
   { label: 'Simulations', heading: 'Simulations' },
-  { label: 'Approvals', heading: 'Approvals' },
+  { label: 'Approvals', heading: 'Approvals', linkName: /^Approvals(,|$)/ },
   { label: 'Agentic AI', heading: 'Agentic AI' },
   { label: 'Audit Log', heading: 'Audit log' },
   { label: 'Settings', heading: 'Settings' },
@@ -31,7 +37,9 @@ test.describe('navigation', () => {
   for (const item of NAV_ITEMS) {
     test(`${item.label} resolves to a real page`, async ({ page }) => {
       const nav = page.getByRole('navigation', { name: 'Main' });
-      await nav.getByRole('link', { name: item.label, exact: true }).click();
+      await nav
+        .getByRole('link', item.linkName ? { name: item.linkName } : { name: item.label, exact: true })
+        .click();
 
       await expect(page.getByRole('heading', { level: 1, name: item.heading })).toBeVisible();
       await expect(page.getByText('This page could not be found')).toHaveCount(0);

@@ -63,6 +63,15 @@
   --rail-accent: 143 194 242;
   --rail-hover: 255 255 255;
   --rail-ok: 63 191 140;
+  /* Rail's amber, lightened. The one warm colour in the console, and it earns
+     its place by meaning exactly one thing in the frame: attention. It marks
+     where you are and it counts what is blocked. Nothing else.
+
+     Rail's own #E58A34 reaches 4.45 on the frame — enough for the 3px marker,
+     which is a non-text graphic at 3:1, and short of the 4.5 the approvals
+     count needs as text. One value that clears both is simpler than two that
+     nearly match: this holds 5.63 on the light frame and 8.97 on the dark. */
+  --rail-attention: 240 164 88;
 
   /* The dim behind a modal.
      A token rather than `bg-black/40` — the last literal colours in app code —
@@ -226,6 +235,7 @@
   --rail-accent: 143 194 242;
   --rail-hover: 255 255 255;
   --rail-ok: 63 191 140;
+  --rail-attention: 240 164 88;
   /* Darker than the darkest surface, so a dialog still sits *above* something
      rather than dissolving into it. */
   --scrim: 0 0 0;
