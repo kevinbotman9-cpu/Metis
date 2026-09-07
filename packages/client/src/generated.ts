@@ -866,6 +866,13 @@ export const OPERATIONS = {
     queryParams: ['outcome', 'limit'],
     statuses: ['200'],
   },
+  listAllCreatives: {
+    method: 'GET',
+    path: '/creatives/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: ['channel', 'active', 'q'],
+    statuses: ['200'],
+  },
   listArtifacts: {
     method: 'GET',
     path: '/artifacts/{tenantId}',
@@ -1203,6 +1210,12 @@ export type ListAgentActivityResponse = {
   activity: AgentActivity[];
 };
 
+/** Every creative in the catalogue */
+export type ListAllCreativesResponse = {
+  creatives: Creative[];
+  total: number;
+};
+
 /** List flows with their compile status */
 export type ListArtifactsResponse = {
   artifacts: ArtifactSummary[];
@@ -1394,6 +1407,7 @@ export interface ResponseOf {
   getShadowReport: GetShadowReportResponse;
   getTaxonomy: GetTaxonomyResponse;
   listAgentActivity: ListAgentActivityResponse;
+  listAllCreatives: ListAllCreativesResponse;
   listArtifacts: ListArtifactsResponse;
   listAuditEvents: ListAuditEventsResponse;
   listAutonomySettings: ListAutonomySettingsResponse;

@@ -30,6 +30,7 @@ const NAV: NavSection[] = [
     label: 'Offers',
     items: [
       { href: '/offers', label: 'Offers', permission: 'view:offers' },
+      { href: '/creatives', label: 'Creatives', permission: 'view:offers' },
       { href: '/targeting-policies', label: 'Targeting Policies' },
       { href: '/frequency-policy', label: 'Frequency Policy' },
       { href: '/arbitration', label: 'Arbitration & Boosts' },

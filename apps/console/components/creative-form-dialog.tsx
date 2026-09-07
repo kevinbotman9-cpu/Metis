@@ -251,6 +251,11 @@ export function CreativeFormDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offer', offerId] });
       queryClient.invalidateQueries({ queryKey: ['offers'] });
+      // The content library reads across offers under its own key, so editing
+      // from there left the row showing the line it used to say. Invalidated
+      // here rather than by the page, because the dialog is what knows a write
+      // happened — a caller that forgot would be a stale list nobody noticed.
+      queryClient.invalidateQueries({ queryKey: ['creatives'] });
       onOpenChange(false);
     },
   });

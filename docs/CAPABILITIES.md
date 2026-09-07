@@ -54,8 +54,8 @@ Portability         22 passed  - export, re-import, round-trip conformance, and
                                  the guard that stops the export rotting
 Performance         12 passed  - bench/harness: the p99 gate, and S1 over a
                                  million seeded profiles
-Unit (Vitest)       64 passed  - apps/console
-E2E (Playwright)   210 passed  - contract, cross-engine, axe, registry, ledger,
+Unit (Vitest)       69 passed  - apps/console
+E2E (Playwright)   221 passed  - contract, cross-engine, axe, registry, ledger,
                                  idempotency, shadow (13 skipped: writes covered
                                  by permissions-and-writes and registry instead)
 Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
@@ -64,7 +64,7 @@ Typecheck           clean      - root config and the console's, separately
 Lint                clean      - root and console; 0 errors and, since
                                  2026-09-07, 0 warnings
                    ---
-                    797 tests, two languages, two engines
+                    813 tests, two languages, two engines
 ```
 
 The OpenAPI spec validates at **36 paths, 43 operations (41 built, 2 proposed),
@@ -134,6 +134,7 @@ corpus reproducible, and it is also why nothing here claims to learn.
 | Capability | Status | Evidence |
 |---|---|---|
 | OpenAPI 3.1 as the source of truth | BUILT | `packages/client` is generated; the console compiles against it, so spec drift is a compile error |
+| A content library, across offers | BUILT | `/creatives` lists every creative in the catalogue with the line its channel leads with, the offer that owns it, its placement and shape, and whether it is delivering. Search covers the copy, not only the name, so "show me every piece of content that says X" has an answer — it had none, because a creative was reachable only through its offer. Editing from there writes through the same dialog. `creatives.spec.ts`, plus the axe sweep and a route budget |
 | Authoring an offer and its content **from the console** | BUILT | `New offer`, `Edit`, `Add creative` and the creative's own `Edit` open Radix dialogs and write through the generated client. Activation is a control on the detail page, beside the creatives, because that is where the reason it can be refused is visible. `offer-authoring.spec.ts` drives the whole path as a person does — create, be refused, add content, activate — plus axe on both dialogs, which the route sweep cannot reach because a dialog is not a route |
 | Server refusals land on the field they are about | BUILT | The 400 from `createCreative` carries `problems[]`, each naming a field; `ApiError` carries them and the form renders each against its own input, with `aria-invalid` and `aria-describedby`. Asserted on the 160-character and sender-id rules at once |
 | Authoring a creative through the API | PARTIAL | `createCreative` and `updateCreative` are served, permission-gated, audited and validated per channel. A field is required only where its absence breaks delivery; a call to action is required in *pairs*, since a label with no link looks clickable and is not; and a web creative names both the slot it is for and the shape it takes there, the second from a closed set of six. The slot key is checked against the tenant's configured placements by the endpoint, which is the only layer that knows them. Plus the 160-character SMS segment limit, a carrier-legal sender id, and an address that is an address. Every problem reported at once. **Not built:** uploading an asset. `imageUrl` is a reference the caller supplies and nothing stores or serves the file. Approval, effective dating and expiry are [W-015](BACKLOG.md) |

@@ -399,10 +399,38 @@ export async function GET(req: Request, { params }: Ctx) {
       return json({ offers: result, total: result.length });
     }
 
-    case 'creatives':
-      return json({
-        creatives: store.creatives.filter((t) => t.offerId === rest[1]),
-      });
+    case 'creatives': {
+      // With an offer id: that offer's creatives. Without: the whole library,
+      // which is the only way to ask what content exists rather than what one
+      // offer has.
+      const offerId = rest[1];
+      if (offerId) {
+        return json({ creatives: store.creatives.filter((t) => t.offerId === offerId) });
+      }
+
+      let result = store.creatives;
+      const channel = q.get('channel');
+      const active = q.get('active');
+      const search = (q.get('q') || '').toLowerCase().trim();
+
+      if (channel) result = result.filter((c) => c.channel === channel);
+      if (active === 'true' || active === 'false') {
+        result = result.filter((c) => c.active === (active === 'true'));
+      }
+      if (search) {
+        // The content too, not only the name: somebody looking for a line of
+        // copy they need to change is searching for the line, not for whatever
+        // the creative was called.
+        const offerKey = new Map(store.offers.map((o) => [o.id, o.key]));
+        result = result.filter(
+          (c) =>
+            c.name.toLowerCase().includes(search) ||
+            (offerKey.get(c.offerId) ?? '').toLowerCase().includes(search) ||
+            JSON.stringify(c.content).toLowerCase().includes(search)
+        );
+      }
+      return json({ creatives: result, total: result.length });
+    }
 
     case 'targeting-policies': {
       const kind = q.get('kind');

@@ -1754,6 +1754,52 @@ paths:
         '403':
           description: Caller lacks edit:offers
 
+  /creatives/{tenantId}:
+    get:
+      summary: Every creative in the catalogue
+      operationId: listAllCreatives
+      x-metis-status: built
+      description: |
+        The content library, across offers.
+
+        Creatives were reachable only through the offer that owns them, so
+        "what content do we have", "what is switched off" and "which offers have
+        nothing on email" had no answer. Each creative still belongs to exactly
+        one offer — `offerId` is a foreign key, not a link — and this reads
+        across them rather than changing that.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: channel
+          in: query
+          schema:
+            type: string
+            enum: [email, sms, web, push, outbound_call]
+        - name: active
+          in: query
+          description: Filter on delivery state. Omit for both.
+          schema:
+            type: boolean
+        - name: q
+          in: query
+          description: Matches the name, the owning offer's key, and the content.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Creatives
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [creatives, total]
+                properties:
+                  creatives:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Creative'
+                  total:
+                    type: integer
+
   /creatives/{tenantId}/{offerId}:
     get:
       summary: Creatives for an offer, one per channel

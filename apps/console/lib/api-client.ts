@@ -207,6 +207,15 @@ export const apiClient = {
   getOffer: (offerId: string, tenantId: string = TENANT) =>
     apiCall<OfferDetailDto>('getOffer', { params: { tenantId, offerId } }),
 
+  listAllCreatives: (
+    filters: { channel?: string; active?: string; q?: string } = {},
+    tenantId: string = TENANT
+  ) =>
+    apiCall<{ creatives: CreativeDto[]; total: number }>('listAllCreatives', {
+      params: { tenantId },
+      query: filters,
+    }),
+
   listCreatives: (offerId: string, tenantId: string = TENANT) =>
     apiCall<{ creatives: CreativeDto[] }>('listCreatives', {
       params: { tenantId, offerId },

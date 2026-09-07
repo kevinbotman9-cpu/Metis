@@ -10,6 +10,7 @@ import { login, ACCOUNTS, openAccountPanel } from './helpers';
 const PAGES = [
   { path: '/', name: 'home' },
   { path: '/offers', name: 'offers' },
+  { path: '/creatives', name: 'creatives' },
   { path: '/offers/prop_5g_unlimited_24', name: 'offer detail' },
   { path: '/targeting-policies', name: 'targeting policies' },
   { path: '/frequency-policy', name: 'frequency policy' },

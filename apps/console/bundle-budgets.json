@@ -30,6 +30,7 @@
     "/": 820,
     "/login": 590,
     "/offers": 820,
+    "/creatives": 820,
     "/decisions": 820,
     "/decision-flows": 820,
     "/decision-flows/next-best-action": 1010,
