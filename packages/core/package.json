@@ -10,6 +10,7 @@
     ".": "./src/domain.ts",
     "./domain": "./src/domain.ts",
     "./utility": "./src/utility.ts",
-    "./creative": "./src/creative.ts"
+    "./creative": "./src/creative.ts",
+    "./profile-schema": "./src/profile-schema.ts"
   }
 }

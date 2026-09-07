@@ -26,6 +26,10 @@ import type {
   Connector,
 } from '@metis/core/domain';
 import {
+  conditionProblems,
+  type ProfileSchema,
+} from '@metis/core/profile-schema';
+import {
   resolveUtility,
   utilityKey,
   KNOWN_TERMS,
@@ -137,6 +141,19 @@ export interface CompileContext {
    * a check that fires on every flow is one nobody reads.
    */
   requestFields?: string[];
+  /**
+   * The tenant's data model.
+   *
+   * When supplied, policy conditions are checked against it in full — every
+   * segment of the path, the operator against the field's type, and the value
+   * against the field's type and enum members. `requestFields` only ever
+   * checked the *root* segment, because a root is all a connector can supply,
+   * so `address.fibre_availabl` passed and then silently decided.
+   *
+   * Optional so a tenant without a declared model compiles exactly as before,
+   * rather than every flow turning red on the day this shipped.
+   */
+  profileSchema?: ProfileSchema;
   tenant: { id: string; latencyBudgetMs: number; maxNodes: number };
 }
 
@@ -725,6 +742,35 @@ export function compileDecisionFlow(
       }
     }
 
+    // The data model, when the tenant has declared one. Checks the whole path
+    // and the types, which is what the root-only check below cannot do: it
+    // passes `address.fibre_availabl` because `address` is supplied, and the
+    // typo then decides — demonstrated moving a winner from acq_fibre_900 to
+    // acq_sim_30 while the trace reported ELIGIBILITY_FAILED against a real
+    // policy id.
+    if (ctx.profileSchema) {
+      for (const n of source.nodes) {
+        for (const id of n.policyIds ?? []) {
+          const policy = ctx.targetingPolicies.find((p) => p.id === id);
+          if (!policy) continue;
+          for (const c of policy.conditions) {
+            for (const problem of conditionProblems(ctx.profileSchema, c)) {
+              d.push(
+                error(
+                  problem.code === 'UNKNOWN_FIELD' ? 'UNRESOLVED_FIELD' : 'POLICY_TYPE_ERROR',
+                  `Policy '${policy.name}' on node '${n.id}': ${problem.message}`,
+                  problem.code === 'UNKNOWN_FIELD'
+                    ? 'A missing field fails every comparison silently, so the rule suppresses everything and looks like it is working.'
+                    : 'A comparison the types cannot satisfy is always false, which reads as a rule that refused rather than one that could not run.',
+                  n.id
+                )
+              );
+            }
+          }
+        }
+      }
+    }
+
     // Only checked when the tenant has told us what the caller supplies;
     // otherwise every field would look unresolved and the diagnostic would be
     // noise, which is how a useful check gets ignored.
@@ -740,6 +786,10 @@ export function compileDecisionFlow(
         }
       }
       for (const [field, nodeId] of [...referenced.entries()].sort()) {
+        // Skipped when a schema is declared: it has already checked the whole
+        // path, and reporting the root separately would print two diagnostics
+        // about one typo — the second of them less precise than the first.
+        if (ctx.profileSchema) continue;
         if (!suppliedFields.has(field)) {
           d.push(
             error(

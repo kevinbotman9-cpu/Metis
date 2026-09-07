@@ -17,6 +17,7 @@ import {
 } from '../src/decision-flow/compile';
 import { suggest, didYouMean } from '../src/decision-flow/diagnostics';
 import type { Offer, TargetingPolicy, FrequencyPolicy } from '@metis/core/domain';
+import type { ProfileSchema } from '@metis/core/profile-schema';
 
 const gbp = (amount: number) => ({ amount, currency: 'GBP' as const });
 
@@ -566,5 +567,112 @@ describe('report', () => {
     expect(report).toContain('Compiled successfully');
     expect(report).toContain('critical path');
     expect(report).toContain('artifact ');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The data model
+// ---------------------------------------------------------------------------
+
+/**
+ * A flow compiling against a declared model.
+ *
+ * The defect these close was demonstrated against the running engine before the
+ * schema existed: changing `address.fibre_available` to `address.fibre_availabl`
+ * moved the winner from `acq_fibre_900` to `acq_sim_30`, and the trace reported
+ * `ELIGIBILITY_FAILED (pol_fibre_available)` — a confident reason code naming a
+ * real policy. The typo did not error. It decided.
+ *
+ * `requestFields` could not catch it. It checks the root segment only, because
+ * a root is all a connector can supply, and `address` is supplied.
+ */
+describe('policy conditions against the data model', () => {
+  const schema: ProfileSchema = {
+    id: 's',
+    tenantId: 't',
+    version: '1.0.0',
+    root: 'Input',
+    updatedAt: '2026-01-01T00:00:00Z',
+    updatedBy: 'test',
+    entities: [
+      {
+        name: 'Input',
+        description: '',
+        fields: [],
+        relationships: [
+          { name: 'customer', entity: 'Customer', cardinality: 'one', description: '' },
+        ],
+      },
+      {
+        name: 'Customer',
+        description: '',
+        fields: [
+          { name: 'age', type: 'integer', description: '' },
+          { name: 'credit_status', type: 'enum', members: ['pass', 'refer'], description: '' },
+        ],
+      },
+    ],
+    aggregations: [],
+  };
+
+  const withPolicy = (conditions: TargetingPolicy['conditions']) =>
+    compileDecisionFlow(valid, {
+      ...ctx,
+      profileSchema: schema,
+      targetingPolicies: [{ ...policy, conditions }],
+    });
+
+  it('compiles a condition the model knows', () => {
+    const report = withPolicy([{ field: 'customer.age', operator: 'gte', value: 18 }]);
+    expect(report.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+  });
+
+  it('refuses one character wrong in a leaf, and suggests the fix', () => {
+    // The demonstrated defect. `customer` resolves, so the root-only check saw
+    // nothing wrong with this.
+    const report = withPolicy([{ field: 'customer.ag', operator: 'gte', value: 18 }]);
+    const d = report.diagnostics.find((x) => x.code === 'UNRESOLVED_FIELD');
+
+    expect(d, 'a typo in a leaf must not compile').toBeDefined();
+    expect(d!.severity).toBe('error');
+    expect(d!.message).toContain("Did you mean 'customer.age'?");
+  });
+
+  it('refuses a comparison the type cannot satisfy', () => {
+    const report = withPolicy([{ field: 'customer.age', operator: 'contains', value: 'x' }]);
+    expect(report.diagnostics.map((d) => d.code)).toContain('POLICY_TYPE_ERROR');
+  });
+
+  it('refuses a value outside an enum', () => {
+    // `passed` for `pass` reads correctly and matches nothing, so the rule
+    // suppresses every candidate while looking like it works.
+    const report = withPolicy([
+      { field: 'customer.credit_status', operator: 'eq', value: 'passed' },
+    ]);
+    const d = report.diagnostics.find((x) => x.code === 'POLICY_TYPE_ERROR');
+    expect(d?.message).toContain("Did you mean 'pass'?");
+  });
+
+  it('reports one diagnostic per typo, not two', () => {
+    // The root check and the schema check both look at the same condition.
+    // Two messages about one mistake, the second less precise, is how a report
+    // stops being read.
+    const report = compileDecisionFlow(valid, {
+      ...ctx,
+      profileSchema: schema,
+      requestFields: ['customer'],
+      targetingPolicies: [{ ...policy, conditions: [{ field: 'customer.ag', operator: 'gte', value: 18 }] }],
+    });
+    expect(report.diagnostics.filter((d) => d.code === 'UNRESOLVED_FIELD')).toHaveLength(1);
+  });
+
+  it('compiles exactly as before for a tenant with no model', () => {
+    // The schema is optional on purpose. Making it required would have turned
+    // every existing flow red on the day it shipped.
+    const report = compileDecisionFlow(valid, {
+      ...ctx,
+      targetingPolicies: [{ ...policy, conditions: [{ field: 'customer.ag', operator: 'gte', value: 18 }] }],
+    });
+    expect(report.diagnostics.filter((d) => d.code === 'UNRESOLVED_FIELD')).toEqual([]);
   });
 });
