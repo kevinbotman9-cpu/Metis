@@ -362,7 +362,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           overflow hidden still leaves its links in the tab order, so the
           keyboard path walked through a sidebar nobody could see.
         */}
-        <aside className={cn('w-60 shrink-0 flex-col bg-chrome', sidebarOpen ? 'flex' : 'hidden')}>
+        <aside
+          data-rail
+          className={cn('w-60 shrink-0 flex-col bg-rail', sidebarOpen ? 'flex' : 'hidden')}
+        >
           <nav className="flex-1 overflow-y-auto px-2 py-4" aria-label="Main">
             {NAV.map((section) => {
               const visible = section.items.filter(
@@ -372,7 +375,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
               return (
                 <div key={section.label} className="mb-4">
-                  <p className="px-3 pb-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-content-subtle">
+                  <p className="px-3 pb-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-rail-dim">
                     {section.label}
                   </p>
                   <ul className="space-y-0.5">
@@ -384,8 +387,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                           className={cn(
                             'relative block rounded-md px-3 py-1.5 text-body transition-colors',
                             isActive(item.href)
-                              ? 'bg-accent/10 font-medium text-accent before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-r before:bg-accent'
-                              : 'text-content-muted hover:bg-surface/70 hover:text-content'
+                              ? 'bg-rail-accent/10 font-medium text-rail-accent before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-r before:bg-rail-accent'
+                              : 'text-rail-muted hover:bg-rail-hover/70 hover:text-rail-fg'
                           )}
                         >
                           {item.label}
@@ -399,8 +402,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="px-4 py-3">
-            <p className="flex items-center gap-1.5 text-[0.625rem] text-content-subtle">
-              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-pass" />
+            <p className="flex items-center gap-1.5 text-[0.625rem] text-rail-dim">
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-rail-ok" />
               Fixture data
             </p>
           </div>

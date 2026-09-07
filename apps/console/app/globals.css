@@ -34,6 +34,21 @@
   --border: var(--n-300);
   --border-strong: var(--n-400);
 
+  /* The shell frame — sidebar and header band.
+     Its own family rather than steps on the neutral ramp, because the frame and
+     the work area are tuned for different grounds: the analytic tokens assume a
+     light panel, and the frame does not have to. Keeping them separate is what
+     lets the frame go dark in both themes without dragging every `text-content`
+     in the sidebar onto a background it was never measured against. */
+  --rail-bg: 255 255 255;
+  --rail-fg: var(--n-900);
+  --rail-muted: var(--n-700);
+  --rail-dim: var(--n-600);
+  --rail-line: var(--n-300);
+  --rail-accent: var(--accent);
+  --rail-hover: var(--surface);
+  --rail-ok: var(--pass);
+
   /* Text.
      Every step must clear WCAG AA 4.5:1 against both --surface and
      --surface-sunken, including at the 10-11px label sizes. n-500 measured
@@ -146,6 +161,15 @@
   --n-900: 246 249 253;
 
   --chrome: var(--n-50);
+
+  --rail-bg: var(--n-50);
+  --rail-fg: var(--n-900);
+  --rail-muted: var(--n-700);
+  --rail-dim: var(--n-600);
+  --rail-line: var(--n-300);
+  --rail-accent: var(--accent);
+  --rail-hover: var(--surface);
+  --rail-ok: var(--pass);
   --page: var(--n-100);
   --surface: var(--n-150);
   --surface-raised: var(--n-200);
@@ -217,13 +241,19 @@ body {
   border-radius: var(--radius-sm);
 }
 
-/* The header band does not follow the light/dark ramp, so the accent ring does
-   not hold up on it: the light-mode accent measures 2.36:1 against the burgundy
-   end, under the 3:1 that SC 1.4.11 and 2.4.11 require of a focus indicator.
-   White measures 13.4:1 there. axe has no rule for this, so it is arithmetic
-   rather than a test that guards it. */
+/* The shell frame does not follow the light/dark ramp, so the accent ring does
+   not hold up on it: the accent measures 2.36:1 against the header band, under
+   the 3:1 that SC 1.4.11 and 2.4.11 require of a focus indicator. The frame's
+   own foreground clears it comfortably.
+
+   axe has no rule for focus-indicator contrast, so this used to be arithmetic
+   guarded by nothing. `scripts/check-contrast.mjs` asserts it now. */
 [data-header-band] :focus-visible {
   outline-color: rgb(var(--on-header));
+}
+
+[data-rail] :focus-visible {
+  outline-color: rgb(var(--rail-fg));
 }
 
 /* Thin, unobtrusive scrollbars that respect the theme. */

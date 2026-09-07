@@ -20,6 +20,16 @@ module.exports = {
       colors: {
         page: rgb('page'),
         chrome: rgb('chrome'),
+        rail: {
+          DEFAULT: rgb('rail-bg'),
+          fg: rgb('rail-fg'),
+          muted: rgb('rail-muted'),
+          dim: rgb('rail-dim'),
+          line: rgb('rail-line'),
+          accent: rgb('rail-accent'),
+          hover: rgb('rail-hover'),
+          ok: rgb('rail-ok'),
+        },
         surface: {
           DEFAULT: rgb('surface'),
           raised: rgb('surface-raised'),

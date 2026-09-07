@@ -206,6 +206,16 @@ export const PAIRS = [
     min: AA_LARGE,
     why: 'focus ring, SC 1.4.11',
   })),
+  // The shell frame. Its own family, so it has to be checked against its own
+  // ground rather than inheriting the analytic pairs above.
+  ...['rail-fg', 'rail-muted', 'rail-dim', 'rail-accent'].map((fg) => ({
+    fg,
+    bg: 'rail-bg',
+    min: AA_TEXT,
+    why: 'sidebar text on the shell frame',
+  })),
+  { fg: 'rail-ok', bg: 'rail-bg', min: AA_LARGE, why: 'status dot, non-text' },
+  { fg: 'rail-fg', bg: 'rail-bg', min: AA_LARGE, why: 'focus ring on the rail, SC 1.4.11' },
   ...['l0', 'l1', 'l2', 'l3', 'l4'].flatMap((fg) =>
     ['surface', 'surface-sunken'].map((bg) => ({
       fg,
