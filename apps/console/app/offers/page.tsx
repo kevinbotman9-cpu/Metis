@@ -44,9 +44,15 @@ function money(m: { amount: number; currency: string }) {
 const LENSES: { id: string; label: string; sub?: string; tone?: FilterBlock['tone'];
   match: (p: OfferDto) => boolean }[] = [
   { id: 'all', label: 'Offers', sub: 'in this catalogue', match: () => true },
-  { id: 'live', label: 'Selectable', sub: 'active and deliverable', tone: 'pass',
+  { id: 'live', label: 'Selectable', sub: 'active, with content', tone: 'pass',
     match: (p) => p.status === 'active' && p.creativeIds.length > 0 },
-  { id: 'blocked', label: 'Cannot be delivered', sub: 'no active creative', tone: 'block',
+  // "has no creative", not "no active creative", because that is what this can
+  // see: the list returns offers, and an offer carries the ids of its creatives
+  // and not whether any is switched on. An offer whose only creative is
+  // inactive is undeliverable and is not counted here. It cannot be *active*
+  // and undeliverable — the API refuses that — so what escapes this lens is a
+  // draft or paused offer, which was not going to be delivered anyway.
+  { id: 'blocked', label: 'Cannot be delivered', sub: 'has no creative', tone: 'block',
     match: (p) => p.creativeIds.length === 0 && p.status !== 'retired' },
   { id: 'boosted', label: 'Boosted', sub: 'above 1.0', tone: 'hold',
     match: (p) => p.boost > 1 },
