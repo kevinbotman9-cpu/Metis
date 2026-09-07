@@ -69,7 +69,7 @@ than in most deployments of the thing being compared against.
 
 Severity per §6 of the review brief.
 
-### I-1 — One action, not a ranked slate · S2
+### I-1 — One action, not a ranked slate · S2 · **CLOSED 2026-09-07**
 
 The engine returns a single winner. Every real page has several slots, and a
 container answers with a list.
@@ -87,10 +87,16 @@ slate selection OUT OF SCOPE and W-028 puts it at Stage 18, behind multi-level
 ranking. For inbound, the *contract* half has to land with the container at
 Stage 14 even if the optimisation half stays at 18.
 
-**Observed:** the storefront demo works around it by asking two different flows
-for two slots on one page. That is honest and, for genuinely different
-questions, correct — but it is not a container, and it does not scale to a page
-with six slots.
+**Observed:** the storefront demo worked around it by asking two different flows
+for two slots on one page. Honest, and correct for genuinely different questions
+— but not a container, and it did not scale to a page with six slots.
+
+**Closed by W-052.** `POST /placements/{tenantId}/{key}/decisions` returns the
+ranked slate, and `Placement` carries the slot count and the flow that answers
+it, so the site names a slot rather than a flow. The slate is a projection of
+one decision rather than several, which is why no chain hash moved and neither
+engine changed. *Which* N is still W-028, and the limit that follows from it —
+the placement is not part of the hashed decision — is registered in `gaps.md`.
 
 ### I-2 — The trace names an adaptive model that does not exist · S4
 
@@ -193,9 +199,10 @@ and Phase C already quantified that.
 
 Three questions will come, and the honest answers are short.
 
-- **"Can you fill a whole page?"** No — one decision returns one offer. The
-  storefront asks two flows for two slots, which is real and also a workaround.
-  The container and slate are I-1.
+- **"Can you fill a whole page?"** Yes, as of 2026-09-07 — a placement declares
+  how many actions it holds and returns that many, ranked, from one decision.
+  What it does *not* yet do is choose them by anything but priority: no
+  diversity, no mutual exclusion, no inventory. That is W-028.
 - **"Does it learn from what people click?"** No. Outcome capture is built and
   the scoring seam is empty. Say it plainly; it is checkable in five minutes,
   and the trace naming `adm_accept_v4` makes it worse to be caught on.

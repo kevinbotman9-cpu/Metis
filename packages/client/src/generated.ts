@@ -629,6 +629,47 @@ rather than failing in production.
   updatedBy: string;
 }
 
+/** A content slot in a customer journey, configured rather than assumed.
+
+`placement` has been a string on a decision request since the beginning
+— the engine reads it for the context term and records it. This is that
+string given a configuration: how many actions the slot holds, and which
+flow answers for it.
+
+Not part of the catalogue the engine hashes. A placement governs how a
+decision is delivered, not what is decided, so changing a slot count
+moves no chain hash. The consequence is that a slate is reproducible
+from its decision *plus* the placement that composed it.
+ */
+export interface Placement {
+  id: string;
+  /** The value a decision request carries, and a creative names. */
+  key: string;
+  name: string;
+  description: string;
+  channel: "email" | "sms" | "web" | "push" | "outbound_call";
+  /** At most this many actions. A hero is 1, a grid is 3. The decision is
+the same either way; this governs how much of the ranking the caller
+is given.
+ */
+  slotCount: number;
+  artifactId: string;
+  active: boolean;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+/** One filled slot. */
+export interface SlateEntry {
+  rank: number;
+  /** The action key, as the decision named it. */
+  action: string;
+  /** The priority ranking gave it — the same number that chose the winner. */
+  priority: number;
+  /** The offer this action belongs to, resolved from the catalogue. */
+  offerId?: string | null;
+}
+
 /** Which connector supplied a field. Reproducible; part of the hashed decision. */
 export interface SourceBinding {
   field: string;
@@ -695,6 +736,13 @@ export const OPERATIONS = {
     pathParams: ['tenantId'],
     queryParams: [],
     statuses: ['201', '403'],
+  },
+  decidePlacement: {
+    method: 'POST',
+    path: '/placements/{tenantId}/{placementKey}/decisions',
+    pathParams: ['tenantId', 'placementKey'],
+    queryParams: [],
+    statuses: ['200', '400', '404', '409', '503'],
   },
   executeDecision: {
     method: 'POST',
@@ -843,6 +891,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200'],
   },
+  listPlacements: {
+    method: 'GET',
+    path: '/placements/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['200'],
+  },
   listRegistryEvents: {
     method: 'GET',
     path: '/registry/{tenantId}/events',
@@ -979,6 +1034,40 @@ export type CreateChangeSetRequest = ChangeSet;
 export type CreateOfferResponse = Offer;
 export type CreateOfferRequest = Offer;
 
+/** Decide what fills a placement */
+export type DecidePlacementResponse = {
+  placement: string;
+  slotCount: number;
+  /** One decision behind every slot. Its trace explains all of them. */
+  decisionId: string;
+  chainHash: string;
+  entries: SlateEntry[];
+  /** Slots no surviving candidate could fill. */
+  unfilled: number;
+  /** How many candidates reached ranking, so a caller can say
+"3 of 5 shown" rather than implying it saw everything.
+ */
+  rankedCount: number;
+};
+export type DecidePlacementRequest = {
+  /** As `executeDecision`, minus `placement`, which the path
+already names. Supplying a different one is a 400 rather
+than a silent preference for one of them.
+ */
+  request: {
+    tenantId: string;
+    customerId: string;
+    channel: string;
+    /** An input, never the clock. */
+    occurredAt: string;
+    input: Record<string, unknown>;
+    contactHistory?: Record<string, unknown>;
+    consent?: Record<string, unknown>;
+    idempotencyKey?: string;
+    correlationId?: string;
+  };
+};
+
 /** Make a decision */
 export type ExecuteDecisionResponse = {
   /** Content-addressed. The first 16 characters of the chain hash. */
@@ -1113,6 +1202,11 @@ export type ListOutcomesResponse = {
   outcomes: OutcomeEvent[];
 };
 
+/** Configured placements */
+export type ListPlacementsResponse = {
+  placements: Placement[];
+};
+
 /** The registry's append-only log */
 export type ListRegistryEventsResponse = {
   events: RegistryEvent[];
@@ -1228,6 +1322,7 @@ export interface ResponseOf {
   approveChangeSet: ApproveChangeSetResponse;
   createChangeSet: CreateChangeSetResponse;
   createOffer: CreateOfferResponse;
+  decidePlacement: DecidePlacementResponse;
   executeDecision: ExecuteDecisionResponse;
   getArbitrationConfig: GetArbitrationConfigResponse;
   getArtifactSummary: GetArtifactSummaryResponse;
@@ -1249,6 +1344,7 @@ export interface ResponseOf {
   listFrequencyPolicies: ListFrequencyPoliciesResponse;
   listOffers: ListOffersResponse;
   listOutcomes: ListOutcomesResponse;
+  listPlacements: ListPlacementsResponse;
   listRegistryEvents: ListRegistryEventsResponse;
   listRegistryFlows: ListRegistryFlowsResponse;
   listTargetingPolicies: ListTargetingPoliciesResponse;

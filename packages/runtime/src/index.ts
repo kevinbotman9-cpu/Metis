@@ -70,3 +70,6 @@ export type {
   FlowTestRunner,
   FlowTestExpectation,
 } from './flow-tests';
+
+export { selectSlate } from './slate';
+export type { Slate, SlateEntry } from './slate';

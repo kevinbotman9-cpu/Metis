@@ -19,29 +19,31 @@ site.
 
 ## What it actually does
 
-Two calls per placement, both against the real API:
+The page asks for slots by name, and nothing else:
 
-1. `POST /api/decisions` — which offer goes in this slot, for this visitor, now.
-2. `GET /api/offers/{tenantId}/{offerId}` — the creative to render it with.
+1. `POST /api/placements/{tenantId}/{key}/decisions` — what fills this slot, for
+   this visitor, now. Which flow answers is configuration held by the platform,
+   not by the website.
+2. `GET /api/offers/{tenantId}/{offerId}` — the creative to render each with.
 
-There is no third call. Nothing about an offer is written into the page: if the
-platform has no creative for the channel, the slot says so rather than inventing
-copy.
+Nothing about an offer is written into the page: if the platform has no creative
+for the channel, the slot says so rather than inventing copy.
 
-Four placements, and two of them ask a different flow from the other two:
+Four placements, configured in the catalogue rather than in this file:
 
-| Placement | Flow | Why |
-|---|---|---|
-| `homepage_hero` | `inbound-web-offers` | Anonymous acquisition |
-| `homepage_grid` | `next-best-action` | The main arbitration flow |
-| `account_dashboard_hero` | `next-best-action` | The customer is known |
-| `usage_page_inline` | `inbound-web-offers` | A cross-sell slot |
+| Placement | Slots | Flow | Why |
+|---|---|---|---|
+| `homepage_hero` | 1 | `inbound-web-offers` | Anonymous acquisition |
+| `homepage_grid` | 3 | `next-best-action` | The slot that needs a slate |
+| `account_dashboard_hero` | 1 | `next-best-action` | The customer is known |
+| `usage_page_inline` | 1 | `inbound-web-offers` | A cross-sell slot |
 
-Two slots on one page ask two different flows on purpose. A decision returns one
-action — slate selection and cardinality are out of scope, and `CAPABILITIES.md`
-says so — so two placements asking the same flow about the same customer at the
-same moment get the same answer back, correctly. A site that wants two different
-offers on a page asks two different questions.
+**The grid is the one to point at.** It asks for three and gets up to three,
+ranked, from a *single* decision — every candidate that reached ranking is
+already in that decision with its priority, so the slate is a projection of it
+rather than three decisions that might disagree. The panel shows the one
+decision id behind every card. Ordering by priority is the whole composition
+rule; diversity and mutual exclusion are W-028.
 
 ---
 
@@ -74,8 +76,9 @@ send are fetched before the engine runs and recorded as coming from a named
 connector.
 
 **Not built, and not faked.** There is no embed SDK and no impression capture
-(W-016), so the page calls the decision API directly and records nothing when a
-slot renders — a real integration would do both. There is no content store
+(W-016), so the page calls the API directly and records nothing when a slot
+renders — a real integration would do both. A slot the platform cannot fill is
+left empty and counted, never padded. There is no content store
 (W-015), so `imageUrl` names an asset nothing serves and the slot shows a
 placeholder. A decision made here can be traced through the API but not replayed;
 see `gaps.md`.

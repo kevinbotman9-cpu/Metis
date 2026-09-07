@@ -33,12 +33,13 @@ names the check so the claim can be audited rather than trusted.
 Integration         15 passed  - author -> compile -> execute -> replay, plus the
                                  API-path reconciliation and source hygiene
                                  checks, which span packages and belong to none
-Runtime            217 passed  - determinism, byte-identical replay, integration
+Runtime            227 passed  - determinism, byte-identical replay, integration
                                  resolution over a real HTTP gateway, ADR-003
                                  values, the 22-decision corpus, ranking
-                                 functions, idempotency, shadow, no network
-                                 egress in the decision path, and the approved
-                                 default for a missing score
+                                 functions, slate composition, idempotency,
+                                 shadow, no network egress in the decision
+                                 path, and the approved default for a missing
+                                 score
 Compiler            43 passed  - graph validation, version pinning, budgets
 Registry            75 passed  - one behaviour suite, run against memory and a
                                  real PostgreSQL
@@ -50,8 +51,8 @@ Portability         22 passed  - export, re-import, round-trip conformance, and
                                  the guard that stops the export rotting
 Performance         12 passed  - bench/harness: the p99 gate, and S1 over a
                                  million seeded profiles
-Unit (Vitest)       53 passed  - apps/console
-E2E (Playwright)   187 passed  - contract, cross-engine, axe, registry, ledger,
+Unit (Vitest)       63 passed  - apps/console
+E2E (Playwright)   189 passed  - contract, cross-engine, axe, registry, ledger,
                                  idempotency, shadow (13 skipped: writes covered
                                  by permissions-and-writes and registry instead)
 Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
@@ -59,11 +60,11 @@ Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
 Typecheck           clean      - root config and the console's, separately
 Lint                0 errors   - root and console, separate configs
                    ---
-                    724 tests, two languages, two engines
+                    746 tests, two languages, two engines
 ```
 
-The OpenAPI spec validates at **34 paths, 41 operations (39 built, 2 proposed),
-46 schemas**.
+The OpenAPI spec validates at **36 paths, 43 operations (41 built, 2 proposed),
+48 schemas**.
 
 ---
 
@@ -96,7 +97,9 @@ corpora changed on that date, because the rename reached the hashed decision.
 | Replay calls no connector | BUILT | Replay re-executes against the recorded snapshot, and `no-egress.test.ts` asserts `execute` and `replay` open no socket. Wire timings live on the measured half, so a decision cannot depend on whether it was lucky with a cache |
 | Connector authentication | PLANNED — [ADR-007](adr/ADR-007-secrets-and-connector-authentication.md) | The gateway sends no credentials, because `Connector` has no field for one. A secret in connector configuration is a secret in an append-only audit log and in every export made from it, so the shape needs deciding before the field exists. Integrations therefore work against internal and unauthenticated endpoints and fail against a real bureau. **Proposed, not accepted** |
 | Reading a `feature-store` connector | PLANNED — [W-009](BACKLOG.md) | No feature service exists. The gateway says so by name rather than attempting a `featurestore://` URL |
-| Optimisation constraints, slate selection | OUT OF SCOPE | The engine returns a single action. Cardinality, mutual exclusion, diversity, budget, inventory and fairness are gate 2–3 |
+| A placement returns a ranked slate | BUILT | `POST /placements/{tenantId}/{key}/decisions`. The engine still returns one action; the slate is a *projection* of that decision — every candidate that reached ranking is in the record with its priority — so it moves no chain hash and needs no change in either engine. `slate.test.ts` holds it to the same 100-run stability the engine is held to, and to the property that `entries[0]` is the decision's own winner. Verified to bite: drawing the slate from `scores` rather than from what reached arbitration offers a candidate a policy refused, and fails |
+| Placement as a configured object | BUILT | `Placement` carries the slot count and the flow that answers it, so a website names a slot rather than a flow. **Not** part of the catalogue the engine hashes: a placement governs delivery, not the decision. The consequence is stated in `gaps.md` — a slate is reproducible from its decision *plus* the placement that composed it |
+| Slate *composition*: cardinality, mutual exclusion, diversity | OUT OF SCOPE | Ordering by priority is the whole rule today. Budget, inventory and fairness are [W-028](BACKLOG.md), and when they land they have to be part of the hashed decision, because a slate composed by a rule nobody recorded is not explainable |
 
 ## §7 — Intelligence
 

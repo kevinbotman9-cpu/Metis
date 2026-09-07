@@ -21,6 +21,7 @@ import {
   compareShadow,
   buildShadowReport,
   resolveInputs,
+  selectSlate,
   IntegrationError,
   HttpIntegrationGateway,
   MemoryIntegrationCache,
@@ -147,6 +148,148 @@ function resolveAutonomyFor(offerId: string, categoryId: string, objectiveId: st
     a.find((s) => s.scope.level === 'tenant') ||
     null
   );
+}
+
+/**
+ * The decision pipeline both decision endpoints run.
+ *
+ * `POST /decisions` answers with one winner and
+ * `POST /placements/{key}/decisions` answers with a slate, and they must
+ * otherwise behave identically: same idempotency, same integration resolution,
+ * same ledger write, same shadow. Two copies of this would drift, and the
+ * drift would be invisible — both would keep returning plausible decisions.
+ *
+ * Returns rather than responds, so the caller shapes the payload. The error
+ * cases carry a built `Response` because each already has a considered status
+ * and body that neither caller should have to reconstruct.
+ */
+type DecideOutcome =
+  | { kind: 'error'; response: Response }
+  | { kind: 'replay'; record: DecisionRecord }
+  | { kind: 'decided'; trace: DecisionRecord };
+
+async function decideAndRecord(
+  artifact: ExecArtifact,
+  decisionRequest: DecisionRequest
+): Promise<DecideOutcome> {
+  // Idempotency and durability, through the ledger.
+  //
+  // Resolved before execution: executing and then discovering the key was
+  // taken would be wasted work on a retry and, on a conflict, would have
+  // already made a decision the caller must not be given.
+  const resolved = await store.ledger.resolve(decisionRequest);
+
+  if (resolved.kind === 'conflict') {
+    const e = new IdempotencyConflict(
+      decisionRequest.idempotencyKey as string,
+      resolved.storedHash,
+      resolved.attemptedHash
+    );
+    return {
+      kind: 'error',
+      response: json({ error: 'idempotency_conflict', message: e.message }, 409),
+    };
+  }
+
+  if (resolved.kind === 'replay') {
+    // The original decision, not a re-execution that happens to agree.
+    // A catalogue edit between the two calls is all it takes for it not
+    // to agree, and the caller asked one question.
+    return { kind: 'replay', record: resolved.entry.record };
+  }
+
+  // Integrations resolve here, before the deterministic core and after
+  // the idempotency check — a retry that is going to be answered from the
+  // ledger must not pay for a bureau call first.
+  //
+  // Against `catalogueSnapshot.connectors` rather than `store.connectors`
+  // on purpose. The engine records which connector supplied which field
+  // from the catalogue it hashes; resolving from a different copy would
+  // let provenance and resolution disagree about whether a connector was
+  // active. That the console's toggle writes to a store neither of them
+  // reads is W-005's open decision, unchanged by this and registered in
+  // docs/gaps.md.
+  let resolvedInputs;
+  try {
+    resolvedInputs = await resolveInputs(
+      artifact,
+      catalogueSnapshot.connectors ?? [],
+      decisionRequest,
+      integrationGateway
+    );
+  } catch (e) {
+    if (e instanceof IntegrationError) {
+      // A connector configured `onFailure: 'fail'` failed, so there is no
+      // decision to give. 503 rather than 500: the flow is fine and the
+      // request is fine, a dependency is not, and a caller can retry.
+      return {
+        kind: 'error',
+        response: json(
+          {
+            error: 'integration_failed',
+            message: e.message,
+            connectorId: e.connectorId,
+            outcome: e.outcome,
+          },
+          503
+        ),
+      };
+    }
+    throw e;
+  }
+
+  // Fields the caller supplied win, which `resolveInputs` guarantees; the
+  // 60 service cases carry theirs, which is why they still hash the same.
+  const resolvedRequest = { ...decisionRequest, input: resolvedInputs.input };
+
+  const trace = executeDecision(artifact, catalogueSnapshot, resolvedRequest);
+
+  // Measured, never hashed, and absent from a replay: what the wire cost
+  // is not part of what was decided.
+  if (resolvedInputs.calls.length > 0) trace.measured.sourceCalls = resolvedInputs.calls;
+
+  // Recorded synchronously, before answering. §6 asks for the envelope to
+  // be durable before the caller is told what was decided — a decision
+  // the platform made and cannot produce afterwards is worse than one it
+  // failed to make.
+  await store.ledger.record(store.ledger.entryFor(trace, decisionRequest.tenantId));
+
+  const key = decisionRequest.idempotencyKey;
+  if (key) {
+    const claimed = await store.ledger.claim({
+      tenantId: decisionRequest.tenantId,
+      key,
+      requestHash: resolved.hash,
+      decisionId: trace.id,
+      storedAt: new Date().toISOString(),
+    });
+    // The store decides which claim wins under a race; use what comes
+    // back rather than assuming ours landed.
+    if (claimed.decisionId !== trace.id) {
+      const winner = await store.ledger.get(decisionRequest.tenantId, claimed.decisionId);
+      if (winner) return { kind: 'replay', record: winner.record };
+    }
+  }
+
+  // The shadow runs after the response is built, and is deliberately not
+  // awaited.
+  //
+  // §13 requires the shadow to stay out of the active latency budget, and
+  // the only honest way to do that is not to make the caller wait for it.
+  // Measuring it and subtracting would leave the wall clock unchanged and
+  // the number a fiction. Node keeps running the promise after the
+  // response is returned; what it costs is recorded on the comparison so
+  // it can be read rather than assumed.
+  //
+  // Tracked in `store.shadowInFlight` so tests can wait for quiescence
+  // instead of sleeping — an async mechanism tested with a sleep is a
+  // flake with a timer attached.
+  // The resolved request, not the caller's: a shadow run against different
+  // inputs would report a divergence that is about resolution rather than
+  // about the two versions, which is the one thing it must not do.
+  void runShadow(trace, resolvedRequest);
+
+  return { kind: 'decided', trace };
 }
 
 // ---------------------------------------------------------------------------
@@ -321,6 +464,10 @@ export async function GET(req: Request, { params }: Ctx) {
 
     case 'connectors': {
       return json({ connectors: store.connectors });
+    }
+
+    case 'placements': {
+      return json({ placements: store.placements });
     }
 
     case 'registry': {
@@ -542,27 +689,10 @@ export async function POST(req: Request, { params }: Ctx) {
           correlationId: body.request.correlationId,
         };
 
-        // Idempotency and durability, through the ledger.
-        //
-        // Resolved before execution: executing and then discovering the key was
-        // taken would be wasted work on a retry and, on a conflict, would have
-        // already made a decision the caller must not be given.
-        const resolved = await store.ledger.resolve(decisionRequest);
-
-        if (resolved.kind === 'conflict') {
-          const e = new IdempotencyConflict(
-            decisionRequest.idempotencyKey as string,
-            resolved.storedHash,
-            resolved.attemptedHash
-          );
-          return json({ error: 'idempotency_conflict', message: e.message }, 409);
-        }
-
-        if (resolved.kind === 'replay') {
-          // The original decision, not a re-execution that happens to agree.
-          // A catalogue edit between the two calls is all it takes for it not
-          // to agree, and the caller asked one question.
-          const prior = resolved.entry.record;
+        const outcome = await decideAndRecord(artifact, decisionRequest);
+        if (outcome.kind === 'error') return outcome.response;
+        if (outcome.kind === 'replay') {
+          const prior = outcome.record;
           return json(
             { id: prior.id, decision: prior.decision, chainHash: prior.chainHash },
             200,
@@ -570,104 +700,7 @@ export async function POST(req: Request, { params }: Ctx) {
           );
         }
 
-        // Integrations resolve here, before the deterministic core and after
-        // the idempotency check — a retry that is going to be answered from the
-        // ledger must not pay for a bureau call first.
-        //
-        // Against `catalogueSnapshot.connectors` rather than `store.connectors`
-        // on purpose. The engine records which connector supplied which field
-        // from the catalogue it hashes; resolving from a different copy would
-        // let provenance and resolution disagree about whether a connector was
-        // active. That the console's toggle writes to a store neither of them
-        // reads is W-005's open decision, unchanged by this and registered in
-        // docs/gaps.md.
-        let resolvedInputs;
-        try {
-          resolvedInputs = await resolveInputs(
-            artifact,
-            catalogueSnapshot.connectors ?? [],
-            decisionRequest,
-            integrationGateway
-          );
-        } catch (e) {
-          if (e instanceof IntegrationError) {
-            // A connector configured `onFailure: 'fail'` failed, so there is no
-            // decision to give. 503 rather than 500: the flow is fine and the
-            // request is fine, a dependency is not, and a caller can retry.
-            return json(
-              {
-                error: 'integration_failed',
-                message: e.message,
-                connectorId: e.connectorId,
-                outcome: e.outcome,
-              },
-              503
-            );
-          }
-          throw e;
-        }
-
-        // Fields the caller supplied win, which `resolveInputs` guarantees; the
-        // 60 service cases carry theirs, which is why they still hash the same.
-        const resolvedRequest = { ...decisionRequest, input: resolvedInputs.input };
-
-        const trace = executeDecision(artifact, catalogueSnapshot, resolvedRequest);
-
-        // Measured, never hashed, and absent from a replay: what the wire cost
-        // is not part of what was decided.
-        if (resolvedInputs.calls.length > 0) trace.measured.sourceCalls = resolvedInputs.calls;
-
-        // Recorded synchronously, before answering. §6 asks for the envelope to
-        // be durable before the caller is told what was decided — a decision
-        // the platform made and cannot produce afterwards is worse than one it
-        // failed to make.
-        await store.ledger.record(store.ledger.entryFor(trace, decisionRequest.tenantId));
-
-        const key = decisionRequest.idempotencyKey;
-        if (key) {
-          const claimed = await store.ledger.claim({
-            tenantId: decisionRequest.tenantId,
-            key,
-            requestHash: resolved.hash,
-            decisionId: trace.id,
-            storedAt: new Date().toISOString(),
-          });
-          // The store decides which claim wins under a race; use what comes
-          // back rather than assuming ours landed.
-          if (claimed.decisionId !== trace.id) {
-            const winner = await store.ledger.get(decisionRequest.tenantId, claimed.decisionId);
-            if (winner) {
-              return json(
-                {
-                  id: winner.record.id,
-                  decision: winner.record.decision,
-                  chainHash: winner.record.chainHash,
-                },
-                200,
-                { 'Idempotent-Replay': 'true' }
-              );
-            }
-          }
-        }
-
-        // The shadow runs after the response is built, and is deliberately not
-        // awaited.
-        //
-        // §13 requires the shadow to stay out of the active latency budget, and
-        // the only honest way to do that is not to make the caller wait for it.
-        // Measuring it and subtracting would leave the wall clock unchanged and
-        // the number a fiction. Node keeps running the promise after the
-        // response is returned; what it costs is recorded on the comparison so
-        // it can be read rather than assumed.
-        //
-        // Tracked in `store.shadowInFlight` so tests can wait for quiescence
-        // instead of sleeping — an async mechanism tested with a sleep is a
-        // flake with a timer attached.
-        // The resolved request, not the caller's: a shadow run against different
-        // inputs would report a divergence that is about resolution rather than
-        // about the two versions, which is the one thing it must not do.
-        void runShadow(trace, resolvedRequest);
-
+        const trace = outcome.trace;
         return json({ id: trace.id, decision: trace.decision, chainHash: trace.chainHash });
       }
 
@@ -701,6 +734,100 @@ export async function POST(req: Request, { params }: Ctx) {
         replayedChainHash: result.replayedChainHash,
         diff: result.differences,
       });
+    }
+
+    case 'placements': {
+      // POST /api/placements/{tenantId}/{placementKey}/decisions — fill a slot.
+      //
+      // The same decision `POST /decisions` makes, delivered as a slate. The
+      // caller names a placement rather than a flow, because which flow answers
+      // for a slot is configuration and a website should not be holding it.
+      const [tenantId, placementKey, tail] = rest;
+      if (!tenantId || !placementKey || tail !== 'decisions') return notFound();
+
+      const placement = store.placements.find(
+        (p) => p.key === placementKey && p.active
+      );
+      if (!placement) {
+        return notFound(
+          `No active placement '${placementKey}'. Configured: ${store.placements
+            .filter((p) => p.active)
+            .map((p) => p.key)
+            .sort()
+            .join(', ')}`
+        );
+      }
+
+      const body = (await req.json().catch(() => null)) as { request?: DecisionRequestBody } | null;
+      if (!body?.request) {
+        return json({ error: 'bad_request', message: 'Missing required field: request' }, 400);
+      }
+      if (!body.request.occurredAt) {
+        return json(
+          { error: 'bad_request', message: 'Missing required field: request.occurredAt' },
+          400
+        );
+      }
+      // The path names the slot. A body that names a different one is two
+      // answers to one question, and picking either quietly would put an offer
+      // in a slot the caller did not ask about.
+      if (body.request.placement && body.request.placement !== placementKey) {
+        return json(
+          {
+            error: 'bad_request',
+            message: `Request names placement '${body.request.placement}' and the path names '${placementKey}'.`,
+          },
+          400
+        );
+      }
+
+      const artifact = execArtifacts.find((a) => a.id === placement.artifactId);
+      if (!artifact) {
+        return notFound(
+          `Placement '${placementKey}' is answered by flow '${placement.artifactId}', which is not loaded`
+        );
+      }
+
+      const decisionRequest: DecisionRequest = {
+        tenantId: body.request.tenantId,
+        customerId: body.request.customerId,
+        channel: body.request.channel,
+        placement: placement.key,
+        occurredAt: body.request.occurredAt,
+        input: body.request.input ?? {},
+        contactHistory: body.request.contactHistory,
+        consent: body.request.consent,
+        idempotencyKey: body.request.idempotencyKey,
+        correlationId: body.request.correlationId,
+      };
+
+      const outcome = await decideAndRecord(artifact, decisionRequest);
+      if (outcome.kind === 'error') return outcome.response;
+
+      const record = outcome.kind === 'replay' ? outcome.record : outcome.trace;
+      const slate = selectSlate(record.decision, placement.slotCount);
+
+      // The action key is what the decision names; the offer id is what a site
+      // needs to fetch content. Resolved from the catalogue the engine read, so
+      // the two cannot name different things.
+      const offerByKey = new Map(catalogueSnapshot.offers.map((o) => [o.key, o.id]));
+
+      return json(
+        {
+          placement: placement.key,
+          slotCount: placement.slotCount,
+          decisionId: record.id,
+          chainHash: record.chainHash,
+          entries: slate.entries.map((e) => ({
+            ...e,
+            offerId: offerByKey.get(e.action) ?? null,
+          })),
+          unfilled: slate.unfilled,
+          rankedCount: slate.ranked.length,
+        },
+        200,
+        outcome.kind === 'replay' ? { 'Idempotent-Replay': 'true' } : undefined
+      );
     }
 
     case 'change-sets': {

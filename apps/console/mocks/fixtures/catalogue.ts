@@ -21,6 +21,7 @@ import type {
   AutonomySetting,
   AgentActivity,
   Connector,
+  Placement,
 } from '@metis/core/domain';
 
 /** Fixed clock so timestamps are stable across runs. */
@@ -1399,5 +1400,82 @@ export const users: FixtureUser[] = [
       'admin:settings',
     ],
     tenantId: 'telco-uk',
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Placements
+// ---------------------------------------------------------------------------
+
+/**
+ * The slots a site can ask about, and how many actions each holds.
+ *
+ * `key` is the value a decision request already carries and a web creative
+ * already names, so this configures what existed rather than replacing it.
+ *
+ * Not part of `catalogueSnapshot`: a placement governs delivery, not the
+ * decision, and adding it to what the engine hashes would move every chain
+ * hash to configure something the engine does not read.
+ */
+export const placements: Placement[] = [
+  {
+    id: 'plc_homepage_hero',
+    key: 'homepage_hero',
+    name: 'Homepage hero',
+    description: 'The full-width banner above the fold. One action, unauthenticated traffic.',
+    channel: 'web',
+    slotCount: 1,
+    artifactId: 'inbound-web-offers',
+    active: true,
+    updatedAt: iso(-72),
+    updatedBy: 'marcus.webb@telco.example',
+  },
+  {
+    id: 'plc_homepage_grid',
+    key: 'homepage_grid',
+    name: 'Homepage grid',
+    description: 'Three cards below the hero. The slot that needs a slate rather than a winner.',
+    channel: 'web',
+    slotCount: 3,
+    artifactId: 'next-best-action',
+    active: true,
+    updatedAt: iso(-72),
+    updatedBy: 'marcus.webb@telco.example',
+  },
+  {
+    id: 'plc_account_dashboard_hero',
+    key: 'account_dashboard_hero',
+    name: 'Account dashboard hero',
+    description: 'The signed-in dashboard banner. One action, and the customer is known.',
+    channel: 'web',
+    slotCount: 1,
+    artifactId: 'next-best-action',
+    active: true,
+    updatedAt: iso(-48),
+    updatedBy: 'marcus.webb@telco.example',
+  },
+  {
+    id: 'plc_usage_page_inline',
+    key: 'usage_page_inline',
+    name: 'Usage page inline',
+    description: 'A single cross-sell strip under the usage meter.',
+    channel: 'web',
+    slotCount: 1,
+    artifactId: 'inbound-web-offers',
+    active: true,
+    updatedAt: iso(-48),
+    updatedBy: 'marcus.webb@telco.example',
+  },
+  {
+    id: 'plc_weekly_offers_send',
+    key: 'weekly_offers_send',
+    name: 'Weekly offers email',
+    description: 'The weekly send. Configured, and nothing delivers it yet — W-017.',
+    channel: 'email',
+    slotCount: 2,
+    artifactId: 'next-best-action',
+    active: false,
+    updatedAt: iso(-200),
+    updatedBy: 'priya.nair@telco.example',
   },
 ];

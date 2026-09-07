@@ -108,6 +108,29 @@ W-005's second half.
 
 ---
 
+## Registered 2026-09-07 — a slate is reproducible, and only alongside its placement
+
+`POST /placements/{tenantId}/{key}/decisions` composes a slate from a decision
+by ordering what reached arbitration and taking the placement's `slotCount`.
+Every part of that is in the decision record except the slot count, because a
+`Placement` is deliberately not in the `CatalogueSnapshot` the engine hashes —
+it governs delivery, not the decision, and putting it in the hash would mean
+changing a slot count moved every chain hash.
+
+The consequence: "why did I see two offers rather than three" is answerable from
+the record **plus** the placement as it was configured at the time, and nothing
+version-pins the second half. A slot count edited afterwards leaves the decision
+reproducing exactly and the page not.
+
+Bounded today, because ordering by priority is the whole composition rule and it
+is fully explained by the record. It stops being bounded at W-028: mutual
+exclusion, diversity and inventory are rules that *choose* differently, and a
+slate composed by a rule nobody recorded is not explainable. Those have to land
+in the hashed decision, which is why W-052 shipped the contract and left the
+composition alone.
+
+---
+
 ## Build-system gaps
 
 Not platform APIs, but the same kind of problem: a check that appears to run

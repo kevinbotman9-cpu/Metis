@@ -373,9 +373,11 @@
 
     <div class="slot" data-placement="homepage_hero" id="slot-homepage_hero"></div>
 
-    <h2>Popular right now</h2>
+    <h2>Picked for you</h2>
+    <div class="slot" data-placement="homepage_grid" id="slot-homepage_grid"></div>
+
+    <h2>Helpful things</h2>
     <div class="grid">
-      <div class="slot" data-placement="homepage_grid" id="slot-homepage_grid"></div>
       <article class="card evergreen">
         <h3>Keep your number</h3>
         <p>Switching takes one working day and we handle the transfer.</p>
@@ -385,6 +387,11 @@
         <h3>Coverage checker</h3>
         <p>See what you would actually get at your address before you order.</p>
         <button class="cta ghost">Check my address</button>
+      </article>
+      <article class="card evergreen">
+        <h3>Bills, explained</h3>
+        <p>Every line on your bill, in words rather than codes.</p>
+        <button class="cta ghost">Read the guide</button>
       </article>
     </div>
   </section>
@@ -487,21 +494,25 @@ const API = '/api';
  * the main arbitration flow, which has more candidates and more gates.
  */
 const PLACEMENTS = [
-  { id: 'homepage_hero',          view: 'home',    artifactId: 'inbound-web-offers', render: renderHero },
-  { id: 'homepage_grid',          view: 'home',    artifactId: 'next-best-action',   render: renderCard },
-  { id: 'account_dashboard_hero', view: 'account', artifactId: 'next-best-action',   render: renderHero },
-  { id: 'usage_page_inline',      view: 'account', artifactId: 'inbound-web-offers', render: renderInline },
+  { id: 'homepage_hero',          view: 'home',    render: renderHero },
+  { id: 'homepage_grid',          view: 'home',    render: renderCards },
+  { id: 'account_dashboard_hero', view: 'account', render: renderHero },
+  { id: 'usage_page_inline',      view: 'account', render: renderInline },
 ];
 
 /*
- * Two slots on one page, two flows, on purpose.
+ * The site names slots, not flows.
  *
- * A decision returns one action - slate selection and cardinality are out of
- * scope, and `CAPABILITIES.md` says so. So two placements that ask the same
- * flow about the same customer at the same moment get the same answer back,
- * correctly. A site that wants two different offers on one page asks two
- * different questions, which is what the pairing above does: acquisition in
- * the hero, next best action in the grid.
+ * It used to name both - `artifactId` was configuration this page held, which
+ * is configuration a website has no business holding. Now each placement is
+ * configured in the platform with the flow that answers it and the number of
+ * actions it can hold, and this page asks by name.
+ *
+ * The grid asks for three and gets three, from one decision: every candidate
+ * that reached ranking is in that decision already, so a slate is a projection
+ * of it rather than three decisions that might disagree. Which three is
+ * ordering by priority and nothing else - diversity and mutual exclusion are
+ * W-028, and the panel says as much.
  */
 
 /**
@@ -623,12 +634,10 @@ const money = (p) => (p / 100).toLocaleString('en-GB', { style: 'currency', curr
 
 async function decide(placement) {
   const body = {
-    artifactId: placement.artifactId,
     request: {
       tenantId: TENANT,
       customerId: preset.customerId,
       channel: 'web',
-      placement: placement.id,
       // An input, never the clock on the server: the caller says when.
       occurredAt: new Date().toISOString(),
       input: preset.input,
@@ -649,7 +658,7 @@ async function decide(placement) {
   };
 
   const started = performance.now();
-  const res = await fetch(`${API}/decisions`, {
+  const res = await fetch(`${API}/placements/${TENANT}/${placement.id}/decisions`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
@@ -665,6 +674,13 @@ async function decide(placement) {
     throw err;
   }
   return { ...json, ms };
+}
+
+/** The decision behind a slate. Live decisions resolve from the ledger. */
+async function loadTrace(decisionId) {
+  const res = await fetch(`${API}/decisions/${decisionId}/trace`);
+  if (!res.ok) throw new Error(`Trace ${decisionId}: HTTP ${res.status}`);
+  return (await res.json()).decision;
 }
 
 async function loadOffer(offerId) {
@@ -685,8 +701,9 @@ function creativeFor(creatives, placementId) {
 // ------------------------------------------------------------ rendering ---
 
 function renderHero(slot, r) {
-  if (!r.creative) return slot.replaceChildren(fallbackHero(r));
-  const c = r.creative.content;
+  const first = r.filled?.[0];
+  if (!first?.creative) return slot.replaceChildren(el(`<div>${fallbackReason(r)}</div>`));
+  const c = first.creative.content;
   slot.replaceChildren(el(`
     <div class="hero">
       <div>
@@ -699,21 +716,45 @@ function renderHero(slot, r) {
   `));
 }
 
-function renderCard(slot, r) {
-  if (!r.creative) return slot.replaceChildren(fallbackCard(r));
-  const c = r.creative.content;
-  slot.replaceChildren(el(`
-    <article class="card">
-      <h3>${esc(c.headline)}</h3>
-      <p>${esc(c.subheadline)}</p>
-      <button class="cta">${esc(c.ctaLabel)}</button>
-    </article>
-  `));
+/**
+ * The slot that takes a slate rather than a winner.
+ *
+ * One card per filled slot, in the order ranking put them. A slot the platform
+ * could not fill is left out rather than padded — `unfilled` says how many, and
+ * the panel shows it, because three cards where the platform had two offers
+ * would be the site inventing one.
+ */
+function renderCards(slot, r) {
+  if (!r.filled?.length) return slot.replaceChildren(el(`<div>${fallbackReason(r)}</div>`));
+
+  const grid = el('<div class="grid"></div>');
+  for (const { entry, offer, creative } of r.filled) {
+    if (!creative) {
+      grid.append(el(`
+        <article class="card">
+          <h3>${esc(offer?.name || entry.action)}</h3>
+          <p>Ranked ${entry.rank} for you, and there is no web creative to render it with —
+            the platform has no content library yet (W-015).</p>
+        </article>
+      `));
+      continue;
+    }
+    const c = creative.content;
+    grid.append(el(`
+      <article class="card">
+        <h3>${esc(c.headline)}</h3>
+        <p>${esc(c.subheadline)}</p>
+        <button class="cta">${esc(c.ctaLabel)}</button>
+      </article>
+    `));
+  }
+  slot.replaceChildren(grid);
 }
 
 function renderInline(slot, r) {
-  if (!r.creative) return slot.replaceChildren(fallbackInline(r));
-  const c = r.creative.content;
+  const first = r.filled?.[0];
+  if (!first?.creative) return slot.replaceChildren(el(`<div>${fallbackReason(r)}</div>`));
+  const c = first.creative.content;
   slot.replaceChildren(el(`
     <div class="inline-offer">
       <div class="body">
@@ -726,28 +767,25 @@ function renderInline(slot, r) {
 }
 
 /**
- * What a slot shows when there is no offer to show.
+ * What a slot shows when there is nothing to show in it.
  *
- * Three different things, and the difference matters. Suppressed means the
- * platform decided nothing should go here, and a site shows its own content.
- * No creative means an offer won and there is nothing to render it with, which
- * is a content gap rather than a decision. An error means the platform could
- * not answer, and a site must not pretend it did.
+ * Three different things, and the difference matters. Nothing offered means the
+ * platform decided this slot should stay empty, and a site shows its own
+ * content. No creative means an action won a slot and there is nothing to
+ * render it with, which is a content gap rather than a decision. An error means
+ * the platform could not answer, and a site must not pretend it did.
  */
 function fallbackReason(r) {
   if (r.status === 'error') {
     return `<div class="notice error"><strong>No decision.</strong> ${esc(r.error)}</div>`;
   }
-  if (r.status === 'no-creative') {
-    return `<div class="notice"><strong>${esc(r.offer?.name || r.decision.winner)}</strong> won this slot, and has no web creative for it.
+  const first = r.filled?.[0];
+  if (first && !first.creative) {
+    return `<div class="notice"><strong>${esc(first.offer?.name || first.entry.action)}</strong> won this slot, and has no web creative for it.
       The platform has no content library yet, so there is nothing to render — see W-015.</div>`;
   }
   return `<div class="notice"><strong>Nothing offered here.</strong> Every candidate was refused, so this slot falls back to the site's own content. The panel says which rule refused each one.</div>`;
 }
-
-const fallbackHero = (r) => el(`<div>${fallbackReason(r)}</div>`);
-const fallbackCard = (r) => el(`<div>${fallbackReason(r)}</div>`);
-const fallbackInline = (r) => el(`<div>${fallbackReason(r)}</div>`);
 
 function skeleton(placement) {
   const h = placement.render === renderHero
@@ -759,24 +797,34 @@ function skeleton(placement) {
 // ------------------------------------------------------------ the panel ---
 
 function decisionCard(placement, r) {
-  const won = r.status === 'offer' || r.status === 'no-creative';
+  const filled = r.filled?.length ?? 0;
   const headline = r.status === 'error'
     ? `<span class="err">no decision</span>`
-    : won
-      ? `<span class="won">${esc(r.offer?.name || r.decision.winner)}</span>`
+    : filled
+      ? `<span class="won">${
+          filled === 1
+            ? esc(r.filled[0].offer?.name || r.filled[0].entry.action)
+            : `${filled} of ${r.slate.rankedCount} shown`
+        }</span>`
       : `<span class="none">nothing offered</span>`;
 
   const d = r.decision;
   const details = d ? `
     <dl class="facts">
       <dt>flow</dt><dd>${esc(d.artifactId)}@${esc(d.artifactVersion)}</dd>
-      <dt>decision</dt><dd>${esc(r.id)}</dd>
-      <dt>chain hash</dt><dd>${esc(r.chainHash)}</dd>
+      <dt>slots</dt><dd>${filled} filled, ${r.slate.unfilled} unfilled, of ${r.slate.slotCount}</dd>
+      <dt>slate</dt><dd>${r.slate.entries.map((e) => `${e.rank}. ${esc(e.action)}`).join('  ') || '—'}</dd>
+      <dt>decision</dt><dd>${esc(r.slate.decisionId)}</dd>
+      <dt>chain hash</dt><dd>${esc(r.slate.chainHash)}</dd>
       <dt>input snapshot</dt><dd>${esc(d.inputSnapshotHash)}</dd>
       <dt>catalogue</dt><dd>${esc(d.catalogueSnapshotHash)}</dd>
       <dt>candidates</dt><dd>${d.candidateKeys.map(esc).join(', ')}</dd>
       <dt>round trip</dt><dd>${r.ms.toFixed(1)}ms (browser)</dd>
     </dl>
+
+    <p class="preset-note">Every slot above came from this one decision. Ordering
+      by priority is the whole composition rule today — diversity and mutual
+      exclusion are W-028.</p>
 
     <h3>Where the inputs came from</h3>
     ${d.sourceBindings.length
@@ -839,16 +887,20 @@ async function runPlacement(placement) {
 
   let r;
   try {
-    const res = await decide(placement);
-    r = { status: 'no-offer', decision: res.decision, id: res.id, chainHash: res.chainHash, ms: res.ms };
+    const slate = await decide(placement);
 
-    if (res.decision.winner) {
-      const { offer, creatives } = await loadOffer(res.decision.winnerOfferId);
-      const creative = creativeFor(creatives, placement.id);
-      r.offer = offer;
-      r.creative = creative;
-      r.status = creative ? 'offer' : 'no-creative';
+    // One decision behind every slot, fetched once. The site does not need the
+    // trace to render — it needs it to explain, which is what the panel is.
+    const decision = await loadTrace(slate.decisionId);
+
+    const filled = [];
+    for (const entry of slate.entries) {
+      if (!entry.offerId) continue;
+      const { offer, creatives } = await loadOffer(entry.offerId);
+      filled.push({ entry, offer, creative: creativeFor(creatives, placement.id) });
     }
+
+    r = { status: filled.length ? 'filled' : 'empty', slate, decision, filled, ms: slate.ms };
   } catch (e) {
     r = {
       status: 'error',

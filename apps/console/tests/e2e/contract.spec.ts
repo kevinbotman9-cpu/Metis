@@ -101,10 +101,14 @@ async function resolveParams(api: APIRequestContext, token: string) {
   const changeSets = await json('/api/change-sets');
   const artifacts = await json('/api/artifacts/telco-uk');
   const connectors = await json('/api/connectors/telco-uk');
+  const placements = await json('/api/placements/telco-uk');
 
   return {
     tenantId: 'telco-uk',
     connectorId: connectors.connectors[0].id,
+    // The active one: `decidePlacement` refuses an inactive slot, and a
+    // fixture-ordering change should not turn that into a mystery 404 here.
+    placementKey: placements.placements.find((p: { active: boolean }) => p.active).key,
     offerId: taxonomy.offers[0].id,
     decisionId: decisions.decisions[0].id,
     changeSetId: changeSets.changeSets[0].id,
@@ -144,6 +148,19 @@ const SAFE_TO_CALL: Record<string, unknown | undefined> = {
       customerId: 'cust_contract_test',
       channel: 'web',
       placement: 'account_dashboard_hero',
+      occurredAt: '2026-06-01T12:00:00.000Z',
+      input: { tenureMonths: 24 },
+    },
+  },
+  // Composes a slate from one decision. Writes to the ledger exactly as
+  // executeDecision does — which is to say, appends rather than mutates — so it
+  // is as safe to call here as that is, and asserting its shape is asserting
+  // the contract a website integrates against.
+  decidePlacement: {
+    request: {
+      tenantId: 'telco-uk',
+      customerId: 'cust_contract_slate',
+      channel: 'web',
       occurredAt: '2026-06-01T12:00:00.000Z',
       input: { tenureMonths: 24 },
     },

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { artifacts } from '@/mocks/fixtures/artifacts';
-import { creatives } from '@/mocks/fixtures/catalogue';
+import { creatives, placements } from '@/mocks/fixtures/catalogue';
 
 /**
  * The storefront demo names flows and placements. This asserts they exist.
@@ -22,8 +22,8 @@ const html = fs.readFileSync(
 );
 
 /** The PLACEMENTS table, read out of the page. */
-const declared = [...html.matchAll(/\{\s*id:\s*'([\w-]+)',\s*view:\s*'(\w+)',\s*artifactId:\s*'([\w-]+)'/g)].map(
-  (m) => ({ placement: m[1], view: m[2], artifactId: m[3] })
+const declared = [...html.matchAll(/\{\s*id:\s*'([\w-]+)',\s*view:\s*'(\w+)'/g)].map(
+  (m) => ({ placement: m[1], view: m[2] })
 );
 
 describe('the storefront demo names things that exist', () => {
@@ -34,13 +34,24 @@ describe('the storefront demo names things that exist', () => {
     }
   });
 
-  it('asks flows that exist and are active', () => {
-    for (const { artifactId, placement } of declared) {
-      const flow = artifacts.find((a) => a.id === artifactId);
-      expect(flow, `${placement} asks ${artifactId}, which is not a flow`).toBeDefined();
-      // A draft flow deciding on a live site would be a real defect, not a
-      // cosmetic one: nothing else in the stack stops it.
-      expect(flow?.status, `${placement} asks ${artifactId}, which is ${flow?.status}`).toBe(
+  it('names placements the platform has configured, and active ones', () => {
+    // The page used to carry an `artifactId` per slot — configuration a website
+    // has no business holding. It now names slots only, so this asserts the
+    // slots exist rather than that the page picked the right flow.
+    for (const { placement } of declared) {
+      const configured = placements.find((p) => p.key === placement);
+      expect(configured, `the page asks for ${placement}, which is not configured`).toBeDefined();
+      expect(configured?.active, `${placement} is configured but inactive`).toBe(true);
+    }
+  });
+
+  it('every configured placement is answered by an active flow', () => {
+    // A draft flow deciding on a live site would be a real defect, not a
+    // cosmetic one: nothing else in the stack stops it.
+    for (const p of placements.filter((x) => x.active)) {
+      const flow = artifacts.find((a) => a.id === p.artifactId);
+      expect(flow, `${p.key} names ${p.artifactId}, which is not a flow`).toBeDefined();
+      expect(flow?.status, `${p.key} names ${p.artifactId}, which is ${flow?.status}`).toBe(
         'active'
       );
     }

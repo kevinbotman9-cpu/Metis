@@ -1336,6 +1336,71 @@ components:
         updatedBy:
           type: string
 
+    Placement:
+      type: object
+      description: |
+        A content slot in a customer journey, configured rather than assumed.
+
+        `placement` has been a string on a decision request since the beginning
+        — the engine reads it for the context term and records it. This is that
+        string given a configuration: how many actions the slot holds, and which
+        flow answers for it.
+
+        Not part of the catalogue the engine hashes. A placement governs how a
+        decision is delivered, not what is decided, so changing a slot count
+        moves no chain hash. The consequence is that a slate is reproducible
+        from its decision *plus* the placement that composed it.
+      required:
+        [id, key, name, description, channel, slotCount, artifactId, active,
+         updatedAt, updatedBy]
+      properties:
+        id:
+          type: string
+        key:
+          type: string
+          description: The value a decision request carries, and a creative names.
+        name:
+          type: string
+        description:
+          type: string
+        channel:
+          type: string
+          enum: [email, sms, web, push, outbound_call]
+        slotCount:
+          type: integer
+          minimum: 1
+          description: |
+            At most this many actions. A hero is 1, a grid is 3. The decision is
+            the same either way; this governs how much of the ranking the caller
+            is given.
+        artifactId:
+          type: string
+        active:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+
+    SlateEntry:
+      type: object
+      description: One filled slot.
+      required: [rank, action, priority]
+      properties:
+        rank:
+          type: integer
+          minimum: 1
+        action:
+          type: string
+          description: The action key, as the decision named it.
+        priority:
+          type: number
+          description: The priority ranking gave it — the same number that chose the winner.
+        offerId:
+          type: [string, 'null']
+          description: The offer this action belongs to, resolved from the catalogue.
+
     SourceBinding:
       type: object
       description: Which connector supplied a field. Reproducible; part of the hashed decision.
@@ -2282,6 +2347,143 @@ paths:
                       $ref: '#/components/schemas/AuditEvent'
                   total:
                     type: integer
+
+  # ---------------------------------------------------------------------------
+  # Placements — the slots a site asks about
+  # ---------------------------------------------------------------------------
+  /placements/{tenantId}:
+    get:
+      summary: Configured placements
+      operationId: listPlacements
+      x-metis-status: built
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Placements
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [placements]
+                properties:
+                  placements:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Placement'
+
+  /placements/{tenantId}/{placementKey}/decisions:
+    post:
+      summary: Decide what fills a placement
+      operationId: decidePlacement
+      x-metis-status: built
+      description: |
+        The same decision `executeDecision` makes, delivered as a slate.
+
+        A decision names one winner. A placement has slots, and a page with six
+        of them cannot be filled by six decisions that each say the same thing.
+        So this returns the ranked candidates, as many as the placement's
+        `slotCount` allows.
+
+        **The slate is a projection of one decision, not several.** Every
+        candidate that reached ranking is already in the record with its
+        priority, and the ones that lost are recorded as `NOT_RANKED`. So this
+        operation executes once, composes from the result, and returns the
+        `decisionId` — the trace behind every slot is the same trace, and
+        `entries[0]` is always that decision's own winner.
+
+        Ordering by priority is the whole composition rule today. Cardinality,
+        mutual exclusion and diversity are W-028, and when they land they will
+        have to be part of the hashed decision, because a slate composed by a
+        rule nobody recorded is not explainable.
+
+        The caller names a placement, not a flow: which flow answers is
+        configuration, not something a website should hold.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: placementKey
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [request]
+              properties:
+                request:
+                  type: object
+                  required: [tenantId, customerId, channel, occurredAt, input]
+                  description: |
+                    As `executeDecision`, minus `placement`, which the path
+                    already names. Supplying a different one is a 400 rather
+                    than a silent preference for one of them.
+                  properties:
+                    tenantId: { type: string }
+                    customerId: { type: string }
+                    channel: { type: string }
+                    occurredAt:
+                      type: string
+                      format: date-time
+                      description: An input, never the clock.
+                    input:
+                      type: object
+                    contactHistory:
+                      type: object
+                    consent:
+                      type: object
+                    idempotencyKey:
+                      type: string
+                    correlationId:
+                      type: string
+      responses:
+        '200':
+          description: |
+            The slate, and the decision it came from. `unfilled` is stated
+            rather than padded: a placement asking for three where two
+            candidates survived gets two and a count, because the honest answer
+            to "we have nothing else" is not a third-best offer that failed a
+            gate.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  [placement, slotCount, decisionId, chainHash, entries,
+                   unfilled, rankedCount]
+                properties:
+                  placement:
+                    type: string
+                  slotCount:
+                    type: integer
+                  decisionId:
+                    type: string
+                    description: One decision behind every slot. Its trace explains all of them.
+                  chainHash:
+                    type: string
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SlateEntry'
+                  unfilled:
+                    type: integer
+                    description: Slots no surviving candidate could fill.
+                  rankedCount:
+                    type: integer
+                    description: |
+                      How many candidates reached ranking, so a caller can say
+                      "3 of 5 shown" rather than implying it saw everything.
+        '400':
+          description: Malformed request, or a `placement` in the body that contradicts the path
+        '404':
+          description: No such placement, or its flow is not loaded
+        '409':
+          description: The idempotency key was already used for a different request
+        '503':
+          description: A connector the flow requires could not be read
 
   /connectors/{tenantId}:
     get:

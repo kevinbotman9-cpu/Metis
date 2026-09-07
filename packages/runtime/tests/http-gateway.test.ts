@@ -25,7 +25,11 @@ const connector = (over: Partial<Connector> & { id: string }): Connector => ({
   description: '',
   target: 'https://bureau.example/v1/file',
   declaredP95Ms: 20,
-  timeoutMs: 100,
+  // Generous on purpose. Only `aborts at the declared timeout` is about the
+  // clock, and it names its own; every other test here would otherwise fail
+  // whenever the full suite loads the machine enough to lose a localhost round
+  // trip to 100ms — which it did, twice in three runs.
+  timeoutMs: 5000,
   onFailure: 'fail',
   cacheTtlSeconds: 0,
   provides: [{ field: 'creditScore', path: 'file.score', type: 'number' }],
