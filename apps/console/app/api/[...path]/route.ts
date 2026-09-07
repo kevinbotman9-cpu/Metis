@@ -34,6 +34,11 @@ import type { OutcomeType } from '@metis/ledger';
 import type { Creative, Offer } from '@metis/core/domain';
 import { validateCreativeContent, offerMayBeActive } from '@metis/core/creative';
 import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
+import {
+  currentCatalogue,
+  catalogueByHash,
+  registerCatalogue,
+} from '@/mocks/catalogue-state';
 import { compilations, findCompilation, compileContext } from '@/mocks/fixtures/compiled';
 import type { DecisionFlowSource } from '@metis/compiler/decision-flow';
 import {
@@ -63,6 +68,17 @@ type Ctx = { params: Promise<{ path: string[] }> };
  * Module scope so the cache outlives a request, which is the only way a
  * `cacheTtlSeconds` of 300 means anything.
  */
+/**
+ * The fixture catalogue, registered so history stays replayable.
+ *
+ * The 5,000 generated decisions were made against it at import time and their
+ * records name its hash. Replay now looks a catalogue up rather than assuming
+ * one, so without this every seeded decision would answer 409 — the console's
+ * entire decision history, unreplayable, on the surface whose whole claim is
+ * that it never is.
+ */
+registerCatalogue(catalogueSnapshot);
+
 const integrationGateway: IntegrationGateway =
   process.env.METIS_INTEGRATIONS === 'live'
     ? new HttpIntegrationGateway({ cache: new MemoryIntegrationCache() })
@@ -101,7 +117,13 @@ async function runShadow(active: DecisionRecord, request: DecisionRequest): Prom
       const shadowArtifact: ExecArtifact = published.artifact;
 
       const started = performance.now();
-      const shadow = executeDecision(shadowArtifact, catalogueSnapshot, request);
+      // The catalogue the active decision used, looked up by the hash it
+      // recorded — not the current one. A shadow compared against a catalogue
+      // edited since would report a divergence that is about the edit rather
+      // than about the two versions, which is the one thing it must not do.
+      const catalogue =
+        catalogueByHash(active.decision.catalogueSnapshotHash) ?? currentCatalogue();
+      const shadow = executeDecision(shadowArtifact, catalogue, request);
       const shadowMs = performance.now() - started;
 
       store.shadowComparisons.push(
@@ -246,18 +268,18 @@ async function decideAndRecord(
   // the idempotency check — a retry that is going to be answered from the
   // ledger must not pay for a bureau call first.
   //
-  // Against `catalogueSnapshot.connectors` rather than `store.connectors`
-  // on purpose. The engine records which connector supplied which field
-  // from the catalogue it hashes; resolving from a different copy would
-  // let provenance and resolution disagree about whether a connector was
-  // active. That the console's toggle writes to a store neither of them
-  // reads is W-005's open decision, unchanged by this and registered in
-  // docs/gaps.md.
+  // One catalogue for the whole decision: the connectors resolution dials, the
+  // policies the engine applies, and the hash the record carries all come from
+  // the same object. The comment this replaces protected that invariant by
+  // reading the fixture in both places, which kept them consistent and kept
+  // the console's writes out of both.
+  const catalogue = currentCatalogue();
+
   let resolvedInputs;
   try {
     resolvedInputs = await resolveInputs(
       artifact,
-      catalogueSnapshot.connectors ?? [],
+      catalogue.connectors ?? [],
       decisionRequest,
       integrationGateway
     );
@@ -286,7 +308,7 @@ async function decideAndRecord(
   // 60 service cases carry theirs, which is why they still hash the same.
   const resolvedRequest = { ...decisionRequest, input: resolvedInputs.input };
 
-  const trace = executeDecision(artifact, catalogueSnapshot, resolvedRequest);
+  const trace = executeDecision(artifact, catalogue, resolvedRequest);
 
   // Measured, never hashed, and absent from a replay: what the wire cost
   // is not part of what was decided.
@@ -1015,7 +1037,27 @@ async function handlePost(req: Request, { params }: Ctx) {
         contactHistory = body.contactHistory;
       }
 
-      const result = replayDecision(artifact, catalogueSnapshot, trace, input, contactHistory);
+      // The catalogue the decision was made against, by the hash it recorded.
+      // Now that the catalogue is editable this is the difference between a
+      // replay and a re-decision: today's catalogue would answer a question
+      // nobody asked, and would do it while reporting "identical" or a
+      // difference that is really an edit.
+      const decidedAgainst = catalogueByHash(trace.decision.catalogueSnapshotHash);
+      if (!decidedAgainst) {
+        return json(
+          {
+            error: 'catalogue_unavailable',
+            message:
+              `This decision was made against catalogue ${trace.decision.catalogueSnapshotHash.slice(0, 12)}, ` +
+              'which this instance no longer holds. Replaying against a different catalogue would ' +
+              'answer a different question, so it is refused rather than approximated.',
+            catalogueSnapshotHash: trace.decision.catalogueSnapshotHash,
+          },
+          409
+        );
+      }
+
+      const result = replayDecision(artifact, decidedAgainst, trace, input, contactHistory);
 
       return json({
         identical: result.identical,
@@ -1118,7 +1160,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       // The action key is what the decision names; the offer id is what a site
       // needs to fetch content. Resolved from the catalogue the engine read, so
       // the two cannot name different things.
-      const offerByKey = new Map(catalogueSnapshot.offers.map((o) => [o.key, o.id]));
+      const offerByKey = new Map(currentCatalogue().offers.map((o) => [o.key, o.id]));
 
       return json(
         {

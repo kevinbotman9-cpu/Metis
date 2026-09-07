@@ -542,3 +542,43 @@ So the suppression is not a rough edge to smooth. It is the FCA-facing tier
 doing the thing the tier exists for, on the surface where a buyer can see it.
 Anyone tempted to make this preset "work" should change what the demo
 demonstrates deliberately, not quietly.
+
+---
+
+## Updated 2026-09-07 — W-005 half closed: the engine reads what the console writes
+
+The catalogue half is done. Live decisions build their `CatalogueSnapshot` from
+`store.*` rather than from the fixture modules, so arbitration weights, boosts,
+targeting policies, frequency caps, offers and connector activation now reach
+the engine.
+
+It was verified as broken before it was fixed, because the failure had a fully
+green path: `PUT /arbitration` answered 200, persisted, audited, and updated the
+formula the screen renders — and the next decision came back byte-identical.
+`fixtures/engine.ts` carried a comment claiming the opposite was true.
+
+**What came with it, necessarily.** A `DecisionRecord` keeps
+`catalogueSnapshotHash` and never the catalogue. Once the catalogue is editable,
+replay has to fetch the one the decision names or it answers a different
+question. `mocks/catalogue-state.ts` keeps every distinct catalogue by hash and
+`POST /decisions/{id}/replay` returns **409 `catalogue_unavailable`** rather
+than replaying against a substitute. The fixture catalogue is registered at
+startup so the 5,000 seeded decisions stay replayable.
+
+**Still open, and this is the remaining half of W-005:**
+
+- **Creating an offer still does not make it decidable.** A flow's candidate set
+  is `candidateKeys` on the artifact — a fixed list — so a new offer is not a
+  candidate until a flow names it. Editing an *existing* offer now does affect
+  decisions; creating a new one does not. Closing this needs flow authoring, not
+  more catalogue work.
+- **Flows, policies, frequency caps, boosts and the taxonomy are still FIXTURE
+  for create and edit.** The engine now reads the store; the console still has
+  no screen that writes to most of it.
+- **Replay of a live decision is not byte-identical**, and this is unchanged and
+  unrelated: resolution adds connector fields (`marketingConsent`,
+  `profilingConsent`) that a replay caller cannot reconstruct, so the only diff
+  is `$.inputSnapshotHash`. Seeded decisions, whose inputs are baked in, replay
+  `identical: true`.
+
+See `docs/review/PLATFORM_DIRECTION.md` for what this unblocks and in what order.

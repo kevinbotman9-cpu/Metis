@@ -8,11 +8,26 @@
  *   - the elimination cascade shown in the console is the cascade that really
  *     happened, not prose written to look like one;
  *   - the console's Replay button re-executes the engine and compares chain
- *     hashes, rather than returning a hardcoded "identical";
- *   - a change to a policy or boost changes the decisions, because the engine
- *     is reading the same catalogue the UI edits.
+ *     hashes, rather than returning a hardcoded "identical".
  *
  * Generation is deterministic, so the set is byte-identical on every reload.
+ *
+ * ## What `catalogueSnapshot` here is, and is not
+ *
+ * It is the catalogue *these fixture decisions were made against*, frozen at
+ * import. It is deliberately not what live decisions use.
+ *
+ * This comment used to claim a third thing: "a change to a policy or boost
+ * changes the decisions, because the engine is reading the same catalogue the
+ * UI edits." That was false for as long as it stood. The console writes to
+ * `store.*`, which is seeded from these modules and is a separate mutable
+ * copy, so publishing arbitration weights persisted, audited, updated the
+ * formula on screen, and changed no decision.
+ *
+ * Live decisions now build their catalogue from the store — see
+ * `mocks/catalogue-state.ts`. This snapshot stays frozen on purpose: the 5,000
+ * decisions below name its hash, and a snapshot that moved under them would
+ * make the console's entire decision history unreplayable.
  */
 
 import { execute } from '@metis/runtime/deterministic/engine';
