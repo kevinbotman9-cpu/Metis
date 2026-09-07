@@ -53,6 +53,7 @@ test.describe('the decision ledger', () => {
   });
 
   test.describe('outcomes', () => {
+    // covers: recordOutcome
     test('attach to a decision and come back in the order they arrived', async ({ request }) => {
       const made = await decide(request, body({ customerId: `c-out-${Date.now()}` }));
       const id = made.json.id;

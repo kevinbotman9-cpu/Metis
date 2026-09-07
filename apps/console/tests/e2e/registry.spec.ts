@@ -42,6 +42,7 @@ test.describe('the compilation gate', () => {
     ).toBeVisible();
   });
 
+  // covers: publishArtifact
   test('a flow that compiles is published and running', async ({ page }) => {
     await page.goto(`/decision-flows/${PUBLISHED}`);
 
@@ -65,6 +66,7 @@ test.describe('promotion and rollback', () => {
     await page.goto(`/decision-flows/${PUBLISHED}`);
   });
 
+  // covers: promoteVersion
   test('promoting to an environment is recorded', async ({ page }) => {
     await page.getByRole('button', { name: 'Promote to staging' }).first().click();
 
@@ -81,6 +83,7 @@ test.describe('promotion and rollback', () => {
     await expect(page.getByRole('button', { name: 'Roll back' })).toHaveCount(0);
   });
 
+  // covers: rollbackVersion
   test('rollback appears once an environment has a predecessor, and works', async ({ page, request }) => {
     // The seed promotes one version per flow, so a second has to be promoted
     // to reach the state rollback exists for. Doing it through the

@@ -168,34 +168,38 @@ const SAFE_TO_CALL: Record<string, unknown | undefined> = {
 };
 
 /**
- * Operations that do mutate, each already covered by a suite that resets the
- * store afterwards. This list is explicit on purpose: an operation that is
- * neither callable here nor named here fails, rather than quietly skipping.
- * That is what stops a `proposed` marker being dropped without anyone noticing.
+ * Operations that mutate, each naming the suite that covers it.
+ *
+ * A set of bare ids was an unchecked promise, and it hid a real defect:
+ * `createOffer` was named here, no suite called it, and the operation was not
+ * served at all — a built operation returning 404 with every check agreeing
+ * that was fine. Naming the file is not enough either, because most of these
+ * are driven through the UI and never mention the operation by name.
+ *
+ * So the claim is explicit on both sides. An entry here names a spec file, and
+ * that file must carry `covers: <operationId>` in a comment on the test that
+ * exercises it. Two greppable halves that have to agree, which is the cheapest
+ * honest version of "another suite covers this".
  */
-const COVERED_BY_WRITE_SUITES = new Set([
-  'updateConnector',
+const COVERED_BY_WRITE_SUITES: Record<string, string> = {
+  updateConnector: 'integrations.spec.ts',
   // Appends to the decision ledger, so it cannot be called speculatively here
-  // against an arbitrary decision id. ledger.spec.ts covers it, including the
-  // 404 for a decision nobody made and the required occurredAt.
-  'recordOutcome',
-  // Changes what runs in production beside the active version. shadow.spec.ts
-  // covers it, including the refusal to shadow a version against itself and
-  // the permission gate.
-  'setShadow',
-  // Registry writes: publishing, promoting and rolling back all mutate the
-  // registry, and registry.spec.ts covers them with the reset discipline.
-  'publishArtifact',
-  'promoteVersion',
-  'rollbackVersion',
-  'createOffer',
-  'updateOffer',
-  'updateArbitrationConfig',
-  'updateAutonomySetting',
-  'createChangeSet',
-  'approveChangeSet',
-  'rejectChangeSet',
-]);
+  // against an arbitrary decision id.
+  recordOutcome: 'ledger.spec.ts',
+  // Changes what runs in production beside the active version.
+  setShadow: 'shadow.spec.ts',
+  // Registry writes, covered with the reset discipline.
+  publishArtifact: 'registry.spec.ts',
+  promoteVersion: 'registry.spec.ts',
+  rollbackVersion: 'registry.spec.ts',
+  createOffer: 'permissions-and-writes.spec.ts',
+  updateOffer: 'permissions-and-writes.spec.ts',
+  updateArbitrationConfig: 'permissions-and-writes.spec.ts',
+  updateAutonomySetting: 'permissions-and-writes.spec.ts',
+  createChangeSet: 'permissions-and-writes.spec.ts',
+  approveChangeSet: 'permissions-and-writes.spec.ts',
+  rejectChangeSet: 'permissions-and-writes.spec.ts',
+};
 
 test.describe('OpenAPI contract', () => {
   let token: string;
@@ -226,12 +230,36 @@ test.describe('OpenAPI contract', () => {
     expect(BUILT.length).toBeGreaterThan(OPERATIONS.length / 2);
   });
 
+  test('the write suites cover what this list claims they cover', () => {
+    // An exemption nothing checks is a place for a defect to hide, which is
+    // what it was. Each entry claims a file; the file has to say so back.
+    const missing: string[] = [];
+
+    for (const [id, file] of Object.entries(COVERED_BY_WRITE_SUITES)) {
+      const full = path.join(__dirname, file);
+      if (!fs.existsSync(full)) {
+        missing.push(`${id}: ${file} does not exist`);
+        continue;
+      }
+      if (!fs.readFileSync(full, 'utf8').includes(`covers: ${id}`)) {
+        missing.push(`${id}: ${file} carries no \`covers: ${id}\` marker`);
+      }
+    }
+
+    expect(
+      missing,
+      'These are exempted from the contract assertion as covered elsewhere. ' +
+        'Put a `covers: <operationId>` comment on the test that exercises each, ' +
+        'or stop claiming it is covered.'
+    ).toEqual([]);
+  });
+
   test('every built operation is either callable here or named as covered', () => {
     const unclassified = BUILT.filter(
       (op) =>
         op.method !== 'GET' &&
         !(op.id in SAFE_TO_CALL) &&
-        !COVERED_BY_WRITE_SUITES.has(op.id)
+        !(op.id in COVERED_BY_WRITE_SUITES)
     ).map((op) => op.id);
 
     expect(

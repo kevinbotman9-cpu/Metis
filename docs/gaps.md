@@ -131,6 +131,35 @@ composition alone.
 
 ---
 
+## Registered 2026-09-07 — a created offer cannot be decided, for two reasons
+
+Attempted end to end: created `upsell_speed_boost` through `createOffer`, saw it
+in `/offers` and on its detail page with the right empty states, then asked for a
+decision. It appears nowhere in the trace, and the catalogue snapshot hash is
+unchanged from before it existed.
+
+Two independent causes, and fixing either alone changes nothing.
+
+1. **The engine reads a different catalogue.** `catalogueSnapshot` is built from
+   the fixture modules; `createOffer` writes to `store.offers`. This is the entry
+   above about arbitration weights, reached from the other end — W-005's second
+   half.
+2. **A flow's candidate set is a fixed list.** `candidateKeys` on the artifact
+   names four keys, and a new offer is in none of them. Even with one catalogue,
+   an offer is only decidable once a flow names it, and the canvas is read-only
+   (W-024) with no other way to edit the set.
+
+So the console can author an offer and cannot make it live, and the second half
+of that is not visible anywhere in the UI — `/offers` shows the offer as `active`
+and flags only that it has no creative. "Active" here means the catalogue row
+says active, not that any flow can select it.
+
+Worth stating plainly because it is the first thing a buyer tries. The demo
+answer today is that authoring is real, storage is real, audit is real, and the
+path from a new offer to a decision runs through a fixture edit and a redeploy.
+
+---
+
 ## Build-system gaps
 
 Not platform APIs, but the same kind of problem: a check that appears to run

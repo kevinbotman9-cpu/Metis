@@ -30,6 +30,7 @@ import type { IntegrationGateway } from '@metis/runtime';
 import { RecordedIntegrationGateway } from '@/mocks/gateway';
 import type { DecisionRecord } from '@metis/runtime';
 import type { OutcomeType } from '@metis/ledger';
+import type { Offer } from '@metis/core/domain';
 import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
 import { compilations, findCompilation, compileContext } from '@/mocks/fixtures/compiled';
 import type { DecisionFlowSource } from '@metis/compiler/decision-flow';
@@ -629,6 +630,89 @@ export async function POST(req: Request, { params }: Ctx) {
         return json({ error: 'not_found', message: (e as Error).message }, 404);
       }
       return json(event, 201);
+    }
+
+    case 'offers': {
+      // POST /api/offers/{tenantId} — create an offer.
+      //
+      // Declared in the spec since it was written and served by nothing: the
+      // contract suite exempts it as "covered by a write suite" and no write
+      // suite covered it, so a built operation returned 404 and every check
+      // agreed that was fine. Found by attempting it.
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
+
+      const body = (await req.json().catch(() => null)) as Partial<Offer> | null;
+      if (!body) return json({ error: 'bad_request', message: 'Request body must be JSON' }, 400);
+
+      // Named rather than defaulted. An offer that a caller half-described and
+      // the platform quietly completed is an offer nobody authored.
+      const missing = (['key', 'name', 'categoryId', 'objectiveId'] as const).filter(
+        (f) => !body[f]
+      );
+      if (missing.length) {
+        return json(
+          { error: 'bad_request', message: `Missing required field(s): ${missing.join(', ')}` },
+          400
+        );
+      }
+
+      // The key is the action a decision names, so a duplicate would make two
+      // offers indistinguishable in every trace ever written. `packages/
+      // catalogue` enforces this with a unique index; here it is a check.
+      if (store.offers.some((p) => p.key === body.key)) {
+        return json(
+          { error: 'conflict', message: `An offer already uses the key '${body.key}'.` },
+          409
+        );
+      }
+      if (!store.categories.some((c) => c.id === body.categoryId)) {
+        return json(
+          { error: 'bad_request', message: `No category '${body.categoryId}'.` },
+          400
+        );
+      }
+
+      const now = new Date().toISOString();
+      const offer: Offer = {
+        // Content-addressed ids are for decisions; a catalogue entity is named
+        // by its key, which is the thing that has to stay stable.
+        id: `prop_${body.key}`,
+        key: body.key as string,
+        name: body.name as string,
+        description: body.description ?? '',
+        categoryId: body.categoryId as string,
+        objectiveId: body.objectiveId as string,
+        // Draft unless the caller says otherwise. An offer that went live the
+        // moment it was created would skip every review the platform has.
+        status: body.status ?? 'draft',
+        financials: body.financials ?? {
+          price: { amount: 0, currency: 'GBP' },
+          cost: { amount: 0, currency: 'GBP' },
+          expectedMargin: { amount: 0, currency: 'GBP' },
+          termMonths: 0,
+          oneOff: false,
+        },
+        validity: body.validity ?? { startsAt: now.slice(0, 10), endsAt: null },
+        boost: body.boost ?? 1,
+        policyIds: body.policyIds ?? [],
+        creativeIds: body.creativeIds ?? [],
+        tags: body.tags ?? [],
+        createdAt: now,
+        updatedAt: now,
+        updatedBy: user.email,
+      };
+
+      store.offers.push(offer);
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'OfferCreated',
+        scope: offer.id,
+        summary: `Created ${offer.name} (${offer.key}), status ${offer.status}.`,
+      });
+      return json(offer, 201);
     }
 
     case 'decisions': {

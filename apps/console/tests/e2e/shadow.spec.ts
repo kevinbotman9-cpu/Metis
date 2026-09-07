@@ -79,6 +79,7 @@ test.describe('shadow mode', () => {
     expect(r.shadowVersion).toBeNull();
   });
 
+  // covers: setShadow
   test('a shadow does not change what is active', async ({ request }) => {
     const before = await (
       await request.get(`/api/registry/${TENANT}/${FLOW}`, { headers: auth(token) })

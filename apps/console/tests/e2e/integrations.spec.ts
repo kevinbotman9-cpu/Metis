@@ -37,6 +37,7 @@ test.describe('integrations', () => {
 
   test('deactivating a connector persists and is audited', async ({ page }) => {
     const row = page.getByRole('row').filter({ hasText: 'Network usage' });
+    // covers: updateConnector
     await row.getByRole('button', { name: 'Deactivate' }).click();
     await expect(row.getByText('Inactive')).toBeVisible();
 
