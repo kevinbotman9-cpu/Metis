@@ -186,46 +186,6 @@
   --shadow-lg: 0 16px 40px -12px rgb(0 0 0 / 0.85), 0 0 0 1px rgb(255 255 255 / 0.05);
 }
 
-/* Follow the OS only when the user has not chosen explicitly. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']):not([data-theme='dark']) {
-    --n-50: 13 17 24;
-    --n-100: 17 23 33;
-    --n-150: 22 29 40;
-    --n-200: 30 39 52;
-    --n-300: 45 57 74;
-    --n-400: 71 86 107;
-    --n-500: 113 129 152;
-    --n-600: 153 167 186;
-    --n-700: 191 202 216;
-    --n-800: 223 230 238;
-    --n-900: 243 246 250;
-
-    --page: var(--n-50);
-    --surface: var(--n-100);
-    --surface-raised: var(--n-150);
-    --surface-sunken: var(--n-200);
-    --border: var(--n-300);
-    --border-strong: var(--n-400);
-    --text: var(--n-900);
-    --text-muted: var(--n-700);
-    --text-subtle: var(--n-600);
-    --accent: 79 209 185;
-    --accent-hover: 111 220 199;
-    --accent-subtle: 18 49 44;
-    --on-accent: 13 17 24;
-    --on-block: 13 17 24;
-    --pass: 74 190 133;
-    --pass-subtle: 18 46 35;
-    --block: 240 120 120;
-    --block-subtle: 60 26 26;
-    --hold: 226 168 62;
-    --hold-subtle: 56 41 12;
-    --info: 118 168 226;
-    --info-subtle: 22 38 58;
-  }
-}
-
 * {
   box-sizing: border-box;
 }
