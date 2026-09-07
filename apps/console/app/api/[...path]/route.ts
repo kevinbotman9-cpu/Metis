@@ -22,6 +22,8 @@ import {
   buildShadowReport,
   resolveInputs,
   selectSlate,
+  resolveAggregations,
+  mergeAggregations,
   IntegrationError,
   HttpIntegrationGateway,
   MemoryIntegrationCache,
@@ -359,9 +361,21 @@ async function decideAndRecord(
     throw e;
   }
 
+  // Rollups over child records, computed after connectors and before the
+  // engine. They enter the hashed input as ordinary numbers, so the value a
+  // decision saw is part of what was decided and replay stays exact.
+  //
+  // An absent collection produces nothing rather than zero — `active_count`
+  // of 0 would make `active_count < 2` true and send an offer to somebody
+  // whose accounts were never loaded. `unresolved` carries the difference.
+  const rolled = resolveAggregations(store.profileSchema, resolvedInputs.input);
+
   // Fields the caller supplied win, which `resolveInputs` guarantees; the
   // 60 service cases carry theirs, which is why they still hash the same.
-  const resolvedRequest = { ...decisionRequest, input: resolvedInputs.input };
+  const resolvedRequest = {
+    ...decisionRequest,
+    input: mergeAggregations(resolvedInputs.input, rolled.values),
+  };
 
   const trace = executeDecision(artifact, catalogue, resolvedRequest);
 

@@ -617,3 +617,26 @@ served and browsable at `/data-model`; editing it is the next surface owed.
 **Not yet resolved by any of this:** creating an offer still does not make it
 decidable, because a flow's candidate set is a fixed `candidateKeys` list. That
 needs flow authoring.
+
+---
+
+## Registered 2026-09-07 — creating a policy does not make it apply
+
+Found while wiring rollups into a decision, by writing a test that assumed
+otherwise and watching it fail.
+
+The engine evaluates only the policies a flow node names in `policyIds`. A
+policy created through `POST /targeting-policies` is stored, is audited, and
+reaches the catalogue the engine reads — and is then evaluated by nothing,
+because no node references it.
+
+This is the same shape as `candidateKeys` for offers, and it has the same fix:
+flow authoring. Until then the write path is real and the effect is not, which
+is precisely the class of defect this codebase keeps finding, so it is held by
+an assertion rather than left to be discovered in a demonstration —
+`aggregation-decision.test.ts`, "a policy nobody attached". That test creates a
+policy that would refuse every candidate and asserts the candidates survive.
+When flow authoring lands it should become the opposite assertion.
+
+**What does work today:** editing an existing policy that a node already names.
+That reaches the engine, and the rollup tests use it.

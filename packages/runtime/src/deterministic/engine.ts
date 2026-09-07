@@ -47,8 +47,15 @@ import type {
 // Policy evaluation
 // ---------------------------------------------------------------------------
 
-/** Read a dotted path such as "customer.age" out of the request input. */
-function readPath(input: Record<string, unknown>, path: string): unknown {
+/**
+ * Read a dotted path such as "customer.age" out of the request input.
+ *
+ * Exported because aggregation resolution walks the same paths before the core
+ * runs, and two implementations of "what does this path mean" would eventually
+ * disagree about something like a null intermediate — which is the kind of
+ * difference that shows up as an unexplainable decision rather than an error.
+ */
+export function readPath(input: Record<string, unknown>, path: string): unknown {
   return path
     .split('.')
     .reduce<unknown>(
@@ -60,7 +67,12 @@ function readPath(input: Record<string, unknown>, path: string): unknown {
     );
 }
 
-function compare(actual: unknown, operator: PolicyCondition['operator'], expected: unknown): boolean {
+/**
+ * Compare one value. Exported for the same reason as `readPath`: an
+ * aggregation's `where` filter and a policy condition must mean the same thing
+ * by the same code, or a rollup could count a record a policy would reject.
+ */
+export function compare(actual: unknown, operator: PolicyCondition['operator'], expected: unknown): boolean {
   switch (operator) {
     case 'exists':
       return actual !== undefined && actual !== null;
