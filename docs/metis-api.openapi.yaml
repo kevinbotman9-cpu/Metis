@@ -2258,23 +2258,68 @@ paths:
     post:
       summary: Re-execute a historical decision and compare it to the original
       operationId: replayDecision
+      description: |
+        Re-execute a decision against its recorded artifact and the catalogue,
+        and compare the chain hashes.
+
+        **The caller supplies the inputs.** A decision record holds
+        `inputSnapshotHash` and not the values behind it, on purpose: a trace can
+        then be kept for as long as an audit needs without keeping the customer
+        data it was made from. So replaying a decision the platform did not seed
+        means handing back the input it was made with, and the engine refuses
+        anything that does not hash to the recorded snapshot — which is the
+        check that will matter when the feature service lands and replay must
+        read a snapshot rather than the live store.
+
+        Seeded decisions carry their request alongside them, so they replay with
+        no body. Everything else needs one, and says so rather than reporting a
+        divergence that is really a missing argument.
       parameters:
         - name: decisionId
           in: path
           required: true
           schema:
             type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                input:
+                  type: object
+                  description: The decision's original input, exactly as it was.
+                contactHistory:
+                  type: object
       responses:
         '200':
           description: |
             The replay outcome. `identical` is the claim the platform is making;
-            when it is false, `diff` says exactly where reproduction broke.
+            when it is false, `diff` says exactly where reproduction broke — and
+            a `$.inputSnapshotHash` difference means the inputs were wrong, not
+            that the engine drifted.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReplayResult'
         '404':
           description: No such decision
+        '422':
+          description: |
+            The decision is recorded and its inputs are not, because the
+            platform does not retain them. Supply `input` to replay it.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, message]
+                properties:
+                  error:
+                    type: string
+                    enum: [input_required]
+                  message:
+                    type: string
 
   # ---------------------------------------------------------------------------
   # Governance

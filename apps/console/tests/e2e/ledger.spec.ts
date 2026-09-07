@@ -43,6 +43,87 @@ test.describe('the decision ledger', () => {
     expect(trace.chainHash).toBe(made.json.chainHash);
   });
 
+  /**
+   * Every field the flow's connectors would otherwise supply.
+   *
+   * Resolution runs before the engine and the caller's fields win, so a request
+   * carrying all of them is resolved to itself — which makes the recorded
+   * `inputSnapshotHash` reconstructible by the caller. That is the whole
+   * condition under which a live decision can be replayed today, and it is why
+   * these are written out rather than left to the platform.
+   */
+  const RESOLVED = {
+    monthlySpend: 4200,
+    arrearsDays: 0,
+    inGoodStanding: true,
+    dataUsageGb: 42.5,
+    roamingDays: 3,
+    tenureMonths: 26,
+    marketingConsent: true,
+    profilingConsent: true,
+  };
+
+  test('a decision made now can be replayed, given the inputs back', async ({ request }) => {
+    // Replay was seeded-decisions-only: the route looked in the fixture corpus
+    // and nowhere else, so a decision the platform had just made was a 404.
+    //
+    // The reason it needs a body is the interesting half. A record holds
+    // `inputSnapshotHash` and never the values, so a trace can be kept for as
+    // long as an audit needs without keeping the customer data it was made
+    // from. Replaying one is therefore the caller handing the input back, and
+    // the engine proving it is the same input.
+    const input = { customer: { age: 41 }, ...RESOLVED };
+    const made = await decide(request, body({ customerId: 'cust_replay_live', input }));
+    expect(made.status).toBe(200);
+
+    const withoutInput = await request.post(`/api/decisions/${made.json.id}/replay`);
+    expect(withoutInput.status()).toBe(422);
+    expect((await withoutInput.json()).error).toBe('input_required');
+
+    const replayed = await request.post(`/api/decisions/${made.json.id}/replay`, {
+      data: { input },
+    });
+    expect(replayed.status()).toBe(200);
+    const result = await replayed.json();
+    expect(result.identical).toBe(true);
+    expect(result.replayedChainHash).toBe(made.json.chainHash);
+    expect(result.diff).toEqual([]);
+  });
+
+  test('replaying with the wrong inputs blames the inputs, not the engine', async ({ request }) => {
+    const input = { customer: { age: 41 }, ...RESOLVED };
+    const made = await decide(request, body({ customerId: 'cust_replay_wrong', input }));
+
+    const replayed = await request.post(`/api/decisions/${made.json.id}/replay`, {
+      data: { input: { ...input, customer: { age: 99 } } },
+    });
+    expect(replayed.status()).toBe(200);
+    const result = await replayed.json();
+    expect(result.identical).toBe(false);
+    // The distinction A-3 exists to preserve, now reachable through the API:
+    // one difference, and it names the snapshot rather than the winner.
+    expect(result.diff).toHaveLength(1);
+    expect(result.diff[0].path).toBe('$.inputSnapshotHash');
+  });
+
+  test('a decision whose fields the platform resolved cannot be replayed by its caller', async ({
+    request,
+  }) => {
+    // The bound worth stating. This request omits the connector-supplied
+    // fields, so resolution fetched them and hashed them into the snapshot —
+    // and their values are in no store. The caller can hand back everything it
+    // sent and still not reconstruct what was hashed.
+    const input = { customer: { age: 41 } };
+    const made = await decide(request, body({ customerId: 'cust_replay_resolved', input }));
+
+    const replayed = await request.post(`/api/decisions/${made.json.id}/replay`, {
+      data: { input },
+    });
+    const result = await replayed.json();
+    expect(result.identical).toBe(false);
+    expect(result.diff[0].path).toBe('$.inputSnapshotHash');
+  });
+
   test('the seeded decisions still resolve, so the ledger did not replace them', async ({
     request,
   }) => {

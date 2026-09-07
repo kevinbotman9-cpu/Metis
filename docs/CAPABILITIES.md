@@ -55,7 +55,7 @@ Portability         22 passed  - export, re-import, round-trip conformance, and
 Performance         12 passed  - bench/harness: the p99 gate, and S1 over a
                                  million seeded profiles
 Unit (Vitest)       63 passed  - apps/console
-E2E (Playwright)   207 passed  - contract, cross-engine, axe, registry, ledger,
+E2E (Playwright)   210 passed  - contract, cross-engine, axe, registry, ledger,
                                  idempotency, shadow (13 skipped: writes covered
                                  by permissions-and-writes and registry instead)
 Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
@@ -63,7 +63,7 @@ Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
 Typecheck           clean      - root config and the console's, separately
 Lint                0 errors   - root and console, separate configs
                    ---
-                    787 tests, two languages, two engines
+                    790 tests, two languages, two engines
 ```
 
 The OpenAPI spec validates at **36 paths, 43 operations (41 built, 2 proposed),
@@ -88,7 +88,8 @@ corpora changed on that date, because the rename reached the hashed decision.
 
 | Capability | Status | Evidence |
 |---|---|---|
-| Deterministic engine, byte-identical replay | BUILT | `packages/runtime/tests/determinism.test.ts`; byte-identical across 100 runs |
+| Deterministic engine, byte-identical replay | BUILT | `packages/runtime/tests/determinism.test.ts`; byte-identical across 100 runs. The guard that separates "wrong inputs" from "the engine drifted" is tested too, as of 2026-09-07 — it was not, and disabling it passed every suite |
+| Replaying a decision **through the API** | PARTIAL | Seeded decisions replay with no body. Any other decision needs its input handed back, because a record holds `inputSnapshotHash` and never the values — `replayDecision` answers 422 `input_required` rather than the 404 it used to. And a caller who let the platform resolve a field cannot reconstruct the snapshot, since connector values are retained nowhere. General replay needs the snapshot stored, which is ADR-004's question. `ledger.spec.ts` asserts all three cases |
 | Canonical serialisation, specified not implemented | BUILT | ADR-003 + a 67-case corpus; `conformance.test.ts` and the Kotlin suite both read it |
 | Stable reason codes, per candidate | BUILT | 8 codes in `deterministic/types.ts`; `decision-conformance.test.ts` asserts the corpus exercises **every** one, so none ships unverified in a second engine |
 | Typed, versioned ranking functions | BUILT | `packages/core/src/utility.ts`, a closed operation set and no `eval`; `utility.test.ts` proves `multiplicative@1.0.0` reproduces the formula it replaced bit for bit |

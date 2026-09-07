@@ -979,7 +979,7 @@ export const OPERATIONS = {
     path: '/decisions/{decisionId}/replay',
     pathParams: ['decisionId'],
     queryParams: [],
-    statuses: ['200', '404'],
+    statuses: ['200', '404', '422'],
   },
   rollbackVersion: {
     method: 'POST',
@@ -1295,6 +1295,11 @@ export type RejectChangeSetRequest = {
 
 /** Re-execute a historical decision and compare it to the original */
 export type ReplayDecisionResponse = ReplayResult;
+export type ReplayDecisionRequest = {
+  /** The decision's original input, exactly as it was. */
+  input?: Record<string, unknown>;
+  contactHistory?: Record<string, unknown>;
+};
 
 /** Return an environment to the version it ran before */
 export type RollbackVersionResponse = EnvironmentState;

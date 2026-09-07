@@ -896,25 +896,73 @@ export async function POST(req: Request, { params }: Ctx) {
       // the recorded artifact, the catalogue and the original inputs, and the
       // chain hashes are compared. If a policy or boost has since been edited,
       // this legitimately reports a divergence and says which field moved.
-      const record = findGenerated(rest[0]);
-      if (!record) return notFound(`No decision with id ${rest[0]}`);
+      //
+      // Seeded decisions carry their request beside them. Everything else is in
+      // the ledger, which holds the record — and a record holds
+      // `inputSnapshotHash`, never the values, so that a trace can be kept for
+      // as long as an audit needs without keeping the customer data it was made
+      // from. Replaying one therefore means the caller hands the input back,
+      // and the engine's snapshot guard proves it is the right input.
+      const seeded = findGenerated(rest[0]);
+      const body = (await req.json().catch(() => null)) as {
+        input?: Record<string, unknown>;
+        contactHistory?: DecisionRequest['contactHistory'];
+      } | null;
 
-      const result = replayDecision(
-        record.artifact,
-        catalogueSnapshot,
-        record.trace,
-        record.request.input,
-        record.request.contactHistory
-      );
+      let artifact: ExecArtifact;
+      let trace: DecisionRecord;
+      let input: Record<string, unknown>;
+      let contactHistory: DecisionRequest['contactHistory'] | undefined;
+
+      if (seeded) {
+        artifact = seeded.artifact;
+        trace = seeded.trace;
+        // A supplied input still wins: it is the caller asking a different
+        // question, and the snapshot guard answers it.
+        input = body?.input ?? seeded.request.input;
+        contactHistory = body?.contactHistory ?? seeded.request.contactHistory;
+      } else {
+        const entry = await store.ledger.get('telco-uk', rest[0]);
+        if (!entry) return notFound(`No decision with id ${rest[0]}`);
+
+        const published = await store.registry.version(
+          entry.tenantId,
+          entry.record.decision.artifactId,
+          entry.record.decision.artifactVersion
+        );
+        if (!published) {
+          return notFound(
+            `Decision ${rest[0]} was made by ${entry.record.decision.artifactId}@${entry.record.decision.artifactVersion}, which the registry does not hold`
+          );
+        }
+
+        if (!body?.input) {
+          return json(
+            {
+              error: 'input_required',
+              message:
+                'This decision is recorded and its inputs are not — the platform keeps the snapshot hash, never the values. Supply `input` to replay it.',
+            },
+            422
+          );
+        }
+
+        artifact = published.artifact;
+        trace = entry.record;
+        input = body.input;
+        contactHistory = body.contactHistory;
+      }
+
+      const result = replayDecision(artifact, catalogueSnapshot, trace, input, contactHistory);
 
       return json({
         identical: result.identical,
         decisionId: result.decisionId,
         replayedAt: new Date().toISOString(),
-        artifactVersion: record.trace.decision.artifactVersion,
-        originalWinner: record.trace.decision.winner,
+        artifactVersion: trace.decision.artifactVersion,
+        originalWinner: trace.decision.winner,
         replayedWinner: result.identical
-          ? record.trace.decision.winner
+          ? trace.decision.winner
           : (result.differences.find((d) => d.path === '$.winner')?.replayed ?? null),
         originalChainHash: result.originalChainHash,
         replayedChainHash: result.replayedChainHash,

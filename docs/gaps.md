@@ -86,25 +86,37 @@ Four gaps remain, and none is worked around in code.
 
 ---
 
-## Registered 2026-09-07 — a live decision can be traced but not replayed
+## Registered 2026-09-07 — replay of a live decision needs an input snapshot, and that is ADR-004's question
 
-`GET /decisions/{id}/trace` looks in the seeded fixture corpus and then falls
-back to the ledger, so a decision the platform actually made returns its record.
-`POST /decisions/{id}/replay` only looks in the fixture corpus, so the same
-decision is a 404. Found by making one from the storefront demo and asking for
-both.
+**Corrected the same day, after attempting it.** The first diagnosis here said
+the replay route only looked in the fixture corpus and needed "slightly more
+than the same fallback". The fallback is now built — the route reads the ledger
+and fetches the artifact from the registry — and it was the smaller half.
 
-The asymmetry is the tell: somebody hit this on the trace route and fixed it
-there. Replay needs slightly more than the same fallback — the record names its
-artifact and version, so replay has to fetch that artifact from the registry
-rather than from the fixture bundle the seeded decisions carry with them — which
-is presumably why it was left.
+A decision record holds `inputSnapshotHash` and **never the values behind it**,
+deliberately: a trace can then be kept for as long as an audit needs without
+keeping the customer data it was made from. So the platform cannot replay a
+decision on its own. `replayDecision` now takes the input from the caller and
+answers 422 `input_required` when it is not given, which is an honest refusal
+where it used to be a 404.
 
-It matters more than it looks. Replay is a headline capability and the one an
-evaluation asks to see; "we can replay any decision, except the ones we just
-made" is a bad sentence. Registered rather than fixed because choosing which
-catalogue snapshot a live replay runs against is the same open question as
-W-005's second half.
+**The bound that remains.** Integration resolution runs before the engine, so
+the hashed snapshot includes the fields the connectors supplied — and those
+values are in no store either. A caller who sent every field can replay; a
+caller who let the platform resolve any field cannot reconstruct what was
+hashed, and gets a `$.inputSnapshotHash` difference. All three cases are
+asserted in `ledger.spec.ts`.
+
+So "byte-identical replay" is exactly true of the engine, and true of the
+platform only for a decision whose every input the caller still holds.
+`CAPABILITIES.md` now says so.
+
+**This is ADR-004's question, not a routing one.** Making replay work in general
+means retaining the input snapshot, which means retaining customer data in the
+one place the design currently refuses to — and ADR-004 already has the answer:
+encrypt it per subject, destroy the key on erasure, and let a replay of an
+erased subject fail explicitly rather than return a decision computed from
+nulls. Another reason that decision is the highest-leverage one open.
 
 ---
 
