@@ -13,6 +13,7 @@
     "./creative": "./src/creative.ts",
     "./profile-schema": "./src/profile-schema.ts",
     "./intake": "./src/intake.ts",
-    "./experiment": "./src/experiment.ts"
+    "./experiment": "./src/experiment.ts",
+    "./volume": "./src/volume.ts"
   }
 }
