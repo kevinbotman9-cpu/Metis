@@ -1,4 +1,4 @@
-# METIS Console — Agent Implementation Instructions
+# METIS — Agent Implementation Instructions
 
 ## Absolute Rules
 
@@ -8,7 +8,7 @@ These are non-negotiable. Every PR must enforce them.
 
 2. **Never call fetch directly from a component.** All data goes through `packages/client`, which is generated from the OpenAPI spec. If an endpoint is not in the spec, it does not exist.
 
-3. **Never add an endpoint to packages/client by hand.** Add it to the OpenAPI spec and regenerate the client. Hand-edited client code is a liability.
+3. **Never add an endpoint to packages/client by hand.** Add it to the OpenAPI spec and regenerate the client (`npm run generate`). Hand-edited client code is a liability.
 
 4. **Never write a literal colour, spacing or radius value in app code.** Use CSS custom properties mapped to design tokens. If you need a new token, add it to the token system and update all theme axes.
 
@@ -16,12 +16,74 @@ These are non-negotiable. Every PR must enforce them.
 
 6. **If a capability is not in the OpenAPI spec and not BUILT in the platform, stop and ask.** Do not invent the API. Register the gap in `/docs/gaps.md` and mock it for development.
 
+7. **Never author a status claim.** Status is emitted by tooling and lives in one
+   place, `docs/CAPABILITIES.md`. Do not write a document that asserts completion,
+   and do not mark anything ✅. Where a state must be named, use `BUILT` (a named
+   check fails if it breaks), `ENGINE-ONLY` (works, no screen), `SCAFFOLD`
+   (renders, does nothing), `ABSENT`. Every row you write cites a file path and a
+   check name, or it does not go in. `tests/docs-status.test.ts` fails on a table
+   row whose status cell asserts completion.
+
+8. **Never hand-write a form.** Every entity a user can create or edit declares its
+   form in the metadata registry: fields, types, validation, conditional
+   visibility, permissions, help text. The renderer is generic. **Adding a field to
+   an entity must require zero changes under `apps/console/app/`.** The registry is
+   diffed against the OpenAPI schema for that entity; a schema property with no
+   descriptor entry is a failure. A hand-built form caps extensibility permanently.
+   Before building any screen, ask: *could a customer add a field to this without a
+   vendor ticket?*
+
+---
+
+## The Unit of Work: Vertical Slices
+
+There are no backend PRs and no frontend PRs. There are slices.
+
+A slice is one thing a named persona can do end to end. It is not done until all
+ten of these exist **in the same PR**:
+
+| # | Artefact | Where it lives |
+|---|---|---|
+| 1 | Typed contract (a hand-authored spec is a bug) | `docs/metis-api.openapi.yaml` |
+| 2 | Engine or service implementation | `packages/*`, `engines/*` |
+| 3 | Public API endpoint | `planes/authoring` or `planes/execution` |
+| 4 | Generated client method (never a hand-rolled `fetch`) | `packages/client`, via `npm run generate` |
+| 5 | A route in the console the persona can reach from nav | `apps/console/app/...` |
+| 6 | Form descriptor / screen configurability metadata (Rule 8) | the metadata registry |
+| 7 | Trace contribution, if it affects a decision | `packages/ledger` |
+| 8 | Deterministic test + one `@screen-only` e2e | `tests/`, `apps/console/tests/e2e` |
+| 9 | Accessibility pass on the new route | `npm run test:a11y`, axe clean |
+| 10 | Docs page generated from the typed contract | `docs/api/` |
+
+If you cannot finish all ten, **make the slice smaller**. Do not ship 1–4 and
+promise 5–10 later.
+
+A capability is not built until a user can do it from the screen, alone, without
+you. Backend work with no screen is not progress; it is inventory, and it is
+`ENGINE-ONLY`.
+
+---
+
+## The Check That Matters Most
+
+Every slice ships one Playwright test tagged `@screen-only`.
+
+Rules for `@screen-only` tests:
+- Setup uses **zero** API calls, zero DB seeding, zero fixtures beyond a logged-in
+  user and a base tenant.
+- Everything the test needs, it creates by clicking.
+- It asserts the persona reached their outcome.
+
+If the test needs an API call to get into position, the journey has a hole in the
+UI. Fix the hole. That is the whole point of this rule — it converts "we lost focus
+on usability" from a judgement call into a failing test.
+
 ---
 
 ## Definition of Done for Every PR
 
 - [ ] Storybook story for every new component, covering all four theme axes (light/dark × compact/comfortable)
-- [ ] Vitest unit tests for logic; Playwright test for any new user flow
+- [ ] Vitest unit tests for logic; Playwright test for any new user flow, including the `@screen-only` test above
 - [ ] axe-core clean (zero WCAG 2.2 AA violations)
 - [ ] Full keyboard path verified; visible focus indicators
 - [ ] Loading, empty, error and permission-denied states implemented
@@ -72,7 +134,8 @@ synonym.*
 The list before 2026-09-05 was Pega's vocabulary almost verbatim: proposition, treatment,
 engagement policy, contact policy, lever, decision strategy. That was renamed throughout,
 including the hashed decision, which is why every chain hash in the conformance corpora
-changed on that date.
+changed on that date. `tests/vocabulary.test.ts` scans source for the words the platform
+was renamed away from.
 
 ### The catalogue
 
@@ -81,8 +144,7 @@ changed on that date.
 - **category** — the second level, a product or service grouping (Credit Cards, Broadband)
 - **offer** — the third level: the commercial object itself
 - **action** — an offer instance made decidable in a context. Today an offer carries the
-  `key` used as the action; splitting them properly is a modelling change, not a rename,
-  and has not been done
+  `key` used as the action; splitting them properly is a modelling change, not a rename
 - **creative** — the content for an offer on a channel. §3.1 allows *variant*; *creative*
   is used here because *variant* is already taken by experiments
 
@@ -112,7 +174,7 @@ changed on that date.
 - **release** — a change set promoted to an environment
 - **shadow** — a version running beside the active one in an environment, deciding
   nothing. `shadowVersion` in code. Reserved for flow versions; a *model* running beside
-  another is shadow scoring, which is a different thing and not built
+  another is shadow scoring, which is a different thing — do not use this word for it
 - **profile store** — where customer state lives
 - **package** — a distributable unit (node types, themes, packs)
 - **pack** — a regulatory or industry-specific package
@@ -124,7 +186,7 @@ Never use "submit" for buttons. Buttons name their effect ("Publish", "Approve",
 ## When You Are Blocked
 
 - **Platform API doesn't exist** → register in `/docs/gaps.md`, add to OpenAPI spec as a proposed operation, generate mock
-- **Uncertain which audience this screen is for** → check the persona list in the Experience Layer plan
+- **Uncertain which audience this screen is for** → check the persona list in the Experience Layer plan (`METIS_Experience_Layer_Build_Plan.md`)
 - **Uncertain what state to show** → the Playwright test file has the full state matrix (loading, empty, error, permission-denied, stale-data)
 - **Uncertain whether a design decision is right** → check the design direction (§5 of the Experience Layer plan); if it conflicts, flag for product review
 
@@ -158,4 +220,17 @@ These are high-touch and need product/design review before code.
 
 ---
 
-**Questions?** Check `/docs/gaps.md` for what's outstanding, or `/docs/EXPERIENCE_LAYER_STATUS.md` for which surfaces are BUILT vs SCAFFOLD vs DESIGN.
+## Session Discipline
+
+- One slice per session. If the slice is bigger than one session, split it.
+- Start the session by running the conformance gate and reporting the current
+  failure count. End the session the same way. Do not end with a higher failure
+  count than you started with.
+- If you are more than 60% through context and slice artefacts 5–10 are not done,
+  stop, commit nothing, and report what remains.
+- Do not proceed past a red gate. Report it and stop.
+- Read-only means read-only. Do not fix things during a survey phase.
+
+---
+
+**Questions?** Check `/docs/gaps.md` for what's outstanding.

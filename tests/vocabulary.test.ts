@@ -17,10 +17,22 @@ import { resolve } from 'node:path';
  * was renamed *away from*, so one appearing in source is either a mistake or a
  * decision somebody should make in the open rather than in a commit.
  *
- * **What this deliberately does not scan.** Documentation, which has to be able
- * to say what the words used to be — this file is the same, and excludes
- * itself, because a check that reads its own list passes on anything. That
- * lesson cost a real defect elsewhere in this repo.
+ * **Documentation is scanned too, as of 2026-09-08.** It was excluded on the
+ * reasoning that docs have to be able to say what the words used to be. That is
+ * true of a handful of documents whose *subject* is the rename, and it was doing
+ * no work for the rest: the words had drifted back into the backlog, the review
+ * set and the ADRs, where they read as current usage rather than history. So the
+ * exclusion is now a named list — `ALLOWED`, one line and one reason per file —
+ * rather than a whole tree. A file that has to name the old vocabulary says so
+ * out loud and somebody signs it.
+ *
+ * This file excludes itself, because a check that reads its own list passes on
+ * anything. That lesson cost a real defect elsewhere in this repo.
+ *
+ * **Tracked files only.** The scan reads `git ls-files`, so a document or script
+ * that has not been committed is invisible to it. That is deliberate — the check
+ * guards what the repo actually carries — but it means an untracked file can
+ * carry any vocabulary at all until it is added.
  *
  * Some of these words have ordinary English senses, and the first run found
  * one: "the block treatment" in a comment, meaning the styling. It was reworded
@@ -49,7 +61,7 @@ const RENAMED: { word: RegExp; was: string; now: string }[] = [
   { word: /\bchange requests?\b/i, was: 'change request', now: 'change set' },
 ];
 
-/** Source trees. Documentation is excluded — see the note above. */
+/** Source trees. */
 const SCANNED = [
   /^packages\/[^/]+\/(src|tests)\//,
   /^apps\/console\/(app|components|lib|mocks|tests)\//,
@@ -60,6 +72,17 @@ const SCANNED = [
 ];
 
 const CODE = /\.(ts|tsx|kt|mjs|js|yaml)$/;
+
+/** Documentation: everything under `docs/`, plus the markdown at the root. */
+const DOCS = [/^docs\//, /^[^/]+\.md$/];
+
+const MARKDOWN = /\.md$/;
+
+/** Every file this check reads, code and prose alike. */
+function inScope(file: string): boolean {
+  if (CODE.test(file) && SCANNED.some((p) => p.test(file))) return true;
+  return MARKDOWN.test(file) && DOCS.some((p) => p.test(file));
+}
 
 /**
  * Where a renamed word is the subject rather than a relapse.
@@ -74,6 +97,25 @@ const ALLOWED = new Map<string, string>([
     'creative ids are `trt_*`, dating from before the rename; changing them ' +
       'would move every chain hash in the service corpus for a cosmetic gain',
   ],
+  [
+    'CLAUDE.md',
+    'holds the §3 catalogue, which names each old word beside the one that ' +
+      'replaced it — the document the rest of this check enforces',
+  ],
+  [
+    'docs/CAPABILITIES.md',
+    'its §3/§4 rows are about the rename itself: what it covered, what it moved ' +
+      '(every chain hash), and the one part still outstanding',
+  ],
+  [
+    'METIS_Vision_and_Build_Plan.md',
+    'opens with a note recording the vocabulary it was written in, so the ' +
+      'document can be read against the platform it describes',
+  ],
+  [
+    'METIS_Experience_Layer_Build_Plan.md',
+    'same note, same reason',
+  ],
 ]);
 
 function tracked(): string[] {
@@ -87,14 +129,24 @@ describe('the vocabulary is vendor-neutral, and stays that way', () => {
   it('scans a source tree that is actually there', () => {
     // A guard on the guard: a path pattern that stops matching would make every
     // assertion below pass by scanning nothing.
-    const files = tracked().filter((f) => CODE.test(f) && SCANNED.some((p) => p.test(f)));
-    expect(files.length, 'the scanned set is empty — did a source tree move?').toBeGreaterThan(60);
+    const files = tracked().filter(inScope);
+    const code = files.filter((f) => CODE.test(f));
+    const docs = files.filter((f) => MARKDOWN.test(f));
+    expect(code.length, 'the scanned source set is empty — did a tree move?').toBeGreaterThan(60);
+    expect(docs.length, 'the scanned docs set is empty — did docs/ move?').toBeGreaterThan(10);
+  });
+
+  it('every allow-listed file exists and states its reason', () => {
+    // An entry left behind by a deleted or renamed file is an exemption nobody
+    // is holding, and the next file to land on that path inherits it silently.
+    for (const [file, reason] of ALLOWED) {
+      expect(tracked(), `${file} is allow-listed but not tracked`).toContain(file);
+      expect(reason.length, `${file} has no stated reason`).toBeGreaterThan(20);
+    }
   });
 
   it('uses none of the words the platform was renamed away from', () => {
-    const files = tracked().filter(
-      (f) => CODE.test(f) && SCANNED.some((p) => p.test(f)) && !ALLOWED.has(f)
-    );
+    const files = tracked().filter((f) => inScope(f) && !ALLOWED.has(f));
 
     const offenders: string[] = [];
     for (const file of files) {

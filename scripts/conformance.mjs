@@ -1,0 +1,337 @@
+#!/usr/bin/env node
+/**
+ * METIS conformance gate.
+ *
+ * This is the mechanism that stops Claude Code from drifting away from UI,
+ * usability and configurability. Nothing in CLAUDE.md or the UX contract has
+ * force unless a check here fails when it is violated.
+ *
+ * Wire it into CI and into `npm run conformance`. Run it at the start and end of
+ * every agent session.
+ *
+ * PATHS ARE PLACEHOLDERS. Adjust the CONFIG block to match the repo, then delete
+ * this comment.
+ */
+
+import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { join, relative, extname, sep } from "node:path";
+
+const CONFIG = {
+  root: process.cwd(),
+  consoleAppDir: "apps/console/app",
+  uiKitDir: "packages/ui-kit",
+  apiClientDir: "packages/api-client",
+  metadataRegistry: "packages/ui-metadata/registry",
+  openapiSpec: "openapi/metis.json",
+  layoutManifestDir: "packages/ui-metadata/layouts",
+  capabilityMap: "docs/CAPABILITIES.md",
+  e2eDir: "apps/console/tests/e2e",
+  // Entities the product owner has confirmed are user-editable.
+  // Every one must have a form descriptor.
+  //
+  // Names follow the §3 catalogue in CLAUDE.md and, where one exists, the
+  // schema name in the OpenAPI spec — this list is diffed against that spec,
+  // so a name it does not use can never match. `ArbitrationConfig` keeps
+  // *arbitration*, which §3.2 retains deliberately.
+  userEditableEntities: [
+    "Offer", "Creative", "Objective", "Category", "DecisionFlow",
+    "TargetingPolicy", "FrequencyPolicy", "ArbitrationConfig",
+    "Audience", "Model", "Channel", "Theme", "Layout", "Persona",
+  ],
+};
+
+const failures = [];
+const warnings = [];
+const fail = (check, msg) => failures.push({ check, msg });
+const warn = (check, msg) => warnings.push({ check, msg });
+
+// ---------------------------------------------------------------- utilities
+
+/**
+ * Every path this file compares against a pattern is POSIX-style.
+ *
+ * `path.join` and `path.relative` produce backslashes on Windows, and every
+ * regex and `startsWith` below is written with forward slashes — so until this
+ * existed, `routeFiles()` matched zero routes on Windows and the mock-banner
+ * and layout-manifest checks passed on nothing. Node's fs accepts forward
+ * slashes on Windows, so normalising at the source costs nothing.
+ */
+const posix = (p) => p.split(sep).join("/");
+
+function walk(dir, exts = [".ts", ".tsx", ".js", ".jsx", ".css"]) {
+  const abs = join(CONFIG.root, dir);
+  if (!existsSync(abs)) return [];
+  const out = [];
+  const rec = (d) => {
+    for (const e of readdirSync(d)) {
+      if (e === "node_modules" || e === ".next" || e === "dist") continue;
+      const p = join(d, e);
+      if (statSync(p).isDirectory()) rec(p);
+      else if (exts.includes(extname(p))) out.push(posix(p));
+    }
+  };
+  rec(abs);
+  return out;
+}
+
+const read = (p) => readFileSync(p, "utf8");
+const rel = (p) => posix(relative(CONFIG.root, p));
+
+function routeFiles() {
+  return walk(CONFIG.consoleAppDir, [".tsx"]).filter((p) =>
+    /\/(page|route)\.tsx?$/.test(p)
+  );
+}
+
+// ------------------------------------------------------ CHECK 1: raw fetch
+
+function checkGeneratedClientOnly() {
+  const offenders = [];
+  for (const dir of ["apps", "packages"]) {
+    for (const f of walk(dir)) {
+      if (f.includes(CONFIG.apiClientDir)) continue;
+      const src = read(f);
+      if (/\b(fetch\s*\(|axios\.|new XMLHttpRequest)/.test(src)) {
+        offenders.push(rel(f));
+      }
+    }
+  }
+  if (offenders.length) {
+    fail(
+      "generated-client-only",
+      `Hand-rolled HTTP calls outside the generated client:\n    ${offenders.join("\n    ")}`
+    );
+  }
+}
+
+// -------------------------------------------------- CHECK 2: design tokens
+
+function checkTokensOnly() {
+  const rawColour = /#[0-9a-fA-F]{3,8}\b|rgba?\(/;
+  const rawSpacing = /:\s*\d+(\.\d+)?px/;
+  const offenders = [];
+  for (const dir of [CONFIG.consoleAppDir, CONFIG.uiKitDir]) {
+    for (const f of walk(dir)) {
+      if (/tokens?\.(ts|css|json)$/.test(f)) continue;
+      const src = read(f);
+      if (rawColour.test(src) || rawSpacing.test(src)) offenders.push(rel(f));
+    }
+  }
+  if (offenders.length) {
+    fail(
+      "tokens-only",
+      `Raw colour or spacing values outside token definitions:\n    ${offenders.join("\n    ")}`
+    );
+  }
+}
+
+// ------------------------------------------- CHECK 3: form descriptor drift
+// The highest-value check in this file. It is what makes screen
+// configurability an architectural fact rather than an intention.
+
+function checkFormDescriptors() {
+  const specPath = join(CONFIG.root, CONFIG.openapiSpec);
+  if (!existsSync(specPath)) {
+    fail("form-descriptors", `OpenAPI spec not found at ${CONFIG.openapiSpec}. Generated spec is a prerequisite, not optional.`);
+    return;
+  }
+  const spec = JSON.parse(read(specPath));
+  const schemas = spec.components?.schemas ?? {};
+  const regDir = join(CONFIG.root, CONFIG.metadataRegistry);
+
+  if (!existsSync(regDir)) {
+    fail(
+      "form-descriptors",
+      `No metadata registry at ${CONFIG.metadataRegistry}. Every user-editable entity form must be declared, not coded. See UX_CONTRACT.md §1.`
+    );
+    return;
+  }
+
+  const descriptors = {};
+  for (const f of walk(CONFIG.metadataRegistry, [".ts", ".json"])) {
+    const src = read(f);
+    for (const e of CONFIG.userEditableEntities) {
+      if (new RegExp(`["'\`]?${e}["'\`]?\\s*[:=]`).test(src)) {
+        descriptors[e] = (descriptors[e] ?? []).concat(rel(f));
+      }
+    }
+  }
+
+  for (const entity of CONFIG.userEditableEntities) {
+    if (!descriptors[entity]) {
+      fail("form-descriptors", `Entity "${entity}" is user-editable but has no form descriptor. Its form is hand-built or absent.`);
+      continue;
+    }
+    const schema = schemas[entity];
+    if (!schema?.properties) {
+      warn("form-descriptors", `Entity "${entity}" has a descriptor but no OpenAPI schema — cannot verify field coverage.`);
+      continue;
+    }
+    const declared = descriptors[entity].map(read).join("\n");
+    const missing = Object.keys(schema.properties).filter(
+      (prop) => !new RegExp(`["'\`]${prop}["'\`]`).test(declared)
+    );
+    if (missing.length) {
+      fail(
+        "form-descriptors",
+        `Entity "${entity}" schema has properties with no descriptor entry: ${missing.join(", ")}. Adding a field must not require a code change.`
+      );
+    }
+  }
+}
+
+// ------------------------------------------------- CHECK 4: mock-mode honesty
+
+function checkMockBanner() {
+  for (const f of routeFiles()) {
+    const src = read(f);
+    const usesClient = new RegExp(CONFIG.apiClientDir.split("/").pop()).test(src);
+    const hasBanner = /MockModeBanner/.test(src);
+    const looksMocked = /\b(mock|MOCK|fixture|sampleData|stubData|placeholderData)\b/.test(src);
+
+    if ((looksMocked || !usesClient) && !hasBanner) {
+      fail("mock-banner", `${rel(f)} does not read from the generated client and shows no MockModeBanner. A screen that lies about being wired is worse than no screen.`);
+    }
+    if (hasBanner && usesClient && !looksMocked) {
+      fail("mock-banner", `${rel(f)} renders MockModeBanner but appears fully wired. Remove the vestigial banner.`);
+    }
+  }
+}
+
+// -------------------------------------------- CHECK 5: routes have manifests
+
+function checkLayoutManifests() {
+  const manifests = walk(CONFIG.layoutManifestDir, [".json", ".ts"]).map(read).join("\n");
+  for (const f of routeFiles()) {
+    // The root route is `app/page.tsx`: nothing precedes the filename once the
+    // app dir is stripped, so the separator is optional and the result is "/".
+    const routePath =
+      "/" +
+      rel(f)
+        .replace(`${CONFIG.consoleAppDir}/`, "")
+        .replace(/(^|\/)(page|route)\.tsx?$/, "");
+    if (!manifests.includes(routePath)) {
+      fail("layout-manifests", `Route "${routePath}" has no layout manifest. Screens are declared, not coded. See UX_CONTRACT.md §2.`);
+    }
+  }
+}
+
+// ------------------------------------------- CHECK 6: screen-only e2e exists
+
+function checkScreenOnlyTests() {
+  const tests = walk(CONFIG.e2eDir, [".ts", ".spec.ts"]);
+  const tagged = tests.filter((f) => /@screen-only/.test(read(f)));
+  if (!tagged.length) {
+    fail("screen-only-e2e", "No @screen-only e2e tests found. This is the check that proves a capability is operable by a human. Without it, everything else here is theatre.");
+    return;
+  }
+  // Setup purity: a @screen-only test must not call the API to get into position.
+  for (const f of tagged) {
+    const src = read(f);
+    if (/\b(request\.(post|put|patch)|apiClient\.|seedDatabase|createViaApi)\b/.test(src)) {
+      fail("screen-only-e2e", `${rel(f)} is tagged @screen-only but performs API setup. If the test needs an API call to get into position, the journey has a hole in the UI.`);
+    }
+  }
+}
+
+// ------------------------------------ CHECK 7: no forbidden status vocabulary
+
+function checkStatusHonesty() {
+  const docs = walk("docs", [".md"]).concat(
+    existsSync(join(CONFIG.root, "PHASES_SUMMARY.md")) ? [join(CONFIG.root, "PHASES_SUMMARY.md")] : []
+  );
+  for (const f of docs) {
+    if (rel(f).startsWith("docs/evaluation/")) continue;
+    const src = read(f);
+    if (/✅/.test(src)) {
+      warn("status-honesty", `${rel(f)} contains ✅ completion marks. Status is emitted by this script, not authored. Use BUILT / ENGINE-ONLY / SCAFFOLD / ABSENT with evidence.`);
+    }
+  }
+}
+
+// ------------------------------- CHECK 8: the capability map is not going stale
+//
+// This used to check that a capability ledger existed and was not old. The
+// existence half is now `tests/docs-status.test.ts`, which asserts every
+// allow-listed status document is present and that no second document claims
+// anything is built — a stronger check than a file test, and it runs in the
+// suite rather than only here.
+//
+// What that test does not cover is age, so that is all this does. It reads the
+// map's own "Last verified" line rather than the file's mtime, because mtime
+// says when somebody edited the file and the map's claim is about when somebody
+// last ran the suites.
+
+function checkCapabilityMapFreshness() {
+  const p = join(CONFIG.root, CONFIG.capabilityMap);
+  if (!existsSync(p)) return; // docs-status.test.ts owns existence.
+
+  const m = read(p).match(/\*\*Last verified:\*\*\s*(\d{4}-\d{2}-\d{2})/);
+  if (!m) {
+    fail(
+      "capability-map",
+      `${CONFIG.capabilityMap} has no "**Last verified:** YYYY-MM-DD" line. A status claim with no date cannot be known to be stale, which is how the last three drifted.`
+    );
+    return;
+  }
+
+  const ageDays = (Date.now() - Date.parse(m[1])) / 86400000;
+  if (ageDays > 14) {
+    warn(
+      "capability-map",
+      `Capability map was last verified ${Math.round(ageDays)} days ago (${m[1]}). Re-run the suites before trusting any status claim in it.`
+    );
+  }
+}
+
+// ----------------------------------------------------------------- run
+
+const CHECKS = [
+  ["generated-client-only", checkGeneratedClientOnly],
+  ["tokens-only", checkTokensOnly],
+  ["form-descriptors", checkFormDescriptors],
+  ["mock-banner", checkMockBanner],
+  ["layout-manifests", checkLayoutManifests],
+  ["screen-only-e2e", checkScreenOnlyTests],
+  ["status-honesty", checkStatusHonesty],
+  ["capability-map", checkCapabilityMapFreshness],
+];
+
+console.log("METIS conformance\n" + "=".repeat(60));
+for (const [name, fn] of CHECKS) {
+  try {
+    fn();
+    console.log(`  ran  ${name}`);
+  } catch (err) {
+    fail(name, `check threw: ${err.message}`);
+  }
+}
+
+console.log("\n" + "=".repeat(60));
+if (warnings.length) {
+  console.log(`\n${warnings.length} warning(s):`);
+  for (const w of warnings) console.log(`  [${w.check}] ${w.msg}`);
+}
+if (failures.length) {
+  console.log(`\n${failures.length} failure(s):\n`);
+  for (const f of failures) console.log(`  [${f.check}] ${f.msg}\n`);
+  console.log("Conformance FAILED.");
+  process.exit(1);
+}
+console.log("\nConformance passed.");
+
+/*
+ * NOT YET IMPLEMENTED — add these as the repo supports them:
+ *
+ *  - axe-core run per route, zero critical/serious violations
+ *  - keyboard-path assertion per @screen-only test
+ *  - five-state coverage (empty/loading/error/populated/dense) per route
+ *  - explainable-primitive wrapper check on numeric displays
+ *  - nav generated from passing-route set, no hand-maintained array
+ *  - p95 latency gate on hot-path changes
+ *  - tenant-isolation test per new endpoint
+ *
+ * Each is a line in UX_CONTRACT.md that currently has no teeth. A rule with no
+ * check is a suggestion, and Claude Code does not follow suggestions across a
+ * four-hour session.
+ */
