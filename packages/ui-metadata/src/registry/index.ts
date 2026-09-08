@@ -1,5 +1,6 @@
 import type { EntityDescriptor } from '../types';
 import { offerDescriptor } from './offer';
+import { creativeDescriptor } from './creative';
 
 /**
  * The metadata registry.
@@ -14,6 +15,7 @@ import { offerDescriptor } from './offer';
  */
 export const REGISTRY: Record<string, EntityDescriptor> = {
   Offer: offerDescriptor,
+  Creative: creativeDescriptor,
 };
 
 /**
@@ -55,7 +57,6 @@ export const USER_EDITABLE_ENTITIES = [
  * list nor `REGISTRY`, and fails if one is in both.
  */
 export const PENDING: Record<string, string> = {
-  Creative: 'Hand-built in components/creative-form-dialog.tsx. Next after Offer.',
   Objective: 'No authoring surface at all; the taxonomy is fixture-authored.',
   Category: 'No authoring surface at all; the taxonomy is fixture-authored.',
   DecisionFlow: 'Authored on the canvas, not in a form. Needs a descriptor for its metadata only.',
@@ -80,4 +81,4 @@ export function descriptorFor(entity: string): EntityDescriptor {
   return found;
 }
 
-export { offerDescriptor };
+export { offerDescriptor, creativeDescriptor };

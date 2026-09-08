@@ -120,6 +120,8 @@ rather than assumed to agree.
   content: Record<string, unknown>;
   active: boolean;
   locale: string;
+  /** Why this content reads the way it does — a claim substantiation, a legal sign-off reference, a note about wording somebody argued over. Optional, and carried into the trace so a regulator asking "why did it say that" reaches the reasoning rather than only the text. */
+  reviewNote?: string;
   createdAt: string;
   updatedAt: string;
 }

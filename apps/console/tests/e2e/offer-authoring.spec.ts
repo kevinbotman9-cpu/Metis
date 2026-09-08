@@ -100,7 +100,9 @@ test.describe('authoring an offer', () => {
 
     await dialog.getByLabel('Message').fill('Double your speed for 6 months.');
     await dialog.getByLabel('Sender id').fill('Meridian');
-    await dialog.getByLabel('Delivery').selectOption('active');
+    // Selected by its visible label: a boolean field's option values are true and
+    // false, which is the boolean, not an entity-specific string.
+    await dialog.getByLabel('Delivery').selectOption({ label: 'Active' });
     await dialog.getByRole('button', { name: 'Add creative' }).click();
     await expect(dialog).toBeHidden();
 

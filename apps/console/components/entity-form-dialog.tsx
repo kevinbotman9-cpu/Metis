@@ -58,6 +58,12 @@ function useOptionSources(enabled: boolean): Record<string, readonly Option[]> {
     enabled,
   });
 
+  const { data: placements } = useQuery({
+    queryKey: ['placements'],
+    queryFn: () => apiClient.listPlacements(),
+    enabled,
+  });
+
   return useMemo(
     () => ({
       'taxonomy.objectives': (taxonomy?.objectives ?? []).map((o) => ({
@@ -69,8 +75,13 @@ function useOptionSources(enabled: boolean): Record<string, readonly Option[]> {
         label: c.name,
         objectiveId: c.objectiveId,
       })),
+      // `channel` and `type` are carried so a descriptor can filter slots by
+      // the channel chosen and suggest the shape the slot declares.
+      placements: (placements?.placements ?? [])
+        .filter((p) => p.active)
+        .map((p) => ({ value: p.key, label: p.name, channel: p.channel, type: p.type })),
     }),
-    [taxonomy]
+    [taxonomy, placements]
   );
 }
 

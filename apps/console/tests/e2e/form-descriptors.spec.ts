@@ -147,3 +147,115 @@ test.describe('declared forms @screen-only', () => {
     await expect(edit.getByLabel('Price / month')).toHaveValue('12.50');
   });
 });
+
+/**
+ * Creative is the harder entity: five content shapes on one form, chosen by
+ * the channel. These drive that from the screen, on an offer this suite makes
+ * by clicking.
+ */
+test.describe('the declared creative form @screen-only', () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page, ACCOUNTS.marcus);
+  });
+
+  test.afterEach(async ({ page }) => {
+    await resetStore(page);
+  });
+
+  async function addCreativeTo(page: import('@playwright/test').Page, name: string) {
+    await createOffer(page, name);
+    await page.getByRole('button', { name: 'Add creative' }).first().click();
+    await expect(dialog(page).getByRole('heading', { name: 'Add creative' })).toBeVisible();
+  }
+
+  test('shows one channel’s fields and none of another’s', async ({ page }) => {
+    await addCreativeTo(page, 'Channel Switch Offer');
+    const d = dialog(page);
+
+    await d.getByLabel('Channel').selectOption('web');
+    await expect(d.getByLabel('Headline', { exact: true })).toBeVisible();
+    await expect(d.getByLabel('Message')).toHaveCount(0);
+
+    await d.getByLabel('Channel').selectOption('sms');
+    await expect(d.getByLabel('Message')).toBeVisible();
+    await expect(d.getByLabel('Sender id')).toBeVisible();
+    // The web fields are gone, not merely hidden — so nothing from the channel
+    // somebody switched away from can be sent.
+    await expect(d.getByLabel('Headline', { exact: true })).toHaveCount(0);
+
+    await d.getByLabel('Channel').selectOption('email');
+    await expect(d.getByLabel('Subject')).toBeVisible();
+    await expect(d.getByLabel('Message')).toHaveCount(0);
+  });
+
+  test('offers only the slots on the chosen channel, and suggests the shape', async ({ page }) => {
+    await addCreativeTo(page, 'Placement Offer');
+    const d = dialog(page);
+    await d.getByLabel('Channel').selectOption('web');
+
+    const placement = d.getByLabel('Placement', { exact: true });
+    const type = d.getByLabel('Placement type');
+    await expect(type).toHaveValue('');
+
+    await placement.selectOption({ index: 1 });
+    // The slot declares a shape, and choosing the slot fills it in.
+    await expect(type).not.toHaveValue('');
+  });
+
+  test('creates a creative through the declared form and it delivers', async ({ page }) => {
+    await addCreativeTo(page, 'Declared Creative Offer');
+    const d = dialog(page);
+
+    await d.getByLabel('Name').fill('Hero — declared');
+    await d.getByLabel('Channel').selectOption('web');
+    await d.getByLabel('Headline', { exact: true }).fill('Unlimited 5G, £35 a month');
+    await d.getByLabel('Delivery').selectOption({ label: 'Active' });
+    await d.getByRole('button', { name: 'Add creative' }).click();
+
+    await expect(d).toHaveCount(0);
+    await expect(page.getByText('Hero — declared')).toBeVisible();
+  });
+
+  test('locks the channel when editing, because the content shape is its', async ({ page }) => {
+    await addCreativeTo(page, 'Locked Channel Offer');
+    const d = dialog(page);
+    await d.getByLabel('Name').fill('SMS — declared');
+    await d.getByLabel('Channel').selectOption('sms');
+    await d.getByLabel('Message').fill('Come back to unlimited 5G.');
+    await d.getByLabel('Sender id').fill('TELCO');
+    await d.getByRole('button', { name: 'Add creative' }).click();
+    await expect(d).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Edit', exact: true }).last().click();
+    const edit = dialog(page);
+    await expect(edit.getByLabel('Channel')).toBeDisabled();
+    // The content came back, and the discriminant still went with it — the
+    // server refuses a creative whose content declares a different channel.
+    await expect(edit.getByLabel('Sender id')).toHaveValue('TELCO');
+  });
+
+  /**
+   * The same proof as Offer, on the harder entity. `reviewNote` was added by
+   * editing the OpenAPI schema and the descriptor, and nothing else.
+   */
+  test('a field declared in the descriptor renders, validates and saves', async ({ page }) => {
+    await addCreativeTo(page, 'Review Note Offer');
+    const d = dialog(page);
+
+    const note = d.getByLabel('Review note');
+    await expect(note, 'the descriptor field never reached the screen').toBeVisible();
+    await expect(note).toHaveAttribute('maxlength', '500');
+
+    await d.getByLabel('Name').fill('Reviewed hero');
+    await d.getByLabel('Channel').selectOption('web');
+    await d.getByLabel('Headline', { exact: true }).fill('Claims checked');
+    await note.fill('Ofcom speed claim substantiated 2026-09-01, ref LEG-4471.');
+    await d.getByRole('button', { name: 'Add creative' }).click();
+    await expect(d).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Edit', exact: true }).last().click();
+    await expect(dialog(page).getByLabel('Review note')).toHaveValue(
+      'Ofcom speed claim substantiated 2026-09-01, ref LEG-4471.'
+    );
+  });
+});

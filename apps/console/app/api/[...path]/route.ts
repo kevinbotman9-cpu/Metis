@@ -1238,17 +1238,23 @@ async function handlePost(req: Request, { params }: Ctx) {
       }
 
       const now = new Date().toISOString();
+
+      // Defaults, then the body, then what the server owns — the same shape as
+      // `createOffer` above, and for the same reason: a property added to the
+      // spec reaches the store without a change here, which is what makes
+      // adding a field to a creative a descriptor edit and nothing else.
       const creative: Creative = {
+        active: false,
+        locale: 'en-GB',
+        ...body,
         id,
         offerId: offer.id,
         name: body.name as string,
         channel: body.channel,
         content: body.content as Creative['content'],
-        active: body.active ?? false,
-        locale: body.locale ?? 'en-GB',
         createdAt: now,
         updatedAt: now,
-      };
+      } as Creative;
 
       store.creatives.push(creative);
       // `Creative.offerId` is the foreign key — `packages/catalogue` treats it

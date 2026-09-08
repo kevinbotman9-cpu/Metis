@@ -236,6 +236,13 @@ components:
           additionalProperties: true
         active: { type: boolean }
         locale: { type: string, example: en-GB }
+        reviewNote:
+          type: string
+          description: >-
+            Why this content reads the way it does — a claim substantiation, a
+            legal sign-off reference, a note about wording somebody argued over.
+            Optional, and carried into the trace so a regulator asking "why did
+            it say that" reaches the reasoning rather than only the text.
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 

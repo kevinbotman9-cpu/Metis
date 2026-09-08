@@ -149,6 +149,99 @@ export const ServerRefused: Story = {
  * descriptor uses one today, so this story renders a copy that does — it is
  * the state a reviewer needs to see before relying on the feature.
  */
+/**
+ * Creative is the harder case, and the reason `visibleWhen` exists.
+ *
+ * Five content shapes on one entity. Switch the channel in the rendered form
+ * and the fields below it change — that is two lines per field in the
+ * descriptor, where the hand-built version carried a table of field specs and
+ * a lookup. Open "What this would send" and switch channel: the payload only
+ * ever contains the channel on screen, so a subject typed on Email cannot
+ * follow you to SMS.
+ */
+const creative = descriptorFor('Creative');
+
+const placementSources = {
+  placements: [
+    { value: 'homepage_hero', label: 'Homepage hero', channel: 'web', type: 'hero' },
+    { value: 'plans_tile', label: 'Plans tile', channel: 'web', type: 'tile' },
+    { value: 'inbox_promo', label: 'Inbox promo', channel: 'email', type: 'feature_band' },
+  ],
+};
+
+function CreativeHarness({ initial, editing = false }: { initial: FormState; editing?: boolean }) {
+  const [form, setForm] = useState<FormState>(initial);
+  const [touched, setTouched] = useState<ReadonlySet<string>>(
+    editing ? new Set(creative.fields.map((f) => f.field)) : new Set()
+  );
+
+  return (
+    <div className="max-w-2xl space-y-3 rounded-lg border border-border bg-surface p-card">
+      <FormRenderer
+        descriptor={creative}
+        form={form}
+        onChange={setForm}
+        editing={editing}
+        permissions={[]}
+        optionSources={placementSources}
+        touched={touched}
+        onTouch={(field) => setTouched((t) => new Set(t).add(field))}
+        idPrefix="creative"
+      />
+      <details className="border-t border-border pt-2">
+        <summary className="cursor-pointer text-label text-content-subtle">
+          What this would send
+        </summary>
+        <pre className="mt-1 overflow-x-auto rounded bg-surface-sunken p-2 font-mono text-label text-content-muted">
+          {JSON.stringify(toPayload(creative, form, { editing, permissions: [] }), null, 2)}
+        </pre>
+      </details>
+    </div>
+  );
+}
+
+export const CreativeWeb: Story = {
+  render: () => (
+    <CreativeHarness initial={{ ...toFormState(creative), channel: 'web', locale: 'en-GB' }} />
+  ),
+  name: 'Creative on web — slot and shape, the widest channel',
+};
+
+export const CreativeSms: Story = {
+  render: () => (
+    <CreativeHarness
+      initial={{
+        ...toFormState(creative),
+        name: 'Winback — SMS',
+        channel: 'sms',
+        locale: 'en-GB',
+        'content.text': 'Come back to unlimited 5G for £20/mo. Reply STOP to opt out.',
+        'content.senderId': 'TELCO',
+      }}
+    />
+  ),
+  name: 'Creative on SMS — two fields, and none of email’s',
+};
+
+export const CreativeChannelLocked: Story = {
+  render: () => (
+    <CreativeHarness
+      editing
+      initial={{
+        ...toFormState(creative),
+        name: 'Homepage hero — 5G',
+        channel: 'web',
+        locale: 'en-GB',
+        active: 'true',
+        'content.headline': 'Unlimited 5G, £35/mo',
+        'content.placement': 'homepage_hero',
+        'content.placementType': 'hero',
+      }}
+    />
+  ),
+  name: 'Editing — the channel is locked, because the content shape is its',
+};
+
 export const PermissionGated: Story = {
   render: () => {
     const gated = {

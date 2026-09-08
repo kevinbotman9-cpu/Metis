@@ -102,21 +102,50 @@ export interface FieldDescriptor {
   enabledWhen?: Condition;
   options?: { static: readonly Option[] } | OptionSource;
   /**
+   * Render a `boolean` as a two-option select rather than a checkbox.
+   *
+   * "Not active / Active" reads as a state somebody is choosing; an unlabelled
+   * tick reads as an option somebody is turning on. For a field that decides
+   * whether content is delivered to customers, the first is the honest control.
+   */
+  booleanLabels?: { true: string; false: string };
+  /**
+   * Show a live "n / limit" count beneath the field.
+   *
+   * Separate from `validation.maxLength`, which stops typing. This one counts
+   * past the limit on purpose: an SMS over 160 characters is not refused by the
+   * browser, it is split and billed per segment, and the server explains that.
+   * The count is the cheap half of the same information, shown while typing.
+   */
+  counter?: number;
+  /**
    * Cannot be changed once the entity exists.
    *
    * An offer's key appears in every decision record ever written about it, so
    * changing one after the fact orphans history.
    */
   immutableAfterCreate?: boolean;
-  /** Fill from another field until the person edits this one. */
-  suggestFrom?: { field: string; transform: 'slug' };
+  /**
+   * Fill from another field until the person edits this one.
+   *
+   * `transform` derives the value from what was typed — `slug` turns an offer's
+   * name into its key. `fromOptionField` takes it from the *option* chosen in
+   * the other field: picking a placement suggests the shape that slot declares,
+   * which is a suggestion and not a rule, because the slot and the design are
+   * separate decisions and somebody may deliberately disagree with the default.
+   */
+  suggestFrom?:
+    | { field: string; transform: 'slug' }
+    | { field: string; fromOptionField: string };
   /**
    * Not shown, and computed on save from another field.
    *
-   * `isZero` is the only rule, and exists for `oneOff`, which the domain holds
-   * but no one should be asked twice for.
+   * `isZero` exists for `oneOff`, which the domain holds but no one should be
+   * asked twice for. `copy` exists for a discriminant that has to appear in two
+   * places: a creative's `content.channel` must agree with its `channel`, and
+   * the server refuses the pair when it does not.
    */
-  derived?: { from: string; rule: 'isZero' };
+  derived?: { from: string; rule: 'isZero' | 'copy' };
   /** Columns to span inside a multi-column group. */
   span?: 1 | 2 | 3;
 }

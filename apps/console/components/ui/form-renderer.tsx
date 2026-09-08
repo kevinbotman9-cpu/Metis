@@ -73,8 +73,16 @@ export function FormRenderer({
     const next: FormState = { ...form, [field.field]: value };
 
     for (const other of descriptor.fields) {
-      if (other.suggestFrom?.field === field.field && !touched.has(other.field)) {
-        next[other.field] = other.suggestFrom.transform === 'slug' ? slug(value) : value;
+      const suggest = other.suggestFrom;
+      if (suggest?.field === field.field && !touched.has(other.field)) {
+        if ('transform' in suggest) {
+          next[other.field] = slug(value);
+        } else {
+          // From the chosen option rather than from what was typed: picking a
+          // placement suggests the shape that slot declares.
+          const chosen = resolveOptions(field, form, optionSources).find((o) => o.value === value);
+          next[other.field] = chosen?.[suggest.fromOptionField] ?? '';
+        }
       }
       const dependsOn =
         other.options && !('static' in other.options) && other.options.filterBy?.matches;
@@ -181,6 +189,15 @@ function FormField({
               'focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-accent focus-visible:border-accent'
             )}
           />
+        ) : field.type === 'boolean' && field.booleanLabels ? (
+          <Select
+            {...shared}
+            value={value === 'true' ? 'true' : 'false'}
+            onChange={(e) => onChange(e.target.value === 'true' ? 'true' : '')}
+          >
+            <option value="false">{field.booleanLabels.false}</option>
+            <option value="true">{field.booleanLabels.true}</option>
+          </Select>
         ) : field.type === 'boolean' ? (
           <Input
             {...shared}
@@ -206,6 +223,16 @@ function FormField({
           />
         )}
       </Field>
+      {field.counter ? (
+        <p
+          className={cn(
+            'mt-1 text-label',
+            value.length > field.counter ? 'text-block' : 'text-content-subtle'
+          )}
+        >
+          {value.length} / {field.counter} characters
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -111,10 +111,19 @@ describe('every descriptor matches its OpenAPI schema', () => {
         expect(orphans.map((f) => f.field)).toEqual([]);
       });
 
-      it('orders fields unambiguously within each group', () => {
-        for (const group of descriptor.groups) {
-          const orders = descriptor.fields.filter((f) => f.group === group.key).map((f) => f.order);
-          expect(new Set(orders).size, `duplicate order in group '${group.key}'`).toBe(orders.length);
+      it('orders fields unambiguously among those that can appear together', () => {
+        // Scoped by visibility, not just by group. Creative's content group
+        // holds five mutually exclusive channel sets, each starting at 10; two
+        // fields that never render together cannot be ambiguously ordered. A
+        // duplicate *within* one channel's set still fails, which is the case
+        // this is for.
+        const seen = new Map<string, number[]>();
+        for (const f of descriptor.fields) {
+          const scope = `${f.group}|${JSON.stringify(f.visibleWhen ?? null)}`;
+          seen.set(scope, (seen.get(scope) ?? []).concat(f.order));
+        }
+        for (const [scope, orders] of seen) {
+          expect(new Set(orders).size, `duplicate order in '${scope}'`).toBe(orders.length);
         }
       });
 
@@ -257,6 +266,86 @@ describe('the Offer descriptor, exercised', () => {
 
   it('never renders a derived field', () => {
     expect(visibleFields(offer, {}, all).map((f) => f.field)).not.toContain('financials.oneOff');
+  });
+});
+
+describe('the Creative descriptor, exercised', () => {
+  const creative = descriptorFor('Creative');
+  const all: string[] = [];
+  const sources = {
+    placements: [
+      { value: 'homepage_hero', label: 'Homepage hero', channel: 'web', type: 'hero' },
+      { value: 'plans_tile', label: 'Plans tile', channel: 'web', type: 'tile' },
+      { value: 'inbox_promo', label: 'Inbox promo', channel: 'email', type: 'feature_band' },
+    ],
+  };
+
+  /** Content fields only; the identity group is the same on every channel. */
+  const shown = (channel: string) =>
+    visibleFields(creative, { channel }, all)
+      .filter((f) => f.group === 'content')
+      .map((f) => f.field);
+
+  it('shows one channel’s fields and none of another’s', () => {
+    expect(shown('sms')).toEqual(['content.text', 'content.senderId']);
+    expect(shown('email')).toContain('content.subject');
+    expect(shown('email')).not.toContain('content.text');
+    expect(shown('push')).toContain('content.deeplink');
+    expect(shown('email')).not.toContain('content.deeplink');
+  });
+
+  it('cannot carry a field from the channel somebody switched away from', () => {
+    // The old hand-built form had to remember this. Now it falls out of
+    // visibility: a subject typed on email is simply not visible on sms.
+    const form = { channel: 'sms', 'content.subject': 'Left over', 'content.text': 'Hi', 'content.senderId': 'TELCO' };
+    const body = toPayload(creative, form, { editing: false, permissions: all });
+    expect(getPath(body, 'content.subject')).toBeUndefined();
+    expect(getPath(body, 'content.text')).toBe('Hi');
+  });
+
+  it('copies the channel into the content, which the server refuses without', () => {
+    const body = toPayload(creative, { channel: 'web', 'content.headline': 'Hi' }, {
+      editing: false,
+      permissions: all,
+    });
+    expect(getPath(body, 'content.channel')).toBe('web');
+  });
+
+  it('still sends content.channel when editing, though the channel itself is locked', () => {
+    // `channel` is immutableAfterCreate, so it is not in the payload — but the
+    // content it discriminates still has to declare it.
+    const body = toPayload(creative, { channel: 'web', 'content.headline': 'Hi' }, {
+      editing: true,
+      permissions: all,
+    });
+    expect(body).not.toHaveProperty('channel');
+    expect(getPath(body, 'content.channel')).toBe('web');
+  });
+
+  it('offers only the slots on the chosen channel', () => {
+    const placement = creative.fields.find((f) => f.field === 'content.placement')!;
+    expect(resolveOptions(placement, { channel: 'web' }, sources).map((o) => o.value)).toEqual([
+      'homepage_hero',
+      'plans_tile',
+    ]);
+    expect(resolveOptions(placement, { channel: 'email' }, sources).map((o) => o.value)).toEqual([
+      'inbox_promo',
+    ]);
+  });
+
+  it('declares the placement-type suggestion against the slot that carries it', () => {
+    const type = creative.fields.find((f) => f.field === 'content.placementType')!;
+    expect(type.suggestFrom).toEqual({
+      field: 'content.placement',
+      fromOptionField: 'type',
+    });
+    // The option really has that property, so the suggestion resolves to a
+    // value rather than to undefined.
+    expect(sources.placements[0].type).toBe('hero');
+  });
+
+  it('never renders the derived discriminant', () => {
+    expect(shown('web')).not.toContain('content.channel');
   });
 });
 

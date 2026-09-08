@@ -196,9 +196,17 @@ export function toPayload(
 
   for (const field of descriptor.fields) {
     if (!field.derived) continue;
-    const from = getPath(body, field.derived.from);
-    if (from === undefined) continue;
-    setPath(body, field.field, Number(from) === 0);
+    // The payload first, then the form. A field that is immutable after
+    // creation is not resent on edit, but a value derived from it still has to
+    // go: a creative's `content.channel` must accompany its content or the
+    // server refuses the pair, even on an edit that cannot change the channel.
+    const from = getPath(body, field.derived.from) ?? form[field.derived.from];
+    if (from === undefined || from === '') continue;
+    setPath(
+      body,
+      field.field,
+      field.derived.rule === 'copy' ? from : Number(from) === 0
+    );
   }
 
   return body;
