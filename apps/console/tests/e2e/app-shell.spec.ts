@@ -69,6 +69,9 @@ test.describe('header band', () => {
   });
 
   test('collapsing the sidebar hides navigation and is reversible', async ({ page }) => {
+    // On /decisions the Evidence group is the open one, so its links are the
+    // ones that should disappear into the icon rail and come back.
+    await page.goto('/decisions');
     const nav = page.getByRole('navigation', { name: 'Main' });
     await expect(nav.getByRole('link', { name: 'Decisions', exact: true })).toBeVisible();
 

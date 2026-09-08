@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/cn';
@@ -10,136 +10,18 @@ import { Notifications } from './notifications';
 import { CommandPalette, useCommandPalette } from './command-palette';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { NavRail } from './nav-rail';
+import { buildNav } from '@/lib/nav/build-nav';
+import { PERSONA_MANIFEST } from '@/lib/nav/persona-manifest';
+import { ROUTES } from '@/lib/nav/routes.generated';
 
-interface NavItem {
-  href: string;
-  label: string;
-  /** Permission required to see this item at all. */
-  permission?: string;
-  /**
-   * Pages that belong to this one rather than beside it.
-   *
-   * Shown only while the parent's section of the app is open, so the rail
-   * stays a list of destinations rather than a sitemap. A child at the top
-   * level would claim to be a peer of Decisions and Simulations, which
-   * `/integrations/traffic` is not — it is a view of one integration surface.
-   */
-  children?: NavItem[];
-  /** A count worth interrupting for. Rendered as the amber pill. */
-  badge?: 'approvals';
-}
-
-interface NavSection {
-  label: string;
-  items: NavItem[];
-}
-
-const NAV: NavSection[] = [
-  {
-    label: 'Overview',
-    items: [{ href: '/', label: 'Home' }],
-  },
-  {
-    label: 'Offers',
-    items: [
-      { href: '/offers', label: 'Offers', permission: 'view:offers' },
-      { href: '/creatives', label: 'Creatives', permission: 'view:offers' },
-      {
-        href: '/data-model',
-        label: 'Data model',
-        children: [{ href: '/data-model/intake', label: 'Intake' }],
-      },
-      { href: '/targeting-policies', label: 'Targeting Policies' },
-      { href: '/frequency-policy', label: 'Frequency Policy' },
-      { href: '/arbitration', label: 'Arbitration & Boosts' },
-    ],
-  },
-  {
-    label: 'Decisioning',
-    items: [
-      { href: '/decision-flows', label: 'Decision flows', permission: 'view:flows' },
-      { href: '/decisions', label: 'Decisions', permission: 'view:decisions' },
-      { href: '/performance', label: 'Performance', permission: 'view:decisions' },
-      { href: '/experiments', label: 'Experiments' },
-      { href: '/simulations', label: 'Simulations' },
-      {
-        href: '/integrations',
-        label: 'Integrations',
-        children: [{ href: '/integrations/traffic', label: 'Inbound traffic' }],
-      },
-    ],
-  },
-  {
-    label: 'Governance',
-    items: [
-      { href: '/approvals', label: 'Approvals', badge: 'approvals' },
-      { href: '/agentic', label: 'Agentic AI' },
-      { href: '/audit', label: 'Audit Log', permission: 'view:audit' },
-    ],
-  },
-  {
-    label: 'Admin',
-    items: [{ href: '/settings', label: 'Settings' }],
-  },
-];
-
-/**
- * One destination in the rail.
- *
- * Two states, not one. `current` is the page you are on and takes the amber
- * marker; `within` is the section you are in, which a parent holds while you
- * are on one of its children — it stays legible without competing with the
- * child for the eye.
- *
- * The marker is the console's only warm colour. It is 3px of amber against the
- * frame at 5.63:1, and exactly one is ever on screen, which is what makes
- * spending the one non-semantic colour here defensible: it is not decorating
- * the rail, it is answering "where am I" from the corner of the eye.
+/*
+ * There is no nav array here any more. The rail is the persona manifest
+ * (lib/nav/persona-manifest.ts) joined with the routes that exist
+ * (lib/nav/routes.generated.ts, read from the filesystem) and the signed-in
+ * user, by `buildNav`. A screen appears when its page.tsx exists and the
+ * person is allowed to see it, and not otherwise.
  */
-function NavLink({
-  item,
-  current,
-  within,
-  nested = false,
-}: {
-  item: NavItem;
-  current: boolean;
-  within: boolean;
-  nested?: boolean;
-}) {
-  const pending = useApprovalCount(item.badge === 'approvals');
-
-  return (
-    <Link
-      href={item.href}
-      aria-current={current ? 'page' : undefined}
-      // Composed rather than left to accumulate from the children. The badge
-      // would otherwise join the link's name as a bare "2", and the name is
-      // what every keyboard and screen-reader path uses to find this item.
-      // Same shape the notifications bell already uses.
-      aria-label={pending > 0 ? `${item.label}, ${pending} awaiting approval` : undefined}
-      className={cn(
-        'relative flex items-center gap-2 rounded-md py-1.5 text-body transition-colors',
-        nested ? 'px-2.5 text-label' : 'px-3',
-        current
-          ? 'bg-rail-accent/10 font-medium text-rail-accent before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-r before:bg-rail-attention'
-          : within && !nested
-            ? 'text-rail-fg hover:bg-rail-hover/10'
-            : 'text-rail-muted hover:bg-rail-hover/10 hover:text-rail-fg'
-      )}
-    >
-      <span className="min-w-0 flex-1 truncate">{item.label}</span>
-      {pending > 0 ? (
-        <span
-          aria-hidden
-          className="tnum shrink-0 rounded-full bg-rail-attention px-1.5 py-px text-[0.6875rem] font-semibold tabular-nums text-rail"
-        >
-          {pending}
-        </span>
-      ) : null}
-    </Link>
-  );
-}
 
 /**
  * How many change sets are waiting on a person.
@@ -169,15 +51,52 @@ function useApprovalCount(enabled: boolean): number {
 const ENV_LABEL = process.env.NEXT_PUBLIC_ENV_LABEL ?? 'Development';
 const ENV_IS_LIVE = ENV_LABEL.toLowerCase() === 'production';
 
+/**
+ * Whether the rail is open, remembered across pages.
+ *
+ * Every page mounts its own RequireAuth and therefore its own AppShell, so
+ * plain component state forgot the collapse on the very next navigation — a
+ * rail that re-expands on every click is not collapsible. Same shape as the
+ * theme preferences: the stored value wins, the default is open, and blocked
+ * storage degrades to a per-page memory rather than an error.
+ */
+const RAIL_KEY = 'metis.shell.rail';
+
+function readRailOpen(): boolean {
+  try {
+    return localStorage.getItem(RAIL_KEY) !== 'collapsed';
+  } catch {
+    return true;
+  }
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(readRailOpen);
+  useEffect(() => {
+    try {
+      localStorage.setItem(RAIL_KEY, sidebarOpen ? 'open' : 'collapsed');
+    } catch {
+      // Ignore: the in-memory value still applies for this page.
+    }
+  }, [sidebarOpen]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [tenantOpen, setTenantOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout, hasPermission } = useAuth();
+  const { user, logout } = useAuth();
   const { colorScheme, density, setColorScheme, setDensity } = useTheme();
   const palette = useCommandPalette();
+
+  const nav = useMemo(
+    () => (user ? buildNav(PERSONA_MANIFEST, ROUTES, user) : []),
+    [user]
+  );
+  // Only subscribe to the change-set query when the rail has somewhere to put
+  // the number; every other page would otherwise watch a query it never reads.
+  const wantsApprovals = nav.some((g) =>
+    g.children.some((s) => s.badge === 'approvals' || s.children.some((c) => c.badge === 'approvals'))
+  );
+  const approvalCount = useApprovalCount(wantsApprovals);
 
   // A panel opened from the keyboard has to be closeable from the keyboard.
   useEffect(() => {
@@ -196,24 +115,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     setMenuOpen(false);
     setTenantOpen(false);
   }, [pathname]);
-
-  /** The page you are on. Exact, so a parent does not claim its child's page. */
-  function isCurrent(href: string) {
-    return pathname === href;
-  }
-
-  /**
-   * Whether this item's part of the app is open.
-   *
-   * Separate from `isCurrent` because they were one function and that was the
-   * bug: `startsWith` made `/integrations` read as the current page while you
-   * were on `/integrations/traffic`, so two items were highlighted and neither
-   * was where you were.
-   */
-  function isWithin(href: string) {
-    if (href === '/') return pathname === '/';
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
 
   function handleLogout() {
     logout();
@@ -475,65 +376,30 @@ export function AppShell({ children }: { children: ReactNode }) {
           overflow hidden still leaves its links in the tab order, so the
           keyboard path walked through a sidebar nobody could see.
         */}
-        <aside
-          data-rail
-          className={cn('w-60 shrink-0 flex-col bg-rail', sidebarOpen ? 'flex' : 'hidden')}
-        >
-          <nav className="flex-1 overflow-y-auto px-2 py-4" aria-label="Main">
-            {NAV.map((section) => {
-              const visible = section.items.filter(
-                (item) => !item.permission || hasPermission(item.permission)
-              );
-              if (visible.length === 0) return null;
-
-              return (
-                <div key={section.label} className="mb-4">
-                  <p className="px-3 pb-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-rail-dim">
-                    {section.label}
-                  </p>
-                  <ul className="space-y-0.5">
-                    {visible.map((item) => {
-                      const open = isWithin(item.href);
-                      const kids = (item.children ?? []).filter(
-                        (child) => !child.permission || hasPermission(child.permission)
-                      );
-
-                      return (
-                        <li key={item.href}>
-                          <NavLink item={item} current={isCurrent(item.href)} within={open} />
-
-                          {/* Children appear only inside their own section. A
-                              sub-page listed permanently reads as a peer of the
-                              things beside it, which is the thing being fixed. */}
-                          {kids.length > 0 && open ? (
-                            <ul className="mt-0.5 space-y-0.5 border-l border-rail-line pl-2 ml-3">
-                              {kids.map((child) => (
-                                <li key={child.href}>
-                                  <NavLink
-                                    item={child}
-                                    current={isCurrent(child.href)}
-                                    within={isWithin(child.href)}
-                                    nested
-                                  />
-                                </li>
-                              ))}
-                            </ul>
-                          ) : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              );
-            })}
-          </nav>
-
-          <div className="px-4 py-3">
-            <p className="flex items-center gap-1.5 text-[0.625rem] text-rail-dim">
-              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-rail-ok" />
-              Fixture data
-            </p>
+        {/*
+          Collapsed is the 48px icon rail, not display:none. The rail renders no
+          screen links in that state, so they leave the tab order, and a group's
+          icon still takes you to its first screen.
+        */}
+        <aside data-rail className="flex shrink-0 flex-col bg-rail">
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <NavRail
+              nav={nav}
+              pathname={pathname}
+              collapsed={!sidebarOpen}
+              approvalCount={approvalCount}
+              Link={Link}
+            />
           </div>
+
+          {sidebarOpen ? (
+            <div className="px-4 py-3">
+              <p className="flex items-center gap-1.5 text-label text-rail-dim">
+                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-rail-ok" />
+                Fixture data
+              </p>
+            </div>
+          ) : null}
         </aside>
 
         <main

@@ -94,6 +94,9 @@ module.exports = {
       height: {
         row: 'var(--row-h)',
       },
+      width: {
+        rail: 'var(--rail-w)',
+      },
       minHeight: {
         row: 'var(--row-h)',
       },

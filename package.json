@@ -13,7 +13,7 @@
     "test": "npm run test:integration && npm run test:core && npm run test:runtime && npm run test:compiler && npm run test:registry && npm run test:catalogue && npm run test:ledger && npm run test:portability && npm run test:bench && npm run test:console",
     "lint": "eslint packages bench --ext .ts",
     "dev": "docker-compose up",
-    "generate": "npm run generate -w @metis/client",
+    "generate": "npm run generate -w @metis/client && npm run generate -w @metis/console",
     "corpus": "npm run corpus:values && npm run corpus:decisions && npm run corpus:service",
     "corpus:values": "node --import tsx scripts/build-conformance-corpus.mjs",
     "corpus:decisions": "node --import tsx scripts/build-decision-corpus.mjs",

@@ -179,6 +179,9 @@
   --stack: 1.25rem;
   --text-body: 0.875rem;
   --text-label: 0.75rem;
+  /* The rail's open width. 240px comfortable, 200px compact, per the console
+     spec; collapsed it is the 48px icon rail, which is w-12 and needs no token. */
+  --rail-w: 15rem;
 
   /* Shape and elevation */
   --radius-sm: 0.25rem;
@@ -188,7 +191,12 @@
   --shadow: 0 1px 3px 0 rgb(17 23 33 / 0.08), 0 1px 2px -1px rgb(17 23 33 / 0.06);
   --shadow-lg: 0 8px 24px -6px rgb(17 23 33 / 0.14);
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+  /* `--font-inter` is set by next/font in the app's root layout and nowhere
+     else. Without the fallback, `var()` of an undefined property makes the whole
+     declaration invalid at computed-value time and the browser falls back to
+     its default serif — which is how every Storybook story was rendering in
+     Times New Roman. */
+  --font-sans: var(--font-inter, ui-sans-serif), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, monospace;
 }
@@ -202,6 +210,7 @@
   --stack: 0.75rem;
   --text-body: 0.8125rem;
   --text-label: 0.6875rem;
+  --rail-w: 12.5rem;
 }
 
 /* Dark theme - the default.

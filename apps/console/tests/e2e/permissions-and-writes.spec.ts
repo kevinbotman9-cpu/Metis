@@ -7,7 +7,8 @@ test.describe('role-based access', () => {
     const nav = page.getByRole('navigation', { name: 'Main' });
     // Sarah has view:audit, so it is present. Assert the mechanism instead by
     // checking a permission she lacks surfaces as read-only.
-    await expect(nav.getByRole('link', { name: 'Arbitration & Boosts' })).toBeVisible();
+    await nav.getByRole('button', { name: 'Decisioning', exact: true }).click();
+    await expect(nav.getByRole('link', { name: 'Arbitration & boosts' })).toBeVisible();
 
     await page.goto('/arbitration');
     await expect(page.getByText('read only')).toBeVisible();
