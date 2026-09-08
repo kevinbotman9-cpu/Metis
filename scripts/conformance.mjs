@@ -21,23 +21,9 @@ const CONFIG = {
   consoleAppDir: "apps/console/app",
   uiKitDir: "packages/ui-kit",
   apiClientDir: "packages/api-client",
-  metadataRegistry: "packages/ui-metadata/src/registry",
-  openapiSpec: "openapi/metis.json",
   layoutManifestDir: "packages/ui-metadata/layouts",
   capabilityMap: "docs/CAPABILITIES.md",
   e2eDir: "apps/console/tests/e2e",
-  // Entities the product owner has confirmed are user-editable.
-  // Every one must have a form descriptor.
-  //
-  // Names follow the §3 catalogue in CLAUDE.md and, where one exists, the
-  // schema name in the OpenAPI spec — this list is diffed against that spec,
-  // so a name it does not use can never match. `ArbitrationConfig` keeps
-  // *arbitration*, which §3.2 retains deliberately.
-  userEditableEntities: [
-    "Offer", "Creative", "Objective", "Category", "DecisionFlow",
-    "TargetingPolicy", "FrequencyPolicy", "ArbitrationConfig",
-    "Audience", "Model", "Channel", "Theme", "Layout", "Persona",
-  ],
 };
 
 const failures = [];
@@ -126,59 +112,19 @@ function checkTokensOnly() {
 }
 
 // ------------------------------------------- CHECK 3: form descriptor drift
-// The highest-value check in this file. It is what makes screen
-// configurability an architectural fact rather than an intention.
-
-function checkFormDescriptors() {
-  const specPath = join(CONFIG.root, CONFIG.openapiSpec);
-  if (!existsSync(specPath)) {
-    fail("form-descriptors", `OpenAPI spec not found at ${CONFIG.openapiSpec}. Generated spec is a prerequisite, not optional.`);
-    return;
-  }
-  const spec = JSON.parse(read(specPath));
-  const schemas = spec.components?.schemas ?? {};
-  const regDir = join(CONFIG.root, CONFIG.metadataRegistry);
-
-  if (!existsSync(regDir)) {
-    fail(
-      "form-descriptors",
-      `No metadata registry at ${CONFIG.metadataRegistry}. Every user-editable entity form must be declared, not coded. See UX_CONTRACT.md §1.`
-    );
-    return;
-  }
-
-  const descriptors = {};
-  for (const f of walk(CONFIG.metadataRegistry, [".ts", ".json"])) {
-    const src = read(f);
-    for (const e of CONFIG.userEditableEntities) {
-      if (new RegExp(`["'\`]?${e}["'\`]?\\s*[:=]`).test(src)) {
-        descriptors[e] = (descriptors[e] ?? []).concat(rel(f));
-      }
-    }
-  }
-
-  for (const entity of CONFIG.userEditableEntities) {
-    if (!descriptors[entity]) {
-      fail("form-descriptors", `Entity "${entity}" is user-editable but has no form descriptor. Its form is hand-built or absent.`);
-      continue;
-    }
-    const schema = schemas[entity];
-    if (!schema?.properties) {
-      warn("form-descriptors", `Entity "${entity}" has a descriptor but no OpenAPI schema — cannot verify field coverage.`);
-      continue;
-    }
-    const declared = descriptors[entity].map(read).join("\n");
-    const missing = Object.keys(schema.properties).filter(
-      (prop) => !new RegExp(`["'\`]${prop}["'\`]`).test(declared)
-    );
-    if (missing.length) {
-      fail(
-        "form-descriptors",
-        `Entity "${entity}" schema has properties with no descriptor entry: ${missing.join(", ")}. Adding a field must not require a code change.`
-      );
-    }
-  }
-}
+//
+// Removed 2026-09-08. `packages/ui-metadata/tests/descriptors.test.ts` does
+// this properly and supersedes it: it diffs every registered descriptor against
+// its OpenAPI schema in both directions, requires a stated reason for each
+// property the form deliberately does not manage, and checks that conditions
+// and suggestions point at fields that exist. It runs in `npm test` and in CI
+// as the "Form descriptors match the spec" step.
+//
+// The version that lived here could not have done any of that. It parsed
+// `openapi/metis.json`, a path this repo has never had — the spec is YAML at
+// docs/metis-api.openapi.yaml — so it failed on the missing file and never
+// reached a descriptor. Two checks for one rule is one check going stale, and
+// this was the stale one.
 
 // ------------------------------------------------- CHECK 4: mock-mode honesty
 
@@ -306,7 +252,6 @@ function checkCapabilityMapFreshness() {
 const CHECKS = [
   ["generated-client-only", checkGeneratedClientOnly],
   ["tokens-only", checkTokensOnly],
-  ["form-descriptors", checkFormDescriptors],
   ["mock-banner", checkMockBanner],
   ["layout-manifests", checkLayoutManifests],
   ["screen-only-e2e", checkScreenOnlyTests],

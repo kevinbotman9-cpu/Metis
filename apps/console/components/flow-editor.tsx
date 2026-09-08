@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Card, CardHeader, Badge, Select } from '@/components/ui/primitives';
+import { Card, CardHeader, Badge } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
 import { FlowCanvas } from '@/components/canvas/flow-canvas';
 import type { FlowNode, FlowEdge, FlowNodeType } from '@/mocks/fixtures/artifacts';

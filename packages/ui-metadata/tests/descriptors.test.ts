@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { load } from 'js-yaml';
-import { REGISTRY, descriptorFor } from '../src/registry';
+import { REGISTRY, descriptorFor, USER_EDITABLE_ENTITIES, PENDING } from '../src/registry';
 import {
   conditionHolds,
   isEnabled,
@@ -35,6 +35,28 @@ const spec = load(readFileSync(resolve(root, 'docs/metis-api.openapi.yaml'), 'ut
 /** The first segment of every managed path: `financials.price` → `financials`. */
 const managedRoots = (d: EntityDescriptor) =>
   new Set(d.fields.map((f) => f.field.split('.')[0]));
+
+describe('every user-editable entity is accounted for', () => {
+  it('is either registered or admitted as pending, never neither', () => {
+    const missing = USER_EDITABLE_ENTITIES.filter((e) => !REGISTRY[e] && !PENDING[e]);
+    expect(
+      missing,
+      'a user-editable entity with no descriptor and no stated reason. Declare one, or say in PENDING what stands in for it today.'
+    ).toEqual([]);
+  });
+
+  it('is never both registered and pending', () => {
+    const both = USER_EDITABLE_ENTITIES.filter((e) => REGISTRY[e] && PENDING[e]);
+    expect(both, 'built, but still listed as pending').toEqual([]);
+  });
+
+  it('states a real reason for each pending entity', () => {
+    for (const [entity, reason] of Object.entries(PENDING)) {
+      expect(USER_EDITABLE_ENTITIES as readonly string[], `${entity} is not user-editable`).toContain(entity);
+      expect(reason.length, `${entity} has no stated reason`).toBeGreaterThan(20);
+    }
+  });
+});
 
 describe('every descriptor matches its OpenAPI schema', () => {
   it('the spec parsed and has the schemas this test compares against', () => {

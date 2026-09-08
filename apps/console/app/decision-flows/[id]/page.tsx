@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -12,7 +11,6 @@ import {
   Card,
   CardHeader,
   CardBody,
-  Badge,
   StatusBadge,
   Metric,
   LoadingState,
@@ -25,117 +23,9 @@ import { useAuth } from '@/components/auth-provider';
 import { CompileReport } from '@/components/compile-report';
 import { RegistryPanel } from '@/components/registry-panel';
 import { ShadowPanel } from '@/components/shadow-panel';
-import { apiClient, ApiError, type FlowNodeDto } from '@/lib/api-client';
+import { apiClient, ApiError } from '@/lib/api-client';
 import type { FlowNode, FlowEdge } from '@/mocks/fixtures/artifacts';
-import { cn } from '@/lib/cn';
 
-const FAMILY_LABEL: Record<string, string> = {
-  source: 'Data',
-  'set-property': 'Data',
-  filter: 'Gate',
-  constraint: 'Gate',
-  'score-model': 'Score',
-  'score-adaptive': 'Score',
-  switch: 'Branch',
-  'sub-flow': 'Branch',
-  'champion-challenger': 'Branch',
-  'explain-annotate': 'Output',
-  arbitrate: 'Decision',
-};
-
-const LEGEND = [
-  { family: 'Data', tone: 'bg-info-subtle border-info/50', blurb: 'Loads or shapes state' },
-  { family: 'Gate', tone: 'bg-accent-subtle border-accent/50', blurb: 'Removes candidates' },
-  { family: 'Score', tone: 'bg-pass-subtle border-pass/50', blurb: 'Pinned model call' },
-  { family: 'Decision', tone: 'bg-block-subtle border-block/50', blurb: 'Selects the winner' },
-];
-
-function NodeInspector({
-  node,
-  policyNames,
-}: {
-  node: FlowNodeDto;
-  policyNames: Record<string, string>;
-}) {
-  return (
-    <>
-      <CardHeader
-        title={node.label}
-        description={FAMILY_LABEL[node.type] ?? 'Node'}
-        actions={<Badge tone="outline">{node.type}</Badge>}
-      />
-      <CardBody className="space-y-4">
-        <p className="text-body text-content-muted">{node.description}</p>
-
-        <div className="flex justify-between border-t border-border pt-3 text-body">
-          <span className="text-content-subtle">Node ID</span>
-          <span className="font-mono text-label">{node.id}</span>
-        </div>
-        <div className="flex justify-between text-body">
-          <span className="text-content-subtle">Worst-case latency</span>
-          <span className="tnum font-medium">{node.estimatedMs.toFixed(1)}ms</span>
-        </div>
-
-        {node.model && (
-          <div>
-            <p className="mb-1 text-label uppercase tracking-wide text-content-subtle">
-              Pinned model
-            </p>
-            <code className="block rounded border border-border bg-surface-sunken px-2 py-1.5 font-mono text-label">
-              {node.model.id} @ {node.model.version}
-            </code>
-            <p className="mt-1 text-label text-content-muted">
-              Pinned at compile time. A newer model version does not change how this decision
-              replays.
-            </p>
-          </div>
-        )}
-
-        {node.formula && (
-          <div>
-            <p className="mb-1 text-label uppercase tracking-wide text-content-subtle">
-              Ranking formula
-            </p>
-            <code className="block rounded border border-border bg-surface-sunken px-2 py-1.5 font-mono text-label">
-              {node.formula}
-            </code>
-            <Link
-              href="/arbitration"
-              className="mt-1 inline-block text-label text-accent hover:underline"
-            >
-              Tune the weights →
-            </Link>
-          </div>
-        )}
-
-        {node.policyIds && node.policyIds.length > 0 && (
-          <div>
-            <p className="mb-1.5 text-label uppercase tracking-wide text-content-subtle">
-              Policies evaluated
-            </p>
-            <ul className="space-y-1">
-              {node.policyIds.map((id) => (
-                <li
-                  key={id}
-                  className="rounded border border-border bg-surface-sunken px-2 py-1.5"
-                >
-                  <p className="text-body text-content">{policyNames[id] ?? id}</p>
-                  <p className="font-mono text-[0.6875rem] text-content-subtle">{id}</p>
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/targeting-policies"
-              className="mt-1.5 inline-block text-label text-accent hover:underline"
-            >
-              All targeting policies →
-            </Link>
-          </div>
-        )}
-      </CardBody>
-    </>
-  );
-}
 
 function FlowDetail({ artifactId }: { artifactId: string }) {
   const { hasPermission } = useAuth();
@@ -145,11 +35,6 @@ function FlowDetail({ artifactId }: { artifactId: string }) {
     queryKey: ['artifact', artifactId],
     queryFn: () => apiClient.getArtifact(artifactId),
     retry: false,
-  });
-
-  const policies = useQuery({
-    queryKey: ['targeting-policies'],
-    queryFn: () => apiClient.listTargetingPolicies(),
   });
 
   if (isLoading) {
@@ -192,9 +77,6 @@ function FlowDetail({ artifactId }: { artifactId: string }) {
 
   if (!artifact) return null;
 
-  const policyNames = Object.fromEntries(
-    (policies.data?.policies ?? []).map((p) => [p.id, p.name])
-  );
   const overBudget = artifact.estimatedP95LatencyMs > 50;
 
   return (
