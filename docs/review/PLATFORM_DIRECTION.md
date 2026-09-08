@@ -19,7 +19,7 @@ as one that understates it.
 | `placement` is a field on a request, not a configurable object | **Object.** `Placement` in the catalogue, `POST /placements/{tenant}/{key}/decisions` |
 | Delivery — inbound container **ABSENT** | **BUILT.** A partner storefront drives four slots end to end |
 | Observability — **ABSENT** | **PARTIAL.** `/integrations/traffic` records request/response for the development API. Production remains W-048 |
-| Contact policy — caps enforced | Still true, and **the web flow was not enforcing them.** Four filter nodes, no constraint node, so consent and frequency were read and ignored. Fixed in `inbound-web-offers` 1.9.0 |
+| Frequency policy — caps enforced | Still true, and **the web flow was not enforcing them.** Four filter nodes, no constraint node, so consent and frequency were read and ignored. Fixed in `inbound-web-offers` 1.9.0 |
 | Offer / creative — `New offer` is an inert button | **BUILT.** Create and edit both, permission-gated |
 | Configurability — "five object types configurable, thirty not" | The count was right and **the framing was wrong.** See §2 |
 
@@ -82,7 +82,7 @@ features are not a list; they are empty cells in this grid.
 
 | Kind | Built | Missing |
 |---|---|---|
-| **Catalogue object** — what can be offered | objective, category, offer, creative, placement | action (split from offer), content asset, treatment |
+| **Catalogue object** — what can be offered | objective, category, offer, creative, placement | action (split from offer), content asset |
 | **Policy** — what may be offered | eligibility, relevance, suitability, frequency, consent | volume/budget caps, mutual exclusion, diversity, fairness |
 | **Audience** — to whom | *nothing* | segment, computed trait, holdout group |
 | **Flow** — how it is decided | the DAG, compiled, versioned, replayable | authoring from the screen, multi-level arbitration |

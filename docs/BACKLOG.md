@@ -103,9 +103,9 @@ otherwise.
 | W-009 | 10 | Online feature service | 2 |
 | W-010 | 10 | Ingestion: batch and stream | 2 |
 | W-011 | 11 | Interaction history store | 2 |
-| W-012 | 11 | Contact policy, suppression, frequency caps | 2 |
+| W-012 | 11 | Frequency and suppression policy, caps | 2 |
 | W-013 | 12 | Consent and preference store | 2 |
-| W-014 | 13 | Treatment as a first-class entity | 2 |
+| W-014 | 13 | Creative as a first-class entity below action | 2 |
 | W-015 | 13 | Content library with approval and effective dating | 2 |
 | W-016 | 14 | Inbound real-time container | 2 |
 | W-017 | 14 | Outbound channel adapter, one channel | 2 |
@@ -526,7 +526,7 @@ is blocked on this being fast, and it is designed for billions of rows.
 - Reads into a decision are snapshotted like features, so replay stays exact.
 - Erasure (W-006) propagates here and a test asserts it.
 
-### W-012 — Contact policy, suppression, frequency caps
+### W-012 — Frequency and suppression policy, caps
 Gate 2 · Depends: W-011 · Spec §6
 
 **The caps are enforced today and their counts come from the caller.** The
@@ -559,14 +559,14 @@ fallback, matching the existing rule for unreachable databases.
 
 ---
 
-## Stage 13 — Treatments and content
+## Stage 13 — Creatives and content
 
-### W-014 — Treatment as a first-class entity
+### W-014 — Creative as a first-class entity below action
 Gate 2 · Depends: W-005 · Spec §3
 
 Today an offer carries the `key` used as the action; the `offer`/`action` split
-is PARTIAL and is a modelling change. Do that split here, and add treatment as a
-distinct entity below action, with a per-channel schema.
+is PARTIAL and is a modelling change. Do that split here, and hang the creative
+off the action rather than off the offer, keeping its per-channel schema.
 
 **Done when:** The taxonomy in `CLAUDE.md` is updated, the split is reflected in
 the OpenAPI spec, and the conformance corpora are regenerated. Expect every
@@ -588,9 +588,9 @@ Gate 2 · Depends: W-014 · Spec §3
 
 **Build:** Asset store with versions, review and approval, `valid_from` /
 `valid_to`, expiry, usage tracking. Effective dating is cross-cutting — apply it
-to actions, treatments and flows, not just assets.
+to actions, creatives and flows, not just assets.
 
-**Done when:** An expired treatment cannot be selected, and the exclusion has
+**Done when:** An expired creative cannot be selected, and the exclusion has
 its own reason code in the record. Approval reuses `/approvals` rather than
 growing a second workflow.
 
@@ -865,7 +865,7 @@ regulator and analyst renderings, not only in a report.
 Gate 3 · Depends: W-018, W-029 · Spec §7
 
 Outcome capture is built and nothing consumes it. Online learning per action,
-treatment and channel, with binning, importance and cold-start handling.
+creative and channel, with binning, importance and cold-start handling.
 
 **Done when:** Determinism survives. The rule is that a model *version* is
 frozen and pinned; learning produces a new version. A test asserts that replay

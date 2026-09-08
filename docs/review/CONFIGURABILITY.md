@@ -73,7 +73,7 @@ in §1.2 rather than repeated across twelve columns.
 
 ### 1.2 Objects that do not exist at all — every cell `N/A`
 
-Treatment (distinct from creative) · Content asset · Consent type · Arbitration
+Content asset · Consent type · Arbitration
 level · Constraint · Segment · Journey · Campaign / schedule · Experiment /
 holdout · Channel config · Placement / slot · Model binding · Feature
 definition · Profile schema · Tenant settings · Role and permission · Approval
@@ -234,7 +234,7 @@ descriptors are small; the renderer is the real work. Crucially, **the five
 working surfaces are simple** — sliders, buttons and a toggle — so the renderer
 does not have to be sophisticated to replace them.
 
-**After Stage 18.** The backlog adds, by my count from `BACKLOG.md`: treatments
+**After Stage 18.** The backlog adds, by my count from `BACKLOG.md`: creatives
 and content (W-014, W-015), placements and channel config (W-016, W-017),
 segments, journeys, campaigns, experiments (W-035 to W-037), constraints and
 arbitration levels (W-026 to W-028), model bindings and feature definitions

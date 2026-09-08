@@ -135,13 +135,13 @@ limit. `ABSENT` = nothing.
 | Line | State | What exists / what blocks it |
 |---|---|---|
 | Eligibility / relevance / suitability as distinct layers | **PRESENT** | `PolicyKind` at `core/src/domain.ts:174`, distinct reason codes, distinct audit lines |
-| Contact policy, suppression, frequency caps | **PARTIAL** | Caps and cooldowns enforced; `FREQUENCY_CAP_BREACHED` is live. Outcome-conditioned suppression needs interaction history |
+| Frequency and suppression policy, caps | **PARTIAL** | Caps and cooldowns enforced; `FREQUENCY_CAP_BREACHED` is live. Outcome-conditioned suppression needs interaction history |
 | Multi-level arbitration | **ABSENT** | One arbitration node. No within-group-then-across-group |
 | Channel- and placement-specific ranking | **ABSENT** | One ranking function per tenant |
 | Slate and bundle selection | **ABSENT** | Verified: no `slate`/`slots` anywhere in the engine. Returns a single action |
 | Optimisation constraints | **PARTIAL** | A `constraint` node exists and applies suitability policies. Cardinality, mutual exclusion, diversity, budget, inventory and fairness are absent |
 | Deterministic tie-breaking | **PRESENT** | Ties break by key; asserted in the shadow comparison and the corpus |
-| Prioritisation levers with immediate simulated impact | **PARTIAL** | Boosts exist and are editable; "immediate simulated impact" needs §1.2 |
+| Business boosts with immediate simulated impact | **PARTIAL** | Boosts exist and are editable; "immediate simulated impact" needs §1.2 |
 
 ### Intelligence — 0 of 8
 
@@ -165,8 +165,8 @@ is currently nothing to replace.
 
 | Line | State | What exists / what blocks it |
 |---|---|---|
-| Action and treatment as distinct entities | **PARTIAL** | `Objective > Category > Offer > Creative`. The offer/action split is unmade — an offer carries the `key` used as the action. W-014 |
-| Per-channel treatment schema | **PRESENT** | `EmailContent`, `SmsContent`, `WebContent`, `PushContent`, `OutboundCallContent` — five typed shapes |
+| Action and creative as distinct entities | **PARTIAL** | `Objective > Category > Offer > Creative`. The offer/action split is unmade — an offer carries the `key` used as the action. W-014 |
+| Per-channel creative schema | **PRESENT** | `EmailContent`, `SmsContent`, `WebContent`, `PushContent`, `OutboundCallContent` — five typed shapes |
 | Content library: review, approval, effective dating, expiry, usage | **ABSENT** | Creatives have a `status` and nothing else. Verified: no `effective_date`/`valid_from` on content |
 | Personalisation tokens, grounding contract | **ABSENT** | — |
 | Localisation | **ABSENT** | No i18n mechanism at all; ADR-005 Proposed |

@@ -373,11 +373,12 @@ interaction history with fast recency queries · consent and preference store ·
 retention and erasure.
 
 **Decisioning**
-Eligibility, applicability and suitability as distinct layers · contact policy,
+Eligibility, relevance and suitability as distinct layers · frequency and
+suppression policy,
 suppression, frequency caps · multi-level arbitration · channel- and
 placement-specific ranking · slate and bundle selection · optimisation
 constraints: cardinality, mutual exclusion, diversity, budget, inventory,
-fairness · deterministic tie-breaking · prioritisation levers with immediate
+fairness · deterministic tie-breaking · business boosts with immediate
 simulated impact.
 
 **Intelligence**
@@ -387,7 +388,7 @@ champion/challenger · model shadow scoring · feature attribution reaching the
 decision record.
 
 **Content**
-Action and treatment as distinct entities · per-channel treatment schema ·
+Action and creative as distinct entities · per-channel creative schema ·
 content library with review, approval, effective dating, expiry, usage
 tracking · personalisation tokens with a grounding contract · localisation ·
 cross-channel preview · brand compliance checks.
@@ -437,19 +438,19 @@ business-user object is a finding.
 | Decision flow | | | | | | | | | | | | |
 | Node within a flow | | | | | | | | | | | | |
 | Node layout / position | | | | | | | | | | | | |
-| Taxonomy: issue, group | | | | | | | | | | | | |
+| Taxonomy: objective, category | | | | | | | | | | | | |
 | Action | | | | | | | | | | | | |
 | Offer | | | | | | | | | | | | |
-| Treatment | | | | | | | | | | | | |
+| Creative | | | | | | | | | | | | |
 | Content asset | | | | | | | | | | | | |
 | Eligibility policy | | | | | | | | | | | | |
-| Applicability policy | | | | | | | | | | | | |
+| Relevance policy | | | | | | | | | | | | |
 | Suitability policy | | | | | | | | | | | | |
-| Contact policy | | | | | | | | | | | | |
+| Suppression policy | | | | | | | | | | | | |
 | Frequency cap | | | | | | | | | | | | |
 | Consent type | | | | | | | | | | | | |
 | Ranking function | | | | | | | | | | | | |
-| Lever / weighting | | | | | | | | | | | | |
+| Boost / weighting | | | | | | | | | | | | |
 | Arbitration level | | | | | | | | | | | | |
 | Constraint | | | | | | | | | | | | |
 | Segment | | | | | | | | | | | | |

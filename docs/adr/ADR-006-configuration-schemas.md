@@ -22,7 +22,7 @@ That is the *default* path — it is what you get by building screens one at a
 time without deciding not to — and it has two consequences that compound.
 
 **It scales linearly and the platform does not.** The backlog adds roughly a
-dozen object types by Stage 18: treatments, content assets, placements, channel
+dozen object types by Stage 18: creatives, content assets, placements, channel
 configs, segments, journeys, campaigns, experiments, constraints, arbitration
 levels, model bindings, feature definitions. Each gets a bespoke screen.
 

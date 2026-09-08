@@ -116,6 +116,26 @@ const ALLOWED = new Map<string, string>([
     'METIS_Experience_Layer_Build_Plan.md',
     'same note, same reason',
   ],
+  [
+    'docs/EXPERIENCE_LAYER_STATUS.md',
+    'its "The taxonomy rename, 2026-09-05" section lists the seven words the ' +
+      'platform was renamed away from in order to record what changed and why ' +
+      'every chain hash moved that day',
+  ],
+  [
+    'docs/review/VERIFIED_STATE.md',
+    'quotes the experiment that proved this check was missing — adding ' +
+      '`export type Proposition = Offer; export type Treatment = Creative;` to ' +
+      'the domain passed typecheck, lint and every suite, which is the finding ' +
+      'that made this file exist',
+  ],
+  [
+    'docs/review/INBOUND_VS_CDH.md',
+    'a comparison against Pega CDH whose §1 describes that product\'s own ' +
+      'structure, where treatment, engagement policy and contact policy are ' +
+      'the correct names for the things being described; the METIS-side prose ' +
+      'in the same file uses the §3 catalogue',
+  ],
 ]);
 
 function tracked(): string[] {

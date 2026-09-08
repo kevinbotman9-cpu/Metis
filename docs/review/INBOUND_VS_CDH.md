@@ -125,7 +125,7 @@ the vendor-neutral rename did; both engines green on the regenerated corpora.
 from `score-model`. Registered in `gaps.md` rather than removed: it is the seam
 W-032 fills, and deleting it would only move the question.
 
-### I-3 — Contact policy and consent trust the caller · S3
+### I-3 — Frequency policy and consent trust the caller · S3
 
 [`engine.ts:415`](../../packages/runtime/src/deterministic/engine.ts:415) reads
 `request.contactHistory.withinPeriod`, and consent is read from
@@ -229,7 +229,7 @@ W-016 container  →  W-052 slate contract  →  impression capture (W-018)
                                                       ↓
                                           W-011 interaction history
                                                       ↓
-                                          W-012 contact policy from history
+                                          W-012 frequency policy from history
                                                       ↓
                                           W-032 adaptive learning
 ```

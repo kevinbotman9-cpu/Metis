@@ -476,7 +476,7 @@ white clears 10.48:1 on its lightest stop.
   the body face touches every screen and every visual assertion, and is a
   separate change from the structure and palette adopted here.
 - **The other two directions.** Rail's KPI-stack-as-navigation and Sand's card
-  treatment are not shipped. Shipping all three as live options would mean three
+  styling are not shipped. Shipping all three as live options would mean three
   layouts of every screen across four existing theme axes — twelve combinations
   per component, each needing a story and an axe pass.
 
