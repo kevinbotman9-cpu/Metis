@@ -1154,34 +1154,45 @@ async function handlePost(req: Request, { params }: Ctx) {
       }
 
       const now = new Date().toISOString();
+
+      // Defaults first, then the body, then the fields the server owns
+      // outright. Spreading the body rather than copying it field by field is
+      // what makes a new property in the spec reach the store without a change
+      // here — the same shape `updateOffer` below already had, and the reason
+      // adding a field to an offer is a descriptor edit and nothing else.
+      const defaults = {
+        description: '',
+        // Draft unless the caller says otherwise. An offer that went live the
+        // moment it was created would skip every review the platform has.
+        status: 'draft' as const,
+        financials: {
+          price: { amount: 0, currency: 'GBP' as const },
+          cost: { amount: 0, currency: 'GBP' as const },
+          expectedMargin: { amount: 0, currency: 'GBP' as const },
+          termMonths: 0,
+          oneOff: false,
+        },
+        validity: { startsAt: now.slice(0, 10), endsAt: null },
+        boost: 1,
+        policyIds: [] as string[],
+        creativeIds: [] as string[],
+        tags: [] as string[],
+      };
+
       const offer: Offer = {
+        ...defaults,
+        ...body,
         // Content-addressed ids are for decisions; a catalogue entity is named
         // by its key, which is the thing that has to stay stable.
         id: `prop_${body.key}`,
         key: body.key as string,
         name: body.name as string,
-        description: body.description ?? '',
         categoryId: body.categoryId as string,
         objectiveId: body.objectiveId as string,
-        // Draft unless the caller says otherwise. An offer that went live the
-        // moment it was created would skip every review the platform has.
-        status: body.status ?? 'draft',
-        financials: body.financials ?? {
-          price: { amount: 0, currency: 'GBP' },
-          cost: { amount: 0, currency: 'GBP' },
-          expectedMargin: { amount: 0, currency: 'GBP' },
-          termMonths: 0,
-          oneOff: false,
-        },
-        validity: body.validity ?? { startsAt: now.slice(0, 10), endsAt: null },
-        boost: body.boost ?? 1,
-        policyIds: body.policyIds ?? [],
-        creativeIds: body.creativeIds ?? [],
-        tags: body.tags ?? [],
         createdAt: now,
         updatedAt: now,
         updatedBy: user.email,
-      };
+      } as Offer;
 
       store.offers.push(offer);
       recordAudit({

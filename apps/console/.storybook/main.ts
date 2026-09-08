@@ -29,6 +29,7 @@ const config: StorybookConfig = {
     viteConfig.resolve.alias = {
       ...(viteConfig.resolve.alias ?? {}),
       '@': path.resolve(__dirname, '..'),
+      '@metis/ui-metadata': path.resolve(__dirname, '../../../packages/ui-metadata/src'),
       // packages/core/src/index.ts reads schema files from disk at import time,
       // so consumers take the domain module directly.
       '@metis/core/domain': path.resolve(__dirname, '../../../packages/core/src/domain.ts'),

@@ -9,7 +9,7 @@ instead, where a human can apply judgement.
 ## 1. Screens are declared
 
 - Every entity in the OpenAPI schema that a user can create or edit has a **form
-  descriptor** in `packages/ui-metadata/registry`.
+  descriptor** in `packages/ui-metadata/src/registry`.
 - A descriptor declares: field, type, label, help, validation, conditional
   visibility, required permission, display order, grouping.
 - The renderer is generic. `apps/console/app/` contains routing, composition and
@@ -25,6 +25,19 @@ instead, where a human can apply judgement.
 - Manifests are versioned and diffable like decision flows.
 - **Check:** every route resolves to a manifest. A route rendering a hardcoded
   arrangement of components fails.
+
+Two exemptions, both narrow and both decided rather than assumed:
+
+- **A dynamic detail route (`[id]`) carries no manifest of its own.** It renders
+  inside its parent's list–detail manifest — that pattern is one screen with two
+  panes, and §4.1 says selecting a row fills the right pane rather than
+  navigating. A detail route with its own manifest would declare a second screen
+  where the design has one, and would then have to be kept in step with the
+  parent by hand. The parent's manifest is where the detail pane's regions are
+  declared.
+- **Routes outside the app shell are exempt entirely.** Today that is `/login`,
+  which renders before there is a session, a persona or a nav — the three things
+  a manifest is composed against. A manifest for it would resolve nothing.
 
 ## 3. Tokens only
 

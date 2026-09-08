@@ -21,7 +21,7 @@ const CONFIG = {
   consoleAppDir: "apps/console/app",
   uiKitDir: "packages/ui-kit",
   apiClientDir: "packages/api-client",
-  metadataRegistry: "packages/ui-metadata/registry",
+  metadataRegistry: "packages/ui-metadata/src/registry",
   openapiSpec: "openapi/metis.json",
   layoutManifestDir: "packages/ui-metadata/layouts",
   capabilityMap: "docs/CAPABILITIES.md",
@@ -200,6 +200,18 @@ function checkMockBanner() {
 
 // -------------------------------------------- CHECK 5: routes have manifests
 
+/**
+ * Routes that render outside the app shell, and so outside the layout system.
+ *
+ * A manifest is composed against a session, a persona and a nav. `/login`
+ * renders before any of the three exists, so a manifest for it would resolve
+ * nothing. See UX_CONTRACT.md §2.
+ */
+const SHELL_EXEMPT = new Set(["/login"]);
+
+/** `[id]`, `[...path]`, `[[...path]]` — any dynamic segment. */
+const isDynamicRoute = (routePath) => /\[[^\]]+\]/.test(routePath);
+
 function checkLayoutManifests() {
   const manifests = walk(CONFIG.layoutManifestDir, [".json", ".ts"]).map(read).join("\n");
   for (const f of routeFiles()) {
@@ -210,6 +222,11 @@ function checkLayoutManifests() {
       rel(f)
         .replace(`${CONFIG.consoleAppDir}/`, "")
         .replace(/(^|\/)(page|route)\.tsx?$/, "");
+
+    // A detail route renders inside its parent's list–detail manifest; it is
+    // one screen with two panes, not two screens. UX_CONTRACT.md §2.
+    if (isDynamicRoute(routePath) || SHELL_EXEMPT.has(routePath)) continue;
+
     if (!manifests.includes(routePath)) {
       fail("layout-manifests", `Route "${routePath}" has no layout manifest. Screens are declared, not coded. See UX_CONTRACT.md §2.`);
     }

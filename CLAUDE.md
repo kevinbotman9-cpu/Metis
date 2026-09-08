@@ -49,7 +49,7 @@ ten of these exist **in the same PR**:
 | 3 | Public API endpoint | `planes/authoring` or `planes/execution` |
 | 4 | Generated client method (never a hand-rolled `fetch`) | `packages/client`, via `npm run generate` |
 | 5 | A route in the console the persona can reach from nav | `apps/console/app/...` |
-| 6 | Form descriptor / screen configurability metadata (Rule 8) | the metadata registry |
+| 6 | Form descriptor / screen configurability metadata (Rule 8) | `packages/ui-metadata/src/registry` |
 | 7 | Trace contribution, if it affects a decision | `packages/ledger` |
 | 8 | Deterministic test + one `@screen-only` e2e | `tests/`, `apps/console/tests/e2e` |
 | 9 | Accessibility pass on the new route | `npm run test:a11y`, axe clean |

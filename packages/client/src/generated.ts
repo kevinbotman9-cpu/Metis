@@ -89,6 +89,8 @@ export interface Offer {
   validity: ValidityWindow;
   /** Business priority multiplier. 1.0 is neutral. */
   boost: number;
+  /** Link to the contractual terms the customer is agreeing to. Optional, because not every offer has separate terms; where one does, the trace should be able to reach what was actually promised. */
+  contractUrl?: string;
   policyIds: string[];
   creativeIds: string[];
   tags: string[];

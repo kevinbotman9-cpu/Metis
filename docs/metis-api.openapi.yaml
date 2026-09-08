@@ -180,6 +180,12 @@ components:
         boost:
           type: number
           description: Business priority multiplier. 1.0 is neutral.
+        contractUrl:
+          type: string
+          description: >-
+            Link to the contractual terms the customer is agreeing to. Optional,
+            because not every offer has separate terms; where one does, the
+            trace should be able to reach what was actually promised.
         policyIds:
           type: array
           items: { type: string }

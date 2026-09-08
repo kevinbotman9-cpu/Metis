@@ -108,6 +108,14 @@ jobs:
         run: npm run test:bench
         working-directory: .
 
+      # The form descriptors, diffed against the OpenAPI schema in both
+      # directions. A descriptor that has fallen behind its schema renders a
+      # form that looks complete and silently cannot edit the new field, which
+      # is worse than no descriptor at all.
+      - name: Form descriptors match the spec
+        run: npm run test:ui-metadata
+        working-directory: .
+
       # The seam between the planes: author -> compile -> execute -> replay.
       - name: Integration
         run: npm run test:integration
