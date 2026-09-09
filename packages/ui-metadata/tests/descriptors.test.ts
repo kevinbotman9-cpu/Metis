@@ -127,9 +127,22 @@ describe('every descriptor matches its OpenAPI schema', () => {
         }
       });
 
-      it('compiles every validation pattern', () => {
+      it('compiles every validation pattern, the way a browser compiles it', () => {
+        // The `v` flag, because that is what a browser uses for an HTML
+        // `pattern` attribute, and it is stricter than the default: an
+        // unescaped `-` at the end of a character class is a syntax error
+        // under `v` and fine without it.
+        //
+        // This test used to compile with no flags. `^[a-z0-9_-]+$` passed it,
+        // and Chrome threw "Invalid character in character class" and dropped
+        // the attribute — so the field validated against nothing, on a form
+        // whose whole point is that its validation is declared. Found by
+        // reading the browser console, which is not a check.
         for (const f of descriptor.fields) {
-          if (f.validation?.pattern) expect(() => new RegExp(f.validation!.pattern!)).not.toThrow();
+          const pattern = f.validation?.pattern;
+          if (!pattern) continue;
+          expect(() => new RegExp(pattern), `${f.field}: ${pattern}`).not.toThrow();
+          expect(() => new RegExp(pattern, 'v'), `${f.field}: ${pattern}`).not.toThrow();
         }
       });
 

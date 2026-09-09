@@ -1049,6 +1049,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200'],
   },
+  createCategory: {
+    method: 'POST',
+    path: '/categories/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['201', '400', '403', '409'],
+  },
   createChangeSet: {
     method: 'POST',
     path: '/change-sets',
@@ -1076,6 +1083,13 @@ export const OPERATIONS = {
     pathParams: ['tenantId'],
     queryParams: [],
     statuses: ['201', '400', '403'],
+  },
+  createObjective: {
+    method: 'POST',
+    path: '/objectives/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['201', '400', '403', '409'],
   },
   createOffer: {
     method: 'POST',
@@ -1406,6 +1420,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '403'],
   },
+  updateCategory: {
+    method: 'PUT',
+    path: '/categories/{tenantId}/{categoryId}',
+    pathParams: ['tenantId', 'categoryId'],
+    queryParams: [],
+    statuses: ['200', '400', '403', '404'],
+  },
   updateConnector: {
     method: 'PUT',
     path: '/connectors/{tenantId}/{connectorId}',
@@ -1440,6 +1461,13 @@ export const OPERATIONS = {
     pathParams: ['tenantId', 'experimentId'],
     queryParams: [],
     statuses: ['200', '403', '404', '409'],
+  },
+  updateObjective: {
+    method: 'PUT',
+    path: '/objectives/{tenantId}/{objectiveId}',
+    pathParams: ['tenantId', 'objectiveId'],
+    queryParams: [],
+    statuses: ['200', '403', '404'],
   },
   updateOffer: {
     method: 'PUT',
@@ -1479,6 +1507,10 @@ export type ClearInboundCallsResponse = {
   cleared: boolean;
 };
 
+/** Create a category */
+export type CreateCategoryResponse = Category;
+export type CreateCategoryRequest = Category;
+
 /** Propose a change */
 export type CreateChangeSetResponse = ChangeSet;
 export type CreateChangeSetRequest = ChangeSet;
@@ -1498,6 +1530,10 @@ export type CreateDataSourceRequest = {
 /** Define an experiment */
 export type CreateExperimentResponse = Experiment;
 export type CreateExperimentRequest = Experiment;
+
+/** Create an objective */
+export type CreateObjectiveResponse = Objective;
+export type CreateObjectiveRequest = Objective;
 
 /** Create an offer */
 export type CreateOfferResponse = Offer;
@@ -1829,6 +1865,10 @@ export type UpdateArbitrationConfigRequest = {
 export type UpdateAutonomySettingResponse = AutonomySetting;
 export type UpdateAutonomySettingRequest = AutonomySetting;
 
+/** Update a category */
+export type UpdateCategoryResponse = Category;
+export type UpdateCategoryRequest = Category;
+
 /** Activate, deactivate or retune a connector */
 export type UpdateConnectorResponse = Connector;
 export type UpdateConnectorRequest = Connector;
@@ -1860,6 +1900,10 @@ export type UpdateDecisionFlowDraftRequest = {
 export type UpdateExperimentResponse = Experiment;
 export type UpdateExperimentRequest = Experiment;
 
+/** Update an objective */
+export type UpdateObjectiveResponse = Objective;
+export type UpdateObjectiveRequest = Objective;
+
 /** Update an offer */
 export type UpdateOfferResponse = Offer;
 export type UpdateOfferRequest = Offer;
@@ -1879,10 +1923,12 @@ export interface ResponseOf {
   activateDataSource: ActivateDataSourceResponse;
   approveChangeSet: ApproveChangeSetResponse;
   clearInboundCalls: ClearInboundCallsResponse;
+  createCategory: CreateCategoryResponse;
   createChangeSet: CreateChangeSetResponse;
   createCreative: CreateCreativeResponse;
   createDataSource: CreateDataSourceResponse;
   createExperiment: CreateExperimentResponse;
+  createObjective: CreateObjectiveResponse;
   createOffer: CreateOfferResponse;
   createTargetingPolicy: CreateTargetingPolicyResponse;
   decidePlacement: DecidePlacementResponse;
@@ -1930,11 +1976,13 @@ export interface ResponseOf {
   simulateDecisionFlow: SimulateDecisionFlowResponse;
   updateArbitrationConfig: UpdateArbitrationConfigResponse;
   updateAutonomySetting: UpdateAutonomySettingResponse;
+  updateCategory: UpdateCategoryResponse;
   updateConnector: UpdateConnectorResponse;
   updateCreative: UpdateCreativeResponse;
   updateDataSource: UpdateDataSourceResponse;
   updateDecisionFlowDraft: UpdateDecisionFlowDraftResponse;
   updateExperiment: UpdateExperimentResponse;
+  updateObjective: UpdateObjectiveResponse;
   updateOffer: UpdateOfferResponse;
   updateTargetingPolicy: UpdateTargetingPolicyResponse;
   validateDataSource: ValidateDataSourceResponse;

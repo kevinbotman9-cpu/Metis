@@ -114,6 +114,99 @@ than an ordering one.
 **Done when:** `--repeat-each=12` passes ten times in a row without an
 `ECONNRESET`. Six consecutive full runs are clean; this narrower probe is not.
 
+### G-037 — `build-decision-index.mjs` does not produce the same bytes twice
+
+**Registered:** 2026-09-09 · **Status:** Open · **Work item:** none
+
+`npm run generate` rewrites `apps/console/mocks/fixtures/decision-index.json`,
+and running it twice on an unchanged tree changes the file. The difference is
+one column: `totalMs`, a measured execution time, moved from `1` to `0` on the
+first row. Chain hashes and every other column are byte-identical, so nothing
+about a decision changed — a timing measurement is being baked into a committed
+fixture.
+
+CI regenerates and diffs `packages/client/src/generated.ts` only
+(`.github/workflows/console.yml`), so this file has never been checked and the
+wobble has never been visible. It surfaced on 2026-09-09 when a slice ran
+`npm run generate` for a spec change and got an unrelated 2.2 MB file in its
+diff.
+
+**Done when:** `npm run generate` twice in a row leaves the tree clean, either
+because the index stops carrying a measured duration or because the duration is
+taken from the same recorded run each time.
+
+### G-038 — The catalogue's rules are written twice
+
+**Registered:** 2026-09-09 · **Status:** Open · **Work item:** [W-005](BACKLOG.md)
+
+`packages/catalogue` holds the catalogue's rules — referential integrity,
+duplicate keys, the audit trail — in one class, behind a store interface, with
+one behaviour suite proving memory and PostgreSQL agree
+(`packages/catalogue/tests/suite.ts`). The console does not use it. Every write
+in `apps/console/app/api/[...path]/route.ts` reimplements the same rules against
+`apps/console/mocks/store.ts`.
+
+They agree today because each one was written by reading the other. Nothing
+holds them together: `Catalogue.putCategory` refuses `UNKNOWN_OBJECTIVE` and the
+`categories` POST refuses the same thing in its own words, and a rule added to
+one is not added to the other. This was already true of offers and creatives;
+authoring the taxonomy on 2026-09-09 made it true of two more entities, which is
+the reason to register it rather than keep noticing it.
+
+**Done when:** the console's write path calls `packages/catalogue`, or the
+duplication is deliberate and the behaviour suite runs against both.
+
+### G-039 — Two conformance rules read prose and cannot tell it from code
+
+**Registered:** 2026-09-09 · **Status:** Open · **Work item:** none
+
+`checkMockBanner` in `scripts/conformance.mjs` decides a screen is unwired if
+its source matches `/\b(mock|fixture|sampleData|stubData|placeholderData)\b/`
+and shows no banner. It reads the whole file, comments included. On 2026-09-09
+`apps/console/app/objectives/page.tsx` failed it for a doc comment explaining
+that the taxonomy *used* to be authored in a seed file — a page that reads
+every one of its four data sets through the generated client. The comment was
+reworded to get past the rule, which is the wrong direction of causation and
+the reason this is registered rather than forgotten.
+
+`checkStatusHonesty` has the same shape and one of its two current failures is
+the same false positive: `docs/gaps.md` is flagged for quoting the deleted
+`PHASES_SUMMARY.md` in order to explain why it was deleted, and has been since
+`7330292`. `tests/docs-status.test.ts` solved this problem for its own rule by
+checking a **table cell** rather than any occurrence of a word, and its doc
+comment says so explicitly.
+
+Two false positives out of 25 failures is not a crisis. The cost is that both
+rules train a reader to skim past their output, and a rule nobody reads is a
+rule that has stopped working.
+
+**Done when:** both rules ignore comments, or state in their output that they
+matched inside one.
+
+### G-040 — Artefact 10 of the slice definition has never been built
+
+**Registered:** 2026-09-09 · **Status:** Open · **Work item:** none
+
+`CLAUDE.md` defines a slice as ten artefacts that must all exist in the same PR,
+and the tenth is *"Docs page generated from the typed contract — `docs/api/`"*.
+`docs/api/` does not exist. There is no generator, no npm script, and no check.
+`CLAUDE.md:56` is the only reference to the path anywhere in the repository.
+
+Every slice this repo has shipped has therefore been nine-tenths of a slice, and
+none of them said so — including the one that registered this. The rule directly
+above it in the same file reads *"If you cannot finish all ten, make the slice
+smaller"*, and no amount of making a slice smaller produces a generator that
+does not exist.
+
+The point is not the missing pages. `docs/metis-api.openapi.yaml` is readable
+and `scripts/validate-spec.mjs` keeps it honest. The point is that a definition
+of done with an item nobody has ever met is a definition of done that everybody
+has learned to round off, which is the same failure as a check that is red for a
+known reason.
+
+**Done when:** either `npm run generate` writes `docs/api/` from the spec and a
+check fails when it is stale, or artefact 10 is removed from `CLAUDE.md` and the
+decision to drop it is recorded.
 ### G-004 — No node, panel or layout manifests — the composable experience
 
 **Registered:** 2026-09-03 · **Status:** Open · **Work item:** [W-038](BACKLOG.md)

@@ -62,9 +62,16 @@ function OffersView() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const [selected, setSelected] = useState<{ type: 'all' | 'objective' | 'category'; id?: string }>({
-    type: 'all',
-  });
+  // `?category=` so the taxonomy screen can send someone here: an offer count
+  // shown against a category on /objectives has to reach the offers it counted,
+  // or it is a number with nothing behind it. Read once, as the initial
+  // selection, because the tree on the left is then in charge of it.
+  const [selected, setSelected] = useState<{ type: 'all' | 'objective' | 'category'; id?: string }>(
+    () => {
+      const category = params.get('category');
+      return category ? { type: 'category', id: category } : { type: 'all' };
+    }
+  );
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [lens, setLens] = useState('all');
