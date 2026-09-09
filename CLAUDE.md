@@ -189,6 +189,9 @@ Never use "submit" for buttons. Buttons name their effect ("Publish", "Approve",
 - **Uncertain which audience this screen is for** → check the persona list in the Experience Layer plan (`METIS_Experience_Layer_Build_Plan.md`)
 - **Uncertain what state to show** → the Playwright test file has the full state matrix (loading, empty, error, permission-denied, stale-data)
 - **Uncertain whether a design decision is right** → check the design direction (§5 of the Experience Layer plan); if it conflicts, flag for product review
+- **Uncertain what screen this is, where it sits in nav, or which layout pattern it uses** → `docs/METIS_CONSOLE_SPEC.md`. Parts 2 and 3 are the screen inventory and nav tree; Part 4 the six layout patterns; Part 5 the visual specification; Part 6 the demo bar
+- **Uncertain what to build next** → `docs/JOURNEY_SPINES.md`. Work is pulled from there in order, not from a feature list. One spine open at a time
+- **Uncertain whether a UI rule is enforced or advisory** → `docs/UX_CONTRACT.md`. Every rule there is checked by `npm run conformance`; a rule with no check is a suggestion
 
 ---
 
@@ -223,7 +226,7 @@ These are high-touch and need product/design review before code.
 ## Session Discipline
 
 - One slice per session. If the slice is bigger than one session, split it.
-- Start the session by running the conformance gate and reporting the current
+- Start the session by running `npm run conformance` and reporting the current
   failure count. End the session the same way. Do not end with a higher failure
   count than you started with.
 - If you are more than 60% through context and slice artefacts 5–10 are not done,
@@ -231,6 +234,41 @@ These are high-touch and need product/design review before code.
 - Do not proceed past a red gate. Report it and stop.
 - Read-only means read-only. Do not fix things during a survey phase.
 
+### End every session by naming what is wrong
+
+The last line of every session report names **the single largest absent or broken
+thing you saw that is outside this slice.** One paragraph. Do not fix it. Do not
+soften it. If there was genuinely nothing, say that explicitly rather than
+omitting the line.
+
+This exists because the scope rules above are deliberately narrow, and narrow
+scope means a session can end with everything green while something structural is
+missing. A session that ships a working form and never mentions that the entity
+has no data behind it has told the truth and left the wrong impression. This is
+the one place in the process where bad news has somewhere to go, and it is not
+optional.
+
+The end-of-session finding is reported to the product owner. It does not become
+the next session's work. Work is pulled from `docs/JOURNEY_SPINES.md` in order,
+or from what the product owner has picked. A finding enters the queue only when
+the product owner puts it there.
+
+### Every fifth session is read-only
+
+No building. Pick the area of the platform least examined so far and audit it
+against `docs/CAPABILITY_TAXONOMY.md`. Report what is absent, not what is done.
+Write findings to `docs/evaluation/` and register real gaps in `docs/gaps.md`.
+
+A survey session that finds nothing has failed — either it surveyed something
+already well understood, or it flinched. Choose the area you would least like to
+look at.
+
+`docs/gaps.md` accumulates what sessions happened to trip over. It has no coverage
+guarantee, and absence from it means nobody looked. These surveys are what give it
+coverage.
+
 ---
 
-**Questions?** Check `/docs/gaps.md` for what's outstanding.
+**Questions?** `docs/gaps.md` for known gaps, `docs/CAPABILITIES.md` for status,
+`docs/METIS_CONSOLE_SPEC.md` for what a screen is meant to be, `docs/JOURNEY_SPINES.md`
+for what comes next. None of these is complete. Say so when you find the edge of one.

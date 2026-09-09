@@ -114,29 +114,6 @@ than an ordering one.
 **Done when:** `--repeat-each=12` passes ten times in a row without an
 `ECONNRESET`. Six consecutive full runs are clean; this narrower probe is not.
 
-### G-036 — The root lint step covers neither `tests/` nor `scripts/`
-
-**Registered:** 2026-09-09 · **Status:** Open · **Work item:** none
-
-`npm run lint` at the root is `eslint packages bench --ext .ts`. CI runs exactly
-that, so nothing lints the two trees where every check written this week lives:
-`tests/` holds `vocabulary`, `docs-status`, `adr-status`, `gaps-register` and
-`api-paths`, and `scripts/` holds the conformance gate, the corpus builders and
-`report-flaky.mjs`.
-
-Found on 2026-09-09 while confirming a new script was clean. `npx eslint .` from
-the root reports an error in `tests/source-hygiene.test.ts:126` —
-`no-control-regex`, present since `660e56f` — that the CI step cannot see. The
-capability map's "Lint clean" line was corrected on 2026-09-09 to say so; this
-entry is why the error survived long enough to need correcting.
-
-**Not fixed here.** Widening the glob turns that pre-existing error into a red
-CI, which is a change somebody should make deliberately rather than as a side
-effect of a slice about flake detection. It is one `eslint-disable-next-line`
-away from being safe to do.
-
-**Done when:** `npm run lint` covers `tests` and `scripts`, and passes.
-
 ### G-037 — `build-decision-index.mjs` does not produce the same bytes twice
 
 **Registered:** 2026-09-09 · **Status:** Open · **Work item:** none
@@ -757,6 +734,54 @@ have produced.
 ---
 
 ## Resolved
+
+### G-036 — The root lint step covers neither `tests/` nor `scripts/`
+
+**Registered:** 2026-09-09 · **Resolved:** 2026-09-09 · **Status:** Resolved · **Work item:** none
+
+`npm run lint` at the root is `eslint packages bench --ext .ts`. CI runs exactly
+that, so nothing lints the two trees where every check written this week lives:
+`tests/` holds `vocabulary`, `docs-status`, `adr-status`, `gaps-register` and
+`api-paths`, and `scripts/` holds the conformance gate, the corpus builders and
+`report-flaky.mjs`.
+
+Found on 2026-09-09 while confirming a new script was clean. `npx eslint .` from
+the root reports an error in `tests/source-hygiene.test.ts:126` —
+`no-control-regex`, present since `660e56f` — that the CI step cannot see. The
+capability map's "Lint clean" line was corrected on 2026-09-09 to say so; this
+entry is why the error survived long enough to need correcting.
+
+**Not fixed here.** Widening the glob turns that pre-existing error into a red
+CI, which is a change somebody should make deliberately rather than as a side
+effect of a slice about flake detection. It is one `eslint-disable-next-line`
+away from being safe to do.
+
+**Done when:** `npm run lint` covers `tests` and `scripts`, and passes.
+
+**Closed 2026-09-09.** `npm run lint` is now
+`eslint packages bench tests scripts --ext .ts,.mjs`, and CI runs that.
+
+**It surfaced exactly two errors, and neither was a defect.** Both are the rule
+firing on code that is doing the right thing, which is why both are silenced at
+the site with the reason rather than by turning the rule off or excluding the
+file:
+
+- `scripts/build-conformance-corpus.mjs:63` — `no-loss-of-precision` on
+  `123456789012345678901234`. The literal loses precision deliberately: that is
+  the case. ADR-003 asks what an integer past 2^53 serialises to *after* the
+  double has already rounded it, so writing it any other way would test a
+  different number.
+- `tests/source-hygiene.test.ts:126` — `no-control-regex` on
+  `/[\u0000-\u001f\u007f]/`. Matching control characters is the job: it
+  renders the bytes around a forbidden one for a person to read, and a raw NUL
+  or ESC in that output would corrupt the terminal it is printed to.
+
+The corpus regenerates byte-identical, so nothing in either fix touched a hash.
+
+**Two is a low number and that is the finding.** The trees that had never been
+linted turned out to be almost clean, which means the cost of this gap was not
+accumulated debt — it was that a real error sat visible-to-nobody for days while
+`docs/CAPABILITIES.md` claimed the lint was clean.
 
 ### G-003 — The decision trace accessibility test fails after a write-heavy run
 

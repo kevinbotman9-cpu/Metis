@@ -106,11 +106,14 @@ Bundle               9 passed  - route budgets against the standalone build
 Conformance (JVM)   13 passed  - engines/kotlin; 67 values, 22 decisions,
                                  60 real decisions over HTTP
 Typecheck           clean      - root config and the console's, separately
-Lint                1 error    - console clean, 0 warnings. Root has one
-                                 error: no-control-regex at
-                                 tests/source-hygiene.test.ts:126, present
-                                 since 660e56f and found 2026-09-09. This
-                                 line claimed "0 errors" while it was not
+Lint                clean      - root and console, 0 errors and 0 warnings.
+                                 The root glob covered only packages and bench
+                                 until 2026-09-09, so tests/ and scripts/ -
+                                 where every check in this repository lives -
+                                 were linted by nobody. Widened; it found two
+                                 errors, both the rule firing on deliberate
+                                 code, both silenced at the site with a
+                                 reason. G-036
                    ---
                    1000+ tests, two languages, two engines
 ```
