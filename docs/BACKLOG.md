@@ -26,6 +26,39 @@ no i18n mechanism, and the offer/action split is unmade.
 
 ---
 
+## Status is emitted, not written
+
+**Restructured 2026-09-09.** Every item now carries three things above its
+prose:
+
+- **Registered** — the date the item first appeared in this file, read out of
+  git rather than remembered. All but five date to 2026-09-06, which is the day
+  the backlog was adopted; W-051 and W-052 to 2026-09-07, and W-053 to W-055 to
+  2026-09-09.
+- **Stage** — taken from the summary table, so the two cannot disagree.
+- **Status** — `DONE`, `PARTIAL` or `OPEN`, and **a `DONE` cites the check that
+  goes red if the item breaks.** Rule 7 in `CLAUDE.md` says status is emitted by
+  tooling and never authored. This file was the last place a completion claim
+  could be typed into a heading by hand and checked by nothing, which is what
+  `**DONE 2026-09-06**` was: a bold string.
+
+`tests/gaps-register.test.ts` holds it. An item with no date, no stage, no
+**Done when**, or a `DONE` whose check file does not exist on disk fails the
+suite. **An item claiming DONE with no nameable check is not DONE**, and the
+test is the thing that decides, not the author.
+
+`docs/BACKLOG.md` was allow-listed in `tests/docs-status.test.ts` until
+2026-09-09. The allow-list is now removed, and removing it changed nothing —
+the suite passed immediately. That is worth stating rather than quietly
+enjoying: `docs-status.test.ts` reads the **last** cell of a table row, and this
+file's summary table ends in the gate number, so the `— **done**` markers in the
+middle cell were never in the checked position. The file was exempted from a
+rule it had never broken, while breaking the spirit of it in a column the check
+does not read. Status now lives in its own column, and the gate number still
+ends the row.
+
+---
+
 ## 0. Rules for this backlog
 
 These are constraints on every PR in this file. They are the existing project
@@ -89,70 +122,74 @@ Gate 1 finishes the Foundation MVP. Gates 2–3 are the platform. Stages are
 sequential; items within a stage can be parallel unless *Depends* says
 otherwise.
 
-| ID | Stage | Item | Gate |
-|---|---|---|---|
-| W-000 | 0 | CI check: only the capability map claims BUILT — **done** | 1 |
-| W-001 | 0 | Fix the holes in the checks themselves — **done** | 1 |
-| W-002 | 7 | Export / re-import — **done** | 1 |
-| W-003 | 8 | S1 benchmark and the p99 gate — **done, bounded** | 1 |
-| W-004 | 8 | No-network-egress assertion in the decision path — **done** | 1 |
-| W-005 | 9 | Catalogue, policies and taxonomy into PostgreSQL — **half done** | 2 |
-| W-006 | 9 | Retention and erasure design — **ADR awaiting decision** | 2 |
-| W-007 | 9 | Configurable approved default for a missing score — **done** | 2 |
-| W-008 | 10 | Customer profile store and data model | 2 |
-| W-009 | 10 | Online feature service | 2 |
-| W-010 | 10 | Ingestion: batch and stream | 2 |
-| W-011 | 11 | Interaction history store | 2 |
-| W-012 | 11 | Frequency and suppression policy, caps | 2 |
-| W-013 | 12 | Consent and preference store | 2 |
-| W-014 | 13 | Creative as a first-class entity below action | 2 |
-| W-015 | 13 | Content library with approval and effective dating | 2 |
-| W-016 | 14 | Inbound real-time container | 2 |
-| W-017 | 14 | Outbound channel adapter, one channel | 2 |
-| W-018 | 14 | Delivery and response telemetry | 2 |
-| W-019 | 15 | Batch / offline executor | 2 |
-| W-020 | 16 | Distribution and version-diff simulation | 2 |
-| W-021 | 16 | Bias gate as a pre-publish blocker | 2 |
-| W-022 | 16 | Simulation evidence attached to change sets | 2 |
-| W-023 | 16 | Flow unit tests with deterministic fixtures — **done** | 2 |
-| W-024 | 17 | Writable canvas | 2 |
-| W-025 | 17 | Natural-language authoring that compiles to a diff | 2 |
-| W-026 | 18 | Eligibility / relevance / suitability layers | 2 |
-| W-027 | 18 | Multi-level and channel-specific ranking | 2 |
-| W-028 | 18 | Slate selection and optimisation constraints | 2 |
-| W-029 | 19 | Model gateway and registry | 2 |
-| W-030 | 19 | ONNX and PMML import | 2 |
-| W-031 | 19 | Feature attribution in the decision record | 2 |
-| W-032 | 20 | Adaptive learning from captured outcomes | 3 |
-| W-033 | 20 | Drift, calibration, auto-quarantine | 3 |
-| W-034 | 20 | Champion/challenger and model shadow scoring | 3 |
-| W-035 | 21 | Segments and audience builder | 3 |
-| W-036 | 21 | Journey orchestration | 3 |
-| W-037 | 21 | Experiments, holdouts, incrementality | 3 |
-| W-038 | 22 | Package system and manifests | 3 |
-| W-039 | 22 | Authoring SDK and generated package docs | 3 |
-| W-040 | 22 | Industry and regulatory packs with change reports | 3 |
-| W-041 | 23 | Theming, layout manifests, pluggable panels | 3 |
-| W-042 | 23 | i18n mechanism — **ADR awaiting decision** | 3 |
-| W-043 | 24 | Identity and access: SSO, SCIM, ABAC | 3 |
-| W-044 | 24 | Artefact signing and SBOM | 3 |
-| W-045 | 24 | Degradation ladder | 3 |
-| W-046 | 24 | Per-decision cost accounting | 3 |
-| W-047 | 24 | Multi-region residency | 3 |
-| W-048 | 24 | OpenTelemetry, SLOs, quotas | 3 |
-| W-049 | 25 | Evidence packs: AI Act, NIST AI RMF, SR 11-7 | 3 |
-| W-050 | 25 | DR: backup, tested restore, chaos | 3 |
-| W-051 | 9 | Secret provider and connector authentication — **ADR awaiting decision** | 2 |
-| W-052 | 14 | Container object and the ranked-slate contract — **done** | 2 |
-| W-053 | 14 | Regulator-ready evidence pack (PDF + hash verification page) | 2 |
-| W-054 | 17 | Flow version diff — canvas, textual, semantic | 2 |
-| W-055 | 12 | A disabled control states its reason accessibly | 2 |
+| ID | Stage | Item | Status | Gate |
+|---|---|---|---|---|
+| W-000 | 0 | CI check: only the capability map claims BUILT | DONE | 1 |
+| W-001 | 0 | Fix the holes in the checks themselves | DONE | 1 |
+| W-002 | 7 | Export / re-import | DONE | 1 |
+| W-003 | 8 | S1 benchmark and the p99 gate | DONE | 1 |
+| W-004 | 8 | No-network-egress assertion in the decision path | DONE | 1 |
+| W-005 | 9 | Catalogue, policies and taxonomy into PostgreSQL | PARTIAL | 2 |
+| W-006 | 9 | Retention and erasure design | OPEN | 2 |
+| W-007 | 9 | Configurable approved default for a missing score | DONE | 2 |
+| W-008 | 10 | Customer profile store and data model | OPEN | 2 |
+| W-009 | 10 | Online feature service | OPEN | 2 |
+| W-010 | 10 | Ingestion: batch and stream | OPEN | 2 |
+| W-011 | 11 | Interaction history store | OPEN | 2 |
+| W-012 | 11 | Frequency and suppression policy, caps | OPEN | 2 |
+| W-013 | 12 | Consent and preference store | OPEN | 2 |
+| W-014 | 13 | Creative as a first-class entity below action | OPEN | 2 |
+| W-015 | 13 | Content library with approval and effective dating | OPEN | 2 |
+| W-016 | 14 | Inbound real-time container | OPEN | 2 |
+| W-017 | 14 | Outbound channel adapter, one channel | OPEN | 2 |
+| W-018 | 14 | Delivery and response telemetry | OPEN | 2 |
+| W-019 | 15 | Batch / offline executor | OPEN | 2 |
+| W-020 | 16 | Distribution and version-diff simulation | OPEN | 2 |
+| W-021 | 16 | Bias gate as a pre-publish blocker | OPEN | 2 |
+| W-022 | 16 | Simulation evidence attached to change sets | OPEN | 2 |
+| W-023 | 16 | Flow unit tests with deterministic fixtures | DONE | 2 |
+| W-024 | 17 | Writable canvas | OPEN | 2 |
+| W-025 | 17 | Natural-language authoring that compiles to a diff | OPEN | 2 |
+| W-026 | 18 | Eligibility / relevance / suitability layers | OPEN | 2 |
+| W-027 | 18 | Multi-level and channel-specific ranking | OPEN | 2 |
+| W-028 | 18 | Slate selection and optimisation constraints | OPEN | 2 |
+| W-029 | 19 | Model gateway and registry | OPEN | 2 |
+| W-030 | 19 | ONNX and PMML import | OPEN | 2 |
+| W-031 | 19 | Feature attribution in the decision record | OPEN | 2 |
+| W-032 | 20 | Adaptive learning from captured outcomes | OPEN | 3 |
+| W-033 | 20 | Drift, calibration, auto-quarantine | OPEN | 3 |
+| W-034 | 20 | Champion/challenger and model shadow scoring | OPEN | 3 |
+| W-035 | 21 | Segments and audience builder | OPEN | 3 |
+| W-036 | 21 | Journey orchestration | OPEN | 3 |
+| W-037 | 21 | Experiments, holdouts, incrementality | OPEN | 3 |
+| W-038 | 22 | Package system and manifests | OPEN | 3 |
+| W-039 | 22 | Authoring SDK and generated package docs | OPEN | 3 |
+| W-040 | 22 | Industry and regulatory packs with change reports | OPEN | 3 |
+| W-041 | 23 | Theming, layout manifests, pluggable panels | OPEN | 3 |
+| W-042 | 23 | i18n mechanism | OPEN | 3 |
+| W-043 | 24 | Identity and access: SSO, SCIM, ABAC | OPEN | 3 |
+| W-044 | 24 | Artefact signing and SBOM | OPEN | 3 |
+| W-045 | 24 | Degradation ladder | OPEN | 3 |
+| W-046 | 24 | Per-decision cost accounting | OPEN | 3 |
+| W-047 | 24 | Multi-region residency | OPEN | 3 |
+| W-048 | 24 | OpenTelemetry, SLOs, quotas | OPEN | 3 |
+| W-049 | 25 | Evidence packs: AI Act, NIST AI RMF, SR 11-7 | OPEN | 3 |
+| W-050 | 25 | DR: backup, tested restore, chaos | OPEN | 3 |
+| W-051 | 9 | Secret provider and connector authentication | OPEN | 2 |
+| W-052 | 14 | Container object and the ranked-slate contract | DONE | 2 |
+| W-053 | 14 | Regulator-ready evidence pack (PDF + hash verification page) | OPEN | 2 |
+| W-054 | 17 | Flow version diff — canvas, textual, semantic | OPEN | 2 |
+| W-055 | 12 | A disabled control states its reason accessibly | OPEN | 2 |
 
 ---
 
 ## Stage 0 — Hygiene, before anything else
 
-### W-000 — Stop any document but the capability map claiming BUILT — **DONE 2026-09-06**
+### W-000 — Stop any document but the capability map claiming BUILT
+
+**Registered:** 2026-09-06 · **Stage:** 0 · **Status:** DONE 2026-09-06
+**Check:** `tests/docs-status.test.ts` › `no other document asserts a capability is built`
+
 Gate 1 · Depends: none
 
 **Closed.** `tests/docs-status.test.ts` fails when any markdown outside the
@@ -180,7 +217,11 @@ stale references at the capability map while there.
 - Verified to bite: add a "Decision ledger — Built" row to `README.md` and
   confirm the check goes red.
 
-### W-001 — Fix the holes in the checks themselves — **DONE 2026-09-06**
+### W-001 — Fix the holes in the checks themselves
+
+**Registered:** 2026-09-06 · **Stage:** 0 · **Status:** DONE 2026-09-06
+**Check:** `tests/api-paths.test.ts`; `apps/console/tests/bundle/bundle-size.spec.ts`; `apps/console/tests/e2e/accessibility.spec.ts`; `npm run typecheck` over `tsconfig.typecheck.json`
+
 Gate 1 · Depends: none
 
 **Closed**, all four, each verified by breaking what it guards:
@@ -229,7 +270,11 @@ and does not.
 
 ## Stage 7 — Export / re-import (already committed)
 
-### W-002 — Export / re-import — **DONE 2026-09-06**
+### W-002 — Export / re-import
+
+**Registered:** 2026-09-06 · **Stage:** 7 · **Status:** DONE 2026-09-06
+**Check:** `packages/portability/tests/round-trip.test.ts` › `a tenant survives being exported and imported`; `packages/portability/tests/completeness.test.ts`
+
 Gate 1 · Depends: none · Spec §9, §14
 
 **Closed.** `packages/portability`, 21 tests. All three "done when" bullets are
@@ -285,7 +330,11 @@ instance.
 
 ## Stage 8 — Performance proof (already committed)
 
-### W-003 — S1 benchmark and the p99 gate — **DONE 2026-09-06**, with a stated bound
+### W-003 — S1 benchmark and the p99 gate
+
+**Registered:** 2026-09-06 · **Stage:** 8 · **Status:** DONE 2026-09-06
+**Check:** `bench/harness/tests/gate.test.ts` › `performance budget`; `bench/harness/tests/s1.test.ts`
+
 Gate 1 · Depends: W-008, W-011 for realistic profile and history · Spec §10
 
 **Closed as far as it can honestly go, and the dependency was the reason to
@@ -328,7 +377,11 @@ cold, 1% / 5% / 20% feature-store miss, degraded provider.
 - Throughput stays measured and ungated, with the reason recorded in the report
   rather than in tribal memory.
 
-### W-004 — No-network-egress assertion in the decision path — **DONE 2026-09-06**
+### W-004 — No-network-egress assertion in the decision path
+
+**Registered:** 2026-09-06 · **Stage:** 8 · **Status:** DONE 2026-09-06
+**Check:** `packages/runtime/tests/no-egress.test.ts`
+
 Gate 1 · Depends: none · Spec §13
 
 **Closed.** `packages/runtime/tests/no-egress.test.ts` blocks fetch, http,
@@ -359,7 +412,11 @@ storage. Verify it bites by adding a `fetch` to a node implementation.
 
 ## Stage 9 — Storage completion and the erasure decision
 
-### W-005 — Catalogue, policies and taxonomy into PostgreSQL — **HALF DONE 2026-09-06**
+### W-005 — Catalogue, policies and taxonomy into PostgreSQL
+
+**Registered:** 2026-09-06 · **Stage:** 9 · **Status:** PARTIAL 2026-09-07
+**Check:** `apps/console/tests/unit/catalogue-configurability.test.ts` › `configuration reaches the engine`
+
 Gate 2 · Depends: none · Spec §8
 
 **Done:** `packages/catalogue` — 40 tests, one behaviour suite over memory and a
@@ -386,7 +443,12 @@ problem, not tidiness: a restart loses authored state.
 against memory and a real PostgreSQL, so the rules are known to be
 storage-independent. Append-only where the entity is versioned.
 
-### W-006 — Retention and erasure design — **ADR WRITTEN 2026-09-06, awaiting a decision**
+### W-006 — Retention and erasure design
+
+**Registered:** 2026-09-06 · **Stage:** 9 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+**Unblocked:** [ADR-004](adr/ADR-004-retention-and-erasure.md) Accepted 2026-09-09; nothing implements it
+
 Gate 2 · Depends: W-005 · Spec §8, §11 · **Needs an ADR**
 
 [ADR-004](adr/ADR-004-retention-and-erasure.md) proposes crypto-shredding with
@@ -421,7 +483,12 @@ this list.
 - Retention policy is configurable per tenant and enforced by a job with its own
   test.
 
-### W-051 — Secret provider and connector authentication — **ADR WRITTEN 2026-09-07, awaiting a decision**
+### W-051 — Secret provider and connector authentication
+
+**Registered:** 2026-09-07 · **Stage:** 9 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+**Unblocked:** [ADR-007](adr/ADR-007-secrets-and-connector-authentication.md) Accepted 2026-09-09; nothing implements it
+
 Gate 2 · Depends: none · Spec §8, §11 · **Needs an ADR** — written
 
 [ADR-007](adr/ADR-007-secrets-and-connector-authentication.md) proposes that
@@ -448,7 +515,11 @@ adapter needs a credential before it can send anything.
 - A missing credential fails resolution explicitly and does **not** fall through
   to `onFailure`, with its own test.
 
-### W-007 — Configurable approved default for a missing score — **DONE 2026-09-06**
+### W-007 — Configurable approved default for a missing score
+
+**Registered:** 2026-09-06 · **Stage:** 9 · **Status:** DONE 2026-09-06
+**Check:** `packages/runtime/tests/missing-score.test.ts` › `a candidate nothing scored`; `packages/runtime/tests/decision-conformance.test.ts`
+
 Gate 2 · Depends: none · Spec §6
 
 **Closed.** A flow declares `missingScoreDefault` — propensity, context, and
@@ -477,6 +548,10 @@ recorded reason. Both engines agree.
 ## Stage 10 — The data layer
 
 ### W-008 — Customer profile store and data model
+
+**Registered:** 2026-09-06 · **Stage:** 10 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-005 · Spec §8
 
 **Build:** Versioned, tenant-scoped profile schema with generated migrations.
@@ -487,6 +562,10 @@ have something to plug into.
 flow versions. A decision records which profile schema version it read against.
 
 ### W-009 — Online feature service
+
+**Registered:** 2026-09-06 · **Stage:** 10 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-008 · Spec §8
 
 **Build:** Declared feature definitions with TTL. Every feature read into a
@@ -501,6 +580,10 @@ decision carries `{value, source_system, computed_at, version}`.
 - Freshness is recorded per field.
 
 ### W-010 — Ingestion: batch and stream
+
+**Registered:** 2026-09-06 · **Stage:** 10 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-008, W-009 · Spec §8
 
 **Build:** File and warehouse batch load; a stream consumer. Declarative,
@@ -517,6 +600,10 @@ Lineage from a feature value back to its ingest run is queryable and tested.
 ## Stage 11 — Interaction history
 
 ### W-011 — Interaction history store
+
+**Registered:** 2026-09-06 · **Stage:** 11 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-008 · Spec §8
 
 Append-only, per-customer, with fast recency queries: last N impressions, last
@@ -530,6 +617,10 @@ is blocked on this being fast, and it is designed for billions of rows.
 - Erasure (W-006) propagates here and a test asserts it.
 
 ### W-012 — Frequency and suppression policy, caps
+
+**Registered:** 2026-09-06 · **Stage:** 11 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-011 · Spec §6
 
 **The caps are enforced today and their counts come from the caller.** The
@@ -553,6 +644,10 @@ every code is exercised. Both engines agree.
 ## Stage 12 — Consent
 
 ### W-013 — Consent and preference store
+
+**Registered:** 2026-09-06 · **Stage:** 12 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-008 · Spec §6, §11
 
 **Done when:** Missing or withdrawn consent blocks the decision — fail closed,
@@ -565,6 +660,10 @@ fallback, matching the existing rule for unreachable databases.
 ## Stage 13 — Creatives and content
 
 ### W-014 — Creative as a first-class entity below action
+
+**Registered:** 2026-09-06 · **Stage:** 13 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-005 · Spec §3
 
 Today an offer carries the `key` used as the action; the `offer`/`action` split
@@ -577,6 +676,9 @@ chain hash to change, as with the vendor-neutral rename — plan for it rather
 than being surprised by it.
 
 ### W-015 — Content library with approval and effective dating
+
+**Registered:** 2026-09-06 · **Stage:** 13 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
 
 **Partly overtaken 2026-09-07.** `createCreative` and `updateCreative` are
 served, validated per channel and audited, and an offer can no longer go active
@@ -602,6 +704,10 @@ growing a second workflow.
 ## Stage 14 — Channels. Without this there is no marketing product.
 
 ### W-016 — Inbound real-time container
+
+**Registered:** 2026-09-06 · **Stage:** 14 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-014 · Spec §12 adjacent, new §
 
 **Build:** Named placements with slot counts and per-placement policy. An
@@ -618,7 +724,11 @@ asserted by `e2e/contract.spec.ts`. Placement config is a versioned artifact.
 Impressions land in interaction history and a test asserts the round trip from
 render to suppression eligibility.
 
-### W-052 — Container object and the ranked-slate contract — **DONE 2026-09-07**
+### W-052 — Container object and the ranked-slate contract
+
+**Registered:** 2026-09-07 · **Stage:** 14 · **Status:** DONE 2026-09-07
+**Check:** `packages/runtime/tests/slate.test.ts` › `selectSlate`; `apps/console/tests/unit/placement-decision.test.ts`
+
 Gate 2 · Depends: W-016 · Spec: `listPlacements`, `decidePlacement`
 
 **Done:** `Placement` is a configured object with a slot count and the flow that
@@ -664,6 +774,10 @@ See `docs/review/INBOUND_VS_CDH.md` finding I-1.
 - The latency gate holds at S1 with slates.
 
 ### W-017 — Outbound channel adapter, one channel
+
+**Registered:** 2026-09-06 · **Stage:** 14 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-014 · Spec new §
 
 Build exactly one — email — properly, with the adapter contract designed so the
@@ -674,6 +788,10 @@ throttling and retry are configured, versioned and tested. A send failure is
 recorded, never swallowed.
 
 ### W-018 — Delivery and response telemetry
+
+**Registered:** 2026-09-06 · **Stage:** 14 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-016, W-017, W-011 · Spec new §
 
 Impression, click, conversion, bounce, unsubscribe, complaint — all back into
@@ -688,6 +806,10 @@ it a loop. Unsubscribe writes through to consent (W-013), tested.
 ## Stage 15 — Batch
 
 ### W-019 — Batch / offline executor
+
+**Registered:** 2026-09-06 · **Stage:** 15 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-011, W-017 · Spec §6
 
 Same compiled artifact, different executor. Millions of decisions, no latency
@@ -703,6 +825,10 @@ in step by hand.
 ## Stage 16 — Simulation. This is what makes the approvals you already built mean something.
 
 ### W-020 — Distribution and version-diff simulation
+
+**Registered:** 2026-09-06 · **Stage:** 16 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-008, W-011 · Spec §11
 
 **Build:** Run a candidate version over a sampled population and report what
@@ -715,6 +841,10 @@ saying nothing serves it. Simulation over a 1M sample completes inside a stated
 budget, gated.
 
 ### W-021 — Bias gate as a pre-publish blocker
+
+**Registered:** 2026-09-06 · **Stage:** 16 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-020 · Spec §11
 
 **Done when:** Protected-attribute parity is checked before publish; a failing
@@ -723,6 +853,10 @@ refusal is recorded in the audit log. An audit that only shows successes cannot
 answer whether anyone tried.
 
 ### W-022 — Simulation evidence attached to change sets
+
+**Registered:** 2026-09-06 · **Stage:** 16 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-020, W-021 · Spec §11
 
 Change sets and approvals exist. Today a reviewer approves a diff with no stated
@@ -733,7 +867,11 @@ delta, and — for agent-proposed changes — the agent's reasoning. The autonom
 ladder consults them: an L3/L4 auto-approval is refused if simulation or bias
 evidence is absent or stale relative to the diff. Test the staleness case.
 
-### W-023 — Flow unit tests with deterministic fixtures — **DONE 2026-09-06**
+### W-023 — Flow unit tests with deterministic fixtures
+
+**Registered:** 2026-09-06 · **Stage:** 16 · **Status:** DONE 2026-09-06
+**Check:** `packages/runtime/tests/flow-tests.test.ts` › `running a flow author`
+
 Gate 2 · Depends: none · Spec §11
 
 **Closed.** A flow version may attach cases — a request and what should happen:
@@ -770,6 +908,10 @@ change things" safe enough to sell.
 ## Stage 17 — Authoring. The canvas is read-only, so today nobody can build anything in the product.
 
 ### W-024 — Writable canvas
+
+**Registered:** 2026-09-06 · **Stage:** 17 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-023 · Spec §12 adjacent
 
 Node positions are authored in fixtures. Make layout a persisted part of the
@@ -781,6 +923,10 @@ the UI, extending the existing 6-test integration path. Round-trip fidelity:
 canvas → artifact → canvas is lossless, tested.
 
 ### W-025 — Natural-language authoring that compiles to a diff
+
+**Registered:** 2026-09-06 · **Stage:** 17 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-024, W-022 · Spec §14
 
 "Stop offering the 15% discount to anyone who complained in the last 30 days"
@@ -796,6 +942,10 @@ through `/approvals`. W-004 already guards the runtime; this guards the shape.
 ## Stage 18 — Decision richness
 
 ### W-026 — Eligibility / relevance / suitability layers
+
+**Registered:** 2026-09-06 · **Stage:** 18 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-005 · Spec §6
 
 Three layers, distinct reason codes, distinct audit lines. Suitability matters
@@ -805,6 +955,10 @@ eligibility.
 **Done when:** Codes added to the closed set, corpus extended, both engines agree.
 
 ### W-027 — Multi-level and channel-specific ranking
+
+**Registered:** 2026-09-06 · **Stage:** 18 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-026 · Spec §6
 
 Arbitrate within group, then across groups, with per-level ranking functions.
@@ -815,6 +969,10 @@ operation set and no `eval`, per `utility.ts`. Each level's contribution is
 visible in the record.
 
 ### W-028 — Slate selection and optimisation constraints
+
+**Registered:** 2026-09-06 · **Stage:** 18 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-027, W-052 · Spec §6
 
 The engine returns a single action. Real placements have N slots. Add
@@ -833,6 +991,10 @@ winner. Latency gate holds at S1 with slates.
 ## Stage 19 — Intelligence, part one
 
 ### W-029 — Model gateway and registry
+
+**Registered:** 2026-09-06 · **Stage:** 19 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-009 · Spec §7
 
 Adapter interface `score(features) -> {score, confidence, attributions}`.
@@ -844,6 +1006,10 @@ the same rule as features. A provider that is unreachable is an error or a
 declared degradation (W-045), never a silent zero.
 
 ### W-030 — ONNX and PMML import
+
+**Registered:** 2026-09-06 · **Stage:** 19 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-029 · Spec §7
 
 Matters more than it sounds. Enterprises have models already and will not
@@ -855,6 +1021,10 @@ engines for a corpus of inputs. If that is infeasible for a format, record the
 limit rather than quietly running one engine.
 
 ### W-031 — Feature attribution in the decision record
+
+**Registered:** 2026-09-06 · **Stage:** 19 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-029 · Spec §7
 
 **Done when:** Top drivers per scored candidate appear in the record and in the
@@ -865,6 +1035,10 @@ regulator and analyst renderings, not only in a report.
 ## Stage 20 — Intelligence, part two
 
 ### W-032 — Adaptive learning from captured outcomes
+
+**Registered:** 2026-09-06 · **Stage:** 20 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Depends: W-018, W-029 · Spec §7
 
 Outcome capture is built and nothing consumes it. Online learning per action,
@@ -877,12 +1051,20 @@ model has learned. Without this test, adaptive learning silently breaks the
 central claim.
 
 ### W-033 — Drift, calibration, auto-quarantine
+
+**Registered:** 2026-09-06 · **Stage:** 20 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Depends: W-032 · Spec §7
 
 **Done when:** A degraded model is quarantined automatically and the fallback
 path is recorded in affected decisions. Quarantine is an audited event.
 
 ### W-034 — Champion/challenger and model shadow scoring
+
+**Registered:** 2026-09-06 · **Stage:** 20 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Depends: W-032 · Spec §7
 
 Distinct from flow-version shadow mode, which is built — reuse the comparison
@@ -896,12 +1078,20 @@ is implemented, and auto-promote is subject to the autonomy ladder.
 ## Stage 21 — Campaign layer
 
 ### W-035 — Segments and audience builder
+
+**Registered:** 2026-09-06 · **Stage:** 21 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Depends: W-008, W-011
 
 **Done when:** A segment is a versioned artifact, compiles like a flow, and its
 population is reproducible from a snapshot.
 
 ### W-036 — Journey orchestration
+
+**Registered:** 2026-09-06 · **Stage:** 21 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Depends: W-017, W-035
 
 Waits, branches, triggers, exits, re-entry rules.
@@ -910,6 +1100,10 @@ Waits, branches, triggers, exits, re-entry rules.
 reconstructed decision by decision. Same canvas metaphor as flows (W-024).
 
 ### W-037 — Experiments, holdouts, incrementality
+
+**Registered:** 2026-09-06 · **Stage:** 21 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Depends: W-018, W-035
 
 **Done when:** Assignment is deterministic per subject and recorded in the
@@ -921,6 +1115,10 @@ code. Incrementality is computed from the ledger, not from a separate pipeline.
 ## Stage 22 — Composability
 
 ### W-038 — Package system and manifests
+
+**Registered:** 2026-09-06 · **Stage:** 22 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Depends: W-017, W-029 · Spec §14
 
 Build this *after* there are real capabilities to package. Kinds: node, channel,
@@ -933,6 +1131,10 @@ channel — not email — ships purely as a package with no core changes, and a 
 asserts the core has no reference to it.
 
 ### W-039 — Authoring SDK and generated package docs
+
+**Registered:** 2026-09-06 · **Stage:** 22 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Depends: W-038
 
 **Done when:** The gate is behavioural: an external developer, given only the
@@ -941,6 +1143,10 @@ scaffold-and-build test that uses only published artifacts and no repo-internal
 imports.
 
 ### W-040 — Industry and regulatory packs with change reports
+
+**Registered:** 2026-09-06 · **Stage:** 22 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Depends: W-038, W-020
 
 **Done when:** Installing a pack upgrade produces a change report naming which
@@ -953,6 +1159,10 @@ delivery mechanism.
 ## Stage 23 — Experience layer
 
 ### W-041 — Theming, layout manifests, pluggable panels
+
+**Registered:** 2026-09-06 · **Stage:** 23 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Depends: W-038
 
 Semantic tokens; light/dark × density × accessibility as orthogonal axes.
@@ -963,7 +1173,12 @@ permissions. Composition only — no arbitrary code into the runtime.
 tested. Axe passes on every route in every accessibility mode, extending the
 sweep fixed in W-001. Consult the `frontend-design` skill for visual execution.
 
-### W-042 — i18n mechanism — **ADR WRITTEN 2026-09-06, awaiting a decision**
+### W-042 — i18n mechanism
+
+**Registered:** 2026-09-06 · **Stage:** 23 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+**Unblocked:** [ADR-005](adr/ADR-005-internationalisation.md) Accepted 2026-09-09; nothing implements it
+
 Gate 3 · Depends: none
 
 [ADR-005](adr/ADR-005-internationalisation.md) recommends `next-intl`, messages
@@ -994,34 +1209,62 @@ sprint; do it before Stage 23 grows the surface.
 ## Stage 24 — Enterprise readiness
 
 ### W-043 — SSO, SCIM, ABAC
+
+**Registered:** 2026-09-06 · **Stage:** 24 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Spec §11 · Depends: none
 Extend the existing permission model to per-issue and per-group scoping. Keep
 refusals server-side with a 403, as `publish:flows` and `promote:flows` already
 are.
 
+**Done when:** a test signs in through a configured identity provider, asserts a group maps onto a platform role, and asserts a scoped role is refused server-side with a 403 on an objective it does not hold.
+
 ### W-044 — Artefact signing and SBOM
+
+**Registered:** 2026-09-06 · **Stage:** 24 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Spec §11 · Depends: W-038
 Versions are already bound to an artifact hash; add signature verification on
 publish and on package install.
 
+**Done when:** a test publishes a signed artifact, tampers with the bytes, and asserts both the publish and the package install refuse it; and an SBOM is emitted per release and asserted non-empty.
+
 ### W-045 — Degradation ladder
+
+**Registered:** 2026-09-06 · **Stage:** 24 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Spec §10 · Depends: W-009, W-029
 Full decision → cached decision → default action → static fallback. Never a
 timeout to the channel. **Done when:** each rung is chaos-tested, the rung used
 is recorded in the decision, and a test asserts no path returns a timeout.
 
 ### W-046 — Per-decision cost accounting
+
+**Registered:** 2026-09-06 · **Stage:** 24 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Spec §10 · Depends: W-029
 Compute, model serving, egress, authoring-plane inference amortised. **Done
 when:** the number is emitted per decision and aggregated, so the cost
 transparency claim is measured rather than modelled.
 
 ### W-047 — Multi-region residency
+
+**Registered:** 2026-09-06 · **Stage:** 24 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Depends: W-006
 Tenant-pinned data; local compute, feature store and ledger. **Done when:** a
 test asserts a tenant's data cannot be read from outside its region.
 
 ### W-048 — OpenTelemetry, SLOs, quotas
+
+**Registered:** 2026-09-06 · **Stage:** 24 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Spec §9
 Traces, metrics, logs. Rate limits and per-tenant quotas. **Done when:** a trace
 spans console → API → engine → storage and carries the `decision_id`.
@@ -1031,12 +1274,20 @@ spans console → API → engine → storage and carries the `decision_id`.
 ## Stage 25 — Assurance
 
 ### W-049 — Evidence packs
+
+**Registered:** 2026-09-06 · **Stage:** 25 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Spec §11 · Depends: W-021, W-031, W-033
 NIST AI RMF and EU AI Act evidence packs; SR 11-7 model documentation generated
 from the model registry. **Done when:** generated from live system state, not
 maintained by hand, and regenerating produces a diff when the system changes.
 
 ### W-050 — DR: backup, tested restore, chaos
+
+**Registered:** 2026-09-06 · **Stage:** 25 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 3 · Depends: W-047
 RTO and RPO targets, a restore that is actually run on a schedule, chaos suite
 covering storage loss and provider failure. **Done when:** a restore drill is a
@@ -1095,6 +1346,10 @@ written up at the depth the citation implied rather than at the depth a fresh
 work item would get.
 
 ### W-053 — Regulator-ready evidence pack
+
+**Registered:** 2026-09-09 · **Stage:** 14 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: none · [ADR-008](adr/ADR-008-closing-the-outcome-loop.md) · Gap [G-033](gaps.md)
 
 §7.5 of the experience plan asks for a PDF *"with a hash verification page"*.
@@ -1107,6 +1362,10 @@ disabled and names this item.
 verification page matches the decision's chain hash.
 
 ### W-054 — Flow version diff
+
+**Registered:** 2026-09-09 · **Stage:** 17 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: W-024 · Gap [G-033](gaps.md)
 
 `ArtifactSummary.versions` is a list of version numbers. What changed between
@@ -1119,6 +1378,10 @@ diff two versions outside the product, which is a workaround.
 in the later one is marked as added.
 
 ### W-055 — A disabled control states its reason accessibly
+
+**Registered:** 2026-09-09 · **Stage:** 12 · **Status:** OPEN
+**Check:** none — see **Done when** below for the check that would close it
+
 Gate 2 · Depends: none · Gap [G-033](gaps.md)
 
 The convention — a control either works or is `disabled` with a `title` saying

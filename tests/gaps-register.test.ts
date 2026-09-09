@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 /**
  * The gap register stays usable.
@@ -135,7 +136,6 @@ describe('the gap register stays usable', () => {
     // The three that started this were in page components and a unit test as
     // well as in the register. Checking one document would have found one of
     // three problems.
-    const { execFileSync } = require('node:child_process') as typeof import('node:child_process');
     const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
       .split('\n')
       .filter((f) => /\.(md|ts|tsx|mjs|js|yaml|kt)$/.test(f));
@@ -171,6 +171,7 @@ describe('the gap register stays usable', () => {
   });
 
   it('does not carry a second capability claim', () => {
+
     // The deleted "Status at a glance" table said 39 operations built. It was
     // three days stale when it was found, and `docs/CAPABILITIES.md` is the
     // single claim by design — `tests/docs-status.test.ts` exists for exactly
@@ -179,5 +180,136 @@ describe('the gap register stays usable', () => {
     expect(GAPS, 'the operation count belongs in one place').not.toMatch(
       /Built, served, and contract-tested/
     );
+  });
+});
+
+/**
+ * The backlog, held to the same rule.
+ *
+ * `docs/BACKLOG.md` was the last document in this repository where a completion
+ * claim could be typed by hand and checked by nothing. Nine items carried
+ * `**DONE 2026-09-06**` in their headings — a bold string, authored, which is
+ * precisely what Rule 7 in `CLAUDE.md` forbids everywhere else. It was
+ * allow-listed in `tests/docs-status.test.ts` on the reasoning that recording
+ * which items are done is history rather than a status claim; that reasoning
+ * held while it was a queue, and stopped holding once `CAPABILITIES.md` began
+ * citing it as the authority for what a PLANNED row is waiting on.
+ *
+ * So a `DONE` here must name a check, and the check must exist. The rule is
+ * deliberately about the file existing rather than about the test passing:
+ * asserting that another suite is green from inside this one would be a check
+ * that passes when the thing it guards is deleted, which is the shape of defect
+ * this whole family of tests was written to catch.
+ */
+interface Item {
+  id: string;
+  meta: string;
+  body: string;
+  line: number;
+}
+
+function backlogItems(): Item[] {
+  const lines = BACKLOG.split('\n');
+  const items: Item[] = [];
+  lines.forEach((line, i) => {
+    const m = line.match(/^### (W-\d{3}) — /);
+    if (!m) return;
+    const next = lines.findIndex((l, j) => j > i && /^### W-\d{3} — /.test(l));
+    const body = lines.slice(i + 1, next === -1 ? lines.length : next).join('\n');
+    items.push({
+      id: m[1],
+      // Metadata is the block between the heading and the first blank line
+      // after it; the prose follows.
+      meta: body.split('\n\n').slice(0, 2).join('\n'),
+      body,
+      line: i + 1,
+    });
+  });
+  return items;
+}
+
+describe('the backlog emits its status rather than authoring it', () => {
+  const items = backlogItems();
+
+  it('finds the items it is checking', () => {
+    expect(items.length, 'no work items found; has BACKLOG.md changed shape?').toBeGreaterThan(50);
+    expect(items.map((i) => i.id)).toContain('W-000');
+  });
+
+  it('gives every item a registered date', () => {
+    const undated = items
+      .filter((i) => !/\*\*Registered:\*\* \d{4}-\d{2}-\d{2}/.test(i.meta))
+      .map((i) => `${i.id} (BACKLOG.md:${i.line})`);
+    expect(undated, 'the date comes from git; see scripts, not memory').toEqual([]);
+  });
+
+  it('gives every item a stage', () => {
+    const unstaged = items
+      .filter((i) => !/\*\*Stage:\*\* \d+/.test(i.meta))
+      .map((i) => `${i.id} (BACKLOG.md:${i.line})`);
+    expect(unstaged).toEqual([]);
+  });
+
+  it('gives every item a done-when', () => {
+    // What would close it, stated before it closes. An item with no done-when
+    // is closed by whoever decides they are finished.
+    const vague = items
+      .filter((i) => !/\*\*Done when:?\*\*|\*\*Done:\*\*|\*\*Closed/i.test(i.body))
+      .map((i) => `${i.id} (BACKLOG.md:${i.line})`);
+    expect(vague).toEqual([]);
+  });
+
+  it('gives every item one of three statuses', () => {
+    const bad = items
+      .filter((i) => !/\*\*Status:\*\* (DONE|PARTIAL|OPEN)\b/.test(i.meta))
+      .map((i) => `${i.id}: ${i.meta.match(/\*\*Status:\*\*.*/)?.[0] ?? '(none)'}`);
+    expect(bad).toEqual([]);
+  });
+
+  it('makes every DONE cite a check that exists on disk', () => {
+    const offenders: string[] = [];
+    for (const item of items) {
+      if (!/\*\*Status:\*\* (DONE|PARTIAL)\b/.test(item.meta)) continue;
+      const check = item.meta.match(/\*\*Check:\*\* (.+)/)?.[1] ?? '';
+      if (!check || /^none\b/.test(check)) {
+        offenders.push(`${item.id}: claims DONE and names no check`);
+        continue;
+      }
+      // Every backticked path in the Check line that looks like a file.
+      const paths = [...check.matchAll(/`([^`]+)`/g)]
+        .map((m) => m[1])
+        .filter((p) => /\.(ts|tsx|json|mjs)$/.test(p) && p.includes('/'));
+      if (paths.length === 0) {
+        offenders.push(`${item.id}: check names no file — "${check.slice(0, 60)}"`);
+        continue;
+      }
+      for (const p of paths) {
+        if (!existsSync(resolve(root, p))) offenders.push(`${item.id}: no such file ${p}`);
+      }
+    }
+    expect(
+      offenders,
+      'an item claiming DONE with no nameable check is not DONE'
+    ).toEqual([]);
+  });
+
+  it('keeps the status out of the last cell of the summary table', () => {
+    // `tests/docs-status.test.ts` reads the last cell. The gate number ends the
+    // row on purpose, and the allow-list this file used to have is gone.
+    const rows = BACKLOG.split('\n').filter((l) => /^\| W-\d{3} \|/.test(l));
+    expect(rows.length).toBeGreaterThan(50);
+    const trailing = rows.filter((r) => {
+      const cells = r.trim().slice(1, -1).split('|').map((c) => c.trim());
+      return !/^\d$/.test(cells[cells.length - 1]);
+    });
+    expect(trailing, 'the gate number ends a summary row').toEqual([]);
+  });
+
+  it('is no longer exempt from the single-claim rule', () => {
+    const docsStatus = readFileSync(resolve(root, 'tests/docs-status.test.ts'), 'utf8');
+    expect(
+      docsStatus.includes("'docs/BACKLOG.md'"),
+      'BACKLOG.md is allow-listed again; it was removed on 2026-09-09 and passed without it'
+    ).toBe(false);
   });
 });

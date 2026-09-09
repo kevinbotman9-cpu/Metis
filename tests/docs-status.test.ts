@@ -31,7 +31,6 @@ const STATUS_DOCUMENTS = new Map([
     'docs/EXPERIENCE_LAYER_STATUS.md',
     'Console routes, one row each — a different subject from platform capability, and the map points at it.',
   ],
-  ['docs/BACKLOG.md', 'Records which work items are done, which is history rather than a status claim.'],
 ]);
 
 /** A status cell asserting the thing is finished. */
