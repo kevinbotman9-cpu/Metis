@@ -9,6 +9,7 @@ import { login, ACCOUNTS, openAccountPanel } from './helpers';
 
 const PAGES = [
   { path: '/', name: 'home' },
+  { path: '/objectives', name: 'objectives' },
   { path: '/offers', name: 'offers' },
   { path: '/creatives', name: 'creatives' },
   { path: '/offers/prop_5g_unlimited_24', name: 'offer detail' },

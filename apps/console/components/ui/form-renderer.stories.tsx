@@ -276,3 +276,95 @@ export const PermissionGated: Story = {
   },
   name: 'A permission-gated field, hidden rather than disabled',
 };
+
+/**
+ * The taxonomy, which is where a marketer starts.
+ *
+ * Two more descriptors, no new renderer and no new form component — the
+ * screen at `/objectives` holds a table, two buttons and `EntityFormDialog`,
+ * and everything below is these two files. That is the claim the registry
+ * makes, and this is what it looks like when it is true.
+ *
+ * The state worth looking at is "New category, opened from an objective". The
+ * objective is filled in because the click that opened the form answered it,
+ * and the sort order is filled in because an empty number field sends `0`,
+ * which would put a new category above everything that existed. Both are
+ * defaults on a create rather than a record being edited: the key still
+ * suggests itself from the name, which it would not if the form thought it was
+ * editing.
+ */
+const objective = descriptorFor('Objective');
+const category = descriptorFor('Category');
+
+function TaxonomyHarness({
+  descriptor,
+  initial,
+  editing = false,
+}: {
+  descriptor: typeof objective;
+  initial: FormState;
+  editing?: boolean;
+}) {
+  const [form, setForm] = useState<FormState>(initial);
+  const [touched, setTouched] = useState<ReadonlySet<string>>(
+    editing ? new Set(descriptor.fields.map((f) => f.field)) : new Set()
+  );
+
+  return (
+    <div className="max-w-2xl space-y-3 rounded-lg border border-border bg-surface p-card">
+      <FormRenderer
+        descriptor={descriptor}
+        form={form}
+        onChange={setForm}
+        editing={editing}
+        permissions={[]}
+        optionSources={optionSources}
+        touched={touched}
+        onTouch={(field) => setTouched((t) => new Set(t).add(field))}
+        idPrefix={descriptor.noun.singular}
+      />
+    </div>
+  );
+}
+
+export const NewObjective: Story = {
+  render: () => (
+    <TaxonomyHarness
+      descriptor={objective}
+      initial={{ ...toFormState(objective), sortOrder: '5' }}
+    />
+  ),
+  name: 'New objective — the first thing a marketer creates',
+};
+
+export const NewCategoryFromObjective: Story = {
+  render: () => (
+    <TaxonomyHarness
+      descriptor={category}
+      initial={{
+        ...toFormState(category),
+        objectiveId: 'obj_retention',
+        sortOrder: '2',
+      }}
+    />
+  ),
+  name: 'New category, opened from an objective — it does not ask again',
+};
+
+export const EditingCategory: Story = {
+  render: () => (
+    <TaxonomyHarness
+      descriptor={category}
+      editing
+      initial={toFormState(category, {
+        id: 'grp_save',
+        objectiveId: 'obj_retention',
+        name: 'Save and retain',
+        key: 'save',
+        description: 'Offers that hold an at-risk customer.',
+        sortOrder: 1,
+      })}
+    />
+  ),
+  name: 'Editing a category — the key is locked, offers are filed under it',
+};

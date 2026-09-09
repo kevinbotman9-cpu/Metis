@@ -136,7 +136,7 @@ Counted in `docs/evaluation/TRUTH_AUDIT.md`.
 |---|---|---|---|---|
 | Vendor-neutral vocabulary in code, API, UI and docs | BUILT | NO | NO | `tests/vocabulary.test.ts` scans tracked source for the eight words the platform was renamed away from, excluding its own list and the docs that have to name them. Verified to bite by Phase A's own experiment: `export type Proposition = Offer` now fails, where it used to pass typecheck, lint and every suite. The retained `arbitration` and `propensity` are deliberately not flagged |
 | `offer` / `action` split | PARTIAL | NO | NO | An offer carries the `key` used as the action. Splitting them is a modelling change, not a rename, and has not been done |
-| Objective and category as authorable levels | ABSENT | NO | NO | Taxonomy 4.2 `TABLE-STAKES`. `packages/ui-metadata/src/registry/index.ts:60-61` lists both in `PENDING`: *"No authoring surface at all; the taxonomy is fixture-authored."* The two top levels every offer hangs from cannot be created by a user |
+| Objective and category as authorable levels | BUILT | YES — `/objectives` | YES | Taxonomy 4.2 `TABLE-STAKES`. [W-056](BACKLOG.md). `createObjective`, `updateObjective`, `createCategory` and `updateCategory` are served; `/objectives` is list–detail and a category is authored from the objective that owns it. Both forms are the generic renderer over `packages/ui-metadata/src/registry/{objective,category}.ts`, so a new field is a descriptor edit and no change under `apps/console/app/`. `apps/console/tests/e2e/taxonomy-authoring.spec.ts` creates both by clicking and then files an offer under them, with no API setup |
 
 The vocabulary was Pega's almost verbatim — proposition, treatment, engagement
 policy, contact policy, lever, decision strategy. It is now the catalogue in
@@ -212,7 +212,7 @@ W-029 is registered in [`BACKLOG.md`](BACKLOG.md), not in
 | Server refusals land on the field they are about | BUILT | YES — `/offers/[id]` | NO | Taxonomy 5.2 `TABLE-STAKES`. The 400 from `createCreative` carries `problems[]`, each naming a field; `ApiError` carries them and the form renders each against its own input, with `aria-invalid` and `aria-describedby`. Asserted on the 160-character and sender-id rules at once |
 | Authoring a creative through the API | PARTIAL | YES — `/offers/[id]` | NO | Taxonomy 5.1 `TABLE-STAKES`. `createCreative` and `updateCreative` are served, permission-gated, audited and validated per channel. A field is required only where its absence breaks delivery; a call to action is required in *pairs*; a web creative names both the slot it is for and the shape it takes there, the second from a closed set of six. Plus the 160-character SMS segment limit, a carrier-legal sender id, and an address that is an address. Every problem reported at once. **Not built:** uploading an asset. `imageUrl` is a reference the caller supplies and nothing stores or serves the file. Approval, effective dating and expiry are [W-015](BACKLOG.md) |
 | The creative form is declared, not hand-built | BUILT | YES — `/offers/[id]` | **YES** | Taxonomy 16.1 `FRONTIER`. `packages/ui-metadata/src/registry/creative.ts`; tests `every descriptor matches its OpenAPI schema`, `the declared creative form @screen-only`. Adding a field touches the descriptor and the OpenAPI spec and **nothing under `apps/console/`** |
-| The offer form is declared, not hand-built | BUILT | YES — `/offers/[id]` | **YES** | Taxonomy 16.1 `FRONTIER`. `packages/ui-metadata/src/registry/offer.ts`, same tests. Two of the fourteen entities in `USER_EDITABLE_ENTITIES` have a descriptor |
+| The offer form is declared, not hand-built | BUILT | YES — `/offers/[id]` | **YES** | Taxonomy 16.1 `FRONTIER`. `packages/ui-metadata/src/registry/offer.ts`, same tests. Four of the fourteen entities in `USER_EDITABLE_ENTITIES` have a descriptor, after [W-056](BACKLOG.md) added `Objective` and `Category` |
 | An offer cannot go active with nothing to deliver | BUILT | YES — `/offers/[id]` | NO | Taxonomy 4.12 `DIFFERENTIATING`. `domain.ts` said "at least one is required to go active" and enforced it nowhere, so an offer could be active, win a decision and render nothing. Now refused at creation, at activation, and when switching off the last active creative of an active offer. `permissions-and-writes.spec.ts`; verified to bite by disabling each guard |
 | Authoring an offer, and having it decided | BUILT | YES — `/offers/[id]`, `/decision-flows/[id]` | NO | Taxonomy 4.1 `TABLE-STAKES`. `createOffer` and `updateOffer` are served, permission-gated server-side, audited, and covered by `permissions-and-writes.spec.ts`. `createOffer` was **declared built and served by nothing** until 2026-09-07. The offer then becomes decidable: candidate sets are edited on the flow page, and `flow-authoring.test.ts` walks the whole chain — create the offer, give it a creative, add it to the candidate set, publish, promote, decide. The compiler refused its first attempt with `NO_DELIVERABLE_CREATIVE`, so the test walks the real path rather than routing around the gate. **Corrected 2026-09-09:** this row read "an offer created this way cannot be decided (W-005, W-024)" for two days after `gaps.md` recorded both closed on 2026-09-07 |
 | Every exempted operation names the suite that covers it | BUILT | NO | NO | The contract suite's exemption list was a bare set of ids and hid the defect above. It now maps each id to a spec file that must carry a matching `covers:` marker, and the check excludes its own file so it cannot pass on itself. Verified to bite twice |
@@ -410,8 +410,8 @@ Added by E3.
 
 | Capability | Status | Screen? | Config? | Evidence |
 |---|---|---|---|---|
-| A form descriptor registry with a generic renderer, diffed against the OpenAPI schema | BUILT | YES — `/offers/[id]`, `/creatives` | **YES** | Taxonomy 16.1 `FRONTIER`. `packages/ui-metadata/src/registry/index.ts:16-80`; tests `every descriptor matches its OpenAPI schema`, `every user-editable entity is accounted for`, `declared forms @screen-only` |
-| Two of fourteen user-editable entities actually declared | PARTIAL | YES — `/offers/[id]` | NO | `registry/index.ts:16-19` holds `Offer` and `Creative`; `:35-49` lists fourteen entities; `:59-72` records why each of the other twelve is absent, per entity, with a reason. Rule 8 is enforced for **14%** of the entities it names. A test fails if an entity is in neither list, so the mechanism tracking the debt is better built than the mechanism it tracks |
+| A form descriptor registry with a generic renderer, diffed against the OpenAPI schema | BUILT | YES — `/objectives`, `/offers/[id]`, `/creatives` | **YES** | Taxonomy 16.1 `FRONTIER`. `packages/ui-metadata/src/registry/index.ts`; tests `every descriptor matches its OpenAPI schema`, `every user-editable entity is accounted for`, `declared forms @screen-only`, `authoring the taxonomy @screen-only`. Every declared validation pattern is compiled with the `v` flag as well as without, because a browser compiles an HTML `pattern` attribute that way and one that only compiles without it is dropped silently |
+| Four of fourteen user-editable entities actually declared | PARTIAL | YES — `/objectives`, `/offers/[id]` | NO | `registry/index.ts` holds `Objective`, `Category`, `Offer` and `Creative`; `USER_EDITABLE_ENTITIES` lists fourteen; `PENDING` records why each of the other ten is absent, per entity, with a reason. Rule 8 is enforced for **29%** of the entities it names, up from 14% on 2026-09-09. A test fails if an entity is in neither list, so the mechanism tracking the debt is better built than the mechanism it tracks |
 | Multi-tenancy | PARTIAL | NO | NO | Taxonomy 16.4 `TABLE-STAKES`. `tenantId` throughout `packages/{registry,ledger,catalogue}`; tests `GET /api/placements/{tenantId}`, `a tenant survives being exported and imported`. Present at the data layer; one tenant is served, and no screen creates or switches one |
 | A node type package that nothing imports | ABSENT | NO | NO | Registered in [`gaps.md`](gaps.md) — *"`packages/nodes-core` is imported by nothing"*, 2026-09-07. 445 lines of operator metadata wired to nothing |
 | Composing a role from named permissions | ABSENT | NO | NO | Taxonomy 16.3 `TABLE-STAKES`. Permissions are named and enforced; the roles that carry them are fixed in code |
@@ -711,19 +711,27 @@ from so it can be recomputed rather than trusted.
 
 ### TABLE-STAKES items at ABSENT — the evaluation-loss list
 
-**53 of the 91 `TABLE-STAKES` items in the taxonomy.**
+**52 of the 91 `TABLE-STAKES` items in the taxonomy.** It was 53 on
+2026-09-09, before [W-056](BACKLOG.md).
 
 Rows: every taxonomy id cited by a row above whose status is ABSENT, and cited
 by no row at BUILT, PARTIAL, PLANNED or OUT OF SCOPE. All 91 are cited
 somewhere, so this is a partition rather than a sample. By domain: 1 (6), 2 (3),
-3 (5), 4 (3), 5 (6), 6 (2), 7 (0), 8 (1), 9 (2), 10 (7), 11 (6), 12 (1), 13 (1),
+3 (5), 4 (2), 5 (6), 6 (2), 7 (0), 8 (1), 9 (2), 10 (7), 11 (6), 12 (1), 13 (1),
 14 (3), 15 (1), 16 (3), 17 (3).
 
 The ids: 1.2, 1.4, 1.5, 1.12, 1.19, 1.22, 2.1, 2.5, 2.8, 3.1, 3.2, 3.4, 3.7,
-3.12, 4.2, 4.3, 4.10, 5.3, 5.4, 5.5, 5.9, 5.14, 5.17, 6.7, 6.12, 8.1, 9.8,
+3.12, 4.3, 4.10, 5.3, 5.4, 5.5, 5.9, 5.14, 5.17, 6.7, 6.12, 8.1, 9.8,
 9.16, 10.1, 10.2, 10.3, 10.5, 10.7, 10.9, 10.10, 11.5, 11.6, 11.7, 11.8, 11.13,
 11.14, 12.4, 13.7, 14.7, 14.13, 14.16, 15.3, 16.3, 16.9, 16.12, 17.1, 17.4,
 17.9.
+
+**4.2 left the list on a technicality worth stating.** It is cited by two rows:
+"Objective and category as authorable levels", now BUILT, and "Define offer
+attributes of your own without a schema change", still ABSENT. The rule above
+excludes an id cited anywhere at BUILT, so the count moves — but 4.2 is a
+coarser line item than either row, and half of what it asks for is still absent.
+One of 91 is the right size of claim to make here.
 
 **One domain loses nothing: arbitration and ranking.** Three lose most of what a
 buyer asks about first — journeys (7 of 7), channels and delivery (6 of 8), and
@@ -755,18 +763,25 @@ reachable only from `packages/portability/src/cli.ts`.
 
 ### Configurable without code? = NO — the extensibility debt list
 
-**311 rows, of 314 capability rows in this map.**
+**310 rows, of 314 capability rows in this map.** It was 311 before
+[W-056](BACKLOG.md) on 2026-09-09.
 
-Only three rows answer YES, and they are the same mechanism seen three times:
-the form descriptor registry, the declared Offer form, and the declared Creative
-form. Everything else in this product — every objective, every category, every
-targeting policy field, every frequency cap, every theme, every layout, every
-role — requires a commit.
+Only four rows answer YES, and they are the same mechanism seen four times: the
+form descriptor registry, and the declared Objective, Offer and Creative forms.
+Everything else in this product — every targeting policy field, every frequency
+cap, every theme, every layout, every role — requires a commit.
 
-Two of fourteen entities in `USER_EDITABLE_ENTITIES` have a descriptor. The
-twelve that do not are listed with a reason each at
-`packages/ui-metadata/src/registry/index.ts:59-72`, and eight of those reasons
-are not "not done yet" but "no schema, no screen, no authoring surface at all."
+Four of fourteen entities in `USER_EDITABLE_ENTITIES` have a descriptor, after
+`Objective` and `Category` moved out of `PENDING`. The ten that do not are
+listed with a reason each in `packages/ui-metadata/src/registry/index.ts`, and
+most of those reasons are not "not done yet" but "no schema, no screen, no
+authoring surface at all."
+
+**One entity moving is one row.** The taxonomy slice took this number from 311
+to 310, which is the honest scale of it: the mechanism was already built and
+proven, and using it for two more entities is a day's work that moves the
+headline by a third of a percent. Ten entities remain, and eight of them need a
+schema before they can need a descriptor.
 
 ---
 

@@ -42,7 +42,7 @@ import { recorded, listCalls, clearCalls, isEnabled as callLogEnabled } from '@/
 import type { DecisionRecord } from '@metis/runtime';
 import type { OutcomeType } from '@metis/ledger';
 import { buildPerformance } from '@metis/ledger';
-import type { Creative, Offer } from '@metis/core/domain';
+import type { Category, Creative, Objective, Offer } from '@metis/core/domain';
 import { validateCreativeContent, offerMayBeActive } from '@metis/core/creative';
 import {
   conditionProblems,
@@ -1204,6 +1204,134 @@ async function handlePost(req: Request, { params }: Ctx) {
         return json({ error: 'not_found', message: (e as Error).message }, 404);
       }
       return json(event, 201);
+    }
+
+    case 'objectives': {
+      // POST /api/objectives/{tenantId} — create an objective.
+      //
+      // The top of the taxonomy, and the marketer's first click. Until this
+      // existed it was the only step of their journey that needed a redeploy:
+      // `getTaxonomy` could read the taxonomy since the spec was written, and
+      // nothing could write it.
+      //
+      // The rules here are `Catalogue.putObjective`'s, which the memory and
+      // PostgreSQL stores both already answer to
+      // (`packages/catalogue/tests/suite.ts`). This handler is the console's
+      // own copy of them, in the same shape `createOffer` above uses — the
+      // duplication is real and is registered as G-038.
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
+
+      const body = (await req.json().catch(() => null)) as Partial<Objective> | null;
+      if (!body) return json({ error: 'bad_request', message: 'Request body must be JSON' }, 400);
+
+      const missing = (['key', 'name'] as const).filter((f) => blankString(body[f]));
+      if (missing.length) {
+        return json(
+          { error: 'bad_request', message: `Missing required field(s): ${missing.join(', ')}` },
+          400
+        );
+      }
+
+      // The key is what a category and every offer beneath it is filed under,
+      // and it is stable for the life of the objective, so two sharing one
+      // would make the taxonomy ambiguous exactly where a flow reads it.
+      if (store.objectives.some((o) => o.key === body.key)) {
+        return json(
+          { error: 'conflict', message: `An objective already uses the key '${body.key}'.` },
+          409
+        );
+      }
+
+      const now = new Date().toISOString();
+      const objective: Objective = {
+        description: '',
+        // Appended to the end of the taxonomy unless the author said where.
+        // Zero would silently jump a new objective to the top of every list.
+        sortOrder: store.objectives.length + 1,
+        ...body,
+        // `iss_` predates the 2026-09-05 rename and is kept because an id is
+        // stable and appears in authored records; the offers handler keeps
+        // `prop_` for the same reason.
+        id: `iss_${body.key}`,
+        key: body.key as string,
+        name: body.name as string,
+        createdAt: now,
+        updatedAt: now,
+      } as Objective;
+
+      store.objectives.push(objective);
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'ObjectiveCreated',
+        scope: objective.id,
+        summary: `Created objective ${objective.name} (${objective.key}).`,
+      });
+      return json(objective, 201);
+    }
+
+    case 'categories': {
+      // POST /api/categories/{tenantId} — create a category under an objective.
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
+
+      const body = (await req.json().catch(() => null)) as Partial<Category> | null;
+      if (!body) return json({ error: 'bad_request', message: 'Request body must be JSON' }, 400);
+
+      const missing = (['key', 'name', 'objectiveId'] as const).filter((f) => blankString(body[f]));
+      if (missing.length) {
+        return json(
+          { error: 'bad_request', message: `Missing required field(s): ${missing.join(', ')}` },
+          400
+        );
+      }
+
+      // `Catalogue.putCategory`'s UNKNOWN_OBJECTIVE, served: a category outside
+      // the taxonomy cannot be reached by a decision flow, so accepting it
+      // would create something that looks authored and can never be chosen.
+      if (!store.objectives.some((o) => o.id === body.objectiveId)) {
+        return json(
+          {
+            error: 'bad_request',
+            message: `No objective '${body.objectiveId}'. A category outside the taxonomy cannot be reached by a decision flow.`,
+          },
+          400
+        );
+      }
+      if (store.categories.some((c) => c.key === body.key)) {
+        return json(
+          { error: 'conflict', message: `A category already uses the key '${body.key}'.` },
+          409
+        );
+      }
+
+      const now = new Date().toISOString();
+      const siblings = store.categories.filter((c) => c.objectiveId === body.objectiveId);
+      const category: Category = {
+        description: '',
+        sortOrder: siblings.length + 1,
+        ...body,
+        // `grp_` predates the rename, as `iss_` above does.
+        id: `grp_${body.key}`,
+        key: body.key as string,
+        name: body.name as string,
+        objectiveId: body.objectiveId as string,
+        createdAt: now,
+        updatedAt: now,
+      } as Category;
+
+      store.categories.push(category);
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'CategoryCreated',
+        scope: category.id,
+        summary: `Created category ${category.name} (${category.key}) under ${body.objectiveId}.`,
+      });
+      return json(category, 201);
     }
 
     case 'offers': {
@@ -2486,6 +2614,76 @@ async function handlePut(req: Request, { params }: Ctx) {
         eventType: 'CreativeUpdated',
         scope: updated.id,
         summary: `Updated ${updated.name}${changed.length ? ` (${changed.join(', ')})` : ''}.`,
+      });
+      return json(updated);
+    }
+
+    case 'objectives': {
+      if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
+      const objectiveId = rest[1];
+      const index = store.objectives.findIndex((o) => o.id === objectiveId);
+      if (index === -1) return notFound(`No objective ${objectiveId}`);
+
+      const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+      const before = store.objectives[index];
+      // The key and the id are what everything below is filed under, so an
+      // edit cannot move them. The descriptor locks the key in the form; this
+      // is the same rule where a caller cannot see the form.
+      const updated = {
+        ...before,
+        ...body,
+        id: before.id,
+        key: before.key,
+        updatedAt: new Date().toISOString(),
+      };
+      store.objectives[index] = updated;
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'ObjectiveUpdated',
+        scope: objectiveId,
+        summary: `Updated objective ${updated.name}.`,
+      });
+      return json(updated);
+    }
+
+    case 'categories': {
+      if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
+      const categoryId = rest[1];
+      const index = store.categories.findIndex((c) => c.id === categoryId);
+      if (index === -1) return notFound(`No category ${categoryId}`);
+
+      const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+      const before = store.categories[index];
+
+      // Re-filing a category under a different objective is allowed; filing it
+      // under one that does not exist is not, at edit as at creation.
+      if (
+        typeof body.objectiveId === 'string' &&
+        !store.objectives.some((o) => o.id === body.objectiveId)
+      ) {
+        return json(
+          { error: 'bad_request', message: `No objective '${body.objectiveId}'.` },
+          400
+        );
+      }
+
+      const updated = {
+        ...before,
+        ...body,
+        id: before.id,
+        key: before.key,
+        updatedAt: new Date().toISOString(),
+      };
+      store.categories[index] = updated;
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'CategoryUpdated',
+        scope: categoryId,
+        summary: `Updated category ${updated.name}.`,
       });
       return json(updated);
     }

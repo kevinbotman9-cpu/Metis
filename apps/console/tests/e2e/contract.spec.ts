@@ -192,6 +192,13 @@ const COVERED_BY_WRITE_SUITES: Record<string, string> = {
   publishArtifact: 'registry.spec.ts',
   promoteVersion: 'registry.spec.ts',
   rollbackVersion: 'registry.spec.ts',
+  // The taxonomy's writes are driven entirely through the screen, because the
+  // point of the slice was that they could not be. A speculative call here
+  // would exercise the endpoint and prove nothing about the journey.
+  createObjective: 'taxonomy-authoring.spec.ts',
+  updateObjective: 'taxonomy-authoring.spec.ts',
+  createCategory: 'taxonomy-authoring.spec.ts',
+  updateCategory: 'taxonomy-authoring.spec.ts',
   createOffer: 'permissions-and-writes.spec.ts',
   createCreative: 'permissions-and-writes.spec.ts',
   updateCreative: 'permissions-and-writes.spec.ts',
