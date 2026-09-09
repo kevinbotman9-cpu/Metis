@@ -137,6 +137,53 @@ away from being safe to do.
 
 **Done when:** `npm run lint` covers `tests` and `scripts`, and passes.
 
+### G-041 — The seeded corpus reports impressions for offers that could not have been rendered
+
+**Registered:** 2026-09-09 · **Status:** Open · **Work item:** [W-015](BACKLOG.md)
+
+`seededOutcomesFor` in `apps/console/mocks/fixtures/outcomes.ts` starts an
+outcome funnel for every decision that has a winner. It never asks whether that
+winner had an active creative on the decision's channel. It is the same error
+the storefront made and that `fix/impression-is-a-render` closed on 2026-09-09 —
+counting a **win** rather than a **render** — with the storefront half fixed and
+this half not.
+
+Measured over the committed index, all 10,400 decisions:
+
+| | |
+|---|---|
+| Decisions that offered something | 3,425 |
+| …whose winner has an active creative on that channel | 1,303 |
+| Seeded impressions today | 2,101 |
+| …for an offer that could not have been rendered | 1,214 |
+| Impressions the corpus should carry | **887** |
+
+The corpus overstates impressions by **2.37×**, and worst where creative
+coverage is thinnest: 281 of 284 outbound-call impressions are for offers with
+no outbound-call creative, 375 of 465 on push, 299 of 387 on sms, against 150 of
+566 on web.
+
+Every rate on `/performance` computed over impressions inherits it. The click
+rate is understated by the same factor, because the numerator is real and the
+denominator is not.
+
+**Not fixed in that slice, deliberately.** The slice was scoped to the
+storefront, and this is a change to what the demo tenant asserts about itself —
+a product decision about the corpus, not a defect repair. It also has a second
+half worth deciding at the same time: 2,122 of 3,425 offered decisions have a
+winner with nothing to render on the channel that won, which is either a finding
+the corpus should show or a gap in the seeded catalogue that W-015 should close.
+
+**Nothing needs regenerating.** The seeded outcomes are a projection computed per
+request, not stored — `seededOutcomeMap` rebuilds them from the decision index
+in under 40ms and no committed artifact holds them. Changing the rule changes the
+numbers on the next page load. Four prose comments cite `2,101`; no check
+asserts it.
+
+**Done when:** `seededOutcomesFor` starts a funnel only where the winner has an
+active creative on the decision's channel, and a test asserts that every seeded
+impression names a decision whose winner could have been rendered.
+
 ### G-004 — No node, panel or layout manifests — the composable experience
 
 **Registered:** 2026-09-03 · **Status:** Open · **Work item:** [W-038](BACKLOG.md)
