@@ -17,14 +17,27 @@ then a stop. The product owner decides what happens next.
 
 ## E1 — Truth audit of the existing codebase
 
-`PHASES_SUMMARY.md` claims all phases complete. Treat every claim in it as
-**unverified**. Your job is to establish what is actually there.
+Survey the codebase directly and establish what is actually there.
 
-For every claim in `PHASES_SUMMARY.md`, produce a row in
-`docs/evaluation/TRUTH_AUDIT.md`:
+This phase was once anchored to `PHASES_SUMMARY.md`, which claimed every phase
+complete and which no longer exists. Auditing a deleted document's claims is not
+possible, and reconstructing its claim list from git history would reintroduce
+exactly the drift the deletion removed. So the survey is now driven by the
+codebase and organised by the taxonomy, which is a structure nobody involved in
+building this repo authored.
 
-| Claim | Verdict | Evidence | Notes |
+Work through the seventeen domains of `docs/evaluation/CAPABILITY_TAXONOMY.md`
+in order. For each domain, establish what exists in the repository — not whether
+it matches a taxonomy item, which is E3's job and a different question. Produce
+rows in `docs/evaluation/TRUTH_AUDIT.md`, grouped by domain:
+
+| Capability found | Verdict | Evidence | Notes |
 |---|---|---|---|
+
+**The subject of a row is something the code does**, named in the repo's own
+words, not a taxonomy line item restated. A domain where the codebase does
+nothing gets one row saying so, with the searches that found nothing named. Do
+not pad a thin domain by splitting one mechanism into five rows.
 
 **Verdicts** (use exactly these):
 - `BUILT` — implementation exists AND a named test exercises it AND a console route
@@ -44,7 +57,6 @@ For every claim in `PHASES_SUMMARY.md`, produce a row in
 
 Also record, for the whole repo:
 - Total source LOC excluding generated files, tests, and node_modules.
-  (`PHASES_SUMMARY.md` claims ~50,000. Report the real number.)
 - Which of the four persistence stores (Postgres, EventStoreDB, Redis, ClickHouse)
   are actually connected to running code versus present only in config.
 - Every route under `apps/console/`, and for each: does it fetch real data, mock
@@ -210,7 +222,5 @@ Do not propose a remediation plan. Do not begin work. Report:
 - The three documents, and the diff to `docs/CAPABILITIES.md`.
 - The three counts from E3.
 - The answer to E4 Q5.
-- Your top three surprises — things that were materially different from what
-  `PHASES_SUMMARY.md` implies.
 
 Then wait.
