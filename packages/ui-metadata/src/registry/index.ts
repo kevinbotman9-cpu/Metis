@@ -1,6 +1,8 @@
 import type { EntityDescriptor } from '../types';
 import { offerDescriptor } from './offer';
 import { creativeDescriptor } from './creative';
+import { objectiveDescriptor } from './objective';
+import { categoryDescriptor } from './category';
 
 /**
  * The metadata registry.
@@ -14,6 +16,8 @@ import { creativeDescriptor } from './creative';
  * against its OpenAPI schema in both directions.
  */
 export const REGISTRY: Record<string, EntityDescriptor> = {
+  Objective: objectiveDescriptor,
+  Category: categoryDescriptor,
   Offer: offerDescriptor,
   Creative: creativeDescriptor,
 };
@@ -57,8 +61,6 @@ export const USER_EDITABLE_ENTITIES = [
  * list nor `REGISTRY`, and fails if one is in both.
  */
 export const PENDING: Record<string, string> = {
-  Objective: 'No authoring surface at all; the taxonomy is fixture-authored.',
-  Category: 'No authoring surface at all; the taxonomy is fixture-authored.',
   DecisionFlow: 'Authored on the canvas, not in a form. Needs a descriptor for its metadata only.',
   TargetingPolicy: 'Hand-built in components/policy-form-dialog.tsx.',
   FrequencyPolicy: 'Read-only screen today; no write endpoint is served.',
@@ -81,4 +83,4 @@ export function descriptorFor(entity: string): EntityDescriptor {
   return found;
 }
 
-export { offerDescriptor, creativeDescriptor };
+export { objectiveDescriptor, categoryDescriptor, offerDescriptor, creativeDescriptor };

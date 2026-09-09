@@ -36,6 +36,16 @@ export interface EntityFormDialogProps<T extends object> {
   entity: string;
   /** Absent to create. Present to edit that record. */
   record?: T | null;
+  /**
+   * Field values a new record starts with, when the screen already knows one.
+   *
+   * A category created from inside an objective starts on that objective: the
+   * click answered the question, so the form should not ask it again. This is
+   * not the same as passing a `record` — a record means *editing*, which locks
+   * the key, switches the labels and counts every field as authored. These are
+   * defaults on a create, and the person can still change them.
+   */
+  defaults?: Record<string, unknown>;
   /** Title when creating a new record; the descriptor supplies the default. */
   title?: string;
   save: (body: Record<string, unknown>, record: T | null) => Promise<T>;
@@ -90,6 +100,7 @@ export function EntityFormDialog<T extends object>({
   onOpenChange,
   entity,
   record,
+  defaults,
   title,
   save,
   invalidate = [],
@@ -109,11 +120,14 @@ export function EntityFormDialog<T extends object>({
   // openings, so a stale draft would otherwise survive a cancel.
   useEffect(() => {
     if (!open) return;
-    setForm(toFormState(descriptor, (record ?? null) as Record<string, unknown> | null));
+    setForm(
+      toFormState(descriptor, (record ?? defaults ?? null) as Record<string, unknown> | null)
+    );
     // Every field of an existing record counts as authored, so a suggestion
-    // cannot overwrite a name somebody chose deliberately.
+    // cannot overwrite a name somebody chose deliberately. Defaults on a create
+    // are not authored — the key must still suggest itself from the name.
     setTouched(record ? new Set(descriptor.fields.map((f) => f.field)) : new Set());
-  }, [open, record, descriptor]);
+  }, [open, record, defaults, descriptor]);
 
   const mutation = useMutation({
     mutationFn: () =>

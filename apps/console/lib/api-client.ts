@@ -211,6 +211,36 @@ export const apiClient = {
   getTaxonomy: (tenantId: string = TENANT) =>
     apiCall<TaxonomyDto>('getTaxonomy', { params: { tenantId } }),
 
+  // The taxonomy's two authoring operations. There is no `listObjectives` or
+  // `listCategories`: `getTaxonomy` returns both, and the engine reads the
+  // taxonomy as one snapshot, so a second way to read half of it would be a
+  // second thing to keep in step.
+  createObjective: (objective: Partial<ObjectiveDto>, tenantId: string = TENANT) =>
+    apiCall<ObjectiveDto>('createObjective', { params: { tenantId }, body: objective }),
+
+  updateObjective: (
+    objectiveId: string,
+    changes: Partial<ObjectiveDto>,
+    tenantId: string = TENANT
+  ) =>
+    apiCall<ObjectiveDto>('updateObjective', {
+      params: { tenantId, objectiveId },
+      body: changes,
+    }),
+
+  createCategory: (category: Partial<CategoryDto>, tenantId: string = TENANT) =>
+    apiCall<CategoryDto>('createCategory', { params: { tenantId }, body: category }),
+
+  updateCategory: (
+    categoryId: string,
+    changes: Partial<CategoryDto>,
+    tenantId: string = TENANT
+  ) =>
+    apiCall<CategoryDto>('updateCategory', {
+      params: { tenantId, categoryId },
+      body: changes,
+    }),
+
   listOffers: (
     filters: { objectiveId?: string; categoryId?: string; status?: string; q?: string } = {},
     tenantId: string = TENANT

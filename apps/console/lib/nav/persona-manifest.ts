@@ -83,7 +83,15 @@ export const PERSONA_MANIFEST: readonly GroupNode[] = [
     icon: 'catalogue',
     personas: ['marketer'],
     children: [
-      { label: 'Objectives', href: '/objectives' },
+      // Gated the same way as Offers and Creatives below. Without a permission
+      // a screen in this group is admitted by persona alone, which would have
+      // shown the taxonomy to a marketer and hidden it from a compliance
+      // officer who can already see every offer filed under it.
+      { label: 'Objectives', href: '/objectives', permission: 'view:offers' },
+      // Categories are authored from inside the objective that owns them, per
+      // the console spec's "Objectives … owns categories". This entry stays
+      // because a flat list across objectives is a different screen and a
+      // reasonable one; it has no route yet, so the rail does not show it.
       { label: 'Categories', href: '/categories' },
       { label: 'Offers', href: '/offers', permission: 'view:offers' },
       { label: 'Creatives', href: '/creatives', permission: 'view:offers' },

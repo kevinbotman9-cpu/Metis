@@ -180,6 +180,7 @@ otherwise.
 | W-053 | 14 | Regulator-ready evidence pack (PDF + hash verification page) | OPEN | 2 |
 | W-054 | 17 | Flow version diff — canvas, textual, semantic | OPEN | 2 |
 | W-055 | 12 | A disabled control states its reason accessibly | OPEN | 2 |
+| W-056 | 13 | Taxonomy authoring — objectives and categories from the screen | DONE | 2 |
 
 ---
 
@@ -1393,3 +1394,29 @@ design decision, not a repair, which is why it was not made mid-slice.
 **Done when:** every disabled control's reason is in the accessibility tree,
 asserted by axe or by a Playwright check, and `dead-controls.test.ts` is
 extended to require whatever mechanism is chosen instead of `title`.
+### W-056 — Taxonomy authoring — objectives and categories from the screen
+
+**Registered:** 2026-09-09 · **Stage:** 13 · **Status:** DONE
+**Check:** `apps/console/tests/e2e/taxonomy-authoring.spec.ts` and `packages/ui-metadata/tests/descriptors.test.ts`
+
+Gate 2 · Depends: none · Spine 1, slice 1
+
+`getTaxonomy` could read the taxonomy since the spec was written and nothing
+could write it, so the first step of the marketer's journey in
+`docs/JOURNEY_SPINES.md` — before the offer, before the creative — was the only
+one that needed `apps/console/mocks/fixtures/catalogue.ts` edited and the
+console redeployed. Steps 2, 3, 4, 8, 9 and 10 all worked from the screen. Six
+working screens with a hole in front of them, which is what building from a
+feature list rather than a spine produces.
+
+`createObjective`, `updateObjective`, `createCategory` and `updateCategory` are
+in the spec and served. `/objectives` is the list–detail screen the console spec
+already declared (*"Objectives | List–detail | Top of taxonomy. Owns
+categories."*), and both forms are the generic renderer reading descriptors, so
+`Objective` and `Category` leave `PENDING` and the registry covers four of
+fourteen user-editable entities rather than two.
+
+**Done when:** an `@screen-only` test creates an objective, creates a category
+under it, and files an offer under both without an API call, a fixture edit or a
+reload — `taxonomy-authoring.spec.ts`, "the whole taxonomy step, and an offer
+filed under what it made".
