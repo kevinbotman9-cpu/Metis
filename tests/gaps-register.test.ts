@@ -32,8 +32,23 @@ import { execFileSync } from 'node:child_process';
  */
 
 const root = resolve(__dirname, '..');
-const GAPS = readFileSync(resolve(root, 'docs/gaps.md'), 'utf8');
-const BACKLOG = readFileSync(resolve(root, 'docs/BACKLOG.md'), 'utf8');
+
+/**
+ * Read a document with its line endings normalised.
+ *
+ * Every pattern below is anchored with `$`, and in JavaScript `.` does not match
+ * a carriage return — so on a checkout with `core.autocrlf=true` (the Windows
+ * default) `### G-001 — …\r` matches nothing, every entry parses with an empty
+ * id, and this file reports 36 anonymous entries, 35 duplicate ids and a
+ * dangling `G-033` that is sitting in the register at line 1092. All three are
+ * artefacts of the checkout. CI runs on Linux, so the check was green there and
+ * red on any Windows clone, which is the worst way round.
+ */
+const read = (path: string): string =>
+  readFileSync(resolve(root, path), 'utf8').replace(/\r\n/g, '\n');
+
+const GAPS = read('docs/gaps.md');
+const BACKLOG = read('docs/BACKLOG.md');
 
 /** Work items the backlog actually defines, by their own headings. */
 const DEFINED = new Set([...BACKLOG.matchAll(/^### (W-\d{3})/gm)].map((m) => m[1]));
