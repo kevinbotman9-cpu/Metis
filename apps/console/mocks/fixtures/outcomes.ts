@@ -1,7 +1,7 @@
 import { seededUnitInterval } from '@metis/runtime/deterministic/canonical';
 import type { OutcomeEvent, OutcomeType } from '@metis/ledger';
 import { decisionIndexOf, inChurnCohort } from './engine';
-import { offers } from './catalogue';
+import { creatives, offers } from './catalogue';
 import type { DecisionRecord } from './decisions';
 
 /**
@@ -30,6 +30,22 @@ import type { DecisionRecord } from './decisions';
  * **Only decisions that offered something.** A suppressed decision cannot have
  * an impression. Generating one would make the frequency policy look like an
  * offer that failed.
+ *
+ * **Only decisions whose winner could actually have been rendered.** An offer
+ * wins a slot; a *creative* fills it. An offer with no active creative on the
+ * channel that won has nothing to send, and an impression for it is an
+ * impression of a blank. This rule was missing until 2026-09-09 and the corpus
+ * was reporting 2,101 impressions where at most 887 were possible — a 2.37×
+ * overstatement, and the same defect the storefront had in the same week:
+ * counting a **win** rather than a **render**. It was worst exactly where
+ * creative coverage is thinnest, so it flattered the channels the platform
+ * covers least: 281 of 284 outbound-call impressions were impossible, against
+ * 150 of 566 on web.
+ *
+ * The rule is channel-level rather than placement-level because that is what
+ * the storefront's `creativeFor` does — a creative written for no slot in
+ * particular fills whatever is left, so having one on the channel is enough to
+ * render.
  *
  * **A nested funnel.** conversion ⊆ acceptance ⊆ click ⊆ impression, so every
  * rate is monotone. A corpus where clicks exceed impressions is the tell that
@@ -102,6 +118,32 @@ const DAY = 24 * HOUR;
 
 const marginByKey = new Map(offers.map((o) => [o.key, o.financials.expectedMargin.amount]));
 
+const offerIdByKey = new Map(offers.map((o) => [o.key, o.id]));
+
+/**
+ * The channels each offer has something to render on.
+ *
+ * Active creatives only: a creative somebody switched off cannot be sent, which
+ * is the whole reason `active` is a field on it.
+ */
+const channelsByOfferId = new Map<string, Set<string>>();
+for (const c of creatives) {
+  if (!c.active) continue;
+  const own = channelsByOfferId.get(c.offerId) ?? new Set<string>();
+  own.add(c.channel);
+  channelsByOfferId.set(c.offerId, own);
+}
+
+/** Whether this decision's winner had anything to render on the winning channel. */
+function couldRender(d: DecisionRecord): boolean {
+  // The id where the record carries one, the key where it does not: a caller
+  // building a record by hand should not silently get an empty funnel because
+  // it left a field out.
+  const offerId = d.winnerOfferId ?? (d.winner ? offerIdByKey.get(d.winner) : undefined);
+  if (!offerId) return false;
+  return channelsByOfferId.get(offerId)?.has(d.channel) ?? false;
+}
+
 function at(base: string, ms: number): string {
   return new Date(new Date(base).getTime() + ms).toISOString();
 }
@@ -116,6 +158,12 @@ function at(base: string, ms: number): string {
  */
 export function seededOutcomesFor(d: DecisionRecord): OutcomeEvent[] {
   if (!d.winner) return [];
+  // An offer won; a creative fills the slot. With nothing to render on the
+  // channel that won, nothing reached the customer and there is no funnel to
+  // start. 2,122 of the 3,425 offered decisions in this corpus are in this
+  // state, which is a finding about the catalogue rather than about the
+  // outcomes — registered as G-041's second half.
+  if (!couldRender(d)) return [];
 
   const coverage = COVERAGE[d.channel] ?? 0.5;
   if (r('impression', d.id) >= coverage) return [];

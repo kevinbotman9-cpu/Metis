@@ -22,6 +22,20 @@ import { login, ACCOUNTS, resetStore } from './helpers';
  * point of the tag.
  */
 
+/**
+ * The `With an outcome` metric on /performance, as a number.
+ *
+ * The label and the figure share a container, so the digits have to be pulled
+ * out of the text. Read through one function rather than inline in three tests,
+ * because two of them compare two readings of it and a difference in how they
+ * were parsed would look like a difference in what was measured.
+ */
+async function measuredCount(page: import('@playwright/test').Page): Promise<number> {
+  const metric = page.getByText('WITH AN OUTCOME').locator('..');
+  await expect(metric).toBeVisible();
+  return Number((await metric.innerText()).replace(/[^0-9]/g, ''));
+}
+
 test.describe('the outcome loop @screen-only', () => {
   test.afterEach(async ({ page }) => {
     // Outcomes accumulate in the ledger for the life of the server process, and
@@ -74,6 +88,16 @@ test.describe('the outcome loop @screen-only', () => {
     // events. A rate computed over event counts can exceed 1, which is the tell
     // that it measured the wrong thing — and the click this test adds is
     // exactly the event that would break it.
+    // What the report says before this test adds anything. Asserted as a delta
+    // rather than against a total, because a total is a fact about the seeded
+    // corpus and this test is about arithmetic: the previous version asserted
+    // the metric *contained* the string "2", which any four-digit number
+    // starting with a 2 satisfies, so it passed for as long as the corpus
+    // happened to measure 2,101 and proved nothing at all.
+    await login(page, ACCOUNTS.sarah);
+    await page.goto('/performance');
+    const before = await measuredCount(page);
+
     await page.goto('/storefront/index.html');
     // Wait for the slot to carry its decision, not merely for a button to
     // appear: the id is what an outcome is reported against.
@@ -100,11 +124,14 @@ test.describe('the outcome loop @screen-only', () => {
     // Same decision, second outcome type.
     await page.locator('.cta').first().click();
 
-    await login(page, ACCOUNTS.sarah);
     await page.goto('/performance');
 
-    const measured = page.getByText('WITH AN OUTCOME').locator('..');
-    await expect(measured).toContainText(String(rendered));
+    // One measured decision per slot that rendered, however many events each
+    // one collected. Three events landed on the slot clicked twice — an
+    // impression and two clicks — and it is still one decision.
+    await expect
+      .poll(() => measuredCount(page), { timeout: 15_000 })
+      .toBe(before + rendered);
   });
 
   test('a slot that filled nothing reports no impression', async ({ page }) => {
@@ -138,9 +165,13 @@ test.describe('the seeded corpus reports back @screen-only', () => {
     // describing. That sentence is the feature, not a caveat.
     await expect(page.getByText(/offers have no outcome recorded/)).toBeVisible();
 
-    const measured = page.getByText('WITH AN OUTCOME').locator('..');
-    const value = Number((await measured.innerText()).replace(/[^0-9]/g, '').slice(-6));
-    expect(value, 'the corpus reports on thousands of decisions, not two').toBeGreaterThan(1_000);
+    // 887 on 2026-09-09, down from 2,101 when the generator started a funnel
+    // for every decision that had a winner rather than for every decision whose
+    // winner had something to render (G-041). The bound is here to catch the
+    // state this screen replaced — two rows, from one reviewer's clicks — not
+    // to pin the corpus size.
+    const value = await measuredCount(page);
+    expect(value, 'the corpus reports on hundreds of decisions, not two').toBeGreaterThan(800);
   });
 
   test('the rates are rates, not counts pretending to be rates', async ({ page }) => {

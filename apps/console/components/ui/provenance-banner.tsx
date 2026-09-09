@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn';
  * Says whether the numbers below it describe anybody.
  *
  * The demo tenant crossed from obviously-fake to indistinguishable on
- * 2026-09-09: 10,400 decisions, 2,101 measured outcomes, plausible rates, and
+ * 2026-09-09: 10,400 decisions, 887 measured outcomes, plausible rates, and
  * realised value in pounds. The only marker was a badge in the corner of the
  * nav rail — which a screenshot of the report does not include, and which no
  * exported file or API response carried at all.
