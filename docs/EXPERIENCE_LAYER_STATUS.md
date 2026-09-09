@@ -1,27 +1,12 @@
 # Experience Layer — Status
 
-**Last verified:** 2026-09-05 by an automated suite, not by eye.
+**Last verified:** 2026-09-06 by an automated suite, not by eye.
 
-```
-Integration          6 passed  - author -> compile -> execute -> replay
-Runtime            140 passed  - packages/runtime: determinism, byte-identical
-                                 replay, integration resolution, ADR-003
-                                 value corpus and the 22-decision corpus
-Compiler            40 passed  - packages/compiler
-Registry            50 passed  - packages/registry; one behaviour suite run
-                                 against memory and a real PostgreSQL
-Performance          6 passed  - bench/harness, the p95 < 50ms gate
-Unit (Vitest)       39 passed  - apps/console
-E2E (Playwright)   133 passed  - 27 contract + cross-engine, 19 axe, 16 registry
-                                 (11 skipped: write operations covered by
-                                 permissions-and-writes and registry instead)
-Conformance (JVM)   13 passed  - engines/kotlin :engine and :service; 67 values,
-                                 22 decisions, 60 real decisions over HTTP
-Typecheck           clean      - root config and the console's, separately
-Lint                0 errors   - root and console, which are separate configs
-                   ---
-                    427 tests, two languages, two engines
-```
+This file covers the **console**: one row per route, plus a narrative per stage
+of what each change surfaced and what it got wrong. The platform-wide capability
+map and the suite counts live in [`CAPABILITIES.md`](CAPABILITIES.md), and are
+not repeated here — they were duplicated in three documents and had drifted in
+all three.
 
 The E2E gate was checked by breaking it: a deliberate failing assertion in
 `app-shell.spec.ts` made Playwright exit 1, which is the only evidence that
@@ -56,7 +41,7 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | `/frequency-policy` | BUILT | Frequency caps, cooldowns, scope. |
 | `/arbitration` | BUILT | P × V × B × C weight editor; publishing persists and is audited. |
 | `/decision-flows` | BUILT | Artifact list with compile status per flow. |
-| `/decision-flows/[id]` | BUILT | Compiler verdict with remedies, flow canvas (read-only), node inspector. |
+| `/decision-flows/[id]` | BUILT | Compiler verdict with remedies, flow canvas (read-only), node inspector, registry panel (publish vs promote, rollback) and a shadow panel: start or stop a second version running beside the active one, with the agreement rate, the divergences by kind and what the shadow cost. |
 | `/decisions` | BUILT | 5,000 engine-executed decisions in a virtualised grid, unified search with filter chips. |
 | `/decisions/[id]` | BUILT | Real cascade from the engine, score composition, chain hash, replay that re-executes and compares hashes. |
 | `/approvals` | BUILT | Change set queue, agent vs person provenance. |
@@ -64,7 +49,9 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | `/agentic` | BUILT | L0–L4 ladder, per-scope guardrails, editable level, agent activity feed. |
 | `/audit` | BUILT | Append-only log, filterable by actor type. Every write lands here. |
 | `/settings` | BUILT | Account, roles, permissions, appearance, environment. |
+| `/data-model` | BUILT | The tenant's data model: entities, typed fields with units and personal-data classification, relationships, and the rollups declared over one-to-many. Two views — entities for the modeller, paths for whoever is about to write a rule. |
 | `/integrations` | BUILT | Configured connectors, what each supplies, declared latency against the budget, and activate/deactivate gated on `edit:integrations`. |
+| `/integrations/traffic` | BUILT | Every call the API served, request and response in full, attributed to its caller and linked to the decision it produced. Records the development API only; the production form of this is W-048's spans, and the operations are `proposed` in the spec for that reason. See `docs/gaps.md`. |
 | `/simulations` | PARTIAL | Shows simulations attached to change sets. Ad-hoc simulation is **not built**, and the page says so. |
 
 ---
@@ -85,8 +72,8 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | Canvas | PARTIAL | Read-only. Node positions are authored, not laid out — a layout algorithm needs design review. |
 | Dev API | BUILT | `app/api/[...path]/route.ts` over the store. |
 | MSW | OPT-IN | `NEXT_PUBLIC_USE_MSW=true`. Service workers do not register in every embedded browser, so route handlers are the default. |
-| Vitest | BUILT | 31 tests: autonomy resolution, money formatting, fixture referential integrity. |
-| Playwright | BUILT | 52 tests: navigation, auth, decisions, RBAC, persistence, appearance. |
+| Vitest | BUILT | 45 tests: autonomy resolution, money formatting, fixture referential integrity. |
+| Playwright | BUILT | 184 tests: navigation, auth, decisions, RBAC, persistence, appearance, registry, ledger, idempotency, shadow, and the contract in both directions. |
 | axe-core | BUILT | 14 pages, light and dark. Zero violations at WCAG 2.2 AA. |
 | Execution engine | BUILT | `packages/runtime/src/deterministic`. Byte-identical across 100 runs; replay compares chain hashes. |
 | Compiler | BUILT | `packages/compiler/src/decision-flow`. Validates the graph, pins versions and models, computes the critical path, and refuses anything the runtime could not execute safely. |
@@ -489,7 +476,7 @@ white clears 10.48:1 on its lightest stop.
   the body face touches every screen and every visual assertion, and is a
   separate change from the structure and palette adopted here.
 - **The other two directions.** Rail's KPI-stack-as-navigation and Sand's card
-  treatment are not shipped. Shipping all three as live options would mean three
+  styling are not shipped. Shipping all three as live options would mean three
   layouts of every screen across four existing theme axes — twelve combinations
   per component, each needing a story and an axe pass.
 

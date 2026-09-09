@@ -11,7 +11,7 @@
 > See the Vocabulary section of `CLAUDE.md`, which is normative.
 
 **Audience:** Claude Code (implementation agent) and the product owner
-**Status:** Direction-setting. Extends `METIS_Vision_and_Build_Plan.md` §7. Where this conflicts with the "Phase 2 ✅ Complete" claims in `PHASES_SUMMARY.md`, this wins.
+**Status:** Direction-setting. Extends `METIS_Vision_and_Build_Plan.md` §7. It was written against `PHASES_SUMMARY.md`, which claimed Phases 0-4 complete and was deleted on 2026-09-05; for what is actually built, `docs/CAPABILITIES.md` is the single answer and this document does not compete with it.
 **Version:** 1.0 — September 2026
 
 ---
@@ -40,7 +40,7 @@ Three sharper consequences:
 
 ## 2. Before anything is built: the status document is ahead of the code
 
-`PHASES_SUMMARY.md` marks Phase 2 experience layer as ✅ Complete. The build transcript shows `apps/console/` and the canvas designer as "scaffolded." Those are not the same thing.
+`PHASES_SUMMARY.md` marked the Phase 2 experience layer complete while the build transcript showed `apps/console/` and the canvas designer as "scaffolded." Those are not the same thing, and that gap is why the file was deleted and replaced by `docs/CAPABILITIES.md`, whose rule is that BUILT means a test fails when it breaks.
 
 This matters specifically for an agentic build. If Claude Code is told the platform is complete, it will write a console against APIs that do not exist, invent plausible response shapes, hardcode sample data into components, and produce a beautiful demo that lies. That failure is very hard to detect from screenshots and very embarrassing to discover in a customer session.
 
@@ -136,6 +136,8 @@ Working the frontend-design process here rather than defaulting.
 ```
 
 Semantic colours are load-bearing. If green means "approved" in the change set inbox and also means "brand accent" in the header, the trace loses its readability. Reserve them.
+
+**Adopted 2026-09-07.** The console took the teal from a reference direction on 2026-09-05 and then hit exactly the collision described above — that teal was both the brand and the "gain" state. It now runs the palette this section asks for: a slate frame, a cool light work area, `--accent 37 99 199` (the `#2563C7` named here), and `--info` moved to cyan so that "informational" and "interactive" are not both blue. The amber stayed out of the semantic set: the reference's `#E58A34` measures 2.62:1 as text and lives on the chrome instead. Every value is measured by `scripts/check-contrast.mjs` rather than asserted here.
 
 Dark mode is a first-class axis, not an afterthought. Operators run this on wall displays.
 

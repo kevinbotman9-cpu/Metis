@@ -89,6 +89,8 @@ export interface Offer {
   validity: ValidityWindow;
   /** Business priority multiplier. 1.0 is neutral. */
   boost: number;
+  /** Link to the contractual terms the customer is agreeing to. Optional, because not every offer has separate terms; where one does, the trace should be able to reach what was actually promised. */
+  contractUrl?: string;
   policyIds: string[];
   creativeIds: string[];
   tags: string[];
@@ -102,10 +104,24 @@ export interface Creative {
   offerId: string;
   name: string;
   channel: "email" | "sms" | "web" | "push" | "outbound_call";
-  /** Channel-specific content; shape is discriminated by channel */
+  /** Channel-specific content; shape is discriminated by channel.
+
+On `web`, two separate fields describe where it goes and how it
+looks. `placement` is a slot key, joining to a configured
+`Placement`; empty means the creative can fill any slot on the
+channel. `placementType` is the shape — one of carousel,
+feature_band, footer_bar, hero, page_takeover, tile.
+
+Separate because they are separate decisions, usually made by
+different people: a slot and a design. A slot declares its own
+`type`, so a creative can inherit one and the two can be compared
+rather than assumed to agree.
+ */
   content: Record<string, unknown>;
   active: boolean;
   locale: string;
+  /** Why this content reads the way it does — a claim substantiation, a legal sign-off reference, a note about wording somebody argued over. Optional, and carried into the trace so a regulator asking "why did it say that" reaches the reasoning rather than only the text. */
+  reviewNote?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -121,6 +137,246 @@ export interface PolicyCondition {
   field: string;
   operator: "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "in" | "not_in" | "contains" | "exists" | "not_exists";
   value: unknown;
+}
+
+export interface SchemaField {
+  /** The path segment, e.g. `age` in `customer.age`. */
+  name: string;
+  /** integer and decimal are separate because the difference is a real authoring constraint, and because the value control differs. */
+  type: "string" | "integer" | "decimal" | "boolean" | "timestamp" | "enum" | "money";
+  description: string;
+  /** Allowed values, for `enum`. The editor renders these and the compiler checks them. */
+  members?: string[];
+  required?: boolean;
+  /** Retention's input, not decoration. Classifying at declaration time is far cheaper than classifying a populated store later. */
+  sensitivity?: "none" | "personal" | "special_category";
+  /** days, pence, ratio, months. Shown beside the value input. */
+  unit?: string;
+}
+
+export interface SchemaRelationship {
+  name: string;
+  /** Target entity name. */
+  entity: string;
+  cardinality: "one" | "many";
+  description: string;
+}
+
+export interface SchemaEntity {
+  name: string;
+  description: string;
+  fields: SchemaField[];
+  relationships?: SchemaRelationship[];
+}
+
+/** A rollup over a `many` relationship, resolved before the deterministic core and entering the hashed input as a scalar. Declared on the schema rather than written inside a policy, so it is a named reviewable object and the cost of a decision stays predictable. */
+export interface SchemaAggregation {
+  /** The flat path it produces in the input, e.g. `accounts.worst_arrears_days`. */
+  produces: string;
+  description: string;
+  /** Relationship names from the root entity. */
+  over: string[];
+  fn: "count" | "sum" | "min" | "max" | "any" | "all";
+  /** Field on the target entity. Omitted for `count`, required otherwise. */
+  field?: string;
+  where?: PolicyCondition[];
+  type: "string" | "integer" | "decimal" | "boolean" | "timestamp" | "enum" | "money";
+}
+
+/** A declared transform. The set is closed on purpose: an arbitrary expression in a mapping is code running over customer data on an ingest path, versioned nowhere and reviewed by nobody. */
+export interface Transform {
+  kind: "none" | "trim" | "lowercase" | "uppercase" | "to_number" | "to_boolean" | "map_values" | "years_since";
+  /** For map_values. Exhaustive - a source value with no entry is a problem rather than a pass-through. */
+  values?: Record<string, string>;
+}
+
+export interface FieldMapping {
+  /** Column name in the landed rows. */
+  column: string;
+  /** Dotted path in the data model. */
+  path: string;
+  transform?: Transform;
+}
+
+export interface ColumnSummary {
+  column: string;
+  path: string;
+  filled: number;
+  failed: number;
+  examples: string[];
+}
+
+/** Summarised by column rather than by row. An import fails for a handful of reasons repeated thousands of times, and the question is which column is wrong and what the bad value looks like. */
+export interface ValidationReport {
+  rows: number;
+  /** Rows with no problem in any column. */
+  clean: number;
+  columns: ColumnSummary[];
+  missingRequired: string[];
+  unmapped: string[];
+  errors: number;
+}
+
+/** A source of customer records, and the mapping from its shape onto the data model. Land, map, validate, activate - a source that has not validated cleanly cannot be activated. */
+export interface DataSource {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string;
+  kind: "file" | "http" | "inline";
+  /** Column names observed when rows were landed. */
+  columns: string[];
+  mappings: FieldMapping[];
+  status: "draft" | "validated" | "active";
+  landedRows: number;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface ExperimentArm {
+  /** Stable identifier. Appears in policies and reports, so it must not change. */
+  key: string;
+  name: string;
+  /** Relative share. Not required to sum to 100 - weights are normalised. */
+  weight: number;
+  /** The untreated group. Marked rather than inferred from the name - control, holdout and baseline all appear in the wild. */
+  holdout?: boolean;
+}
+
+/** An arm assignment is an input to a decision, not a wrapper around one. It is a pure function of the customer reference, so an arm is recomputed from a decision record months later rather than stored - which is why a running experiment's arms are frozen. */
+export interface Experiment {
+  id: string;
+  tenantId: string;
+  /** The arm reaches policies at `experiments.<key>`. */
+  key: string;
+  name: string;
+  description: string;
+  arms: ExperimentArm[];
+  status: "draft" | "running" | "stopped";
+  startedAt: string;
+  stoppedAt: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface ArmPerformance {
+  experimentKey: string;
+  arm: string;
+  holdout: boolean;
+  offered: number;
+  measured: number;
+  acceptances: number;
+  /** Null when nothing was measured. Zero would claim the arm was seen and refused. */
+  acceptanceRate: number;
+  valueMinor: number;
+}
+
+export interface PerformanceRow {
+  action: string;
+  channel: string;
+  flowId: string;
+  /** Decisions where this action won. */
+  offered: number;
+  /** Decisions with any outcome recorded. The denominator for every rate here - a rate over `offered` would divide by decisions nobody reported on, turning silence into 0%. */
+  measured: number;
+  impressions: number;
+  clicks: number;
+  acceptances: number;
+  rejections: number;
+  conversions: number;
+  /** Null when no outcome carried a value, which is distinct from zero - zero would claim the offers were worth nothing rather than that nobody said. */
+  valueMinor: number;
+  /** Null when nothing was measured. Zero would claim the offer was seen and refused; null says nobody reported back. */
+  acceptanceRate: number;
+  clickRate: number;
+}
+
+/** Where the numbers in this response came from.
+
+The seeded `demo-telco-uk` tenant became indistinguishable from real
+reporting on 2026-09-09: 10,400 decisions, 2,101 measured outcomes,
+plausible click rates and realised value in pounds, all derived from
+`seededUnitInterval` and none of it from a customer. The only marker was
+a badge in a corner of the console's nav rail, which no API response
+carried and no screenshot was obliged to include.
+
+So a response whose numbers are synthetic says so, in the payload. A
+marker that lives only in the interface is a marker that does not
+survive an export, a screenshot, or a `curl`.
+ */
+export interface Provenance {
+  /** `synthetic` when every figure derives from the seed, `recorded` when every figure derives from something that actually happened, `mixed` when a report joins both - which is the normal state of a demo tenant somebody has clicked in. */
+  source: "synthetic" | "recorded" | "mixed";
+  /** Rows or records in this response that derive from the seed. */
+  syntheticCount?: number;
+  /** Rows or records that derive from real traffic. */
+  recordedCount?: number;
+  /** A sentence a person can read in an exported file months later, without this document in front of them. */
+  note: string;
+}
+
+export interface PerformanceReport {
+  rows: PerformanceRow[];
+  decisions: number;
+  offered: number;
+  /** Decisions that offered nothing. Reported beside the rest rather than hidden - on a platform whose suitability tier exists to refuse profitable offers, suppression is a result, not a shortfall. */
+  suppressed: number;
+  /** Decisions with at least one outcome recorded against them. */
+  measured: number;
+  from?: string;
+  to?: string;
+  provenance?: Provenance;
+  /** Per-arm counts for every running or stopped experiment, recomputed from each decision's customer reference rather than read from a stored assignment. */
+  arms?: ArmPerformance[];
+}
+
+/** The tenant's customer data model. A contract about what fields exist and how entities relate; it says nothing about where values come from, which is already two separate answers (the caller sends them, or a connector resolves them). */
+export interface ProfileSchema {
+  id: string;
+  tenantId: string;
+  /** Bumped whenever the shape changes. */
+  version: string;
+  /** The entity the decision input *is*. */
+  root: string;
+  entities: SchemaEntity[];
+  aggregations: SchemaAggregation[];
+  updatedAt: string;
+  updatedBy: string;
+}
+
+/** One selectable path, as the policy editor's field picker lists them. */
+export interface SchemaFieldPath {
+  path: string;
+  type: "string" | "integer" | "decimal" | "boolean" | "timestamp" | "enum" | "money";
+  kind: "field" | "aggregation";
+  description: string;
+  entity?: string;
+  members?: string[];
+  unit?: string;
+  sensitivity?: "none" | "personal" | "special_category";
+  /** The operators this type admits. Served rather than derived in the client so the editor and the compiler cannot offer different sets. */
+  operators: string[];
+}
+
+export interface TargetingPolicyWrite {
+  name: string;
+  kind: "eligibility" | "relevance" | "suitability";
+  description: string;
+  conditions: PolicyCondition[];
+  scope: PolicyScope;
+  active: boolean;
+}
+
+/** Per-condition reasons, so a form can put each one against the control that produced it. A validation error rendered as one sentence at the top of a dialog makes the person hunt for the field. */
+export interface PolicyRejected {
+  error: string;
+  message: string;
+  problems: {
+    /** Dotted path into the submitted object, e.g. `conditions.0.value`. */
+    field: string;
+    message: string;
+    code?: string;
+  }[];
 }
 
 export interface TargetingPolicy {
@@ -316,6 +572,7 @@ export interface DecisionRecord {
   tenantId: string;
   customerId: string;
   timestamp: string;
+  provenance?: Provenance;
   channel: string;
   placement: string;
   winner: string | null;
@@ -332,6 +589,21 @@ export interface DecisionRecord {
     utility: {
       id: string;
       version: string;
+    };
+    /** What ranking did about candidates nothing scored. A missing score must never become a silent zero: a neutral term is 1 under exponentiation, not 0, and a flow may declare an approved default instead of relying on that. Present on every decision, including when nothing was missing, so "no default configured" stays distinguishable from "written by an older engine".
+ */
+    missingScore: {
+      /** Candidate keys that fell back, sorted. Empty when every candidate was scored.
+ */
+      applied: string[];
+      /** The default the flow declared, or null when it declared none and the engine used a neutral 1.0. The approver and date are what make this a default rather than a constant.
+ */
+      approved: {
+        propensity: number;
+        context: number;
+        approvedBy: string;
+        approvedAt: string;
+      } | null;
     };
     winner: string | null;
     runnerUp: string | null;
@@ -516,6 +788,9 @@ export interface EnvironmentState {
   activeVersion: string | null;
   /** Null when there is nothing to roll back to. */
   previousVersion: string | null;
+  /** A version running beside the active one and deciding nothing. Its output never reaches a customer — the active version's answer is always the one returned. What the shadow produces is compared and recorded, which is how a migration is evidenced rather than asserted. Null when nothing is shadowing, which is the normal state.
+ */
+  shadowVersion: string | null;
   promotedAt: string | null;
   promotedBy: string | null;
 }
@@ -535,6 +810,25 @@ export interface PublishOutcome {
   existingHash?: string;
   /** Present when refused as immutable. */
   attemptedHash?: string;
+}
+
+export interface ShadowReport {
+  flowName: string;
+  activeVersion: string | null;
+  shadowVersion: string | null;
+  compared: number;
+  agreed: number;
+  /** 0 when nothing has been compared, never 1. */
+  agreementRate: number;
+  topDivergences: ({
+    kind: "winner" | "ranking" | "reasons";
+    summary: string;
+    count: number;
+  })[];
+  shadowMsP50: number;
+  /** The tail is the number that matters: a shadow whose p95 is 100ms is not free, whatever its median says.
+ */
+  shadowMsP95: number;
 }
 
 /** One entry in the registry's append-only log. */
@@ -564,6 +858,42 @@ export interface FieldBinding {
   defaultValue?: string | number | boolean;
 }
 
+/** One side of a call. JSON bodies are parsed so a client can render them
+structurally; anything else is kept as text, because a proxy's HTML
+error page is exactly what somebody debugging needs to see. A body over
+the cap is truncated and says so rather than being dropped.
+ */
+export interface RecordedBody {
+  /** The parsed body, when it was JSON and within the cap. */
+  json?: unknown;
+  /** The raw body, when it was not JSON or was truncated. */
+  text?: string;
+  /** Size of the original body in bytes, before any truncation. */
+  bytes: number;
+  truncated: boolean;
+}
+
+/** A single request/response pair served by the API. */
+export interface InboundCall {
+  id: string;
+  /** When the request arrived, not when it completed. */
+  at: string;
+  method: "GET" | "POST" | "PUT";
+  path: string;
+  query?: string;
+  status: number;
+  durationMs: number;
+  request?: RecordedBody;
+  response?: RecordedBody;
+  /** Derived from `Referer`. A label for reading the log, never
+authentication — it is trivially spoofed and nothing is gated on it.
+ */
+  origin: "storefront" | "console" | "unknown";
+  /** Lifted from the response when the call produced a decision, so the row can link to its trace. */
+  decisionId?: string;
+  error?: string;
+}
+
 /** A configured route to data the platform does not hold. Used at decision
 time: a flow's source node names the connectors it needs, resolution
 fetches them before execution, and the values land in the input the
@@ -590,6 +920,66 @@ rather than failing in production.
   active: boolean;
   updatedAt: string;
   updatedBy: string;
+}
+
+/** A content slot in a customer journey, configured rather than assumed.
+
+`placement` has been a string on a decision request since the beginning
+— the engine reads it for the context term and records it. This is that
+string given a configuration: how many actions the slot holds, and which
+flow answers for it.
+
+Not part of the catalogue the engine hashes. A placement governs how a
+decision is delivered, not what is decided, so changing a slot count
+moves no chain hash. The consequence is that a slate is reproducible
+from its decision *plus* the placement that composed it.
+ */
+export interface Placement {
+  id: string;
+  /** The value a decision request carries, and a creative names. */
+  key: string;
+  name: string;
+  description: string;
+  channel: "email" | "sms" | "web" | "push" | "outbound_call";
+  /** The shape this slot renders in. Web only — a hero and a tile are
+different designs, and a creative declares which it was made for.
+An email placement carries none rather than a value that means
+nothing.
+ */
+  type?: "carousel" | "feature_band" | "footer_bar" | "hero" | "page_takeover" | "tile";
+  /** At most this many actions. A hero is 1, a grid is 3. The decision is
+the same either way; this governs how much of the ranking the caller
+is given.
+ */
+  slotCount: number;
+  artifactId: string;
+  active: boolean;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+/** One filled slot. */
+export interface SlateEntry {
+  rank: number;
+  /** The action key, as the decision named it. */
+  action: string;
+  /** The priority ranking gave it — the same number that chose the winner. */
+  priority: number;
+  /** The offer this action belongs to, resolved from the catalogue. */
+  offerId?: string | null;
+}
+
+/** Why a creative was refused, one entry per problem. Every problem at
+once: a caller fixing one field per round trip is a caller making five.
+ */
+export interface CreativeRejected {
+  error: "invalid_creative";
+  message: string;
+  problems: {
+    /** Dotted path into the creative, e.g. `content.text`. */
+    field: string;
+    message: string;
+  }[];
 }
 
 /** Which connector supplied a field. Reproducible; part of the hashed decision. */
@@ -638,12 +1028,26 @@ export interface ArtifactSummary {
 
 /** Every operation the spec declares, keyed by operationId. */
 export const OPERATIONS = {
+  activateDataSource: {
+    method: 'POST',
+    path: '/data-sources/{tenantId}/{sourceId}/activation',
+    pathParams: ['tenantId', 'sourceId'],
+    queryParams: [],
+    statuses: ['200', '403', '409'],
+  },
   approveChangeSet: {
     method: 'POST',
     path: '/change-sets/{changeSetId}/approve',
     pathParams: ['changeSetId'],
     queryParams: [],
     statuses: ['200', '403'],
+  },
+  clearInboundCalls: {
+    method: 'POST',
+    path: '/inbound-calls/clear',
+    pathParams: [],
+    queryParams: [],
+    statuses: ['200'],
   },
   createChangeSet: {
     method: 'POST',
@@ -652,6 +1056,27 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['201'],
   },
+  createCreative: {
+    method: 'POST',
+    path: '/creatives/{tenantId}/{offerId}',
+    pathParams: ['tenantId', 'offerId'],
+    queryParams: [],
+    statuses: ['201', '400', '403', '404', '409'],
+  },
+  createDataSource: {
+    method: 'POST',
+    path: '/data-sources/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['201', '403'],
+  },
+  createExperiment: {
+    method: 'POST',
+    path: '/experiments/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['201', '400', '403'],
+  },
   createOffer: {
     method: 'POST',
     path: '/offers/{tenantId}',
@@ -659,12 +1084,26 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['201', '403'],
   },
+  createTargetingPolicy: {
+    method: 'POST',
+    path: '/targeting-policies/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['201', '400', '403'],
+  },
+  decidePlacement: {
+    method: 'POST',
+    path: '/placements/{tenantId}/{placementKey}/decisions',
+    pathParams: ['tenantId', 'placementKey'],
+    queryParams: [],
+    statuses: ['200', '400', '404', '409', '503'],
+  },
   executeDecision: {
     method: 'POST',
     path: '/decisions',
     pathParams: [],
     queryParams: [],
-    statuses: ['200', '400', '404', '409'],
+    statuses: ['200', '400', '404', '409', '503'],
   },
   getArbitrationConfig: {
     method: 'GET',
@@ -708,6 +1147,20 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '404'],
   },
+  getPerformance: {
+    method: 'GET',
+    path: '/performance/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: ['flowId', 'channel', 'limit'],
+    statuses: ['200'],
+  },
+  getProfileSchema: {
+    method: 'GET',
+    path: '/profile-schema/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['200'],
+  },
   getRegistryEntry: {
     method: 'GET',
     path: '/registry/{tenantId}/{flowName}',
@@ -722,6 +1175,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '401'],
   },
+  getShadowReport: {
+    method: 'GET',
+    path: '/registry/{tenantId}/{flowName}/shadow-report',
+    pathParams: ['tenantId', 'flowName'],
+    queryParams: [],
+    statuses: ['200', '404'],
+  },
   getTaxonomy: {
     method: 'GET',
     path: '/taxonomy/{tenantId}',
@@ -729,11 +1189,25 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200'],
   },
+  landRows: {
+    method: 'POST',
+    path: '/data-sources/{tenantId}/{sourceId}/rows',
+    pathParams: ['tenantId', 'sourceId'],
+    queryParams: [],
+    statuses: ['200', '403'],
+  },
   listAgentActivity: {
     method: 'GET',
     path: '/agent-activity/{tenantId}',
     pathParams: ['tenantId'],
     queryParams: ['outcome', 'limit'],
+    statuses: ['200'],
+  },
+  listAllCreatives: {
+    method: 'GET',
+    path: '/creatives/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: ['channel', 'active', 'q'],
     statuses: ['200'],
   },
   listArtifacts: {
@@ -778,11 +1252,32 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200'],
   },
+  listDataSources: {
+    method: 'GET',
+    path: '/data-sources/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['200'],
+  },
+  listExperiments: {
+    method: 'GET',
+    path: '/experiments/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['200'],
+  },
   listFrequencyPolicies: {
     method: 'GET',
     path: '/frequency-policies/{tenantId}',
     pathParams: ['tenantId'],
     queryParams: [],
+    statuses: ['200'],
+  },
+  listInboundCalls: {
+    method: 'GET',
+    path: '/inbound-calls',
+    pathParams: [],
+    queryParams: ['limit'],
     statuses: ['200'],
   },
   listOffers: {
@@ -796,6 +1291,13 @@ export const OPERATIONS = {
     method: 'GET',
     path: '/outcomes/{tenantId}/{decisionId}',
     pathParams: ['tenantId', 'decisionId'],
+    queryParams: [],
+    statuses: ['200'],
+  },
+  listPlacements: {
+    method: 'GET',
+    path: '/placements/{tenantId}',
+    pathParams: ['tenantId'],
     queryParams: [],
     statuses: ['200'],
   },
@@ -860,7 +1362,7 @@ export const OPERATIONS = {
     path: '/decisions/{decisionId}/replay',
     pathParams: ['decisionId'],
     queryParams: [],
-    statuses: ['200', '404'],
+    statuses: ['200', '404', '422'],
   },
   rollbackVersion: {
     method: 'POST',
@@ -875,6 +1377,13 @@ export const OPERATIONS = {
     pathParams: [],
     queryParams: ['action', 'channel', 'customerId', 'dateFrom', 'dateTo', 'outcome', 'limit'],
     statuses: ['200'],
+  },
+  setShadow: {
+    method: 'POST',
+    path: '/registry/{tenantId}/{flowName}/shadow',
+    pathParams: ['tenantId', 'flowName'],
+    queryParams: [],
+    statuses: ['200', '403', '404', '409'],
   },
   simulateDecisionFlow: {
     method: 'POST',
@@ -904,6 +1413,34 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '403'],
   },
+  updateCreative: {
+    method: 'PUT',
+    path: '/creatives/{tenantId}/{offerId}/{creativeId}',
+    pathParams: ['tenantId', 'offerId', 'creativeId'],
+    queryParams: [],
+    statuses: ['200', '400', '403', '404', '409'],
+  },
+  updateDataSource: {
+    method: 'PUT',
+    path: '/data-sources/{tenantId}/{sourceId}',
+    pathParams: ['tenantId', 'sourceId'],
+    queryParams: [],
+    statuses: ['200', '403', '404'],
+  },
+  updateDecisionFlowDraft: {
+    method: 'PUT',
+    path: '/artifacts/{tenantId}/{artifactId}/draft',
+    pathParams: ['tenantId', 'artifactId'],
+    queryParams: [],
+    statuses: ['200', '403', '404'],
+  },
+  updateExperiment: {
+    method: 'PUT',
+    path: '/experiments/{tenantId}/{experimentId}',
+    pathParams: ['tenantId', 'experimentId'],
+    queryParams: [],
+    statuses: ['200', '403', '404', '409'],
+  },
   updateOffer: {
     method: 'PUT',
     path: '/offers/{tenantId}/{offerId}',
@@ -911,22 +1448,98 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '403'],
   },
+  updateTargetingPolicy: {
+    method: 'PUT',
+    path: '/targeting-policies/{tenantId}/{policyId}',
+    pathParams: ['tenantId', 'policyId'],
+    queryParams: [],
+    statuses: ['200', '400', '403', '404'],
+  },
+  validateDataSource: {
+    method: 'POST',
+    path: '/data-sources/{tenantId}/{sourceId}/validation',
+    pathParams: ['tenantId', 'sourceId'],
+    queryParams: [],
+    statuses: ['200'],
+  },
 } as const;
 
 export type OperationId = keyof typeof OPERATIONS;
 
 // --- Request and response bodies --------------------------------------------
 
+/** Activate a validated source */
+export type ActivateDataSourceResponse = DataSource;
+
 /** Approve a change set, applying its diff */
 export type ApproveChangeSetResponse = ChangeSet;
+
+/** Empty the traffic buffer */
+export type ClearInboundCallsResponse = {
+  cleared: boolean;
+};
 
 /** Propose a change */
 export type CreateChangeSetResponse = ChangeSet;
 export type CreateChangeSetRequest = ChangeSet;
 
+/** Add a creative to an offer */
+export type CreateCreativeResponse = Creative;
+export type CreateCreativeRequest = Creative;
+
+/** Define a source */
+export type CreateDataSourceResponse = DataSource;
+export type CreateDataSourceRequest = {
+  name: string;
+  description?: string;
+  kind: "file" | "http" | "inline";
+};
+
+/** Define an experiment */
+export type CreateExperimentResponse = Experiment;
+export type CreateExperimentRequest = Experiment;
+
 /** Create an offer */
 export type CreateOfferResponse = Offer;
 export type CreateOfferRequest = Offer;
+
+/** Create a targeting policy */
+export type CreateTargetingPolicyResponse = TargetingPolicy;
+export type CreateTargetingPolicyRequest = TargetingPolicyWrite;
+
+/** Decide what fills a placement */
+export type DecidePlacementResponse = {
+  placement: string;
+  slotCount: number;
+  /** One decision behind every slot. Its trace explains all of them. */
+  decisionId: string;
+  chainHash: string;
+  entries: SlateEntry[];
+  /** Slots no surviving candidate could fill. */
+  unfilled: number;
+  /** How many candidates reached ranking, so a caller can say
+"3 of 5 shown" rather than implying it saw everything.
+ */
+  rankedCount: number;
+};
+export type DecidePlacementRequest = {
+  /** As `executeDecision`, minus `placement`, which the path
+already names. Supplying a different one is a 400 rather
+than a silent preference for one of them.
+ */
+  request: {
+    tenantId: string;
+    customerId: string;
+    channel: string;
+    /** An input, never the clock. */
+    occurredAt: string;
+    input: Record<string, unknown>;
+    contactHistory?: Record<string, unknown>;
+    consent?: Record<string, unknown>;
+    idempotencyKey?: string;
+    correlationId?: string;
+  };
+};
 
 /** Make a decision */
 export type ExecuteDecisionResponse = {
@@ -991,6 +1604,17 @@ export type GetDecisionRecordResponse = DecisionRecord;
 /** An offer with its creatives, policies and effective autonomy */
 export type GetOfferResponse = OfferDetail;
 
+/** What happened after the decisions */
+export type GetPerformanceResponse = PerformanceReport;
+
+/** The tenant's customer data model */
+export type GetProfileSchemaResponse = {
+  schema: ProfileSchema;
+  paths: SchemaFieldPath[];
+  /** Structural problems with the model itself, if any. */
+  problems?: string[];
+};
+
 /** Published versions and where each is running */
 export type GetRegistryEntryResponse = {
   flowName: string;
@@ -1003,12 +1627,29 @@ export type GetSessionResponse = {
   user: AuthUser;
 };
 
+/** How the shadow compares to what is running */
+export type GetShadowReportResponse = ShadowReport;
+
 /** The whole offer taxonomy in one call */
 export type GetTaxonomyResponse = Taxonomy;
+
+/** Land rows against a source */
+export type LandRowsResponse = DataSource;
+export type LandRowsRequest = {
+  rows: Record<string, unknown>[];
+  /** Discard what was landed before rather than appending. */
+  replace?: boolean;
+};
 
 /** What the agents did, and what the guardrails stopped */
 export type ListAgentActivityResponse = {
   activity: AgentActivity[];
+};
+
+/** Every creative in the catalogue */
+export type ListAllCreativesResponse = {
+  creatives: Creative[];
+  total: number;
 };
 
 /** List flows with their compile status */
@@ -1043,9 +1684,26 @@ export type ListCreativesResponse = {
   creatives: Creative[];
 };
 
+/** Configured sources of customer records */
+export type ListDataSourcesResponse = {
+  sources: DataSource[];
+};
+
+/** Experiments and holdouts */
+export type ListExperimentsResponse = {
+  experiments: Experiment[];
+};
+
 /** Frequency caps and cooldowns */
 export type ListFrequencyPoliciesResponse = {
   policies: FrequencyPolicy[];
+};
+
+/** The HTTP traffic this API has served */
+export type ListInboundCallsResponse = {
+  /** False when recording is switched off; `calls` is then empty rather than stale. */
+  enabled: boolean;
+  calls: InboundCall[];
 };
 
 /** List offers, filtered */
@@ -1057,6 +1715,11 @@ export type ListOffersResponse = {
 /** Outcomes recorded against a decision */
 export type ListOutcomesResponse = {
   outcomes: OutcomeEvent[];
+};
+
+/** Configured placements */
+export type ListPlacementsResponse = {
+  placements: Placement[];
 };
 
 /** The registry's append-only log */
@@ -1116,6 +1779,11 @@ export type RejectChangeSetRequest = {
 
 /** Re-execute a historical decision and compare it to the original */
 export type ReplayDecisionResponse = ReplayResult;
+export type ReplayDecisionRequest = {
+  /** The decision's original input, exactly as it was. */
+  input?: Record<string, unknown>;
+  contactHistory?: Record<string, unknown>;
+};
 
 /** Return an environment to the version it ran before */
 export type RollbackVersionResponse = EnvironmentState;
@@ -1128,6 +1796,14 @@ export type SearchDecisionsResponse = {
   decisions: Decision[];
   /** Matches before the limit, not the page size */
   total: number;
+};
+
+/** Start or stop a shadow */
+export type SetShadowResponse = EnvironmentState;
+export type SetShadowRequest = {
+  /** Null stops the shadow. */
+  version?: string | null;
+  environment: string;
 };
 
 /** Run a population through a compiled flow */
@@ -1157,15 +1833,59 @@ export type UpdateAutonomySettingRequest = AutonomySetting;
 export type UpdateConnectorResponse = Connector;
 export type UpdateConnectorRequest = Connector;
 
+/** Edit a creative, or switch it on and off */
+export type UpdateCreativeResponse = Creative;
+export type UpdateCreativeRequest = Creative;
+
+/** Update a source and its mappings */
+export type UpdateDataSourceResponse = DataSource;
+export type UpdateDataSourceRequest = {
+  name?: string;
+  description?: string;
+  mappings?: FieldMapping[];
+};
+
+/** Edit a flow's graph */
+export type UpdateDecisionFlowDraftResponse = {
+  artifact: ArtifactSummary;
+  compile: CompileResult;
+};
+export type UpdateDecisionFlowDraftRequest = {
+  nodes?: FlowNode[];
+  edges?: FlowEdge[];
+  candidateKeys?: string[];
+};
+
+/** Edit an experiment, or start and stop it */
+export type UpdateExperimentResponse = Experiment;
+export type UpdateExperimentRequest = Experiment;
+
 /** Update an offer */
 export type UpdateOfferResponse = Offer;
 export type UpdateOfferRequest = Offer;
 
+/** Update a targeting policy */
+export type UpdateTargetingPolicyResponse = TargetingPolicy;
+export type UpdateTargetingPolicyRequest = TargetingPolicyWrite;
+
+/** Check the landed rows against the data model */
+export type ValidateDataSourceResponse = {
+  source: DataSource;
+  report: ValidationReport;
+};
+
 /** Response body type for each operation, by id. */
 export interface ResponseOf {
+  activateDataSource: ActivateDataSourceResponse;
   approveChangeSet: ApproveChangeSetResponse;
+  clearInboundCalls: ClearInboundCallsResponse;
   createChangeSet: CreateChangeSetResponse;
+  createCreative: CreateCreativeResponse;
+  createDataSource: CreateDataSourceResponse;
+  createExperiment: CreateExperimentResponse;
   createOffer: CreateOfferResponse;
+  createTargetingPolicy: CreateTargetingPolicyResponse;
+  decidePlacement: DecidePlacementResponse;
   executeDecision: ExecuteDecisionResponse;
   getArbitrationConfig: GetArbitrationConfigResponse;
   getArtifactSummary: GetArtifactSummaryResponse;
@@ -1173,19 +1893,28 @@ export interface ResponseOf {
   getCounterfactual: GetCounterfactualResponse;
   getDecisionRecord: GetDecisionRecordResponse;
   getOffer: GetOfferResponse;
+  getPerformance: GetPerformanceResponse;
+  getProfileSchema: GetProfileSchemaResponse;
   getRegistryEntry: GetRegistryEntryResponse;
   getSession: GetSessionResponse;
+  getShadowReport: GetShadowReportResponse;
   getTaxonomy: GetTaxonomyResponse;
+  landRows: LandRowsResponse;
   listAgentActivity: ListAgentActivityResponse;
+  listAllCreatives: ListAllCreativesResponse;
   listArtifacts: ListArtifactsResponse;
   listAuditEvents: ListAuditEventsResponse;
   listAutonomySettings: ListAutonomySettingsResponse;
   listChangeSets: ListChangeSetsResponse;
   listConnectors: ListConnectorsResponse;
   listCreatives: ListCreativesResponse;
+  listDataSources: ListDataSourcesResponse;
+  listExperiments: ListExperimentsResponse;
   listFrequencyPolicies: ListFrequencyPoliciesResponse;
+  listInboundCalls: ListInboundCallsResponse;
   listOffers: ListOffersResponse;
   listOutcomes: ListOutcomesResponse;
+  listPlacements: ListPlacementsResponse;
   listRegistryEvents: ListRegistryEventsResponse;
   listRegistryFlows: ListRegistryFlowsResponse;
   listTargetingPolicies: ListTargetingPoliciesResponse;
@@ -1197,9 +1926,16 @@ export interface ResponseOf {
   replayDecision: ReplayDecisionResponse;
   rollbackVersion: RollbackVersionResponse;
   searchDecisions: SearchDecisionsResponse;
+  setShadow: SetShadowResponse;
   simulateDecisionFlow: SimulateDecisionFlowResponse;
   updateArbitrationConfig: UpdateArbitrationConfigResponse;
   updateAutonomySetting: UpdateAutonomySettingResponse;
   updateConnector: UpdateConnectorResponse;
+  updateCreative: UpdateCreativeResponse;
+  updateDataSource: UpdateDataSourceResponse;
+  updateDecisionFlowDraft: UpdateDecisionFlowDraftResponse;
+  updateExperiment: UpdateExperimentResponse;
   updateOffer: UpdateOfferResponse;
+  updateTargetingPolicy: UpdateTargetingPolicyResponse;
+  validateDataSource: ValidateDataSourceResponse;
 }

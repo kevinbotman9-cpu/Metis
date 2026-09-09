@@ -1,7 +1,8 @@
 # ADR-010: Console UI Architecture (Next.js vs SPA)
 
 **Status:** Accepted  
-**Decision Date:** 2026-09-03  
+**Date:** 2026-09-03
+**Decided:** 2026-09-03  
 **Deciders:** Product, Architecture  
 **Affected Component:** `apps/console` and related packages
 

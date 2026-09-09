@@ -240,7 +240,15 @@ function AgenticView() {
         description="How much authority agents hold, and over what. Autonomy is set per scope and resolves most-specific-first: offer beats category, category beats objective, objective beats tenant."
         actions={
           canEdit ? (
-            <Button variant="primary" size="md">
+            // No API creates a scope rule — `updateAutonomySetting` edits the
+            // ones that exist. Disabled with the reason rather than enabled and
+            // dead.
+            <Button
+              variant="primary"
+              size="md"
+              disabled
+              title="Not built: creating a scope rule has no API yet. Existing scopes can be changed."
+            >
               New scope rule
             </Button>
           ) : (

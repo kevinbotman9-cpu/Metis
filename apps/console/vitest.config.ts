@@ -10,6 +10,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
+      '@metis/ui-metadata': path.resolve(__dirname, '../../packages/ui-metadata/src'),
       // Import the domain module directly: packages/core/src/index.ts reads
       // schema files from disk at import time, which no browser or test needs.
       '@metis/core/domain': path.resolve(__dirname, '../../packages/core/src/domain.ts'),

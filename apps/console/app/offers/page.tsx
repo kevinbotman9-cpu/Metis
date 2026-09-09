@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { FilterBlocks, type FilterBlock } from '@/components/ui/filter-blocks';
 import { CoverageBar } from '@/components/ui/coverage-bar';
 import { OfferDrawer } from '@/components/offer-drawer';
+import { OfferFormDialog } from '@/components/offer-form-dialog';
 import { apiClient, type OfferDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
 
@@ -43,9 +44,15 @@ function money(m: { amount: number; currency: string }) {
 const LENSES: { id: string; label: string; sub?: string; tone?: FilterBlock['tone'];
   match: (p: OfferDto) => boolean }[] = [
   { id: 'all', label: 'Offers', sub: 'in this catalogue', match: () => true },
-  { id: 'live', label: 'Selectable', sub: 'active and deliverable', tone: 'pass',
+  { id: 'live', label: 'Selectable', sub: 'active, with content', tone: 'pass',
     match: (p) => p.status === 'active' && p.creativeIds.length > 0 },
-  { id: 'blocked', label: 'Cannot be delivered', sub: 'no active creative', tone: 'block',
+  // "has no creative", not "no active creative", because that is what this can
+  // see: the list returns offers, and an offer carries the ids of its creatives
+  // and not whether any is switched on. An offer whose only creative is
+  // inactive is undeliverable and is not counted here. It cannot be *active*
+  // and undeliverable — the API refuses that — so what escapes this lens is a
+  // draft or paused offer, which was not going to be delivered anyway.
+  { id: 'blocked', label: 'Cannot be delivered', sub: 'has no creative', tone: 'block',
     match: (p) => p.creativeIds.length === 0 && p.status !== 'retired' },
   { id: 'boosted', label: 'Boosted', sub: 'above 1.0', tone: 'hold',
     match: (p) => p.boost > 1 },
@@ -61,6 +68,9 @@ function OffersView() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [lens, setLens] = useState('all');
+  const [creating, setCreating] = useState(false);
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('edit:offers');
 
   // Which offer the drawer is showing lives in the URL, not in component
   // state: navigation state belongs there, the back button then closes the
@@ -223,9 +233,11 @@ function OffersView() {
         title="Offers"
         description="The offer catalogue, organised by business objective and product category. A decision flow's candidate set is drawn from here."
         actions={
-          <Button variant="primary" size="md">
-            New offer
-          </Button>
+          canEdit ? (
+            <Button variant="primary" size="md" onClick={() => setCreating(true)}>
+              New offer
+            </Button>
+          ) : null
         }
       />
 
@@ -379,6 +391,14 @@ function OffersView() {
             ? filtered[openIndex + 1].name
             : undefined
         }
+      />
+
+      <OfferFormDialog
+        open={creating}
+        onOpenChange={setCreating}
+        // Straight to the new offer: it has no creative yet, so it cannot be
+        // delivered, and the detail page is where that gets fixed.
+        onSaved={(offer) => router.push(`/offers/${offer.id}`)}
       />
     </PageBody>
   );

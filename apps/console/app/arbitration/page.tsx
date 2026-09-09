@@ -286,7 +286,23 @@ function ArbitrationView() {
         <CardHeader
           title="Boosts"
           description="Business weights applied at a scope. The most specific boost wins, the same way autonomy resolves."
-          actions={canEdit ? <Button variant="secondary" size="sm">New boost</Button> : null}
+          actions={
+            canEdit ? (
+              // Disabled rather than removed, and disabled rather than left
+              // enabled and dead: there is no write operation for a boost in
+              // the spec, so there is nothing for this to call. An enabled
+              // control that does nothing is a promise; a disabled one with a
+              // reason is an absence somebody can plan around.
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled
+                title="Not built: creating a boost has no API yet. Boosts are edited in the catalogue fixture."
+              >
+                New boost
+              </Button>
+            ) : null
+          }
         />
         <DataTable
           columns={boostColumns}

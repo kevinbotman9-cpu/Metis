@@ -163,6 +163,14 @@ class DecisionConformanceTest {
         edges = n["edges"].map { ExecEdge(it["from"].asText(), it["to"].asText()) },
         candidateKeys = n["candidateKeys"].map { it.asText() },
         packageVersions = n["packageVersions"].properties().associate { (k, v) -> k to v.asText() },
+        missingScoreDefault = n["missingScoreDefault"]?.let {
+            MissingScoreDefault(
+                propensity = it["propensity"].asDouble(),
+                context = it["context"].asDouble(),
+                approvedBy = it["approvedBy"].asText(),
+                approvedAt = it["approvedAt"].asText(),
+            )
+        },
     )
 
     @Suppress("UNCHECKED_CAST")

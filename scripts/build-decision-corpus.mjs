@@ -186,6 +186,43 @@ const CASES = [
     request: request(),
   },
   {
+    name: 'approved default stands in for a missing score',
+    // §6 asks for a configurable approved default rather than a constant. The
+    // case above proves the neutral 1.0 fallback; this proves a flow can
+    // declare something else, that it reaches the score, and that the record
+    // names who approved it. A second engine that ignored the field would
+    // still produce a plausible decision, and a different hash.
+    artifact: artifact({
+      candidateKeys: threeKeys,
+      missingScoreDefault: {
+        propensity: 0.3,
+        context: 0.75,
+        approvedBy: 'risk.committee@telco.example',
+        approvedAt: '2026-05-01T09:00:00.000Z',
+      },
+    }),
+    catalogue: catalogue({ offers: three }),
+    request: request(),
+  },
+  {
+    name: 'an approved default is recorded even when nothing needed it',
+    // Every candidate is scored here, so `applied` is empty and `approved` is
+    // still the declared default. The record states what would have happened,
+    // which is what makes "no default configured" distinguishable from "an
+    // older engine wrote this".
+    artifact: scoredArtifact({
+      candidateKeys: threeKeys,
+      missingScoreDefault: {
+        propensity: 0.3,
+        context: 0.75,
+        approvedBy: 'risk.committee@telco.example',
+        approvedAt: '2026-05-01T09:00:00.000Z',
+      },
+    }),
+    catalogue: catalogue({ offers: three }),
+    request: request(),
+  },
+  {
     name: 'non-unit arbitration weights exercise pow',
     // Math.pow is not required to be correctly rounded in either runtime, so
     // this is where an ulp of difference would show up as a different hash.

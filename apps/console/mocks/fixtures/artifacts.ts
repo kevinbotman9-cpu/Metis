@@ -1,5 +1,7 @@
 /** Compiled flow artifacts, including their DIR graph. Deterministic. */
 
+import { seededCandidateKeys } from './seed';
+
 const T0 = Date.parse('2026-09-01T09:00:00Z');
 const iso = (h: number) => new Date(T0 + h * 3600_000).toISOString();
 
@@ -9,7 +11,6 @@ export type FlowNodeType =
   | 'filter'
   | 'set-property'
   | 'score-model'
-  | 'score-adaptive'
   | 'constraint'
   | 'arbitrate'
   | 'switch'
@@ -57,6 +58,19 @@ export interface ArtifactSummary {
   description: string;
   activeVersion: string;
   versions: string[];
+  /**
+   * What the candidate set was in versions before the active one.
+   *
+   * `versions` listed a history the registry had never heard of: the seed
+   * published `activeVersion` and nothing else, so the console showed "4
+   * versions, all replayable" against a registry holding one. Shadow mode is
+   * what made that bite — there was no predecessor to shadow against.
+   *
+   * A version absent from this map is seeded with the active candidate set: it
+   * differed in ways this fixture does not model, and inventing a difference
+   * would be worse than declaring none.
+   */
+  priorCandidateKeys?: Record<string, string[]>;
   nodeCount: number;
   estimatedP95LatencyMs: number;
   status: 'active' | 'draft' | 'retired';
@@ -84,7 +98,15 @@ export const artifacts: ArtifactSummary[] = [
     // + arbitrate 2.3. The parallel branches do not add to the path.
     estimatedP95LatencyMs: 11.9,
     status: 'active',
-    candidateKeys: ['upsell_5g', 'upsell_data', 'retention_offer', 'addon_roaming'],
+    candidateKeys: [
+      'upsell_5g', 'upsell_data', 'retention_offer', 'addon_roaming',
+      // The rest of the growth catalogue. Authored keys stay first, so the
+      // offers a demo walks through are the ones it keeps meeting.
+      ...seededCandidateKeys('iss_growth'),
+    ],
+    // Roaming joined the flow in 2.4.0, so 2.3.1 could not select it. This is
+    // the difference shadow mode compares against.
+    priorCandidateKeys: { '2.3.1': ['upsell_5g', 'upsell_data', 'retention_offer'] },
     nodes: [
       {
         id: 'source_customer',
@@ -118,12 +140,12 @@ export const artifacts: ArtifactSummary[] = [
       },
       {
         id: 'score_propensity',
-        type: 'score-adaptive',
+        type: 'score-model',
         label: 'Acceptance propensity',
         description:
-          'Adaptive model predicting acceptance. Version is pinned at compile time so the decision replays identically.',
+          'Predicts acceptance. Pinned at compile time so the decision replays identically — and deterministic, because no model gateway is bound yet (W-029).',
         estimatedMs: 3.1,
-        model: { id: 'adm_accept_v4', version: '4.2.0' },
+        model: { id: 'propensity_accept_v4', version: '4.2.0' },
         position: { x: COL[2], y: 120 },
       },
       {
@@ -172,12 +194,22 @@ export const artifacts: ArtifactSummary[] = [
   {
     id: 'inbound-web-offers',
     name: 'Inbound Web Offers',
-    description: 'Lighter decision flow for anonymous and logged-in web placements.',
-    activeVersion: '1.8.2',
-    versions: ['1.8.2', '1.8.1', '1.7.0'],
-    nodeCount: 4,
-    estimatedP95LatencyMs: 8.1,
+    description:
+      'Lighter decision flow for anonymous and logged-in web placements. Lighter in scoring, not in governance: consent and frequency are enforced here exactly as they are outbound.',
+    // 1.9.0, not 1.8.3: adding a gate changes what the flow decides, and a
+    // patch bump would say it did not.
+    activeVersion: '1.9.0',
+    versions: ['1.9.0', '1.8.2', '1.8.1', '1.7.0'],
+    nodeCount: 5,
+    estimatedP95LatencyMs: 8.7,
     status: 'active',
+    // Curated, and deliberately not widened with the seeded catalogue.
+    //
+    // This flow answers `homepage_hero`, which has one slot. A hero is the most
+    // tightly picked surface a telco has — you do not put twenty offers in it —
+    // and the whole seeded acquisition catalogue competing for one slot would
+    // mean the slate is whichever offer happened to rank highest, which is not
+    // what a hero is for. The other flows carry the seeded catalogue.
     candidateKeys: ['acq_sim_30', 'acq_fibre_900', 'upsell_data'],
     nodes: [
       {
@@ -209,19 +241,39 @@ export const artifacts: ArtifactSummary[] = [
         position: { x: COL[2], y: 100 },
       },
       {
+        // The node the flow was missing, and the reason a website could tick
+        // "marketing: off" and still be shown a marketing offer. Consent and
+        // frequency are enforced at constraint nodes only — a flow of filters
+        // reads the input and ignores both — so the storefront's consent
+        // checkboxes and contact-history counters reached the engine and had
+        // nothing to act on them.
+        //
+        // Consent is not a property of the channel. A visitor who has withheld
+        // it has withheld it on the website too, and "lighter flow for web"
+        // was never a reason to skip asking.
+        id: 'constraint_web_contact',
+        type: 'constraint',
+        label: 'Consent & contact',
+        description:
+          'Marketing consent, and the frequency caps whose scope covers these offers.',
+        estimatedMs: 0.6,
+        position: { x: COL[3], y: 100 },
+      },
+      {
         id: 'arbitrate_web',
         type: 'arbitrate',
         label: 'Arbitrate',
         description: 'Ranks by value and boost only; no propensity model on anonymous traffic.',
         estimatedMs: 1.6,
         formula: 'Priority = V^1.0 × B^1.0',
-        position: { x: COL[3], y: 100 },
+        position: { x: COL[4], y: 100 },
       },
     ],
     edges: [
       { id: 'w1', source: 'source_session', target: 'switch_known' },
       { id: 'w2', source: 'switch_known', target: 'filter_web_eligibility', label: 'either' },
-      { id: 'w3', source: 'filter_web_eligibility', target: 'arbitrate_web' },
+      { id: 'w3', source: 'filter_web_eligibility', target: 'constraint_web_contact' },
+      { id: 'w4', source: 'constraint_web_contact', target: 'arbitrate_web' },
     ],
     updatedAt: iso(-96),
     updatedBy: 'sarah.chen@telco.example',
@@ -236,7 +288,7 @@ export const artifacts: ArtifactSummary[] = [
     nodeCount: 6,
     estimatedP95LatencyMs: 19.7,
     status: 'active',
-    candidateKeys: ['retention_offer', 'winback_credit'],
+    candidateKeys: ['retention_offer', 'winback_credit', ...seededCandidateKeys('iss_retention')],
     nodes: [
       {
         id: 'source_contracts',
@@ -314,7 +366,7 @@ export const artifacts: ArtifactSummary[] = [
     nodeCount: 3,
     estimatedP95LatencyMs: 5.2,
     status: 'draft',
-    candidateKeys: ['svc_plan_fit', 'svc_bill_shock'],
+    candidateKeys: ['svc_plan_fit', 'svc_bill_shock', ...seededCandidateKeys('iss_service', 10)],
     nodes: [
       {
         id: 'source_usage',

@@ -98,8 +98,18 @@ export function createClient(options: ClientOptions) {
       // The body may carry a useful message, or may not be JSON at all.
       let detail = res.statusText;
       try {
-        const parsed = await res.json();
-        if (parsed && typeof parsed.error === 'string') detail = parsed.error;
+        // `res.json()` is `Promise<any>` in lib.dom but `Promise<{}>` under
+        // the Node types this package is checked with, so the property access
+        // has to be narrowed rather than assumed.
+        const parsed: unknown = await res.json();
+        if (
+          parsed !== null &&
+          typeof parsed === 'object' &&
+          'error' in parsed &&
+          typeof (parsed as { error: unknown }).error === 'string'
+        ) {
+          detail = (parsed as { error: string }).error;
+        }
       } catch {
         // Keep statusText.
       }

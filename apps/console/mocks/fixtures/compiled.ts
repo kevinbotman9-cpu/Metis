@@ -25,6 +25,7 @@ import {
   connectors,
 } from './catalogue';
 import { artifacts, type ArtifactSummary } from './artifacts';
+import { profileSchema } from './profile-schema';
 
 /** Versions the registry has published, for range resolution. */
 const AVAILABLE_PACKAGES: Record<string, string[]> = {
@@ -43,6 +44,11 @@ export const compileContext: CompileContext = {
     categories: categories.map((g) => g.id),
   },
   connectors,
+  // The declared data model. With it, policy conditions are checked in full —
+  // every path segment, the operator against the field's type, the value
+  // against its type and enum members — rather than only the root segment,
+  // which is all a connector can supply and all the previous check could see.
+  profileSchema,
   tenant: { id: 'telco-uk', latencyBudgetMs: 50, maxNodes: 100 },
 };
 

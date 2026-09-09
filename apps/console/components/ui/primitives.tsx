@@ -48,11 +48,21 @@ export function Field({
   label,
   htmlFor,
   hint,
+  error,
   children,
 }: {
   label: string;
   htmlFor?: string;
   hint?: string;
+  /**
+   * Why this field was refused.
+   *
+   * Beside the input rather than in a summary at the top of the form: a
+   * validation message the person has to go and find is a validation message
+   * that gets read as "something went wrong". The id is derived from `htmlFor`
+   * so the input can point at it with `aria-describedby`.
+   */
+  error?: string;
   children: ReactNode;
 }) {
   return (
@@ -64,7 +74,13 @@ export function Field({
         {label}
       </label>
       {children}
-      {hint ? <p className="text-label text-content-subtle">{hint}</p> : null}
+      {error ? (
+        <p id={htmlFor ? `${htmlFor}-error` : undefined} className="text-label text-block">
+          {error}
+        </p>
+      ) : hint ? (
+        <p className="text-label text-content-subtle">{hint}</p>
+      ) : null}
     </div>
   );
 }
@@ -114,11 +130,15 @@ export function StatusBadge({ status }: { status: string }) {
 /** The autonomy ladder gets its own colour scale, L0 cool through L4 warm. */
 export function AutonomyBadge({ level, name }: { level: string; name?: string }) {
   const cls: Record<string, string> = {
-    L0: 'bg-l0/12 text-l0 border-l0/30',
-    L1: 'bg-l1/12 text-l1 border-l1/30',
-    L2: 'bg-l2/12 text-l2 border-l2/30',
-    L3: 'bg-l3/12 text-l3 border-l3/30',
-    L4: 'bg-l4/12 text-l4 border-l4/30',
+    // Named tints rather than `bg-lN/12`. A token as text over 12% of itself is
+    // a pair nothing can measure without compositing it, and L3 was failing:
+    // 4.37 on the sunken surface. The tints are now tokens, so the contrast
+    // script checks them like every other chip.
+    L0: 'bg-l0-subtle text-l0 border-l0/30',
+    L1: 'bg-l1-subtle text-l1 border-l1/30',
+    L2: 'bg-l2-subtle text-l2 border-l2/30',
+    L3: 'bg-l3-subtle text-l3 border-l3/30',
+    L4: 'bg-l4-subtle text-l4 border-l4/30',
   };
   return (
     <span

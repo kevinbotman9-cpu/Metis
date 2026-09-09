@@ -55,7 +55,7 @@ test.describe('compiler output in the console', () => {
     // Pinning is the reason replay works, so it has to be visible.
     await expect(page.getByText('Pinned at compile time')).toBeVisible();
     await expect(page.getByText(/@metis\/nodes-core@1\.4\.0/)).toBeVisible();
-    await expect(page.getByText(/adm_accept_v4@4\.2\.0/)).toBeVisible();
+    await expect(page.getByText(/propensity_accept_v4@4\.2\.0/)).toBeVisible();
 
     // Critical path against budget, not the sum of every node — and it now
     // includes the connectors the source node waits on, which is why this is
@@ -69,11 +69,17 @@ test.describe('compiler output in the console', () => {
   }) => {
     await page.goto('/decision-flows/inbound-web-offers');
 
-    await expect(page.getByText('ARBITRATION_MISSING_SCORE', { exact: true })).toBeVisible();
-    // Twice on this page now: once in the compile report, once in the warnings
-    // the registry kept with the published version. Both should say it — a
-    // version that shipped with a warning is a different thing to explain later
-    // than one that shipped clean.
-    await expect(page.getByText(/no scoring node runs before it/)).toHaveCount(2);
+    await expect(page.getByText('ARBITRATION_MISSING_SCORE', { exact: true }).first()).toBeVisible();
+    // Once in the compile report, and once for each published version, which
+    // each kept the warning it shipped with. All of them should say it — a
+    // version that shipped with a warning is a different thing to explain
+    // later than one that shipped clean, and that is a fact about the version,
+    // not about the flow.
+    //
+    // Five since 1.9.0 added the consent-and-contact gate. The warning is
+    // unrelated to that change and correctly survives it: the flow still has
+    // no scoring node, so arbitration still has no propensity term. Adding a
+    // constraint gates candidates; it does not score them.
+    await expect(page.getByText(/no scoring node runs before it/)).toHaveCount(5);
   });
 });

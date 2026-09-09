@@ -42,12 +42,20 @@ test.describe('the compilation gate', () => {
     ).toBeVisible();
   });
 
+  // covers: publishArtifact
   test('a flow that compiles is published and running', async ({ page }) => {
     await page.goto(`/decision-flows/${PUBLISHED}`);
 
     await expect(page.getByRole('heading', { name: 'Registry' })).toBeVisible();
-    await expect(page.getByText('ArtifactPublished')).toBeVisible();
-    await expect(page.getByText(/Not active anywhere until promoted/)).toBeVisible();
+    // One per published version, so `.first()`: the seed now publishes the
+    // whole declared history rather than only the active version.
+    await expect(page.getByText('ArtifactPublished').first()).toBeVisible();
+    // Scoped to the active version rather than `.first()`: every publish event
+    // says this — it is true of each version at the moment it was published —
+    // and the one worth asserting is the version actually running.
+    await expect(
+      page.getByText(/Published next-best-action 2\.4\.0 .* Not active anywhere until promoted/)
+    ).toBeVisible();
   });
 });
 
@@ -58,6 +66,7 @@ test.describe('promotion and rollback', () => {
     await page.goto(`/decision-flows/${PUBLISHED}`);
   });
 
+  // covers: promoteVersion
   test('promoting to an environment is recorded', async ({ page }) => {
     await page.getByRole('button', { name: 'Promote to staging' }).first().click();
 
@@ -74,9 +83,10 @@ test.describe('promotion and rollback', () => {
     await expect(page.getByRole('button', { name: 'Roll back' })).toHaveCount(0);
   });
 
+  // covers: rollbackVersion
   test('rollback appears once an environment has a predecessor, and works', async ({ page, request }) => {
-    // The seed publishes one version per flow, so a second has to be
-    // published to reach the state rollback exists for. Doing it through the
+    // The seed promotes one version per flow, so a second has to be promoted
+    // to reach the state rollback exists for. Doing it through the
     // API rather than the UI because there is no authoring surface yet — the
     // point being tested is the registry, not how a version gets drafted.
     const login = await request.post('/api/auth/login', {

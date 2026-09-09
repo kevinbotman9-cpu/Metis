@@ -3,11 +3,17 @@
   "version": "0.0.1",
   "description": "METIS core - the domain types every plane shares",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "vitest run --config ./vitest.config.ts"
   },
   "exports": {
     ".": "./src/domain.ts",
     "./domain": "./src/domain.ts",
-    "./utility": "./src/utility.ts"
+    "./utility": "./src/utility.ts",
+    "./creative": "./src/creative.ts",
+    "./profile-schema": "./src/profile-schema.ts",
+    "./intake": "./src/intake.ts",
+    "./experiment": "./src/experiment.ts",
+    "./volume": "./src/volume.ts"
   }
 }

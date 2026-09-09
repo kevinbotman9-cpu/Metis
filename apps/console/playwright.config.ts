@@ -17,7 +17,17 @@ export default defineConfig({
   // timeout was split. A test that passes only on retry is a defect to
   // investigate, not a result to accept.
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [['github'], ['list']] : [['list']],
+  // The JSON reporter is what makes a retry visible. `retries: 1` above means a
+  // test that fails once and passes on the second attempt is reported as
+  // passing, and CI has never run this suite more than once per push — so a
+  // suite failing one run in three passed two pushes in three, silently. The
+  // workflow reads this file and writes any flaky test into the run summary.
+  reporter: process.env.CI
+    ? [['github'], ['list'], ['json', { outputFile: 'playwright-results.json' }]]
+    : [['list']],
+  // Refuses a reused dev server that has been up too long. See the file, and
+  // G-035 in docs/gaps.md.
+  globalSetup: './tests/global-setup.ts',
   // Measured on this machine with ten busy loops on twelve cores, which is
   // roughly what a CI runner under contention looks like: page visits go from
   // ~2s to ~4s, and the slowest single test (dark-theme contrast over four

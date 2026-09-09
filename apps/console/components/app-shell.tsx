@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/cn';
@@ -8,55 +8,38 @@ import { useAuth } from './auth-provider';
 import { useTheme } from './theme-provider';
 import { Notifications } from './notifications';
 import { CommandPalette, useCommandPalette } from './command-palette';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+import { NavRail } from './nav-rail';
+import { buildNav } from '@/lib/nav/build-nav';
+import { PERSONA_MANIFEST } from '@/lib/nav/persona-manifest';
+import { ROUTES } from '@/lib/nav/routes.generated';
 
-interface NavItem {
-  href: string;
-  label: string;
-  /** Permission required to see this item at all. */
-  permission?: string;
+/*
+ * There is no nav array here any more. The rail is the persona manifest
+ * (lib/nav/persona-manifest.ts) joined with the routes that exist
+ * (lib/nav/routes.generated.ts, read from the filesystem) and the signed-in
+ * user, by `buildNav`. A screen appears when its page.tsx exists and the
+ * person is allowed to see it, and not otherwise.
+ */
+
+/**
+ * How many change sets are waiting on a person.
+ *
+ * The same `['change-sets']` query the notifications bell already runs on every
+ * page, so putting the number in the rail costs a cache read rather than a
+ * request. `enabled` keeps it to the one item that asks: every other nav link
+ * would otherwise subscribe to a query it never reads.
+ */
+function useApprovalCount(enabled: boolean): number {
+  const { data } = useQuery({
+    queryKey: ['change-sets'],
+    queryFn: () => apiClient.listChangeSets(),
+    enabled,
+  });
+  if (!enabled) return 0;
+  return (data?.changeSets ?? []).filter((c) => c.status === 'pending').length;
 }
-
-interface NavSection {
-  label: string;
-  items: NavItem[];
-}
-
-const NAV: NavSection[] = [
-  {
-    label: 'Overview',
-    items: [{ href: '/', label: 'Home' }],
-  },
-  {
-    label: 'Offers',
-    items: [
-      { href: '/offers', label: 'Offers', permission: 'view:offers' },
-      { href: '/targeting-policies', label: 'Targeting Policies' },
-      { href: '/frequency-policy', label: 'Frequency Policy' },
-      { href: '/arbitration', label: 'Arbitration & Boosts' },
-    ],
-  },
-  {
-    label: 'Decisioning',
-    items: [
-      { href: '/decision-flows', label: 'Decision flows', permission: 'view:flows' },
-      { href: '/decisions', label: 'Decisions', permission: 'view:decisions' },
-      { href: '/simulations', label: 'Simulations' },
-      { href: '/integrations', label: 'Integrations' },
-    ],
-  },
-  {
-    label: 'Governance',
-    items: [
-      { href: '/approvals', label: 'Approvals' },
-      { href: '/agentic', label: 'Agentic AI' },
-      { href: '/audit', label: 'Audit Log', permission: 'view:audit' },
-    ],
-  },
-  {
-    label: 'Admin',
-    items: [{ href: '/settings', label: 'Settings' }],
-  },
-];
 
 /**
  * Which environment this console is pointed at.
@@ -68,15 +51,52 @@ const NAV: NavSection[] = [
 const ENV_LABEL = process.env.NEXT_PUBLIC_ENV_LABEL ?? 'Development';
 const ENV_IS_LIVE = ENV_LABEL.toLowerCase() === 'production';
 
+/**
+ * Whether the rail is open, remembered across pages.
+ *
+ * Every page mounts its own RequireAuth and therefore its own AppShell, so
+ * plain component state forgot the collapse on the very next navigation — a
+ * rail that re-expands on every click is not collapsible. Same shape as the
+ * theme preferences: the stored value wins, the default is open, and blocked
+ * storage degrades to a per-page memory rather than an error.
+ */
+const RAIL_KEY = 'metis.shell.rail';
+
+function readRailOpen(): boolean {
+  try {
+    return localStorage.getItem(RAIL_KEY) !== 'collapsed';
+  } catch {
+    return true;
+  }
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(readRailOpen);
+  useEffect(() => {
+    try {
+      localStorage.setItem(RAIL_KEY, sidebarOpen ? 'open' : 'collapsed');
+    } catch {
+      // Ignore: the in-memory value still applies for this page.
+    }
+  }, [sidebarOpen]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [tenantOpen, setTenantOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout, hasPermission } = useAuth();
+  const { user, logout } = useAuth();
   const { colorScheme, density, setColorScheme, setDensity } = useTheme();
   const palette = useCommandPalette();
+
+  const nav = useMemo(
+    () => (user ? buildNav(PERSONA_MANIFEST, ROUTES, user) : []),
+    [user]
+  );
+  // Only subscribe to the change-set query when the rail has somewhere to put
+  // the number; every other page would otherwise watch a query it never reads.
+  const wantsApprovals = nav.some((g) =>
+    g.children.some((s) => s.badge === 'approvals' || s.children.some((c) => c.badge === 'approvals'))
+  );
+  const approvalCount = useApprovalCount(wantsApprovals);
 
   // A panel opened from the keyboard has to be closeable from the keyboard.
   useEffect(() => {
@@ -95,11 +115,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     setMenuOpen(false);
     setTenantOpen(false);
   }, [pathname]);
-
-  function isActive(href: string) {
-    if (href === '/') return pathname === '/';
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
 
   function handleLogout() {
     logout();
@@ -361,48 +376,30 @@ export function AppShell({ children }: { children: ReactNode }) {
           overflow hidden still leaves its links in the tab order, so the
           keyboard path walked through a sidebar nobody could see.
         */}
-        <aside className={cn('w-60 shrink-0 flex-col bg-chrome', sidebarOpen ? 'flex' : 'hidden')}>
-          <nav className="flex-1 overflow-y-auto px-2 py-4" aria-label="Main">
-            {NAV.map((section) => {
-              const visible = section.items.filter(
-                (item) => !item.permission || hasPermission(item.permission)
-              );
-              if (visible.length === 0) return null;
-
-              return (
-                <div key={section.label} className="mb-4">
-                  <p className="px-3 pb-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-content-subtle">
-                    {section.label}
-                  </p>
-                  <ul className="space-y-0.5">
-                    {visible.map((item) => (
-                      <li key={item.href}>
-                        <Link
-                          href={item.href}
-                          aria-current={isActive(item.href) ? 'page' : undefined}
-                          className={cn(
-                            'relative block rounded-md px-3 py-1.5 text-body transition-colors',
-                            isActive(item.href)
-                              ? 'bg-accent/10 font-medium text-accent before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-r before:bg-accent'
-                              : 'text-content-muted hover:bg-surface/70 hover:text-content'
-                          )}
-                        >
-                          {item.label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </nav>
-
-          <div className="px-4 py-3">
-            <p className="flex items-center gap-1.5 text-[0.625rem] text-content-subtle">
-              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-pass" />
-              Fixture data
-            </p>
+        {/*
+          Collapsed is the 48px icon rail, not display:none. The rail renders no
+          screen links in that state, so they leave the tab order, and a group's
+          icon still takes you to its first screen.
+        */}
+        <aside data-rail className="flex shrink-0 flex-col bg-rail">
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <NavRail
+              nav={nav}
+              pathname={pathname}
+              collapsed={!sidebarOpen}
+              approvalCount={approvalCount}
+              Link={Link}
+            />
           </div>
+
+          {sidebarOpen ? (
+            <div className="px-4 py-3">
+              <p className="flex items-center gap-1.5 text-label text-rail-dim">
+                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-rail-ok" />
+                Fixture data
+              </p>
+            </div>
+          ) : null}
         </aside>
 
         <main

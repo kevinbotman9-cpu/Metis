@@ -48,6 +48,13 @@ export type PublishOutcome =
   | { status: 'unchanged'; artifact: CompiledDecisionFlow; diagnostics: Diagnostic[] }
   /** Compilation failed. Nothing was stored. */
   | { status: 'rejected'; reason: 'compilation'; diagnostics: Diagnostic[] }
+  /**
+   * The flow compiled and then failed its own tests.
+   *
+   * Separate from a compilation refusal because it means something different:
+   * the graph is sound and the behaviour is not what its author said it is.
+   */
+  | { status: 'rejected'; reason: 'tests'; diagnostics: Diagnostic[]; tests: FlowTestResult[] }
   /** The version exists and holds different content. */
   | {
       status: 'rejected';
@@ -56,6 +63,22 @@ export type PublishOutcome =
       existingHash: string;
       attemptedHash: string;
     };
+
+/** Mirrors `@metis/runtime`'s shape. Repeated rather than imported: the
+ * registry deliberately does not depend on the engine. */
+export interface FlowTestResult {
+  name: string;
+  passed: boolean;
+  failures: string[];
+}
+
+/**
+ * Runs a version's attached cases. Supplied by the caller, because the caller
+ * is what already has both the engine and a catalogue.
+ */
+export interface FlowTestRunner {
+  run(artifact: unknown, tests: unknown[]): Promise<FlowTestResult[]>;
+}
 
 export interface PublishedVersion {
   tenantId: string;
@@ -72,6 +95,15 @@ export interface PublishedVersion {
    * months than one that published clean.
    */
   warnings: Diagnostic[];
+  /**
+   * How the version's own cases fared at publish.
+   *
+   * Stored with the version rather than folded into the artifact hash: a test
+   * does not change how a flow decides, and treating one as new content would
+   * force a version bump for no behavioural change. Empty when the version
+   * attaches none.
+   */
+  tests: FlowTestResult[];
 }
 
 export interface EnvironmentState {
@@ -80,6 +112,18 @@ export interface EnvironmentState {
   activeVersion: string | null;
   /** What rollback returns to. Null when there is nothing to go back to. */
   previousVersion: string | null;
+  /**
+   * A version running beside the active one, deciding nothing.
+   *
+   * Shadow output never reaches a customer: the active version's answer is the
+   * one returned, always. What the shadow produces is compared against it and
+   * recorded, which is how a migration is evidenced rather than asserted —
+   * §12's factory needs "shadow production decisions, candidate/rank/reason
+   * comparison" before anyone is asked to trust a cutover.
+   *
+   * Null when nothing is shadowing, which is the normal state.
+   */
+  shadowVersion: string | null;
   promotedAt: string | null;
   promotedBy: string | null;
 }
@@ -88,7 +132,9 @@ export type RegistryEventType =
   | 'ArtifactPublished'
   | 'PublishRejected'
   | 'VersionPromoted'
-  | 'VersionRolledBack';
+  | 'VersionRolledBack'
+  | 'ShadowStarted'
+  | 'ShadowStopped';
 
 /**
  * One entry in the append-only log.

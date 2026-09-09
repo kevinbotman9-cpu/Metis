@@ -1,7 +1,7 @@
 # METIS Console — Rebuild Plan (CDH-grade)
 
 **Date:** 2026-09-04
-**Status:** Proposed — supersedes optimistic status claims in `PHASES_SUMMARY.md`
+**Status:** Proposed — superseded the optimistic status claims in `PHASES_SUMMARY.md`, which was deleted on 2026-09-05. Current status lives in `docs/CAPABILITIES.md`
 **Trigger:** Audit found the console is a thin shell over an absent domain model.
 
 ---

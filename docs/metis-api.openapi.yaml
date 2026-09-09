@@ -180,6 +180,12 @@ components:
         boost:
           type: number
           description: Business priority multiplier. 1.0 is neutral.
+        contractUrl:
+          type: string
+          description: >-
+            Link to the contractual terms the customer is agreeing to. Optional,
+            because not every offer has separate terms; where one does, the
+            trace should be able to reach what was actually promised.
         policyIds:
           type: array
           items: { type: string }
@@ -214,10 +220,29 @@ components:
           enum: [email, sms, web, push, outbound_call]
         content:
           type: object
-          description: Channel-specific content; shape is discriminated by channel
+          description: |
+            Channel-specific content; shape is discriminated by channel.
+
+            On `web`, two separate fields describe where it goes and how it
+            looks. `placement` is a slot key, joining to a configured
+            `Placement`; empty means the creative can fill any slot on the
+            channel. `placementType` is the shape — one of carousel,
+            feature_band, footer_bar, hero, page_takeover, tile.
+
+            Separate because they are separate decisions, usually made by
+            different people: a slot and a design. A slot declares its own
+            `type`, so a creative can inherit one and the two can be compared
+            rather than assumed to agree.
           additionalProperties: true
         active: { type: boolean }
         locale: { type: string, example: en-GB }
+        reviewNote:
+          type: string
+          description: >-
+            Why this content reads the way it does — a claim substantiation, a
+            legal sign-off reference, a note about wording somebody argued over.
+            Optional, and carried into the trace so a regulator asking "why did
+            it say that" reaches the reasoning rather than only the text.
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
@@ -253,6 +278,433 @@ components:
           type: string
           enum: [eq, ne, gt, gte, lt, lte, in, not_in, contains, exists, not_exists]
         value: {}
+
+    SchemaField:
+      type: object
+      required: [name, type, description]
+      properties:
+        name:
+          type: string
+          description: The path segment, e.g. `age` in `customer.age`.
+        type:
+          type: string
+          enum: [string, integer, decimal, boolean, timestamp, enum, money]
+          description: >-
+            integer and decimal are separate because the difference is a real
+            authoring constraint, and because the value control differs.
+        description: { type: string }
+        members:
+          type: array
+          items: { type: string }
+          description: Allowed values, for `enum`. The editor renders these and the compiler checks them.
+        required: { type: boolean }
+        sensitivity:
+          type: string
+          enum: [none, personal, special_category]
+          description: >-
+            Retention's input, not decoration. Classifying at declaration time
+            is far cheaper than classifying a populated store later.
+        unit:
+          type: string
+          description: days, pence, ratio, months. Shown beside the value input.
+
+    SchemaRelationship:
+      type: object
+      required: [name, entity, cardinality, description]
+      properties:
+        name: { type: string }
+        entity: { type: string, description: Target entity name. }
+        cardinality:
+          type: string
+          enum: [one, many]
+        description: { type: string }
+
+    SchemaEntity:
+      type: object
+      required: [name, description, fields]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        fields:
+          type: array
+          items: { $ref: '#/components/schemas/SchemaField' }
+        relationships:
+          type: array
+          items: { $ref: '#/components/schemas/SchemaRelationship' }
+
+    SchemaAggregation:
+      type: object
+      description: >-
+        A rollup over a `many` relationship, resolved before the deterministic
+        core and entering the hashed input as a scalar. Declared on the schema
+        rather than written inside a policy, so it is a named reviewable object
+        and the cost of a decision stays predictable.
+      required: [produces, description, over, fn, type]
+      properties:
+        produces:
+          type: string
+          description: The flat path it produces in the input, e.g. `accounts.worst_arrears_days`.
+        description: { type: string }
+        over:
+          type: array
+          items: { type: string }
+          description: Relationship names from the root entity.
+        fn:
+          type: string
+          enum: [count, sum, min, max, any, all]
+        field:
+          type: string
+          description: Field on the target entity. Omitted for `count`, required otherwise.
+        where:
+          type: array
+          items: { $ref: '#/components/schemas/PolicyCondition' }
+        type:
+          type: string
+          enum: [string, integer, decimal, boolean, timestamp, enum, money]
+
+    Transform:
+      type: object
+      description: >-
+        A declared transform. The set is closed on purpose: an arbitrary
+        expression in a mapping is code running over customer data on an ingest
+        path, versioned nowhere and reviewed by nobody.
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [none, trim, lowercase, uppercase, to_number, to_boolean, map_values, years_since]
+        values:
+          type: object
+          additionalProperties: { type: string }
+          description: >-
+            For map_values. Exhaustive - a source value with no entry is a
+            problem rather than a pass-through.
+
+    FieldMapping:
+      type: object
+      required: [column, path]
+      properties:
+        column: { type: string, description: Column name in the landed rows. }
+        path: { type: string, description: Dotted path in the data model. }
+        transform: { $ref: '#/components/schemas/Transform' }
+
+    ColumnSummary:
+      type: object
+      required: [column, path, filled, failed, examples]
+      properties:
+        column: { type: string }
+        path: { type: string }
+        filled: { type: integer }
+        failed: { type: integer }
+        examples:
+          type: array
+          items: { type: string }
+
+    ValidationReport:
+      type: object
+      description: >-
+        Summarised by column rather than by row. An import fails for a handful
+        of reasons repeated thousands of times, and the question is which column
+        is wrong and what the bad value looks like.
+      required: [rows, clean, columns, missingRequired, unmapped, errors]
+      properties:
+        rows: { type: integer }
+        clean: { type: integer, description: Rows with no problem in any column. }
+        columns:
+          type: array
+          items: { $ref: '#/components/schemas/ColumnSummary' }
+        missingRequired:
+          type: array
+          items: { type: string }
+        unmapped:
+          type: array
+          items: { type: string }
+        errors: { type: integer }
+
+    DataSource:
+      type: object
+      description: >-
+        A source of customer records, and the mapping from its shape onto the
+        data model. Land, map, validate, activate - a source that has not
+        validated cleanly cannot be activated.
+      required: [id, tenantId, name, description, kind, columns, mappings, status, landedRows, updatedAt, updatedBy]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        kind:
+          type: string
+          enum: [file, http, inline]
+        columns:
+          type: array
+          items: { type: string }
+          description: Column names observed when rows were landed.
+        mappings:
+          type: array
+          items: { $ref: '#/components/schemas/FieldMapping' }
+        status:
+          type: string
+          enum: [draft, validated, active]
+        landedRows: { type: integer }
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+
+    ExperimentArm:
+      type: object
+      required: [key, name, weight]
+      properties:
+        key:
+          type: string
+          description: Stable identifier. Appears in policies and reports, so it must not change.
+        name: { type: string }
+        weight:
+          type: number
+          description: Relative share. Not required to sum to 100 - weights are normalised.
+        holdout:
+          type: boolean
+          description: >-
+            The untreated group. Marked rather than inferred from the name -
+            control, holdout and baseline all appear in the wild.
+
+    Experiment:
+      type: object
+      description: >-
+        An arm assignment is an input to a decision, not a wrapper around one.
+        It is a pure function of the customer reference, so an arm is recomputed
+        from a decision record months later rather than stored - which is why a
+        running experiment's arms are frozen.
+      required: [id, tenantId, key, name, description, arms, status, startedAt, stoppedAt, updatedAt, updatedBy]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        key:
+          type: string
+          description: The arm reaches policies at `experiments.<key>`.
+        name: { type: string }
+        description: { type: string }
+        arms:
+          type: array
+          items: { $ref: '#/components/schemas/ExperimentArm' }
+        status:
+          type: string
+          enum: [draft, running, stopped]
+        startedAt: { type: string, nullable: true, format: date-time }
+        stoppedAt: { type: string, nullable: true, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+
+    ArmPerformance:
+      type: object
+      required: [experimentKey, arm, holdout, offered, measured, acceptances, acceptanceRate, valueMinor]
+      properties:
+        experimentKey: { type: string }
+        arm: { type: string }
+        holdout: { type: boolean }
+        offered: { type: integer }
+        measured: { type: integer }
+        acceptances: { type: integer }
+        acceptanceRate:
+          type: number
+          nullable: true
+          description: Null when nothing was measured. Zero would claim the arm was seen and refused.
+        valueMinor: { type: integer, nullable: true }
+
+    PerformanceRow:
+      type: object
+      required: [action, channel, flowId, offered, measured, impressions, clicks, acceptances, rejections, conversions, valueMinor, acceptanceRate, clickRate]
+      properties:
+        action: { type: string }
+        channel: { type: string }
+        flowId: { type: string }
+        offered:
+          type: integer
+          description: Decisions where this action won.
+        measured:
+          type: integer
+          description: >-
+            Decisions with any outcome recorded. The denominator for every rate
+            here - a rate over `offered` would divide by decisions nobody
+            reported on, turning silence into 0%.
+        impressions: { type: integer }
+        clicks: { type: integer }
+        acceptances: { type: integer }
+        rejections: { type: integer }
+        conversions: { type: integer }
+        valueMinor:
+          type: integer
+          nullable: true
+          description: >-
+            Null when no outcome carried a value, which is distinct from zero -
+            zero would claim the offers were worth nothing rather than that
+            nobody said.
+        acceptanceRate:
+          type: number
+          nullable: true
+          description: >-
+            Null when nothing was measured. Zero would claim the offer was seen
+            and refused; null says nobody reported back.
+        clickRate:
+          type: number
+          nullable: true
+
+    Provenance:
+      type: object
+      description: |
+        Where the numbers in this response came from.
+
+        The seeded `demo-telco-uk` tenant became indistinguishable from real
+        reporting on 2026-09-09: 10,400 decisions, 2,101 measured outcomes,
+        plausible click rates and realised value in pounds, all derived from
+        `seededUnitInterval` and none of it from a customer. The only marker was
+        a badge in a corner of the console's nav rail, which no API response
+        carried and no screenshot was obliged to include.
+
+        So a response whose numbers are synthetic says so, in the payload. A
+        marker that lives only in the interface is a marker that does not
+        survive an export, a screenshot, or a `curl`.
+      required: [source, note]
+      properties:
+        source:
+          type: string
+          enum: [synthetic, recorded, mixed]
+          description: >-
+            `synthetic` when every figure derives from the seed, `recorded` when
+            every figure derives from something that actually happened, `mixed`
+            when a report joins both - which is the normal state of a demo
+            tenant somebody has clicked in.
+        syntheticCount:
+          type: integer
+          description: Rows or records in this response that derive from the seed.
+        recordedCount:
+          type: integer
+          description: Rows or records that derive from real traffic.
+        note:
+          type: string
+          description: >-
+            A sentence a person can read in an exported file months later,
+            without this document in front of them.
+    PerformanceReport:
+      type: object
+      required: [rows, decisions, offered, suppressed, measured]
+      properties:
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/PerformanceRow' }
+        decisions: { type: integer }
+        offered: { type: integer }
+        suppressed:
+          type: integer
+          description: >-
+            Decisions that offered nothing. Reported beside the rest rather than
+            hidden - on a platform whose suitability tier exists to refuse
+            profitable offers, suppression is a result, not a shortfall.
+        measured:
+          type: integer
+          description: Decisions with at least one outcome recorded against them.
+        from: { type: string, nullable: true, format: date-time }
+        to: { type: string, nullable: true, format: date-time }
+        provenance:
+          $ref: '#/components/schemas/Provenance' 
+        arms:
+          type: array
+          items: { $ref: '#/components/schemas/ArmPerformance' }
+          description: >-
+            Per-arm counts for every running or stopped experiment, recomputed
+            from each decision's customer reference rather than read from a
+            stored assignment.
+
+    ProfileSchema:
+      type: object
+      description: >-
+        The tenant's customer data model. A contract about what fields exist and
+        how entities relate; it says nothing about where values come from, which
+        is already two separate answers (the caller sends them, or a connector
+        resolves them).
+      required: [id, tenantId, version, root, entities, aggregations, updatedAt, updatedBy]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        version:
+          type: string
+          description: Bumped whenever the shape changes.
+        root:
+          type: string
+          description: The entity the decision input *is*.
+        entities:
+          type: array
+          items: { $ref: '#/components/schemas/SchemaEntity' }
+        aggregations:
+          type: array
+          items: { $ref: '#/components/schemas/SchemaAggregation' }
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+
+    SchemaFieldPath:
+      type: object
+      description: One selectable path, as the policy editor's field picker lists them.
+      required: [path, type, kind, description, operators]
+      properties:
+        path: { type: string }
+        type:
+          type: string
+          enum: [string, integer, decimal, boolean, timestamp, enum, money]
+        kind:
+          type: string
+          enum: [field, aggregation]
+        description: { type: string }
+        entity: { type: string }
+        members:
+          type: array
+          items: { type: string }
+        unit: { type: string }
+        sensitivity:
+          type: string
+          enum: [none, personal, special_category]
+        operators:
+          type: array
+          items: { type: string }
+          description: >-
+            The operators this type admits. Served rather than derived in the
+            client so the editor and the compiler cannot offer different sets.
+
+    TargetingPolicyWrite:
+      type: object
+      required: [name, kind, description, conditions, scope, active]
+      properties:
+        name: { type: string }
+        kind:
+          type: string
+          enum: [eligibility, relevance, suitability]
+        description: { type: string }
+        conditions:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/PolicyCondition' }
+        scope: { $ref: '#/components/schemas/PolicyScope' }
+        active: { type: boolean }
+
+    PolicyRejected:
+      type: object
+      description: >-
+        Per-condition reasons, so a form can put each one against the control
+        that produced it. A validation error rendered as one sentence at the top
+        of a dialog makes the person hunt for the field.
+      required: [error, message, problems]
+      properties:
+        error: { type: string }
+        message: { type: string }
+        problems:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+                description: Dotted path into the submitted object, e.g. `conditions.0.value`.
+              message: { type: string }
+              code: { type: string }
 
     TargetingPolicy:
       type: object
@@ -709,6 +1161,8 @@ components:
         timestamp:
           type: string
           format: date-time
+        provenance:
+          $ref: '#/components/schemas/Provenance' 
         channel:
           type: string
         placement:
@@ -732,7 +1186,7 @@ components:
             $ref: '#/components/schemas/ScoreBreakdown'
         arbitration:
           type: object
-          required: [formula, utility, winner, runnerUp]
+          required: [formula, utility, missingScore, winner, runnerUp]
           properties:
             formula:
               type: string
@@ -748,6 +1202,35 @@ components:
               properties:
                 id: { type: string }
                 version: { type: string }
+            missingScore:
+              type: object
+              description: >
+                What ranking did about candidates nothing scored. A missing
+                score must never become a silent zero: a neutral term is 1
+                under exponentiation, not 0, and a flow may declare an approved
+                default instead of relying on that. Present on every decision,
+                including when nothing was missing, so "no default configured"
+                stays distinguishable from "written by an older engine".
+              required: [applied, approved]
+              properties:
+                applied:
+                  type: array
+                  description: >
+                    Candidate keys that fell back, sorted. Empty when every
+                    candidate was scored.
+                  items: { type: string }
+                approved:
+                  type: [object, 'null']
+                  description: >
+                    The default the flow declared, or null when it declared
+                    none and the engine used a neutral 1.0. The approver and
+                    date are what make this a default rather than a constant.
+                  required: [propensity, context, approvedBy, approvedAt]
+                  properties:
+                    propensity: { type: number }
+                    context: { type: number }
+                    approvedBy: { type: string }
+                    approvedAt: { type: string, format: date-time }
             winner:
               type: [string, 'null']
             runnerUp:
@@ -1112,7 +1595,7 @@ components:
     EnvironmentState:
       type: object
       description: What an environment is running, and what rollback returns to.
-      required: [environment, activeVersion, previousVersion, promotedAt, promotedBy]
+      required: [environment, activeVersion, previousVersion, shadowVersion, promotedAt, promotedBy]
       properties:
         environment:
           type: string
@@ -1121,6 +1604,14 @@ components:
         previousVersion:
           type: [string, 'null']
           description: Null when there is nothing to roll back to.
+        shadowVersion:
+          type: [string, 'null']
+          description: >
+            A version running beside the active one and deciding nothing. Its
+            output never reaches a customer — the active version's answer is
+            always the one returned. What the shadow produces is compared and
+            recorded, which is how a migration is evidenced rather than
+            asserted. Null when nothing is shadowing, which is the normal state.
         promotedAt:
           type: [string, 'null']
         promotedBy:
@@ -1156,6 +1647,45 @@ components:
         attemptedHash:
           type: string
           description: Present when refused as immutable.
+
+    ShadowReport:
+      type: object
+      required:
+        - flowName
+        - activeVersion
+        - shadowVersion
+        - compared
+        - agreed
+        - agreementRate
+        - topDivergences
+        - shadowMsP50
+        - shadowMsP95
+      properties:
+        flowName: { type: string }
+        activeVersion: { type: [string, 'null'] }
+        shadowVersion: { type: [string, 'null'] }
+        compared: { type: integer }
+        agreed: { type: integer }
+        agreementRate:
+          type: number
+          description: 0 when nothing has been compared, never 1.
+        topDivergences:
+          type: array
+          items:
+            type: object
+            required: [kind, summary, count]
+            properties:
+              kind:
+                type: string
+                enum: [winner, ranking, reasons]
+              summary: { type: string }
+              count: { type: integer }
+        shadowMsP50: { type: number }
+        shadowMsP95:
+          type: number
+          description: >
+            The tail is the number that matters: a shadow whose p95 is 100ms is
+            not free, whatever its median says.
 
     RegistryEvent:
       type: object
@@ -1210,6 +1740,68 @@ components:
             - type: number
             - type: boolean
 
+    RecordedBody:
+      type: object
+      description: |
+        One side of a call. JSON bodies are parsed so a client can render them
+        structurally; anything else is kept as text, because a proxy's HTML
+        error page is exactly what somebody debugging needs to see. A body over
+        the cap is truncated and says so rather than being dropped.
+      required: [bytes, truncated]
+      properties:
+        json:
+          description: The parsed body, when it was JSON and within the cap.
+        text:
+          type: string
+          nullable: true
+          description: The raw body, when it was not JSON or was truncated.
+        bytes:
+          type: integer
+          description: Size of the original body in bytes, before any truncation.
+        truncated:
+          type: boolean
+
+    InboundCall:
+      type: object
+      description: A single request/response pair served by the API.
+      required: [id, at, method, path, status, durationMs, origin]
+      properties:
+        id:
+          type: string
+        at:
+          type: string
+          format: date-time
+          description: When the request arrived, not when it completed.
+        method:
+          type: string
+          enum: [GET, POST, PUT]
+        path:
+          type: string
+        query:
+          type: string
+          nullable: true
+        status:
+          type: integer
+        durationMs:
+          type: integer
+        request:
+          $ref: '#/components/schemas/RecordedBody'
+        response:
+          $ref: '#/components/schemas/RecordedBody'
+        origin:
+          type: string
+          enum: [storefront, console, unknown]
+          description: |
+            Derived from `Referer`. A label for reading the log, never
+            authentication — it is trivially spoofed and nothing is gated on it.
+        decisionId:
+          type: string
+          nullable: true
+          description: Lifted from the response when the call produced a decision, so the row can link to its trace.
+        error:
+          type: string
+          nullable: true
+
     Connector:
       type: object
       description: |
@@ -1259,6 +1851,103 @@ components:
           format: date-time
         updatedBy:
           type: string
+
+    Placement:
+      type: object
+      description: |
+        A content slot in a customer journey, configured rather than assumed.
+
+        `placement` has been a string on a decision request since the beginning
+        — the engine reads it for the context term and records it. This is that
+        string given a configuration: how many actions the slot holds, and which
+        flow answers for it.
+
+        Not part of the catalogue the engine hashes. A placement governs how a
+        decision is delivered, not what is decided, so changing a slot count
+        moves no chain hash. The consequence is that a slate is reproducible
+        from its decision *plus* the placement that composed it.
+      required:
+        [id, key, name, description, channel, slotCount, artifactId, active,
+         updatedAt, updatedBy]
+      properties:
+        id:
+          type: string
+        key:
+          type: string
+          description: The value a decision request carries, and a creative names.
+        name:
+          type: string
+        description:
+          type: string
+        channel:
+          type: string
+          enum: [email, sms, web, push, outbound_call]
+        type:
+          type: string
+          enum: [carousel, feature_band, footer_bar, hero, page_takeover, tile]
+          description: |
+            The shape this slot renders in. Web only — a hero and a tile are
+            different designs, and a creative declares which it was made for.
+            An email placement carries none rather than a value that means
+            nothing.
+        slotCount:
+          type: integer
+          minimum: 1
+          description: |
+            At most this many actions. A hero is 1, a grid is 3. The decision is
+            the same either way; this governs how much of the ranking the caller
+            is given.
+        artifactId:
+          type: string
+        active:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+
+    SlateEntry:
+      type: object
+      description: One filled slot.
+      required: [rank, action, priority]
+      properties:
+        rank:
+          type: integer
+          minimum: 1
+        action:
+          type: string
+          description: The action key, as the decision named it.
+        priority:
+          type: number
+          description: The priority ranking gave it — the same number that chose the winner.
+        offerId:
+          type: [string, 'null']
+          description: The offer this action belongs to, resolved from the catalogue.
+
+    CreativeRejected:
+      type: object
+      description: |
+        Why a creative was refused, one entry per problem. Every problem at
+        once: a caller fixing one field per round trip is a caller making five.
+      required: [error, message, problems]
+      properties:
+        error:
+          type: string
+          enum: [invalid_creative]
+        message:
+          type: string
+        problems:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+                description: Dotted path into the creative, e.g. `content.text`.
+              message:
+                type: string
 
     SourceBinding:
       type: object
@@ -1351,6 +2040,11 @@ components:
           description: Full compiler output. Present on the detail endpoint.
 
   parameters:
+    SourceId:
+      name: sourceId
+      in: path
+      required: true
+      schema: { type: string }
     TenantId:
       name: tenantId
       in: path
@@ -1569,6 +2263,52 @@ paths:
         '403':
           description: Caller lacks edit:offers
 
+  /creatives/{tenantId}:
+    get:
+      summary: Every creative in the catalogue
+      operationId: listAllCreatives
+      x-metis-status: built
+      description: |
+        The content library, across offers.
+
+        Creatives were reachable only through the offer that owns them, so
+        "what content do we have", "what is switched off" and "which offers have
+        nothing on email" had no answer. Each creative still belongs to exactly
+        one offer — `offerId` is a foreign key, not a link — and this reads
+        across them rather than changing that.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: channel
+          in: query
+          schema:
+            type: string
+            enum: [email, sms, web, push, outbound_call]
+        - name: active
+          in: query
+          description: Filter on delivery state. Omit for both.
+          schema:
+            type: boolean
+        - name: q
+          in: query
+          description: Matches the name, the owning offer's key, and the content.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Creatives
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [creatives, total]
+                properties:
+                  creatives:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Creative'
+                  total:
+                    type: integer
+
   /creatives/{tenantId}/{offerId}:
     get:
       summary: Creatives for an offer, one per channel
@@ -1593,6 +2333,111 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Creative'
+
+    post:
+      summary: Add a creative to an offer
+      operationId: createCreative
+      x-metis-status: built
+      description: |
+        Content for one channel. An offer needs at least one active creative
+        before it can be delivered, which is why this exists: until it did, the
+        only way to give an offer content was to edit a fixture and redeploy.
+
+        The content is checked against the channel it declares — required
+        fields, the 160-character SMS segment limit, a sender id carriers will
+        accept, an address that is an address, a call to action that goes
+        somewhere. Every problem is reported at once rather than the first, so a
+        caller is not making one round trip per field.
+
+        **Not built here:** uploading an asset. `imageUrl` is a reference the
+        caller supplies, and nothing in the platform stores or serves the file
+        it names. Content approval, effective dating and expiry are W-015.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Creative'
+      responses:
+        '201':
+          description: Created, and attached to the offer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Creative'
+        '400':
+          description: |
+            The content does not satisfy its channel. The body lists every
+            problem, each naming the field it is about.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreativeRejected'
+        '403':
+          description: Caller lacks edit:offers
+        '404':
+          description: No such offer
+        '409':
+          description: A creative already uses that id
+
+  /creatives/{tenantId}/{offerId}/{creativeId}:
+    put:
+      summary: Edit a creative, or switch it on and off
+      operationId: updateCreative
+      x-metis-status: built
+      description: |
+        The same content rules as creation.
+
+        Deactivating is refused when it would leave an active offer with no
+        deliverable content — the offer would keep winning decisions and have
+        nothing to render, which is the state this and `createOffer` exist to
+        make unreachable. Pause or retire the offer first.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: creativeId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Creative'
+      responses:
+        '200':
+          description: Updated, and written to the audit log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Creative'
+        '400':
+          description: The content does not satisfy its channel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreativeRejected'
+        '403':
+          description: Caller lacks edit:offers
+        '404':
+          description: No such offer or creative
+        '409':
+          description: |
+            Switching this off would leave an active offer with no active
+            creative.
 
   # ---------------------------------------------------------------------------
   # Targeting policy, frequency policy, arbitration
@@ -1621,6 +2466,380 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/TargetingPolicy'
+
+    post:
+      summary: Create a targeting policy
+      description: |
+        Conditions are checked against the tenant's data model before the policy
+        is stored. A condition naming a field the model does not have, or
+        comparing a type it cannot compare, is refused here rather than
+        silently suppressing every candidate at decision time.
+      operationId: createTargetingPolicy
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TargetingPolicyWrite'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetingPolicy'
+        '400':
+          description: The conditions do not satisfy the data model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRejected'
+        '403':
+          description: Requires edit:policies
+
+  /targeting-policies/{tenantId}/{policyId}:
+    put:
+      summary: Update a targeting policy
+      operationId: updateTargetingPolicy
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TargetingPolicyWrite'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetingPolicy'
+        '400':
+          description: The conditions do not satisfy the data model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRejected'
+        '403':
+          description: Requires edit:policies
+        '404':
+          description: No such policy
+
+  /data-sources/{tenantId}:
+    get:
+      summary: Configured sources of customer records
+      operationId: listDataSources
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Sources
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sources]
+                properties:
+                  sources:
+                    type: array
+                    items: { $ref: '#/components/schemas/DataSource' }
+    post:
+      summary: Define a source
+      operationId: createDataSource
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, kind]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                kind:
+                  type: string
+                  enum: [file, http, inline]
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataSource' }
+        '403':
+          description: Requires edit:integrations
+
+  /data-sources/{tenantId}/{sourceId}:
+    put:
+      summary: Update a source and its mappings
+      operationId: updateDataSource
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/SourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                mappings:
+                  type: array
+                  items: { $ref: '#/components/schemas/FieldMapping' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataSource' }
+        '403':
+          description: Requires edit:integrations
+        '404':
+          description: No such source
+
+  /data-sources/{tenantId}/{sourceId}/rows:
+    post:
+      summary: Land rows against a source
+      description: |
+        Records are held as they arrived, unmapped. Landing observes the column
+        names and does not interpret them - the mapping is a separate,
+        reviewable step, because a source is another system's schema and changes
+        without asking.
+
+        Landing resets the source to `draft`: rows that arrived after a
+        validation were not the rows that were validated.
+      operationId: landRows
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/SourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rows]
+              properties:
+                rows:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+                replace:
+                  type: boolean
+                  description: Discard what was landed before rather than appending.
+      responses:
+        '200':
+          description: Landed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataSource' }
+        '403':
+          description: Requires edit:integrations
+
+  /data-sources/{tenantId}/{sourceId}/validation:
+    post:
+      summary: Check the landed rows against the data model
+      operationId: validateDataSource
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/SourceId'
+      responses:
+        '200':
+          description: The report, and the source with its new status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [source, report]
+                properties:
+                  source: { $ref: '#/components/schemas/DataSource' }
+                  report: { $ref: '#/components/schemas/ValidationReport' }
+
+  /data-sources/{tenantId}/{sourceId}/activation:
+    post:
+      summary: Activate a validated source
+      description: |
+        Refused unless the most recent validation found no errors and every
+        required field is filled. The point of landing and mapping first is to
+        fail before anything reads the data.
+      operationId: activateDataSource
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/SourceId'
+      responses:
+        '200':
+          description: Activated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataSource' }
+        '409':
+          description: The source cannot be activated yet
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, message, problems]
+                properties:
+                  error: { type: string }
+                  message: { type: string }
+                  problems:
+                    type: array
+                    items: { type: string }
+        '403':
+          description: Requires edit:integrations
+
+  /experiments/{tenantId}:
+    get:
+      summary: Experiments and holdouts
+      operationId: listExperiments
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Experiments
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [experiments]
+                properties:
+                  experiments:
+                    type: array
+                    items: { $ref: '#/components/schemas/Experiment' }
+    post:
+      summary: Define an experiment
+      operationId: createExperiment
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Experiment' }
+      responses:
+        '201':
+          description: Created as a draft
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Experiment' }
+        '400':
+          description: The experiment is not well formed
+        '403':
+          description: Requires edit:flows
+
+  /experiments/{tenantId}/{experimentId}:
+    put:
+      summary: Edit an experiment, or start and stop it
+      description: |
+        Arms and key are editable only while the experiment is a draft. Once it
+        is running they are frozen: an arm is recomputed from the customer
+        reference when a decision is explained later, and reweighting would make
+        every recomputed arm disagree with the one that actually applied.
+      operationId: updateExperiment
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: experimentId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Experiment' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Experiment' }
+        '409':
+          description: The change is refused because the experiment is running
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, message, problems]
+                properties:
+                  error: { type: string }
+                  message: { type: string }
+                  problems:
+                    type: array
+                    items: { type: string }
+        '403':
+          description: Requires edit:flows
+        '404':
+          description: No such experiment
+
+  /performance/{tenantId}:
+    get:
+      summary: What happened after the decisions
+      description: |
+        Joins recorded outcomes to the decisions they belong to. Counting only -
+        attribution modelling and uplift are statistical claims that would be
+        unfalsifiable inside a platform whose selling point is that every number
+        is traceable to its source.
+
+        Counts distinct decisions rather than events, so a channel that fires an
+        impression twice reports one and no rate can exceed 1.
+      operationId: getPerformance
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: flowId
+          in: query
+          schema: { type: string }
+        - name: channel
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: The report
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PerformanceReport' }
+
+  /profile-schema/{tenantId}:
+    get:
+      summary: The tenant's customer data model
+      description: |
+        Returns the model and the flat list of selectable paths the policy
+        editor's field picker renders. The paths are served rather than derived
+        client-side so the editor and the compiler cannot offer different sets
+        — an operator the editor does not show must also be one the compiler
+        rejects.
+      operationId: getProfileSchema
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: The data model
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [schema, paths]
+                properties:
+                  schema: { $ref: '#/components/schemas/ProfileSchema' }
+                  paths:
+                    type: array
+                    items: { $ref: '#/components/schemas/SchemaFieldPath' }
+                  problems:
+                    type: array
+                    items: { type: string }
+                    description: Structural problems with the model itself, if any.
 
   /frequency-policies/{tenantId}:
     get:
@@ -1832,9 +3051,14 @@ paths:
         Execute a flow against a request and return the trace.
 
         Integrations are resolved before the deterministic core runs and their
-        values arrive in `request.input`; this operation does not fetch them.
-        A caller that wants resolution asks for it by supplying the fields, or
-        by calling a service configured with a gateway.
+        values arrive in `request.input`. A service configured with a gateway
+        resolves the connectors its flow names and merges the result; fields the
+        caller supplied always win, so a request that carries every field is
+        unaffected by whether resolution ran. A service configured without one
+        fetches nothing and decides on what it was given.
+
+        A connector configured `onFailure: fail` that fails is a 503: the flow
+        and the request are both fine and a dependency is not.
 
         `occurredAt` is required and is never defaulted to the current time.
         Defaulting it would make a decision depend on when it was made, which
@@ -1937,6 +3161,27 @@ paths:
                     type: string
         '404':
           description: No such artifact
+        '503':
+          description: >
+            A connector the flow requires could not be read, and it is
+            configured to fail rather than omit or default. No decision was
+            made and none was recorded; the caller may retry.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, message, connectorId, outcome]
+                properties:
+                  error:
+                    type: string
+                    enum: [integration_failed]
+                  message:
+                    type: string
+                  connectorId:
+                    type: string
+                  outcome:
+                    type: string
+                    enum: [timeout, error]
 
   /decisions/{decisionId}/trace:
     get:
@@ -1962,23 +3207,68 @@ paths:
     post:
       summary: Re-execute a historical decision and compare it to the original
       operationId: replayDecision
+      description: |
+        Re-execute a decision against its recorded artifact and the catalogue,
+        and compare the chain hashes.
+
+        **The caller supplies the inputs.** A decision record holds
+        `inputSnapshotHash` and not the values behind it, on purpose: a trace can
+        then be kept for as long as an audit needs without keeping the customer
+        data it was made from. So replaying a decision the platform did not seed
+        means handing back the input it was made with, and the engine refuses
+        anything that does not hash to the recorded snapshot — which is the
+        check that will matter when the feature service lands and replay must
+        read a snapshot rather than the live store.
+
+        Seeded decisions carry their request alongside them, so they replay with
+        no body. Everything else needs one, and says so rather than reporting a
+        divergence that is really a missing argument.
       parameters:
         - name: decisionId
           in: path
           required: true
           schema:
             type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                input:
+                  type: object
+                  description: The decision's original input, exactly as it was.
+                contactHistory:
+                  type: object
       responses:
         '200':
           description: |
             The replay outcome. `identical` is the claim the platform is making;
-            when it is false, `diff` says exactly where reproduction broke.
+            when it is false, `diff` says exactly where reproduction broke — and
+            a `$.inputSnapshotHash` difference means the inputs were wrong, not
+            that the engine drifted.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReplayResult'
         '404':
           description: No such decision
+        '422':
+          description: |
+            The decision is recorded and its inputs are not, because the
+            platform does not retain them. Supply `input` to replay it.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, message]
+                properties:
+                  error:
+                    type: string
+                    enum: [input_required]
+                  message:
+                    type: string
 
   # ---------------------------------------------------------------------------
   # Governance
@@ -2181,6 +3471,143 @@ paths:
                   total:
                     type: integer
 
+  # ---------------------------------------------------------------------------
+  # Placements — the slots a site asks about
+  # ---------------------------------------------------------------------------
+  /placements/{tenantId}:
+    get:
+      summary: Configured placements
+      operationId: listPlacements
+      x-metis-status: built
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Placements
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [placements]
+                properties:
+                  placements:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Placement'
+
+  /placements/{tenantId}/{placementKey}/decisions:
+    post:
+      summary: Decide what fills a placement
+      operationId: decidePlacement
+      x-metis-status: built
+      description: |
+        The same decision `executeDecision` makes, delivered as a slate.
+
+        A decision names one winner. A placement has slots, and a page with six
+        of them cannot be filled by six decisions that each say the same thing.
+        So this returns the ranked candidates, as many as the placement's
+        `slotCount` allows.
+
+        **The slate is a projection of one decision, not several.** Every
+        candidate that reached ranking is already in the record with its
+        priority, and the ones that lost are recorded as `NOT_RANKED`. So this
+        operation executes once, composes from the result, and returns the
+        `decisionId` — the trace behind every slot is the same trace, and
+        `entries[0]` is always that decision's own winner.
+
+        Ordering by priority is the whole composition rule today. Cardinality,
+        mutual exclusion and diversity are W-028, and when they land they will
+        have to be part of the hashed decision, because a slate composed by a
+        rule nobody recorded is not explainable.
+
+        The caller names a placement, not a flow: which flow answers is
+        configuration, not something a website should hold.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: placementKey
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [request]
+              properties:
+                request:
+                  type: object
+                  required: [tenantId, customerId, channel, occurredAt, input]
+                  description: |
+                    As `executeDecision`, minus `placement`, which the path
+                    already names. Supplying a different one is a 400 rather
+                    than a silent preference for one of them.
+                  properties:
+                    tenantId: { type: string }
+                    customerId: { type: string }
+                    channel: { type: string }
+                    occurredAt:
+                      type: string
+                      format: date-time
+                      description: An input, never the clock.
+                    input:
+                      type: object
+                    contactHistory:
+                      type: object
+                    consent:
+                      type: object
+                    idempotencyKey:
+                      type: string
+                    correlationId:
+                      type: string
+      responses:
+        '200':
+          description: |
+            The slate, and the decision it came from. `unfilled` is stated
+            rather than padded: a placement asking for three where two
+            candidates survived gets two and a count, because the honest answer
+            to "we have nothing else" is not a third-best offer that failed a
+            gate.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  [placement, slotCount, decisionId, chainHash, entries,
+                   unfilled, rankedCount]
+                properties:
+                  placement:
+                    type: string
+                  slotCount:
+                    type: integer
+                  decisionId:
+                    type: string
+                    description: One decision behind every slot. Its trace explains all of them.
+                  chainHash:
+                    type: string
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SlateEntry'
+                  unfilled:
+                    type: integer
+                    description: Slots no surviving candidate could fill.
+                  rankedCount:
+                    type: integer
+                    description: |
+                      How many candidates reached ranking, so a caller can say
+                      "3 of 5 shown" rather than implying it saw everything.
+        '400':
+          description: Malformed request, or a `placement` in the body that contradicts the path
+        '404':
+          description: No such placement, or its flow is not loaded
+        '409':
+          description: The idempotency key was already used for a different request
+        '503':
+          description: A connector the flow requires could not be read
+
   /connectors/{tenantId}:
     get:
       summary: Configured integrations
@@ -2269,6 +3696,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ArtifactSummary'
+        '404':
+          description: No such flow
+
+  /artifacts/{tenantId}/{artifactId}/draft:
+    put:
+      summary: Edit a flow's graph
+      description: |
+        Writes the authored source and compiles it, returning the report. The
+        draft is saved even when it does not compile: a graph is built in steps
+        and a half-connected one is a normal intermediate state, not an error to
+        refuse. What refuses is publish, which is where a broken flow is meant
+        to be stopped.
+
+        Editing a flow does not change any decision. Decisions run the version
+        promoted to an environment, so an edit reaches them through compile,
+        publish and promote - which is the difference between a console and a
+        deploy.
+      operationId: updateDecisionFlowDraft
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: artifactId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nodes:
+                  type: array
+                  items: { $ref: '#/components/schemas/FlowNode' }
+                edges:
+                  type: array
+                  items: { $ref: '#/components/schemas/FlowEdge' }
+                candidateKeys:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200':
+          description: The saved draft and what the compiler said about it
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [artifact, compile]
+                properties:
+                  artifact: { $ref: '#/components/schemas/ArtifactSummary' }
+                  compile: { $ref: '#/components/schemas/CompileResult' }
+        '403':
+          description: Requires edit:flows
         '404':
           description: No such flow
 
@@ -2408,6 +3888,99 @@ paths:
         '403':
           description: Caller lacks promote:flows
 
+  /registry/{tenantId}/{flowName}/shadow:
+    post:
+      summary: Start or stop a shadow
+      description: |
+        Runs a published version beside the active one, deciding nothing.
+
+        A null `version` stops the shadow. One verb rather than two, because
+        "what is shadowing" is one piece of state.
+
+        Refused if the version is already active: comparing a thing with itself
+        produces a 100% agreement rate that means nothing, and publishing that
+        number would be worse than having none. Also refused where nothing is
+        active, since there is no baseline to compare against.
+
+        Gated on `promote:flows` rather than a permission of its own. Deciding
+        what runs in production, even beside the active version, is the same
+        authority.
+      operationId: setShadow
+      x-metis-status: built
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/FlowName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [environment]
+              properties:
+                version:
+                  type: [string, 'null']
+                  description: Null stops the shadow.
+                environment:
+                  type: string
+      responses:
+        '200':
+          description: The environment, with its shadow set or cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentState'
+        '403':
+          description: Caller lacks promote:flows
+        '404':
+          description: No such version
+        '409':
+          description: >
+            Already active, or nothing running to compare against, or no shadow
+            to stop.
+
+  /registry/{tenantId}/{flowName}/shadow-report:
+    get:
+      summary: How the shadow compares to what is running
+      description: |
+        Agreement rate and the most common divergences, for the pair currently
+        configured. Comparisons from an earlier shadow are excluded: they
+        describe a different question, and folding them in would average across
+        two migrations.
+
+        Three separate comparisons, not one boolean — a migration that changes
+        *why* without changing *what* is exactly the case a regulator asks
+        about, and agreement on the winner alone would hide it:
+
+        - `winner` — did it choose the same action?
+        - `ranking` — did it order the candidates the same way?
+        - `reasons` — did it deny the same candidates for the same coded reason?
+
+        Zero comparisons reports a 0% agreement rate, not 100%. Nothing has
+        agreed yet.
+
+        `shadowMsP50` and `shadowMsP95` are what the shadow cost. It runs after
+        the response is sent and never enters the active latency budget, so
+        these are published rather than hidden — a cost that is real but paid
+        somewhere the caller does not wait for it.
+      operationId: getShadowReport
+      x-metis-status: built
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/FlowName'
+      responses:
+        '200':
+          description: The report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShadowReport'
+        '404':
+          description: >
+            No such flow in the registry. A flow that failed to compile was
+            never stored, and a zeroed report about it would read as a shadow
+            that is merely idle rather than one that cannot exist.
+
   /registry/{tenantId}/{flowName}/rollback:
     post:
       summary: Return an environment to the version it ran before
@@ -2535,3 +4108,62 @@ paths:
                           type: string
                         from: {}
                         to: {}
+
+  /inbound-calls:
+    get:
+      summary: The HTTP traffic this API has served
+      description: |
+        Request and response envelopes for recent calls, newest first — what a
+        caller sent and what came back, in full.
+
+        This exists because the decision ledger cannot answer it. A
+        `DecisionRecord` stores `inputSnapshotHash` and never the input values,
+        so "what did that site actually post" is deliberately unanswerable from
+        the audit trail. Integrators still need to know, so it is answered at
+        the edge, from a bounded in-memory buffer that is lost on restart, and
+        never from durable storage.
+
+        Proposed rather than built: the console's development API serves this
+        over its own fixture store. The execution plane does not, and the
+        production shape of this question is an OpenTelemetry span (W-048), not
+        a retained request body. See docs/gaps.md.
+      operationId: listInboundCalls
+      x-metis-status: proposed
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Recent calls, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled, calls]
+                properties:
+                  enabled:
+                    type: boolean
+                    description: False when recording is switched off; `calls` is then empty rather than stale.
+                  calls:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InboundCall'
+
+  /inbound-calls/clear:
+    post:
+      summary: Empty the traffic buffer
+      description: |
+        Discards every recorded call. Used before a demonstration so the rows
+        that follow are the ones the run produced.
+      operationId: clearInboundCalls
+      x-metis-status: proposed
+      responses:
+        '200':
+          description: Buffer emptied
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cleared]
+                properties:
+                  cleared:
+                    type: boolean

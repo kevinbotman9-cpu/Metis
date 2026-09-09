@@ -13,7 +13,8 @@ test.describe('offer catalogue', () => {
     // blocks count an empty array until it does. Reading a figure before this
     // point measures the loading state, which is how the first version of the
     // test below "proved" the seed had no undeliverable offer.
-    await expect(page.getByRole('row').filter({ hasText: '5G Unlimited' })).toBeVisible();
+    await expect(page.locator('tr[data-row]').first()).toBeVisible();
+
   });
 
   test.describe('the summary is the filter', () => {
@@ -46,8 +47,17 @@ test.describe('offer catalogue', () => {
   });
 
   test.describe('the detail drawer', () => {
+    test.beforeEach(async ({ page }) => {
+      // Narrow to the offer these tests are about. The seeded tenant holds 251
+      // offers, so a named one is not on the first page — and this describe is
+      // about the drawer, not about where a row falls in a sorted list.
+      // Filtering is what a person does to find one offer among hundreds.
+      await page.getByLabel('Search offers').fill('5G Unlimited');
+      await expect(page.getByRole('row').filter({ hasText: '5G Unlimited 24mo' }).first()).toBeVisible();
+    });
+
     test('a row opens the drawer without leaving the list', async ({ page }) => {
-      await page.getByRole('row').filter({ hasText: '5G Unlimited' }).click();
+      await page.getByRole('row').filter({ hasText: '5G Unlimited 24mo' }).first().click();
 
       const drawer = page.getByRole('dialog');
       await expect(drawer).toBeVisible();
@@ -66,7 +76,7 @@ test.describe('offer catalogue', () => {
     test('which offer is open lives in the URL, so it can be linked and gone back from', async ({
       page,
     }) => {
-      await page.getByRole('row').filter({ hasText: '5G Unlimited' }).click();
+      await page.getByRole('row').filter({ hasText: '5G Unlimited 24mo' }).first().click();
       await expect(page.getByRole('dialog')).toBeVisible();
       await expect(page).toHaveURL(/[?&]offer=/);
 
@@ -79,7 +89,7 @@ test.describe('offer catalogue', () => {
     });
 
     test('Escape closes it and the URL goes back to the plain list', async ({ page }) => {
-      await page.getByRole('row').filter({ hasText: '5G Unlimited' }).click();
+      await page.getByRole('row').filter({ hasText: '5G Unlimited 24mo' }).first().click();
       await expect(page.getByRole('dialog')).toBeVisible();
 
       await page.keyboard.press('Escape');
@@ -88,7 +98,7 @@ test.describe('offer catalogue', () => {
     });
 
     test('paging walks the list without closing', async ({ page }) => {
-      await page.getByRole('row').filter({ hasText: '5G Unlimited' }).click();
+      await page.getByRole('row').filter({ hasText: '5G Unlimited 24mo' }).first().click();
       const drawer = page.getByRole('dialog');
       await expect(drawer).toBeVisible();
 
@@ -125,7 +135,7 @@ test.describe('offer catalogue', () => {
     test('the full record is still reachable, so nothing is only in the drawer', async ({
       page,
     }) => {
-      await page.getByRole('row').filter({ hasText: '5G Unlimited' }).click();
+      await page.getByRole('row').filter({ hasText: '5G Unlimited 24mo' }).first().click();
       await page.getByRole('dialog').getByRole('link', { name: 'Open the full record' }).click();
       await expect(page).toHaveURL(/\/offers\/[^/?]+$/);
     });
@@ -138,7 +148,9 @@ test.describe('offer catalogue', () => {
       'catalogue list'
     ).toEqual([]);
 
-    await page.getByRole('row').filter({ hasText: '5G Unlimited' }).click();
+    // Filtered first: with 251 offers a named row is not on the first page.
+    await page.getByLabel('Search offers').fill('5G Unlimited');
+    await page.getByRole('row').filter({ hasText: '5G Unlimited 24mo' }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
     const open = await new AxeBuilder({ page }).withTags(TAGS).analyze();

@@ -26,6 +26,10 @@ import type {
   Connector,
 } from '@metis/core/domain';
 import {
+  conditionProblems,
+  type ProfileSchema,
+} from '@metis/core/profile-schema';
+import {
   resolveUtility,
   utilityKey,
   KNOWN_TERMS,
@@ -80,6 +84,35 @@ export interface DecisionFlowSource {
   candidateKeys: string[];
   /** Requested package ranges, resolved and pinned during compilation. */
   packageRanges?: Record<string, string>;
+  /**
+   * What ranking uses for a candidate nothing scored.
+   *
+   * Declared by the flow because the flow is what determines whether anything
+   * scores at all. Carried into the compiled artifact unchanged, so the
+   * default a decision used is pinned by the artifact hash rather than read
+   * from wherever the catalogue happens to be at replay time.
+   */
+  missingScoreDefault?: MissingScoreDefault;
+  /**
+   * Cases the author attaches to this version, run at publish.
+   *
+   * Typed loosely here because the compiler does not execute them — the
+   * registry does, through an injected runner. What the compiler owns is that
+   * a case naming a candidate key this flow cannot select is an error, since
+   * such a case can never pass and would block every publish until someone
+   * noticed why.
+   */
+  tests?: { name: string; expect?: { winner?: string | null; denied?: string[] } }[];
+}
+
+/** Mirrors `@metis/runtime`'s type. Repeated rather than imported because the
+ * compiler does not otherwise depend on the runtime, and one field is not
+ * worth the edge in the dependency graph. */
+export interface MissingScoreDefault {
+  propensity: number;
+  context: number;
+  approvedBy: string;
+  approvedAt: string;
 }
 
 export interface CompileContext {
@@ -108,6 +141,19 @@ export interface CompileContext {
    * a check that fires on every flow is one nobody reads.
    */
   requestFields?: string[];
+  /**
+   * The tenant's data model.
+   *
+   * When supplied, policy conditions are checked against it in full — every
+   * segment of the path, the operator against the field's type, and the value
+   * against the field's type and enum members. `requestFields` only ever
+   * checked the *root* segment, because a root is all a connector can supply,
+   * so `address.fibre_availabl` passed and then silently decided.
+   *
+   * Optional so a tenant without a declared model compiles exactly as before,
+   * rather than every flow turning red on the day this shipped.
+   */
+  profileSchema?: ProfileSchema;
   tenant: { id: string; latencyBudgetMs: number; maxNodes: number };
 }
 
@@ -131,6 +177,8 @@ export interface CompiledDecisionFlow {
   candidateKeys: string[];
   /** Exact versions, locked at compile time so a replay is reproducible. */
   packageVersions: Record<string, string>;
+  /** Carried from the source, pinned by the artifact hash. */
+  missingScoreDefault?: MissingScoreDefault;
   costManifest: CostManifest;
   /** sha256 over everything above. Changes if anything changes. */
   artifactHash: string;
@@ -508,6 +556,31 @@ export function compileDecisionFlow(
     }
 
     if (SCORE_TYPES.includes(n.type)) {
+      if (n.type === 'score-adaptive') {
+        // Deprecated rather than deleted, and the distinction is forced.
+        //
+        // ADR-009 §7 removes adaptive scoring from v1: a model that updates
+        // itself changes decisions with no change set, and it breaks replay
+        // unless every update publishes an immutable version. The node type had
+        // no behaviour distinct from `score-model` anyway — G-012, registered
+        // 2026-09-07.
+        //
+        // It cannot simply be deleted. A case in
+        // `docs/conformance/decision-corpus.json` recorded on 2026-09-05 has
+        // `score-adaptive` inside its hashed eliminations, so removing it from
+        // the runtime would move a chain hash — a statement about something
+        // that happened. The runtime keeps executing it and the compiler
+        // refuses it, so history replays and nothing new is built on it.
+        d.push(
+          error(
+            'DEPRECATED_NODE_TYPE',
+            `Node '${n.id}' is a 'score-adaptive' node, which is no longer accepted.`,
+            "Use 'score-model'. Adaptive scoring is out of scope for v1 — see ADR-009 §7. " +
+              'Flows compiled before 2026-09-09 still execute and replay unchanged.',
+            n.id
+          )
+        );
+      }
       if (!n.model) {
         d.push(
           error(
@@ -694,6 +767,35 @@ export function compileDecisionFlow(
       }
     }
 
+    // The data model, when the tenant has declared one. Checks the whole path
+    // and the types, which is what the root-only check below cannot do: it
+    // passes `address.fibre_availabl` because `address` is supplied, and the
+    // typo then decides — demonstrated moving a winner from acq_fibre_900 to
+    // acq_sim_30 while the trace reported ELIGIBILITY_FAILED against a real
+    // policy id.
+    if (ctx.profileSchema) {
+      for (const n of source.nodes) {
+        for (const id of n.policyIds ?? []) {
+          const policy = ctx.targetingPolicies.find((p) => p.id === id);
+          if (!policy) continue;
+          for (const c of policy.conditions) {
+            for (const problem of conditionProblems(ctx.profileSchema, c)) {
+              d.push(
+                error(
+                  problem.code === 'UNKNOWN_FIELD' ? 'UNRESOLVED_FIELD' : 'POLICY_TYPE_ERROR',
+                  `Policy '${policy.name}' on node '${n.id}': ${problem.message}`,
+                  problem.code === 'UNKNOWN_FIELD'
+                    ? 'A missing field fails every comparison silently, so the rule suppresses everything and looks like it is working.'
+                    : 'A comparison the types cannot satisfy is always false, which reads as a rule that refused rather than one that could not run.',
+                  n.id
+                )
+              );
+            }
+          }
+        }
+      }
+    }
+
     // Only checked when the tenant has told us what the caller supplies;
     // otherwise every field would look unresolved and the diagnostic would be
     // noise, which is how a useful check gets ignored.
@@ -709,6 +811,10 @@ export function compileDecisionFlow(
         }
       }
       for (const [field, nodeId] of [...referenced.entries()].sort()) {
+        // Skipped when a schema is declared: it has already checked the whole
+        // path, and reporting the root separately would print two diagnostics
+        // about one typo — the second of them less precise than the first.
+        if (ctx.profileSchema) continue;
         if (!suppliedFields.has(field)) {
           d.push(
             error(
@@ -803,6 +909,10 @@ export function compileDecisionFlow(
     candidateKeys: source.candidateKeys,
     packageVersions,
     costManifest,
+    // Spread so the field is absent rather than explicitly undefined when the
+    // flow declares none. The artifact hash is taken over this object, and
+    // `undefined` and absent are different strings once canonicalised.
+    ...(source.missingScoreDefault ? { missingScoreDefault: source.missingScoreDefault } : {}),
   };
 
   return {

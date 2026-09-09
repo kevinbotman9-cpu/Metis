@@ -106,6 +106,7 @@ const catalogue: CatalogueSnapshot = {
   frequencyPolicies: [],
   arbitration,
   boosts: [],
+  connectors: [],
 };
 
 const source: DecisionFlowSource = {
@@ -119,7 +120,10 @@ const source: DecisionFlowSource = {
     { id: 'gate', type: 'filter', label: 'Eligibility', policyIds: ['pol_age'], estimatedMs: 1 },
     {
       id: 'score',
-      type: 'score-adaptive',
+      // Was `score-adaptive` until 2026-09-09. The compiler refuses that type
+      // now (ADR-009 §7); the runtime still executes it so the corpus case
+      // recorded on 2026-09-05 replays unchanged.
+      type: 'score-model',
       label: 'Propensity',
       model: { id: 'adm', version: '4.2.0' },
       estimatedMs: 3,

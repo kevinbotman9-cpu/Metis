@@ -15,17 +15,73 @@
 
 import { NextResponse } from 'next/server';
 import { store, resetStore, recordAudit } from '@/mocks/store';
-import { findTrace, decisions } from '@/mocks/fixtures/decisions';
-import { IdempotencyConflict } from '@metis/runtime';
+import {
+  findTrace,
+  decisions,
+  findGeneratedDecision,
+  toApiTrace,
+} from '@/mocks/fixtures/decisions';
+import type { GeneratedDecision } from '@/mocks/fixtures/engine';
+import { seededOutcomeMap, seededOutcomesFor } from '@/mocks/fixtures/outcomes';
+import { provenanceFor, provenanceOver } from '@/mocks/provenance';
+import {
+  IdempotencyConflict,
+  compareShadow,
+  buildShadowReport,
+  resolveInputs,
+  selectSlate,
+  resolveAggregations,
+  mergeAggregations,
+  IntegrationError,
+  HttpIntegrationGateway,
+  MemoryIntegrationCache,
+} from '@metis/runtime';
+import type { IntegrationGateway } from '@metis/runtime';
+import { RecordedIntegrationGateway } from '@/mocks/gateway';
+import { recorded, listCalls, clearCalls, isEnabled as callLogEnabled } from '@/mocks/call-log';
+import type { DecisionRecord } from '@metis/runtime';
 import type { OutcomeType } from '@metis/ledger';
-import { findGenerated, catalogueSnapshot } from '@/mocks/fixtures/engine';
-import { compilations, findCompilation, compileContext } from '@/mocks/fixtures/compiled';
+import { buildPerformance } from '@metis/ledger';
+import type { Creative, Offer } from '@metis/core/domain';
+import { validateCreativeContent, offerMayBeActive } from '@metis/core/creative';
+import {
+  conditionProblems,
+  listFieldPaths,
+  schemaProblems,
+  operatorsFor,
+  typeOf,
+} from '@metis/core/profile-schema';
+import type { TargetingPolicy } from '@metis/core/domain';
+import {
+  assignAll,
+  assignArm,
+  armPath,
+  experimentProblems,
+  editProblems,
+  type Experiment,
+} from '@metis/core/experiment';
+import {
+  validateRows,
+  activationProblems,
+  type DataSourceDefinition,
+  type FieldMapping,
+} from '@metis/core/intake';
+import { catalogueSnapshot } from '@/mocks/fixtures/engine';
+import {
+  currentCatalogue,
+  catalogueByHash,
+  registerCatalogue,
+} from '@/mocks/catalogue-state';
+import { compilations, findCompilation, compileContext, toSource } from '@/mocks/fixtures/compiled';
+import { compileDecisionFlow } from '@metis/compiler/decision-flow/compile';
+import type { ArtifactSummary } from '@/mocks/fixtures/artifacts';
 import type { DecisionFlowSource } from '@metis/compiler/decision-flow';
 import {
   replay as replayDecision,
   execute as executeDecision,
 } from '@metis/runtime/deterministic/engine';
 import { execArtifacts } from '@/mocks/fixtures/engine';
+import type { ExecArtifact } from '@metis/runtime/deterministic/types';
 import type { DecisionRequest } from '@metis/runtime/deterministic/types';
 
 /** The request half of an executeDecision body, as the spec declares it. */
@@ -33,6 +89,178 @@ type DecisionRequestBody = Partial<DecisionRequest> &
   Pick<DecisionRequest, 'tenantId' | 'customerId' | 'channel' | 'placement'>;
 
 type Ctx = { params: Promise<{ path: string[] }> };
+
+/**
+ * The gateway integration resolution runs through.
+ *
+ * Recorded by default, HTTP when `METIS_INTEGRATIONS=live` is set. The default
+ * is not squeamishness about the network: the fixture connectors target
+ * `bureau.example` and `consent.telco.example`, which do not resolve, and two
+ * of them are configured `onFailure: 'fail'` — so a dev console pointed at them
+ * would answer 503 to every decision. Live mode is what a deployment with real
+ * endpoints sets, and `HttpIntegrationGateway` is the same code either way.
+ *
+ * Module scope so the cache outlives a request, which is the only way a
+ * `cacheTtlSeconds` of 300 means anything.
+ */
+/**
+ * The fixture catalogue, registered so history stays replayable.
+ *
+ * The 5,000 generated decisions were made against it at import time and their
+ * records name its hash. Replay now looks a catalogue up rather than assuming
+ * one, so without this every seeded decision would answer 409 — the console's
+ * entire decision history, unreplayable, on the surface whose whole claim is
+ * that it never is.
+ */
+registerCatalogue(catalogueSnapshot);
+
+const integrationGateway: IntegrationGateway =
+  process.env.METIS_INTEGRATIONS === 'live'
+    ? new HttpIntegrationGateway({ cache: new MemoryIntegrationCache() })
+    : new RecordedIntegrationGateway();
+
+/**
+ * Run the shadow version of a flow and record how it compared.
+ *
+ * Never on the request path. Errors are swallowed into the comparison store
+ * rather than thrown: a shadow that fails must not affect the decision that was
+ * already returned, and must not become an unhandled rejection either.
+ */
+async function runShadow(active: DecisionRecord, request: DecisionRequest): Promise<void> {
+  const done = (async () => {
+    try {
+      const env = await store.registry.environment(
+        request.tenantId,
+        active.decision.artifactId,
+        'production'
+      );
+      if (!env?.shadowVersion) return;
+
+      // The registry's own compiled artifact for that version, not a lookup by
+      // flow id: a shadow is a *version* of the same flow, and matching the
+      // version string against artifact ids — which is what this did first —
+      // silently found nothing and reported a shadow that never ran.
+      const published = await store.registry.version(
+        request.tenantId,
+        active.decision.artifactId,
+        env.shadowVersion
+      );
+      // A shadow version with no stored artifact is a configuration problem,
+      // not a decision problem. Recording nothing is right: an agreement rate
+      // computed from runs that never happened would be worse than a gap.
+      if (!published) return;
+      const shadowArtifact: ExecArtifact = published.artifact;
+
+      const started = performance.now();
+      // The catalogue the active decision used, looked up by the hash it
+      // recorded — not the current one. A shadow compared against a catalogue
+      // edited since would report a divergence that is about the edit rather
+      // than about the two versions, which is the one thing it must not do.
+      const catalogue =
+        catalogueByHash(active.decision.catalogueSnapshotHash) ?? currentCatalogue();
+      const shadow = executeDecision(shadowArtifact, catalogue, request);
+      const shadowMs = performance.now() - started;
+
+      store.shadowComparisons.push(
+        compareShadow(
+          active,
+          shadow,
+          { activeVersion: env.activeVersion ?? 'unknown', shadowVersion: env.shadowVersion },
+          shadowMs
+        )
+      );
+    } catch {
+      // Deliberately silent. The decision already went out.
+    }
+  })();
+
+  store.shadowInFlight.add(done);
+  await done.finally(() => store.shadowInFlight.delete(done));
+}
+
+/**
+ * How many landed rows are held per source.
+ *
+ * A bound rather than a policy. These are customer records in their original
+ * shape and ADR-004 has not decided how they are retained, so the pipeline is
+ * built to make a bad import finite rather than to make retention someone
+ * else's problem later.
+ */
+const MAX_LANDED_ROWS = 5000;
+
+
+/**
+ * The artifact a decision should run: the version promoted to production.
+ *
+ * Decisions used to execute `execArtifacts`, derived from the fixture modules
+ * at import — so editing a flow changed nothing, exactly as editing the
+ * catalogue used to. This is the same seam one layer up, and it closes the
+ * same way, except that flows already have the machinery: they are compiled,
+ * versioned, published and promoted, and the registry holds every version.
+ *
+ * So the resolution order is the governance model rather than a convenience.
+ * An edit reaches decisions when it is published and promoted, not when it is
+ * saved — which is the difference between a console and a deploy.
+ *
+ * The fallback exists for a flow the registry has never accepted. Answering
+ * "no such flow" for something the placement configuration names would be a
+ * worse failure than running the last artifact known to work, and the
+ * compile-and-publish path is where a broken flow is supposed to be stopped.
+ *
+ * Chain hashes do not move: the record carries `artifactId`, `artifactVersion`,
+ * `packageVersions` and `candidateKeys`, none of which differ between the two
+ * copies. The published artifact additionally carries `compiledAt` and a cost
+ * manifest, and the engine reads neither.
+ */
+async function artifactFor(tenantId: string, flowId: string): Promise<ExecArtifact | undefined> {
+  await store.registryReady;
+  try {
+    const env = await store.registry.environment(tenantId, flowId, 'production');
+    if (env?.activeVersion) {
+      const published = await store.registry.version(tenantId, flowId, env.activeVersion);
+      if (published) return published.artifact;
+    }
+  } catch {
+    // A registry that cannot answer is not a reason to refuse the decision.
+  }
+  return execArtifacts.find((a) => a.id === flowId);
+}
+
+
+/**
+ * What a flow compiles against, from the store rather than the fixtures.
+ *
+ * Publish used the fixture `compileContext`, so a policy or offer created
+ * through the console was invisible to the compiler at publish time — a flow
+ * naming one would be rejected for referencing something that, as far as the
+ * compiler could see, did not exist. Same seam as the catalogue and the
+ * artifacts, in the one place it would have been hardest to notice.
+ */
+function currentCompileContext() {
+  return {
+    ...compileContext,
+    offers: store.offers,
+    targetingPolicies: store.targetingPolicies,
+    frequencyPolicies: store.frequencyPolicies,
+    connectors: store.connectors,
+    arbitration: store.arbitration,
+    profileSchema: store.profileSchema,
+  };
+}
+
+/**
+ * When this process started serving, near enough.
+ *
+ * Module load, not `process.uptime()`, because a Next dev server re-evaluates
+ * route modules on change and what matters is how long *this* state has been
+ * accumulating rather than how long the shell has been alive.
+ *
+ * Read by `tests/global-setup.ts`, which refuses a reused server older than
+ * two hours. See G-035: one that had been up seventeen hours ran two
+ * accessibility tests in ten minutes where a fresh one ran forty-nine in under
+ * three.
+ */
+const STARTED_AT = new Date().toISOString();
 
 const json = (body: unknown, status = 200, headers?: Record<string, string>) =>
   NextResponse.json(body, { status, headers });
@@ -54,6 +282,94 @@ function publicUser(u: (typeof store.users)[number]) {
   return rest;
 }
 
+/**
+ * Refuse a creative whose content does not satisfy the channel it declares.
+ *
+ * Returns a response, or null when there is nothing wrong. Shared by create and
+ * update so the two cannot enforce different rules — an offer that could be
+ * edited into a state it could not be created in is the kind of asymmetry
+ * nobody finds until it matters.
+ */
+
+/**
+ * Refuse a policy whose conditions the data model cannot satisfy.
+ *
+ * Returns a response, or null when there is nothing wrong. Shared by create and
+ * update, so a policy cannot be edited into a state it could not be created in.
+ *
+ * This is the server half of the field picker. The editor offers only what the
+ * model has, but the API is reachable without it, and the failure being
+ * prevented is severe enough to check on both sides: a condition naming a field
+ * that does not exist fails every comparison, so the rule suppresses every
+ * candidate while the trace reports a confident ELIGIBILITY_FAILED against a
+ * real policy id.
+ */
+function policyProblems(conditions: TargetingPolicy['conditions']) {
+  const problems: { field: string; message: string; code: string }[] = [];
+
+  if (!Array.isArray(conditions) || conditions.length === 0) {
+    return json(
+      {
+        error: 'invalid_policy',
+        message: 'A policy with no conditions matches everything, which is never what was meant.',
+        problems: [{ field: 'conditions', message: 'Add at least one condition.', code: 'EMPTY' }],
+      },
+      400
+    );
+  }
+
+  conditions.forEach((condition, i) => {
+    for (const p of conditionProblems(store.profileSchema, condition)) {
+      // Indexed so the dialog can put each message against the row that
+      // produced it rather than at the top of the form.
+      problems.push({ field: `conditions.${i}`, message: p.message, code: p.code });
+    }
+  });
+
+  if (problems.length === 0) return null;
+  return json(
+    {
+      error: 'invalid_policy',
+      message: `${problems.length} condition(s) do not match the data model.`,
+      problems,
+    },
+    400
+  );
+}
+
+const blankString = (v: unknown) => typeof v !== 'string' || v.trim() === '';
+
+function creativeProblems(channel: Creative['channel'], content: Creative['content']) {
+  const problems = validateCreativeContent(channel, content);
+
+  // The slot key is checked here rather than in `@metis/core`, because which
+  // slots exist is tenant configuration and that package cannot see it. A
+  // creative naming a slot nobody configured would simply never be chosen —
+  // silently, which is the worst way for content to fail.
+  if (channel === 'web') {
+    const named = (content as { placement?: string }).placement;
+    if (named && !store.placements.some((p) => p.key === named)) {
+      problems.push({
+        field: 'content.placement',
+        message: `No placement '${named}'. Configured: ${store.placements
+          .map((p) => p.key)
+          .sort()
+          .join(', ')}.`,
+      });
+    }
+  }
+
+  if (problems.length === 0) return null;
+  return json(
+    {
+      error: 'invalid_creative',
+      message: `${problems.length} problem(s) with this ${channel} creative.`,
+      problems,
+    },
+    400
+  );
+}
+
 /** Resolve the effective autonomy for an offer, most specific scope first. */
 function resolveAutonomyFor(offerId: string, categoryId: string, objectiveId: string) {
   const a = store.autonomy;
@@ -66,14 +382,194 @@ function resolveAutonomyFor(offerId: string, categoryId: string, objectiveId: st
   );
 }
 
+/**
+ * The decision pipeline both decision endpoints run.
+ *
+ * `POST /decisions` answers with one winner and
+ * `POST /placements/{key}/decisions` answers with a slate, and they must
+ * otherwise behave identically: same idempotency, same integration resolution,
+ * same ledger write, same shadow. Two copies of this would drift, and the
+ * drift would be invisible — both would keep returning plausible decisions.
+ *
+ * Returns rather than responds, so the caller shapes the payload. The error
+ * cases carry a built `Response` because each already has a considered status
+ * and body that neither caller should have to reconstruct.
+ */
+type DecideOutcome =
+  | { kind: 'error'; response: Response }
+  | { kind: 'replay'; record: DecisionRecord }
+  | { kind: 'decided'; trace: DecisionRecord };
+
+async function decideAndRecord(
+  artifact: ExecArtifact,
+  decisionRequest: DecisionRequest
+): Promise<DecideOutcome> {
+  // Idempotency and durability, through the ledger.
+  //
+  // Resolved before execution: executing and then discovering the key was
+  // taken would be wasted work on a retry and, on a conflict, would have
+  // already made a decision the caller must not be given.
+  const resolved = await store.ledger.resolve(decisionRequest);
+
+  if (resolved.kind === 'conflict') {
+    const e = new IdempotencyConflict(
+      decisionRequest.idempotencyKey as string,
+      resolved.storedHash,
+      resolved.attemptedHash
+    );
+    return {
+      kind: 'error',
+      response: json({ error: 'idempotency_conflict', message: e.message }, 409),
+    };
+  }
+
+  if (resolved.kind === 'replay') {
+    // The original decision, not a re-execution that happens to agree.
+    // A catalogue edit between the two calls is all it takes for it not
+    // to agree, and the caller asked one question.
+    return { kind: 'replay', record: resolved.entry.record };
+  }
+
+  // Integrations resolve here, before the deterministic core and after
+  // the idempotency check — a retry that is going to be answered from the
+  // ledger must not pay for a bureau call first.
+  //
+  // One catalogue for the whole decision: the connectors resolution dials, the
+  // policies the engine applies, and the hash the record carries all come from
+  // the same object. The comment this replaces protected that invariant by
+  // reading the fixture in both places, which kept them consistent and kept
+  // the console's writes out of both.
+  const catalogue = currentCatalogue();
+
+  let resolvedInputs;
+  try {
+    resolvedInputs = await resolveInputs(
+      artifact,
+      catalogue.connectors ?? [],
+      decisionRequest,
+      integrationGateway
+    );
+  } catch (e) {
+    if (e instanceof IntegrationError) {
+      // A connector configured `onFailure: 'fail'` failed, so there is no
+      // decision to give. 503 rather than 500: the flow is fine and the
+      // request is fine, a dependency is not, and a caller can retry.
+      return {
+        kind: 'error',
+        response: json(
+          {
+            error: 'integration_failed',
+            message: e.message,
+            connectorId: e.connectorId,
+            outcome: e.outcome,
+          },
+          503
+        ),
+      };
+    }
+    throw e;
+  }
+
+  // Rollups over child records, computed after connectors and before the
+  // engine. They enter the hashed input as ordinary numbers, so the value a
+  // decision saw is part of what was decided and replay stays exact.
+  //
+  // An absent collection produces nothing rather than zero — `active_count`
+  // of 0 would make `active_count < 2` true and send an offer to somebody
+  // whose accounts were never loaded. `unresolved` carries the difference.
+  const rolled = resolveAggregations(store.profileSchema, resolvedInputs.input);
+
+  // Experiment arms, assigned before the core and hashed with the input.
+  //
+  // An arm is a pure function of the customer reference, so nothing is written
+  // down: a decision record stores `customerRef`, and the arm is recomputed
+  // from it when the decision is explained months later. That is why a running
+  // experiment cannot be reweighted — the recomputed arm would stop matching
+  // the one that applied.
+  const arms = assignAll(store.experiments, decisionRequest.customerId);
+
+  // Fields the caller supplied win, which `resolveInputs` guarantees; the
+  // 60 service cases carry theirs, which is why they still hash the same.
+  const resolvedRequest = {
+    ...decisionRequest,
+    input: {
+      ...mergeAggregations(resolvedInputs.input, rolled.values),
+      // Nested under `experiments` so a policy names `experiments.<key>` and
+      // `readPath` can walk to it.
+      ...(Object.keys(arms.values).length > 0
+        ? {
+            experiments: Object.fromEntries(
+              arms.assignments.map((a) => [a.experimentKey, a.arm])
+            ),
+          }
+        : {}),
+    },
+  };
+
+  const trace = executeDecision(artifact, catalogue, resolvedRequest);
+
+  // Measured, never hashed, and absent from a replay: what the wire cost
+  // is not part of what was decided.
+  if (resolvedInputs.calls.length > 0) trace.measured.sourceCalls = resolvedInputs.calls;
+
+  // Recorded synchronously, before answering. §6 asks for the envelope to
+  // be durable before the caller is told what was decided — a decision
+  // the platform made and cannot produce afterwards is worse than one it
+  // failed to make.
+  await store.ledger.record(store.ledger.entryFor(trace, decisionRequest.tenantId));
+
+  const key = decisionRequest.idempotencyKey;
+  if (key) {
+    const claimed = await store.ledger.claim({
+      tenantId: decisionRequest.tenantId,
+      key,
+      requestHash: resolved.hash,
+      decisionId: trace.id,
+      storedAt: new Date().toISOString(),
+    });
+    // The store decides which claim wins under a race; use what comes
+    // back rather than assuming ours landed.
+    if (claimed.decisionId !== trace.id) {
+      const winner = await store.ledger.get(decisionRequest.tenantId, claimed.decisionId);
+      if (winner) return { kind: 'replay', record: winner.record };
+    }
+  }
+
+  // The shadow runs after the response is built, and is deliberately not
+  // awaited.
+  //
+  // §13 requires the shadow to stay out of the active latency budget, and
+  // the only honest way to do that is not to make the caller wait for it.
+  // Measuring it and subtracting would leave the wall clock unchanged and
+  // the number a fiction. Node keeps running the promise after the
+  // response is returned; what it costs is recorded on the comparison so
+  // it can be read rather than assumed.
+  //
+  // Tracked in `store.shadowInFlight` so tests can wait for quiescence
+  // instead of sleeping — an async mechanism tested with a sleep is a
+  // flake with a timer attached.
+  // The resolved request, not the caller's: a shadow run against different
+  // inputs would report a divergence that is about resolution rather than
+  // about the two versions, which is the one thing it must not do.
+  void runShadow(trace, resolvedRequest);
+
+  return { kind: 'decided', trace };
+}
+
 // ---------------------------------------------------------------------------
 // GET
 // ---------------------------------------------------------------------------
 
-export async function GET(req: Request, { params }: Ctx) {
+async function handleGet(req: Request, { params }: Ctx) {
   const { path } = await params;
   const q = new URL(req.url).searchParams;
   const [head, ...rest] = path;
+  // The ledger's store is chosen asynchronously, because reaching a database
+  // is. Awaited once per request rather than at import: a configured database
+  // that cannot be reached must fail the request that needed it rather than
+  // stop the process from starting, and it must never fall through to storage
+  // that forgets. Resolves immediately when no database is configured.
+  await store.ledgerReady;
 
   switch (head) {
     case 'auth': {
@@ -130,10 +626,38 @@ export async function GET(req: Request, { params }: Ctx) {
       return json({ offers: result, total: result.length });
     }
 
-    case 'creatives':
-      return json({
-        creatives: store.creatives.filter((t) => t.offerId === rest[1]),
-      });
+    case 'creatives': {
+      // With an offer id: that offer's creatives. Without: the whole library,
+      // which is the only way to ask what content exists rather than what one
+      // offer has.
+      const offerId = rest[1];
+      if (offerId) {
+        return json({ creatives: store.creatives.filter((t) => t.offerId === offerId) });
+      }
+
+      let result = store.creatives;
+      const channel = q.get('channel');
+      const active = q.get('active');
+      const search = (q.get('q') || '').toLowerCase().trim();
+
+      if (channel) result = result.filter((c) => c.channel === channel);
+      if (active === 'true' || active === 'false') {
+        result = result.filter((c) => c.active === (active === 'true'));
+      }
+      if (search) {
+        // The content too, not only the name: somebody looking for a line of
+        // copy they need to change is searching for the line, not for whatever
+        // the creative was called.
+        const offerKey = new Map(store.offers.map((o) => [o.id, o.key]));
+        result = result.filter(
+          (c) =>
+            c.name.toLowerCase().includes(search) ||
+            (offerKey.get(c.offerId) ?? '').toLowerCase().includes(search) ||
+            JSON.stringify(c.content).toLowerCase().includes(search)
+        );
+      }
+      return json({ creatives: result, total: result.length });
+    }
 
     case 'targeting-policies': {
       const kind = q.get('kind');
@@ -185,12 +709,17 @@ export async function GET(req: Request, { params }: Ctx) {
         if (dateTo) result = result.filter((d) => d.timestamp <= dateTo);
 
         const sorted = [...result].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-        return json({ decisions: sorted.slice(0, limit), total: sorted.length });
+        const page = sorted.slice(0, limit);
+        return json({
+          decisions: page,
+          total: sorted.length,
+          provenance: provenanceOver(page.map((d) => d.id)),
+        });
       }
 
       if (rest[1] === 'trace') {
         const trace = findTrace(rest[0]);
-        if (trace) return json(trace);
+        if (trace) return json({ ...trace, provenance: provenanceFor(rest[0]) });
         // Seeded decisions are the console's flattened display shape; anything
         // executed since is in the ledger as real engine output. Before the
         // ledger existed, POST /decisions returned an id this endpoint then
@@ -199,7 +728,17 @@ export async function GET(req: Request, { params }: Ctx) {
         // carries no tenant segment. A multi-tenant deployment resolves this
         // from the caller's session rather than a constant.
         const entry = await store.ledger.get('telco-uk', rest[0]);
-        if (entry) return json(entry.record);
+        // Projected, not returned raw. `entry.record` is the *runtime*
+        // `DecisionRecord` — `{ id, decision: {...} }` — and the spec declares
+        // the flat API one. Returning the runtime shape here answered 200 with
+        // a body the page threw on, for every decision the storefront made,
+        // from the day live decisions became possible until 2026-09-09.
+        if (entry) {
+          return json({
+            ...toApiTrace(entry.record as unknown as GeneratedDecision['trace']),
+            provenance: provenanceFor(rest[0]),
+          });
+        }
         return notFound(`No decision with id ${rest[0]}`);
       }
       return notFound();
@@ -216,7 +755,19 @@ export async function GET(req: Request, { params }: Ctx) {
       const known =
         Boolean(findTrace(decisionId)) || Boolean(await store.ledger.get(tenantId, decisionId));
       if (!known) return notFound(`No decision with id ${decisionId}`);
-      return json({ outcomes: await store.ledger.outcomesFor(tenantId, decisionId) });
+      // Seeded first, then anything recorded against it — same merge and same
+      // reason as the report, so the trace and the rate cannot disagree about
+      // what happened to one decision.
+      const seededTrace = decisions.find((d) => d.id === decisionId);
+      const recorded = await store.ledger.outcomesFor(tenantId, decisionId);
+      const seededEvents = seededTrace ? seededOutcomesFor(seededTrace) : [];
+      return json({
+        outcomes: [...seededEvents, ...recorded],
+        provenance:
+          seededEvents.length > 0 && recorded.length > 0
+            ? provenanceOver([decisionId, 'live'])
+            : provenanceFor(decisionId),
+      });
     }
 
     case 'change-sets': {
@@ -231,6 +782,17 @@ export async function GET(req: Request, { params }: Ctx) {
       return json({ changeSets: result, total: result.length });
     }
 
+    case '_test': {
+      // GET /api/_test/uptime — how long this process has been accumulating
+      // state. Development only, like the rest of the `_test` namespace.
+      if (rest[0] !== 'uptime') return notFound();
+      if (process.env.NODE_ENV === 'production') return notFound();
+      return json({
+        startedAt: STARTED_AT,
+        uptimeMs: Date.now() - new Date(STARTED_AT).getTime(),
+      });
+    }
+
     case 'audit': {
       const limit = Number(q.get('limit') || 100);
       return json({ events: store.auditEvents.slice(0, limit), total: store.auditEvents.length });
@@ -238,6 +800,226 @@ export async function GET(req: Request, { params }: Ctx) {
 
     case 'connectors': {
       return json({ connectors: store.connectors });
+    }
+
+    case 'placements': {
+      return json({ placements: store.placements });
+    }
+
+    case 'data-sources': {
+      if (!rest[0]) return notFound();
+      return json({ sources: store.dataSources });
+    }
+
+    case 'experiments': {
+      if (!rest[0]) return notFound();
+      return json({ experiments: store.experiments });
+    }
+
+    // GET /api/profile-schema/{tenantId} — the data model, and the paths a
+    // policy may reference.
+    //
+    // The paths are served rather than derived in the client. The compiler and
+    // the editor must agree about which operators a type admits, and the only
+    // way to guarantee that is one implementation — an operator the editor
+    // does not offer has to be one the compiler rejects.
+    // GET /api/performance/{tenantId} — outcomes joined to their decisions.
+    //
+    // Outcomes had been recorded since the ledger existed and nothing read
+    // them, so the platform could say what it decided and never whether it
+    // worked.
+    //
+    // Read over the same corpus `/decisions` lists, not over the ledger alone.
+    // The console has two decision stores — the generated corpus it displays,
+    // and the ledger that runtime decisions land in — and `POST /outcomes`
+    // deliberately accepts either, because a seeded decision is real to this
+    // console even though it predates the ledger. A report that covered only
+    // the ledger would say "0 decisions" on a console showing five thousand,
+    // which is a worse answer than a slow one.
+    case 'performance': {
+      const tenantId = rest[0];
+      if (!tenantId) return notFound();
+
+      const flowId = q.get('flowId');
+      const channel = q.get('channel');
+      // Defaults to the whole corpus, not to 5,000. The seeded tenant holds
+      // 10,400 decisions, so the old default silently reported on the most
+      // recent half and called it the tenant's performance — a truncated
+      // number that looks like a complete one. An explicit ?limit still caps it.
+      const limit = Math.min(Number(q.get('limit') || 20000), 20000);
+
+      // The corpus, in the shape the read model takes. Only the fields it
+      // reads are filled: this is a projection for counting, not a second copy
+      // of the ledger pretending to be one.
+      // Built from the committed decision index rather than from 10,400
+      // re-executions. `buildPerformance` reads `winner` and `channel`, and the
+      // arm join below reads `customerRef` — all three are columns in the
+      // index, so nothing here needs a full trace and nothing pays to make one.
+      const fromCorpus = decisions.map((d) => ({
+        tenantId,
+        decisionId: d.id,
+        subjectHash: '',
+        occurredAt: d.timestamp,
+        flowId: d.artifactId,
+        flowVersion: d.artifactVersion,
+        chainHash: '',
+        record: {
+          decision: {
+            winner: d.winner,
+            channel: d.channel,
+            customerRef: d.customerId,
+          },
+        } as unknown as DecisionRecord,
+      }));
+
+      // The corpus rows by id, so the seeded outcome projection can be built
+      // for exactly the decisions this report covers rather than for all
+      // 10,400 every time a filter narrows it.
+      const decisionById = new Map(decisions.map((d) => [d.id, d]));
+      const seededIds = new Set(decisionById.keys());
+
+      // Runtime decisions too, deduped by id — a decision made through the API
+      // is in the ledger and not in the corpus.
+      const seen = new Set(fromCorpus.map((e) => e.decisionId));
+      const fromLedger = (await store.ledger.query({ tenantId, limit })).filter(
+        (e) => !seen.has(e.decisionId)
+      );
+
+      const all = [...fromCorpus, ...fromLedger]
+        .filter((e) => (flowId ? e.flowId === flowId : true))
+        .filter((e) => (channel ? e.record.decision.channel === channel : true))
+        .slice(0, limit);
+
+      // One fetch per decision. Correct and slow, and the right shape to
+      // replace with a join when there is a store that can do one — an
+      // approximation would have been a number nobody could check.
+      // Two sources, and the merge is the point. The seeded corpus carries
+      // outcomes as a projection (ADR-008 phase two) because its decisions are
+      // not ledger rows; a decision made through the API carries real ones. A
+      // decision that has both — a seeded decision somebody then clicked in the
+      // console — gets both, because the ledger event is a fact and the seeded
+      // one is the history it happened against.
+      const outcomes = seededOutcomeMap(
+        all
+          .filter((e) => seededIds.has(e.decisionId))
+          .map((e) => decisionById.get(e.decisionId)!)
+      );
+      for (const entry of all) {
+        const events = await store.ledger.outcomesFor(tenantId, entry.decisionId);
+        if (events.length === 0) continue;
+        outcomes.set(entry.decisionId, [...(outcomes.get(entry.decisionId) ?? []), ...events]);
+      }
+
+      const report = buildPerformance(all, outcomes);
+
+      // Per-arm counts, recomputed from each decision's customer reference.
+      // Nothing stored the arm; it is a function of the reference and the
+      // experiment, which is what makes a months-old decision still explainable
+      // and what makes this join possible at all.
+      const armRows = store.experiments
+        .filter((e) => e.status !== 'draft')
+        .flatMap((experiment) =>
+          experiment.arms.map((arm) => {
+            let offered = 0;
+            let measured = 0;
+            let acceptances = 0;
+            let valueMinor: number | null = null;
+
+            for (const entry of all) {
+              if (!entry.record.decision.winner) continue;
+              const ref = entry.record.decision.customerRef;
+              if (!ref) continue;
+              // `assignArm` returns null for a stopped experiment, so the arm
+              // is taken from the arms list directly against the same bucket.
+              const assigned = assignArm({ ...experiment, status: 'running' }, ref);
+              if (assigned?.key !== arm.key) continue;
+
+              offered += 1;
+              const events = outcomes.get(entry.decisionId) ?? [];
+              if (events.length > 0) measured += 1;
+              if (events.some((e) => e.type === 'acceptance')) acceptances += 1;
+              for (const e of events) {
+                if (e.valueMinor !== null && e.valueMinor !== undefined) {
+                  valueMinor = (valueMinor ?? 0) + e.valueMinor;
+                }
+              }
+            }
+
+            return {
+              experimentKey: experiment.key,
+              arm: arm.key,
+              holdout: Boolean(arm.holdout),
+              offered,
+              measured,
+              acceptances,
+              // Over observations, never over offers — the same rule the rest
+              // of the report follows.
+              acceptanceRate: measured === 0 ? null : acceptances / measured,
+              valueMinor,
+            };
+          })
+        );
+
+      // Where these numbers came from, in the payload rather than in the
+      // interface. A report that joins 2,101 seeded outcomes to the four a
+      // reviewer just produced is not evidence, and a badge in the nav rail
+      // does not survive an export or a screenshot.
+      return json({
+        ...report,
+        arms: armRows,
+        provenance: provenanceOver(all.map((e) => e.decisionId)),
+      });
+    }
+
+    case 'profile-schema': {
+      if (!rest[0]) return notFound();
+      const schema = store.profileSchema;
+      return json({
+        schema,
+        paths: listFieldPaths(schema).map((r) => ({
+          path: r.path,
+          kind: r.kind,
+          type: typeOf(r),
+          operators: operatorsFor(typeOf(r)),
+          description:
+            r.kind === 'field' ? r.field.description : r.aggregation.description,
+          entity: r.kind === 'field' ? r.entity.name : undefined,
+          members: r.kind === 'field' ? r.field.members : undefined,
+          unit: r.kind === 'field' ? r.field.unit : undefined,
+          sensitivity: r.kind === 'field' ? r.field.sensitivity : undefined,
+        })),
+        // Experiment arms are selectable fields too. A holdout is an
+        // eligibility rule that refuses when the arm is the untreated one, and
+        // it should be written in the same editor as every other rule rather
+        // than in a parallel experiment-only concept.
+        experimentPaths: store.experiments
+          .filter((e) => e.status !== 'draft')
+          .map((e) => ({
+            path: armPath(e.key),
+            kind: 'field' as const,
+            type: 'enum' as const,
+            operators: operatorsFor('enum'),
+            description: `Arm of '${e.name}'. Assigned from the customer reference; recomputable, never stored.`,
+            entity: 'Experiment',
+            members: e.arms.map((a) => a.key),
+          })),
+        problems: schemaProblems(schema),
+      });
+    }
+
+    // GET /api/inbound-calls — the traffic this API has served.
+    //
+    // Deliberately unauthenticated, like the placement endpoint it exists to
+    // explain: a storefront integrating against a dev console has no session,
+    // and requiring one would mean the surface could not see the calls it was
+    // built for. That is defensible only because this route file is the
+    // development API over a fixture store and serves no real customer data.
+    case 'inbound-calls': {
+      const limit = Math.min(Number(q.get('limit') || 100), 250);
+      return json({
+        enabled: callLogEnabled(),
+        calls: callLogEnabled() ? listCalls(limit) : [],
+      });
     }
 
     case 'registry': {
@@ -258,6 +1040,31 @@ export async function GET(req: Request, { params }: Ctx) {
             limit: Number(q.get('limit') || 100),
           }),
         });
+      }
+
+      // GET /registry/{tenant}/{flow}/shadow-report
+      if (rest[1] && rest[2] === 'shadow-report') {
+        // A flow the registry has never heard of gets a 404, not a zeroed
+        // report. A report of "0 compared, nothing shadowing" about a flow that
+        // failed to compile reads as a shadow that is merely idle, and the
+        // console would offer to start one against nothing.
+        if ((await store.registry.versions(tenantId, rest[1])).length === 0) {
+          return notFound(`No flow ${rest[1]} in the registry`);
+        }
+        const env = await store.registry.environment(tenantId, rest[1], 'production');
+        // Filtered to the pair currently configured. Comparisons from an
+        // earlier shadow describe a different question, and folding them into
+        // one agreement rate would average across two migrations.
+        const mine = store.shadowComparisons.filter(
+          (c) => c.shadowVersion === env?.shadowVersion && c.activeVersion === env?.activeVersion
+        );
+        return json(
+          buildShadowReport(
+            rest[1],
+            { activeVersion: env?.activeVersion ?? null, shadowVersion: env?.shadowVersion ?? null },
+            mine
+          )
+        );
       }
 
       // GET /registry/{tenant}/{flow}
@@ -305,9 +1112,15 @@ export async function GET(req: Request, { params }: Ctx) {
 // POST
 // ---------------------------------------------------------------------------
 
-export async function POST(req: Request, { params }: Ctx) {
+async function handlePost(req: Request, { params }: Ctx) {
   const { path } = await params;
   const [head, ...rest] = path;
+  // The ledger's store is chosen asynchronously, because reaching a database
+  // is. Awaited once per request rather than at import: a configured database
+  // that cannot be reached must fail the request that needed it rather than
+  // stop the process from starting, and it must never fall through to storage
+  // that forgets. Resolves immediately when no database is configured.
+  await store.ledgerReady;
 
   switch (head) {
     case 'auth': {
@@ -368,12 +1181,207 @@ export async function POST(req: Request, { params }: Ctx) {
         ...(body.detail ? { detail: body.detail } : {}),
       };
 
+      // A seeded decision is real to this console even though it predates the
+      // ledger — `GET /outcomes` has always said so. The POST did not, so the
+      // five thousand decisions the console displays could be read for
+      // outcomes and never given one, and the measurement loop could not be
+      // exercised against any of them.
+      //
+      // Materialised on first outcome rather than seeded at startup: the
+      // ledger's invariant is that an outcome always joins to a decision, and
+      // writing the decision first keeps that true without paying for five
+      // thousand inserts nobody may ever measure.
+      if (!(await store.ledger.get(tenantId, decisionId))) {
+        const seeded = findGeneratedDecision(decisionId);
+        if (seeded) {
+          await store.ledger.record(store.ledger.entryFor(seeded.trace, tenantId));
+        }
+      }
+
       try {
         await store.ledger.recordOutcome(event);
       } catch (e) {
         return json({ error: 'not_found', message: (e as Error).message }, 404);
       }
       return json(event, 201);
+    }
+
+    case 'offers': {
+      // POST /api/offers/{tenantId} — create an offer.
+      //
+      // Declared in the spec since it was written and served by nothing: the
+      // contract suite exempts it as "covered by a write suite" and no write
+      // suite covered it, so a built operation returned 404 and every check
+      // agreed that was fine. Found by attempting it.
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
+
+      const body = (await req.json().catch(() => null)) as Partial<Offer> | null;
+      if (!body) return json({ error: 'bad_request', message: 'Request body must be JSON' }, 400);
+
+      // Named rather than defaulted. An offer that a caller half-described and
+      // the platform quietly completed is an offer nobody authored.
+      const missing = (['key', 'name', 'categoryId', 'objectiveId'] as const).filter(
+        (f) => !body[f]
+      );
+      if (missing.length) {
+        return json(
+          { error: 'bad_request', message: `Missing required field(s): ${missing.join(', ')}` },
+          400
+        );
+      }
+
+      // The key is the action a decision names, so a duplicate would make two
+      // offers indistinguishable in every trace ever written. `packages/
+      // catalogue` enforces this with a unique index; here it is a check.
+      if (store.offers.some((p) => p.key === body.key)) {
+        return json(
+          { error: 'conflict', message: `An offer already uses the key '${body.key}'.` },
+          409
+        );
+      }
+      if (!store.categories.some((c) => c.id === body.categoryId)) {
+        return json(
+          { error: 'bad_request', message: `No category '${body.categoryId}'.` },
+          400
+        );
+      }
+
+      // An offer cannot go active with nothing to deliver. `domain.ts` has said
+      // "at least one is required to go active" since it was written and
+      // enforced it nowhere — so an offer could be active, win a decision, and
+      // render nothing. A new offer has no creatives by definition, so this
+      // amounts to: create it as a draft, give it content, then activate.
+      if ((body.status ?? 'draft') === 'active') {
+        return json(
+          {
+            error: 'conflict',
+            message:
+              'A new offer cannot be created active: it has no creative yet, and an offer with no active creative cannot be delivered. Create it as a draft, add a creative, then activate.',
+          },
+          409
+        );
+      }
+
+      const now = new Date().toISOString();
+
+      // Defaults first, then the body, then the fields the server owns
+      // outright. Spreading the body rather than copying it field by field is
+      // what makes a new property in the spec reach the store without a change
+      // here — the same shape `updateOffer` below already had, and the reason
+      // adding a field to an offer is a descriptor edit and nothing else.
+      const defaults = {
+        description: '',
+        // Draft unless the caller says otherwise. An offer that went live the
+        // moment it was created would skip every review the platform has.
+        status: 'draft' as const,
+        financials: {
+          price: { amount: 0, currency: 'GBP' as const },
+          cost: { amount: 0, currency: 'GBP' as const },
+          expectedMargin: { amount: 0, currency: 'GBP' as const },
+          termMonths: 0,
+          oneOff: false,
+        },
+        validity: { startsAt: now.slice(0, 10), endsAt: null },
+        boost: 1,
+        policyIds: [] as string[],
+        creativeIds: [] as string[],
+        tags: [] as string[],
+      };
+
+      const offer: Offer = {
+        ...defaults,
+        ...body,
+        // Content-addressed ids are for decisions; a catalogue entity is named
+        // by its key, which is the thing that has to stay stable.
+        id: `prop_${body.key}`,
+        key: body.key as string,
+        name: body.name as string,
+        categoryId: body.categoryId as string,
+        objectiveId: body.objectiveId as string,
+        createdAt: now,
+        updatedAt: now,
+        updatedBy: user.email,
+      } as Offer;
+
+      store.offers.push(offer);
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'OfferCreated',
+        scope: offer.id,
+        summary: `Created ${offer.name} (${offer.key}), status ${offer.status}.`,
+      });
+      return json(offer, 201);
+    }
+
+    case 'creatives': {
+      // POST /api/creatives/{tenantId}/{offerId} — give an offer content.
+      //
+      // Until this existed, the only way to author a creative was to edit
+      // apps/console/mocks/fixtures/catalogue.ts and redeploy — which is what
+      // `Add creative` in the console still amounts to, since the button has no
+      // handler (C-1).
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
+
+      const [, offerId] = rest;
+      const offer = store.offers.find((p) => p.id === offerId);
+      if (!offer) return notFound(`No offer ${offerId}`);
+
+      const body = (await req.json().catch(() => null)) as Partial<Creative> | null;
+      if (!body) return json({ error: 'bad_request', message: 'Request body must be JSON' }, 400);
+      if (!body.channel) {
+        return json({ error: 'bad_request', message: 'Missing required field: channel' }, 400);
+      }
+      if (blankString(body.name)) {
+        return json({ error: 'bad_request', message: 'Missing required field: name' }, 400);
+      }
+
+      const rejected = creativeProblems(body.channel, body.content as Creative['content']);
+      if (rejected) return rejected;
+
+      const id = body.id ?? `trt_${offer.key}_${body.channel}`;
+      if (store.creatives.some((c) => c.id === id)) {
+        return json({ error: 'conflict', message: `A creative already uses the id '${id}'.` }, 409);
+      }
+
+      const now = new Date().toISOString();
+
+      // Defaults, then the body, then what the server owns — the same shape as
+      // `createOffer` above, and for the same reason: a property added to the
+      // spec reaches the store without a change here, which is what makes
+      // adding a field to a creative a descriptor edit and nothing else.
+      const creative: Creative = {
+        active: false,
+        locale: 'en-GB',
+        ...body,
+        id,
+        offerId: offer.id,
+        name: body.name as string,
+        channel: body.channel,
+        content: body.content as Creative['content'],
+        createdAt: now,
+        updatedAt: now,
+      } as Creative;
+
+      store.creatives.push(creative);
+      // `Creative.offerId` is the foreign key — `packages/catalogue` treats it
+      // as such and refuses a creative whose offer does not exist. `creativeIds`
+      // is a denormalisation the offers list reads for its channel-coverage
+      // column, so it is maintained here rather than left to drift.
+      if (!offer.creativeIds.includes(creative.id)) offer.creativeIds.push(creative.id);
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'CreativeCreated',
+        scope: creative.id,
+        summary: `Added ${creative.name} (${creative.channel}) to ${offer.name}${creative.active ? '' : ', inactive'}.`,
+      });
+      return json(creative, 201);
     }
 
     case 'decisions': {
@@ -407,7 +1415,7 @@ export async function POST(req: Request, { params }: Ctx) {
           );
         }
 
-        const artifact = execArtifacts.find((a) => a.id === body.artifactId);
+        const artifact = await artifactFor(body.request.tenantId, body.artifactId);
         if (!artifact) {
           return json(
             {
@@ -434,27 +1442,10 @@ export async function POST(req: Request, { params }: Ctx) {
           correlationId: body.request.correlationId,
         };
 
-        // Idempotency and durability, through the ledger.
-        //
-        // Resolved before execution: executing and then discovering the key was
-        // taken would be wasted work on a retry and, on a conflict, would have
-        // already made a decision the caller must not be given.
-        const resolved = await store.ledger.resolve(decisionRequest);
-
-        if (resolved.kind === 'conflict') {
-          const e = new IdempotencyConflict(
-            decisionRequest.idempotencyKey as string,
-            resolved.storedHash,
-            resolved.attemptedHash
-          );
-          return json({ error: 'idempotency_conflict', message: e.message }, 409);
-        }
-
-        if (resolved.kind === 'replay') {
-          // The original decision, not a re-execution that happens to agree.
-          // A catalogue edit between the two calls is all it takes for it not
-          // to agree, and the caller asked one question.
-          const prior = resolved.entry.record;
+        const outcome = await decideAndRecord(artifact, decisionRequest);
+        if (outcome.kind === 'error') return outcome.response;
+        if (outcome.kind === 'replay') {
+          const prior = outcome.record;
           return json(
             { id: prior.id, decision: prior.decision, chainHash: prior.chainHash },
             200,
@@ -462,41 +1453,7 @@ export async function POST(req: Request, { params }: Ctx) {
           );
         }
 
-        const trace = executeDecision(artifact, catalogueSnapshot, decisionRequest);
-
-        // Recorded synchronously, before answering. §6 asks for the envelope to
-        // be durable before the caller is told what was decided — a decision
-        // the platform made and cannot produce afterwards is worse than one it
-        // failed to make.
-        await store.ledger.record(store.ledger.entryFor(trace, decisionRequest.tenantId));
-
-        const key = decisionRequest.idempotencyKey;
-        if (key) {
-          const claimed = await store.ledger.claim({
-            tenantId: decisionRequest.tenantId,
-            key,
-            requestHash: resolved.hash,
-            decisionId: trace.id,
-            storedAt: new Date().toISOString(),
-          });
-          // The store decides which claim wins under a race; use what comes
-          // back rather than assuming ours landed.
-          if (claimed.decisionId !== trace.id) {
-            const winner = await store.ledger.get(decisionRequest.tenantId, claimed.decisionId);
-            if (winner) {
-              return json(
-                {
-                  id: winner.record.id,
-                  decision: winner.record.decision,
-                  chainHash: winner.record.chainHash,
-                },
-                200,
-                { 'Idempotent-Replay': 'true' }
-              );
-            }
-          }
-        }
-
+        const trace = outcome.trace;
         return json({ id: trace.id, decision: trace.decision, chainHash: trace.chainHash });
       }
 
@@ -506,30 +1463,423 @@ export async function POST(req: Request, { params }: Ctx) {
       // the recorded artifact, the catalogue and the original inputs, and the
       // chain hashes are compared. If a policy or boost has since been edited,
       // this legitimately reports a divergence and says which field moved.
-      const record = findGenerated(rest[0]);
-      if (!record) return notFound(`No decision with id ${rest[0]}`);
+      //
+      // Seeded decisions carry their request beside them. Everything else is in
+      // the ledger, which holds the record — and a record holds
+      // `inputSnapshotHash`, never the values, so that a trace can be kept for
+      // as long as an audit needs without keeping the customer data it was made
+      // from. Replaying one therefore means the caller hands the input back,
+      // and the engine's snapshot guard proves it is the right input.
+      const seeded = findGeneratedDecision(rest[0]);
+      const body = (await req.json().catch(() => null)) as {
+        input?: Record<string, unknown>;
+        contactHistory?: DecisionRequest['contactHistory'];
+      } | null;
 
-      const result = replayDecision(
-        record.artifact,
-        catalogueSnapshot,
-        record.trace,
-        record.request.input,
-        record.request.contactHistory
-      );
+      let artifact: ExecArtifact;
+      let trace: DecisionRecord;
+      let input: Record<string, unknown>;
+      let contactHistory: DecisionRequest['contactHistory'] | undefined;
+
+      if (seeded) {
+        artifact = seeded.artifact;
+        trace = seeded.trace;
+        // A supplied input still wins: it is the caller asking a different
+        // question, and the snapshot guard answers it.
+        input = body?.input ?? seeded.request.input;
+        contactHistory = body?.contactHistory ?? seeded.request.contactHistory;
+      } else {
+        const entry = await store.ledger.get('telco-uk', rest[0]);
+        if (!entry) return notFound(`No decision with id ${rest[0]}`);
+
+        const published = await store.registry.version(
+          entry.tenantId,
+          entry.record.decision.artifactId,
+          entry.record.decision.artifactVersion
+        );
+        if (!published) {
+          return notFound(
+            `Decision ${rest[0]} was made by ${entry.record.decision.artifactId}@${entry.record.decision.artifactVersion}, which the registry does not hold`
+          );
+        }
+
+        if (!body?.input) {
+          return json(
+            {
+              error: 'input_required',
+              message:
+                'This decision is recorded and its inputs are not — the platform keeps the snapshot hash, never the values. Supply `input` to replay it.',
+            },
+            422
+          );
+        }
+
+        artifact = published.artifact;
+        trace = entry.record;
+        input = body.input;
+        contactHistory = body.contactHistory;
+      }
+
+      // The catalogue the decision was made against, by the hash it recorded.
+      // Now that the catalogue is editable this is the difference between a
+      // replay and a re-decision: today's catalogue would answer a question
+      // nobody asked, and would do it while reporting "identical" or a
+      // difference that is really an edit.
+      const decidedAgainst = catalogueByHash(trace.decision.catalogueSnapshotHash);
+      if (!decidedAgainst) {
+        return json(
+          {
+            error: 'catalogue_unavailable',
+            message:
+              `This decision was made against catalogue ${trace.decision.catalogueSnapshotHash.slice(0, 12)}, ` +
+              'which this instance no longer holds. Replaying against a different catalogue would ' +
+              'answer a different question, so it is refused rather than approximated.',
+            catalogueSnapshotHash: trace.decision.catalogueSnapshotHash,
+          },
+          409
+        );
+      }
+
+      const result = replayDecision(artifact, decidedAgainst, trace, input, contactHistory);
 
       return json({
         identical: result.identical,
         decisionId: result.decisionId,
         replayedAt: new Date().toISOString(),
-        artifactVersion: record.trace.decision.artifactVersion,
-        originalWinner: record.trace.decision.winner,
+        artifactVersion: trace.decision.artifactVersion,
+        originalWinner: trace.decision.winner,
         replayedWinner: result.identical
-          ? record.trace.decision.winner
+          ? trace.decision.winner
           : (result.differences.find((d) => d.path === '$.winner')?.replayed ?? null),
         originalChainHash: result.originalChainHash,
         replayedChainHash: result.replayedChainHash,
         diff: result.differences,
       });
+    }
+
+    // POST /api/inbound-calls/clear — empty the buffer.
+    //
+    // A clear before a demo run is the difference between "these six calls are
+    // what the site just did" and scrolling past yesterday's. It records itself
+    // — a log whose only row says it was just emptied beats one that is
+    // silently empty. Reads of the log are not recorded; see `shouldRecord`.
+    case 'inbound-calls': {
+      if (rest[0] !== 'clear') return notFound();
+      clearCalls();
+      return json({ cleared: true });
+    }
+
+    case 'data-sources': {
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      if (!user.permissions.includes('edit:integrations')) return forbidden('edit:integrations');
+
+      const [tenantId, sourceId, action] = rest;
+      if (!tenantId) return notFound();
+
+      // POST /api/data-sources/{tenantId} - define a source.
+      if (!sourceId) {
+        const body = (await req.json().catch(() => null)) as {
+          name?: string;
+          description?: string;
+          kind?: DataSourceDefinition['kind'];
+        } | null;
+        if (!body?.name || !body.kind) {
+          return json({ error: 'bad_request', message: 'name and kind are required.' }, 400);
+        }
+
+        const source: DataSourceDefinition = {
+          id: `src_${Math.random().toString(36).slice(2, 10)}`,
+          tenantId,
+          name: body.name,
+          description: body.description ?? '',
+          kind: body.kind,
+          columns: [],
+          mappings: [],
+          status: 'draft',
+          landedRows: 0,
+          updatedAt: new Date().toISOString(),
+          updatedBy: user.email,
+        };
+        store.dataSources.push(source);
+        recordAudit({
+          actor: user.email,
+          actorType: 'human',
+          eventType: 'DataSourceCreated',
+          scope: source.id,
+          summary: `Defined ${body.kind} source '${body.name}'.`,
+        });
+        return json(source, 201);
+      }
+
+      const source = store.dataSources.find((d) => d.id === sourceId);
+      if (!source) return notFound(`No source ${sourceId}`);
+
+      // POST .../rows - land records as they arrived.
+      if (action === 'rows') {
+        const body = (await req.json().catch(() => null)) as {
+          rows?: Record<string, unknown>[];
+          replace?: boolean;
+        } | null;
+        if (!Array.isArray(body?.rows)) {
+          return json({ error: 'bad_request', message: 'rows must be an array.' }, 400);
+        }
+
+        const existing = body.replace ? [] : (store.landedRows.get(sourceId) ?? []);
+        const rows = [...existing, ...body.rows].slice(0, MAX_LANDED_ROWS);
+        store.landedRows.set(sourceId, rows);
+
+        // Observed, never interpreted. Which column means what is the mapping's
+        // job, and keeping the two apart is why a source changing shape shows
+        // up as an unmapped column rather than as silently absent data.
+        source.columns = [...new Set(rows.flatMap((r) => Object.keys(r)))].sort();
+        source.landedRows = rows.length;
+        // Rows that arrived after a validation were not the rows that were
+        // validated, so the verdict no longer describes what is held.
+        source.status = 'draft';
+        store.validationReports.delete(sourceId);
+        source.updatedAt = new Date().toISOString();
+        source.updatedBy = user.email;
+
+        recordAudit({
+          actor: user.email,
+          actorType: 'human',
+          eventType: 'RowsLanded',
+          scope: source.id,
+          summary: `Landed ${body.rows.length} row(s) against '${source.name}'; ${rows.length} held.`,
+        });
+        return json(source);
+      }
+
+      // POST .../validation - check what is held against the model.
+      if (action === 'validation') {
+        const rows = store.landedRows.get(sourceId) ?? [];
+        const report = validateRows(store.profileSchema, source, rows);
+        store.validationReports.set(sourceId, report);
+        source.status = report.errors === 0 && report.rows > 0 ? 'validated' : 'draft';
+        source.updatedAt = new Date().toISOString();
+        return json({ source, report });
+      }
+
+      // POST .../activation - refuse unless the last validation was clean.
+      if (action === 'activation') {
+        const problems = activationProblems(source, store.validationReports.get(sourceId) ?? null);
+        if (problems.length > 0) {
+          return json(
+            {
+              error: 'not_activatable',
+              message: `This source cannot go live yet: ${problems.length} problem(s).`,
+              problems,
+            },
+            409
+          );
+        }
+        source.status = 'active';
+        source.updatedAt = new Date().toISOString();
+        source.updatedBy = user.email;
+        recordAudit({
+          actor: user.email,
+          actorType: 'human',
+          eventType: 'DataSourceActivated',
+          scope: source.id,
+          summary: `Activated '${source.name}' over ${source.landedRows} row(s).`,
+        });
+        return json(source);
+      }
+
+      return notFound();
+    }
+    case 'experiments': {
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      if (!user.permissions.includes('edit:flows')) return forbidden('edit:flows');
+      if (!rest[0]) return notFound();
+
+      const body = (await req.json().catch(() => null)) as Partial<Experiment> | null;
+      if (!body?.key || !body.name) {
+        return json({ error: 'bad_request', message: 'key and name are required.' }, 400);
+      }
+      if (store.experiments.some((e) => e.key === body.key)) {
+        return json(
+          {
+            error: 'conflict',
+            message: `An experiment already uses the key '${body.key}', and two would collide at ${armPath(body.key)}.`,
+          },
+          409
+        );
+      }
+
+      const now = new Date().toISOString();
+      const experiment: Experiment = {
+        id: `exp_${Math.random().toString(36).slice(2, 10)}`,
+        tenantId: rest[0],
+        key: body.key,
+        name: body.name,
+        description: body.description ?? '',
+        arms: body.arms ?? [],
+        // Always a draft. Created running would start splitting live traffic
+        // before anybody approved the split.
+        status: 'draft',
+        startedAt: null,
+        stoppedAt: null,
+        updatedAt: now,
+        updatedBy: user.email,
+      };
+
+      const problems = experimentProblems(experiment);
+      if (problems.length > 0) {
+        return json(
+          { error: 'invalid_experiment', message: `${problems.length} problem(s).`, problems },
+          400
+        );
+      }
+
+      store.experiments.push(experiment);
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'ExperimentCreated',
+        scope: experiment.id,
+        summary: `Drafted '${experiment.name}' with ${experiment.arms.length} arms.`,
+      });
+      return json(experiment, 201);
+    }
+
+    case 'targeting-policies': {
+      // POST /api/targeting-policies/{tenantId}
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      if (!user.permissions.includes('edit:policies')) return forbidden('edit:policies');
+      if (!rest[0]) return notFound();
+
+      const body = (await req.json().catch(() => null)) as Partial<TargetingPolicy> | null;
+      if (!body?.name || !body.kind || !body.scope) {
+        return json(
+          { error: 'bad_request', message: 'name, kind and scope are required.' },
+          400
+        );
+      }
+
+      const refused = policyProblems(body.conditions ?? []);
+      if (refused) return refused;
+
+      const now = new Date().toISOString();
+      const policy: TargetingPolicy = {
+        id: `pol_${Math.random().toString(36).slice(2, 10)}`,
+        name: body.name,
+        kind: body.kind,
+        description: body.description ?? '',
+        conditions: body.conditions!,
+        scope: body.scope,
+        active: body.active ?? false,
+        createdAt: now,
+        updatedAt: now,
+      };
+      store.targetingPolicies.push(policy);
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'TargetingPolicyCreated',
+        scope: policy.id,
+        summary: `Created ${policy.kind} policy '${policy.name}' with ${policy.conditions.length} condition(s).`,
+      });
+
+      return json(policy, 201);
+    }
+
+    case 'placements': {
+      // POST /api/placements/{tenantId}/{placementKey}/decisions — fill a slot.
+      //
+      // The same decision `POST /decisions` makes, delivered as a slate. The
+      // caller names a placement rather than a flow, because which flow answers
+      // for a slot is configuration and a website should not be holding it.
+      const [tenantId, placementKey, tail] = rest;
+      if (!tenantId || !placementKey || tail !== 'decisions') return notFound();
+
+      const placement = store.placements.find(
+        (p) => p.key === placementKey && p.active
+      );
+      if (!placement) {
+        return notFound(
+          `No active placement '${placementKey}'. Configured: ${store.placements
+            .filter((p) => p.active)
+            .map((p) => p.key)
+            .sort()
+            .join(', ')}`
+        );
+      }
+
+      const body = (await req.json().catch(() => null)) as { request?: DecisionRequestBody } | null;
+      if (!body?.request) {
+        return json({ error: 'bad_request', message: 'Missing required field: request' }, 400);
+      }
+      if (!body.request.occurredAt) {
+        return json(
+          { error: 'bad_request', message: 'Missing required field: request.occurredAt' },
+          400
+        );
+      }
+      // The path names the slot. A body that names a different one is two
+      // answers to one question, and picking either quietly would put an offer
+      // in a slot the caller did not ask about.
+      if (body.request.placement && body.request.placement !== placementKey) {
+        return json(
+          {
+            error: 'bad_request',
+            message: `Request names placement '${body.request.placement}' and the path names '${placementKey}'.`,
+          },
+          400
+        );
+      }
+
+      const artifact = await artifactFor(tenantId, placement.artifactId);
+      if (!artifact) {
+        return notFound(
+          `Placement '${placementKey}' is answered by flow '${placement.artifactId}', which is not loaded`
+        );
+      }
+
+      const decisionRequest: DecisionRequest = {
+        tenantId: body.request.tenantId,
+        customerId: body.request.customerId,
+        channel: body.request.channel,
+        placement: placement.key,
+        occurredAt: body.request.occurredAt,
+        input: body.request.input ?? {},
+        contactHistory: body.request.contactHistory,
+        consent: body.request.consent,
+        idempotencyKey: body.request.idempotencyKey,
+        correlationId: body.request.correlationId,
+      };
+
+      const outcome = await decideAndRecord(artifact, decisionRequest);
+      if (outcome.kind === 'error') return outcome.response;
+
+      const record = outcome.kind === 'replay' ? outcome.record : outcome.trace;
+      const slate = selectSlate(record.decision, placement.slotCount);
+
+      // The action key is what the decision names; the offer id is what a site
+      // needs to fetch content. Resolved from the catalogue the engine read, so
+      // the two cannot name different things.
+      const offerByKey = new Map(currentCatalogue().offers.map((o) => [o.key, o.id]));
+
+      return json(
+        {
+          placement: placement.key,
+          slotCount: placement.slotCount,
+          decisionId: record.id,
+          chainHash: record.chainHash,
+          entries: slate.entries.map((e) => ({
+            ...e,
+            offerId: offerByKey.get(e.action) ?? null,
+          })),
+          unfilled: slate.unfilled,
+          rankedCount: slate.ranked.length,
+        },
+        200,
+        outcome.kind === 'replay' ? { 'Idempotent-Replay': 'true' } : undefined
+      );
     }
 
     case 'change-sets': {
@@ -585,6 +1935,55 @@ export async function POST(req: Request, { params }: Ctx) {
       const tenantId = rest[0];
       const flowName = rest[1];
       if (!tenantId || !flowName) return notFound();
+
+      // POST /registry/{tenant}/{flow}/shadow — start or stop a shadow.
+      //
+      // Gated on promote:flows, not a permission of its own. Deciding what runs
+      // in production, even beside the active version, is the same authority —
+      // and a shadow is the step before a cutover, so whoever can do one should
+      // be the one setting up the evidence for it.
+      if (rest[2] === 'shadow') {
+        if (!user.permissions.includes('promote:flows')) {
+          return forbidden('promote:flows');
+        }
+        const body = (await req.json().catch(() => ({}))) as {
+          version?: string | null;
+          environment?: string;
+        };
+        if (!body.environment) {
+          return json({ error: 'bad_request', message: 'Missing required field: environment' }, 400);
+        }
+
+        try {
+          // A null version stops the shadow. Explicit rather than a separate
+          // verb, because "what is shadowing" is one piece of state.
+          const state = body.version
+            ? await store.registry.startShadow(
+                tenantId, flowName, body.version, body.environment,
+                user.email, new Date().toISOString()
+              )
+            : await store.registry.stopShadow(
+                tenantId, flowName, body.environment, user.email, new Date().toISOString()
+              );
+
+          recordAudit({
+            actor: user.email,
+            actorType: 'human',
+            eventType: body.version ? 'ShadowStarted' : 'ShadowStopped',
+            scope: `flow:${flowName}`,
+            summary: body.version
+              ? `${flowName} ${body.version} now shadowing in ${body.environment}`
+              : `${flowName} stopped shadowing in ${body.environment}`,
+            changeSetId: null,
+          });
+
+          return json(state);
+        } catch (e) {
+          const err = e as { code?: string; message?: string };
+          const status = err.code === 'UNKNOWN_VERSION' ? 404 : 409;
+          return json({ error: err.code ?? 'registry_error', message: err.message }, status);
+        }
+      }
 
       // POST /registry/{tenant}/{flow}/promote
       if (rest[2] === 'promote' || rest[2] === 'rollback') {
@@ -664,7 +2063,7 @@ export async function POST(req: Request, { params }: Ctx) {
           actor: user.email,
           occurredAt: new Date().toISOString(),
         },
-        compileContext
+        currentCompileContext()
       );
 
       if (outcome.status !== 'rejected') {
@@ -685,9 +2084,22 @@ export async function POST(req: Request, { params }: Ctx) {
     }
 
     case '_test': {
+      // POST /api/_test/drain — wait for shadow work to finish.
+      //
+      // The shadow is deliberately not awaited on the request path, so a test
+      // that asserts on a comparison has to wait for one. This is the honest
+      // way to do that: sleeping would be a flake with a timer attached.
+      if (rest[0] === 'drain') {
+        await Promise.all([...store.shadowInFlight]);
+        return json({ drained: true });
+      }
+
       if (rest[0] !== 'reset') return notFound();
       if (process.env.NODE_ENV === 'production') return notFound();
-      resetStore();
+      // Awaited. It used to return before the registry had re-seeded and
+      // before the ledger had resolved, so a test that reset and immediately
+      // read got a half-built store and blamed its own assertion.
+      await resetStore();
       return json({ reset: true });
     }
 
@@ -758,13 +2170,190 @@ function applyChangeSet(cr: (typeof store.changeSets)[number]) {
 // PUT
 // ---------------------------------------------------------------------------
 
-export async function PUT(req: Request, { params }: Ctx) {
+async function handlePut(req: Request, { params }: Ctx) {
   const { path } = await params;
   const [head, ...rest] = path;
+  // The ledger's store is chosen asynchronously, because reaching a database
+  // is. Awaited once per request rather than at import: a configured database
+  // that cannot be reached must fail the request that needed it rather than
+  // stop the process from starting, and it must never fall through to storage
+  // that forgets. Resolves immediately when no database is configured.
+  await store.ledgerReady;
   const user = actor(req);
   if (!user) return json({ error: 'no_session' }, 401);
 
   switch (head) {
+    case 'data-sources': {
+      if (!user.permissions.includes('edit:integrations')) return forbidden('edit:integrations');
+      const [, sourceId] = rest;
+      const source = store.dataSources.find((d) => d.id === sourceId);
+      if (!source) return notFound(`No source ${sourceId}`);
+
+      const body = (await req.json().catch(() => null)) as {
+        name?: string;
+        description?: string;
+        mappings?: FieldMapping[];
+      } | null;
+      if (!body) return json({ error: 'bad_request', message: 'Body required.' }, 400);
+
+      source.name = body.name ?? source.name;
+      source.description = body.description ?? source.description;
+      if (body.mappings) {
+        source.mappings = body.mappings;
+        // A changed mapping means the last verdict was about a different
+        // mapping. Keeping the status would let an edit slip past the check it
+        // was supposed to pass.
+        source.status = 'draft';
+        store.validationReports.delete(source.id);
+      }
+      source.updatedAt = new Date().toISOString();
+      source.updatedBy = user.email;
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'DataSourceChanged',
+        scope: source.id,
+        summary: `Updated source '${source.name}' with ${source.mappings.length} mapping(s).`,
+      });
+      return json(source);
+    }
+
+    case 'artifacts': {
+      // PUT /api/artifacts/{tenantId}/{artifactId}/draft
+      if (!user.permissions.includes('edit:flows')) return forbidden('edit:flows');
+      const [, artifactId, tail] = rest;
+      if (!artifactId || tail !== 'draft') return notFound();
+
+      const artifact = store.artifacts.find((a) => a.id === artifactId);
+      if (!artifact) return notFound(`No flow ${artifactId}`);
+
+      const body = (await req.json().catch(() => null)) as {
+        nodes?: ArtifactSummary['nodes'];
+        edges?: ArtifactSummary['edges'];
+        candidateKeys?: string[];
+      } | null;
+      if (!body) return json({ error: 'bad_request', message: 'Body required.' }, 400);
+
+      if (body.nodes) artifact.nodes = body.nodes;
+      if (body.edges) artifact.edges = body.edges;
+      if (body.candidateKeys) artifact.candidateKeys = body.candidateKeys;
+      artifact.nodeCount = artifact.nodes.length;
+      artifact.updatedAt = new Date().toISOString();
+      artifact.updatedBy = user.email;
+
+      // Compiled on every save, not on demand. A graph that will not compile is
+      // worth knowing about while it is being drawn, and the report is the same
+      // one publish will use — so nobody discovers at publish time that the
+      // thing they have been editing was never going to ship.
+      const compile = compileDecisionFlow(toSource(artifact), currentCompileContext());
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'DecisionFlowDraftSaved',
+        scope: artifact.id,
+        summary:
+          `Saved '${artifact.name}' with ${artifact.nodes.length} node(s); ` +
+          `${compile.diagnostics.filter((d) => d.severity === 'error').length} error(s).`,
+      });
+
+      return json({ artifact, compile });
+    }
+
+    case 'experiments': {
+      if (!user.permissions.includes('edit:flows')) return forbidden('edit:flows');
+      const [, experimentId] = rest;
+      const experiment = store.experiments.find((e) => e.id === experimentId);
+      if (!experiment) return notFound(`No experiment ${experimentId}`);
+
+      const body = (await req.json().catch(() => null)) as Partial<Experiment> | null;
+      if (!body) return json({ error: 'bad_request', message: 'Body required.' }, 400);
+
+      // Frozen once it starts. The refusal carries the reason because "you
+      // cannot edit this" without it invites somebody to work around it.
+      const refused = editProblems(experiment, body);
+      if (refused.length > 0) {
+        return json(
+          { error: 'experiment_frozen', message: refused[0], problems: refused },
+          409
+        );
+      }
+
+      const next: Experiment = {
+        ...experiment,
+        name: body.name ?? experiment.name,
+        description: body.description ?? experiment.description,
+        arms: body.arms ?? experiment.arms,
+        key: body.key ?? experiment.key,
+        status: body.status ?? experiment.status,
+      };
+
+      const problems = experimentProblems(next);
+      if (problems.length > 0) {
+        return json(
+          { error: 'invalid_experiment', message: `${problems.length} problem(s).`, problems },
+          400
+        );
+      }
+
+      const now = new Date().toISOString();
+      if (next.status === 'running' && experiment.status !== 'running') next.startedAt = now;
+      if (next.status === 'stopped' && experiment.status !== 'stopped') next.stoppedAt = now;
+      next.updatedAt = now;
+      next.updatedBy = user.email;
+
+      Object.assign(experiment, next);
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType:
+          next.status !== experiment.status ? 'ExperimentStatusChanged' : 'ExperimentChanged',
+        scope: experiment.id,
+        summary: `'${experiment.name}' is now ${experiment.status}.`,
+      });
+      return json(experiment);
+    }
+
+    case 'targeting-policies': {
+      // PUT /api/targeting-policies/{tenantId}/{policyId}
+      if (!user.permissions.includes('edit:policies')) return forbidden('edit:policies');
+      const [, policyId] = rest;
+      if (!policyId) return notFound();
+
+      const existing = store.targetingPolicies.find((p) => p.id === policyId);
+      if (!existing) return notFound(`No policy ${policyId}`);
+
+      const body = (await req.json().catch(() => null)) as Partial<TargetingPolicy> | null;
+      if (!body) return json({ error: 'bad_request', message: 'Body required.' }, 400);
+
+      const conditions = body.conditions ?? existing.conditions;
+      const refused = policyProblems(conditions);
+      if (refused) return refused;
+
+      // Mutated in place rather than replaced: `currentCatalogue()` reads
+      // `store.targetingPolicies`, and swapping the array element would be
+      // equivalent — but other references to this object are held elsewhere in
+      // the store, and two policies with one id is worse than either.
+      existing.name = body.name ?? existing.name;
+      existing.kind = body.kind ?? existing.kind;
+      existing.description = body.description ?? existing.description;
+      existing.conditions = conditions;
+      existing.scope = body.scope ?? existing.scope;
+      if (typeof body.active === 'boolean') existing.active = body.active;
+      existing.updatedAt = new Date().toISOString();
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'TargetingPolicyChanged',
+        scope: existing.id,
+        summary: `Updated ${existing.kind} policy '${existing.name}'.`,
+      });
+
+      return json(existing);
+    }
+
     case 'arbitration': {
       if (!user.permissions.includes('edit:arbitration')) return forbidden('edit:arbitration');
       const body = (await req.json().catch(() => ({}))) as Partial<typeof store.arbitration>;
@@ -840,6 +2429,67 @@ export async function PUT(req: Request, { params }: Ctx) {
       return json(setting);
     }
 
+    case 'creatives': {
+      // PUT /api/creatives/{tenantId}/{offerId}/{creativeId}
+      if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
+      const [, offerId, creativeId] = rest;
+
+      const offer = store.offers.find((p) => p.id === offerId);
+      if (!offer) return notFound(`No offer ${offerId}`);
+      const index = store.creatives.findIndex(
+        (c) => c.id === creativeId && c.offerId === offerId
+      );
+      if (index === -1) return notFound(`No creative ${creativeId} on offer ${offerId}`);
+
+      const before = store.creatives[index];
+      const body = (await req.json().catch(() => ({}))) as Partial<Creative>;
+      const updated: Creative = {
+        ...before,
+        ...body,
+        id: before.id,
+        offerId: before.offerId,
+        updatedAt: new Date().toISOString(),
+      };
+
+      const rejected = creativeProblems(updated.channel, updated.content);
+      if (rejected) return rejected;
+
+      // Switching off the last active creative of an active offer would leave
+      // the offer winning decisions with nothing to render. Refused rather than
+      // cascaded: retiring somebody's offer because they edited a creative is
+      // not a decision this endpoint gets to make.
+      if (before.active && !updated.active && offer.status === 'active') {
+        const remaining = store.creatives.filter(
+          (c) => c.offerId === offerId && c.id !== creativeId
+        );
+        if (!offerMayBeActive(remaining)) {
+          return json(
+            {
+              error: 'conflict',
+              message: `'${before.name}' is the only active creative on '${offer.name}', which is active. Pause or retire the offer first.`,
+            },
+            409
+          );
+        }
+      }
+
+      store.creatives[index] = updated;
+
+      const changed = Object.keys(body).filter(
+        (k) =>
+          JSON.stringify((before as unknown as Record<string, unknown>)[k]) !==
+          JSON.stringify((body as Record<string, unknown>)[k])
+      );
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'CreativeUpdated',
+        scope: updated.id,
+        summary: `Updated ${updated.name}${changed.length ? ` (${changed.join(', ')})` : ''}.`,
+      });
+      return json(updated);
+    }
+
     case 'offers': {
       if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
       const offerId = rest[1];
@@ -848,6 +2498,21 @@ export async function PUT(req: Request, { params }: Ctx) {
 
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
       const before = store.offers[index];
+
+      // Same invariant as creation, at the other moment it can be broken.
+      if (body.status === 'active' && before.status !== 'active') {
+        const own = store.creatives.filter((c) => c.offerId === before.id);
+        if (!offerMayBeActive(own)) {
+          return json(
+            {
+              error: 'conflict',
+              message: `'${before.name}' has no active creative, so it cannot be activated — it would win decisions with nothing to render.`,
+            },
+            409
+          );
+        }
+      }
+
       const updated = {
         ...before,
         ...body,
@@ -875,3 +2540,19 @@ export async function PUT(req: Request, { params }: Ctx) {
       return notFound(`No route for /${path.join('/')}`);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Recording
+// ---------------------------------------------------------------------------
+
+/**
+ * The handlers above are wrapped rather than instrumented case by case.
+ *
+ * Forty-odd cases each recording their own call is forty places to forget one,
+ * and the ones that would get forgotten are the error paths — which are the
+ * calls worth having. Wrapping records every route, including the ones added
+ * after this comment.
+ */
+export const GET = recorded('GET', handleGet);
+export const POST = recorded('POST', handlePost);
+export const PUT = recorded('PUT', handlePut);

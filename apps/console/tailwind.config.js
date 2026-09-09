@@ -20,6 +20,18 @@ module.exports = {
       colors: {
         page: rgb('page'),
         chrome: rgb('chrome'),
+        scrim: rgb('scrim'),
+        rail: {
+          DEFAULT: rgb('rail-bg'),
+          fg: rgb('rail-fg'),
+          muted: rgb('rail-muted'),
+          dim: rgb('rail-dim'),
+          line: rgb('rail-line'),
+          accent: rgb('rail-accent'),
+          hover: rgb('rail-hover'),
+          ok: rgb('rail-ok'),
+          attention: rgb('rail-attention'),
+        },
         surface: {
           DEFAULT: rgb('surface'),
           raised: rgb('surface-raised'),
@@ -60,10 +72,15 @@ module.exports = {
         hold: { DEFAULT: rgb('hold'), subtle: rgb('hold-subtle') },
         info: { DEFAULT: rgb('info'), subtle: rgb('info-subtle') },
         l0: rgb('l0'),
+        'l0-subtle': rgb('l0-subtle'),
         l1: rgb('l1'),
+        'l1-subtle': rgb('l1-subtle'),
         l2: rgb('l2'),
+        'l2-subtle': rgb('l2-subtle'),
         l3: rgb('l3'),
+        'l3-subtle': rgb('l3-subtle'),
         l4: rgb('l4'),
+        'l4-subtle': rgb('l4-subtle'),
       },
       borderColor: {
         DEFAULT: rgb('border'),
@@ -76,6 +93,9 @@ module.exports = {
       },
       height: {
         row: 'var(--row-h)',
+      },
+      width: {
+        rail: 'var(--rail-w)',
       },
       minHeight: {
         row: 'var(--row-h)',

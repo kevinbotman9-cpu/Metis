@@ -57,7 +57,7 @@ export function Drawer({
       <Dialog.Portal>
         <Dialog.Overlay
           className={cn(
-            'fixed inset-0 z-40 bg-black/40',
+            'fixed inset-0 z-40 bg-scrim/40',
             'data-[state=open]:animate-in data-[state=open]:fade-in-0',
             'motion-reduce:animate-none'
           )}

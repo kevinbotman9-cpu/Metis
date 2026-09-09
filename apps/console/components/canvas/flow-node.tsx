@@ -25,7 +25,6 @@ const FAMILY: Record<FlowNodeType, { tone: string; family: string }> = {
   filter: { tone: 'accent', family: 'Gate' },
   constraint: { tone: 'hold', family: 'Gate' },
   'score-model': { tone: 'pass', family: 'Score' },
-  'score-adaptive': { tone: 'pass', family: 'Score' },
   'set-property': { tone: 'info', family: 'Data' },
   switch: { tone: 'accent', family: 'Branch' },
   'sub-flow': { tone: 'accent', family: 'Branch' },

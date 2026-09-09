@@ -10,13 +10,23 @@ import { login, ACCOUNTS, openAccountPanel } from './helpers';
 const PAGES = [
   { path: '/', name: 'home' },
   { path: '/offers', name: 'offers' },
+  { path: '/creatives', name: 'creatives' },
   { path: '/offers/prop_5g_unlimited_24', name: 'offer detail' },
   { path: '/targeting-policies', name: 'targeting policies' },
   { path: '/frequency-policy', name: 'frequency policy' },
   { path: '/arbitration', name: 'arbitration' },
   { path: '/decision-flows', name: 'flows' },
+  // The detail routes were outside this sweep entirely until 2026-09-06,
+  // which meant the compile report, the flow canvas, the registry panel and
+  // the shadow panel had never been scanned.
+  { path: '/decision-flows/next-best-action', name: 'flow detail' },
   { path: '/decisions', name: 'decisions' },
+  { path: '/performance', name: 'performance' },
+  { path: '/experiments', name: 'experiments' },
+  { path: '/data-model', name: 'data model' },
+  { path: '/data-model/intake', name: 'intake' },
   { path: '/integrations', name: 'integrations' },
+  { path: '/integrations/traffic', name: 'inbound traffic' },
   { path: '/approvals', name: 'approvals' },
   { path: '/approvals/cr_0042', name: 'change set' },
   { path: '/agentic', name: 'agentic' },
@@ -26,6 +36,19 @@ const PAGES = [
 ];
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+
+/**
+ * The decision trace, reached by clicking rather than by a hardcoded id.
+ *
+ * Decision ids are generated, so there is no stable path to put in PAGES —
+ * and this page is the design north star, so leaving it unscanned because the
+ * URL was awkward was the wrong trade.
+ */
+async function openFirstTrace(page: import('@playwright/test').Page) {
+  await page.goto('/decisions');
+  await page.locator('tr[data-row]').first().click();
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+}
 
 test.describe('accessibility', () => {
   test('login page has no violations', async ({ page }) => {
@@ -51,6 +74,15 @@ test.describe('accessibility', () => {
       });
     }
 
+    test('the decision trace has no violations', async ({ page }) => {
+      await openFirstTrace(page);
+
+      const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+      expect(
+        results.violations.map((v) => `${v.id}: ${v.nodes.length} node(s) — ${v.help}`)
+      ).toEqual([]);
+    });
+
     test('dark theme has no contrast violations', async ({ page }) => {
       await openAccountPanel(page, /Marcus Webb/);
       await page.getByRole('group', { name: 'Colour scheme' }).getByText('Dark').click();
@@ -58,6 +90,10 @@ test.describe('accessibility', () => {
 
       for (const path of ['/', '/decisions', '/offers', '/agentic']) {
         await page.goto(path);
+        // `goto` resolves before React has rendered, and axe throws "No
+        // elements found for include" rather than failing an assertion — a
+        // scan that never ran, reported as a violation nobody can read.
+        await expect(page.locator('main')).toBeVisible();
         const results = await new AxeBuilder({ page })
           .withTags(['wcag2aa'])
           .include('main')

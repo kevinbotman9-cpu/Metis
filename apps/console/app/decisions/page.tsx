@@ -14,6 +14,7 @@ import {
   ErrorState,
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
+import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import {
   SmartSearch,
   chipsToQuery,
@@ -79,8 +80,25 @@ function DecisionsView() {
   });
 
   const rows = data?.decisions ?? [];
+
+  /**
+   * The number the filter actually matched, not the number that came back.
+   *
+   * The query asks for 5,000 rows and the corpus holds more, so counting the
+   * response reported the page size — the same defect this strip had once
+   * before, when it showed the query limit of 200. The server sends `total`
+   * alongside the page precisely so this does not have to be inferred.
+   */
+  const total = data?.total ?? rows.length;
+
+  // Offered and suppressed are still counted over the page, because the server
+  // sends no breakdown — so they are labelled as being over what was returned
+  // rather than presented as totals. A number whose scope is unclear is worse
+  // than one that is missing.
   const offered = rows.filter((d) => d.winner).length;
   const suppressed = rows.length - offered;
+  const overPage =
+    rows.length < total ? `across ${rows.length.toLocaleString('en-GB')} loaded rows` : undefined;
   const avgLatency =
     rows.length > 0
       ? (rows.reduce((sum, d) => sum + d.totalMs, 0) / rows.length).toFixed(1)
@@ -173,14 +191,18 @@ function DecisionsView() {
         description="Every decision the platform made, with the full reasoning trace behind it. Open one to see why the winner won and to prove the result reproduces."
       />
 
+      {/* Above the numbers, inside the content column. A screenshot of these
+          metrics cannot crop this out without also losing the metrics. */}
+      <ProvenanceBanner provenance={data?.provenance} />
+
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Metric label="Decisions" value={rows.length} sub="in the current filter" />
-        <Metric label="Offer made" value={offered} tone="pass" />
+        <Metric label="Decisions" value={total} sub="in the current filter" />
+        <Metric label="Offer made" value={offered} tone="pass" sub={overPage} />
         <Metric
           label="Suppressed"
           value={suppressed}
           tone={suppressed > 0 ? 'hold' : 'neutral'}
-          sub="policy or consent"
+          sub={overPage ?? 'policy or consent'}
         />
         <Metric label="Avg latency" value={`${avgLatency}ms`} sub="SLA 50ms" tone="accent" />
       </div>

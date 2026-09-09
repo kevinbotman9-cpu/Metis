@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execute } from '../src/deterministic/engine';
+import { REASON_CODES } from '../src/deterministic/types';
 import type {
   ExecArtifact,
   CatalogueSnapshot,
@@ -60,20 +61,14 @@ describe('decision conformance (ADR-003)', () => {
    * and SUITABILITY_FAILED — because the corpus had an eligibility case and
    * neither of the other two tiers.
    *
-   * The list is written out rather than derived from what the corpus emits,
-   * which would pass no matter what it contained.
+   * The list comes from `REASON_CODES` rather than from what the corpus emits,
+   * which would pass no matter what it contained — and rather than from a copy
+   * written out here, which is what it used to be. A copy meant a ninth code
+   * could be added to the closed set, shipped to a second engine, and never
+   * noticed by the check whose stated purpose is noticing exactly that.
    */
   it('exercises every reason code, so none ships unverified in a second engine', () => {
-    const ALL = [
-      'ELIGIBILITY_FAILED',
-      'RELEVANCE_FAILED',
-      'SUITABILITY_FAILED',
-      'FREQUENCY_CAP_BREACHED',
-      'CONSENT_WITHHELD',
-      'OUT_OF_VALIDITY_WINDOW',
-      'NOT_ACTIVE',
-      'NOT_RANKED',
-    ];
+    const ALL: readonly string[] = REASON_CODES;
     const seen = new Set<string>();
     for (const c of corpus.cases) {
       for (const e of c.expected.decision.eliminations) {

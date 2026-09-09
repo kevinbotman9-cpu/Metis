@@ -28,7 +28,13 @@ import {
   utilityKey,
   type UtilityFunction,
 } from '@metis/core/utility';
-import { canonicalise, hash, seededUnitInterval } from './canonical';
+import { canonicalise, hash, seededUnitInterval, round } from './canonical';
+import {
+  modelKeyOf,
+  scorerFor,
+  ScoresNotResolved,
+  type ResolvedScores,
+} from '../scoring';
 import type {
   ExecArtifact,
   ExecNode,
@@ -47,8 +53,15 @@ import type {
 // Policy evaluation
 // ---------------------------------------------------------------------------
 
-/** Read a dotted path such as "customer.age" out of the request input. */
-function readPath(input: Record<string, unknown>, path: string): unknown {
+/**
+ * Read a dotted path such as "customer.age" out of the request input.
+ *
+ * Exported because aggregation resolution walks the same paths before the core
+ * runs, and two implementations of "what does this path mean" would eventually
+ * disagree about something like a null intermediate — which is the kind of
+ * difference that shows up as an unexplainable decision rather than an error.
+ */
+export function readPath(input: Record<string, unknown>, path: string): unknown {
   return path
     .split('.')
     .reduce<unknown>(
@@ -60,7 +73,12 @@ function readPath(input: Record<string, unknown>, path: string): unknown {
     );
 }
 
-function compare(actual: unknown, operator: PolicyCondition['operator'], expected: unknown): boolean {
+/**
+ * Compare one value. Exported for the same reason as `readPath`: an
+ * aggregation's `where` filter and a policy condition must mean the same thing
+ * by the same code, or a rollup could count a record a policy would reject.
+ */
+export function compare(actual: unknown, operator: PolicyCondition['operator'], expected: unknown): boolean {
   switch (operator) {
     case 'exists':
       return actual !== undefined && actual !== null;
@@ -255,10 +273,21 @@ const KIND_CODE: Record<TargetingPolicy['kind'], ReasonCode> = {
 export function execute(
   artifact: ExecArtifact,
   catalogue: CatalogueSnapshot,
-  request: DecisionRequest
+  request: DecisionRequest,
+  /**
+   * Propensities resolved before this ran — ADR-009 §2.
+   *
+   * Optional while the only scorer is a pure function, because requiring it
+   * would change seventy call sites in one commit and each is a chance to move
+   * a chain hash. The `pure` guard above is what keeps that transitional shape
+   * honest: a scorer that reaches anything is refused here rather than run.
+   */
+  resolved?: ResolvedScores
 ): DecisionRecord {
   const startedAt = Date.now();
   const timingsByNode: Record<string, number> = {};
+  /** Candidates that fell back because nothing scored them. */
+  const missingScoreApplied: string[] = [];
 
   const byKey = new Map(catalogue.offers.map((p) => [p.key, p]));
   const policyById = new Map(catalogue.targetingPolicies.map((p) => [p.id, p]));
@@ -473,16 +502,29 @@ export function execute(
         break;
       }
 
+      // `score-adaptive` is retained here and refused by the compiler. A case in
+      // `docs/conformance/decision-corpus.json` recorded on 2026-09-05 carries
+      // it inside its hashed eliminations, so deleting the node type would move
+      // a chain hash that is a statement about something that happened. History
+      // replays; nothing new can use it. See ADR-009 §7 and G-012.
       case 'score-model':
       case 'score-adaptive': {
-        const modelKey = node.model ? `${node.model.id}@${node.model.version}` : node.id;
+        const modelKey = modelKeyOf(node);
+        // Resolved before the core ran, or resolved here when the scorer is
+        // pure. A model-backed scorer reaches the network and the core opens no
+        // sockets, so it must have been resolved by the caller — ADR-009 §2.
+        const scorer = scorerFor(node);
+        const byOffer = resolved?.get(modelKey);
+        if (!byOffer && !scorer.pure) throw new ScoresNotResolved(node.id, scorer.id);
         for (const p of candidates) {
-          // Deterministic stand-in for a pinned model. Same customer, same
-          // offer, same model version always yields the same propensity.
-          const propensity = round(
-            0.05 + seededUnitInterval(request.customerId, p.key, modelKey) * 0.9,
-            6
-          );
+          const propensity =
+            byOffer?.get(p.key) ??
+            scorer.score({
+              tenantId: request.tenantId,
+              customerId: request.customerId,
+              offerKey: p.key,
+              modelKey,
+            });
           const value = round(Math.max(0.01, p.financials.expectedMargin.amount / 60000), 6);
           const boost = effectiveBoost(catalogue.boosts, p, request.occurredAt);
           const context = round(
@@ -495,7 +537,20 @@ export function execute(
           scores[p.key] = { propensity, value, boost, context, cost, priority: 0 };
         }
         // Scoring never removes a candidate, so there is nothing to deny.
-        record(node, `Scored ${candidates.length} candidate(s) with ${modelKey}.`, candidates, []);
+        //
+        // The sentence says what kind of scorer ran, because the trace is the
+        // artefact this project asks people to trust literally and it used to
+        // read "Scored 3 candidate(s) with adm_accept_v4@4.2.0" while the
+        // propensity was a seeded function. Nobody wrote a false claim; a
+        // pinned id that looks like a trained model made one anyway. When the
+        // model gateway lands (W-029) this sentence changes, which is correct:
+        // by then it will be describing something else.
+        record(
+          node,
+          `Scored ${candidates.length} candidate(s) with ${modelKey} — a pinned deterministic function, not a trained model (W-029).`,
+          candidates,
+          []
+        );
         break;
       }
 
@@ -504,15 +559,22 @@ export function execute(
 
         // A candidate with no model score is not disqualified. Some flows
         // legitimately rank without a propensity model - anonymous web traffic
-        // has no customer to score - and their formula says so. A missing term
-        // is neutral, which under exponentiation means 1.0, not 0.
+        // has no customer to score - and their formula says so.
+        //
+        // What stands in is the flow's *approved* default where it declares
+        // one, and a neutral 1.0 where it does not. Neutral is correct
+        // arithmetic - under exponentiation a missing term is 1, not 0 - but
+        // it is a number nobody chose, and "the engine assumes 1.0" is not an
+        // answer to why an unscored offer outranked a scored one.
+        const approvedDefault = artifact.missingScoreDefault ?? null;
         for (const p of candidates) {
           if (scores[p.key]) continue;
+          missingScoreApplied.push(p.key);
           scores[p.key] = {
-            propensity: 1,
+            propensity: approvedDefault ? approvedDefault.propensity : 1,
             value: round(Math.max(0.01, p.financials.expectedMargin.amount / 60000), 6),
             boost: effectiveBoost(catalogue.boosts, p, request.occurredAt),
-            context: 1,
+            context: approvedDefault ? approvedDefault.context : 1,
             // Cost is a catalogue fact, not a model output, so it is known
             // even when nothing scored this candidate. Neutral here means the
             // real number, not 1.
@@ -614,6 +676,12 @@ export function execute(
     arbitration: {
       formula: catalogue.arbitration.formula,
       utility: { id: utility.id, version: utility.version },
+      missingScore: {
+        // Sorted so the record is stable, and de-duplicated because a
+        // candidate cannot fall back twice.
+        applied: [...new Set(missingScoreApplied)].sort(),
+        approved: artifact.missingScoreDefault ?? null,
+      },
       winner,
       runnerUp,
     },
@@ -741,8 +809,4 @@ export function diff(a: unknown, b: unknown, path = '$'): ReplayResult['differen
   );
 }
 
-/** Fixed-precision rounding, so float noise cannot change a hash. */
-function round(n: number, dp: number): number {
-  const f = 10 ** dp;
-  return Math.round(n * f) / f;
-}
+

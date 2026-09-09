@@ -24,6 +24,8 @@ export type {
   ResolutionContext,
   ResolvedInput,
 } from './integration/resolve';
+export { HttpIntegrationGateway, MemoryIntegrationCache } from './integration/http-gateway';
+export type { HttpGatewayOptions } from './integration/http-gateway';
 export type {
   ExecArtifact,
   ExecNode,
@@ -52,3 +54,35 @@ export type {
   IdempotencyOutcome,
   IdempotencyStore,
 } from './idempotency';
+
+export {
+  resolveScores,
+  scorerFor,
+  setScorerResolver,
+  modelKeyOf,
+  scoreNodes,
+  ScoresNotResolved,
+  SEEDED_PROPENSITY,
+} from './scoring';
+export type { PropensityScorer, ResolvedScores, ScoringContext } from './scoring';
+export { compareShadow, buildShadowReport } from './shadow';
+export type {
+  ShadowComparison,
+  ShadowReport,
+  Divergence,
+  DivergenceKind,
+} from './shadow';
+
+export { createFlowTestRunner } from './flow-tests';
+export type {
+  FlowTestCase,
+  FlowTestResult,
+  FlowTestRunner,
+  FlowTestExpectation,
+} from './flow-tests';
+
+export { resolveAggregations, mergeAggregations } from './integration/aggregate';
+export type { AggregationResult } from './integration/aggregate';
+
+export { selectSlate } from './slate';
+export type { Slate, SlateEntry } from './slate';

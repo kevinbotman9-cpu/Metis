@@ -4,10 +4,17 @@ on:
   push:
     branches: [main, master]
   pull_request:
+  # The flake hunt below. Nightly rather than weekly: the failure mode being
+  # looked for is a suite that fails one run in three, and learning that a week
+  # late means a week of pushes gated by a suite nobody should have trusted.
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 
 # The definition of done in CLAUDE.md, enforced.
 jobs:
   verify:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
 
     # Without this the registry's PostgreSQL suite skips, and "durable storage
@@ -32,9 +39,9 @@ jobs:
         working-directory: apps/console
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -43,12 +50,15 @@ jobs:
         run: npm ci
         working-directory: .
 
-      # The root tsconfig has `"include": []` and only project references, and
-      # `tsc --noEmit -p` does not build references — so this step checked zero
-      # files. Kept, because it still catches a malformed root config, but it
-      # is not the check that matters.
-      - name: Typecheck (root config)
-        run: npx tsc --noEmit -p tsconfig.json
+      # This checked zero files until 2026-09-06: the root tsconfig has
+      # `"include": []` and `tsc --noEmit -p` does not build references.
+      # `tsconfig.typecheck.json` is a single non-composite program over every
+      # package, its tests, bench and scripts — the coverage the console's own
+      # typecheck cannot reach.
+      - name: Typecheck (packages, tests, bench, scripts)
+        run: npx tsc --noEmit -p tsconfig.typecheck.json
+        working-directory: .
+
 
       # This is the one with real coverage. The console resolves @metis/core,
       # @metis/runtime and @metis/compiler through path aliases, so its
@@ -105,6 +115,14 @@ jobs:
         run: npm run test:bench
         working-directory: .
 
+      # The form descriptors, diffed against the OpenAPI schema in both
+      # directions. A descriptor that has fallen behind its schema renders a
+      # form that looks complete and silently cannot edit the new field, which
+      # is worse than no descriptor at all.
+      - name: Form descriptors match the spec
+        run: npm run test:ui-metadata
+        working-directory: .
+
       # The seam between the planes: author -> compile -> execute -> replay.
       - name: Integration
         run: npm run test:integration
@@ -120,6 +138,27 @@ jobs:
       - name: End-to-end and accessibility
         run: npm run test:e2e
 
+      # Builds and serves the standalone output, then measures what a browser
+      # actually downloads per route. Separate from the E2E step because that
+      # one runs `next dev`, whose unminified modules make a size budget
+      # meaningless.
+      - name: Route bundle budgets
+        run: npm run test:bundle
+
+      # A test that passed on retry is reported as passing by every reporter
+      # here, and CI has never run this suite more than once per push — so a
+      # suite failing one run in three passed two pushes in three, and nothing
+      # said so. This reads the JSON reporter's output and puts every flaky
+      # test in the run summary, where it is seen without opening an artifact.
+      #
+      # It does not fail the job. A flake is a defect to investigate, not a
+      # reason to block a push that is otherwise green; the nightly job below is
+      # the one that fails on them, because that is the run whose whole purpose
+      # is to find them.
+      - name: Report flaky tests
+        if: always()
+        run: node ../../scripts/report-flaky.mjs playwright-results.json
+
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
@@ -129,10 +168,11 @@ jobs:
           retention-days: 7
 
   spec:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
 
@@ -172,10 +212,11 @@ jobs:
   # engine carries the same chain hash — which is the only thing that makes a
   # second engine worth having.
   kotlin-conformance:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -188,3 +229,85 @@ jobs:
       - name: Conformance (Kotlin engine and service)
         run: ./gradlew test --no-daemon
         working-directory: engines/kotlin
+
+  # ---------------------------------------------------------------------------
+  # The flake hunt.
+  #
+  # CI ran the e2e suite once per push, and `retries: 1` reported a test that
+  # passed on its second attempt as passing. A suite failing one run in three
+  # therefore passed two pushes in three. Three order-dependent failures lived
+  # in the tree for weeks on that basis, and were only found because somebody
+  # happened to run the suite four times in one sitting while chasing something
+  # else.
+  #
+  # Three runs plus a shuffled one, nightly. Not on every push: the suite is
+  # fourteen minutes, so this is an hour of runner time and would be
+  # unworkable as a gate.
+  #
+  # `--fail-on-flaky-tests` is the point of the job. Here a test that needs a
+  # retry is a failure, because this is the run whose whole purpose is to find
+  # one.
+  # ---------------------------------------------------------------------------
+  flake-hunt:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: apps/console
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+        working-directory: .
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run 1
+        run: npx playwright test --fail-on-flaky-tests --reporter=line
+
+      - name: Run 2
+        run: npx playwright test --fail-on-flaky-tests --reporter=line
+
+      - name: Run 3
+        run: npx playwright test --fail-on-flaky-tests --reporter=line
+
+      # Playwright sorts spec files by path and has no shuffle, so the order is
+      # varied by splitting the suite into four groups and running the groups in
+      # a random sequence against the same reused server. That is what actually
+      # matters here: the dev store is process-wide, so the question is which
+      # specs have run before which, not the order inside one invocation.
+      #
+      # Seeded from the run id, so each night differs and any single failure can
+      # be reproduced from the log.
+      - name: Run 4 — shuffled group order
+        run: |
+          mapfile -t SPECS < <(ls tests/e2e/*.spec.ts | shuf --random-source=<(yes ${{ github.run_id }}))
+          echo "::group::order"
+          printf '%s\n' "${SPECS[@]}"
+          echo "::endgroup::"
+          n=${#SPECS[@]}
+          per=$(( (n + 3) / 4 ))
+          fail=0
+          for g in 0 1 2 3; do
+            start=$(( g * per ))
+            chunk=("${SPECS[@]:start:per}")
+            [ ${#chunk[@]} -eq 0 ] && continue
+            echo "--- group $((g+1)): ${#chunk[@]} files"
+            npx playwright test "${chunk[@]}" --fail-on-flaky-tests --reporter=line || fail=1
+          done
+          exit $fail
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flake-hunt-report
+          path: apps/console/playwright-report
+          retention-days: 14

@@ -1,5 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { login, ACCOUNTS } from './helpers';
+import { decisions } from '@/mocks/fixtures/decisions';
+
+/**
+ * The corpus size, taken from the fixture rather than written down.
+ *
+ * These assertions exist to catch the grid reporting a page size instead of a
+ * real total — they once caught it showing the query limit of 200. Naming the
+ * number meant editing two tests every time the seeded tenant grew, and a
+ * stale literal is a test that fails for the wrong reason.
+ */
+const CORPUS = decisions.length;
 
 /**
  * The console has to stay usable at the volume the gap register assumes
@@ -76,8 +87,12 @@ test.describe('smart search', () => {
   }
 
   test('narrows results with a facet, and shows it as a dismissible chip', async ({ page }) => {
+    // Read from the grid's own status, which counts the rows it was handed —
+    // not the corpus, which is larger than one query asks for. The guard the
+    // old literal carried was that this is real data rather than a page of 50.
     const totalBefore = await totalRows(page);
-    expect(totalBefore).toBe(5000);
+    expect(totalBefore).toBeGreaterThan(1000);
+    expect(totalBefore).toBeLessThanOrEqual(CORPUS);
 
     await page.getByRole('combobox', { name: 'Search and filter' }).click();
     await page.getByRole('option', { name: /^Outcome/ }).click();
@@ -87,9 +102,15 @@ test.describe('smart search', () => {
     await expect(page.getByText('Outcome: Suppressed')).toBeVisible();
 
     // And it actually narrows the data.
-    const totalAfter = await totalRows(page);
-    expect(totalAfter).toBeLessThan(totalBefore);
-    expect(totalAfter).toBeGreaterThan(0);
+    //
+    // Asserted on the summary rather than the grid's row count: the page asks
+    // for 5,000 rows and both the whole corpus and the suppressed half exceed
+    // that, so the grid reports its cap either way. The summary counts what
+    // the filter matched, which is the thing being tested.
+    await expect(page.getByText('Offer made')).toBeVisible();
+    const offered = page.locator('p', { hasText: /^Offer made$/ }).locator('..').locator('p').nth(1);
+    await expect(offered).toHaveText('0');
+
     await expect(page.locator('tr[data-row]').first().getByText('no offer')).toBeVisible();
 
     // Dismissing restores the full set.
@@ -153,7 +174,8 @@ test.describe('summary strip', () => {
   test('reports the real decision total, not the page size', async ({ page }) => {
     await page.goto('/');
     // Regression guard: this once showed the query limit of 200.
-    await expect(page.getByText('5,000')).toBeVisible();
+    await expect(page.getByText(CORPUS.toLocaleString('en-GB'))).toBeVisible();
+    expect(CORPUS).toBeGreaterThan(1000);
   });
 
   test('gives every status glyph an accessible name', async ({ page }) => {

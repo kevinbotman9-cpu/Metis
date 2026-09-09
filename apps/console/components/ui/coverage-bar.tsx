@@ -23,7 +23,7 @@ export interface CoverageBarProps {
   covered: number;
   /** What could be covered. 0 means coverage is not applicable. */
   total: number;
-  /** Suppresses the block treatment for offers that can never be selected. */
+  /** Suppresses the block styling for offers that can never be selected. */
   selectable?: boolean;
   /**
    * What is being counted. The catalogue list only knows how many creatives an

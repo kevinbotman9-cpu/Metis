@@ -7,6 +7,8 @@ import type {
   PublishOutcome,
   PublishedVersion,
   RegistryEvent,
+  FlowTestResult,
+  FlowTestRunner,
 } from './types';
 import { RegistryError } from './types';
 
@@ -63,7 +65,24 @@ export class ArtifactRegistry {
    * the registry, so it cannot be promoted, so it cannot reach execution. The
    * compiler already knew — nothing was listening.
    */
-  async publish(command: PublishCommand, ctx: CompileContext): Promise<PublishOutcome> {
+  /**
+   * Publish a version, if it compiles and its own tests pass.
+   *
+   * The compilation gate is why a broken flow cannot reach production.
+   * Compilation only proves the graph is well-formed, though — it says nothing
+   * about whether the flow still offers what its author said it offers, which
+   * is the change someone editing a policy is actually making. So a version
+   * may attach cases, and they run here.
+   *
+   * A version that attaches cases and is published without a runner is
+   * **refused**. An optional gate is not a gate: if a caller could skip the
+   * tests by omitting an argument, the first hurried deploy would.
+   */
+  async publish(
+    command: PublishCommand,
+    ctx: CompileContext,
+    runner?: FlowTestRunner
+  ): Promise<PublishOutcome> {
     const { tenantId, flowName, version, source, actor, occurredAt } = command;
 
     const result = compileDecisionFlow(source, ctx);
@@ -86,6 +105,46 @@ export class ArtifactRegistry {
         diagnostics: result.diagnostics,
       });
       return { status: 'rejected', reason: 'compilation', diagnostics: result.diagnostics };
+    }
+
+    const cases = (source as { tests?: unknown[] }).tests ?? [];
+    let tests: FlowTestResult[] = [];
+
+    if (cases.length > 0) {
+      if (!runner) {
+        await this.store.appendEvent({
+          at: occurredAt,
+          actor,
+          type: 'PublishRejected',
+          tenantId,
+          flowName,
+          version,
+          summary:
+            `Refused ${flowName} ${version}: it attaches ${cases.length} test case(s) ` +
+            'and no runner was supplied, so they could not be run. A gate that ' +
+            'can be skipped by omitting an argument is not a gate.',
+          diagnostics: result.diagnostics,
+        });
+        return { status: 'rejected', reason: 'tests', diagnostics: result.diagnostics, tests: [] };
+      }
+
+      tests = await runner.run(result.artifact, cases);
+      const failed = tests.filter((t) => !t.passed);
+      if (failed.length > 0) {
+        await this.store.appendEvent({
+          at: occurredAt,
+          actor,
+          type: 'PublishRejected',
+          tenantId,
+          flowName,
+          version,
+          summary:
+            `Refused ${flowName} ${version}: ${failed.length} of ${tests.length} ` +
+            `test(s) failed — ${failed.map((t) => t.name).join(', ')}`,
+          diagnostics: result.diagnostics,
+        });
+        return { status: 'rejected', reason: 'tests', diagnostics: result.diagnostics, tests };
+      }
     }
 
     const existing = await this.store.getVersion(tenantId, flowName, version);
@@ -124,6 +183,7 @@ export class ArtifactRegistry {
       publishedAt: occurredAt,
       publishedBy: actor,
       warnings,
+      tests,
     });
 
     // Read it back rather than returning the compiler's object. What publish
@@ -183,6 +243,11 @@ export class ArtifactRegistry {
     const next: EnvironmentState = {
       environment,
       activeVersion: version,
+      // Promotion does not disturb a shadow. The two answer different
+      // questions — what is running, and what is being evidenced — and
+      // clearing the shadow on every promote would end a comparison halfway
+      // through without anyone asking for it.
+      shadowVersion: current?.shadowVersion ?? null,
       // What rollback returns to. Only the immediately previous version: a
       // deeper history invites rolling back to something nobody remembers.
       previousVersion: current?.activeVersion ?? null,
@@ -203,6 +268,95 @@ export class ArtifactRegistry {
         current?.activeVersion
           ? `Promoted ${flowName} ${version} to ${environment}, replacing ${current.activeVersion}.`
           : `Promoted ${flowName} ${version} to ${environment}.`,
+    });
+
+    return next;
+  }
+
+  /**
+   * Run a version beside the active one, deciding nothing.
+   *
+   * Refuses to shadow the version already active: comparing a thing with
+   * itself produces a 100% agreement rate that means nothing, and publishing
+   * that number would be worse than having none.
+   */
+  async startShadow(
+    tenantId: string,
+    flowName: string,
+    version: string,
+    environment: Environment,
+    actor: string,
+    occurredAt: string
+  ): Promise<EnvironmentState> {
+    const target = await this.store.getVersion(tenantId, flowName, version);
+    if (!target) {
+      throw new RegistryError(
+        'UNKNOWN_VERSION',
+        `${flowName} ${version} has not been published. Publish it before shadowing it.`
+      );
+    }
+
+    const current = await this.store.getEnvironment(tenantId, flowName, environment);
+    if (!current?.activeVersion) {
+      throw new RegistryError(
+        'UNKNOWN_VERSION',
+        `${flowName} has nothing active in ${environment}, so there is nothing to shadow against.`
+      );
+    }
+    if (current.activeVersion === version) {
+      throw new RegistryError(
+        'ALREADY_ACTIVE',
+        `${flowName} ${version} is already active in ${environment}. ` +
+          'Shadowing a version against itself measures nothing.'
+      );
+    }
+
+    const next: EnvironmentState = { ...current, shadowVersion: version };
+    await this.store.putEnvironment(tenantId, flowName, next);
+
+    await this.store.appendEvent({
+      at: occurredAt,
+      actor,
+      type: 'ShadowStarted',
+      tenantId,
+      flowName,
+      version,
+      environment,
+      summary: `${flowName} ${version} is now shadowing ${current.activeVersion} in ${environment}.`,
+    });
+
+    return next;
+  }
+
+  /** Stop shadowing. The active version is untouched. */
+  async stopShadow(
+    tenantId: string,
+    flowName: string,
+    environment: Environment,
+    actor: string,
+    occurredAt: string
+  ): Promise<EnvironmentState> {
+    const current = await this.store.getEnvironment(tenantId, flowName, environment);
+    if (!current?.shadowVersion) {
+      throw new RegistryError(
+        'NOTHING_TO_ROLL_BACK',
+        `${flowName} has no shadow running in ${environment}.`
+      );
+    }
+
+    const stopped = current.shadowVersion;
+    const next: EnvironmentState = { ...current, shadowVersion: null };
+    await this.store.putEnvironment(tenantId, flowName, next);
+
+    await this.store.appendEvent({
+      at: occurredAt,
+      actor,
+      type: 'ShadowStopped',
+      tenantId,
+      flowName,
+      version: stopped,
+      environment,
+      summary: `${flowName} ${stopped} stopped shadowing in ${environment}.`,
     });
 
     return next;
@@ -240,6 +394,9 @@ export class ArtifactRegistry {
     const next: EnvironmentState = {
       environment,
       activeVersion: current.previousVersion,
+      // A rollback leaves the shadow alone too: whatever was being evidenced
+      // is still worth evidencing against whatever is now running.
+      shadowVersion: current.shadowVersion ?? null,
       previousVersion: current.activeVersion,
       promotedAt: occurredAt,
       promotedBy: actor,
@@ -279,6 +436,15 @@ export class ArtifactRegistry {
     return [...all].sort(
       (a, b) => b.publishedAt.localeCompare(a.publishedAt) || b.version.localeCompare(a.version)
     );
+  }
+
+  /** One environment, for callers that know which one they mean. */
+  environment(
+    tenantId: string,
+    flowName: string,
+    environment: Environment
+  ): Promise<EnvironmentState | undefined> {
+    return this.store.getEnvironment(tenantId, flowName, environment);
   }
 
   async environments(tenantId: string, flowName: string): Promise<EnvironmentState[]> {

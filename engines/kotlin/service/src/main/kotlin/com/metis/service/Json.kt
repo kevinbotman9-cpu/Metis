@@ -183,6 +183,18 @@ object Json {
         candidateKeys = (n["candidateKeys"] ?: mapper.createArrayNode()).map { it.asText() },
         packageVersions = (n["packageVersions"] ?: mapper.createObjectNode())
             .properties().associate { (k, v) -> k to v.asText() },
+        // Dropping this silently is exactly the failure `docs/gaps.md` records
+        // about this file: it maps wire fields by literal string, so a field
+        // added to the artifact and not added here produces a decision that
+        // looks fine and hashes differently.
+        missingScoreDefault = n["missingScoreDefault"]?.let {
+            MissingScoreDefault(
+                propensity = req(it["propensity"], "missingScoreDefault.propensity").asDouble(),
+                context = req(it["context"], "missingScoreDefault.context").asDouble(),
+                approvedBy = req(it["approvedBy"], "missingScoreDefault.approvedBy").asText(),
+                approvedAt = req(it["approvedAt"], "missingScoreDefault.approvedAt").asText(),
+            )
+        },
     )
 
     @Suppress("UNCHECKED_CAST")

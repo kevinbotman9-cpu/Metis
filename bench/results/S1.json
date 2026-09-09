@@ -1,0 +1,111 @@
+{
+  "scenario": "S1",
+  "generatedAt": "2026-09-06T12:08:36.010Z",
+  "context": {
+    "infrastructure": {
+      "platform": "win32",
+      "release": "10.0.26220",
+      "arch": "x64",
+      "cores": 12,
+      "memoryGb": 15.8,
+      "nodeVersion": "v20.19.3"
+    },
+    "codeVersion": "660e56ff26a9af4afa9d3412264aeb9672990e43",
+    "workload": {
+      "profiles": 1000000,
+      "activeActions": 100,
+      "policiesPerOffer": 3,
+      "channels": 5,
+      "seeded": true
+    },
+    "modelLatencyMs": 0
+  },
+  "budget": {
+    "p99Ms": 50,
+    "p95Ms": 50,
+    "throughputPerSecond": null
+  },
+  "variants": [
+    {
+      "name": "S1-cold",
+      "cacheState": "cold",
+      "result": {
+        "name": "S1-cold",
+        "decisions": 20000,
+        "latency": {
+          "p50": 1.1144999999999072,
+          "p95": 4.347999999999956,
+          "p99": 6.779200000000856,
+          "min": 0.1684000000004744,
+          "max": 44.55819999999949,
+          "mean": 1.635132124999998,
+          "meanConfidence95": {
+            "low": 1.6134490866160085,
+            "high": 1.6568151633839874
+          }
+        },
+        "throughput": 593.684121748667,
+        "wallMs": 33687.9483,
+        "offered": 12772
+      },
+      "meanConfidence95": {
+        "low": 1.6134490866160085,
+        "high": 1.6568151633839874
+      },
+      "passed": true,
+      "failures": []
+    },
+    {
+      "name": "S1-warm",
+      "cacheState": "warm",
+      "result": {
+        "name": "S1-warm",
+        "decisions": 20000,
+        "latency": {
+          "p50": 1.090199999998731,
+          "p95": 2.7225000000034925,
+          "p99": 3.6480000000010477,
+          "min": 0.2099000000016531,
+          "max": 14.694200000005367,
+          "mean": 1.0485402200000051,
+          "meanConfidence95": {
+            "low": 1.0376750610158976,
+            "high": 1.0594053789841127
+          }
+        },
+        "throughput": 929.8276852167119,
+        "wallMs": 21509.3617,
+        "offered": 12772
+      },
+      "meanConfidence95": {
+        "low": 1.0376750610158976,
+        "high": 1.0594053789841127
+      },
+      "passed": true,
+      "failures": []
+    }
+  ],
+  "notMeasured": [
+    {
+      "variant": "feature-store miss (1% / 5% / 20%)",
+      "reason": "There is no online feature service, so a miss rate would be a number about nothing.",
+      "blockedOn": "W-009"
+    },
+    {
+      "variant": "degraded provider",
+      "reason": "Connector resolution runs before the deterministic core by design, so the harness would be timing a stub rather than a degraded dependency.",
+      "blockedOn": "W-010, and the gateway entering the measured path"
+    },
+    {
+      "variant": "throughput as a gate",
+      "reason": "Measured and published on every variant, never gated. It swings 3x with machine load, and a gate that flaps is one people learn to ignore. The number is in the result so a regression is still visible.",
+      "blockedOn": "nothing — this is a decision, not a gap"
+    },
+    {
+      "variant": "sustained 1k/s and 2k burst",
+      "reason": "This harness is single-threaded and measures per-core capacity. A service-level throughput claim needs the service, not the engine, and holding one to the other would compare two different things.",
+      "blockedOn": "a deployed service under load, not this harness"
+    }
+  ],
+  "passed": true
+}

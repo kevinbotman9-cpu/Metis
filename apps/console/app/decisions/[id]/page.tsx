@@ -20,6 +20,8 @@ import {
 } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
 import { apiClient, ApiError } from '@/lib/api-client';
+import { downloadJson, evidenceFilename } from '@/lib/download';
+import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import { cn } from '@/lib/cn';
 
 const AUDIENCES = [
@@ -115,15 +117,43 @@ function TraceView({ decisionId }: { decisionId: string }) {
         description="Immutable record of what the platform decided and why."
         actions={
           <>
-            <Button variant="secondary" size="sm">
+            {/* The regulator-ready pack is a document, not a serialisation: it
+                needs a renderer, pagination and the hash verification page
+                §7.5 of the experience plan describes. None of that exists, and
+                `window.print()` dressed as "Export PDF" would be a promise
+                rather than a feature. Disabled with the reason, per the
+                convention on /agentic and /arbitration. Registered as W-053. */}
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled
+              title="Not built: the regulator pack needs a document renderer and a hash verification page (W-053). Export JSON carries the same evidence."
+            >
               Export PDF
             </Button>
-            <Button variant="secondary" size="sm">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                downloadJson(evidenceFilename('decision', trace.id, trace.timestamp), {
+                  // First key in the file, so it is the first thing read in an
+                  // editor and the first thing seen in a diff. A synthetic
+                  // record that leaves the building without saying so is the
+                  // failure this exists to prevent.
+                  provenance: trace.provenance,
+                  ...trace,
+                })
+              }
+            >
               Export JSON
             </Button>
           </>
         }
       />
+
+      {/* Between the header and the trace, so a screenshot of the cascade or
+          of the score table carries it. */}
+      <ProvenanceBanner provenance={trace.provenance} />
 
       {/* Audience selector */}
       <div className="mb-stack flex flex-wrap items-center gap-2">

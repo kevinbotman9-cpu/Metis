@@ -7,6 +7,7 @@
     "paths": {
       "@metis/compiler/decision-flow": ["packages/compiler/src/decision-flow/index.ts"],
       "@metis/core/domain": ["packages/core/src/domain.ts"],
+      "@metis/core/utility": ["packages/core/src/utility.ts"],
       "@metis/*": ["packages/*/src"]
     }
   },

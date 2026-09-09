@@ -21,7 +21,9 @@ import type {
   AutonomySetting,
   AgentActivity,
   Connector,
+  Placement,
 } from '@metis/core/domain';
+import { seededOffers, seededCreatives } from './seed';
 
 /** Fixed clock so timestamps are stable across runs. */
 const T0 = Date.parse('2026-09-01T09:00:00Z');
@@ -153,7 +155,7 @@ export const categories: Category[] = [
 
 const gbp = (amount: number) => ({ amount, currency: 'GBP' as const });
 
-export const offers: Offer[] = [
+const authoredOffers: Offer[] = [
   {
     id: 'prop_5g_unlimited_24',
     categoryId: 'grp_data_upsell',
@@ -424,7 +426,16 @@ export const offers: Offer[] = [
 // Creatives
 // ---------------------------------------------------------------------------
 
-export const creatives: Creative[] = [
+/**
+ * The catalogue the console reads: the eleven authored above, then the seeded
+ * `demo-telco-uk` tenant behind them.
+ *
+ * Authored first, so the offers a demo walks through are the first rows on the
+ * screen and the ids every test names keep meaning what they meant.
+ */
+export const offers: Offer[] = [...authoredOffers, ...seededOffers];
+
+const authoredCreatives: Creative[] = [
   {
     id: 'trt_5g_email',
     offerId: 'prop_5g_unlimited_24',
@@ -471,6 +482,7 @@ export const creatives: Creative[] = [
       ctaLabel: 'See the plan',
       ctaUrl: '/plans/5g-unlimited',
       placement: 'account_dashboard_hero',
+      placementType: 'hero',
     },
     active: true,
     locale: 'en-GB',
@@ -539,6 +551,7 @@ export const creatives: Creative[] = [
       ctaLabel: 'Add 10GB',
       ctaUrl: '/addons/data-boost',
       placement: 'usage_page_inline',
+      placementType: 'feature_band',
     },
     active: true,
     locale: 'en-GB',
@@ -639,6 +652,7 @@ export const creatives: Creative[] = [
       ctaLabel: 'Check availability',
       ctaUrl: '/broadband/full-fibre',
       placement: 'homepage_hero',
+      placementType: 'hero',
     },
     active: true,
     locale: 'en-GB',
@@ -658,6 +672,7 @@ export const creatives: Creative[] = [
       ctaLabel: 'Get this SIM',
       ctaUrl: '/sim-only/30gb',
       placement: 'homepage_grid',
+      placementType: 'tile',
     },
     active: true,
     locale: 'en-GB',
@@ -767,6 +782,8 @@ export const creatives: Creative[] = [
 // ---------------------------------------------------------------------------
 // Targeting policies
 // ---------------------------------------------------------------------------
+
+export const creatives: Creative[] = [...authoredCreatives, ...seededCreatives];
 
 export const targetingPolicies: TargetingPolicy[] = [
   {
@@ -1399,5 +1416,86 @@ export const users: FixtureUser[] = [
       'admin:settings',
     ],
     tenantId: 'telco-uk',
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Placements
+// ---------------------------------------------------------------------------
+
+/**
+ * The slots a site can ask about, and how many actions each holds.
+ *
+ * `key` is the value a decision request already carries and a web creative
+ * already names, so this configures what existed rather than replacing it.
+ *
+ * Not part of `catalogueSnapshot`: a placement governs delivery, not the
+ * decision, and adding it to what the engine hashes would move every chain
+ * hash to configure something the engine does not read.
+ */
+export const placements: Placement[] = [
+  {
+    id: 'plc_homepage_hero',
+    key: 'homepage_hero',
+    name: 'Homepage hero',
+    type: 'hero',
+    description: 'The full-width banner above the fold. One action, unauthenticated traffic.',
+    channel: 'web',
+    slotCount: 1,
+    artifactId: 'inbound-web-offers',
+    active: true,
+    updatedAt: iso(-72),
+    updatedBy: 'marcus.webb@telco.example',
+  },
+  {
+    id: 'plc_homepage_grid',
+    key: 'homepage_grid',
+    name: 'Homepage grid',
+    type: 'tile',
+    description: 'Three cards below the hero. The slot that needs a slate rather than a winner.',
+    channel: 'web',
+    slotCount: 3,
+    artifactId: 'next-best-action',
+    active: true,
+    updatedAt: iso(-72),
+    updatedBy: 'marcus.webb@telco.example',
+  },
+  {
+    id: 'plc_account_dashboard_hero',
+    key: 'account_dashboard_hero',
+    name: 'Account dashboard hero',
+    type: 'hero',
+    description: 'The signed-in dashboard banner. One action, and the customer is known.',
+    channel: 'web',
+    slotCount: 1,
+    artifactId: 'next-best-action',
+    active: true,
+    updatedAt: iso(-48),
+    updatedBy: 'marcus.webb@telco.example',
+  },
+  {
+    id: 'plc_usage_page_inline',
+    key: 'usage_page_inline',
+    name: 'Usage page inline',
+    type: 'feature_band',
+    description: 'A single cross-sell strip under the usage meter.',
+    channel: 'web',
+    slotCount: 1,
+    artifactId: 'inbound-web-offers',
+    active: true,
+    updatedAt: iso(-48),
+    updatedBy: 'marcus.webb@telco.example',
+  },
+  {
+    id: 'plc_weekly_offers_send',
+    key: 'weekly_offers_send',
+    name: 'Weekly offers email',
+    description: 'The weekly send. Configured, and nothing delivers it yet — W-017.',
+    channel: 'email',
+    slotCount: 2,
+    artifactId: 'next-best-action',
+    active: false,
+    updatedAt: iso(-200),
+    updatedBy: 'priya.nair@telco.example',
   },
 ];

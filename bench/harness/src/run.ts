@@ -26,7 +26,11 @@ import {
  * promise still applies and is still gated, because p95 is per decision and
  * does not improve by adding machines.
  */
-const STRESS: Budget = { p95Ms: BUDGET.p95Ms, throughputPerSecond: null };
+const STRESS: Budget = {
+  p99Ms: BUDGET.p99Ms,
+  p95Ms: BUDGET.p95Ms,
+  throughputPerSecond: null,
+};
 
 const SCENARIOS = [
   { name: 'Small catalogue (10 candidates)', offers: 10, decisions: 20_000, budget: BUDGET },

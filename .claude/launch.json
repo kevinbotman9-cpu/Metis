@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "-w", "@metis/console"],
       "port": 3000
+    },
+    {
+      "name": "storybook",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "storybook", "-w", "@metis/console", "--", "--ci", "--no-open"],
+      "port": 6006
     }
   ]
 }

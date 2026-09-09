@@ -192,7 +192,16 @@ function FlowsView() {
         title="Decision flows"
         description="Compiled decision graphs. Each version is immutable and pinned to the node package versions it was compiled against, so any decision it made can be replayed exactly."
         actions={
-          <Button variant="primary" size="md">
+          // A flow is drafted on an existing flow's canvas and published from
+          // there; nothing in the spec creates one from nothing — there is no
+          // `createFlow` operation. Disabled with the reason rather than
+          // enabled and dead, which is what it was until 2026-09-09.
+          <Button
+            variant="primary"
+            size="md"
+            disabled
+            title="Not built: creating a flow from nothing has no API yet. Open a flow and use Edit graph to draft a new version."
+          >
             New flow
           </Button>
         }

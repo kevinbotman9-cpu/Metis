@@ -62,6 +62,33 @@ export interface ExecEdge {
 }
 
 /** A compiled, immutable flow. Everything needed to reproduce a decision. */
+/**
+ * What to use for a candidate no scoring node produced a score for.
+ *
+ * §6 says a missing score must never become a silent zero, and asks for a
+ * *configurable approved default* rather than a constant. The engine used
+ * a hardcoded neutral 1.0, which is correct arithmetic — under exponentiation
+ * a neutral term is 1, not 0 — but it is a number nobody chose. The difference
+ * matters when someone asks why an unscored offer outranked a scored one: "the
+ * engine assumes 1.0" is an implementation detail, and "the flow declares 0.3,
+ * approved by this person on this date" is an answer.
+ *
+ * It lives on the artifact rather than the catalogue because the flow is what
+ * determines whether anything scores at all — a flow with no scoring node for
+ * anonymous web traffic is a legitimate design, and its author is the one who
+ * should say what ranking does about it. The artifact is also immutably
+ * versioned and hashed, so the default a decision used is recoverable.
+ */
+export interface MissingScoreDefault {
+  /** Stands in for a model output nobody produced. */
+  propensity: number;
+  /** Stands in for a context multiplier nobody computed. */
+  context: number;
+  /** Approval is what makes this a default rather than a magic number. */
+  approvedBy: string;
+  approvedAt: string;
+}
+
 export interface ExecArtifact {
   id: string;
   version: string;
@@ -72,6 +99,14 @@ export interface ExecArtifact {
   candidateKeys: string[];
   /** Package versions pinned at compile time. */
   packageVersions: Record<string, string>;
+  /**
+   * Declared by the flow, carried into the decision.
+   *
+   * Optional: a flow that scores every candidate never needs one, and
+   * requiring it would be ceremony. When absent the engine uses a neutral
+   * 1.0 and the decision record says so.
+   */
+  missingScoreDefault?: MissingScoreDefault;
 }
 
 /**
@@ -147,23 +182,39 @@ export interface DecisionRequest {
  * change: it enters the hashed decision, so the conformance corpora regenerate
  * and the Kotlin engine has to agree.
  */
-export type ReasonCode =
-  /** Hard filter: we cannot legally or contractually offer this. */
-  | 'ELIGIBILITY_FAILED'
-  /** Situational: we could offer it, but not to this customer right now. */
-  | 'RELEVANCE_FAILED'
-  /** Affordability and ethics: it is not right for this customer. */
-  | 'SUITABILITY_FAILED'
-  /** A frequency cap or cooldown was already spent. */
-  | 'FREQUENCY_CAP_BREACHED'
-  /** Marketing consent withheld, and the offer is not service-exempt. */
-  | 'CONSENT_WITHHELD'
-  /** Outside its start/end window at the moment of the decision. */
-  | 'OUT_OF_VALIDITY_WINDOW'
+/**
+ * The closed set, as a value.
+ *
+ * A value rather than only a union because the conformance corpus has to check
+ * that every code is exercised, and a type cannot be read at run time. That
+ * check used to hold its own copy of this list, so a ninth code would have been
+ * added here, shipped to a second engine, and never noticed by the guard whose
+ * stated purpose is noticing exactly that. Now there is one list and the type
+ * is derived from it.
+ *
+ * Order is the order a decision meets them, which is also the order they read
+ * in a trace. Nothing depends on it, and keeping it meaningful costs nothing.
+ */
+export const REASON_CODES = [
   /** Retired, paused or draft — never really a candidate. */
-  | 'NOT_ACTIVE'
+  'NOT_ACTIVE',
+  /** Outside its start/end window at the moment of the decision. */
+  'OUT_OF_VALIDITY_WINDOW',
+  /** Hard filter: we cannot legally or contractually offer this. */
+  'ELIGIBILITY_FAILED',
+  /** Situational: we could offer it, but not to this customer right now. */
+  'RELEVANCE_FAILED',
+  /** Affordability and ethics: it is not right for this customer. */
+  'SUITABILITY_FAILED',
+  /** Marketing consent withheld, and the offer is not service-exempt. */
+  'CONSENT_WITHHELD',
+  /** A frequency cap or cooldown was already spent. */
+  'FREQUENCY_CAP_BREACHED',
   /** Survived every gate but did not win arbitration. */
-  | 'NOT_RANKED';
+  'NOT_RANKED',
+] as const;
+
+export type ReasonCode = (typeof REASON_CODES)[number];
 
 export interface Denial {
   /** The candidate this is about. */
@@ -254,6 +305,20 @@ export interface DeterministicDecision {
      * the fact.
      */
     utility: { id: string; version: string };
+    /**
+     * What ranking did about candidates nothing scored.
+     *
+     * Present on every decision, including when nothing was missing, so the
+     * absence of a default is stated rather than inferred from silence. A
+     * record that only mentioned this when it happened would leave "no default
+     * configured" and "written by an older engine" indistinguishable.
+     */
+    missingScore: {
+      /** Candidate keys that fell back, sorted. Empty when everything scored. */
+      applied: string[];
+      /** Null when the flow declares none and the engine used a neutral 1.0. */
+      approved: MissingScoreDefault | null;
+    };
     winner: string | null;
     runnerUp: string | null;
   };

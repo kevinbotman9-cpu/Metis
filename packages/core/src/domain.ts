@@ -111,10 +111,45 @@ export interface EmailContent {
 
 export interface SmsContent {
   channel: 'sms';
-  /** Hard limit 160 chars; validated at compile time. */
+  /** Hard limit 160 chars, enforced by `validateCreativeContent` in ./creative. */
   text: string;
   senderId: string;
 }
+
+/**
+ * The shape a web creative takes wherever it appears.
+ *
+ * A closed set: a design decision with a small number of real answers, and one
+ * a person should pick from rather than type.
+ *
+ * Distinct from `Placement`, which is a configured *slot* — `homepage_grid`
+ * holds three actions and is answered by a named flow. A creative names both:
+ * the slot it is for, and the shape it was designed in. They are different
+ * decisions, and a slot can declare its own type so the two can be checked
+ * against each other rather than assumed to agree.
+ */
+export type PlacementType =
+  /** A rotating strip of images. */
+  | 'carousel'
+  /** A full-width band partway down a page. */
+  | 'feature_band'
+  /** Anchored to the bottom of the page. */
+  | 'footer_bar'
+  /** The large central banner above the fold. */
+  | 'hero'
+  /** Covers the page until dismissed. */
+  | 'page_takeover'
+  /** One card among several. */
+  | 'tile';
+
+export const PLACEMENT_TYPES: { id: PlacementType; label: string }[] = [
+  { id: 'carousel', label: 'Carousel' },
+  { id: 'feature_band', label: 'Feature band' },
+  { id: 'footer_bar', label: 'Footer bar' },
+  { id: 'hero', label: 'Hero' },
+  { id: 'page_takeover', label: 'Page takeover' },
+  { id: 'tile', label: 'Tile' },
+];
 
 export interface WebContent {
   channel: 'web';
@@ -123,8 +158,24 @@ export interface WebContent {
   imageUrl: string;
   ctaLabel: string;
   ctaUrl: string;
-  /** Named slot in the customer journey this can fill. */
+  /**
+   * The slot this creative is for, by key.
+   *
+   * The join to a configured `Placement`. Optional in practice: a creative with
+   * no slot named can fill any slot on the channel, which is what a site falls
+   * back to.
+   */
   placement: string;
+  /**
+   * How it is designed to look wherever it appears.
+   *
+   * Separate from `placement` on purpose. The slot says *where* — the homepage
+   * grid, the account dashboard. This says *what shape* — a hero, a tile, a
+   * carousel. A slot and a design are different decisions, usually made by
+   * different people, and collapsing them into one field means neither can be
+   * changed without the other.
+   */
+  placementType?: PlacementType;
 }
 
 export interface PushContent {
@@ -524,6 +575,56 @@ export interface Connector {
   /** 0 disables caching. Caching is a measured concern, never a hashed one. */
   cacheTtlSeconds: number;
   provides: FieldBinding[];
+  active: boolean;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+/**
+ * A content slot in a customer journey, as a configured object.
+ *
+ * `placement` has been a string on a decision request since the beginning: the
+ * engine reads it for the context term and writes it to the record, and nothing
+ * else looks at it. That is enough to decide, and not enough to integrate
+ * against — a website needs to know how many actions a slot can hold and which
+ * flow answers for it, and neither belongs in the caller's code.
+ *
+ * Deliberately **not** part of `CatalogueSnapshot`. A placement configures how
+ * a decision is delivered, not what is decided, so it is not hashed into the
+ * decision and changing a slot count moves no chain hash. The consequence is
+ * stated rather than hidden: a slate is reproducible from its decision plus the
+ * placement that composed it, and pinning the placement into the hashed
+ * decision is a question for W-028, when composition becomes more than ordering.
+ */
+export interface Placement {
+  id: string;
+  /**
+   * The value a decision request carries in `placement`, and the value a
+   * creative names. The join between configuration and everything that already
+   * exists, which is why it is a key rather than an id.
+   */
+  key: string;
+  name: string;
+  description: string;
+  channel: Channel;
+  /**
+   * The shape this slot renders in.
+   *
+   * Web only: a hero and a tile are different designs, and a creative declares
+   * which it was made for. An email placement has no equivalent, so it carries
+   * none rather than a value that means nothing.
+   */
+  type?: PlacementType;
+  /**
+   * How many actions this slot can show, at most.
+   *
+   * A page hero is 1. A grid is 3. The decision does not change with it — the
+   * ranking is the same either way — so this governs how much of the ranking
+   * the caller is given, not what was decided.
+   */
+  slotCount: number;
+  /** Which flow answers for this slot. */
+  artifactId: string;
   active: boolean;
   updatedAt: string;
   updatedBy: string;

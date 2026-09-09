@@ -48,15 +48,22 @@ const KIND_TONE: Record<ResultKind, string> = {
 const PAGES: Result[] = [
   { kind: 'page', id: 'home', title: 'Home', href: '/' },
   { kind: 'page', id: 'offers', title: 'Offers', subtitle: 'Offer catalogue', href: '/offers' },
+  { kind: 'page', id: 'datamodel', title: 'Data model', subtitle: 'Entities, fields and rollups', href: '/data-model' },
+  { kind: 'page', id: 'intake', title: 'Intake', subtitle: 'Land, map, validate, activate', href: '/data-model/intake' },
   { kind: 'page', id: 'engagement', title: 'Targeting Policies', subtitle: 'Eligibility, relevance, suitability', href: '/targeting-policies' },
   { kind: 'page', id: 'contact', title: 'Frequency Policy', subtitle: 'Frequency caps and cooldowns', href: '/frequency-policy' },
   { kind: 'page', id: 'arbitration', title: 'Arbitration & Boosts', subtitle: 'P x V x L x C', href: '/arbitration' },
   { kind: 'page', id: 'flows', title: 'Decision flows', subtitle: 'Compiled decision graphs', href: '/decision-flows' },
   { kind: 'page', id: 'decisions', title: 'Decisions', subtitle: 'Search traces and replay', href: '/decisions' },
+  { kind: 'page', id: 'performance', title: 'Performance', subtitle: 'Outcomes joined to decisions', href: '/performance' },
+  { kind: 'page', id: 'experiments', title: 'Experiments', subtitle: 'Holdouts and arms', href: '/experiments' },
   { kind: 'page', id: 'simulations', title: 'Simulations', href: '/simulations' },
   { kind: 'page', id: 'approvals', title: 'Approvals', subtitle: 'Change set queue', href: '/approvals' },
   { kind: 'page', id: 'agentic', title: 'Agentic AI', subtitle: 'Autonomy levels and guardrails', href: '/agentic' },
   { kind: 'page', id: 'audit', title: 'Audit Log', href: '/audit' },
+  { kind: 'page', id: 'creatives', title: 'Creatives', subtitle: 'Content library', href: '/creatives' },
+  { kind: 'page', id: 'integrations', title: 'Integrations', subtitle: 'Connectors and outbound calls', href: '/integrations' },
+  { kind: 'page', id: 'traffic', title: 'Inbound traffic', subtitle: 'Requests served, with full payloads', href: '/integrations/traffic' },
   { kind: 'page', id: 'settings', title: 'Settings', href: '/settings' },
 ];
 
@@ -214,7 +221,7 @@ export function CommandPalette({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[12vh] backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-scrim/55 p-4 pt-[12vh] backdrop-blur-sm"
       onClick={() => onOpenChange(false)}
     >
       <div

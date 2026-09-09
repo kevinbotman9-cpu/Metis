@@ -1,7 +1,44 @@
 /**
  * METIS Core Node Types
  * Implementations of the 14+ core decision nodes
+ *
+ * **Nothing imports this package.** The engine implements node behaviour in
+ * `packages/runtime/src/deterministic/engine.ts` and the compiler holds its own
+ * `FlowNodeType` union; these classes are executed by no code path, and the
+ * package declares a dependency on `@metis/types`, which does not exist.
+ *
+ * It is kept rather than deleted because the *name* is load-bearing elsewhere:
+ * `@metis/nodes-core` is the package id every flow pins a version of, and every
+ * decision records that pin. Deleting the directory would leave a version
+ * identifier referring to nothing, which is worse than dead code that says it
+ * is dead. Registered in `docs/gaps.md`; W-038's package system is where it
+ * either becomes real or goes.
  */
+
+/**
+ * A node's configuration, as authored.
+ *
+ * Deliberately loose — each node type reads its own keys and casts them — but
+ * not `any`, which switched off checking for every read as well as the ones
+ * that need it.
+ */
+export interface NodeConfig {
+  /** Every node type reads this, so it is named rather than left to a cast. */
+  label?: string;
+  [key: string]: unknown;
+}
+
+/** A candidate carrying a score, as the ranking nodes here expect one. */
+interface Scored {
+  score?: number;
+  [key: string]: unknown;
+}
+
+/** One branch of a switch node's configuration. */
+interface SwitchCase {
+  condition: unknown;
+  branch: string;
+}
 
 /**
  * Abstract base class for all node types
@@ -49,7 +86,7 @@ export abstract class BaseNode {
  * SOURCE: Fetch data from feature store or external API
  */
 export class SourceNode extends BaseNode {
-  constructor(id: string, config: any) {
+  constructor(id: string, config: NodeConfig) {
     super(id, 'source', config.label || 'Source', config);
   }
 
@@ -88,7 +125,7 @@ export class SourceNode extends BaseNode {
  * FILTER: Boolean eligibility rule
  */
 export class FilterNode extends BaseNode {
-  constructor(id: string, config: any) {
+  constructor(id: string, config: NodeConfig) {
     super(id, 'filter', config.label || 'Filter', config);
   }
 
@@ -127,7 +164,7 @@ export class FilterNode extends BaseNode {
  * SET-PROPERTY: Mutate working state
  */
 export class SetPropertyNode extends BaseNode {
-  constructor(id: string, config: any) {
+  constructor(id: string, config: NodeConfig) {
     super(id, 'set-property', config.label || 'Set Property', config);
   }
 
@@ -151,7 +188,7 @@ export class SetPropertyNode extends BaseNode {
     const obj = { ...(inputs.object as object) };
     const key = this.config.key as string;
     const value = this.config.value;
-    (obj as any)[key] = value;
+    (obj as Record<string, unknown>)[key] = value;
     return { object: obj };
   }
 
@@ -164,7 +201,7 @@ export class SetPropertyNode extends BaseNode {
  * SCORE-MODEL: Invoke a model (with version pin)
  */
 export class ScoreModelNode extends BaseNode {
-  constructor(id: string, config: any) {
+  constructor(id: string, config: NodeConfig) {
     super(id, 'score-model', config.label || 'Score Model', config);
   }
 
@@ -211,7 +248,7 @@ export class ScoreModelNode extends BaseNode {
  * ARBITRATE: Ranking formula over candidates
  */
 export class ArbitrateNode extends BaseNode {
-  constructor(id: string, config: any) {
+  constructor(id: string, config: NodeConfig) {
     super(id, 'arbitrate', config.label || 'Arbitrate', config);
   }
 
@@ -233,9 +270,9 @@ export class ArbitrateNode extends BaseNode {
   }
 
   async execute(inputs: Record<string, unknown>) {
-    const candidates = (inputs.candidates as any[]) || [];
+    const candidates = (inputs.candidates as Scored[]) || [];
     // Sort by score descending
-    const ranked = candidates.sort((a, b) => (b.score || 0) - (a.score || 0));
+    const ranked = [...candidates].sort((a, b) => (b.score || 0) - (a.score || 0));
     return {
       ranked,
       winner: ranked[0]?.id,
@@ -251,7 +288,7 @@ export class ArbitrateNode extends BaseNode {
  * CONSTRAINT: Hard rules (suppress if violated)
  */
 export class ConstraintNode extends BaseNode {
-  constructor(id: string, config: any) {
+  constructor(id: string, config: NodeConfig) {
     super(id, 'constraint', config.label || 'Constraint', config);
   }
 
@@ -272,7 +309,7 @@ export class ConstraintNode extends BaseNode {
   }
 
   async execute(inputs: Record<string, unknown>) {
-    const candidates = (inputs.candidates as any[]) || [];
+    const candidates = (inputs.candidates as Scored[]) || [];
     // In real implementation, would filter candidates based on constraints
     return { candidates };
   }
@@ -286,7 +323,7 @@ export class ConstraintNode extends BaseNode {
  * EXPLAIN-ANNOTATE: Emit reasoning
  */
 export class ExplainAnnotateNode extends BaseNode {
-  constructor(id: string, config: any) {
+  constructor(id: string, config: NodeConfig) {
     super(id, 'explain-annotate', config.label || 'Explain', config);
   }
 
@@ -323,7 +360,7 @@ export class ExplainAnnotateNode extends BaseNode {
  * SWITCH: Branching logic
  */
 export class SwitchNode extends BaseNode {
-  constructor(id: string, config: any) {
+  constructor(id: string, config: NodeConfig) {
     super(id, 'switch', config.label || 'Switch', config);
   }
 
@@ -345,7 +382,7 @@ export class SwitchNode extends BaseNode {
 
   async execute(inputs: Record<string, unknown>) {
     const value = inputs.value;
-    const cases = this.config.cases as any[];
+    const cases = this.config.cases as SwitchCase[];
     for (const c of cases) {
       if (c.condition === value) {
         return { branch: c.branch };
@@ -362,7 +399,17 @@ export class SwitchNode extends BaseNode {
 /**
  * Registry of all core node types
  */
-const NODE_REGISTRY: Record<string, typeof BaseNode> = {
+/**
+ * A concrete node constructor, not `typeof BaseNode`.
+ *
+ * `typeof BaseNode` is an *abstract* constructor type, so `new NodeClass(...)`
+ * below was never legal — and it declared a four-argument constructor while
+ * every subclass takes two. Both errors sat here unreported because the root
+ * typecheck resolved zero files and this package is outside the console's.
+ */
+type NodeConstructor = new (id: string, config: Record<string, unknown>) => BaseNode;
+
+const NODE_REGISTRY: Record<string, NodeConstructor> = {
   source: SourceNode,
   filter: FilterNode,
   'set-property': SetPropertyNode,
@@ -376,7 +423,11 @@ const NODE_REGISTRY: Record<string, typeof BaseNode> = {
 /**
  * Factory function to create a node by type
  */
-export function createNode(id: string, type: string, config: any): BaseNode {
+export function createNode(
+  id: string,
+  type: string,
+  config: Record<string, unknown>
+): BaseNode {
   const NodeClass = NODE_REGISTRY[type];
   if (!NodeClass) {
     throw new Error(`Unknown node type: ${type}`);
