@@ -1,7 +1,11 @@
 # ADR-007: Secrets and Connector Authentication
 
-**Status:** Proposed — needs a product and security decision before any code that ships authentication
-**Date:** 2026-09-07
+**Status:** Accepted
+**Date:** 2026-09-07 (proposed)
+**Decided:** 2026-09-09
+**Deciders:** Product owner
+**Owner:** Product owner
+**Decision needed by:** — decided
 **Constrains:** `Connector` in the OpenAPI spec, integration resolution in
 `packages/runtime/src/integration/`, the export format (W-002), the audit log,
 and every future outbound integration including the email adapter (W-017).

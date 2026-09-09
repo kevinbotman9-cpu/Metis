@@ -1,7 +1,11 @@
 # ADR-004: Retention and Erasure
 
-**Status:** Proposed — needs a decision from product and legal before it is Accepted
-**Date:** 2026-09-06
+**Status:** Accepted
+**Date:** 2026-09-06 (proposed)
+**Decided:** 2026-09-09
+**Deciders:** Product owner
+**Owner:** Product owner
+**Decision needed by:** — decided
 **Constrains:** the decision ledger, the interaction history store (unbuilt), the
 profile store (unbuilt), and every future store holding subject data.
 

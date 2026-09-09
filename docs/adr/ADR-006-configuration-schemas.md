@@ -1,7 +1,11 @@
 # ADR-006: Configuration schemas and metadata-driven rendering
 
-**Status:** Proposed — needs product and design review before any code
-**Date:** 2026-09-06
+**Status:** Accepted
+**Date:** 2026-09-06 (proposed)
+**Decided:** 2026-09-09
+**Deciders:** Product owner
+**Owner:** Product owner
+**Decision needed by:** — decided
 **Constrains:** every configuration surface in `apps/console`, the package
 system (W-038), and the shape of every object type added from Stage 13 onward.
 **Arises from:** `docs/review/CONFIGURABILITY.md`, finding C-3.
@@ -114,13 +118,46 @@ rather than five — but it does not decide whether they should be.
 
 ## Status, honestly
 
-**Proposed.** `CLAUDE.md` requires product and design review before structural
-console changes, and this is the most structural one available: it changes how
-every configuration surface is built, including five that work today.
+**Accepted 2026-09-09 by the product owner.** It was Proposed from 2026-09-06,
+because `CLAUDE.md` requires product and design review before structural console
+changes and this is the most structural one available: it changes how every
+configuration surface is built, including five that work today.
 
-It is also the review's highest-value finding, in the specific sense that the
-decision is cheap now and expensive after Stage 18. That is an argument for
-deciding it soon, not for deciding it without design review.
+### It was built before it was accepted
 
-Nothing is implemented. `CAPABILITIES.md` records configurability as it was
-measured in Phase C.
+This paragraph read *"Nothing is implemented"* on the day two entities were
+implemented against it. The form descriptor registry shipped for **Offer** on
+2026-09-08 (`02fe806`) and for **Creative** on 2026-09-09 (`9af3938`) — a
+package, a generic renderer, a schema diff, `@screen-only` tests and two live
+routes — while this ADR said the decision had not been made.
+
+**That is the breach the status field exists to prevent**, and it is worth being
+exact about what went wrong, because the failure was not laziness. Every
+individual step was defensible: `CLAUDE.md` Rule 8 mandates declared forms, the
+backlog scheduled the work, the tests were real, the review sessions found the
+descriptors and praised them. Nobody decided to build ahead of an ADR. The ADR
+simply stopped being consulted, because nothing in the process reads it — the
+conformance gate does not, the test suite did not, and a slice brief naming Rule
+8 gives an implementer no reason to open `docs/adr/` at all.
+
+The cost is not that the wrong thing was built; the descriptors are good and the
+decision here endorses them. The cost is that **the design review this document
+demanded never happened**, and it cannot happen now in any meaningful sense
+because two entities are shipped and their shape is the de facto answer. A
+status field that records a decision nobody checks is decoration, and this ADR
+was decoration for three days.
+
+`tests/adr-status.test.ts` now holds the weaker of the two rules that would have
+caught it: an ADR cannot sit Proposed for more than thirty days without an
+owner. That would not have caught this one — three days, not thirty — and the
+rule that would have, *no implementation may reference a Proposed ADR's
+subject*, is not checkable by any means this repository has. The honest position
+is that the process depends on somebody reading before building, and that the
+thirty-day rule catches the slow failure while the fast one stays open.
+
+### What acceptance changes
+
+Nothing about Offer and Creative, which are built and stay. It unblocks the
+remaining twelve entities in `USER_EDITABLE_ENTITIES`, eight of which
+`packages/ui-metadata/src/registry/index.ts` records as having no authoring
+surface at all.

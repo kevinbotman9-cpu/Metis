@@ -348,6 +348,7 @@ Added by E3.
 | Capability | Status | Screen? | Config? | Evidence |
 |---|---|---|---|---|
 | A performance report over real decision records | BUILT | YES — `/performance` | NO | Taxonomy 14.1 `TABLE-STAKES`. `packages/ledger/src/performance.ts:37-215`; tests `report`, `the report reaches real outcomes`, `performance by arm`. Built from the corpus at request time, not a precomputed table |
+| Outcomes produced, joined to their decision, and reported — for web | BUILT | YES — `/storefront/index.html`, `/performance` | NO | Taxonomy 11.8 `TABLE-STAKES` in part. [ADR-008](adr/ADR-008-closing-the-outcome-loop.md) phase one. The storefront reports `impression` when a slot renders an offer and `click` when someone clicks it, bound by decision id and nothing else. `outcome-loop.spec.ts` is `@screen-only`: it opens the storefront as a visitor, clicks as a customer, then opens `/performance` as a marketer and reads a real rate. **The limits, all deliberate:** web only — nothing is sent, queued or bounced, so this does not prove outbound and [W-017](BACKLOG.md) stays open; `impression` and `click` only, because an acceptance is a business event this storefront does not model; and the decision behind the rate cannot be opened, which is a defect in the trace route registered in [`gaps.md`](gaps.md) rather than a property of the loop |
 | The report refusing to state what it cannot know | BUILT | YES — `/performance` | NO | Taxonomy 14.22 `FRONTIER`. `performance.ts:11` and `apps/console/app/performance/page.tsx:307` both say it in the product's own words: *"Counting only: attribution and uplift are statistical…"*. Tests `what the numbers refuse to say`, `absent is not zero` enforce the refusal, so the honesty cannot quietly lapse |
 | A searchable decision grid over the whole corpus, reporting the real total | BUILT | YES — `/decisions` | NO | Taxonomy 14.1, 14.2 `TABLE-STAKES`. Tests `virtualised decision grid`, `summary strip`, `reports the real decision total, not the page size`. 10,400 records |
 | Every displayed decision reaching its own trace, and the trace re-executing | BUILT | YES — `/decisions/[id]` | NO | Taxonomy 14.3 `FRONTIER`. Tests `decision search and trace`, `the decision ledger`. This is the one place the taxonomy's hardest reporting item — click a number, reach the records — is genuinely answered |
@@ -742,7 +743,7 @@ reachable only from `packages/portability/src/cli.ts`.
 
 ### Configurable without code? = NO — the extensibility debt list
 
-**304 rows, of 307 capability rows in this map.**
+**305 rows, of 308 capability rows in this map.**
 
 Only three rows answer YES, and they are the same mechanism seen three times:
 the form descriptor registry, the declared Offer form, and the declared Creative

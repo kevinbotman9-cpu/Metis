@@ -1,7 +1,11 @@
 # ADR-005: Internationalisation
 
-**Status:** Proposed — needs a product decision before any code
-**Date:** 2026-09-06
+**Status:** Accepted
+**Date:** 2026-09-06 (proposed)
+**Decided:** 2026-09-09
+**Deciders:** Product owner
+**Owner:** Product owner
+**Decision needed by:** — decided
 **Constrains:** every user-facing string in `apps/console`, and the panel and
 theme packages that Stage 23 will add.
 

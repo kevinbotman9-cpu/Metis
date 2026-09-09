@@ -1,7 +1,8 @@
 # ADR-011: Navigation Gating — Personas Open Groups, Permissions Open Screens
 
 **Status:** Accepted  
-**Decision Date:** 2026-09-08  
+**Date:** 2026-09-08
+**Decided:** 2026-09-08  
 **Deciders:** Product, Architecture  
 **Affected Component:** `apps/console` — `lib/nav/build-nav.ts`, `lib/nav/persona-manifest.ts`, `components/nav-rail.tsx`
 

@@ -872,3 +872,48 @@ and a visible inline note — a design decision, not a fix.
 
 **The check that would close it:** an axe rule or a Playwright assertion that
 every disabled control's reason is in the accessibility tree.
+
+---
+
+## Registered 2026-09-09 — a live decision's trace cannot be opened in the console
+
+Found by ADR-008 phase one: the storefront makes a real decision, reports a real
+outcome against it, `/performance` counts it — and clicking through to the
+decision behind the number gives **"This page couldn't load"**.
+
+`GET /decisions/{id}/trace` resolves a seeded decision through `findTrace`,
+which returns the console's flattened shape, and a live one through
+`store.ledger.get(...)`, which returns `entry.record` — the **runtime**
+`DecisionRecord` from `@metis/runtime`, shaped `{ id, decision: {...} }`. The
+spec declares this operation returns the **API** `DecisionRecord`, which is the
+flat shape with `scores`, `eliminations`, `arbitration` and `timestamp` at the
+top level. Two different types share the name and the route returns whichever
+store answered.
+
+`apps/console/app/api/[...path]/route.ts:687-699`. Verified live: the API
+answers 200 with `{"id":"dec_7d72e92a7a3d2b7d","decision":{...}}` and the page
+throws reading `trace.scores`.
+
+**Why no check caught it.** `contract.spec.ts` asserts every non-proposed
+operation is served and returns what the spec declares, and it exercises this
+one with a seeded id — which takes the `findTrace` branch and is correct. The
+ledger branch has never been contract-tested, because until the storefront
+started reporting outcomes there was no test that made a live decision and then
+opened it.
+
+**The consequence for ADR-008.** Phase one closes the loop and the number on
+`/performance` is real, but the rule in `CLAUDE.md` — *every displayed number
+links to its source trace or explains why it cannot* — is broken for exactly the
+decisions this slice creates. The `@screen-only` test in `outcome-loop.spec.ts`
+originally asserted the trace opened; that assertion was removed rather than
+weakened, and this entry is where it went.
+
+**Done when:** the ledger branch projects to the API shape, `contract.spec.ts`
+exercises `getDecisionRecord` against a decision made in the same test rather
+than a seeded one, and `outcome-loop.spec.ts` regains the assertion that the
+decision behind a reported outcome opens and replays.
+
+**Not fixed here.** It is a defect in the trace route, not in the loop, it
+predates this slice, and fixing it properly means extending the contract suite
+to cover live decisions — which is the real repair and is larger than the
+projection itself.

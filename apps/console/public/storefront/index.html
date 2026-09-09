@@ -676,6 +676,43 @@ async function decide(placement) {
   return { ...json, ms };
 }
 
+/*
+ * Reporting back — phase one of ADR-008.
+ *
+ * Until 2026-09-09 nothing in this platform ever called `POST /outcomes`. The
+ * endpoint was built, the table was built, the report that joins them was
+ * built, and `/performance` opened on "nothing has been reported back" because
+ * no producer existed. This is the producer, and it is deliberately two lines
+ * of protocol: the decision id the platform returned, and what happened to it.
+ *
+ * The binding is the decision id and nothing else (ADR-008 §2). This page never
+ * reconstructs a decision from customer, offer and time — the id came back with
+ * the slate, so it is echoed rather than inferred.
+ *
+ * Two types only. `acceptance` is a business event this storefront does not
+ * model, and reporting one because somebody clicked would put the least
+ * trustworthy number in the demo.
+ *
+ * Failure is swallowed on purpose. A site that could not render because
+ * telemetry was down would be a worse site, and a demo that alerts on a missing
+ * outcome teaches the wrong lesson about which half matters.
+ */
+async function reportOutcome(decisionId, type) {
+  if (!decisionId) return false;
+  try {
+    const res = await fetch(`${API}/outcomes/${TENANT}/${decisionId}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      // An input, never the clock on the server — the same rule the decision
+      // itself follows, and what lets an outcome be replayed beside it.
+      body: JSON.stringify({ type, occurredAt: new Date().toISOString() }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** The decision behind a slate. Live decisions resolve from the ledger. */
 async function loadTrace(decisionId) {
   const res = await fetch(`${API}/decisions/${decisionId}/trace`);
@@ -924,6 +961,22 @@ async function runPlacement(placement) {
 
   results.set(placement.id, r);
   placement.render(slot, r);
+
+  // The decision id lives on the slot, so a click anywhere inside it can find
+  // the decision that put the offer there without every renderer having to
+  // thread it through. Cleared on an empty or failed slot, so a stale id from
+  // the previous preset cannot be clicked into a wrong outcome.
+  if (r.status === 'filled') {
+    slot.dataset.decisionId = r.slate.decisionId;
+    // An impression is of an offer. A slot that filled nothing had none, and a
+    // slot that errored showed the reason rather than an offer, so neither
+    // reports one — a rate over impressions that included them would be
+    // measuring page views.
+    reportOutcome(r.slate.decisionId, 'impression');
+  } else {
+    delete slot.dataset.decisionId;
+  }
+
   renderPanel();
 }
 
@@ -977,6 +1030,22 @@ select.addEventListener('change', () => {
 for (const b of document.querySelectorAll('nav.site button')) {
   b.addEventListener('click', () => switchView(b.dataset.view));
 }
+
+/*
+ * A click on any call to action reports a click against the decision that put
+ * the offer there.
+ *
+ * Delegated from the document rather than bound in each of the three
+ * renderers, because a renderer that forgets is a decision that silently never
+ * reports — the class of defect the dead export buttons were.
+ */
+document.addEventListener('click', (e) => {
+  const cta = e.target.closest?.('.cta');
+  if (!cta) return;
+  const slot = cta.closest('[data-decision-id]');
+  if (!slot) return;
+  reportOutcome(slot.dataset.decisionId, 'click');
+});
 
 $('#openPanel').addEventListener('click', () => $('#panel').classList.add('open'));
 $('#closePanel').addEventListener('click', () => $('#panel').classList.remove('open'));
