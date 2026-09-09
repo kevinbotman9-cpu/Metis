@@ -248,6 +248,20 @@ function currentCompileContext() {
   };
 }
 
+/**
+ * When this process started serving, near enough.
+ *
+ * Module load, not `process.uptime()`, because a Next dev server re-evaluates
+ * route modules on change and what matters is how long *this* state has been
+ * accumulating rather than how long the shell has been alive.
+ *
+ * Read by `tests/global-setup.ts`, which refuses a reused server older than
+ * two hours. See G-035: one that had been up seventeen hours ran two
+ * accessibility tests in ten minutes where a fresh one ran forty-nine in under
+ * three.
+ */
+const STARTED_AT = new Date().toISOString();
+
 const json = (body: unknown, status = 200, headers?: Record<string, string>) =>
   NextResponse.json(body, { status, headers });
 const notFound = (message = 'Not found') => json({ error: 'not_found', message }, 404);
@@ -766,6 +780,17 @@ async function handleGet(req: Request, { params }: Ctx) {
         ? store.changeSets.filter((c) => c.status === status)
         : store.changeSets;
       return json({ changeSets: result, total: result.length });
+    }
+
+    case '_test': {
+      // GET /api/_test/uptime — how long this process has been accumulating
+      // state. Development only, like the rest of the `_test` namespace.
+      if (rest[0] !== 'uptime') return notFound();
+      if (process.env.NODE_ENV === 'production') return notFound();
+      return json({
+        startedAt: STARTED_AT,
+        uptimeMs: Date.now() - new Date(STARTED_AT).getTime(),
+      });
     }
 
     case 'audit': {

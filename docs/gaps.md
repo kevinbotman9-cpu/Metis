@@ -69,14 +69,32 @@ against a freshly started server, the same command ran **49 in 2.7 minutes**.
 Every timing-shaped failure recorded in this register before that point should
 be re-read with it in mind.
 
-It is registered rather than fixed because the fix is a judgement:
-`reuseExistingServer` exists so a local run does not pay a cold start, and
-turning it off costs about a minute on every invocation. The cheap middle option
-— refuse to reuse a server older than some age — needs somebody to pick the age.
+**Decided 2026-09-09: refuse a reused server older than two hours.**
 
-**Done when:** either the suite refuses a server it should not trust, or the
-reuse is dropped and the cold start accepted. Whichever, `npm run test:a11y` on
-a day-old server must not take ten minutes to run two tests.
+`apps/console/tests/global-setup.ts` reads `GET /api/_test/uptime` before the
+suite runs and throws if the server has been up longer, naming the age and
+telling the reader to restart it. Verified to bite by lowering the threshold to
+one millisecond: the run stops with the message rather than producing numbers
+nobody should trust.
+
+**Why two hours, since it is a judgement and not a measurement.** It sits
+between the two numbers there is evidence for. A cold start costs about thirty
+seconds, so refusing at two hours costs at most one cold start per two hours of
+work — inside the noise of a suite that takes fourteen minutes. The only
+degradation actually observed was at seventeen hours. Two hours is comfortably
+inside that and comfortably longer than any single sitting of edit-and-rerun, so
+a developer iterating should never see it and a server left up overnight always
+will.
+
+**What is still unknown, and how to settle it.** Nobody has measured where the
+degradation begins; there is one observation at seventeen hours and one
+non-observation at zero. Recording the server's age alongside the suite duration
+for a few weeks would turn this into a number. Until then it is a guess with a
+reason attached, which is better than reuse with neither.
+
+**Not chosen: dropping the reuse.** It would cost a cold start on every local
+invocation for a problem that appears once a day at most, and the people who pay
+that are the ones running the suite most often.
 
 **One test was passing for the wrong reason, and the fix exposed it.**
 `seeds nothing running` asserted `getByText('running')` had count 0.
@@ -95,6 +113,29 @@ than an ordering one.
 
 **Done when:** `--repeat-each=12` passes ten times in a row without an
 `ECONNRESET`. Six consecutive full runs are clean; this narrower probe is not.
+
+### G-036 — The root lint step covers neither `tests/` nor `scripts/`
+
+**Registered:** 2026-09-09 · **Status:** Open · **Work item:** none
+
+`npm run lint` at the root is `eslint packages bench --ext .ts`. CI runs exactly
+that, so nothing lints the two trees where every check written this week lives:
+`tests/` holds `vocabulary`, `docs-status`, `adr-status`, `gaps-register` and
+`api-paths`, and `scripts/` holds the conformance gate, the corpus builders and
+`report-flaky.mjs`.
+
+Found on 2026-09-09 while confirming a new script was clean. `npx eslint .` from
+the root reports an error in `tests/source-hygiene.test.ts:126` —
+`no-control-regex`, present since `660e56f` — that the CI step cannot see. The
+capability map's "Lint clean" line was corrected on 2026-09-09 to say so; this
+entry is why the error survived long enough to need correcting.
+
+**Not fixed here.** Widening the glob turns that pre-existing error into a red
+CI, which is a change somebody should make deliberately rather than as a side
+effect of a slice about flake detection. It is one `eslint-disable-next-line`
+away from being safe to do.
+
+**Done when:** `npm run lint` covers `tests` and `scripts`, and passes.
 
 ### G-004 — No node, panel or layout manifests — the composable experience
 

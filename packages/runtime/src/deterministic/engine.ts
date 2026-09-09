@@ -502,13 +502,12 @@ export function execute(
         break;
       }
 
-      case 'score-model':
-      // Retained, and refused for new flows. A case in
+      // `score-adaptive` is retained here and refused by the compiler. A case in
       // `docs/conformance/decision-corpus.json` recorded on 2026-09-05 carries
-      // `score-adaptive` inside its hashed eliminations, so deleting the node
-      // type here would move a chain hash that is a statement about something
-      // that happened. The compiler rejects it instead: history replays, and
-      // nothing new can use it. See ADR-009 §7 and G-012.
+      // it inside its hashed eliminations, so deleting the node type would move
+      // a chain hash that is a statement about something that happened. History
+      // replays; nothing new can use it. See ADR-009 §7 and G-012.
+      case 'score-model':
       case 'score-adaptive': {
         const modelKey = modelKeyOf(node);
         // Resolved before the core ran, or resolved here when the scorer is
