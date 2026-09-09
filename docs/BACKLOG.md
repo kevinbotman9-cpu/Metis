@@ -144,6 +144,9 @@ otherwise.
 | W-050 | 25 | DR: backup, tested restore, chaos | 3 |
 | W-051 | 9 | Secret provider and connector authentication — **ADR awaiting decision** | 2 |
 | W-052 | 14 | Container object and the ranked-slate contract — **done** | 2 |
+| W-053 | 14 | Regulator-ready evidence pack (PDF + hash verification page) | 2 |
+| W-054 | 17 | Flow version diff — canvas, textual, semantic | 2 |
+| W-055 | 12 | A disabled control states its reason accessibly | 2 |
 
 ---
 
@@ -1081,3 +1084,49 @@ Reuse the existing project definition. Every item ships with:
 9. A rollback path.
 10. `docs/CAPABILITIES.md` updated in the same PR, with the evidence column
     naming the check.
+
+---
+
+## Stage 26 — Registered from the evaluation, 2026-09-09
+
+These three were cited from source and from `docs/CAPABILITIES.md` before they
+existed here, which `tests/gaps-register.test.ts` now makes impossible. They are
+written up at the depth the citation implied rather than at the depth a fresh
+work item would get.
+
+### W-053 — Regulator-ready evidence pack
+Gate 2 · Depends: none · [ADR-008](adr/ADR-008-closing-the-outcome-loop.md) · Gap [G-033](gaps.md)
+
+§7.5 of the experience plan asks for a PDF *"with a hash verification page"*.
+That is a document — renderer, pagination, a page restating the chain hash and
+how to check it — not a serialisation. `Export JSON` on a decision trace carries
+the same evidence machine-readably and shipped on 2026-09-09; the PDF control is
+disabled and names this item.
+
+**Done when:** an e2e test exports the pack and asserts the hash printed on its
+verification page matches the decision's chain hash.
+
+### W-054 — Flow version diff
+Gate 2 · Depends: W-024 · Gap [G-033](gaps.md)
+
+`ArtifactSummary.versions` is a list of version numbers. What changed between
+two of them is a diff nobody has built, and §7.2 asks for three at once: a
+canvas diff, a textual diff, and a semantic summary ("3 more actions become
+eligible for customers under 25"). `Export DIR` gives a person the material to
+diff two versions outside the product, which is a workaround.
+
+**Done when:** an e2e test opens two versions of a flow and asserts a node added
+in the later one is marked as added.
+
+### W-055 — A disabled control states its reason accessibly
+Gate 2 · Depends: none · Gap [G-033](gaps.md)
+
+The convention — a control either works or is `disabled` with a `title` saying
+why — is held by `apps/console/tests/unit/dead-controls.test.ts`. A `disabled`
+button is not focusable, so the reason reaches a mouse and nobody else. Choosing
+between `aria-disabled` with a live description and a visible inline note is a
+design decision, not a repair, which is why it was not made mid-slice.
+
+**Done when:** every disabled control's reason is in the accessibility tree,
+asserted by axe or by a Playwright check, and `dead-controls.test.ts` is
+extended to require whatever mechanism is chosen instead of `title`.
