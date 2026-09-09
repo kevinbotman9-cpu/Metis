@@ -15,8 +15,15 @@
 
 import { NextResponse } from 'next/server';
 import { store, resetStore, recordAudit } from '@/mocks/store';
-import { findTrace, decisions, findGeneratedDecision } from '@/mocks/fixtures/decisions';
+import {
+  findTrace,
+  decisions,
+  findGeneratedDecision,
+  toApiTrace,
+} from '@/mocks/fixtures/decisions';
+import type { GeneratedDecision } from '@/mocks/fixtures/engine';
 import { seededOutcomeMap, seededOutcomesFor } from '@/mocks/fixtures/outcomes';
+import { provenanceFor, provenanceOver } from '@/mocks/provenance';
 import {
   IdempotencyConflict,
   compareShadow,
@@ -688,12 +695,17 @@ async function handleGet(req: Request, { params }: Ctx) {
         if (dateTo) result = result.filter((d) => d.timestamp <= dateTo);
 
         const sorted = [...result].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-        return json({ decisions: sorted.slice(0, limit), total: sorted.length });
+        const page = sorted.slice(0, limit);
+        return json({
+          decisions: page,
+          total: sorted.length,
+          provenance: provenanceOver(page.map((d) => d.id)),
+        });
       }
 
       if (rest[1] === 'trace') {
         const trace = findTrace(rest[0]);
-        if (trace) return json(trace);
+        if (trace) return json({ ...trace, provenance: provenanceFor(rest[0]) });
         // Seeded decisions are the console's flattened display shape; anything
         // executed since is in the ledger as real engine output. Before the
         // ledger existed, POST /decisions returned an id this endpoint then
@@ -702,7 +714,17 @@ async function handleGet(req: Request, { params }: Ctx) {
         // carries no tenant segment. A multi-tenant deployment resolves this
         // from the caller's session rather than a constant.
         const entry = await store.ledger.get('telco-uk', rest[0]);
-        if (entry) return json(entry.record);
+        // Projected, not returned raw. `entry.record` is the *runtime*
+        // `DecisionRecord` — `{ id, decision: {...} }` — and the spec declares
+        // the flat API one. Returning the runtime shape here answered 200 with
+        // a body the page threw on, for every decision the storefront made,
+        // from the day live decisions became possible until 2026-09-09.
+        if (entry) {
+          return json({
+            ...toApiTrace(entry.record as unknown as GeneratedDecision['trace']),
+            provenance: provenanceFor(rest[0]),
+          });
+        }
         return notFound(`No decision with id ${rest[0]}`);
       }
       return notFound();
@@ -724,8 +746,13 @@ async function handleGet(req: Request, { params }: Ctx) {
       // what happened to one decision.
       const seededTrace = decisions.find((d) => d.id === decisionId);
       const recorded = await store.ledger.outcomesFor(tenantId, decisionId);
+      const seededEvents = seededTrace ? seededOutcomesFor(seededTrace) : [];
       return json({
-        outcomes: [...(seededTrace ? seededOutcomesFor(seededTrace) : []), ...recorded],
+        outcomes: [...seededEvents, ...recorded],
+        provenance:
+          seededEvents.length > 0 && recorded.length > 0
+            ? provenanceOver([decisionId, 'live'])
+            : provenanceFor(decisionId),
       });
     }
 
@@ -908,7 +935,15 @@ async function handleGet(req: Request, { params }: Ctx) {
           })
         );
 
-      return json({ ...report, arms: armRows });
+      // Where these numbers came from, in the payload rather than in the
+      // interface. A report that joins 2,101 seeded outcomes to the four a
+      // reviewer just produced is not evidence, and a badge in the nav rail
+      // does not survive an export or a screenshot.
+      return json({
+        ...report,
+        arms: armRows,
+        provenance: provenanceOver(all.map((e) => e.decisionId)),
+      });
     }
 
     case 'profile-schema': {

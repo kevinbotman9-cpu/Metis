@@ -14,6 +14,7 @@ import {
   ErrorState,
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
+import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import {
   SmartSearch,
   chipsToQuery,
@@ -189,6 +190,10 @@ function DecisionsView() {
         title="Decisions"
         description="Every decision the platform made, with the full reasoning trace behind it. Open one to see why the winner won and to prove the result reproduces."
       />
+
+      {/* Above the numbers, inside the content column. A screenshot of these
+          metrics cannot crop this out without also losing the metrics. */}
+      <ProvenanceBanner provenance={data?.provenance} />
 
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Metric label="Decisions" value={total} sub="in the current filter" />

@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { apiClient, ApiError } from '@/lib/api-client';
 import { downloadJson, evidenceFilename } from '@/lib/download';
+import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import { cn } from '@/lib/cn';
 
 const AUDIENCES = [
@@ -134,10 +135,14 @@ function TraceView({ decisionId }: { decisionId: string }) {
               variant="secondary"
               size="sm"
               onClick={() =>
-                downloadJson(
-                  evidenceFilename('decision', trace.id, trace.timestamp),
-                  trace
-                )
+                downloadJson(evidenceFilename('decision', trace.id, trace.timestamp), {
+                  // First key in the file, so it is the first thing read in an
+                  // editor and the first thing seen in a diff. A synthetic
+                  // record that leaves the building without saying so is the
+                  // failure this exists to prevent.
+                  provenance: trace.provenance,
+                  ...trace,
+                })
               }
             >
               Export JSON
@@ -145,6 +150,10 @@ function TraceView({ decisionId }: { decisionId: string }) {
           </>
         }
       />
+
+      {/* Between the header and the trace, so a screenshot of the cascade or
+          of the score table carries it. */}
+      <ProvenanceBanner provenance={trace.provenance} />
 
       {/* Audience selector */}
       <div className="mb-stack flex flex-wrap items-center gap-2">

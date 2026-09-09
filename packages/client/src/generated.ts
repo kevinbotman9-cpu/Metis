@@ -291,6 +291,30 @@ export interface PerformanceRow {
   clickRate: number;
 }
 
+/** Where the numbers in this response came from.
+
+The seeded `demo-telco-uk` tenant became indistinguishable from real
+reporting on 2026-09-09: 10,400 decisions, 2,101 measured outcomes,
+plausible click rates and realised value in pounds, all derived from
+`seededUnitInterval` and none of it from a customer. The only marker was
+a badge in a corner of the console's nav rail, which no API response
+carried and no screenshot was obliged to include.
+
+So a response whose numbers are synthetic says so, in the payload. A
+marker that lives only in the interface is a marker that does not
+survive an export, a screenshot, or a `curl`.
+ */
+export interface Provenance {
+  /** `synthetic` when every figure derives from the seed, `recorded` when every figure derives from something that actually happened, `mixed` when a report joins both - which is the normal state of a demo tenant somebody has clicked in. */
+  source: "synthetic" | "recorded" | "mixed";
+  /** Rows or records in this response that derive from the seed. */
+  syntheticCount?: number;
+  /** Rows or records that derive from real traffic. */
+  recordedCount?: number;
+  /** A sentence a person can read in an exported file months later, without this document in front of them. */
+  note: string;
+}
+
 export interface PerformanceReport {
   rows: PerformanceRow[];
   decisions: number;
@@ -301,6 +325,7 @@ export interface PerformanceReport {
   measured: number;
   from?: string;
   to?: string;
+  provenance?: Provenance;
   /** Per-arm counts for every running or stopped experiment, recomputed from each decision's customer reference rather than read from a stored assignment. */
   arms?: ArmPerformance[];
 }
@@ -547,6 +572,7 @@ export interface DecisionRecord {
   tenantId: string;
   customerId: string;
   timestamp: string;
+  provenance?: Provenance;
   channel: string;
   placement: string;
   winner: string | null;

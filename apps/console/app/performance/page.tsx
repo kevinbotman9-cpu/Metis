@@ -17,6 +17,7 @@ import {
   Select,
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
+import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import { apiClient, type PerformanceRowDto } from '@/lib/api-client';
 
 /**
@@ -214,6 +215,11 @@ function PerformanceView() {
 
   return (
     <div className="space-y-4">
+      {/* First thing in the content column, above every figure it is about.
+          This screen is the most screenshot-able in the product and the one
+          whose numbers most look like evidence. */}
+      <ProvenanceBanner provenance={data.provenance} />
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Metric label="Decisions" value={data.decisions.toLocaleString('en-GB')} />
         <Metric label="Offered something" value={data.offered.toLocaleString('en-GB')} />

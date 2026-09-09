@@ -49,6 +49,7 @@ import type {
   SourceBinding as SourceBindingDto,
   SourceCall as SourceCallDto,
   InboundCall as InboundCallDto,
+  Provenance as ProvenanceDto,
   ProfileSchema as ProfileSchemaDto,
   SchemaFieldPath as SchemaFieldPathDto,
   SchemaEntity as SchemaEntityDto,
@@ -324,9 +325,12 @@ export const apiClient = {
 
   // --- Decisions ----------------------------------------------------------
   searchDecisions: (filters: DecisionSearchFilters = {}) =>
-    apiCall<{ decisions: DecisionDto[]; total: number }>('searchDecisions', {
-      query: filters as Record<string, string | number | undefined>,
-    }),
+    apiCall<{ decisions: DecisionDto[]; total: number; provenance?: ProvenanceDto }>(
+      'searchDecisions',
+      {
+        query: filters as Record<string, string | number | undefined>,
+      }
+    ),
 
   getDecisionRecord: (decisionId: string) =>
     apiCall<TraceDto>('getDecisionRecord', { params: { decisionId } }),

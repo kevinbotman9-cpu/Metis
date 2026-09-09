@@ -136,6 +136,17 @@ function FlowDetail({ artifactId }: { artifactId: string }) {
                 compiled
                   ? () =>
                       downloadJson(evidenceFilename('flow', artifact.id, compiled.compiledAt), {
+                        // A flow is configuration rather than a measurement, so
+                        // it is the tenant that is synthetic here, not the
+                        // artifact. Said out loud anyway: an exported DIR from
+                        // the demo tenant should not be mistaken for a
+                        // customer's.
+                        provenance: {
+                          source: 'synthetic' as const,
+                          note:
+                            'Synthetic. This flow belongs to the seeded demo tenant ' +
+                            'demo-telco-uk and was authored by nobody.',
+                        },
                         id: artifact.id,
                         name: artifact.name,
                         version: artifact.activeVersion,

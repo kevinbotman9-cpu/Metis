@@ -548,6 +548,42 @@ components:
           type: number
           nullable: true
 
+    Provenance:
+      type: object
+      description: |
+        Where the numbers in this response came from.
+
+        The seeded `demo-telco-uk` tenant became indistinguishable from real
+        reporting on 2026-09-09: 10,400 decisions, 2,101 measured outcomes,
+        plausible click rates and realised value in pounds, all derived from
+        `seededUnitInterval` and none of it from a customer. The only marker was
+        a badge in a corner of the console's nav rail, which no API response
+        carried and no screenshot was obliged to include.
+
+        So a response whose numbers are synthetic says so, in the payload. A
+        marker that lives only in the interface is a marker that does not
+        survive an export, a screenshot, or a `curl`.
+      required: [source, note]
+      properties:
+        source:
+          type: string
+          enum: [synthetic, recorded, mixed]
+          description: >-
+            `synthetic` when every figure derives from the seed, `recorded` when
+            every figure derives from something that actually happened, `mixed`
+            when a report joins both - which is the normal state of a demo
+            tenant somebody has clicked in.
+        syntheticCount:
+          type: integer
+          description: Rows or records in this response that derive from the seed.
+        recordedCount:
+          type: integer
+          description: Rows or records that derive from real traffic.
+        note:
+          type: string
+          description: >-
+            A sentence a person can read in an exported file months later,
+            without this document in front of them.
     PerformanceReport:
       type: object
       required: [rows, decisions, offered, suppressed, measured]
@@ -568,6 +604,8 @@ components:
           description: Decisions with at least one outcome recorded against them.
         from: { type: string, nullable: true, format: date-time }
         to: { type: string, nullable: true, format: date-time }
+        provenance:
+          $ref: '#/components/schemas/Provenance' 
         arms:
           type: array
           items: { $ref: '#/components/schemas/ArmPerformance' }
@@ -1123,6 +1161,8 @@ components:
         timestamp:
           type: string
           format: date-time
+        provenance:
+          $ref: '#/components/schemas/Provenance' 
         channel:
           type: string
         placement:

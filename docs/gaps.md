@@ -529,9 +529,42 @@ test by their `proposed` marker. Nothing serves them.
 | `simulateDecisionFlow` | Ad-hoc simulation | Week 2 | `/simulations` says plainly that this is not built and shows only simulations attached to change sets. |
 | `getCounterfactual` | "What would have changed the outcome" | Week 2 | No UI yet. |
 
+### G-034 — Propensity is a hash, and every model surface is absent
+
+**Registered:** 2026-09-09 · **Status:** Open · **Work item:** [W-029](BACKLOG.md)
+
+`score-model` and `score-adaptive` pin a model id and version and produce
+`0.05 + seededUnitInterval(customerId, offerKey, modelKey) * 0.9`
+(`packages/runtime/src/deterministic/engine.ts:490-527`). That is arithmetic
+over a hash. There is no model entity, no registry, no scoring service, no
+feature store, and no route in the spec matching model, score or feature.
+
+Registered here on 2026-09-09 for a reason that is about this file rather than
+about models. `engine.ts:522` and `apps/console/mocks/fixtures/artifacts.ts:147`
+both cite **W-029** to a reader, and `CLAUDE.md` tells a blocked agent to look
+in `docs/gaps.md`. W-029 was only ever in `BACKLOG.md`, so following the
+citation the way the instructions describe found nothing. The work item has not
+moved; this entry is the thing that was missing.
+
+**What the trace already does right.** It says so, in the sentence a person
+reads: *"Scored 19 candidate(s) with propensity_accept_v4@4.2.0 — a pinned
+deterministic function, not a trained model (W-029)."* The comment above it
+records that the sentence used to read like a real model had scored, and that
+nobody wrote a false claim — a pinned model id made one anyway.
+
+**Why it matters more than one gap.** Every ranking decision is
+`boost × value × a hash of the customer id`, and the arbitration story is what
+the product is for. Adding 10,400 realistic decision records made this harder to
+see, not easier, because the records now look exactly like a real model would
+have produced.
+
+---
+
+## Resolved
+
 ### G-020 — A live decision’s trace cannot be opened in the console
 
-**Registered:** 2026-09-09 · **Status:** Open · **Work item:** none
+**Registered:** 2026-09-09 · **Resolved:** 2026-09-09 · **Status:** Resolved · **Work item:** none
 
 Found by ADR-008 phase one: the storefront makes a real decision, reports a real
 outcome against it, `/performance` counts it — and clicking through to the
@@ -574,38 +607,14 @@ predates this slice, and fixing it properly means extending the contract suite
 to cover live decisions — which is the real repair and is larger than the
 projection itself.
 
-### G-034 — Propensity is a hash, and every model surface is absent
-
-**Registered:** 2026-09-09 · **Status:** Open · **Work item:** [W-029](BACKLOG.md)
-
-`score-model` and `score-adaptive` pin a model id and version and produce
-`0.05 + seededUnitInterval(customerId, offerKey, modelKey) * 0.9`
-(`packages/runtime/src/deterministic/engine.ts:490-527`). That is arithmetic
-over a hash. There is no model entity, no registry, no scoring service, no
-feature store, and no route in the spec matching model, score or feature.
-
-Registered here on 2026-09-09 for a reason that is about this file rather than
-about models. `engine.ts:522` and `apps/console/mocks/fixtures/artifacts.ts:147`
-both cite **W-029** to a reader, and `CLAUDE.md` tells a blocked agent to look
-in `docs/gaps.md`. W-029 was only ever in `BACKLOG.md`, so following the
-citation the way the instructions describe found nothing. The work item has not
-moved; this entry is the thing that was missing.
-
-**What the trace already does right.** It says so, in the sentence a person
-reads: *"Scored 19 candidate(s) with propensity_accept_v4@4.2.0 — a pinned
-deterministic function, not a trained model (W-029)."* The comment above it
-records that the sentence used to read like a real model had scored, and that
-nobody wrote a false claim — a pinned model id made one anyway.
-
-**Why it matters more than one gap.** Every ranking decision is
-`boost × value × a hash of the customer id`, and the arbitration story is what
-the product is for. Adding 10,400 realistic decision records made this harder to
-see, not easier, because the records now look exactly like a real model would
-have produced.
-
----
-
-## Resolved
+**Closed the same day.** `toApiTrace` in `mocks/fixtures/decisions.ts` is now the
+one projection both branches use, so the ledger branch returns the flat shape
+the spec declares instead of the runtime record. `contract.spec.ts` gained the
+branch it had never reached: it makes a decision, opens its trace, asserts every
+field the console reads is at the top level and that `decision` is *not* a key,
+and separately asserts a seeded trace and a live one have the same shape.
+Verified to bite by restoring the old line — two tests fail with the runtime
+record in the received value.
 
 ### G-021 — The console edits a catalogue the engine does not read
 

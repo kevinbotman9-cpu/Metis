@@ -110,6 +110,25 @@ function sourceCallsFor(bindings: SourceBinding[]): SourceCall[] {
     });
 }
 
+/**
+ * The engine's record, in the shape the spec declares.
+ *
+ * Two types are called `DecisionRecord` in this repository: `@metis/runtime`'s,
+ * which is what the engine emits and what the ledger stores whole, and the
+ * OpenAPI one, which is flat and is what every console screen reads. This is
+ * the projection between them.
+ *
+ * It was applied to seeded decisions and not to live ones until 2026-09-09,
+ * so `GET /decisions/{id}/trace` answered 200 with `{ id, decision: {...} }`
+ * for anything the storefront had decided and the page threw reading
+ * `trace.scores`. `contract.spec.ts` did not catch it because it exercised the
+ * seeded branch, which was correct. Exported so the ledger branch can use the
+ * same one function rather than a second projection that would drift from it.
+ */
+export function toApiTrace(record: GeneratedDecision['trace']): TraceRecord {
+  return toTrace({ trace: record } as GeneratedDecision);
+}
+
 function toTrace({ trace }: GeneratedDecision): TraceRecord {
   const d = trace.decision;
   return {

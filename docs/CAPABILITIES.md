@@ -115,8 +115,10 @@ Lint                1 error    - console clean, 0 warnings. Root has one
                    1000+ tests, two languages, two engines
 ```
 
-The OpenAPI spec validates at **36 paths, 43 operations (41 built, 2 proposed),
-48 schemas**.
+The OpenAPI spec validates at **51 paths, 62 operations (58 built, 4 proposed),
+70 schemas**. This line read "36 paths, 43 operations, 48 schemas" until
+2026-09-09; it was authored once and never recomputed. Run
+`node scripts/validate-spec.mjs` rather than trusting it.
 
 The repository is **38,971 source lines** across 182 tracked files, excluding
 tests, the generated client and stories. `apps/console` is 22,381 of them; the
@@ -355,6 +357,8 @@ Added by E3.
 | The seeded corpus reports its own outcomes | BUILT | YES — `/performance` | NO | Taxonomy 14.1, 14.12 `TABLE-STAKES`. [ADR-008](adr/ADR-008-closing-the-outcome-loop.md) phase two. `apps/console/mocks/fixtures/outcomes.ts` derives impressions, clicks, acceptances, rejections and conversions from the same seed as the decisions, as a projection rather than ledger rows — the ledger refuses an outcome whose decision it cannot find, and putting 10,400 seeded decisions in it costs the 13.1-second import the two-tier index exists to avoid. `/performance` now reads **2,101 measured of 3,425 offered** and says so: *"1,324 of 3,425 offers have no outcome recorded. The rates below describe the 2,101 that do."* `tests/unit/seeded-outcomes.test.ts` holds the shape over all 10,400 — the funnel nests on every decision, coverage stays between 45% and 80%, web reports more than an outbound call, value appears on conversions and nowhere else, and the churn cohort converts materially worse |
 | An offer with reach and no takers, findable | BUILT | YES — `/performance` | NO | `acq_sim_30` wins 619 decisions and is accepted by almost nobody: 135 offered on push, 85 seen, 27% clicked, **0% accepted**, and the same on every other channel. Chosen rather than emergent, because "somewhere in 240 offers there is probably a bad one" is not a demo. `outcome-loop.spec.ts` asserts it is on the screen |
 | Outcomes survive a restart | BUILT | NO | NO | [ADR-008](adr/ADR-008-closing-the-outcome-loop.md) phase three. `apps/console/mocks/store.ts` resolves its ledger through `createLedgerStore()`, so `METIS_DATABASE_URL` puts decisions and outcomes in PostgreSQL and its absence keeps them in memory. Both satisfy `LedgerStore` and both pass `packages/ledger`'s one behaviour suite, so this is a deployment choice rather than a behavioural one. `tests/unit/ledger-durability.test.ts` holds the selection: the default is the lossy one and says so, and **a configured database that cannot be reached is an error, never a quiet downgrade** — the failure mode where the console starts, looks healthy, and loses every decision it records. No screen shows which store is in use; it is a startup line |
+| A synthetic number says so, wherever it goes | BUILT | YES — `/performance`, `/decisions`, `/decisions/[id]` | NO | Taxonomy 14.3 `FRONTIER` in part. The seeded tenant became indistinguishable from real reporting on 2026-09-09 — 10,400 decisions, 2,101 measured outcomes, plausible rates, realised value in pounds — and the only marker was an untested badge in the nav rail, which a screenshot of the report does not include. Now: a `Provenance` schema in the spec, carried on the decision search, the trace, the outcomes list and the performance report; a banner rendered **above the figures in the content column** on all three screens; and the marker inside both export payloads as the first key. `tests/unit/provenance.test.ts` holds all three routes out of the building — API, export, screenshot — including that the banner is on each named screen and is **not** in the app shell, because that is where it failed before |
+| A live decision’s trace opens | BUILT | YES — `/decisions/[id]` | NO | `GET /decisions/{id}/trace` returned the runtime `DecisionRecord` for a ledger decision where the spec declares the flat API one, so every decision the storefront made answered 200 with a body the page threw on. `toApiTrace` is now the one projection both branches use. `contract.spec.ts` gained the branch it had never reached — it makes a decision, opens its trace, and asserts `decision` is not a key. Verified to bite. [G-020](gaps.md) |
 | Exporting a decision record as evidence | BUILT | YES — `/decisions/[id]` | NO | Taxonomy 9.20 `TABLE-STAKES` in part. `Export JSON` writes the whole record — chain hash, artifact version, eliminations, scores, arbitration formula — to a file named `decision-<id>-<date>.json`. `evidence-export.spec.ts` reads the file off disk and asserts the chain hash in it is the one on screen, because an export that opens a dialog and writes nothing is the defect this replaced. The regulator-ready PDF pack is [W-053](gaps.md) and its control is disabled with that reason |
 | Exporting a compiled flow | BUILT | YES — `/decision-flows/[id]` | NO | `Export DIR` writes nodes, edges, candidate keys, pinned package versions, the artifact hash and the cost manifest. Disabled with a reason on a flow that did not compile, because a graph without an artifact cannot be run and should not be handed over under that name |
 | Value stated in money from a named field | BUILT | YES — `/performance` | NO | Taxonomy 14.12 `TABLE-STAKES`. Expected margin, not a click count standing in for revenue |
@@ -747,7 +751,7 @@ reachable only from `packages/portability/src/cli.ts`.
 
 ### Configurable without code? = NO — the extensibility debt list
 
-**308 rows, of 311 capability rows in this map.**
+**310 rows, of 313 capability rows in this map.**
 
 Only three rows answer YES, and they are the same mechanism seen three times:
 the form descriptor registry, the declared Offer form, and the declared Creative
