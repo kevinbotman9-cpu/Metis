@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
 import { apiClient, ApiError } from '@/lib/api-client';
+import { downloadJson, evidenceFilename } from '@/lib/download';
 import { cn } from '@/lib/cn';
 
 const AUDIENCES = [
@@ -115,10 +116,30 @@ function TraceView({ decisionId }: { decisionId: string }) {
         description="Immutable record of what the platform decided and why."
         actions={
           <>
-            <Button variant="secondary" size="sm">
+            {/* The regulator-ready pack is a document, not a serialisation: it
+                needs a renderer, pagination and the hash verification page
+                §7.5 of the experience plan describes. None of that exists, and
+                `window.print()` dressed as "Export PDF" would be a promise
+                rather than a feature. Disabled with the reason, per the
+                convention on /agentic and /arbitration. Registered as W-053. */}
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled
+              title="Not built: the regulator pack needs a document renderer and a hash verification page (W-053). Export JSON carries the same evidence."
+            >
               Export PDF
             </Button>
-            <Button variant="secondary" size="sm">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                downloadJson(
+                  evidenceFilename('decision', trace.id, trace.timestamp),
+                  trace
+                )
+              }
+            >
               Export JSON
             </Button>
           </>

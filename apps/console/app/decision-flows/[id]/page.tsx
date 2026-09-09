@@ -24,6 +24,7 @@ import { CompileReport } from '@/components/compile-report';
 import { RegistryPanel } from '@/components/registry-panel';
 import { ShadowPanel } from '@/components/shadow-panel';
 import { apiClient, ApiError } from '@/lib/api-client';
+import { downloadJson, evidenceFilename } from '@/lib/download';
 import type { FlowNode, FlowEdge } from '@/mocks/fixtures/artifacts';
 
 
@@ -78,6 +79,10 @@ function FlowDetail({ artifactId }: { artifactId: string }) {
   if (!artifact) return null;
 
   const overBudget = artifact.estimatedP95LatencyMs > 50;
+  // The compiled half: pinned package versions, the artifact hash and the cost
+  // manifest. Absent when the flow does not compile, which is what makes the
+  // export control conditional rather than always enabled.
+  const compiled = artifact.compilation?.artifact ?? null;
 
   return (
     <PageBody>
@@ -103,10 +108,45 @@ function FlowDetail({ artifactId }: { artifactId: string }) {
         description={artifact.description}
         actions={
           <>
-            <Button variant="secondary" size="md">
+            {/* `versions` is a list of numbers, not a history: what changed
+                between two of them is a diff screen nobody has built. Disabled
+                with the reason rather than enabled and dead. Registered as
+                W-054. */}
+            <Button
+              variant="secondary"
+              size="md"
+              disabled
+              title="Not built: comparing two versions needs a diff view (W-054). The active version and its pinned packages are shown below."
+            >
               Version history
             </Button>
-            <Button variant="secondary" size="md">
+            {/* A flow that did not compile has no artifact to export, and
+                exporting the graph alone under the name DIR would hand someone
+                a file that cannot be run. */}
+            <Button
+              variant="secondary"
+              size="md"
+              disabled={!compiled}
+              title={
+                compiled
+                  ? undefined
+                  : 'Nothing to export: this flow has no compiled artifact. Fix the errors below and publish.'
+              }
+              onClick={
+                compiled
+                  ? () =>
+                      downloadJson(evidenceFilename('flow', artifact.id, compiled.compiledAt), {
+                        id: artifact.id,
+                        name: artifact.name,
+                        version: artifact.activeVersion,
+                        candidateKeys: artifact.candidateKeys,
+                        nodes: artifact.nodes,
+                        edges: artifact.edges,
+                        ...compiled,
+                      })
+                  : undefined
+              }
+            >
               Export DIR
             </Button>
           </>

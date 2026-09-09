@@ -812,3 +812,63 @@ is a deliberate act with a visible consequence.
 interval would be a statistical claim of exactly the kind this platform refuses
 to make without showing the workings. Per-arm counts and rates are there; what
 to conclude from them is not the platform's to assert.
+
+---
+
+## Registered 2026-09-09 — five controls were enabled and did nothing
+
+Found by clicking, in the E4 coherence review, not by any suite. `Export PDF`,
+`Export JSON`, `New flow`, `Version history` and `Export DIR` were `<Button>`
+elements with no `onClick` at all. They rendered correctly, passed axe, fitted
+their bundle budgets and satisfied every assertion anybody had written, because
+a control that does nothing is indistinguishable from one that works to every
+check this repository had.
+
+This product had already written the rule down twice, in prose, in the source —
+*"An enabled control that does nothing is a promise; a disabled one with a
+reason is an absence somebody can plan around"* — and followed it three times
+out of eight. `apps/console/tests/unit/dead-controls.test.ts` now holds it:
+a `<Button>` under `app/` or `components/` either carries a handler, is a
+submit, is wrapped by a `<Link>` or a Radix `asChild`, or is `disabled` **and**
+carries a `title` saying why. Verified to bite by removing one `title`.
+
+Two of the five are now built. `Export JSON` on a decision trace and
+`Export DIR` on a compiled flow write real files, asserted by reading them off
+disk in `evidence-export.spec.ts`. The other three are gaps:
+
+### W-053 — the regulator-ready evidence pack
+
+§7.5 of the experience plan asks for a PDF *"with a hash verification page"*.
+That is a document — renderer, pagination, a verification page that restates
+the chain hash and how to check it — not a serialisation, and the console has no
+document renderer and no PDF dependency. `window.print()` dressed as "Export
+PDF" would be the same promise the dead button made.
+
+**What stands in today:** `Export JSON` carries the same evidence, machine
+readable, and the button says so.
+
+**The check that would close it:** an e2e test that exports the pack and asserts
+the hash on its verification page matches the decision's chain hash.
+
+### W-054 — comparing two flow versions
+
+`ArtifactSummary.versions` is a list of version numbers. What changed between
+two of them is a diff view nobody has built, and §7.2 asks for three kinds at
+once: a canvas diff, a textual diff, and a semantic summary. `Export DIR` gives
+a person the material to diff two versions outside the product, which is a
+workaround rather than the feature.
+
+**The check that would close it:** an e2e test that opens two versions of a flow
+and asserts a node added in the later one is marked as added.
+
+### W-055 — a disabled control's reason is not reachable by keyboard
+
+The convention states the reason in a `title`. A `disabled` button is not
+focusable, so a keyboard or screen-reader user never reaches the tooltip: the
+reason is visible to a mouse and invisible to everyone else. The convention was
+kept as-is rather than changed mid-slice, because changing it means changing
+five call sites and deciding between `aria-disabled` with a live description
+and a visible inline note — a design decision, not a fix.
+
+**The check that would close it:** an axe rule or a Playwright assertion that
+every disabled control's reason is in the accessibility tree.
