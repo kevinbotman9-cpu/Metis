@@ -123,6 +123,11 @@ describe('source hygiene', () => {
         const context = bytes
           .subarray(Math.max(0, at - 40), at + 20)
           .toString('utf8')
+          // Matching control characters is the job: this renders the bytes
+          // around a forbidden one for a person to read, and a raw NUL or ESC
+          // in that output would corrupt the terminal it is printed to. The
+          // rule is right in general and wrong here.
+          // eslint-disable-next-line no-control-regex
           .replace(/[\u0000-\u001f\u007f]/g, '?');
         offenders.push(
           `${file}: 0x${byte.toString(16).padStart(2, '0')} at byte ${at} — ...${context}...`

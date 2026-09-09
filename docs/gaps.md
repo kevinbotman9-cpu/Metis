@@ -114,62 +114,6 @@ than an ordering one.
 **Done when:** `--repeat-each=12` passes ten times in a row without an
 `ECONNRESET`. Six consecutive full runs are clean; this narrower probe is not.
 
-### G-036 — The root lint step covers neither `tests/` nor `scripts/`
-
-**Registered:** 2026-09-09 · **Status:** Open · **Work item:** none
-
-`npm run lint` at the root is `eslint packages bench --ext .ts`. CI runs exactly
-that, so nothing lints the two trees where every check written this week lives:
-`tests/` holds `vocabulary`, `docs-status`, `adr-status`, `gaps-register` and
-`api-paths`, and `scripts/` holds the conformance gate, the corpus builders and
-`report-flaky.mjs`.
-
-Found on 2026-09-09 while confirming a new script was clean. `npx eslint .` from
-the root reports an error in `tests/source-hygiene.test.ts:126` —
-`no-control-regex`, present since `660e56f` — that the CI step cannot see. The
-capability map's "Lint clean" line was corrected on 2026-09-09 to say so; this
-entry is why the error survived long enough to need correcting.
-
-**Not fixed here.** Widening the glob turns that pre-existing error into a red
-CI, which is a change somebody should make deliberately rather than as a side
-effect of a slice about flake detection. It is one `eslint-disable-next-line`
-away from being safe to do.
-
-**Done when:** `npm run lint` covers `tests` and `scripts`, and passes.
-
-### G-042 — Nothing relates a creative's channel to the channel a decision is made for
-
-**Registered:** 2026-09-09 · **Status:** Open · **Work item:** [W-015](BACKLOG.md)
-
-Two guards exist against an offer that cannot be delivered, and both are
-channel-blind.
-
-`offerMayBeActive` (`packages/core/src/creative.ts:238`) is
-`creatives.some((c) => c.active)`, so one active email creative makes an offer
-activatable and it may then win a web placement.
-`NO_DELIVERABLE_CREATIVE` (`packages/compiler/src/decision-flow/compile.ts:653`)
-fires only when `creativeIds.length === 0` — no creative at all, active or not,
-on any channel — while its own remedy text asks for *"at least one active
-creative for a channel this flow serves"*.
-
-The result, measured: **2,122 of 3,425 offered decisions pick an offer with
-nothing to render on the channel that won** (98% of outbound-call wins, 81% of
-push, 77% of sms, 29% of email, 26% of web), and 38 of 202 active offers have no
-active creative anywhere.
-
-The decision record shows a clean win with no elimination and no diagnostic, so
-a compliance officer reading the trace cannot tell. The storefront is the only
-surface that says anything, and it says it to whoever is watching the demo
-rather than to whoever owns the catalogue.
-
-Written up in [ADR-012](adr/ADR-012-an-offer-with-nothing-to-render.md), which
-sets out three options — refuse to rank, surface it as a catalogue defect, or
-both — with the cost of each. **Not implemented; the ADR is Proposed and the
-product owner decides.** Option A moves every chain hash in every conformance
-corpus, which is why it is an ADR and not a patch.
-
-**Done when:** ADR-012 is Accepted and whatever it decides has a check behind it.
-
 ### G-004 — No node, panel or layout manifests — the composable experience
 
 **Registered:** 2026-09-03 · **Status:** Open · **Work item:** [W-038](BACKLOG.md)
@@ -649,7 +593,88 @@ have produced.
 
 ---
 
+### G-042 — Nothing relates a creative's channel to the channel a decision is made for
+
+**Registered:** 2026-09-09 · **Status:** Open · **Work item:** [W-015](BACKLOG.md)
+
+Two guards exist against an offer that cannot be delivered, and both are
+channel-blind.
+
+`offerMayBeActive` (`packages/core/src/creative.ts:238`) is
+`creatives.some((c) => c.active)`, so one active email creative makes an offer
+activatable and it may then win a web placement.
+`NO_DELIVERABLE_CREATIVE` (`packages/compiler/src/decision-flow/compile.ts:653`)
+fires only when `creativeIds.length === 0` — no creative at all, active or not,
+on any channel — while its own remedy text asks for *"at least one active
+creative for a channel this flow serves"*.
+
+The result, measured: **2,122 of 3,425 offered decisions pick an offer with
+nothing to render on the channel that won** (98% of outbound-call wins, 81% of
+push, 77% of sms, 29% of email, 26% of web), and 38 of 202 active offers have no
+active creative anywhere.
+
+The decision record shows a clean win with no elimination and no diagnostic, so
+a compliance officer reading the trace cannot tell. The storefront is the only
+surface that says anything, and it says it to whoever is watching the demo
+rather than to whoever owns the catalogue.
+
+Written up in [ADR-012](adr/ADR-012-an-offer-with-nothing-to-render.md), which
+sets out three options — refuse to rank, surface it as a catalogue defect, or
+both — with the cost of each. **Not implemented; the ADR is Proposed and the
+product owner decides.** Option A moves every chain hash in every conformance
+corpus, which is why it is an ADR and not a patch.
+
+**Done when:** ADR-012 is Accepted and whatever it decides has a check behind it.
+
 ## Resolved
+
+### G-036 — The root lint step covers neither `tests/` nor `scripts/`
+
+**Registered:** 2026-09-09 · **Resolved:** 2026-09-09 · **Status:** Resolved · **Work item:** none
+
+`npm run lint` at the root is `eslint packages bench --ext .ts`. CI runs exactly
+that, so nothing lints the two trees where every check written this week lives:
+`tests/` holds `vocabulary`, `docs-status`, `adr-status`, `gaps-register` and
+`api-paths`, and `scripts/` holds the conformance gate, the corpus builders and
+`report-flaky.mjs`.
+
+Found on 2026-09-09 while confirming a new script was clean. `npx eslint .` from
+the root reports an error in `tests/source-hygiene.test.ts:126` —
+`no-control-regex`, present since `660e56f` — that the CI step cannot see. The
+capability map's "Lint clean" line was corrected on 2026-09-09 to say so; this
+entry is why the error survived long enough to need correcting.
+
+**Not fixed here.** Widening the glob turns that pre-existing error into a red
+CI, which is a change somebody should make deliberately rather than as a side
+effect of a slice about flake detection. It is one `eslint-disable-next-line`
+away from being safe to do.
+
+**Done when:** `npm run lint` covers `tests` and `scripts`, and passes.
+
+**Closed 2026-09-09.** `npm run lint` is now
+`eslint packages bench tests scripts --ext .ts,.mjs`, and CI runs that.
+
+**It surfaced exactly two errors, and neither was a defect.** Both are the rule
+firing on code that is doing the right thing, which is why both are silenced at
+the site with the reason rather than by turning the rule off or excluding the
+file:
+
+- `scripts/build-conformance-corpus.mjs:63` — `no-loss-of-precision` on
+  `123456789012345678901234`. The literal loses precision deliberately: that is
+  the case. ADR-003 asks what an integer past 2^53 serialises to *after* the
+  double has already rounded it, so writing it any other way would test a
+  different number.
+- `tests/source-hygiene.test.ts:126` — `no-control-regex` on
+  `/[\u0000-\u001f\u007f]/`. Matching control characters is the job: it
+  renders the bytes around a forbidden one for a person to read, and a raw NUL
+  or ESC in that output would corrupt the terminal it is printed to.
+
+The corpus regenerates byte-identical, so nothing in either fix touched a hash.
+
+**Two is a low number and that is the finding.** The trees that had never been
+linted turned out to be almost clean, which means the cost of this gap was not
+accumulated debt — it was that a real error sat visible-to-nobody for days while
+`docs/CAPABILITIES.md` claimed the lint was clean.
 
 ### G-041 — The seeded corpus reported impressions for offers that could not have been rendered
 

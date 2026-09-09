@@ -56,6 +56,11 @@ const CASES = [
   ok('smallest subnormal', 5e-324),
   ok('largest double', 1.7976931348623157e308),
   ok('exponent notation', 1.23e-10),
+  // The literal loses precision, deliberately: that is the case. ADR-003 §
+  // numbers requires shortest-round-trip `Number::toString`, and this asks what
+  // an integer past 2^53 serialises to once the double has already rounded it.
+  // Writing it any other way would be testing a different number.
+  // eslint-disable-next-line @typescript-eslint/no-loss-of-precision
   ok('integer beyond the exact range', 123456789012345678901234),
   ok('hundred', 100),
 
