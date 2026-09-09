@@ -122,3 +122,62 @@ test.describe('the outcome loop @screen-only', () => {
     }
   });
 });
+
+test.describe('the seeded corpus reports back @screen-only', () => {
+  test('a marketer opens /performance and reads real rates across two years', async ({ page }) => {
+    // Phase one made the loop work and reported on the two decisions a
+    // reviewer had just clicked. Phase two is the difference between a wiring
+    // demonstration and a screen a marketer can use: the corpus reports on
+    // itself, so the rates describe 24 months rather than one session.
+    await login(page, ACCOUNTS.sarah);
+    await page.goto('/performance');
+
+    await expect(page.getByText(/Nothing has been reported back/)).toHaveCount(0);
+
+    // Coverage is deliberately partial, and the screen says which part it is
+    // describing. That sentence is the feature, not a caveat.
+    await expect(page.getByText(/offers have no outcome recorded/)).toBeVisible();
+
+    const measured = page.getByText('WITH AN OUTCOME').locator('..');
+    const value = Number((await measured.innerText()).replace(/[^0-9]/g, '').slice(-6));
+    expect(value, 'the corpus reports on thousands of decisions, not two').toBeGreaterThan(1_000);
+  });
+
+  test('the rates are rates, not counts pretending to be rates', async ({ page }) => {
+    await login(page, ACCOUNTS.sarah);
+    await page.goto('/performance');
+
+    // A rate over event counts can exceed 1, which is the tell that the report
+    // measured the wrong thing. Read off the screen rather than the API,
+    // because the screen is where somebody would believe it.
+    // A rate is drawn as a nested span beside its count, with no text
+    // separator between them, so reading the table's innerText glues "119" to
+    // "67%" and yields 11967. Read the elements that carry a rate instead —
+    // this is why the assertion is on the DOM and not on a string.
+    // `evaluateAll` does not auto-wait, unlike every assertion around it, so
+    // the table has to be there before it runs.
+    await expect(page.locator('main table')).toBeVisible({ timeout: 20_000 });
+    const percents = await page
+      .locator('main table')
+      .evaluateAll((tables) =>
+        [...tables[0].querySelectorAll('span')]
+          // Leaves only. A count and its rate are nested spans, so the outer
+          // one's textContent is "119" + "67%" = "11967%" — a number that is
+          // on no screen and would fail this assertion for the wrong reason.
+          .filter((el) => el.children.length === 0)
+          .map((el) => (el.textContent ?? '').trim())
+          .filter((t) => /^\d+(\.\d+)?%$/.test(t))
+          .map((t) => Number(t.replace('%', '')))
+      );
+    expect(percents.length, 'no rates on screen to check').toBeGreaterThan(5);
+    for (const value of percents) expect(value).toBeLessThanOrEqual(100);
+  });
+
+  test('an offer with reach and no takers is findable', async ({ page }) => {
+    // The finding the demo exists to make available: acq_sim_30 wins 619
+    // decisions and is accepted by almost nobody.
+    await login(page, ACCOUNTS.sarah);
+    await page.goto('/performance');
+    await expect(page.getByText('acq_sim_30').first()).toBeVisible();
+  });
+});

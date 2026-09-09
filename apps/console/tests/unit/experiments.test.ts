@@ -307,8 +307,18 @@ describe('performance by arm', () => {
   });
 
   it('has no rate for an arm nobody reported on', async () => {
+    // Held on arms with no measurement rather than on all of them: the seeded
+    // corpus reports outcomes now (ADR-008 phase two), so an arm that has been
+    // measured is expected to carry a rate and an arm that has not is expected
+    // not to. Both halves matter; before phase two only the first was testable.
     const res = await call(['performance', 'telco-uk']);
-    const body = (await res.json()) as { arms: { acceptanceRate: number | null }[] };
-    expect(body.arms.every((a) => a.acceptanceRate === null)).toBe(true);
+    const body = (await res.json()) as {
+      arms: { measured: number; acceptanceRate: number | null }[];
+    };
+    const unmeasured = body.arms.filter((a) => a.measured === 0);
+    expect(unmeasured.every((a) => a.acceptanceRate === null)).toBe(true);
+    expect(body.arms.filter((a) => a.measured > 0).every((a) => a.acceptanceRate !== null)).toBe(
+      true
+    );
   });
 });

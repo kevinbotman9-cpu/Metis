@@ -16,6 +16,7 @@
 import { NextResponse } from 'next/server';
 import { store, resetStore, recordAudit } from '@/mocks/store';
 import { findTrace, decisions, findGeneratedDecision } from '@/mocks/fixtures/decisions';
+import { seededOutcomeMap, seededOutcomesFor } from '@/mocks/fixtures/outcomes';
 import {
   IdempotencyConflict,
   compareShadow,
@@ -542,6 +543,12 @@ async function handleGet(req: Request, { params }: Ctx) {
   const { path } = await params;
   const q = new URL(req.url).searchParams;
   const [head, ...rest] = path;
+  // The ledger's store is chosen asynchronously, because reaching a database
+  // is. Awaited once per request rather than at import: a configured database
+  // that cannot be reached must fail the request that needed it rather than
+  // stop the process from starting, and it must never fall through to storage
+  // that forgets. Resolves immediately when no database is configured.
+  await store.ledgerReady;
 
   switch (head) {
     case 'auth': {
@@ -712,7 +719,14 @@ async function handleGet(req: Request, { params }: Ctx) {
       const known =
         Boolean(findTrace(decisionId)) || Boolean(await store.ledger.get(tenantId, decisionId));
       if (!known) return notFound(`No decision with id ${decisionId}`);
-      return json({ outcomes: await store.ledger.outcomesFor(tenantId, decisionId) });
+      // Seeded first, then anything recorded against it — same merge and same
+      // reason as the report, so the trace and the rate cannot disagree about
+      // what happened to one decision.
+      const seededTrace = decisions.find((d) => d.id === decisionId);
+      const recorded = await store.ledger.outcomesFor(tenantId, decisionId);
+      return json({
+        outcomes: [...(seededTrace ? seededOutcomesFor(seededTrace) : []), ...recorded],
+      });
     }
 
     case 'change-sets': {
@@ -806,6 +820,12 @@ async function handleGet(req: Request, { params }: Ctx) {
         } as unknown as DecisionRecord,
       }));
 
+      // The corpus rows by id, so the seeded outcome projection can be built
+      // for exactly the decisions this report covers rather than for all
+      // 10,400 every time a filter narrows it.
+      const decisionById = new Map(decisions.map((d) => [d.id, d]));
+      const seededIds = new Set(decisionById.keys());
+
       // Runtime decisions too, deduped by id — a decision made through the API
       // is in the ledger and not in the corpus.
       const seen = new Set(fromCorpus.map((e) => e.decisionId));
@@ -821,10 +841,21 @@ async function handleGet(req: Request, { params }: Ctx) {
       // One fetch per decision. Correct and slow, and the right shape to
       // replace with a join when there is a store that can do one — an
       // approximation would have been a number nobody could check.
-      const outcomes = new Map<string, Awaited<ReturnType<typeof store.ledger.outcomesFor>>>();
+      // Two sources, and the merge is the point. The seeded corpus carries
+      // outcomes as a projection (ADR-008 phase two) because its decisions are
+      // not ledger rows; a decision made through the API carries real ones. A
+      // decision that has both — a seeded decision somebody then clicked in the
+      // console — gets both, because the ledger event is a fact and the seeded
+      // one is the history it happened against.
+      const outcomes = seededOutcomeMap(
+        all
+          .filter((e) => seededIds.has(e.decisionId))
+          .map((e) => decisionById.get(e.decisionId)!)
+      );
       for (const entry of all) {
         const events = await store.ledger.outcomesFor(tenantId, entry.decisionId);
-        if (events.length > 0) outcomes.set(entry.decisionId, events);
+        if (events.length === 0) continue;
+        outcomes.set(entry.decisionId, [...(outcomes.get(entry.decisionId) ?? []), ...events]);
       }
 
       const report = buildPerformance(all, outcomes);
@@ -1024,6 +1055,12 @@ async function handleGet(req: Request, { params }: Ctx) {
 async function handlePost(req: Request, { params }: Ctx) {
   const { path } = await params;
   const [head, ...rest] = path;
+  // The ledger's store is chosen asynchronously, because reaching a database
+  // is. Awaited once per request rather than at import: a configured database
+  // that cannot be reached must fail the request that needed it rather than
+  // stop the process from starting, and it must never fall through to storage
+  // that forgets. Resolves immediately when no database is configured.
+  await store.ledgerReady;
 
   switch (head) {
     case 'auth': {
@@ -2073,6 +2110,12 @@ function applyChangeSet(cr: (typeof store.changeSets)[number]) {
 async function handlePut(req: Request, { params }: Ctx) {
   const { path } = await params;
   const [head, ...rest] = path;
+  // The ledger's store is chosen asynchronously, because reaching a database
+  // is. Awaited once per request rather than at import: a configured database
+  // that cannot be reached must fail the request that needed it rather than
+  // stop the process from starting, and it must never fall through to storage
+  // that forgets. Resolves immediately when no database is configured.
+  await store.ledgerReady;
   const user = actor(req);
   if (!user) return json({ error: 'no_session' }, 401);
 

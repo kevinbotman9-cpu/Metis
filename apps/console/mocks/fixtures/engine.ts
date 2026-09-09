@@ -152,8 +152,25 @@ function occurredAt(index: number): string {
  * grid as a run of empty winners and in the trace as a consent denial with a
  * named rule. Nothing about it is annotated; it is a property of the data.
  */
-function inChurnCohort(index: number): boolean {
+export function inChurnCohort(index: number): boolean {
   return seededUnitInterval('churn', index) > 0.91;
+}
+
+/**
+ * The decision index behind a seeded customer reference.
+ *
+ * `customerId` is `cust_` plus `880000 + index * 137` in base 36, so the index
+ * is recoverable exactly rather than approximately. Exported because the
+ * outcome generator needs to know which customers are on their way out, and
+ * deriving that from a second seed would give a different cohort wearing the
+ * same name — the churn story would be true in the decisions and false in the
+ * outcomes, which is worse than not telling it.
+ */
+export function decisionIndexOf(customerId: string): number | null {
+  const m = /^cust_([0-9a-z]+)$/.exec(customerId);
+  if (!m) return null;
+  const n = parseInt(m[1], 36) - 880000;
+  return n >= 0 && n % 137 === 0 && n / 137 < DECISION_COUNT ? n / 137 : null;
 }
 
 /** Only flows that are live make decisions. */

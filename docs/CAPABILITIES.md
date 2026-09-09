@@ -352,6 +352,9 @@ Added by E3.
 | The report refusing to state what it cannot know | BUILT | YES — `/performance` | NO | Taxonomy 14.22 `FRONTIER`. `performance.ts:11` and `apps/console/app/performance/page.tsx:307` both say it in the product's own words: *"Counting only: attribution and uplift are statistical…"*. Tests `what the numbers refuse to say`, `absent is not zero` enforce the refusal, so the honesty cannot quietly lapse |
 | A searchable decision grid over the whole corpus, reporting the real total | BUILT | YES — `/decisions` | NO | Taxonomy 14.1, 14.2 `TABLE-STAKES`. Tests `virtualised decision grid`, `summary strip`, `reports the real decision total, not the page size`. 10,400 records |
 | Every displayed decision reaching its own trace, and the trace re-executing | BUILT | YES — `/decisions/[id]` | NO | Taxonomy 14.3 `FRONTIER`. Tests `decision search and trace`, `the decision ledger`. This is the one place the taxonomy's hardest reporting item — click a number, reach the records — is genuinely answered |
+| The seeded corpus reports its own outcomes | BUILT | YES — `/performance` | NO | Taxonomy 14.1, 14.12 `TABLE-STAKES`. [ADR-008](adr/ADR-008-closing-the-outcome-loop.md) phase two. `apps/console/mocks/fixtures/outcomes.ts` derives impressions, clicks, acceptances, rejections and conversions from the same seed as the decisions, as a projection rather than ledger rows — the ledger refuses an outcome whose decision it cannot find, and putting 10,400 seeded decisions in it costs the 13.1-second import the two-tier index exists to avoid. `/performance` now reads **2,101 measured of 3,425 offered** and says so: *"1,324 of 3,425 offers have no outcome recorded. The rates below describe the 2,101 that do."* `tests/unit/seeded-outcomes.test.ts` holds the shape over all 10,400 — the funnel nests on every decision, coverage stays between 45% and 80%, web reports more than an outbound call, value appears on conversions and nowhere else, and the churn cohort converts materially worse |
+| An offer with reach and no takers, findable | BUILT | YES — `/performance` | NO | `acq_sim_30` wins 619 decisions and is accepted by almost nobody: 135 offered on push, 85 seen, 27% clicked, **0% accepted**, and the same on every other channel. Chosen rather than emergent, because "somewhere in 240 offers there is probably a bad one" is not a demo. `outcome-loop.spec.ts` asserts it is on the screen |
+| Outcomes survive a restart | BUILT | NO | NO | [ADR-008](adr/ADR-008-closing-the-outcome-loop.md) phase three. `apps/console/mocks/store.ts` resolves its ledger through `createLedgerStore()`, so `METIS_DATABASE_URL` puts decisions and outcomes in PostgreSQL and its absence keeps them in memory. Both satisfy `LedgerStore` and both pass `packages/ledger`'s one behaviour suite, so this is a deployment choice rather than a behavioural one. `tests/unit/ledger-durability.test.ts` holds the selection: the default is the lossy one and says so, and **a configured database that cannot be reached is an error, never a quiet downgrade** — the failure mode where the console starts, looks healthy, and loses every decision it records. No screen shows which store is in use; it is a startup line |
 | Exporting a decision record as evidence | BUILT | YES — `/decisions/[id]` | NO | Taxonomy 9.20 `TABLE-STAKES` in part. `Export JSON` writes the whole record — chain hash, artifact version, eliminations, scores, arbitration formula — to a file named `decision-<id>-<date>.json`. `evidence-export.spec.ts` reads the file off disk and asserts the chain hash in it is the one on screen, because an export that opens a dialog and writes nothing is the defect this replaced. The regulator-ready PDF pack is [W-053](gaps.md) and its control is disabled with that reason |
 | Exporting a compiled flow | BUILT | YES — `/decision-flows/[id]` | NO | `Export DIR` writes nodes, edges, candidate keys, pinned package versions, the artifact hash and the cost manifest. Disabled with a reason on a flow that did not compile, because a graph without an artifact cannot be run and should not be handed over under that name |
 | Value stated in money from a named field | BUILT | YES — `/performance` | NO | Taxonomy 14.12 `TABLE-STAKES`. Expected margin, not a click count standing in for revenue |
@@ -722,7 +725,7 @@ from the campaign.
 
 ### BUILT or PARTIAL where Screen? = NO — the inventory list
 
-**41 rows.** Work already paid for that delivers nothing to a person.
+**42 rows.** Work already paid for that delivers nothing to a person.
 
 Rows: the vocabulary check, the offer/action split, the deterministic engine,
 canonical serialisation, idempotency, the durable decision ledger, outcome
@@ -734,8 +737,9 @@ approvals, bulk import, all five performance rows, the four §13 gate
 capabilities that have no screen (canonical taxonomy, open contracts,
 deterministic runtime, idempotency), cloud and runtime neutrality, provable
 exitability, the decision API, volume constraints, flow test cases,
-multi-tenancy, the corpus import cost, one place colour is decided, and contrast
-measurement.
+multi-tenancy, the corpus import cost, one place colour is decided, contrast
+measurement, and outcome durability — which is a startup line rather than a
+screen, and correctly so.
 
 The single largest block is storage and portability: three PostgreSQL-backed
 stores, a byte-identical tenant round trip, and a completeness guard — all of it
@@ -743,7 +747,7 @@ reachable only from `packages/portability/src/cli.ts`.
 
 ### Configurable without code? = NO — the extensibility debt list
 
-**305 rows, of 308 capability rows in this map.**
+**308 rows, of 311 capability rows in this map.**
 
 Only three rows answer YES, and they are the same mechanism seen three times:
 the form descriptor registry, the declared Offer form, and the declared Creative

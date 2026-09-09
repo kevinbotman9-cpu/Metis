@@ -10,7 +10,7 @@
  * the store is stashed on globalThis to survive a hot reload.
  */
 
-import { DecisionLedger, InMemoryLedgerStore } from '@metis/ledger';
+import { DecisionLedger, InMemoryLedgerStore, createLedgerStore } from '@metis/ledger';
 import type { ShadowComparison } from '@metis/runtime';
 import {
   objectives as seedObjectives,
@@ -70,12 +70,24 @@ type Store = {
   /**
    * The decision ledger: records, outcomes and idempotency keys.
    *
-   * Replaces the two ad-hoc maps this used to carry. In development it is the
-   * in-memory store, so it still forgets on restart — but the rules are now
-   * the ledger's, and the same behaviour suite runs them against PostgreSQL.
+   * `METIS_DATABASE_URL` chooses PostgreSQL and decisions and outcomes survive
+   * a restart; without it this is in memory and forgets, which is the right
+   * default for a console started for five minutes of local work. Both satisfy
+   * `LedgerStore` and both pass `packages/ledger`'s one behaviour suite, so
+   * this is a deployment choice rather than a behavioural one — ADR-008 phase
+   * three.
+   *
+   * Await `ledgerReady` before the first use. Choosing the store is async
+   * because reaching a database is, and a configured database that cannot be
+   * reached must be an error rather than a silent fall back to storage that
+   * forgets.
    */
   ledger: DecisionLedger;
-  /** The concrete store, so the test reset can clear it. */
+  /** Resolves once the configured store is connected and migrated. */
+  ledgerReady: Promise<void>;
+  /** How it was resolved, for a startup line worth printing. */
+  ledgerKind: () => 'memory' | 'postgres';
+  /** The in-memory store, when there is one, so the test reset can clear it. */
   ledgerStore: InMemoryLedgerStore;
   /** Shadow comparisons recorded this process, oldest first. */
   shadowComparisons: ShadowComparison[];
@@ -122,7 +134,15 @@ function seed(): Store {
   const registry = new ArtifactRegistry(registryStore);
   const registryReady = seedRegistry(registry);
   const ledgerStore = new InMemoryLedgerStore();
-  return {
+
+  // Starts in memory and is replaced in place if a database is configured, so
+  // nothing that already holds `store.ledger` has to be re-fetched. The
+  // in-memory instance stays reachable either way: `POST /api/_test/reset`
+  // clears it, and clearing a real database from a test endpoint is not a
+  // thing this should be able to do.
+  let kind: 'memory' | 'postgres' = 'memory';
+
+  const built: Store = {
     objectives: clone(seedObjectives),
     categories: clone(seedCategories),
     offers: clone(seedOffers),
@@ -135,7 +155,14 @@ function seed(): Store {
     validationReports: new Map(),
     frequencyPolicies: clone(seedFrequencyPolicies),
     arbitration: clone(seedArbitration),
+    // Replaced in place once a database resolves, below. Not a getter over a
+    // closure: `resetStore` rebuilds the store with `Object.assign`, which
+    // cannot write through an accessor, and not a mutation on `DecisionLedger`
+    // either — its store is `private readonly` and a ledger that can be
+    // repointed mid-process is a worse object than one that cannot.
     ledger: new DecisionLedger(ledgerStore),
+    ledgerReady: Promise.resolve(),
+    ledgerKind: () => kind,
     ledgerStore,
     shadowComparisons: [],
     shadowInFlight: new Set(),
@@ -152,6 +179,31 @@ function seed(): Store {
     registry,
     registryReady,
   };
+
+  // Chosen asynchronously, because reaching a database is. The default is
+  // deliberately the lossy one — a console started for five minutes of local
+  // work should not need a database — but a *configured* database that cannot
+  // be reached is an error, never a silent fall back to storage that forgets.
+  // For the ledger that means losing the audit record of what was decided.
+  built.ledgerReady = createLedgerStore()
+    .then((handle) => {
+      kind = handle.kind;
+      if (handle.kind === 'postgres') {
+        built.ledger = new DecisionLedger(handle.store);
+        // eslint-disable-next-line no-console
+        console.log(`[metis] decision ledger: ${handle.description}`);
+      }
+    })
+    .catch((e: Error) => {
+      // Attached to the first request that needed it rather than thrown at
+      // import, so a misconfigured database fails loudly at the point of use
+      // instead of stopping the process from starting.
+      // eslint-disable-next-line no-console
+      console.error(`[metis] decision ledger unavailable: ${e.message}`);
+      throw e;
+    });
+
+  return built;
 }
 
 /**

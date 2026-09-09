@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { GET, POST } from '@/app/api/[...path]/route';
 import { store, resetStore } from '@/mocks/store';
 import { executeAt, DECISION_COUNT } from '@/mocks/fixtures/engine';
+import { decisions } from '../../mocks/fixtures/decisions';
+import { seededOutcomesFor } from '../../mocks/fixtures/outcomes';
 
 /**
  * The performance surface over HTTP.
@@ -35,6 +37,7 @@ const report = async (query = '') => {
       channel: string;
       flowId: string;
       offered: number;
+      measured: number;
       acceptances: number;
       acceptanceRate: number | null;
       valueMinor: number | null;
@@ -55,13 +58,19 @@ const report = async (query = '') => {
  * the ledger.
  */
 function anOfferedDecision() {
-  // The first decision that produced a winner. Executed as we go rather than
-  // taken from an array of all 10,400, which no longer exists — see
-  // `executeAt` in mocks/fixtures/engine.ts.
+  // The first decision that produced a winner **and has no seeded outcome of
+  // its own**. Since ADR-008 phase two the corpus reports back on roughly six
+  // decisions in ten, and picking one of those would have this test assert
+  // that recording an outcome against an already-measured decision raises the
+  // measured count — which it must not, because the count is of decisions and
+  // not of events.
   let found: ReturnType<typeof executeAt> | undefined;
   for (let i = 0; i < DECISION_COUNT && !found; i++) {
     const made = executeAt(i);
-    if (made.trace.decision.winner) found = made;
+    if (!made.trace.decision.winner) continue;
+    const row = decisions.find((d) => d.id === made.trace.id);
+    if (row && seededOutcomesFor(row).length > 0) continue;
+    found = made;
   }
   if (!found) throw new Error('no seeded decision offered anything');
   return {
@@ -91,14 +100,21 @@ describe('the report reaches real outcomes', () => {
     });
   });
 
-  it('reports nothing measured until an outcome is recorded', () => {
-    // The state the platform has actually been in since the ledger existed:
-    // decisions recorded, outcomes captured by nobody.
-    return report().then((r) => expect(r.measured).toBe(0));
+  it('measures a minority of what it offered, so both denominators stay visible', async () => {
+    // Until ADR-008 phase two this asserted `measured === 0`, which was the
+    // state the platform had been in since the ledger existed: decisions
+    // recorded, outcomes captured by nobody. The seeded corpus now reports
+    // back on some of them, and the property worth holding is the one the
+    // report is designed around — `measured` is smaller than `offered`, so a
+    // rate over the wrong denominator is visibly wrong rather than plausible.
+    const r = await report();
+    expect(r.measured).toBeGreaterThan(0);
+    expect(r.measured).toBeLessThan(r.offered);
   });
 
   it('picks up an outcome once one is recorded', async () => {
     const decision = anOfferedDecision();
+    const before = await report();
 
     const recorded = await call(
       ['outcomes', 'telco-uk', decision.decisionId],
@@ -108,19 +124,33 @@ describe('the report reaches real outcomes', () => {
     expect(recorded.status, await recorded.clone().text()).toBeLessThan(300);
 
     const r = await report();
-    expect(r.measured).toBe(1);
+    // A delta, not an absolute: the seeded corpus already measures thousands,
+    // and asserting a total here would be asserting the fixture rather than
+    // the endpoint.
+    expect(r.measured).toBe(before.measured + 1);
 
     const row = r.rows.find(
       (x) => x.action === decision.winner && x.channel === decision.channel && x.flowId === decision.flowId
     )!;
     expect(row, 'no row for the bucket this decision belongs to').toBeDefined();
-    expect(row.acceptances).toBe(1);
-    expect(row.valueMinor).toBe(4500);
+
+    // Deltas against the same bucket before the write. The bucket is (action,
+    // channel, flow) and the seeded corpus may already have measured other
+    // decisions in it, so an absolute here would be asserting the fixture.
+    const was = before.rows.find(
+      (x) =>
+        x.action === decision.winner &&
+        x.channel === decision.channel &&
+        x.flowId === decision.flowId
+    );
+    expect(row.acceptances).toBe((was?.acceptances ?? 0) + 1);
+    expect(row.valueMinor).toBe((was?.valueMinor ?? 0) + 4500);
   });
 
   it('does not let a repeated outcome inflate the count', async () => {
     // A channel that fires twice must report once, or a rate can exceed 1.
     const decision = anOfferedDecision();
+    const before = await report();
     for (const at of ['2026-09-05T10:00:00.000Z', '2026-09-05T10:00:01.000Z']) {
       await call(
         ['outcomes', 'telco-uk', decision.decisionId],
@@ -134,16 +164,36 @@ describe('the report reaches real outcomes', () => {
       (x) => x.action === decision.winner && x.channel === decision.channel && x.flowId === decision.flowId
     )!;
     expect(row, 'no row for the bucket this decision belongs to').toBeDefined();
-    expect(row.acceptances).toBe(1);
+    const was = before.rows.find(
+      (x) =>
+        x.action === decision.winner &&
+        x.channel === decision.channel &&
+        x.flowId === decision.flowId
+    );
+    // Two events, one decision: the count moves by one, which is the whole
+    // property. A delta because the seeded corpus has already measured other
+    // decisions in this bucket.
+    expect(row.acceptances).toBe((was?.acceptances ?? 0) + 1);
     expect(row.acceptanceRate).toBeLessThanOrEqual(1);
   });
 
-  it('leaves a rate empty rather than reporting zero', async () => {
-    // Every row here has been offered and none measured, so every rate must be
-    // null — the distinction the whole surface is built on.
+  it('leaves a rate empty rather than reporting zero, on rows nobody reported on', async () => {
+    // The distinction the whole surface is built on: a row with no outcomes has
+    // no rate, not a rate of zero. Asserted on the rows that are genuinely
+    // unmeasured now that the seeded corpus measures some of them — which is a
+    // stronger test than the old one, because it holds while both kinds of row
+    // are on screen together.
     const r = await report();
-    expect(r.rows.every((x) => x.acceptanceRate === null || x.acceptanceRate === 0)).toBe(true);
-    expect(r.rows.every((x) => x.valueMinor === null)).toBe(true);
+    const unmeasured = r.rows.filter((x) => x.measured === 0);
+    expect(unmeasured.length, 'no unmeasured rows left to check').toBeGreaterThan(0);
+    expect(unmeasured.every((x) => x.acceptanceRate === null)).toBe(true);
+    expect(unmeasured.every((x) => x.valueMinor === null)).toBe(true);
+
+    // And the converse, which the old assertion could not make: a measured row
+    // reports a real rate.
+    const measured = r.rows.filter((x) => x.measured > 0);
+    expect(measured.length).toBeGreaterThan(0);
+    expect(measured.every((x) => x.acceptanceRate !== null)).toBe(true);
   });
 
   it('filters by channel without changing what a row means', async () => {
