@@ -846,21 +846,30 @@ function skeleton(placement) {
 
 function decisionCard(placement, r) {
   const filled = r.filled?.length ?? 0;
+  // What was shown, not what won. The two differ whenever an offer takes a slot
+  // with no creative to render it, and "2 of 5 shown" over a count that
+  // included one of those was the same error the impression made, in a place a
+  // person reads rather than a place a rate is computed from.
+  const shown = r.rendered?.length ?? 0;
   const headline = r.status === 'error'
     ? `<span class="err">no decision</span>`
-    : filled
+    : shown
       ? `<span class="won">${
-          filled === 1
-            ? esc(r.filled[0].offer?.name || r.filled[0].entry.action)
-            : `${filled} of ${r.slate.rankedCount} shown`
+          shown === 1
+            ? esc(r.rendered[0].offer?.name || r.rendered[0].entry.action)
+            : `${shown} of ${r.slate.rankedCount} shown`
         }</span>`
-      : `<span class="none">nothing offered</span>`;
+      : filled
+        ? `<span class="none">won, nothing to render</span>`
+        : `<span class="none">nothing offered</span>`;
 
   const d = r.decision;
   const details = d ? `
     <dl class="facts">
       <dt>flow</dt><dd>${esc(d.artifactId)}@${esc(d.artifactVersion)}</dd>
-      <dt>slots</dt><dd>${filled} filled, ${r.slate.unfilled} unfilled, of ${r.slate.slotCount}</dd>
+      <dt>slots</dt><dd>${filled} filled, ${r.slate.unfilled} unfilled, of ${r.slate.slotCount}${
+        filled > shown ? ` — ${filled - shown} with no creative to render` : ''
+      }</dd>
       <dt>slate</dt><dd>${r.slate.entries.map((e) => `${e.rank}. ${esc(e.action)}`).join('  ') || '—'}</dd>
       <dt>decision</dt><dd>${esc(r.slate.decisionId)}</dd>
       <dt>chain hash</dt><dd>${esc(r.slate.chainHash)}</dd>
@@ -931,6 +940,15 @@ function renderPanel() {
 
 async function runPlacement(placement) {
   const slot = document.getElementById(`slot-${placement.id}`);
+
+  // The slot stops showing the previous decision on the next line, so it stops
+  // naming it on this one. This used to be deferred to after the round trip,
+  // which left the slot advertising a decision it was no longer displaying for
+  // however long the platform took to answer — the whole of a re-decide.
+  // `data-decision-id` is the binding ADR-008 §2 defines between a rendered
+  // offer and its outcome, and a binding that outlives what it points at is a
+  // wrong one, whether or not anything currently reads it in that window.
+  delete slot.dataset.decisionId;
   slot.replaceChildren(skeleton(placement));
 
   let r;
@@ -948,7 +966,32 @@ async function runPlacement(placement) {
       filled.push({ entry, offer, creative: creativeFor(creatives, placement.id) });
     }
 
-    r = { status: filled.length ? 'filled' : 'empty', slate, decision, filled, ms: slate.ms };
+    // **Winning a slot and filling it are different things.** An offer with no
+    // active web creative for this placement wins, and then `fallbackReason`
+    // renders "won this slot, and has no web creative for it" — a notice, no
+    // call to action, nothing the customer can act on.
+    //
+    // `status` used to be `filled.length ? 'filled' : 'empty'`, which counted
+    // the win. 127 of the 202 active offers in the seeded catalogue have no
+    // active web creative, so that was the common case, not an edge: the slot
+    // took a decision id and reported an impression for content that was never
+    // on the page, and every rate on /performance computed over impressions
+    // inherited it.
+    //
+    // `filled` is kept as what won, because the panel and `fallbackReason` both
+    // need to name the offer that took the slot and say why it shows nothing.
+    // `rendered` is what there was content for, and it is what `status` and the
+    // impression are now decided by.
+    const rendered = filled.filter((f) => f.creative);
+
+    r = {
+      status: rendered.length ? 'filled' : 'empty',
+      slate,
+      decision,
+      filled,
+      rendered,
+      ms: slate.ms,
+    };
   } catch (e) {
     r = {
       status: 'error',
@@ -964,14 +1007,15 @@ async function runPlacement(placement) {
 
   // The decision id lives on the slot, so a click anywhere inside it can find
   // the decision that put the offer there without every renderer having to
-  // thread it through. Cleared on an empty or failed slot, so a stale id from
-  // the previous preset cannot be clicked into a wrong outcome.
+  // thread it through. Set only where the slot is actually showing that
+  // decision's offer, and cleared above before the slot stops showing it.
   if (r.status === 'filled') {
     slot.dataset.decisionId = r.slate.decisionId;
-    // An impression is of an offer. A slot that filled nothing had none, and a
-    // slot that errored showed the reason rather than an offer, so neither
-    // reports one — a rate over impressions that included them would be
-    // measuring page views.
+    // An impression is of an offer the customer could see. A slot that offered
+    // nothing had none; a slot that errored showed the reason instead; and a
+    // slot whose winner had no creative rendered a notice explaining that there
+    // was nothing to render. None of the three reports one — a rate over
+    // impressions that included them would be measuring page views.
     reportOutcome(r.slate.decisionId, 'impression');
   } else {
     delete slot.dataset.decisionId;
