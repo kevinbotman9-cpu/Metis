@@ -23,6 +23,7 @@ import type {
   Connector,
   Placement,
 } from '@metis/core/domain';
+import { seededOffers, seededCreatives } from './seed';
 
 /** Fixed clock so timestamps are stable across runs. */
 const T0 = Date.parse('2026-09-01T09:00:00Z');
@@ -154,7 +155,7 @@ export const categories: Category[] = [
 
 const gbp = (amount: number) => ({ amount, currency: 'GBP' as const });
 
-export const offers: Offer[] = [
+const authoredOffers: Offer[] = [
   {
     id: 'prop_5g_unlimited_24',
     categoryId: 'grp_data_upsell',
@@ -425,7 +426,16 @@ export const offers: Offer[] = [
 // Creatives
 // ---------------------------------------------------------------------------
 
-export const creatives: Creative[] = [
+/**
+ * The catalogue the console reads: the eleven authored above, then the seeded
+ * `demo-telco-uk` tenant behind them.
+ *
+ * Authored first, so the offers a demo walks through are the first rows on the
+ * screen and the ids every test names keep meaning what they meant.
+ */
+export const offers: Offer[] = [...authoredOffers, ...seededOffers];
+
+const authoredCreatives: Creative[] = [
   {
     id: 'trt_5g_email',
     offerId: 'prop_5g_unlimited_24',
@@ -772,6 +782,8 @@ export const creatives: Creative[] = [
 // ---------------------------------------------------------------------------
 // Targeting policies
 // ---------------------------------------------------------------------------
+
+export const creatives: Creative[] = [...authoredCreatives, ...seededCreatives];
 
 export const targetingPolicies: TargetingPolicy[] = [
   {

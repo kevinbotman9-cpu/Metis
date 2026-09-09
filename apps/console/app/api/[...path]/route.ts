@@ -15,7 +15,7 @@
 
 import { NextResponse } from 'next/server';
 import { store, resetStore, recordAudit } from '@/mocks/store';
-import { findTrace, decisions } from '@/mocks/fixtures/decisions';
+import { findTrace, decisions, findGeneratedDecision } from '@/mocks/fixtures/decisions';
 import {
   IdempotencyConflict,
   compareShadow,
@@ -58,7 +58,7 @@ import {
   type DataSourceDefinition,
   type FieldMapping,
 } from '@metis/core/intake';
-import { findGenerated, generated, catalogueSnapshot } from '@/mocks/fixtures/engine';
+import { catalogueSnapshot } from '@/mocks/fixtures/engine';
 import {
   currentCatalogue,
   catalogueByHash,
@@ -776,20 +776,34 @@ async function handleGet(req: Request, { params }: Ctx) {
 
       const flowId = q.get('flowId');
       const channel = q.get('channel');
-      const limit = Math.min(Number(q.get('limit') || 5000), 20000);
+      // Defaults to the whole corpus, not to 5,000. The seeded tenant holds
+      // 10,400 decisions, so the old default silently reported on the most
+      // recent half and called it the tenant's performance — a truncated
+      // number that looks like a complete one. An explicit ?limit still caps it.
+      const limit = Math.min(Number(q.get('limit') || 20000), 20000);
 
       // The corpus, in the shape the read model takes. Only the fields it
       // reads are filled: this is a projection for counting, not a second copy
       // of the ledger pretending to be one.
-      const fromCorpus = generated.map((g) => ({
+      // Built from the committed decision index rather than from 10,400
+      // re-executions. `buildPerformance` reads `winner` and `channel`, and the
+      // arm join below reads `customerRef` — all three are columns in the
+      // index, so nothing here needs a full trace and nothing pays to make one.
+      const fromCorpus = decisions.map((d) => ({
         tenantId,
-        decisionId: g.trace.id,
+        decisionId: d.id,
         subjectHash: '',
-        occurredAt: g.trace.decision.occurredAt,
-        flowId: g.trace.decision.artifactId,
-        flowVersion: g.trace.decision.artifactVersion,
-        chainHash: g.trace.chainHash,
-        record: g.trace,
+        occurredAt: d.timestamp,
+        flowId: d.artifactId,
+        flowVersion: d.artifactVersion,
+        chainHash: '',
+        record: {
+          decision: {
+            winner: d.winner,
+            channel: d.channel,
+            customerRef: d.customerId,
+          },
+        } as unknown as DecisionRecord,
       }));
 
       // Runtime decisions too, deduped by id — a decision made through the API
@@ -1081,7 +1095,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       // writing the decision first keeps that true without paying for five
       // thousand inserts nobody may ever measure.
       if (!(await store.ledger.get(tenantId, decisionId))) {
-        const seeded = findGenerated(decisionId);
+        const seeded = findGeneratedDecision(decisionId);
         if (seeded) {
           await store.ledger.record(store.ledger.entryFor(seeded.trace, tenantId));
         }
@@ -1359,7 +1373,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       // as long as an audit needs without keeping the customer data it was made
       // from. Replaying one therefore means the caller hands the input back,
       // and the engine's snapshot guard proves it is the right input.
-      const seeded = findGenerated(rest[0]);
+      const seeded = findGeneratedDecision(rest[0]);
       const body = (await req.json().catch(() => null)) as {
         input?: Record<string, unknown>;
         contactHistory?: DecisionRequest['contactHistory'];

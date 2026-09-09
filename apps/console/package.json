@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "generate": "node scripts/generate-routes.mjs",
+    "generate": "node scripts/generate-routes.mjs && node --import tsx scripts/build-decision-index.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx",

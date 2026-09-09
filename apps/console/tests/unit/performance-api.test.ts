@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { GET, POST } from '@/app/api/[...path]/route';
 import { store, resetStore } from '@/mocks/store';
-import { generated } from '@/mocks/fixtures/engine';
+import { executeAt, DECISION_COUNT } from '@/mocks/fixtures/engine';
 
 /**
  * The performance surface over HTTP.
@@ -32,6 +32,8 @@ const report = async (query = '') => {
   return (await res.json()) as {
     rows: {
       action: string;
+      channel: string;
+      flowId: string;
       offered: number;
       acceptances: number;
       acceptanceRate: number | null;
@@ -53,9 +55,25 @@ const report = async (query = '') => {
  * the ledger.
  */
 function anOfferedDecision() {
-  const found = generated.find((g) => g.trace.decision.winner);
+  // The first decision that produced a winner. Executed as we go rather than
+  // taken from an array of all 10,400, which no longer exists — see
+  // `executeAt` in mocks/fixtures/engine.ts.
+  let found: ReturnType<typeof executeAt> | undefined;
+  for (let i = 0; i < DECISION_COUNT && !found; i++) {
+    const made = executeAt(i);
+    if (made.trace.decision.winner) found = made;
+  }
   if (!found) throw new Error('no seeded decision offered anything');
-  return { decisionId: found.trace.id, winner: found.trace.decision.winner! };
+  return {
+    decisionId: found.trace.id,
+    winner: found.trace.decision.winner!,
+    // A row is a bucket of (action, channel, flow), not of action alone. With
+    // 251 offers across four flows the same action wins on several channels,
+    // so matching on the action picks whichever bucket sorted first — which
+    // was a different decision's, and reported nothing.
+    channel: found.trace.decision.channel,
+    flowId: found.trace.decision.artifactId,
+  };
 }
 
 describe('the report reaches real outcomes', () => {
@@ -92,7 +110,10 @@ describe('the report reaches real outcomes', () => {
     const r = await report();
     expect(r.measured).toBe(1);
 
-    const row = r.rows.find((x) => x.action === decision.winner)!;
+    const row = r.rows.find(
+      (x) => x.action === decision.winner && x.channel === decision.channel && x.flowId === decision.flowId
+    )!;
+    expect(row, 'no row for the bucket this decision belongs to').toBeDefined();
     expect(row.acceptances).toBe(1);
     expect(row.valueMinor).toBe(4500);
   });
@@ -109,7 +130,10 @@ describe('the report reaches real outcomes', () => {
     }
 
     const r = await report();
-    const row = r.rows.find((x) => x.action === decision.winner)!;
+    const row = r.rows.find(
+      (x) => x.action === decision.winner && x.channel === decision.channel && x.flowId === decision.flowId
+    )!;
+    expect(row, 'no row for the bucket this decision belongs to').toBeDefined();
     expect(row.acceptances).toBe(1);
     expect(row.acceptanceRate).toBeLessThanOrEqual(1);
   });

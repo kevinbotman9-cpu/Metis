@@ -23,7 +23,8 @@ import { fileURLToPath } from 'node:url';
 import {
   catalogueSnapshot,
   execArtifacts,
-  generated,
+  executeAt,
+  DECISION_COUNT,
 } from '../apps/console/mocks/fixtures/engine.ts';
 import { requestHash } from '../packages/runtime/src/idempotency/index.ts';
 
@@ -58,6 +59,13 @@ fs.writeFileSync(
  * ones a port gets wrong.
  */
 const SAMPLE = 60;
+
+// Executed here rather than read from an array of all 10,400, which no longer
+// exists — see `executeAt` in the console's engine fixture. This script is the
+// one caller that genuinely wants the whole corpus, and it is a build step, so
+// it is the right place to pay for it.
+const generated = Array.from({ length: DECISION_COUNT }, (_, i) => executeAt(i));
+
 const offered = generated.filter((g) => g.trace.decision.winner !== null);
 const suppressed = generated.filter((g) => g.trace.decision.winner === null);
 

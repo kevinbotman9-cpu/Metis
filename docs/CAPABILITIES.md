@@ -1,6 +1,6 @@
 # METIS — Capabilities, built and planned
 
-**Last verified:** 2026-09-06, by running the suites named below rather than by
+**Last verified:** 2026-09-08, by running the suites named below rather than by
 reading the code.
 
 This is the single answer to "what does METIS actually do today, and what is it
@@ -224,6 +224,18 @@ benchmark can honestly claim.**
 | Replaceable intelligence | OUT OF SCOPE — gate 2 |
 
 ---
+
+## Demo readiness — the seeded tenant
+
+| Capability | Status | Evidence |
+|---|---|---|
+| A seeded `demo-telco-uk` tenant, reproducible from a fixed seed | BUILT | `apps/console/mocks/fixtures/seed.ts` generates 240 offers and 415 creatives from `seededUnitInterval`, which is sha256 over its arguments — nothing uses `Math.random` or `Date.now`, so the catalogue is byte-identical on every reload and on every machine. `tests/unit/seed.test.ts` holds the shape: distinct ids and keys, names that are not "Test Offer 1", every offer status a screen has to render |
+| Real-shaped names, a value distribution that is not flat | BUILT | Names are composed per category — "Unlimited 5G renewal — heavy data user" — from eleven plan families, six fibre tiers and nine segment qualifiers. Expected margin follows a power law: the top fifth of the catalogue holds **79%** of total margin, measured in `seed.test.ts` rather than asserted |
+| Named authors, irregular dates over 24 months | BUILT | Ten authors, three of whom can sign in. Offers are authored in bursts — the test fails if the longest quiet stretch is not at least eight times the median gap, which is what separates bursty from evenly spaced |
+| 10,400 decisions over 24 months, with seasonality and a churn cohort | BUILT | Every decision is a real execution of `@metis/runtime` over the seeded catalogue. Volume ramps toward the present and peaks before Christmas; the hour-of-day peak is 18:00 and the trough 03:00. One customer in eleven is in a churn cohort — near contract end, PAC requested, and mostly without marketing consent — so their decisions suppress on `CONSENT_WITHHELD` rather than being labelled. `tests/unit/decision-index.test.ts` |
+| The corpus does not cost thirteen seconds to import | BUILT | Flat rows are generated once by `apps/console/scripts/build-decision-index.mjs` and committed (2.2 MB); a full trace is re-executed from the same seed when one is opened, at about 0.6ms. Import went from 13.1s to 317ms, and the 80 MB of traces that used to be held are no longer held. The committed index and the generator are diffed on every reproducible column by `decision-index.test.ts` |
+| Every built screen populated from it | BUILT | `apps/console/tests/e2e/seeded-tenant.spec.ts`, tagged `@screen-only`: the catalogue grid scrolls, the content library has content, the decision history spans two years, a decision opens onto a re-executed cascade, and the performance report covers all 10,400 rather than a truncated 5,000 |
+| Three things wrong on purpose | PARTIAL | The spec asks for a drifting model, an offer with a bias warning and an incident. Two are expressible on built screens and are there: an offer held for bias review, findable by typing "bias" into the offers filter and paused with its reason on the record; and an incident six days ago, as the four audit entries an incident actually leaves behind. **The drifting model is not**: there is no `Model` or `Drift` schema and no `/models` route — §7 is OUT OF SCOPE, Gate 2 — so a churn cohort visible in the trace stands in its place. Registered rather than invented |
 
 ## The token layer
 

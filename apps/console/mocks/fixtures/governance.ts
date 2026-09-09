@@ -167,6 +167,69 @@ export interface AuditEvent {
 }
 
 export const auditEvents: AuditEvent[] = [
+  /**
+   * The incident, six days ago.
+   *
+   * One of the three things the console spec asks to be wrong on purpose: "a
+   * demo where nothing is ever wrong demonstrates nothing about how the product
+   * handles being wrong."
+   *
+   * There is no incidents screen and no Incident schema, so this is not one —
+   * it is what an incident actually leaves behind on a platform that has an
+   * append-only audit log: a detection, a containment, a human taking over, and
+   * a resolution with a cause. It reads in order on `/audit` because the log is
+   * chronological, and the four entries are the story.
+   *
+   * The cause is real and specific: the consent connector defaults closed on
+   * failure (ADR-007, `onFailure: 'default'` in ./catalogue.ts), so when its
+   * upstream went away every decision it touched suppressed on CONSENT_WITHHELD
+   * rather than erroring. Failing closed is correct and it is also invisible
+   * until somebody looks at a suppression rate.
+   */
+  {
+    id: 'evt_0035',
+    timestamp: iso(-138),
+    actor: 'system',
+    actorType: 'system',
+    eventType: 'IncidentResolved',
+    scope: 'conn_consent_registry',
+    summary:
+      'Consent registry healthy for 60 minutes; suppression rate back to 54%. Cause: the registry’s upstream returned 503 for 71 minutes and the connector failed closed, as ADR-007 requires. Nothing was offered without consent.',
+    changeSetId: null,
+  },
+  {
+    id: 'evt_0034',
+    timestamp: iso(-139),
+    actor: 'marcus.webb@telco.example',
+    actorType: 'human',
+    eventType: 'AutonomyChanged',
+    scope: 'tenant',
+    summary:
+      'Dropped tenant autonomy to L1 while the consent registry was unreachable. Agents paused rather than optimising against a suppression spike they could not explain.',
+    changeSetId: null,
+  },
+  {
+    id: 'evt_0033',
+    timestamp: iso(-140),
+    actor: 'system',
+    actorType: 'system',
+    eventType: 'GuardrailBlocked',
+    scope: 'conn_consent_registry',
+    summary:
+      'Consent registry unreachable: 503 from the upstream on 2,140 consecutive resolutions. Connector failed closed, so every affected decision suppressed rather than proceeding without consent.',
+    changeSetId: null,
+  },
+  {
+    id: 'evt_0032',
+    timestamp: iso(-141),
+    actor: 'system',
+    actorType: 'system',
+    eventType: 'AnomalyDetected',
+    scope: 'inbound-web-offers',
+    summary:
+      'Suppression rate on inbound web reached 96% over 15 minutes against a 24-hour baseline of 54%. Flagged for investigation.',
+    changeSetId: null,
+  },
   {
     id: 'evt_0031',
     timestamp: iso(-2),

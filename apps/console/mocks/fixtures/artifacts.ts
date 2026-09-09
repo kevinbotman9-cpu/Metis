@@ -1,5 +1,7 @@
 /** Compiled flow artifacts, including their DIR graph. Deterministic. */
 
+import { seededCandidateKeys } from './seed';
+
 const T0 = Date.parse('2026-09-01T09:00:00Z');
 const iso = (h: number) => new Date(T0 + h * 3600_000).toISOString();
 
@@ -97,7 +99,12 @@ export const artifacts: ArtifactSummary[] = [
     // + arbitrate 2.3. The parallel branches do not add to the path.
     estimatedP95LatencyMs: 11.9,
     status: 'active',
-    candidateKeys: ['upsell_5g', 'upsell_data', 'retention_offer', 'addon_roaming'],
+    candidateKeys: [
+      'upsell_5g', 'upsell_data', 'retention_offer', 'addon_roaming',
+      // The rest of the growth catalogue. Authored keys stay first, so the
+      // offers a demo walks through are the ones it keeps meeting.
+      ...seededCandidateKeys('iss_growth'),
+    ],
     // Roaming joined the flow in 2.4.0, so 2.3.1 could not select it. This is
     // the difference shadow mode compares against.
     priorCandidateKeys: { '2.3.1': ['upsell_5g', 'upsell_data', 'retention_offer'] },
@@ -197,6 +204,13 @@ export const artifacts: ArtifactSummary[] = [
     nodeCount: 5,
     estimatedP95LatencyMs: 8.7,
     status: 'active',
+    // Curated, and deliberately not widened with the seeded catalogue.
+    //
+    // This flow answers `homepage_hero`, which has one slot. A hero is the most
+    // tightly picked surface a telco has — you do not put twenty offers in it —
+    // and the whole seeded acquisition catalogue competing for one slot would
+    // mean the slate is whichever offer happened to rank highest, which is not
+    // what a hero is for. The other flows carry the seeded catalogue.
     candidateKeys: ['acq_sim_30', 'acq_fibre_900', 'upsell_data'],
     nodes: [
       {
@@ -275,7 +289,7 @@ export const artifacts: ArtifactSummary[] = [
     nodeCount: 6,
     estimatedP95LatencyMs: 19.7,
     status: 'active',
-    candidateKeys: ['retention_offer', 'winback_credit'],
+    candidateKeys: ['retention_offer', 'winback_credit', ...seededCandidateKeys('iss_retention')],
     nodes: [
       {
         id: 'source_contracts',
@@ -353,7 +367,7 @@ export const artifacts: ArtifactSummary[] = [
     nodeCount: 3,
     estimatedP95LatencyMs: 5.2,
     status: 'draft',
-    candidateKeys: ['svc_plan_fit', 'svc_bill_shock'],
+    candidateKeys: ['svc_plan_fit', 'svc_bill_shock', ...seededCandidateKeys('iss_service', 10)],
     nodes: [
       {
         id: 'source_usage',

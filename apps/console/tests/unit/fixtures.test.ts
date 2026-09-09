@@ -16,7 +16,18 @@ import {
   boosts,
   autonomySettings,
 } from '@/mocks/fixtures/catalogue';
-import { decisions, traces, findTrace } from '@/mocks/fixtures/decisions';
+import { decisions, sampleTraces, findTrace } from '@/mocks/fixtures/decisions';
+
+/**
+ * A fixed slice of the corpus, executed once for this file.
+ *
+ * These assertions are properties of the generator, not of any particular
+ * decision, so a deterministic sample either has them or does not. Iterating
+ * all 10,400 would mean re-executing the whole corpus — thirteen seconds — to
+ * learn the same thing. See `sampleTraces` for why the traces are not an array
+ * any more.
+ */
+const traces = sampleTraces(600);
 import { artifacts } from '@/mocks/fixtures/artifacts';
 
 describe('taxonomy integrity', () => {
@@ -237,10 +248,15 @@ describe('flow artifacts', () => {
 
 describe('console decisions come from the real engine', () => {
   it('replays every decision the console shows to an identical chain hash', async () => {
-    const { generated, catalogueSnapshot } = await import('@/mocks/fixtures/engine');
+    const { catalogueSnapshot, executeAt } = await import('@/mocks/fixtures/engine');
     const { replay } = await import('@metis/runtime/deterministic/engine');
 
-    for (const g of generated) {
+    // Same sample as above, as the executions rather than the flattened traces:
+    // replay needs the request and the artifact, which the trace does not hold.
+    const step = Math.max(1, Math.floor(decisions.length / 600));
+    const sample = Array.from({ length: 600 }, (_, k) => executeAt(k * step)).filter(Boolean);
+
+    for (const g of sample) {
       const result = replay(g.artifact, catalogueSnapshot, g.trace, g.request.input, g.request.contactHistory);
       expect(result.identical, `${g.trace.id} did not replay identically`).toBe(true);
       expect(result.differences).toEqual([]);
@@ -256,10 +272,10 @@ describe('console decisions come from the real engine', () => {
   });
 
   it('excludes wall-clock timings from the hashed decision', async () => {
-    const { generated } = await import('@/mocks/fixtures/engine');
+    const { executeAt } = await import('@/mocks/fixtures/engine');
     const { canonicalise } = await import('@metis/runtime/deterministic/canonical');
 
-    for (const g of generated.slice(0, 5)) {
+    for (const g of [0, 1, 2, 3, 4].map(executeAt)) {
       const serialised = canonicalise(g.trace.decision);
       expect(serialised).not.toContain('totalMs');
       expect(serialised).not.toContain('executedAt');

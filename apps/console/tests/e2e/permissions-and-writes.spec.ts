@@ -194,6 +194,9 @@ test.describe('creating an offer', () => {
 
     await login(page, ACCOUNTS.sarah);
     await page.goto('/offers');
+    // Found by filtering rather than by scrolling: the seeded tenant holds 251
+    // offers, so a newly created one is not on the first page.
+    await page.getByLabel('Search offers').fill('Speed Boost 100Mb');
     await expect(page.getByText('Speed Boost 100Mb').first()).toBeVisible();
   });
 
