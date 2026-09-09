@@ -55,38 +55,46 @@ The original cause is gone: `packages/compiler/src/compile.ts` was deleted with 
 
 Playwright's `webServer` has `reuseExistingServer: true`, and `apps/console/mocks/store.ts` seeds itself from the fixtures **at module load**. A dev server already running when a fixture changes therefore keeps the old seed, and `POST /api/_test/reset` does not help — it re-clones the same captured seed. Observed as a `getArbitrationConfig` contract failure that passed immediately against a fresh server. Turning reuse off would add a cold start to every local run, so the workaround is to restart the server after editing a fixture; CI is unaffected because it always starts one.
 
-### G-003 — The decision trace accessibility test fails after a write-heavy run
+### G-035 — A long-lived dev server degrades until the suite is unusable
 
-**Registered:** 2026-09-08 · **Status:** Open · **Work item:** none
+**Registered:** 2026-09-09 · **Status:** Open · **Work item:** none
 
-`accessibility.spec.ts › the decision trace has no violations` failed once, in a run that immediately followed `form-descriptors.spec.ts`, `offer-authoring.spec.ts` and `permissions-and-writes.spec.ts` — all of which create offers and creatives by clicking. It passed in isolation and passed again on a clean full sweep (49/49), so **it has not been reproduced on demand and the cause is not established**. The suspicion is store state: `apps/console/mocks/store.ts` is process-wide, the specs above write to it, and the trace test opens whichever decision happens to be first in the grid — so a decision rendered against a catalogue a previous spec mutated is a plausible source of a node the earlier sweep found and the later one did not. `POST /api/_test/reset` re-clones a seed captured at module load, which is the same limitation already recorded two rows above. Recorded rather than fixed because a flake diagnosed by guesswork is a flake twice: the next occurrence should be captured with the axe violation id and the decision id before anything is changed. **Reproduced 2026-09-08**, under exactly the predicted condition: `npm run test:a11y` run immediately after the offer and creative e2e suites failed 1 of 49 on this test, and the same command run on its own passed 49 of 49 minutes later. Two observations, same shape, still no violation id captured — the ordering dependency is now established, the cause is not.
+Playwright reuses whatever is on port 3000 (`reuseExistingServer: true`), and a
+`next dev` process that has been up long enough stops being a valid thing to
+measure against.
 
-**Widened 2026-09-09, with evidence.** This is not confined to the accessibility
-test, and it is not a flake in the sense of "sometimes slow". Three full runs on
-2026-09-09 produced three different victims, each passing in isolation
-immediately afterwards:
+Observed 2026-09-09. The process had been running seventeen hours at 2.2 GB
+resident. Against it, `npm run test:a11y` managed **2 tests in 10 minutes**;
+against a freshly started server, the same command ran **49 in 2.7 minutes**.
+Every timing-shaped failure recorded in this register before that point should
+be re-read with it in mind.
 
-- `app-shell.spec.ts` › `the badge count matches the number of items listed`
-- `form-descriptors.spec.ts` › `locks the channel when editing…` — twice
-- `experiments.spec.ts` › `names the field path an arm reaches policies at` and
-  `refuses a key that would collide at the same field path`
+It is registered rather than fixed because the fix is a judgement:
+`reuseExistingServer` exists so a local run does not pay a cold start, and
+turning it off costs about a minute on every invocation. The cheap middle option
+— refuse to reuse a server older than some age — needs somebody to pick the age.
 
-The last pair failed on a **stashed, pre-change tree** while
-`form-descriptors.spec.ts` passed on it — which is the finding worth keeping.
-Changing what else runs changes which test fails, so the cause is the shared
-store rather than any one assertion, and a bisect that blames the most recent
-commit will blame the wrong thing.
+**Done when:** either the suite refuses a server it should not trust, or the
+reuse is dropped and the cold start accepted. Whichever, `npm run test:a11y` on
+a day-old server must not take ten minutes to run two tests.
 
-The shape is now clear enough to name: `apps/console/mocks/store.ts` is
-process-wide, `POST /api/_test/reset` re-clones a seed captured at module load,
-and several specs assert on `.last()` or on a count over a list other specs
-grow. Any of the three would be survivable alone.
+**One test was passing for the wrong reason, and the fix exposed it.**
+`seeds nothing running` asserted `getByText('running')` had count 0.
+`getByText` is a case-insensitive substring match, so it also matched the page's
+own **"Running"** metric label — the assertion could only pass by running before
+the list rendered and finding nothing at all. Adding a wait for the seed to
+`beforeEach` turned that false pass into the failure it had always been. It now
+reads the badge with `{ exact: true }` and separately asserts the page's own
+counter says 0: the same claim, addressed precisely, checked twice.
 
-**Still not fixed, and deliberately.** The fix is one of: a store per worker, a
-reset that rebuilds from the fixtures rather than from a captured clone, or
-removing every positional assertion. That is a test-architecture change and it
-should not be made inside a slice about something else, three times over,
-guessing.
+Under `--repeat-each=12` on a fresh server: **16 failed / 1 passed** before the
+G-003 fixes, **12 failed / 85 passed** after them, **1 failed / 96 passed** after
+the addressing fix. The remaining one is `ECONNRESET` on the teardown's reset
+POST — the dev server dropping a connection, which is a transport fault rather
+than an ordering one.
+
+**Done when:** `--repeat-each=12` passes ten times in a row without an
+`ECONNRESET`. Six consecutive full runs are clean; this narrower probe is not.
 
 ### G-004 — No node, panel or layout manifests — the composable experience
 
@@ -568,6 +576,87 @@ have produced.
 ---
 
 ## Resolved
+
+### G-003 — The decision trace accessibility test fails after a write-heavy run
+
+**Registered:** 2026-09-08 · **Resolved:** 2026-09-09 · **Status:** Resolved · **Work item:** none
+
+`accessibility.spec.ts › the decision trace has no violations` failed once, in a run that immediately followed `form-descriptors.spec.ts`, `offer-authoring.spec.ts` and `permissions-and-writes.spec.ts` — all of which create offers and creatives by clicking. It passed in isolation and passed again on a clean full sweep (49/49), so **it has not been reproduced on demand and the cause is not established**. The suspicion is store state: `apps/console/mocks/store.ts` is process-wide, the specs above write to it, and the trace test opens whichever decision happens to be first in the grid — so a decision rendered against a catalogue a previous spec mutated is a plausible source of a node the earlier sweep found and the later one did not. `POST /api/_test/reset` re-clones a seed captured at module load, which is the same limitation already recorded two rows above. Recorded rather than fixed because a flake diagnosed by guesswork is a flake twice: the next occurrence should be captured with the axe violation id and the decision id before anything is changed. **Reproduced 2026-09-08**, under exactly the predicted condition: `npm run test:a11y` run immediately after the offer and creative e2e suites failed 1 of 49 on this test, and the same command run on its own passed 49 of 49 minutes later. Two observations, same shape, still no violation id captured — the ordering dependency is now established, the cause is not.
+
+**Widened 2026-09-09, with evidence.** This is not confined to the accessibility
+test, and it is not a flake in the sense of "sometimes slow". Three full runs on
+2026-09-09 produced three different victims, each passing in isolation
+immediately afterwards:
+
+- `app-shell.spec.ts` › `the badge count matches the number of items listed`
+- `form-descriptors.spec.ts` › `locks the channel when editing…` — twice
+- `experiments.spec.ts` › `names the field path an arm reaches policies at` and
+  `refuses a key that would collide at the same field path`
+
+The last pair failed on a **stashed, pre-change tree** while
+`form-descriptors.spec.ts` passed on it — which is the finding worth keeping.
+Changing what else runs changes which test fails, so the cause is the shared
+store rather than any one assertion, and a bisect that blames the most recent
+commit will blame the wrong thing.
+
+The shape is now clear enough to name: `apps/console/mocks/store.ts` is
+process-wide, `POST /api/_test/reset` re-clones a seed captured at module load,
+and several specs assert on `.last()` or on a count over a list other specs
+grow. Any of the three would be survivable alone.
+
+**Still not fixed, and deliberately.** The fix is one of: a store per worker, a
+reset that rebuilds from the fixtures rather than from a captured clone, or
+removing every positional assertion. That is a test-architecture change and it
+should not be made inside a slice about something else, three times over,
+guessing.
+
+**Closed 2026-09-09. Three ingredients, three fixes.**
+
+**The reset did not reset.** `resetStore()` returned before it had finished:
+`seed()` kicks off two background jobs — the registry seeding itself and the
+ledger resolving its store — and neither was awaited, so `POST /api/_test/reset`
+answered `{ reset: true }` while the registry was still filling. Worse, after
+the first call `seed()` returns an object that is *not* `store`, so the ledger
+upgrade was landing on a discarded object and being lost on every reset. It now
+drains `shadowInFlight` first, awaits both readiness promises **before** the
+swap, and clears the module-level call log that `seed()` cannot reach.
+`catalogue-state` is deliberately left alone: it is keyed by content hash, so a
+stale entry can never be returned for a different catalogue, and clearing it
+would make a decision recorded before the reset unreplayable.
+
+**Two buttons on the offer page were both called "Edit".** That is why the tests
+counted positions — `.last()` over every Edit on the page, which is the offer's
+as well as each creative's, so the assertion depended on how many creatives
+existed and therefore on what other specs had left behind. It was also an
+accessibility defect in its own right: a screen-reader user tabbing heard the
+word "Edit" twice with nothing to tell the two apart. Both now carry an
+`aria-label` naming what they edit, and the specs address them by name.
+
+**No assertion was weakened.** `form-descriptors` and `offer-authoring` assert
+exactly what they asserted before; only the locator changed, from a position to
+an identity.
+
+**Measured, not asserted.** Five full runs, plus one with the spec files
+shuffled into four groups run in a random sequence against the same reused
+server — all on a freshly started dev server, for the reason in
+[G-035](#g-035--a-long-lived-dev-server-degrades-until-the-suite-is-unusable):
+
+| Run | Result | Duration |
+|---|---|---|
+| 1 | 324 passed, 0 failed | 12.8m |
+| 2 | 324 passed, 0 failed | 15.2m |
+| 3 | 324 passed, 0 failed | 14.0m |
+| 4 | 324 passed, 0 failed | 13.4m |
+| 5 | 324 passed, 0 failed | 13.5m |
+| 6 — shuffled, 4 groups | 98 + 51 + 76 + 102 = 327 passed, 0 failed | 14.3m |
+
+Before these fixes, three consecutive full runs produced three *different*
+failures, and a bisect would have blamed whichever commit was newest.
+
+An earlier attempt at this same proof, run against a `next dev` process that had
+been up for seventeen hours, gave five clean and one failure. That measurement
+was discarded rather than reported, because the server was the variable — see
+G-035.
 
 ### G-012 — `score-adaptive` is a node type with no behaviour of its own
 

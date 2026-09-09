@@ -226,7 +226,11 @@ test.describe('the declared creative form @screen-only', () => {
     await d.getByRole('button', { name: 'Add creative' }).click();
     await expect(d).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Edit', exact: true }).last().click();
+    // By name, not by position. This used to be `.last()` over every Edit on
+    // the page, which is the offer's as well as each creative's — so the
+    // assertion depended on how many creatives existed, which depended on what
+    // other specs had left behind. G-003.
+    await page.getByRole('button', { name: 'Edit creative SMS — declared' }).click();
     const edit = dialog(page);
     await expect(edit.getByLabel('Channel')).toBeDisabled();
     // The content came back, and the discriminant still went with it — the
@@ -253,7 +257,7 @@ test.describe('the declared creative form @screen-only', () => {
     await d.getByRole('button', { name: 'Add creative' }).click();
     await expect(d).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Edit', exact: true }).last().click();
+    await page.getByRole('button', { name: 'Edit creative Reviewed hero' }).click();
     await expect(dialog(page).getByLabel('Review note')).toHaveValue(
       'Ofcom speed claim substantiated 2026-09-01, ref LEG-4471.'
     );

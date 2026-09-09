@@ -18,6 +18,13 @@ test.describe('experiments', () => {
   test.beforeEach(async ({ page }) => {
     await login(page, ACCOUNTS.sarah);
     await page.goto('/experiments');
+    // The list is fetched after navigation, so every assertion below races it.
+    // Waiting once here rather than making each test's first assertion carry
+    // the wait means a slow load fails as "the seed did not arrive" instead of
+    // as "the field path is missing" — which is what it looked like on
+    // 2026-09-09, in one full run out of six, on a machine under load. G-003.
+    await expect(page.getByRole('heading', { level: 1, name: 'Experiments' })).toBeVisible();
+    await expect(page.getByText('Full Fibre holdout')).toBeVisible();
   });
 
   test.afterEach(async ({ page }) => {
@@ -37,7 +44,16 @@ test.describe('experiments', () => {
     // A running experiment adds `experiments.<key>` to every decision's hashed
     // input. That is correct for one somebody started and wrong for a fixture
     // to do on everybody's behalf, so both seeds are draft or stopped.
-    await expect(page.getByText('running')).toHaveCount(0);
+    // Addressed precisely, not loosely. `getByText('running')` is a
+    // case-insensitive substring match, so it also matched the page's own
+    // "Running" metric label — and the assertion only passed because it raced
+    // the render and found nothing at all. Adding a wait for the list to
+    // `beforeEach` turned that false pass into the failure it always was.
+    //
+    // Same claim, two readings of it: no experiment carries the status, and the
+    // page's own counter agrees.
+    await expect(page.getByText('running', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Running').locator('..')).toContainText('0');
     await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
   });
 

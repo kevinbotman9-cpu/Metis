@@ -2071,7 +2071,10 @@ async function handlePost(req: Request, { params }: Ctx) {
 
       if (rest[0] !== 'reset') return notFound();
       if (process.env.NODE_ENV === 'production') return notFound();
-      resetStore();
+      // Awaited. It used to return before the registry had re-seeded and
+      // before the ledger had resolved, so a test that reset and immediately
+      // read got a half-built store and blamed its own assertion.
+      await resetStore();
       return json({ reset: true });
     }
 

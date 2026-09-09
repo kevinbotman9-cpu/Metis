@@ -114,8 +114,10 @@ test.describe('authoring an offer', () => {
 
   test('edits a creative through the console', async ({ page }) => {
     await page.goto('/offers/prop_5g_unlimited_24');
-    // The creative's own Edit, not the offer's.
-    await page.getByRole('button', { name: 'Edit' }).nth(1).click();
+    // The creative's own Edit, addressed by what it edits rather than by its
+    // position among the page's Edit buttons — which is what made this depend
+    // on how many creatives the offer happened to have. G-003.
+    await page.getByRole('button', { name: /^Edit creative / }).first().click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();

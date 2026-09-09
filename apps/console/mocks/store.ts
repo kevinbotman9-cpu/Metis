@@ -11,6 +11,7 @@
  */
 
 import { DecisionLedger, InMemoryLedgerStore, createLedgerStore } from '@metis/ledger';
+import { clearCalls } from './call-log';
 import type { ShadowComparison } from '@metis/runtime';
 import {
   objectives as seedObjectives,
@@ -258,8 +259,47 @@ if (!g[GLOBAL_KEY]) g[GLOBAL_KEY] = seed();
 export const store: Store = g[GLOBAL_KEY]!;
 
 /** Restore the seed state. Used by the E2E suite between specs. */
-export function resetStore() {
-  Object.assign(store, seed());
+export async function resetStore(): Promise<void> {
+  // Drain what the last test started, before replacing anything it could
+  // still be writing into. A shadow run that resolves after the swap lands a
+  // comparison in the new state, and the next spec sees a divergence it did
+  // not cause — one of the three ingredients behind G-003.
+  await Promise.race([
+    Promise.allSettled([...store.shadowInFlight]),
+    // Bounded on purpose. A shadow run that never settles would otherwise hang
+    // the reset endpoint, and every test after it fails at login with no
+    // indication that a reset is the reason — which is a worse failure than the
+    // contamination this drain exists to prevent.
+    new Promise((resolve) => setTimeout(resolve, 2_000)),
+  ]);
+
+  const next = seed();
+
+  // Await the async halves *before* the swap, not after.
+  //
+  // `seed()` returns immediately and then finishes two things in the
+  // background: the registry seeds itself, and the ledger resolves its store.
+  // Both wrote into the object `seed()` returned — which, after the first
+  // call, is not `store`, so the ledger upgrade was landing on a discarded
+  // object and the registry was still filling while the next test read it.
+  // Awaiting here makes the reset mean what its name says.
+  await next.registryReady;
+  await next.ledgerReady.catch(() => {
+    // A configured database that cannot be reached is already reported by
+    // `seed()`. Swallowed here so a reset does not fail a test with the same
+    // message twice.
+  });
+
+  Object.assign(store, next);
+
+  // Module-level state that `seed()` cannot reach, because it does not own it.
+  clearCalls();
+
+  // `catalogue-state` is deliberately *not* cleared. It is keyed by content
+  // hash, so a stale entry can never be returned for a different catalogue —
+  // it is a leak of at most a few objects, and clearing it would make a
+  // decision recorded before the reset unreplayable, which is a worse
+  // property than a small map.
 }
 
 // ---------------------------------------------------------------------------

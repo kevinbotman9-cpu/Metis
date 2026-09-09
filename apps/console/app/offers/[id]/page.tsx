@@ -170,7 +170,12 @@ function OfferDetail({ offerId }: { offerId: string }) {
         actions={
           canEdit ? (
             <>
-              <Button variant="secondary" size="md" onClick={() => setEditingOffer(true)}>
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setEditingOffer(true)}
+                aria-label={`Edit offer ${p.name}`}
+              >
                 Edit
               </Button>
               {/* `createChangeSet` exists, and proposing one means building a
@@ -319,6 +324,13 @@ function OfferDetail({ offerId }: { offerId: string }) {
                             onClick={() =>
                               setCreativeDialog({ mode: 'edit', creative: selected })
                             }
+                            // Two buttons on this page said only "Edit", and a
+                            // screen-reader user tabbing heard the word twice
+                            // with nothing to tell them apart. It is also why
+                            // the tests were counting positions. The visible
+                            // label stays short; the accessible one says what
+                            // it edits.
+                            aria-label={`Edit creative ${selected.name}`}
                           >
                             Edit
                           </Button>
