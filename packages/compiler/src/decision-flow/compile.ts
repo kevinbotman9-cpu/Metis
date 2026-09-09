@@ -556,6 +556,31 @@ export function compileDecisionFlow(
     }
 
     if (SCORE_TYPES.includes(n.type)) {
+      if (n.type === 'score-adaptive') {
+        // Deprecated rather than deleted, and the distinction is forced.
+        //
+        // ADR-009 §7 removes adaptive scoring from v1: a model that updates
+        // itself changes decisions with no change set, and it breaks replay
+        // unless every update publishes an immutable version. The node type had
+        // no behaviour distinct from `score-model` anyway — G-012, registered
+        // 2026-09-07.
+        //
+        // It cannot simply be deleted. A case in
+        // `docs/conformance/decision-corpus.json` recorded on 2026-09-05 has
+        // `score-adaptive` inside its hashed eliminations, so removing it from
+        // the runtime would move a chain hash — a statement about something
+        // that happened. The runtime keeps executing it and the compiler
+        // refuses it, so history replays and nothing new is built on it.
+        d.push(
+          error(
+            'DEPRECATED_NODE_TYPE',
+            `Node '${n.id}' is a 'score-adaptive' node, which is no longer accepted.`,
+            "Use 'score-model'. Adaptive scoring is out of scope for v1 — see ADR-009 §7. " +
+              'Flows compiled before 2026-09-09 still execute and replay unchanged.',
+            n.id
+          )
+        );
+      }
       if (!n.model) {
         d.push(
           error(

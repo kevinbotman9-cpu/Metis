@@ -55,6 +55,16 @@ export type {
   IdempotencyStore,
 } from './idempotency';
 
+export {
+  resolveScores,
+  scorerFor,
+  setScorerResolver,
+  modelKeyOf,
+  scoreNodes,
+  ScoresNotResolved,
+  SEEDED_PROPENSITY,
+} from './scoring';
+export type { PropensityScorer, ResolvedScores, ScoringContext } from './scoring';
 export { compareShadow, buildShadowReport } from './shadow';
 export type {
   ShadowComparison,

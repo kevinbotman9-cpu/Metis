@@ -28,7 +28,13 @@ import {
   utilityKey,
   type UtilityFunction,
 } from '@metis/core/utility';
-import { canonicalise, hash, seededUnitInterval } from './canonical';
+import { canonicalise, hash, seededUnitInterval, round } from './canonical';
+import {
+  modelKeyOf,
+  scorerFor,
+  ScoresNotResolved,
+  type ResolvedScores,
+} from '../scoring';
 import type {
   ExecArtifact,
   ExecNode,
@@ -267,7 +273,16 @@ const KIND_CODE: Record<TargetingPolicy['kind'], ReasonCode> = {
 export function execute(
   artifact: ExecArtifact,
   catalogue: CatalogueSnapshot,
-  request: DecisionRequest
+  request: DecisionRequest,
+  /**
+   * Propensities resolved before this ran — ADR-009 §2.
+   *
+   * Optional while the only scorer is a pure function, because requiring it
+   * would change seventy call sites in one commit and each is a chance to move
+   * a chain hash. The `pure` guard above is what keeps that transitional shape
+   * honest: a scorer that reaches anything is refused here rather than run.
+   */
+  resolved?: ResolvedScores
 ): DecisionRecord {
   const startedAt = Date.now();
   const timingsByNode: Record<string, number> = {};
@@ -488,15 +503,29 @@ export function execute(
       }
 
       case 'score-model':
+      // Retained, and refused for new flows. A case in
+      // `docs/conformance/decision-corpus.json` recorded on 2026-09-05 carries
+      // `score-adaptive` inside its hashed eliminations, so deleting the node
+      // type here would move a chain hash that is a statement about something
+      // that happened. The compiler rejects it instead: history replays, and
+      // nothing new can use it. See ADR-009 §7 and G-012.
       case 'score-adaptive': {
-        const modelKey = node.model ? `${node.model.id}@${node.model.version}` : node.id;
+        const modelKey = modelKeyOf(node);
+        // Resolved before the core ran, or resolved here when the scorer is
+        // pure. A model-backed scorer reaches the network and the core opens no
+        // sockets, so it must have been resolved by the caller — ADR-009 §2.
+        const scorer = scorerFor(node);
+        const byOffer = resolved?.get(modelKey);
+        if (!byOffer && !scorer.pure) throw new ScoresNotResolved(node.id, scorer.id);
         for (const p of candidates) {
-          // Deterministic stand-in for a pinned model. Same customer, same
-          // offer, same model version always yields the same propensity.
-          const propensity = round(
-            0.05 + seededUnitInterval(request.customerId, p.key, modelKey) * 0.9,
-            6
-          );
+          const propensity =
+            byOffer?.get(p.key) ??
+            scorer.score({
+              tenantId: request.tenantId,
+              customerId: request.customerId,
+              offerKey: p.key,
+              modelKey,
+            });
           const value = round(Math.max(0.01, p.financials.expectedMargin.amount / 60000), 6);
           const boost = effectiveBoost(catalogue.boosts, p, request.occurredAt);
           const context = round(
@@ -781,8 +810,4 @@ export function diff(a: unknown, b: unknown, path = '$'): ReplayResult['differen
   );
 }
 
-/** Fixed-precision rounding, so float noise cannot change a hash. */
-function round(n: number, dp: number): number {
-  const f = 10 ** dp;
-  return Math.round(n * f) / f;
-}
+

@@ -61,6 +61,33 @@ Playwright's `webServer` has `reuseExistingServer: true`, and `apps/console/mock
 
 `accessibility.spec.ts › the decision trace has no violations` failed once, in a run that immediately followed `form-descriptors.spec.ts`, `offer-authoring.spec.ts` and `permissions-and-writes.spec.ts` — all of which create offers and creatives by clicking. It passed in isolation and passed again on a clean full sweep (49/49), so **it has not been reproduced on demand and the cause is not established**. The suspicion is store state: `apps/console/mocks/store.ts` is process-wide, the specs above write to it, and the trace test opens whichever decision happens to be first in the grid — so a decision rendered against a catalogue a previous spec mutated is a plausible source of a node the earlier sweep found and the later one did not. `POST /api/_test/reset` re-clones a seed captured at module load, which is the same limitation already recorded two rows above. Recorded rather than fixed because a flake diagnosed by guesswork is a flake twice: the next occurrence should be captured with the axe violation id and the decision id before anything is changed. **Reproduced 2026-09-08**, under exactly the predicted condition: `npm run test:a11y` run immediately after the offer and creative e2e suites failed 1 of 49 on this test, and the same command run on its own passed 49 of 49 minutes later. Two observations, same shape, still no violation id captured — the ordering dependency is now established, the cause is not.
 
+**Widened 2026-09-09, with evidence.** This is not confined to the accessibility
+test, and it is not a flake in the sense of "sometimes slow". Three full runs on
+2026-09-09 produced three different victims, each passing in isolation
+immediately afterwards:
+
+- `app-shell.spec.ts` › `the badge count matches the number of items listed`
+- `form-descriptors.spec.ts` › `locks the channel when editing…` — twice
+- `experiments.spec.ts` › `names the field path an arm reaches policies at` and
+  `refuses a key that would collide at the same field path`
+
+The last pair failed on a **stashed, pre-change tree** while
+`form-descriptors.spec.ts` passed on it — which is the finding worth keeping.
+Changing what else runs changes which test fails, so the cause is the shared
+store rather than any one assertion, and a bisect that blames the most recent
+commit will blame the wrong thing.
+
+The shape is now clear enough to name: `apps/console/mocks/store.ts` is
+process-wide, `POST /api/_test/reset` re-clones a seed captured at module load,
+and several specs assert on `.last()` or on a count over a list other specs
+grow. Any of the three would be survivable alone.
+
+**Still not fixed, and deliberately.** The fix is one of: a store per worker, a
+reset that rebuilds from the fixtures rather than from a captured clone, or
+removing every positional assertion. That is a test-architecture change and it
+should not be made inside a slice about something else, three times over,
+guessing.
+
 ### G-004 — No node, panel or layout manifests — the composable experience
 
 **Registered:** 2026-09-03 · **Status:** Open · **Work item:** [W-038](BACKLOG.md)
@@ -279,26 +306,6 @@ W-015 is actually about:
 | **No content lifecycle** | No approval, no effective dating, no expiry, no versioning. A creative has `status`, `active` and `locale`. Editing one changes what is delivered immediately, with an audit entry and no review — while a *flow* change goes through change sets and approvals. Two governance regimes again, and content is the unguarded one. |
 | ~~The console still cannot author one~~ | **Closed 2026-09-07.** The offer and creative dialogs are wired; see `CAPABILITIES.md`. Three affordances remain unbuilt and are now disabled with the reason rather than enabled and dead: `New boost` and `New scope rule` have no write operation in the spec, and `Request change` needs a diff builder before it can propose anything. |
 | **`Offer.creativeIds` is a denormalisation** | `Creative.offerId` is the foreign key — `packages/catalogue` enforces it and refuses a creative whose offer does not exist. `creativeIds` exists because the offers list reads it for the channel-coverage column, and the write path maintains it. Two places holding one fact; it resolves when the console reads from the catalogue rather than the store (W-005). |
-
----
-
-### G-012 — `score-adaptive` is a node type with no behaviour of its own
-
-**Registered:** 2026-09-07 · **Status:** Open · **Work item:** [W-029](BACKLOG.md)
-
-The compiler accepts it and the engine computes it exactly as `score-model`: a
-seeded deterministic function of customer, offer key and pinned model version.
-Nothing adaptive exists — W-032 — and the fixture flow that used it has been
-moved to `score-model`, which is what it always was.
-
-Kept rather than removed, because it is the seam W-032 fills and deleting it
-would move the question rather than answer it. Registered because a node type
-that claims a capability the engine does not have is the same species of problem
-as the trace that named an adaptive model: nobody writes a false claim, and the
-naming makes one.
-
-When W-032 lands, either the type gets behaviour or it goes. Until then a flow
-author choosing it gets ordinary scoring, and the trace says so.
 
 ---
 
@@ -561,6 +568,39 @@ have produced.
 ---
 
 ## Resolved
+
+### G-012 — `score-adaptive` is a node type with no behaviour of its own
+
+**Registered:** 2026-09-07 · **Resolved:** 2026-09-09 · **Status:** Resolved · **Work item:** [W-029](BACKLOG.md)
+
+The compiler accepts it and the engine computes it exactly as `score-model`: a
+seeded deterministic function of customer, offer key and pinned model version.
+Nothing adaptive exists — W-032 — and the fixture flow that used it has been
+moved to `score-model`, which is what it always was.
+
+Kept rather than removed, because it is the seam W-032 fills and deleting it
+would move the question rather than answer it. Registered because a node type
+that claims a capability the engine does not have is the same species of problem
+as the trace that named an adaptive model: nobody writes a false claim, and the
+naming makes one.
+
+When W-032 lands, either the type gets behaviour or it goes. Until then a flow
+author choosing it gets ordinary scoring, and the trace says so.
+
+---
+
+**Closed 2026-09-09, by deprecation rather than deletion.** ADR-009 §7 puts
+adaptive scoring out of scope for v1, so the compiler now refuses the node type
+with `DEPRECATED_NODE_TYPE` and names `score-model` as the replacement.
+
+**It could not be deleted, and the reason is worth recording.** A case in
+`docs/conformance/decision-corpus.json`, recorded 2026-09-05, carries
+`score-adaptive` inside its hashed eliminations. Removing the type from the
+runtime would have changed that decision's chain hash — a statement about
+something that happened. So the runtime still executes it and history replays
+unchanged, while nothing new can be built on it. This is the first time the
+immutability promise has forced a deprecation where a deletion was wanted, and
+it will not be the last.
 
 ### G-020 — A live decision’s trace cannot be opened in the console
 

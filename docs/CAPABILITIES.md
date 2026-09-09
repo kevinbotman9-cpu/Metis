@@ -172,9 +172,10 @@ corpora changed on that date, because the rename reached the hashed decision.
 | Model gateway, model registry | OUT OF SCOPE | NO | NO | Taxonomy 8.7, 8.14 `DIFFERENTIATING`. Gate 2. Registered as [W-029](BACKLOG.md) |
 | Adaptive learning, contextual bandits, drift, calibration | OUT OF SCOPE | NO | NO | Taxonomy 8.3, 8.4, 8.5, 8.11, 9.13 — Gate 2–3 |
 | Model shadow scoring | OUT OF SCOPE | NO | NO | Taxonomy 8.6 `DIFFERENTIATING`. Distinct from flow-version shadow mode, which is built — see §12 |
-| `score-model` / `score-adaptive` node types | ABSENT | NO | NO | Taxonomy 8.1 `TABLE-STAKES`. The node types exist and produce a propensity of `0.05 + seededUnitInterval(customerId, offerKey, modelKey) * 0.9` — `packages/runtime/src/deterministic/engine.ts:490-527`. That is arithmetic over a hash. Files existing is not a capability, so this is ABSENT rather than SCAFFOLD |
+| `score-model` node type | ABSENT | NO | NO | Taxonomy 8.1 `TABLE-STAKES`. The node type exists and produces a propensity of `0.05 + seededUnitInterval(customerId, offerKey, modelKey) * 0.9`, now in `packages/runtime/src/scoring/index.ts` rather than inline in the engine. That is still arithmetic over a hash, and moving it changed nothing about what it is — the seam is built, the model is not. Files existing is not a capability |
 | The trace declaring the propensity is not a model | BUILT | YES — `/decisions/[id]` | NO | `engine.ts:519-524` — the trace reads *"a pinned deterministic function, not a trained model (W-029)"*. The comment above it records why: the sentence used to read like a real model had scored, and nobody had written a false claim — a pinned model id made one anyway |
-| `score-adaptive` has no behaviour distinct from `score-model` | ABSENT | NO | NO | Registered in [`gaps.md`](gaps.md), 2026-09-07 |
+| `score-adaptive` is refused for new flows | BUILT | NO | NO | [ADR-009](adr/ADR-009-the-model-plane.md) §7 puts adaptive scoring out of scope for v1. The compiler answers `DEPRECATED_NODE_TYPE` and names `score-model`; `packages/compiler/tests/compile.test.ts` › `refuses a score-adaptive node, and says what to use instead`. **Deprecated, not deleted:** a corpus case recorded 2026-09-05 carries the type inside its hashed eliminations, so the runtime still executes it and that decision replays unchanged. [G-012](gaps.md) |
+| Scoring resolved before the deterministic core | BUILT | NO | NO | [ADR-009](adr/ADR-009-the-model-plane.md) §2 phase one. `packages/runtime/src/scoring/` holds the propensity scorer and `resolveScores`; `execute` takes the result. The arithmetic did not change — every hash in all four corpora regenerates byte-identical, and the Kotlin engine still agrees. `packages/runtime/tests/scoring.test.ts` › `produces an identical decision either way`. The seam matters more than the move: a scorer declaring `pure: false` is **refused inside the core** with `ScoresNotResolved` rather than run, so when a model gateway lands a caller that has not been updated fails loudly instead of silently getting a seeded number |
 | `Model` as a user-editable entity | ABSENT | NO | NO | `packages/ui-metadata/src/registry/index.ts:65`: *"Gate 2. No schema, no screen."* |
 
 Propensity today is a seeded, deterministic function. That is what makes the
@@ -729,7 +730,7 @@ from the campaign.
 
 ### BUILT or PARTIAL where Screen? = NO — the inventory list
 
-**42 rows.** Work already paid for that delivers nothing to a person.
+**44 rows.** Work already paid for that delivers nothing to a person.
 
 Rows: the vocabulary check, the offer/action split, the deterministic engine,
 canonical serialisation, idempotency, the durable decision ledger, outcome
@@ -751,7 +752,7 @@ reachable only from `packages/portability/src/cli.ts`.
 
 ### Configurable without code? = NO — the extensibility debt list
 
-**310 rows, of 313 capability rows in this map.**
+**311 rows, of 314 capability rows in this map.**
 
 Only three rows answer YES, and they are the same mechanism seen three times:
 the form descriptor registry, the declared Offer form, and the declared Creative

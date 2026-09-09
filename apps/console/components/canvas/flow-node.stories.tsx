@@ -43,7 +43,7 @@ export const AllTypes: StoryObj = {
       { type: 'filter', label: 'Eligibility' },
       { type: 'constraint', label: 'Frequency policy', extra: { policyCount: 0, estimatedMs: 0.6 } },
       {
-        type: 'score-adaptive',
+        type: 'score-model',
         label: 'Acceptance propensity',
         extra: { policyCount: 0, hasModel: true, estimatedMs: 3.1 },
       },

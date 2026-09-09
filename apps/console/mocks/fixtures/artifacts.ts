@@ -11,7 +11,6 @@ export type FlowNodeType =
   | 'filter'
   | 'set-property'
   | 'score-model'
-  | 'score-adaptive'
   | 'constraint'
   | 'arbitrate'
   | 'switch'

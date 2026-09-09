@@ -102,7 +102,7 @@ const valid: DecisionFlowSource = {
     { id: 'gate', type: 'filter', label: 'Eligibility', policyIds: ['pol_age'], estimatedMs: 1 },
     {
       id: 'score',
-      type: 'score-adaptive',
+      type: 'score-model',
       label: 'Propensity',
       model: { id: 'adm', version: '4.2.0' },
       estimatedMs: 3,
@@ -239,11 +239,31 @@ describe('structural errors', () => {
 });
 
 describe('the arbitration-without-scoring bug', () => {
+  it('refuses a score-adaptive node, and says what to use instead', () => {
+    // ADR-009 §7: adaptive scoring is out of scope for v1. The node type is
+    // deprecated rather than deleted, because a corpus case recorded on
+    // 2026-09-05 carries it inside a hashed elimination — the runtime still
+    // executes it so history replays, and this is what stops anything new
+    // being built on it.
+    const adaptive: DecisionFlowSource = {
+      ...valid,
+      nodes: valid.nodes.map((n) =>
+        n.id === 'score' ? { ...n, type: 'score-adaptive' as const } : n
+      ),
+    };
+    const r = compileDecisionFlow(adaptive, ctx);
+    expect(r.ok).toBe(false);
+    const diag = r.diagnostics.find((x) => x.code === 'DEPRECATED_NODE_TYPE')!;
+    expect(diag).toBeDefined();
+    expect(diag.remedy).toContain("score-model");
+    expect(diag.remedy).toContain('ADR-009');
+  });
+
   it('warns when the formula weights propensity but nothing scores', () => {
     // This is the bug that made an entire flow return nothing at runtime.
     const noScore: DecisionFlowSource = {
       ...valid,
-      nodes: valid.nodes.filter((n) => n.type !== 'score-adaptive'),
+      nodes: valid.nodes.filter((n) => n.type !== 'score-model'),
       edges: [
         { from: 'source', to: 'gate' },
         { from: 'gate', to: 'arbitrate' },
@@ -258,7 +278,7 @@ describe('the arbitration-without-scoring bug', () => {
   it('stays quiet when the formula does not use propensity', () => {
     const noScore: DecisionFlowSource = {
       ...valid,
-      nodes: valid.nodes.filter((n) => n.type !== 'score-adaptive'),
+      nodes: valid.nodes.filter((n) => n.type !== 'score-model'),
       edges: [
         { from: 'source', to: 'gate' },
         { from: 'gate', to: 'arbitrate' },

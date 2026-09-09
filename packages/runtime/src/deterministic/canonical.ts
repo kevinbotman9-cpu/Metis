@@ -84,3 +84,17 @@ export function seededUnitInterval(...parts: (string | number)[]): number {
   // the division loses nothing.
   return digest.readUIntBE(0, 6) / 2 ** 48;
 }
+
+/**
+ * Fixed-precision rounding, so float noise cannot change a hash.
+ *
+ * ADR-003's rule: `Math.round(n * 10^dp) / 10^dp`, which resolves a tie toward
+ * positive infinity. It lived privately in `engine.ts` until 2026-09-09 and
+ * moved here when scoring was extracted (ADR-009 §2), because the resolver
+ * needs the same rounding and two implementations of it would be two chances
+ * to disagree in the last digit — which is a different hash.
+ */
+export function round(n: number, dp: number): number {
+  const f = 10 ** dp;
+  return Math.round(n * f) / f;
+}

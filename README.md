@@ -279,7 +279,6 @@ METIS ships with 16 core node types:
 | `set-property` | Mutate working state |
 | `join`, `aggregate`, `category-by` | Data transformations |
 | `score-model` | Invoke a model (with version pin) |
-| `score-adaptive` | Invoke an adaptive (online-learning) model |
 | `prioritise` | Sort candidates |
 | `switch` | Branching logic |
 | `sub-flow` | Compose flows |

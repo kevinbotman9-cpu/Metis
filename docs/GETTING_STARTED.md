@@ -74,7 +74,7 @@ const source: DecisionFlowSource = {
   nodes: [
     { id: 'source',    type: 'source',         label: 'Profile',     estimatedMs: 4 },
     { id: 'gate',      type: 'filter',         label: 'Eligibility', policyIds: ['pol_age'], estimatedMs: 1 },
-    { id: 'score',     type: 'score-adaptive', label: 'Propensity',  model: { id: 'adm', version: '4.2.0' }, estimatedMs: 3 },
+    { id: 'score',     type: 'score-model', label: 'Propensity',  model: { id: 'adm', version: '4.2.0' }, estimatedMs: 3 },
     { id: 'arbitrate', type: 'arbitrate',      label: 'Arbitrate',   estimatedMs: 2 },
   ],
   edges: [

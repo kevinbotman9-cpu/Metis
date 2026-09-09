@@ -90,6 +90,10 @@ test.describe('accessibility', () => {
 
       for (const path of ['/', '/decisions', '/offers', '/agentic']) {
         await page.goto(path);
+        // `goto` resolves before React has rendered, and axe throws "No
+        // elements found for include" rather than failing an assertion — a
+        // scan that never ran, reported as a violation nobody can read.
+        await expect(page.locator('main')).toBeVisible();
         const results = await new AxeBuilder({ page })
           .withTags(['wcag2aa'])
           .include('main')
