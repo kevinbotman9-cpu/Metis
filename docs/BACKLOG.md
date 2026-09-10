@@ -183,6 +183,7 @@ otherwise.
 | W-056 | 13 | Taxonomy authoring — objectives and categories from the screen | DONE | 2 |
 | W-057 | 13 | An offer must be deliverable on a channel somebody serves | DONE | 2 |
 | W-058 | 14 | Delivery record and the decidable/deliverable split | DONE | 2 |
+| W-059 | 14 | A seeded outcome requires a deliverer, not only a creative | DONE | 2 |
 
 ---
 
@@ -1484,3 +1485,27 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-059 — A seeded outcome requires a deliverer, not only a creative
+
+**Registered:** 2026-09-10 · **Stage:** 14 · **Status:** DONE
+**Check:** `apps/console/tests/unit/seeded-outcomes.test.ts`
+
+Gate 2 · Depends: W-058 · Gap [G-046](gaps.md)
+
+`seededOutcomesFor` required an active creative on the winning channel — G-041's
+rule — and never asked whether anything delivered that channel. Four of the five
+channels are `delivery: null` since ADR-013.
+
+The funnel inverted: **887 seen against 738 deliverable**, so more people saw a
+message than could have been sent one. 471 impressions and 105 actions were on
+channels with nothing that sends.
+
+Impressions 887 → 416, clicks 184 → 79, acceptances 26 → 6, rejections 57 → 27,
+conversions 20 → 4. Five prose citations corrected. The thinness that remains is
+registered separately as [G-047](gaps.md): four conversions is what one delivered
+channel of five looks like, and inflating the coverage constants to hide it
+would be inventing reach.
+
+**Done when:** every offered decision on a channel with no deliverer produces no
+events at all, asserted over the whole corpus and verified to bite by removing
+the rule — *"starts no funnel where nothing delivers the winning channel"*.

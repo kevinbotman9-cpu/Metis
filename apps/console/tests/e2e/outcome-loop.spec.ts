@@ -165,13 +165,13 @@ test.describe('the seeded corpus reports back @screen-only', () => {
     // describing. That sentence is the feature, not a caveat.
     await expect(page.getByText(/offers have no outcome recorded/)).toBeVisible();
 
-    // 887 on 2026-09-09, down from 2,101 when the generator started a funnel
-    // for every decision that had a winner rather than for every decision whose
-    // winner had something to render (G-041). The bound is here to catch the
-    // state this screen replaced — two rows, from one reviewer's clicks — not
-    // to pin the corpus size.
+    // 416 on 2026-09-10, from 887 and before that 2,101. Two rules took it
+    // there: an offer must have a creative on the winning channel (G-041), and
+    // something must deliver that channel (G-046). The bound is here to catch
+    // the state this screen replaced — two rows, from one reviewer's clicks —
+    // not to pin the corpus size.
     const value = await measuredCount(page);
-    expect(value, 'the corpus reports on hundreds of decisions, not two').toBeGreaterThan(800);
+    expect(value, 'the corpus reports on hundreds of decisions, not two').toBeGreaterThan(300);
   });
 
   test('the rates are rates, not counts pretending to be rates', async ({ page }) => {

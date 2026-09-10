@@ -21,8 +21,8 @@ import { apiClient, type PlacementDto } from '@/lib/api-client';
  * `slotCount: 1` because an empty number field sends `0` — `toPayload` reads
  * `Number(raw || 0)` — and the spec's `minimum: 1` then makes the form
  * unsubmittable with no visible reason. The same trap `sortOrder` fell into on
- * the taxonomy slice, in the same week, which is a sign the codec's treatment
- * of an untouched number is the thing to fix rather than each descriptor in
+ * the taxonomy slice, in the same week, which is a sign that how the codec
+ * reads an untouched number is the thing to fix rather than each descriptor in
  * turn. Registered as G-045.
  */
 const PLACEMENT_DEFAULTS = { decidable: true, slotCount: 1 };

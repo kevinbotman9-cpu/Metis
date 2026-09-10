@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>METIS — Cascade across screens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:#232528;font-family:"Inter Tight",system-ui,sans-serif}
+.chooser{position:sticky;top:0;z-index:80;display:flex;flex-wrap:wrap;gap:12px;align-items:center;
+  padding:10px 18px;background:#191b1e;border-bottom:1px solid #33363a;color:#c9ccd1;font-size:13px}
+.chooser .brand{font-weight:700;color:#fff;letter-spacing:-.02em}
+.chooser .sep{width:1px;height:20px;background:#33363a}
+.chooser button{font:inherit;color:#c9ccd1;background:none;border:1px solid transparent;
+  padding:5px 12px;border-radius:99px;cursor:pointer;display:flex;align-items:center;gap:7px}
+.chooser button:hover{border-color:#4a4e54;color:#fff}
+.chooser button[aria-pressed="true"]{background:#fff;color:#191b1e;font-weight:600}
+.sw{width:10px;height:10px;border-radius:2px;display:block}
+.stage{padding:22px}
+.caption{max-width:1560px;margin:0 auto 14px;color:#a7abb1;font-size:13px;line-height:1.7}
+.caption b{color:#fff;font-weight:600}
+.screen{display:none;max-width:1560px;margin:0 auto;border-radius:10px;overflow:hidden;
+  box-shadow:0 26px 70px rgba(0,0,0,.5)}
+.screen.on{display:block}
+:focus-visible{outline:2px solid #7aa2ff;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.m{--page:#F4F7F9;--surface:#FFFFFF;--sunken:#EDF1F4;--border:#CBD5DC;--border-strong:#7E8D99;
+  --n200:#E3E9ED;--text:#16222C;--text-muted:#3E505E;--text-subtle:#5E6F7C;--accent:#2563C7;
+  --eligible:23 124 85;--filtered:140 90 0;--suppressed:195 58 46;--ranked:14 110 122;--winner:22 34 44;
+  --rail:#2C3A47;--rail-fg:#FFFFFF;--rail-dim:#8FA6B8;--rail-line:#3B4B59;
+  font-family:"Inter Tight",sans-serif;background:var(--page);color:var(--text)}
+[data-theme="dark"] .m{--page:#131B22;--surface:#18222B;--sunken:#101820;--border:#33454F;
+  --border-strong:#5E7382;--n200:#22303A;--text:#E7EEF3;--text-muted:#B4C4CE;--text-subtle:#8497A4;--accent:#63A8E8;
+  --eligible:63 191 140;--filtered:240 168 92;--suppressed:240 115 106;--ranked:79 201 216;--winner:231 238 243;
+  --rail:#0D141A;--rail-fg:#EAF1F6;--rail-dim:#7E93A3;--rail-line:#1C2831}
+
+.m .top{display:flex;align-items:center;gap:16px;height:52px;padding:0 20px;background:var(--rail);color:var(--rail-fg)}
+.m .top .mark{font-weight:800;font-size:16px;letter-spacing:-.03em}
+.m .top .env{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--rail-dim)}
+.m .top .nav{display:flex;gap:18px;margin-left:14px;font-size:13px;color:var(--rail-dim)}
+.m .top .nav b{color:var(--rail-fg);font-weight:600;position:relative}
+.m .top .nav b:after{content:"";position:absolute;left:0;right:0;bottom:-17px;height:2px;background:var(--rail-fg)}
+.m .top .who{margin-left:auto;font-size:12.5px;color:var(--rail-dim)}
+.m .top .who b{color:var(--rail-fg);font-weight:600}
+.m .prov{display:flex;align-items:center;gap:9px;padding:9px 20px;font-size:12.5px;
+  background:rgb(var(--filtered)/.11);color:rgb(var(--filtered));border-bottom:1px solid var(--border)}
+.m .prov i{width:7px;height:7px;border-radius:50%;background:currentColor;display:block;flex:none}
+.m .prov b{font-weight:600}
+
+/* header band */
+.m .hd{display:flex;align-items:flex-end;gap:20px;padding:18px 24px 16px;background:var(--surface);
+  border-bottom:1px solid var(--border);flex-wrap:wrap}
+.m .hd h1{margin:0;font-size:21px;font-weight:700;letter-spacing:-.03em}
+.m .hd p{margin:4px 0 0;font-size:13px;color:var(--text-subtle)}
+.m .hd .r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.m .hd button{font:inherit;font-size:12.5px;font-weight:600;padding:7px 14px;border-radius:5px;cursor:pointer;
+  border:1px solid var(--border-strong);background:var(--surface);color:var(--text)}
+.m .hd button.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.m .hd .when{font-size:12px;color:var(--text-subtle);margin-right:6px}
+
+/* the cascade rail — shared */
+.m .wrap{display:grid;grid-template-columns:272px 1fr 320px;min-height:640px}
+.m .rail{background:var(--rail)}
+.m .stg{display:block;width:100%;text-align:left;font:inherit;cursor:pointer;background:none;
+  border:0;border-bottom:1px solid var(--rail-line);padding:13px 18px 15px}
+.m .stg:hover{background:rgba(255,255,255,.045)}
+.m .stg[aria-current="true"]{background:rgba(255,255,255,.07);box-shadow:inset 3px 0 0 var(--sel)}
+.m .stg .lbl{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--rail-dim);line-height:1.3}
+.m .stg .lbl i{width:7px;height:7px;border-radius:2px;background:var(--sel);display:block;flex:none}
+.m .stg .num{display:flex;align-items:baseline;gap:9px;margin:7px 0 0}
+.m .stg .num strong{font-size:33px;font-weight:800;letter-spacing:-.05em;line-height:1;color:var(--rail-fg);
+  font-variant-numeric:tabular-nums}
+.m .stg .num em{font-style:normal;font-size:12.5px;color:var(--rail-dim);font-variant-numeric:tabular-nums}
+.m .stg .bar{display:block;height:5px;border-radius:3px;background:rgba(255,255,255,.1);margin-top:10px;overflow:hidden}
+.m .stg .bar i{display:block;height:100%;background:var(--sel);border-radius:3px}
+.m .stg.brk .num strong{color:rgb(var(--suppressed))}
+.m .stg.brk .lbl{color:rgb(var(--suppressed))}
+.m .stg .note{display:block;font-size:11.5px;color:rgb(var(--suppressed));margin-top:8px;line-height:1.4}
+.m .railfoot{padding:14px 18px 18px;font-size:11.5px;color:var(--rail-dim);line-height:1.6}
+.m .railfoot b{color:var(--rail-fg);font-weight:600}
+
+/* middle */
+.m .mid{padding:20px 24px 28px;border-right:1px solid var(--border);background:var(--page)}
+.m .mid h2{margin:0 0 3px;font-size:19px;font-weight:700;letter-spacing:-.025em}
+.m .mid .sub{margin:0 0 18px;font-size:13px;color:var(--text-subtle);line-height:1.6;max-width:68ch}
+.m .card{background:var(--surface);border:1px solid var(--border);border-radius:7px;margin-bottom:14px;overflow:hidden}
+.m .cardh{display:flex;align-items:center;gap:12px;padding:11px 15px;border-bottom:1px solid var(--n200)}
+.m .cardh h3{margin:0;font-size:13.5px;font-weight:600}
+.m .cardh .rt{margin-left:auto;font-size:11.5px;color:var(--text-subtle)}
+.m table{width:100%;border-collapse:collapse}
+.m th{text-align:left;font-size:11px;font-weight:600;color:var(--text-subtle);letter-spacing:.03em;
+  padding:9px 15px;border-bottom:1px solid var(--n200)}
+.m th.n{text-align:right}
+.m td{padding:10px 15px;border-bottom:1px solid var(--n200);font-size:12.5px}
+.m tr:last-child td{border-bottom:0}
+.m tbody tr{cursor:pointer}
+.m tbody tr:hover td{background:var(--sunken)}
+.m tbody tr[aria-selected="true"] td{background:rgb(var(--ranked)/.09)}
+.m .n{text-align:right;font-variant-numeric:tabular-nums;font-family:"IBM Plex Mono",monospace}
+.m .nm{font-weight:600}
+.m .key{display:block;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--text-subtle);margin-top:1px}
+.m .pill{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px}
+.m .pill.ok{background:rgb(var(--eligible)/.13);color:rgb(var(--eligible))}
+.m .pill.no{background:rgb(var(--suppressed)/.13);color:rgb(var(--suppressed))}
+.m .pill.part{background:rgb(var(--filtered)/.15);color:rgb(var(--filtered))}
+.m .meter{display:flex;align-items:center;gap:8px}
+.m .meter i{height:5px;border-radius:3px;display:block;background:rgb(var(--ranked))}
+.m .meter i.low{background:rgb(var(--suppressed))}
+.m .meter span{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--text-muted)}
+
+/* coverage grid cells */
+.m .cov{display:inline-flex;gap:3px}
+.m .cov i{width:15px;height:15px;border-radius:3px;display:block;background:var(--n200)}
+.m .cov i.y{background:rgb(var(--eligible))}
+.m .cov i.n{background:rgb(var(--suppressed)/.28);box-shadow:inset 0 0 0 1px rgb(var(--suppressed)/.55)}
+.m .cov i.d{background:repeating-linear-gradient(45deg,var(--n200),var(--n200) 2px,var(--surface) 2px,var(--surface) 4px)}
+.m .legend{display:flex;gap:16px;font-size:11.5px;color:var(--text-subtle);padding:11px 15px;
+  border-top:1px solid var(--n200);align-items:center;flex-wrap:wrap}
+.m .legend span{display:flex;align-items:center;gap:6px}
+.m .legend i{width:12px;height:12px;border-radius:3px;display:block}
+
+/* right */
+.m .side{background:var(--surface);padding:18px 20px 24px}
+.m .side h4{margin:0 0 2px;font-size:11px;font-weight:600;color:var(--text-subtle);letter-spacing:.04em;
+  text-transform:uppercase}
+.m .side .pick{font-size:15.5px;font-weight:600;margin:0 0 14px;letter-spacing:-.015em;line-height:1.35}
+.m .fld{padding:11px 0;border-top:1px solid var(--n200)}
+.m .fld .k{font-size:11.5px;color:var(--text-subtle);margin-bottom:3px}
+.m .fld .v{font-size:13px;font-weight:500;line-height:1.5}
+.m .fld .v.mono{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:400}
+.m .quote{margin:14px 0 0;padding:12px 14px;background:var(--sunken);border-left:3px solid var(--qc);
+  font-size:12.5px;line-height:1.65;color:var(--text-muted);border-radius:0 5px 5px 0}
+.m .quote b{display:block;color:var(--text);font-weight:600;margin-bottom:5px;font-size:11px;
+  letter-spacing:.04em;text-transform:uppercase}
+.m .side .go{display:block;width:100%;margin-top:16px;text-align:left;font:inherit;font-size:12.5px;
+  font-weight:600;padding:10px 13px;border-radius:6px;cursor:pointer;border:1px solid var(--border-strong);
+  background:var(--surface);color:var(--text)}
+.m .side .go span{display:block;font-weight:400;font-size:11.5px;color:var(--text-subtle);margin-top:2px}
+
+/* ── the negative case: canvas gets no rail ───────────── */
+#nope .cwrap{display:grid;grid-template-columns:196px 1fr 280px;min-height:560px;background:var(--page)}
+#nope .pal{background:var(--surface);border-right:1px solid var(--border);padding:14px 0}
+#nope .pal h5{margin:0 0 8px;padding:0 15px;font-size:11px;font-weight:600;color:var(--text-subtle);
+  letter-spacing:.04em;text-transform:uppercase}
+#nope .pal .nd{display:flex;align-items:center;gap:9px;padding:8px 15px;font-size:12.5px;cursor:grab}
+#nope .pal .nd:hover{background:var(--sunken)}
+#nope .pal .nd i{width:8px;height:8px;border-radius:2px}
+#nope .cv{position:relative;background:
+  radial-gradient(circle,var(--n200) 1px,transparent 1px) 0 0/18px 18px;overflow:hidden}
+#nope .box{position:absolute;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;
+  padding:9px 13px;font-size:12px;min-width:132px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+#nope .box b{display:block;font-weight:600;font-size:12.5px}
+#nope .box em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--text-subtle)}
+#nope .box .vol{position:absolute;right:-8px;top:-9px;font-family:"IBM Plex Mono",monospace;font-size:10px;
+  background:var(--rail);color:var(--rail-fg);padding:2px 6px;border-radius:99px}
+#nope .box.sel{border-color:var(--accent);box-shadow:0 0 0 3px rgb(37 99 199/.16)}
+#nope svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#nope .ins{background:var(--surface);border-left:1px solid var(--border);padding:16px 18px}
+</style>
+</head>
+<body>
+
+<div class="chooser">
+  <span class="brand">METIS · Cascade across screens</span>
+  <span class="sep"></span>
+  <button data-scr="ov" aria-pressed="true"><span class="sw" style="background:#C33A2E"></span>Overview</button>
+  <button data-scr="cat" aria-pressed="false"><span class="sw" style="background:#177C55"></span>Catalogue</button>
+  <button data-scr="nope" aria-pressed="false"><span class="sw" style="background:#7E8D99"></span>Where it doesn't apply</button>
+  <span class="sep"></span>
+  <button id="themeBtn">Switch to dark</button>
+</div>
+
+<div class="stage">
+<p class="caption" id="cap"></p>
+
+<!-- ═════════════ OVERVIEW ═════════════ -->
+<div class="screen m on" id="ov">
+  <div class="top"><span class="mark">METIS</span><span class="env">telco-uk · development</span>
+    <span class="nav"><b>Overview</b><span>Catalogue</span><span>Decisioning</span><span>Evidence</span><span>Insights</span></span>
+    <span class="who">Signed in as <b>Priya Raman</b> · Compliance</span></div>
+  <div class="prov"><i></i><b>Generated data.</b> 10,400 of 10,401 records are produced from a fixed seed. Not evidence of anything.</div>
+  <div class="hd">
+    <div><h1>The loop</h1><p>What this platform decided, and what came back.</p></div>
+    <div class="r"><span class="when">Last 30 days · to 10 Sept 14:02</span>
+      <button>Change range</button><button class="pri">Export</button></div>
+  </div>
+  <div class="wrap">
+    <div class="rail" id="ovRail"></div>
+    <div class="mid" id="ovMid"></div>
+    <div class="side" id="ovSide"></div>
+  </div>
+</div>
+
+<!-- ═════════════ CATALOGUE ═════════════ -->
+<div class="screen m" id="cat">
+  <div class="top"><span class="mark">METIS</span><span class="env">telco-uk · development</span>
+    <span class="nav"><span>Overview</span><b>Catalogue</b><span>Decisioning</span><span>Evidence</span><span>Insights</span></span>
+    <span class="who">Signed in as <b>Sarah Chen</b> · Decision architect</span></div>
+  <div class="prov"><i></i><b>Generated data.</b> 251 offers and 435 creatives produced from a fixed seed.</div>
+  <div class="hd">
+    <div><h1>Offers</h1><p>Every offer a decision flow can choose from, and whether it can actually be delivered.</p></div>
+    <div class="r"><button>Import</button><button class="pri">New offer</button></div>
+  </div>
+  <div class="wrap">
+    <div class="rail" id="catRail"></div>
+    <div class="mid" id="catMid"></div>
+    <div class="side" id="catSide"></div>
+  </div>
+</div>
+
+<!-- ═════════════ THE NEGATIVE CASE ═════════════ -->
+<div class="screen m" id="nope">
+  <div class="top"><span class="mark">METIS</span><span class="env">telco-uk · development</span>
+    <span class="nav"><span>Overview</span><span>Catalogue</span><b>Decisioning</b><span>Evidence</span><span>Insights</span></span>
+    <span class="who">Signed in as <b>Sarah Chen</b> · Decision architect</span></div>
+  <div class="hd">
+    <div><h1>inbound-web-offers</h1><p>Version 12 · released 28 Aug by Nadia Okonjo · live</p></div>
+    <div class="r"><button>Simulate</button><button>Compare to v11</button><button class="pri">Raise change set</button></div>
+  </div>
+  <div class="cwrap">
+    <div class="pal">
+      <h5>Nodes</h5>
+      <div class="nd"><i style="background:#7E8D99"></i>Source</div>
+      <div class="nd"><i style="background:#C33A2E"></i>Filter</div>
+      <div class="nd"><i style="background:#8C5A00"></i>Constraint</div>
+      <div class="nd"><i style="background:#0E6E7A"></i>Score</div>
+      <div class="nd"><i style="background:#3E505E"></i>Switch</div>
+      <div class="nd"><i style="background:#16222C"></i>Arbitrate</div>
+      <h5 style="margin-top:16px">From packages</h5>
+      <div class="nd"><i style="background:#8C5A00"></i>Suitability check</div>
+      <div class="nd"><i style="background:#C33A2E"></i>Consent gate</div>
+    </div>
+    <div class="cv">
+      <svg viewBox="0 0 900 520" preserveAspectRatio="none">
+        <g stroke="#7E8D99" stroke-width="1.5" fill="none" opacity=".65">
+          <path d="M148 78 C 210 78, 210 150, 268 150"/>
+          <path d="M148 150 C 200 150, 210 150, 268 150"/>
+          <path d="M148 222 C 210 222, 210 152, 268 152"/>
+          <path d="M400 150 C 452 150, 452 150, 500 150"/>
+          <path d="M400 152 C 452 152, 452 262, 500 262"/>
+          <path d="M632 150 C 680 150, 680 206, 724 206"/>
+          <path d="M632 262 C 680 262, 680 208, 724 208"/>
+        </g>
+      </svg>
+      <div class="box" style="left:24px;top:60px"><b>Catalogue</b><em>source · 142</em></div>
+      <div class="box" style="left:24px;top:132px"><b>Profile</b><em>source · 11 fields</em></div>
+      <div class="box" style="left:24px;top:204px"><b>Billing</b><em>source · external</em></div>
+      <div class="box sel" style="left:272px;top:126px"><b>Eligibility</b><em>filter · 3 rules</em>
+        <span class="vol">−88</span></div>
+      <div class="box" style="left:504px;top:126px"><b>Relevance</b><em>filter · 2 rules</em>
+        <span class="vol">−29</span></div>
+      <div class="box" style="left:504px;top:238px"><b>Frequency</b><em>constraint</em>
+        <span class="vol">−12</span></div>
+      <div class="box" style="left:728px;top:182px"><b>Rank</b><em>arbitrate · rf_q3 v4</em>
+        <span class="vol">6</span></div>
+    </div>
+    <div class="ins">
+      <h4>Selected node</h4>
+      <p class="pick">Eligibility</p>
+      <div class="fld"><div class="k">Type</div><div class="v mono">filter</div></div>
+      <div class="fld"><div class="k">Rules</div><div class="v">el_consent_marketing v3<br>el_segment_match v7<br>el_age_gate v2</div></div>
+      <div class="fld"><div class="k">Last 24h</div><div class="v mono">2,104 in · 786 out</div></div>
+      <div class="fld"><div class="k">Declared p95</div><div class="v mono">3.2 ms of 50 ms budget</div></div>
+      <button class="go">See who took this path<span>786 customers in the last 24 hours</span></button>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+/* ══ OVERVIEW — the rail is the loop ══ */
+const LOOP = [
+  {id:'dec', label:'Decisions made', n:'10,401', pct:100, rgb:'126 141 153',
+   title:'10,401 decisions in the last 30 days',
+   sub:'Every request that reached a decision flow and returned a ranked slate. p95 38.4 ms, no LLM in the path, all replayable.',
+   kind:'chan',
+   side:{h:'All decisions',p:'10,401 across 5 channels',
+     f:[['Flows','inbound-web-offers v12 · 3 others'],['p95 latency','38.4 ms of 50 ms budget'],['Replayable','10,401 of 10,401']],
+     q:['Reading','Every one of these produced a decision record, a chain hash and a trace. That part of the platform works.'],
+     qc:'126 141 153', go:['Open decision records','Search by customer, offer, rule or outcome']}},
+  {id:'off', label:'Offered something', n:'3,425', pct:33, rgb:'14 110 122',
+   title:'3,425 decisions returned an offer',
+   sub:'The rest found nothing eligible after targeting policy and frequency. That is a healthy proportion for a single-slot hero placement.',
+   kind:'chan',
+   side:{h:'Offered',p:'3,425 of 10,401 · 33%',
+     f:[['Empty slates','6,976 · nothing eligible'],['Most common cause','frequency cap reached'],['Under-served customers','1,204 · never eligible for anything']],
+     q:['Worth a look','1,204 customers were eligible for nothing on every decision in the window. Value Finder would tell you why.'],
+     qc:'14 110 122', go:['Run under-served analysis','Find customers with no eligible offer']}},
+  {id:'del', label:'Deliverable', n:'1,303', pct:12.5, rgb:'195 58 46', brk:true,
+   note:'2,122 decisions picked an offer with nothing to send on the winning channel.',
+   title:'Only 1,303 of those could actually be delivered',
+   sub:'The loop breaks here. An offer won its slot, and there was no active creative for the channel that won — or no adapter behind that channel at all.',
+   kind:'break',
+   side:{h:'Undeliverable',p:'2,122 decisions · 62% of offered',
+     f:[['Winner had no creative','1,214 decisions'],['Channel has no adapter','908 decisions'],['Active offers with nothing to send','38 of 202']],
+     q:['What this means','The platform decided correctly and the customer saw nothing. A replay of any of these returns a byte-identical hash confirming a choice that could never have been shown.'],
+     qc:'195 58 46', go:['Open coverage matrix','202 offers × 5 channels, and where the holes are']}},
+  {id:'seen', label:'Seen', n:'887', pct:8.5, rgb:'140 90 0',
+   title:'887 impressions came back',
+   sub:'An impression is of an offer somebody saw. A slot that filled nothing had none, which is why this number is smaller than it was last week.',
+   kind:'chan',
+   side:{h:'Impressions',p:'887 · 68% of deliverable',
+     f:[['Web','566 · storefront reports on render'],['Everything else','321 · seeded, not delivered'],['Median lag','1.4 s from decision']],
+     q:['Provenance','566 of these are real reports from the storefront. The remaining 321 are generated from a seed and describe channels with no sender.'],
+     qc:'140 90 0', go:['Open performance','Rates by offer, category and channel']}},
+  {id:'act', label:'Acted on', n:'184', pct:1.8, rgb:'23 124 85',
+   title:'184 clicks, 26 acceptances, 20 conversions',
+   sub:'The funnel nests: every acceptance had a click, every click had an impression. Rates below are taken over what was measured, not over what was decided.',
+   kind:'rate',
+   side:{h:'Outcomes',p:'184 clicks · 20.7% of seen',
+     f:[['Acceptances','26 · 14.1% of clicks'],['Conversions','20 · 76.9% of acceptances'],['Realised value','£4,180 of £11,940 expected']],
+     q:['One to look at','acq_sim_30 was offered 135 times, seen 85, clicked 27% — and accepted zero times on every channel.'],
+     qc:'23 124 85', go:['Open acq_sim_30','High reach, no takers']}}
+];
+
+const CHANROWS = {
+  dec:[['web','2,146','homepage_hero, plans_tile','ok'],['sms','2,055','app_inbox','ok'],
+       ['push','2,061','retention_queue','ok'],['email','2,042','weekly_offers_send','ok'],
+       ['outbound_call','2,097','triggered_outbound','ok']],
+  off:[['web','1,132','53% offered','ok'],['sms','598','29%','ok'],['push','571','28%','ok'],
+       ['email','613','30%','ok'],['outbound_call','511','24%','ok']],
+  seen:[['web','566','real, from the storefront','ok'],['sms','88','seeded','part'],
+        ['push','90','seeded','part'],['email','93','seeded','part'],['outbound_call','50','seeded','part']]
+};
+
+const BREAKROWS = [
+  ['web','566 of 1,132','storefront renders it','ok','50'],
+  ['email','0 of 613','no adapter — W-017 open','no','0'],
+  ['sms','0 of 598','no adapter','no','0'],
+  ['push','0 of 571','no adapter','no','0'],
+  ['outbound_call','0 of 511','no adapter · 2 creatives exist','no','0']
+];
+
+let ovCur = 2, ovPick = 0;
+
+function railBlocks(items, cur, prefix){
+  return items.map((s,i)=>`
+    <button class="stg ${s.brk?'brk':''}" style="--sel:rgb(${s.rgb})" aria-current="${i===cur}" data-i="${i}">
+      <span class="lbl"><i></i>${s.label}</span>
+      <span class="num"><strong>${s.n}</strong><em>${s.sub2||''}</em></span>
+      <span class="bar"><i style="width:${s.pct}%"></i></span>
+      ${s.note?`<span class="note">${s.note}</span>`:''}
+    </button>`).join('');
+}
+
+function ovMidHTML(){
+  const s = LOOP[ovCur];
+  let body='';
+  if(s.kind==='break'){
+    body = `<div class="card"><div class="cardh"><h3>Where it breaks, by channel</h3>
+      <span class="rt">impressions of decisions offered</span></div>
+      <table><thead><tr><th>Channel</th><th class="n">Delivered</th><th>Why</th><th class="n">Coverage</th></tr></thead>
+      <tbody>${BREAKROWS.map((r,i)=>`<tr data-i="${i}" ${i===ovPick?'aria-selected="true"':''}>
+        <td><span class="nm">${r[0]}</span></td>
+        <td class="n">${r[1]}</td>
+        <td><span class="pill ${r[3]}">${r[2]}</span></td>
+        <td style="width:130px"><div class="meter"><i class="${+r[4]<40?'low':''}" style="width:${r[4]}px"></i>
+          <span>${r[4]}%</span></div></td></tr>`).join('')}</tbody></table></div>
+      <div class="card"><div class="cardh"><h3>Offers with nothing to send anywhere</h3>
+        <span class="rt">38 of 202 active</span></div>
+      <table><tbody>
+        <tr><td><span class="nm">Premium 5G unlimited</span><span class="key">acq_5g_prem</span></td>
+          <td class="n" style="width:150px">0 creatives active</td>
+          <td style="width:110px"><span class="cov"><i class="n"></i><i class="n"></i><i class="n"></i><i class="n"></i><i class="n"></i></span></td></tr>
+        <tr><td><span class="nm">Flagship handset 12mo</span><span class="key">acq_flag_12</span></td>
+          <td class="n">2 drafted, none live</td>
+          <td><span class="cov"><i class="n"></i><i class="n"></i><i class="n"></i><i class="n"></i><i class="n"></i></span></td></tr>
+        <tr><td><span class="nm">Smart home starter</span><span class="key">acq_smart_st</span></td>
+          <td class="n">1 expired 4 Sept</td>
+          <td><span class="cov"><i class="n"></i><i class="n"></i><i class="n"></i><i class="n"></i><i class="n"></i></span></td></tr>
+        <tr><td colspan="3" style="color:var(--text-subtle)">and 35 more…</td></tr>
+      </tbody></table></div>`;
+  } else if(s.kind==='rate'){
+    body = `<div class="card"><div class="cardh"><h3>The funnel, nested</h3>
+      <span class="rt">each stage a subset of the one above</span></div>
+      <table><tbody>
+        ${[['Seen','887','','126 141 153',100],['Clicked','184','20.7% of seen','14 110 122',21],
+           ['Accepted','26','14.1% of clicked','140 90 0',3],['Converted','20','76.9% of accepted','23 124 85',2.3]]
+          .map(r=>`<tr><td style="width:110px"><span class="nm">${r[0]}</span></td>
+            <td class="n" style="width:70px">${r[1]}</td>
+            <td><div class="meter"><i style="width:${r[4]*3.4}px;background:rgb(${r[3]})"></i>
+              <span>${r[2]}</span></div></td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="card"><div class="cardh"><h3>High reach, no takers</h3><span class="rt">worth a look</span></div>
+      <table><thead><tr><th>Offer</th><th class="n">Offered</th><th class="n">Seen</th><th class="n">Clicked</th><th class="n">Accepted</th></tr></thead>
+      <tbody><tr aria-selected="true"><td><span class="nm">Sim-only 30GB</span><span class="key">acq_sim_30</span></td>
+        <td class="n">135</td><td class="n">85</td><td class="n">27%</td>
+        <td class="n" style="color:rgb(var(--suppressed));font-weight:600">0%</td></tr>
+        <tr><td><span class="nm">Loyalty tier upgrade</span><span class="key">ret_tier_up</span></td>
+        <td class="n">204</td><td class="n">141</td><td class="n">24%</td><td class="n">18%</td></tr>
+      </tbody></table></div>`;
+  } else {
+    const rows = CHANROWS[s.id] || CHANROWS.dec;
+    body = `<div class="card"><div class="cardh"><h3>By channel</h3><span class="rt">last 30 days</span></div>
+      <table><thead><tr><th>Channel</th><th class="n">Count</th><th>Placement</th></tr></thead>
+      <tbody>${rows.map((r,i)=>`<tr data-i="${i}" ${i===ovPick?'aria-selected="true"':''}>
+        <td><span class="nm">${r[0]}</span></td><td class="n">${r[1]}</td>
+        <td>${r[3]==='part'?`<span class="pill part">${r[2]}</span>`:r[2]}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+  return `<h2>${s.title}</h2><p class="sub">${s.sub}</p>${body}`;
+}
+
+function ovSideHTML(){
+  const d = LOOP[ovCur].side;
+  return `<h4>${d.h}</h4><p class="pick">${d.p}</p>
+    ${d.f.map(f=>`<div class="fld"><div class="k">${f[0]}</div><div class="v">${f[1]}</div></div>`).join('')}
+    <div class="quote" style="--qc:rgb(${d.qc})"><b>${d.q[0]}</b>${d.q[1]}</div>
+    <button class="go">${d.go[0]}<span>${d.go[1]}</span></button>`;
+}
+
+function drawOV(){
+  document.getElementById('ovRail').innerHTML = railBlocks(LOOP, ovCur) +
+    `<div class="railfoot">The loop is <b>closed on web</b> and open on four channels.
+      Until a sender exists, every figure below “Deliverable” describes one channel.</div>`;
+  document.getElementById('ovMid').innerHTML = ovMidHTML();
+  document.getElementById('ovSide').innerHTML = ovSideHTML();
+}
+document.getElementById('ov').addEventListener('click',e=>{
+  const s=e.target.closest('.stg'); if(s){ovCur=+s.dataset.i;ovPick=0;drawOV();return;}
+  const t=e.target.closest('tbody tr'); if(t&&t.dataset.i!==undefined){
+    document.querySelectorAll('#ov tr[aria-selected]').forEach(x=>x.removeAttribute('aria-selected'));
+    t.setAttribute('aria-selected','true');}
+});
+
+/* ══ CATALOGUE — the rail is the coverage funnel ══ */
+const CAT = [
+  {id:'all', label:'Offers in catalogue', n:'251', pct:100, rgb:'126 141 153',
+   title:'251 offers across 6 objectives',
+   sub:'Every commercial object a decision flow could choose from, at every lifecycle state.'},
+  {id:'act', label:'Active', n:'202', pct:80, rgb:'14 110 122',
+   title:'202 offers are active',
+   sub:'Within effective dates and not paused or retired. 25 paused, 21 retired, 3 in draft.'},
+  {id:'part', label:'Partly deliverable', n:'164', pct:65, rgb:'140 90 0',
+   title:'164 active offers have a hole somewhere',
+   sub:'Live content on at least one channel the tenant serves, and missing on at least one other.'},
+  {id:'none', label:'Nothing to send', n:'38', pct:15, rgb:'195 58 46', brk:true,
+   note:'Active, decidable, and no live creative on any channel.',
+   title:'38 active offers cannot be delivered at all',
+   sub:'These can win a slot. When they do, the customer sees nothing and the platform records an impression it should not.'},
+  {id:'full', label:'Covered everywhere', n:'0', pct:0, rgb:'23 124 85',
+   title:'No offer has live content on all five channels',
+   sub:'Which is not necessarily wrong — but nobody has decided which channels each offer is meant to serve.'}
+];
+let catCur = 3;
+const CATROWS = [
+  ['Premium 5G unlimited','acq_5g_prem','Acquisition · Mobile','£64.00','0 active',[0,0,0,0,0]],
+  ['Flagship handset 12mo','acq_flag_12','Acquisition · Devices','£48.00','2 drafted',[0,0,0,0,0]],
+  ['Smart home starter','acq_smart_st','Acquisition · Home','£12.00','1 expired',[0,0,0,0,0]],
+  ['Business line rental','acq_biz_line','Acquisition · Business','£31.00','0 active',[0,0,0,0,0]],
+  ['Senior handset bundle','acq_senior_h','Acquisition · Devices','£22.50','0 active',[0,0,0,0,0]]
+];
+function catMidHTML(){
+  const s = CAT[catCur];
+  const cov = r => `<span class="cov">${r.map(v=>`<i class="${v?'y':'n'}"></i>`).join('')}</span>`;
+  return `<h2>${s.title}</h2><p class="sub">${s.sub}</p>
+    <div class="card"><div class="cardh"><h3>${s.id==='none'?'Offers with nothing live anywhere':'Offers'}</h3>
+      <span class="rt">web · sms · push · email · call</span></div>
+      <table><thead><tr><th>Offer</th><th>Category</th><th class="n">Price</th>
+        <th>Creatives</th><th>Coverage</th></tr></thead>
+      <tbody>${CATROWS.map((r,i)=>`<tr data-i="${i}" ${i===0?'aria-selected="true"':''}>
+        <td><span class="nm">${r[0]}</span><span class="key">${r[1]}</span></td>
+        <td style="color:var(--text-muted)">${r[2]}</td><td class="n">${r[3]}</td>
+        <td><span class="pill no">${r[4]}</span></td>
+        <td style="width:110px">${cov(r[5])}</td></tr>`).join('')}
+        <tr><td colspan="5" style="color:var(--text-subtle)">and 33 more…</td></tr></tbody></table>
+      <div class="legend">
+        <span><i style="background:rgb(23 124 85)"></i>live content</span>
+        <span><i style="background:rgb(195 58 46/.28);box-shadow:inset 0 0 0 1px rgb(195 58 46/.55)"></i>nothing live</span>
+        <span style="margin-left:auto;color:var(--text-subtle)">Channels a tenant does not serve are not counted against an offer.</span>
+      </div></div>`;
+}
+function drawCAT(){
+  document.getElementById('catRail').innerHTML = railBlocks(CAT, catCur) +
+    `<div class="railfoot">Coverage is measured against the <b>channels this tenant serves</b>,
+      not against every channel that exists.</div>`;
+  document.getElementById('catMid').innerHTML = catMidHTML();
+  document.getElementById('catSide').innerHTML = `
+    <h4>Selected offer</h4><p class="pick">Premium 5G unlimited</p>
+    <div class="fld"><div class="k">Key</div><div class="v mono">acq_5g_prem</div></div>
+    <div class="fld"><div class="k">State</div><div class="v">Active since 12 Jun · no end date</div></div>
+    <div class="fld"><div class="k">Creatives</div><div class="v">None active. One retired 4 Sept.</div></div>
+    <div class="fld"><div class="k">Won a slot</div><div class="v mono">41 times in 30 days</div></div>
+    <div class="quote" style="--qc:rgb(195 58 46)"><b>Consequence</b>
+      This offer is decidable and undeliverable. Each of those 41 wins displaced an offer that could
+      have been shown, and recorded an impression nobody saw.</div>
+    <button class="go">Add a creative<span>Choose a channel and write the content</span></button>
+    <button class="go" style="margin-top:8px">Pause this offer<span>Stop it being decided until content exists</span></button>`;
+}
+document.getElementById('cat').addEventListener('click',e=>{
+  const s=e.target.closest('.stg'); if(s){catCur=+s.dataset.i;drawCAT();return;}
+  const t=e.target.closest('tbody tr'); if(t&&t.dataset.i!==undefined){
+    document.querySelectorAll('#cat tr[aria-selected]').forEach(x=>x.removeAttribute('aria-selected'));
+    t.setAttribute('aria-selected','true');}
+});
+
+/* ══ chooser ══ */
+const CAPS={
+ov:'<b>Overview as the loop.</b> Most enterprise landing screens are a bento grid of unrelated KPIs. This one is a single decomposition — decisions made, offered, deliverable, seen, acted on — and each stage is a figure you click. It also does something almost no product dashboard does: it shows the loop <i>breaking</i>. 2,122 of 3,425 decisions picked an offer with nothing to send, and the rail says so in red on the first paint rather than burying it three screens down. That is either the bravest thing on the demo or the wrong thing to lead with, and it is worth deciding deliberately.',
+cat:'<b>Catalogue as coverage.</b> The same rail carrying a different funnel: 251 offers → 202 active → 164 with a hole → 38 with nothing to send anywhere → 0 covered everywhere. The coverage matrix you built lives in the middle pane as five squares per row, and the right pane makes the consequence concrete — this offer won 41 slots and nobody saw any of them. Note the last stage reads <b>0</b> and is not framed as a failure: nobody has decided which channels each offer is meant to serve, which is a different problem from a hole.',
+nope:'<b>Where the pattern does not apply, and why that matters.</b> A decision flow is a graph, not a decomposition — there is no funnel to put in a rail, so it gets the canvas-and-inspector layout instead: palette left, graph centre, inspector right, live volumes on the nodes. The discipline worth holding is that <b>a rail is earned by having a spine</b>. Put one on a settings screen or a form and the pattern stops meaning anything, which is exactly how a distinctive idea becomes the thing everyone recognises as generated.'
+};
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));
+  document.querySelectorAll('.chooser [data-scr]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.scr===id)));
+  document.getElementById('cap').innerHTML=CAPS[id];
+}
+document.querySelectorAll('.chooser [data-scr]').forEach(b=>b.addEventListener('click',()=>show(b.dataset.scr)));
+document.getElementById('themeBtn').addEventListener('click',e=>{
+  const d=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',d?'light':'dark');
+  e.target.textContent=d?'Switch to dark':'Switch to light';
+});
+drawOV();drawCAT();show('ov');
+</script>
+</body>
+</html>

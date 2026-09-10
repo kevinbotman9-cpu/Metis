@@ -1,7 +1,7 @@
 import { seededUnitInterval } from '@metis/runtime/deterministic/canonical';
 import type { OutcomeEvent, OutcomeType } from '@metis/ledger';
 import { decisionIndexOf, inChurnCohort } from './engine';
-import { creatives, offers } from './catalogue';
+import { creatives, offers, placements } from './catalogue';
 import type { DecisionRecord } from './decisions';
 
 /**
@@ -46,6 +46,19 @@ import type { DecisionRecord } from './decisions';
  * the storefront's `creativeFor` does — a creative written for no slot in
  * particular fills whatever is left, so having one on the channel is enough to
  * render.
+ *
+ * **And only where something delivers it.** Content is not enough: a slot with
+ * no deliverer sends nothing however good the creative is. This rule was
+ * missing until 2026-09-10 and the corpus was recording 887 impressions of
+ * which **471 were on channels with nothing that sends** — email, sms, push and
+ * outbound_call, all `delivery: null` since ADR-013 split `active`. It is
+ * exactly the error G-041 corrected, one level up: that one counted a win as a
+ * render, this one counted a render on a channel with no sender.
+ *
+ * The tell was that the funnel inverted. `seen` was 887 against 738
+ * *deliverable* decisions — more people saw a message than could have been
+ * sent one — and a funnel whose stages are not nested is the sign that they
+ * measure different populations.
  *
  * **A nested funnel.** conversion ⊆ acceptance ⊆ click ⊆ impression, so every
  * rate is monotone. A corpus where clicks exceed impressions is the tell that
@@ -134,6 +147,16 @@ for (const c of creatives) {
   channelsByOfferId.set(c.offerId, own);
 }
 
+/**
+ * The channels a slot actually delivers on.
+ *
+ * `delivery`, not `decidable` — ADR-013 §2. A slot the platform decides for and
+ * nothing carries produces no impression, because nothing left the building.
+ */
+const deliverableChannels = new Set<string>(
+  placements.filter((p) => p.delivery).map((p) => p.channel)
+);
+
 /** Whether this decision's winner had anything to render on the winning channel. */
 function couldRender(d: DecisionRecord): boolean {
   // The id where the record carries one, the key where it does not: a caller
@@ -164,6 +187,10 @@ export function seededOutcomesFor(d: DecisionRecord): OutcomeEvent[] {
   // state, which is a finding about the catalogue rather than about the
   // outcomes — registered as G-041's second half.
   if (!couldRender(d)) return [];
+  // And something to carry it. A decision on a channel with no deliverer
+  // reached nobody however good the creative was, so there is no funnel to
+  // start — the same reasoning as the line above, one step further out.
+  if (!deliverableChannels.has(d.channel)) return [];
 
   const coverage = COVERAGE[d.channel] ?? 0.5;
   if (r('impression', d.id) >= coverage) return [];
