@@ -356,7 +356,7 @@ describe('every slot the corpus decides for is a slot the tenant has', () => {
     const inactive = [
       ...new Set(
         decisions
-          .filter((d) => d.placement && configured.get(d.placement)?.active === false)
+          .filter((d) => d.placement && configured.get(d.placement)?.decidable === false)
           .map((d) => d.placement)
       ),
     ];

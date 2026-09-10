@@ -124,6 +124,10 @@ export async function importTenant(
     await targets.ledger.recordOutcome(outcome);
   }
 
+  for (const attempt of bundle.delivery_attempts) {
+    await targets.ledger.recordDelivery(attempt);
+  }
+
   return {
     tenantId: bundle.manifest.tenantId,
     counts: {
@@ -135,6 +139,7 @@ export async function importTenant(
       registry_events: bundle.registry_events.length,
       decision_records: bundle.decision_records.length,
       outcome_events: bundle.outcome_events.length,
+      delivery_attempts: bundle.delivery_attempts.length,
     },
   };
 }

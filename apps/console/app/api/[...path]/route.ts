@@ -42,7 +42,7 @@ import { recorded, listCalls, clearCalls, isEnabled as callLogEnabled } from '@/
 import type { DecisionRecord } from '@metis/runtime';
 import type { OutcomeType } from '@metis/ledger';
 import { buildPerformance } from '@metis/ledger';
-import type { Category, Creative, Objective, Offer } from '@metis/core/domain';
+import type { Category, Creative, Objective, Offer, Placement } from '@metis/core/domain';
 import { validateCreativeContent, offerMayBeActive } from '@metis/core/creative';
 import {
   conditionProblems,
@@ -236,7 +236,7 @@ async function artifactFor(tenantId: string, flowId: string): Promise<ExecArtifa
  * compiler could see, did not exist. Same seam as the catalogue and the
  * artifacts, in the one place it would have been hardest to notice.
  */
-function currentCompileContext() {
+function currentCompileContext(artifactId?: string) {
   return {
     ...compileContext,
     offers: store.offers,
@@ -249,7 +249,9 @@ function currentCompileContext() {
     // "has an id in `creativeIds`", which an offer whose only creative is
     // switched off, or is written for a channel nobody serves, satisfies.
     creatives: store.creatives,
-    servedChannels: servedChannels(),
+    // This flow's own slots — ADR-013 §2. A flow answering an outbound-call slot
+    // must not be judged against web because another flow's placement is one.
+    servedChannels: artifactId ? decidableChannelsFor(artifactId) : [],
   };
 }
 
@@ -345,19 +347,113 @@ function policyProblems(conditions: TargetingPolicy['conditions']) {
 const blankString = (v: unknown) => typeof v !== 'string' || v.trim() === '';
 
 /**
- * The channels this tenant actually delivers on.
+ * The channels this tenant decides on at all.
  *
- * An active placement is a live slot, and a slot carries its channel — so the
- * set of channels somebody can be reached on is exactly the set the active
- * placements name. Read from the store rather than listed, because a placement
- * switched off should narrow it on the next request.
+ * What `offerMayBeActive` wants, and **not** the channels anything delivers on.
+ * An offer with content only on a channel nobody has a slot for is
+ * undeliverable in a way the author can fix; one whose channel has a slot and
+ * no adapter is not. The second is W-017's problem, and it is shown on
+ * `/placements` and the coverage screen rather than blocking authoring.
  *
- * ADR-012 §B1: an offer whose only content is on a channel nobody serves is as
- * undeliverable as an offer with no content at all.
+ * This read `p.active` until 2026-09-10, when ADR-013 split that flag into the
+ * two questions it was answering at once. The deliverable half is computed on
+ * the coverage screen, from the placements it already reads — it is a property
+ * of what is on screen rather than a rule the API applies, so keeping a second
+ * copy here would be a second place for it to drift.
  */
-const servedChannels = (): string[] => [
-  ...new Set(store.placements.filter((p) => p.active).map((p) => p.channel)),
+const decidableChannels = (): string[] => [
+  ...new Set(store.placements.filter((p) => p.decidable).map((p) => p.channel)),
 ];
+
+/**
+ * The channels one flow's slots are *decided* for.
+ *
+ * A different question from `deliverableChannels`, and the compiler wants this
+ * one. `NO_DELIVERABLE_CREATIVE` asks whether an offer has content for a
+ * channel it could win on; whether anything then sends that content is a
+ * property of the channel, surfaced on `/placements` and on the coverage
+ * screen, and not a reason to refuse an offer.
+ *
+ * Using the deliverable set here — which this did briefly on 2026-09-10 —
+ * refuses `next-best-action` outright, because it answers an sms slot and an
+ * offer with only an sms creative then looks undeliverable. The offer is fine.
+ * The channel has no adapter. Conflating the two is the exact error ADR-013
+ * exists to end, made in the other direction.
+ */
+const decidableChannelsFor = (artifactId: string): string[] => [
+  ...new Set(
+    store.placements
+      .filter((p) => p.artifactId === artifactId && p.decidable)
+      .map((p) => p.channel)
+  ),
+];
+
+/**
+ * Record what the platform did about delivering one decision — ADR-013 §1.
+ *
+ * Phase one writes two of the six states, because phase one has no adapter:
+ *
+ *   `dispatched` the slate went back to whoever asked, and for a `caller`
+ *                placement that *is* the delivery. Web has always worked this
+ *                way; the model now says so rather than leaving it implied.
+ *   `suppressed` nothing delivers this slot. `no_adapter` where the placement
+ *                has no delivery mode at all, `adapter_not_built` where it
+ *                names one — which nothing can satisfy until W-017, and W-017
+ *                is blocked on W-008 because no recipient address exists
+ *                anywhere in the profile schema.
+ *
+ * Swallowing the failure is deliberate and narrow: a decision that succeeded
+ * must not be turned into an error because the platform could not write a note
+ * about itself. The note is not the decision.
+ */
+/**
+ * Read `delivery` off a request body, treating an empty mode as none.
+ *
+ * The form offers three choices and the first is "nothing sends it", which
+ * arrives as `{ mode: '' }` because a select's empty option is an empty string.
+ * Storing that would give the slot a delivery mode that is neither `caller` nor
+ * `adapter`, and every reader tests truthiness of `delivery` rather than of
+ * `delivery.mode`. Normalised once, here, rather than in each of them.
+ */
+function normaliseDelivery(value: unknown): Placement['delivery'] | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const mode = (value as { mode?: unknown }).mode;
+  if (mode !== 'caller' && mode !== 'adapter') return null;
+  const adapterId = (value as { adapterId?: unknown }).adapterId;
+  return mode === 'adapter' && typeof adapterId === 'string' && adapterId.trim() !== ''
+    ? { mode, adapterId }
+    : { mode };
+}
+
+async function recordDeliveryFor(
+  placement: { key: string; channel: string; delivery: { mode: string } | null },
+  decisionId: string,
+  tenantId: string
+): Promise<void> {
+  const suppressed = !placement.delivery
+    ? 'no_adapter'
+    : placement.delivery.mode === 'adapter'
+      ? 'adapter_not_built'
+      : null;
+
+  try {
+    await store.ledger.recordDelivery({
+      tenantId,
+      decisionId,
+      placementKey: placement.key,
+      channel: placement.channel,
+      state: suppressed ? 'suppressed' : 'dispatched',
+      at: new Date().toISOString(),
+      reason: suppressed,
+      permanent: null,
+      providerRef: null,
+    });
+  } catch {
+    // The ledger refuses an attempt whose decision it cannot find, which is
+    // the right refusal and not this caller's to escalate.
+  }
+}
 
 function creativeProblems(channel: Creative['channel'], content: Creative['content']) {
   const problems = validateCreativeContent(channel, content);
@@ -788,6 +884,23 @@ async function handleGet(req: Request, { params }: Ctx) {
             ? provenanceOver([decisionId, 'live'])
             : provenanceFor(decisionId),
       });
+    }
+
+    case 'deliveries': {
+      // GET /api/deliveries/{tenantId}/{decisionId} — ADR-013 §1.
+      const [tenantId, decisionId] = rest;
+      if (!tenantId || !decisionId) return notFound();
+      const known =
+        Boolean(findTrace(decisionId)) || Boolean(await store.ledger.get(tenantId, decisionId));
+      if (!known) return notFound(`No decision with id ${decisionId}`);
+
+      // Recorded only, and no seeded projection beside it. The seeded corpus
+      // predates the ledger and nothing ever attempted to deliver those
+      // decisions; inventing a `suppressed` row for each would be the platform
+      // asserting it tried, which is the opposite of what this record is for.
+      // What the corpus *cannot* deliver is a property of its placements and is
+      // shown on the coverage screen, not fabricated here.
+      return json({ deliveries: await store.ledger.deliveriesFor(tenantId, decisionId) });
     }
 
     case 'change-sets': {
@@ -1937,6 +2050,77 @@ async function handlePost(req: Request, { params }: Ctx) {
     }
 
     case 'placements': {
+      // POST /api/placements/{tenantId} — configure a slot.
+      //
+      // Two operations share this head and the path length separates them:
+      // `/placements/{tenantId}` creates, `/placements/{tenantId}/{key}/decisions`
+      // decides. Distinguished on the segment count rather than on a body field,
+      // so a malformed create cannot be read as a decision.
+      if (rest.length === 1) {
+        const user = actor(req);
+        if (!user) return json({ error: 'no_session' }, 401);
+        if (!user.permissions.includes('edit:integrations')) return forbidden('edit:integrations');
+
+        const body = (await req.json().catch(() => null)) as Partial<Placement> | null;
+        if (!body) return json({ error: 'bad_request', message: 'Request body must be JSON' }, 400);
+
+        const missing = (['key', 'name', 'channel', 'artifactId'] as const).filter((f) =>
+          blankString(body[f])
+        );
+        if (missing.length) {
+          return json(
+            { error: 'bad_request', message: `Missing required field(s): ${missing.join(', ')}` },
+            400
+          );
+        }
+        if (store.placements.some((p) => p.key === body.key)) {
+          return json(
+            { error: 'conflict', message: `A placement already uses the key '${body.key}'.` },
+            409
+          );
+        }
+        // A slot answered by a flow that does not exist decides nothing, and
+        // the 404 would surface at the first request rather than here.
+        if (!store.artifacts.some((a) => a.id === body.artifactId)) {
+          return json(
+            { error: 'bad_request', message: `No decision flow '${body.artifactId}'.` },
+            400
+          );
+        }
+
+        const now = new Date().toISOString();
+        const placement: Placement = {
+          description: '',
+          slotCount: 1,
+          // Decidable by default; delivered by nothing. The honest starting
+          // state for a new slot, and the one four of this tenant's five
+          // channels are in.
+          decidable: true,
+          ...body,
+          // Delivered by nothing unless somebody says otherwise. The honest
+          // starting state for a new slot, and the one four of this tenant's
+          // five channels are in.
+          delivery: normaliseDelivery(body.delivery) ?? null,
+          id: `plc_${body.key}`,
+          key: body.key as string,
+          name: body.name as string,
+          channel: body.channel as Placement['channel'],
+          artifactId: body.artifactId as string,
+          updatedAt: now,
+          updatedBy: user.email,
+        } as Placement;
+
+        store.placements.push(placement);
+        recordAudit({
+          actor: user.email,
+          actorType: 'human',
+          eventType: 'PlacementCreated',
+          scope: placement.id,
+          summary: `Created placement ${placement.name} (${placement.key}) on ${placement.channel}.`,
+        });
+        return json(placement, 201);
+      }
+
       // POST /api/placements/{tenantId}/{placementKey}/decisions — fill a slot.
       //
       // The same decision `POST /decisions` makes, delivered as a slate. The
@@ -1946,12 +2130,16 @@ async function handlePost(req: Request, { params }: Ctx) {
       if (!tenantId || !placementKey || tail !== 'decisions') return notFound();
 
       const placement = store.placements.find(
-        (p) => p.key === placementKey && p.active
+        // `decidable`, not `delivery`: whether a decision may be made is a
+        // different question from whether anything sends the result, and this
+        // endpoint answers the first. A slot with no deliverer still decides —
+        // and now records a suppressed delivery attempt saying so.
+        (p) => p.key === placementKey && p.decidable
       );
       if (!placement) {
         return notFound(
           `No active placement '${placementKey}'. Configured: ${store.placements
-            .filter((p) => p.active)
+            .filter((p) => p.decidable)
             .map((p) => p.key)
             .sort()
             .join(', ')}`
@@ -2006,6 +2194,16 @@ async function handlePost(req: Request, { params }: Ctx) {
 
       const record = outcome.kind === 'replay' ? outcome.record : outcome.trace;
       const slate = selectSlate(record.decision, placement.slotCount);
+
+      // What the platform did about getting this decision to somebody —
+      // ADR-013 §1. Written here because this is the moment the platform hands
+      // the decision over, or discovers it has nobody to hand it to.
+      //
+      // Not on a replay: an idempotent retry returns the original decision and
+      // did not deliver anything a second time.
+      if (outcome.kind !== 'replay') {
+        await recordDeliveryFor(placement, record.id, decisionRequest.tenantId);
+      }
 
       // The action key is what the decision names; the offer id is what a site
       // needs to fetch content. Resolved from the catalogue the engine read, so
@@ -2211,7 +2409,9 @@ async function handlePost(req: Request, { params }: Ctx) {
           actor: user.email,
           occurredAt: new Date().toISOString(),
         },
-        currentCompileContext()
+        // The flow being published, so its candidates are judged against the
+        // channels its own slots deliver on rather than the tenant's.
+        currentCompileContext(flowName)
       );
 
       if (outcome.status !== 'rejected') {
@@ -2394,7 +2594,7 @@ async function handlePut(req: Request, { params }: Ctx) {
       // worth knowing about while it is being drawn, and the report is the same
       // one publish will use — so nobody discovers at publish time that the
       // thing they have been editing was never going to ship.
-      const compile = compileDecisionFlow(toSource(artifact), currentCompileContext());
+      const compile = compileDecisionFlow(toSource(artifact), currentCompileContext(artifact.id));
 
       recordAudit({
         actor: user.email,
@@ -2610,7 +2810,7 @@ async function handlePut(req: Request, { params }: Ctx) {
         const remaining = store.creatives.filter(
           (c) => c.offerId === offerId && c.id !== creativeId
         );
-        if (!offerMayBeActive(remaining, servedChannels())) {
+        if (!offerMayBeActive(remaining, decidableChannels())) {
           return json(
             {
               error: 'conflict',
@@ -2634,6 +2834,48 @@ async function handlePut(req: Request, { params }: Ctx) {
         eventType: 'CreativeUpdated',
         scope: updated.id,
         summary: `Updated ${updated.name}${changed.length ? ` (${changed.join(', ')})` : ''}.`,
+      });
+      return json(updated);
+    }
+
+    case 'placements': {
+      if (!user.permissions.includes('edit:integrations')) return forbidden('edit:integrations');
+      const placementKey = rest[1];
+      const index = store.placements.findIndex((p) => p.key === placementKey);
+      if (index === -1) return notFound(`No placement ${placementKey}`);
+
+      const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+      const before = store.placements[index];
+
+      if (
+        typeof body.artifactId === 'string' &&
+        !store.artifacts.some((a) => a.id === body.artifactId)
+      ) {
+        return json({ error: 'bad_request', message: `No decision flow '${body.artifactId}'.` }, 400);
+      }
+
+      const delivery = normaliseDelivery(body.delivery);
+      const updated = {
+        ...before,
+        ...body,
+        ...(delivery === undefined ? {} : { delivery }),
+        id: before.id,
+        // The key is what a decision request carries and what a creative names,
+        // so it is stable for the life of the slot.
+        key: before.key,
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.email,
+      };
+      store.placements[index] = updated;
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'PlacementUpdated',
+        scope: before.id,
+        summary:
+          `Updated placement ${updated.name}: decidable ${updated.decidable}, ` +
+          `delivery ${updated.delivery ? updated.delivery.mode : 'none'}.`,
       });
       return json(updated);
     }
@@ -2720,7 +2962,7 @@ async function handlePut(req: Request, { params }: Ctx) {
       // Same invariant as creation, at the other moment it can be broken.
       if (body.status === 'active' && before.status !== 'active') {
         const own = store.creatives.filter((c) => c.offerId === before.id);
-        const served = servedChannels();
+        const served = decidableChannels();
         if (!offerMayBeActive(own, served)) {
           return json(
             {

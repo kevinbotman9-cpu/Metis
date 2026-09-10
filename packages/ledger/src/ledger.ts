@@ -7,7 +7,12 @@ import {
   requestHash,
 } from '@metis/runtime';
 import type { DecisionRequest } from '@metis/runtime';
-import { LedgerError, type LedgerEntry, type OutcomeEvent } from './types';
+import {
+  LedgerError,
+  type DeliveryAttempt,
+  type LedgerEntry,
+  type OutcomeEvent,
+} from './types';
 
 /**
  * The decision ledger.
@@ -42,6 +47,8 @@ export interface LedgerStore {
   query(q: DecisionQuery): Promise<LedgerEntry[]>;
   appendOutcome(event: OutcomeEvent): Promise<void>;
   outcomesFor(tenantId: string, decisionId: string): Promise<OutcomeEvent[]>;
+  appendDelivery(attempt: DeliveryAttempt): Promise<void>;
+  deliveriesFor(tenantId: string, decisionId: string): Promise<DeliveryAttempt[]>;
   idempotency: IdempotencyStore;
 }
 
@@ -126,6 +133,30 @@ export class DecisionLedger {
 
   outcomesFor(tenantId: string, decisionId: string): Promise<OutcomeEvent[]> {
     return this.store.outcomesFor(tenantId, decisionId);
+  }
+
+  /**
+   * Record what the platform did about delivering a decision.
+   *
+   * Held to the same invariant as `recordOutcome` and for the same reason: an
+   * attempt that cannot be joined to a decision describes nothing, and the
+   * binding is the decision id alone (ADR-008 §2). A delivery reconstructed
+   * from customer and time would be a guess presented as a record.
+   */
+  async recordDelivery(attempt: DeliveryAttempt): Promise<void> {
+    const decision = await this.store.get(attempt.tenantId, attempt.decisionId);
+    if (!decision) {
+      throw new LedgerError(
+        'DELIVERY_WITHOUT_DECISION',
+        `No decision ${attempt.decisionId} for tenant ${attempt.tenantId}. ` +
+          'A delivery attempt that cannot be joined to a decision records nothing.'
+      );
+    }
+    await this.store.appendDelivery(attempt);
+  }
+
+  deliveriesFor(tenantId: string, decisionId: string): Promise<DeliveryAttempt[]> {
+    return this.store.deliveriesFor(tenantId, decisionId);
   }
 
   // --- Idempotency ---------------------------------------------------------

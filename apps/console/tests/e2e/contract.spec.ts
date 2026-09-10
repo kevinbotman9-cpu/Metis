@@ -106,9 +106,12 @@ async function resolveParams(api: APIRequestContext, token: string) {
   return {
     tenantId: 'telco-uk',
     connectorId: connectors.connectors[0].id,
-    // The active one: `decidePlacement` refuses an inactive slot, and a
+    // A decidable one: `decidePlacement` refuses a slot that is not, and a
     // fixture-ordering change should not turn that into a mystery 404 here.
-    placementKey: placements.placements.find((p: { active: boolean }) => p.active).key,
+    // `decidable` rather than `active` since ADR-013 — whether a decision may
+    // be made is the question this endpoint answers, and whether anything
+    // delivers the result is a different one.
+    placementKey: placements.placements.find((p: { decidable: boolean }) => p.decidable).key,
     offerId: taxonomy.offers[0].id,
     decisionId: decisions.decisions[0].id,
     changeSetId: changeSets.changeSets[0].id,
@@ -195,6 +198,11 @@ const COVERED_BY_WRITE_SUITES: Record<string, string> = {
   // The taxonomy's writes are driven entirely through the screen, because the
   // point of the slice was that they could not be. A speculative call here
   // would exercise the endpoint and prove nothing about the journey.
+  // Configuring a slot is the whole point of the screen, so it is driven
+  // through it. A speculative call would prove the endpoint and nothing about
+  // whether anybody can reach it.
+  createPlacement: 'placement-authoring.spec.ts',
+  updatePlacement: 'placement-authoring.spec.ts',
   createObjective: 'taxonomy-authoring.spec.ts',
   updateObjective: 'taxonomy-authoring.spec.ts',
   createCategory: 'taxonomy-authoring.spec.ts',

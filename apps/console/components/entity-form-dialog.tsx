@@ -74,6 +74,12 @@ function useOptionSources(enabled: boolean): Record<string, readonly Option[]> {
     enabled,
   });
 
+  const { data: artifacts } = useQuery({
+    queryKey: ['artifacts'],
+    queryFn: () => apiClient.listArtifacts(),
+    enabled,
+  });
+
   return useMemo(
     () => ({
       'taxonomy.objectives': (taxonomy?.objectives ?? []).map((o) => ({
@@ -88,10 +94,15 @@ function useOptionSources(enabled: boolean): Record<string, readonly Option[]> {
       // `channel` and `type` are carried so a descriptor can filter slots by
       // the channel chosen and suggest the shape the slot declares.
       placements: (placements?.placements ?? [])
-        .filter((p) => p.active)
+        .filter((p) => p.decidable)
         .map((p) => ({ value: p.key, label: p.name, channel: p.channel, type: p.type })),
+      // Which flow answers a slot. Active only: pointing a live placement at a
+      // draft flow would put an unpublished decision in front of a customer.
+      flows: (artifacts?.artifacts ?? [])
+        .filter((a) => a.status === 'active')
+        .map((a) => ({ value: a.id, label: a.name })),
     }),
-    [taxonomy, placements]
+    [taxonomy, placements, artifacts]
   );
 }
 

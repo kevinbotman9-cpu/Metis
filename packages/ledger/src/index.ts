@@ -6,7 +6,13 @@ export type { Queryable } from './postgres-store';
 export { createLedgerStore, readMigration, runMigration } from './create-store';
 export type { LedgerHandle, CreateLedgerOptions } from './create-store';
 export { LedgerError } from './types';
-export type { LedgerEntry, OutcomeEvent, OutcomeType } from './types';
+export type {
+  DeliveryAttempt,
+  DeliveryState,
+  LedgerEntry,
+  OutcomeEvent,
+  OutcomeType,
+} from './types';
 
 export { buildPerformance, OUTCOME_TYPES } from './performance';
 export type { PerformanceReport, PerformanceRow } from './performance';

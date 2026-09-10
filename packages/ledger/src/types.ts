@@ -64,12 +64,76 @@ export interface OutcomeEvent {
   detail?: Record<string, unknown>;
 }
 
+/**
+ * What the platform did about getting one decision to a customer.
+ *
+ * **Deliberately not an `OutcomeType`.** An outcome is something the customer
+ * did; this is something the platform did. `OutcomeType` is a nested, monotone
+ * funnel — conversion ⊆ acceptance ⊆ click ⊆ impression — that
+ * `buildPerformance` computes rates over, and folding the platform's own
+ * actions into it would make every one of those rates a ratio over a
+ * denominator mixing the two. ADR-013 §1, and the reverse of the error G-041
+ * recorded, which was counting a win as a render.
+ *
+ * Phase one writes `dispatched` and `suppressed`. The other four states need an
+ * adapter and are declared now so the record does not change shape when one
+ * arrives.
+ */
+export type DeliveryState =
+  /** The platform took responsibility for sending it. */
+  | 'accepted'
+  /** Held — quiet hours, throttle, retry backoff. */
+  | 'deferred'
+  /** Handed to whoever delivers it. */
+  | 'dispatched'
+  /** Arrival confirmed by the deliverer. */
+  | 'delivered'
+  /** It will not arrive. `permanent` says whether retrying is worth it. */
+  | 'failed'
+  /** Not attempted, and `reason` says why. */
+  | 'suppressed';
+
+export interface DeliveryAttempt {
+  tenantId: string;
+  /**
+   * The decision this was an attempt to deliver, and the whole binding.
+   *
+   * ADR-008 §2: never reconstructed from customer, offer and time. The ledger
+   * refuses an attempt whose decision it cannot find, exactly as it refuses an
+   * outcome.
+   */
+  decisionId: string;
+  placementKey: string;
+  channel: string;
+  state: DeliveryState;
+  at: string;
+  /** `no_adapter`, `adapter_not_built`, or whatever a deliverer reported. */
+  reason: string | null;
+  /**
+   * Whether a failure is worth retrying. Null where the state is not a failure.
+   *
+   * A permanent failure is information about the address rather than about the
+   * offer, and belongs to contactability (W-013) rather than to the offer's
+   * performance.
+   */
+  permanent: boolean | null;
+  /**
+   * The deliverer's own id for this send.
+   *
+   * Stored because bounce and complaint webhooks arrive keyed by the provider's
+   * id and not by ours; without it the return path would have to be
+   * reconstructed from customer and time, which ADR-008 §2 forbids.
+   */
+  providerRef: string | null;
+}
+
 export class LedgerError extends Error {
   constructor(
     readonly code:
       | 'DECISION_NOT_FOUND'
       | 'DECISION_EXISTS'
-      | 'OUTCOME_WITHOUT_DECISION',
+      | 'OUTCOME_WITHOUT_DECISION'
+      | 'DELIVERY_WITHOUT_DECISION',
     message: string
   ) {
     super(message);

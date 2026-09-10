@@ -130,7 +130,7 @@ describe('POST /api/placements/{tenantId}/{key}/decisions', () => {
   it('refuses an inactive placement', async () => {
     // Configured but switched off. Deciding for it anyway would make `active`
     // decoration.
-    const off = placements.find((p) => !p.active);
+    const off = placements.find((p) => !p.decidable);
     expect(off, 'fixture has no inactive placement to test with').toBeDefined();
     const { status } = await decide(off!.key);
     expect(status).toBe(404);
@@ -155,7 +155,7 @@ describe('POST /api/placements/{tenantId}/{key}/decisions', () => {
      * flow — two web slots were governed and two were not, and nothing said
      * which was which.
      */
-    const WEB_SLOTS = placements.filter((p) => p.channel === 'web' && p.active).map((p) => p.key);
+    const WEB_SLOTS = placements.filter((p) => p.channel === 'web' && p.decidable).map((p) => p.key);
 
     it('has web slots to check', () => {
       // A guard on the guard: an empty list would make every case below pass

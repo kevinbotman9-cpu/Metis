@@ -953,9 +953,94 @@ is given.
  */
   slotCount: number;
   artifactId: string;
-  active: boolean;
+  /** May a decision be made for this slot. `decidePlacement` answers 404
+when it is false.
+
+This was `active`, a boolean with no description, and it was
+answering two questions at once — whether a decision may be made,
+and whether anything delivers the result. The two came apart exactly
+where this platform is: it decides on five channels and delivers on
+one. `weekly_offers_send` was `active: false` on the grounds that
+nothing sent it, while the corpus decided for it 2,042 times.
+ADR-013 §2, G-043.
+ */
+  decidable: boolean;
+  /** Who gets the result of a decision to the customer, and `null` when
+nothing does.
+
+`null` is not a defect to be corrected away. It is the honest state
+of a slot that is worth deciding for and has no far end, which is
+four of the demo tenant's five channels.
+ */
+  delivery: {
+    /** `caller` — the platform returns a slate and whoever asked
+renders it. That is what web has always been: `decidePlacement`
+answers and the website delivers. An outbound call is the same
+shape with a person as the renderer.
+
+`adapter` — the platform sends it. Nothing does yet; W-017 is
+blocked on W-008, because no recipient address exists anywhere
+in the profile schema.
+ */
+    mode: "caller" | "adapter";
+    /** Which adapter. Absent while `mode` is `caller`. */
+    adapterId?: string;
+  } | null;
   updatedAt: string;
   updatedBy: string;
+}
+
+/** What the platform did about getting one decision to a customer.
+
+**Not an outcome.** An outcome is something the customer did; this is
+something the platform did. `OutcomeType` is a nested, monotone funnel —
+conversion ⊆ acceptance ⊆ click ⊆ impression — that `buildPerformance`
+computes rates over, and folding the platform's own actions into it
+would make every rate a ratio over a denominator that mixes the two.
+ADR-013 §1.
+
+Bound to a decision id and nothing else, per ADR-008 §2, and refused
+when that decision cannot be found — the same invariant `recordOutcome`
+enforces.
+ */
+export interface DeliveryAttempt {
+  tenantId: string;
+  /** The decision this was an attempt to deliver. The whole binding. */
+  decisionId: string;
+  placementKey: string;
+  channel: "email" | "sms" | "web" | "push" | "outbound_call";
+  /** `accepted` the platform took responsibility for sending it ·
+`deferred` held for quiet hours, throttle or backoff ·
+`dispatched` handed to whoever delivers it ·
+`delivered` arrival confirmed ·
+`failed` it will not arrive ·
+`suppressed` not attempted, and `reason` says why.
+
+Phase one writes `dispatched` and `suppressed` only. The other four
+need an adapter, and the states are declared now so the record does
+not have to change shape when one arrives.
+ */
+  state: "accepted" | "deferred" | "dispatched" | "delivered" | "failed" | "suppressed";
+  at: string;
+  /** Why, for a state that needs one. `no_adapter` where the placement
+has no delivery mode; `adapter_not_built` where it names one that
+does not exist yet.
+ */
+  reason?: string | null;
+  /** Whether a failure is worth retrying. Null where the state is not a
+failure. A permanent failure is information about the address rather
+than about the offer, and belongs to contactability (W-013) rather
+than to the offer's performance.
+ */
+  permanent?: boolean | null;
+  /** The deliverer's own id for this send.
+
+Stored because bounce and complaint webhooks arrive keyed by the
+provider's id and not by ours, so without it the return path would
+have to be reconstructed from customer and time — which ADR-008 §2
+forbids. Null while nothing sends.
+ */
+  providerRef?: string | null;
 }
 
 /** One filled slot. */
@@ -1097,6 +1182,13 @@ export const OPERATIONS = {
     pathParams: ['tenantId'],
     queryParams: [],
     statuses: ['201', '403'],
+  },
+  createPlacement: {
+    method: 'POST',
+    path: '/placements/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['201', '400', '403', '409'],
   },
   createTargetingPolicy: {
     method: 'POST',
@@ -1272,6 +1364,13 @@ export const OPERATIONS = {
     pathParams: ['tenantId'],
     queryParams: [],
     statuses: ['200'],
+  },
+  listDeliveries: {
+    method: 'GET',
+    path: '/deliveries/{tenantId}/{decisionId}',
+    pathParams: ['tenantId', 'decisionId'],
+    queryParams: [],
+    statuses: ['200', '404'],
   },
   listExperiments: {
     method: 'GET',
@@ -1476,6 +1575,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '403'],
   },
+  updatePlacement: {
+    method: 'PUT',
+    path: '/placements/{tenantId}/{placementKey}',
+    pathParams: ['tenantId', 'placementKey'],
+    queryParams: [],
+    statuses: ['200', '400', '403', '404'],
+  },
   updateTargetingPolicy: {
     method: 'PUT',
     path: '/targeting-policies/{tenantId}/{policyId}',
@@ -1538,6 +1644,10 @@ export type CreateObjectiveRequest = Objective;
 /** Create an offer */
 export type CreateOfferResponse = Offer;
 export type CreateOfferRequest = Offer;
+
+/** Configure a placement */
+export type CreatePlacementResponse = Placement;
+export type CreatePlacementRequest = Placement;
 
 /** Create a targeting policy */
 export type CreateTargetingPolicyResponse = TargetingPolicy;
@@ -1725,6 +1835,11 @@ export type ListDataSourcesResponse = {
   sources: DataSource[];
 };
 
+/** What the platform did about delivering one decision */
+export type ListDeliveriesResponse = {
+  deliveries: DeliveryAttempt[];
+};
+
 /** Experiments and holdouts */
 export type ListExperimentsResponse = {
   experiments: Experiment[];
@@ -1908,6 +2023,10 @@ export type UpdateObjectiveRequest = Objective;
 export type UpdateOfferResponse = Offer;
 export type UpdateOfferRequest = Offer;
 
+/** Update a placement */
+export type UpdatePlacementResponse = Placement;
+export type UpdatePlacementRequest = Placement;
+
 /** Update a targeting policy */
 export type UpdateTargetingPolicyResponse = TargetingPolicy;
 export type UpdateTargetingPolicyRequest = TargetingPolicyWrite;
@@ -1930,6 +2049,7 @@ export interface ResponseOf {
   createExperiment: CreateExperimentResponse;
   createObjective: CreateObjectiveResponse;
   createOffer: CreateOfferResponse;
+  createPlacement: CreatePlacementResponse;
   createTargetingPolicy: CreateTargetingPolicyResponse;
   decidePlacement: DecidePlacementResponse;
   executeDecision: ExecuteDecisionResponse;
@@ -1955,6 +2075,7 @@ export interface ResponseOf {
   listConnectors: ListConnectorsResponse;
   listCreatives: ListCreativesResponse;
   listDataSources: ListDataSourcesResponse;
+  listDeliveries: ListDeliveriesResponse;
   listExperiments: ListExperimentsResponse;
   listFrequencyPolicies: ListFrequencyPoliciesResponse;
   listInboundCalls: ListInboundCallsResponse;
@@ -1984,6 +2105,7 @@ export interface ResponseOf {
   updateExperiment: UpdateExperimentResponse;
   updateObjective: UpdateObjectiveResponse;
   updateOffer: UpdateOfferResponse;
+  updatePlacement: UpdatePlacementResponse;
   updateTargetingPolicy: UpdateTargetingPolicyResponse;
   validateDataSource: ValidateDataSourceResponse;
 }

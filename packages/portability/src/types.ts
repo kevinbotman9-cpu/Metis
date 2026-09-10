@@ -1,5 +1,5 @@
 import type { PublishedVersion, EnvironmentState, RegistryEvent } from '@metis/registry';
-import type { LedgerEntry, OutcomeEvent } from '@metis/ledger';
+import type { DeliveryAttempt, LedgerEntry, OutcomeEvent } from '@metis/ledger';
 import type { CatalogueEvent } from '@metis/catalogue';
 import type {
   ArbitrationConfig,
@@ -82,6 +82,7 @@ export interface TenantBundle {
   registry_events: RegistryEvent[];
   decision_records: LedgerEntry[];
   outcome_events: OutcomeEvent[];
+  delivery_attempts: DeliveryAttempt[];
 }
 
 /** Anything wrong with a bundle, stated so it can be acted on. */

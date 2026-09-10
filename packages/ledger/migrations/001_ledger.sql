@@ -106,6 +106,53 @@ CREATE INDEX IF NOT EXISTS outcome_events_by_decision
     ON outcome_events (tenant_id, decision_id, seq);
 
 -- --------------------------------------------------------------------------
+-- Delivery attempts — ADR-013
+-- --------------------------------------------------------------------------
+--
+-- What the platform did about getting a decision to a customer.
+--
+-- A separate table from outcome_events, deliberately. An outcome is something
+-- the customer did and a delivery is something the platform did; the outcome
+-- funnel is nested and monotone and `buildPerformance` computes rates over it,
+-- so folding sends into it would make every rate a ratio over a denominator
+-- mixing the two.
+--
+-- Same foreign key and same append-only trigger: an attempt that cannot be
+-- joined to a decision records nothing.
+
+CREATE TABLE IF NOT EXISTS delivery_attempts (
+    seq           bigserial   PRIMARY KEY,
+    tenant_id     text        NOT NULL,
+    decision_id   text        NOT NULL,
+    placement_key text        NOT NULL,
+    channel       text        NOT NULL
+        CHECK (channel IN ('email', 'sms', 'web', 'push', 'outbound_call')),
+    state         text        NOT NULL
+        CHECK (state IN ('accepted', 'deferred', 'dispatched', 'delivered',
+                         'failed', 'suppressed')),
+    at            timestamptz NOT NULL,
+
+    -- Why, for a state that needs one: `no_adapter`, `adapter_not_built`, or
+    -- whatever the deliverer reported.
+    reason        text,
+
+    -- Null where the state is not a failure. A permanent failure is information
+    -- about the address rather than about the offer.
+    permanent     boolean,
+
+    -- The deliverer's own id. Bounce and complaint webhooks arrive keyed by it
+    -- rather than by ours, so without it the return path would have to be
+    -- reconstructed from customer and time — which ADR-008 §2 forbids.
+    provider_ref  text,
+
+    FOREIGN KEY (tenant_id, decision_id)
+        REFERENCES decision_records (tenant_id, decision_id)
+);
+
+CREATE INDEX IF NOT EXISTS delivery_attempts_by_decision
+    ON delivery_attempts (tenant_id, decision_id, seq);
+
+-- --------------------------------------------------------------------------
 -- Append-only
 -- --------------------------------------------------------------------------
 
@@ -129,6 +176,11 @@ CREATE TRIGGER decision_records_append_only
 DROP TRIGGER IF EXISTS outcome_events_append_only ON outcome_events;
 CREATE TRIGGER outcome_events_append_only
     BEFORE UPDATE OR DELETE ON outcome_events
+    FOR EACH ROW EXECUTE FUNCTION ledger_reject_mutation();
+
+DROP TRIGGER IF EXISTS delivery_attempts_append_only ON delivery_attempts;
+CREATE TRIGGER delivery_attempts_append_only
+    BEFORE UPDATE OR DELETE ON delivery_attempts
     FOR EACH ROW EXECUTE FUNCTION ledger_reject_mutation();
 
 -- Idempotency keys are deliberately *not* covered by the trigger.

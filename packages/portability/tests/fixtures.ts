@@ -260,5 +260,32 @@ export async function populatedInstance(): Promise<Instance> {
     valueMinor: 1000,
   });
 
+  // ADR-013. Two states, because the round trip has to preserve the difference:
+  // a decision the platform handed over and one it could not deliver at all
+  // read identically without this record, and telling them apart is the whole
+  // reason it exists.
+  await inst.ledger.recordDelivery({
+    tenantId: TENANT,
+    decisionId: first.decisionId,
+    placementKey: 'homepage_hero',
+    channel: 'web',
+    state: 'dispatched',
+    at: AT,
+    reason: null,
+    permanent: null,
+    providerRef: null,
+  });
+  await inst.ledger.recordDelivery({
+    tenantId: TENANT,
+    decisionId: first.decisionId,
+    placementKey: 'weekly_offers_send',
+    channel: 'email',
+    state: 'suppressed',
+    at: AT,
+    reason: 'no_adapter',
+    permanent: null,
+    providerRef: null,
+  });
+
   return inst;
 }

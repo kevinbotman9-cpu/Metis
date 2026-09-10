@@ -1867,8 +1867,8 @@ components:
         moves no chain hash. The consequence is that a slate is reproducible
         from its decision *plus* the placement that composed it.
       required:
-        [id, key, name, description, channel, slotCount, artifactId, active,
-         updatedAt, updatedBy]
+        [id, key, name, description, channel, slotCount, artifactId, decidable,
+         delivery, updatedAt, updatedBy]
       properties:
         id:
           type: string
@@ -1899,13 +1899,117 @@ components:
             is given.
         artifactId:
           type: string
-        active:
+        decidable:
           type: boolean
+          description: |
+            May a decision be made for this slot. `decidePlacement` answers 404
+            when it is false.
+
+            This was `active`, a boolean with no description, and it was
+            answering two questions at once — whether a decision may be made,
+            and whether anything delivers the result. The two came apart exactly
+            where this platform is: it decides on five channels and delivers on
+            one. `weekly_offers_send` was `active: false` on the grounds that
+            nothing sent it, while the corpus decided for it 2,042 times.
+            ADR-013 §2, G-043.
+        delivery:
+          type: [object, 'null']
+          description: |
+            Who gets the result of a decision to the customer, and `null` when
+            nothing does.
+
+            `null` is not a defect to be corrected away. It is the honest state
+            of a slot that is worth deciding for and has no far end, which is
+            four of the demo tenant's five channels.
+          required: [mode]
+          properties:
+            mode:
+              type: string
+              enum: [caller, adapter]
+              description: |
+                `caller` — the platform returns a slate and whoever asked
+                renders it. That is what web has always been: `decidePlacement`
+                answers and the website delivers. An outbound call is the same
+                shape with a person as the renderer.
+
+                `adapter` — the platform sends it. Nothing does yet; W-017 is
+                blocked on W-008, because no recipient address exists anywhere
+                in the profile schema.
+            adapterId:
+              type: string
+              description: Which adapter. Absent while `mode` is `caller`.
         updatedAt:
           type: string
           format: date-time
         updatedBy:
           type: string
+
+    DeliveryAttempt:
+      type: object
+      description: |
+        What the platform did about getting one decision to a customer.
+
+        **Not an outcome.** An outcome is something the customer did; this is
+        something the platform did. `OutcomeType` is a nested, monotone funnel —
+        conversion ⊆ acceptance ⊆ click ⊆ impression — that `buildPerformance`
+        computes rates over, and folding the platform's own actions into it
+        would make every rate a ratio over a denominator that mixes the two.
+        ADR-013 §1.
+
+        Bound to a decision id and nothing else, per ADR-008 §2, and refused
+        when that decision cannot be found — the same invariant `recordOutcome`
+        enforces.
+      required: [tenantId, decisionId, placementKey, channel, state, at]
+      properties:
+        tenantId:
+          type: string
+        decisionId:
+          type: string
+          description: The decision this was an attempt to deliver. The whole binding.
+        placementKey:
+          type: string
+        channel:
+          type: string
+          enum: [email, sms, web, push, outbound_call]
+        state:
+          type: string
+          enum: [accepted, deferred, dispatched, delivered, failed, suppressed]
+          description: |
+            `accepted` the platform took responsibility for sending it ·
+            `deferred` held for quiet hours, throttle or backoff ·
+            `dispatched` handed to whoever delivers it ·
+            `delivered` arrival confirmed ·
+            `failed` it will not arrive ·
+            `suppressed` not attempted, and `reason` says why.
+
+            Phase one writes `dispatched` and `suppressed` only. The other four
+            need an adapter, and the states are declared now so the record does
+            not have to change shape when one arrives.
+        at:
+          type: string
+          format: date-time
+        reason:
+          type: [string, 'null']
+          description: |
+            Why, for a state that needs one. `no_adapter` where the placement
+            has no delivery mode; `adapter_not_built` where it names one that
+            does not exist yet.
+        permanent:
+          type: [boolean, 'null']
+          description: |
+            Whether a failure is worth retrying. Null where the state is not a
+            failure. A permanent failure is information about the address rather
+            than about the offer, and belongs to contactability (W-013) rather
+            than to the offer's performance.
+        providerRef:
+          type: [string, 'null']
+          description: |
+            The deliverer's own id for this send.
+
+            Stored because bounce and complaint webhooks arrive keyed by the
+            provider's id and not by ours, so without it the return path would
+            have to be reconstructed from customer and time — which ADR-008 §2
+            forbids. Null while nothing sends.
 
     SlateEntry:
       type: object
@@ -3627,6 +3731,104 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Placement'
+
+    post:
+      summary: Configure a placement
+      operationId: createPlacement
+      description: |
+        A slot the platform will decide for, and who delivers the result.
+
+        Placements were fixture-authored until 2026-09-10: three of the five the
+        seeded corpus decides for were not in the registry at all, and the
+        `active` flag that governed the other two could only be changed by
+        editing TypeScript and redeploying. Every decision ADR-013 describes —
+        whether a slot is decidable, and whether anything sends what it produces
+        — was configuration nobody could reach.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Placement'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Placement'
+        '400':
+          description: A required field is missing, or the flow does not exist
+        '403':
+          description: Caller lacks edit:integrations
+        '409':
+          description: The key is already used by another placement
+
+  /placements/{tenantId}/{placementKey}:
+    put:
+      summary: Update a placement
+      operationId: updatePlacement
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: placementKey
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Placement'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Placement'
+        '400':
+          description: The flow does not exist
+        '403':
+          description: Caller lacks edit:integrations
+        '404':
+          description: No such placement
+
+  /deliveries/{tenantId}/{decisionId}:
+    get:
+      summary: What the platform did about delivering one decision
+      operationId: listDeliveries
+      description: |
+        The delivery attempts bound to this decision, oldest first.
+
+        Separate from `/outcomes` on purpose: an outcome is something the
+        customer did and a delivery is something the platform did, and ADR-013
+        §1 keeps them apart so the outcome funnel stays a funnel.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: decisionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Delivery attempts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deliveries]
+                properties:
+                  deliveries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeliveryAttempt'
+        '404':
+          description: No such decision
 
   /placements/{tenantId}/{placementKey}/decisions:
     post:

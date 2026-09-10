@@ -67,6 +67,7 @@ import type {
   Taxonomy as TaxonomyDto,
   Creative as CreativeDto,
   Placement as PlacementDto,
+  DeliveryAttempt as DeliveryAttemptDto,
 } from '@metis/client';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api';
@@ -282,6 +283,30 @@ export const apiClient = {
 
   listPlacements: (tenantId: string = TENANT) =>
     apiCall<{ placements: PlacementDto[] }>('listPlacements', { params: { tenantId } }),
+
+  createPlacement: (placement: Partial<PlacementDto>, tenantId: string = TENANT) =>
+    apiCall<PlacementDto>('createPlacement', { params: { tenantId }, body: placement }),
+
+  updatePlacement: (
+    placementKey: string,
+    changes: Partial<PlacementDto>,
+    tenantId: string = TENANT
+  ) =>
+    apiCall<PlacementDto>('updatePlacement', {
+      params: { tenantId, placementKey },
+      body: changes,
+    }),
+
+  /**
+   * What the platform did about delivering one decision — ADR-013 §1.
+   *
+   * Separate from `getOutcomes` on purpose: an outcome is something the
+   * customer did and a delivery is something the platform did.
+   */
+  listDeliveries: (decisionId: string, tenantId: string = TENANT) =>
+    apiCall<{ deliveries: DeliveryAttemptDto[] }>('listDeliveries', {
+      params: { tenantId, decisionId },
+    }),
 
   createCreative: (
     offerId: string,
@@ -608,6 +633,7 @@ export type {
   TaxonomyDto,
   CreativeDto,
   PlacementDto,
+  DeliveryAttemptDto,
   ConnectorDto,
   PublishedVersionDto,
   EnvironmentStateDto,
