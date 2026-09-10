@@ -207,53 +207,6 @@ known reason.
 **Done when:** either `npm run generate` writes `docs/api/` from the spec and a
 check fails when it is stale, or artefact 10 is removed from `CLAUDE.md` and the
 decision to drop it is recorded.
-### G-041 — The seeded corpus reports impressions for offers that could not have been rendered
-
-**Registered:** 2026-09-09 · **Status:** Open · **Work item:** [W-015](BACKLOG.md)
-
-`seededOutcomesFor` in `apps/console/mocks/fixtures/outcomes.ts` starts an
-outcome funnel for every decision that has a winner. It never asks whether that
-winner had an active creative on the decision's channel. It is the same error
-the storefront made and that `fix/impression-is-a-render` closed on 2026-09-09 —
-counting a **win** rather than a **render** — with the storefront half fixed and
-this half not.
-
-Measured over the committed index, all 10,400 decisions:
-
-| | |
-|---|---|
-| Decisions that offered something | 3,425 |
-| …whose winner has an active creative on that channel | 1,303 |
-| Seeded impressions today | 2,101 |
-| …for an offer that could not have been rendered | 1,214 |
-| Impressions the corpus should carry | **887** |
-
-The corpus overstates impressions by **2.37×**, and worst where creative
-coverage is thinnest: 281 of 284 outbound-call impressions are for offers with
-no outbound-call creative, 375 of 465 on push, 299 of 387 on sms, against 150 of
-566 on web.
-
-Every rate on `/performance` computed over impressions inherits it. The click
-rate is understated by the same factor, because the numerator is real and the
-denominator is not.
-
-**Not fixed in that slice, deliberately.** The slice was scoped to the
-storefront, and this is a change to what the demo tenant asserts about itself —
-a product decision about the corpus, not a defect repair. It also has a second
-half worth deciding at the same time: 2,122 of 3,425 offered decisions have a
-winner with nothing to render on the channel that won, which is either a finding
-the corpus should show or a gap in the seeded catalogue that W-015 should close.
-
-**Nothing needs regenerating.** The seeded outcomes are a projection computed per
-request, not stored — `seededOutcomeMap` rebuilds them from the decision index
-in under 40ms and no committed artifact holds them. Changing the rule changes the
-numbers on the next page load. Four prose comments cite `2,101`; no check
-asserts it.
-
-**Done when:** `seededOutcomesFor` starts a funnel only where the winner has an
-active creative on the decision's channel, and a test asserts that every seeded
-impression names a decision whose winner could have been rendered.
-
 ### G-004 — No node, panel or layout manifests — the composable experience
 
 **Registered:** 2026-09-03 · **Status:** Open · **Work item:** [W-038](BACKLOG.md)
@@ -733,6 +686,39 @@ have produced.
 
 ---
 
+### G-042 — Nothing relates a creative's channel to the channel a decision is made for
+
+**Registered:** 2026-09-09 · **Status:** Open · **Work item:** [W-015](BACKLOG.md)
+
+Two guards exist against an offer that cannot be delivered, and both are
+channel-blind.
+
+`offerMayBeActive` (`packages/core/src/creative.ts:238`) is
+`creatives.some((c) => c.active)`, so one active email creative makes an offer
+activatable and it may then win a web placement.
+`NO_DELIVERABLE_CREATIVE` (`packages/compiler/src/decision-flow/compile.ts:653`)
+fires only when `creativeIds.length === 0` — no creative at all, active or not,
+on any channel — while its own remedy text asks for *"at least one active
+creative for a channel this flow serves"*.
+
+The result, measured: **2,122 of 3,425 offered decisions pick an offer with
+nothing to render on the channel that won** (98% of outbound-call wins, 81% of
+push, 77% of sms, 29% of email, 26% of web), and 38 of 202 active offers have no
+active creative anywhere.
+
+The decision record shows a clean win with no elimination and no diagnostic, so
+a compliance officer reading the trace cannot tell. The storefront is the only
+surface that says anything, and it says it to whoever is watching the demo
+rather than to whoever owns the catalogue.
+
+Written up in [ADR-012](adr/ADR-012-an-offer-with-nothing-to-render.md), which
+sets out three options — refuse to rank, surface it as a catalogue defect, or
+both — with the cost of each. **Not implemented; the ADR is Proposed and the
+product owner decides.** Option A moves every chain hash in every conformance
+corpus, which is why it is an ADR and not a patch.
+
+**Done when:** ADR-012 is Accepted and whatever it decides has a check behind it.
+
 ## Resolved
 
 ### G-036 — The root lint step covers neither `tests/` nor `scripts/`
@@ -782,6 +768,53 @@ The corpus regenerates byte-identical, so nothing in either fix touched a hash.
 linted turned out to be almost clean, which means the cost of this gap was not
 accumulated debt — it was that a real error sat visible-to-nobody for days while
 `docs/CAPABILITIES.md` claimed the lint was clean.
+
+### G-041 — The seeded corpus reported impressions for offers that could not have been rendered
+
+**Registered:** 2026-09-09 · **Resolved:** 2026-09-09 · **Status:** Resolved · **Work item:** [W-015](BACKLOG.md)
+
+`seededOutcomesFor` in `apps/console/mocks/fixtures/outcomes.ts` started an
+outcome funnel for every decision that had a winner, and never asked whether
+that winner had an active creative on the decision's channel. It was the same
+defect the storefront had in the same week — counting a **win** rather than a
+**render** — with the storefront half fixed and this half not.
+
+Measured over the committed index, all 10,400 decisions:
+
+| | before | after |
+|---|---|---|
+| Decisions that offered something | 3,425 | 3,425 |
+| …whose winner has an active creative on that channel | 1,303 | 1,303 |
+| Impressions | 2,101 | **887** |
+| Clicks | 477 | 184 |
+| Acceptances | 65 | 26 |
+| Conversions | 49 | 20 |
+
+The corpus overstated impressions by **2.37×**, worst where creative coverage is
+thinnest: 281 of 284 outbound-call impressions were impossible, 375 of 465 on
+push, 299 of 387 on sms, against 150 of 566 on web.
+
+**One thing this did *not* do, stated because it was claimed and was wrong.** It
+did not distort the rates. A seeded click is drawn conditionally on its seeded
+impression, so removing an impossible impression removes its whole funnel with
+it: the click rate moved 22.7% → 20.7% and the acceptance rate 13.6% → 14.1%,
+which is sampling noise, not correction. The inflation was in the **counts**.
+The rates-are-wrong claim holds for the live storefront half, where a real
+impression was reported and no click could follow it, and it does not hold here.
+
+Nothing needed regenerating: the seeded outcomes are a projection computed per
+request, not stored — `seededOutcomeMap` rebuilds them from the decision index
+in under 40ms and no committed artifact held them. Four prose comments cited
+`2,101` and were corrected with it.
+
+**Resolved by:** `apps/console/tests/unit/seeded-outcomes.test.ts`, *"reports an
+impression only where the winner had something to render"*, which fails on the
+generator as it stood.
+
+**The second half is a different problem and is not resolved.** 2,122 of the
+3,425 offered decisions have a winner with nothing to render on the channel that
+won, and 38 of 202 active offers have no active creative on any channel. That is
+a property of the platform rather than of the seeding — see G-042.
 
 ### G-003 — The decision trace accessibility test fails after a write-heavy run
 

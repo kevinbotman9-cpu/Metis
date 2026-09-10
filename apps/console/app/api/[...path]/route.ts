@@ -961,7 +961,7 @@ async function handleGet(req: Request, { params }: Ctx) {
         );
 
       // Where these numbers came from, in the payload rather than in the
-      // interface. A report that joins 2,101 seeded outcomes to the four a
+      // interface. A report that joins 887 seeded outcomes to the four a
       // reviewer just produced is not evidence, and a badge in the nav rail
       // does not survive an export or a screenshot.
       return json({
