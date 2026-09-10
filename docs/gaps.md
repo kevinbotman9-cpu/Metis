@@ -180,6 +180,13 @@ Two false positives out of 25 failures is not a crisis. The cost is that both
 rules train a reader to skim past their output, and a rule nobody reads is a
 rule that has stopped working.
 
+**It recurred on 2026-09-10.** `apps/console/app/placements/page.tsx` failed the
+same rule for the same reason — a doc comment saying the entity *used* to be
+authored in a seed file — and was reworded a second time to get past it. Twice
+in two days is the argument for fixing the rule rather than the prose: the next
+person will not know they are writing around a check, and the check will be
+right about nothing.
+
 **Done when:** both rules ignore comments, or state in their output that they
 matched inside one.
 
@@ -686,6 +693,32 @@ have produced.
 
 ---
 
+### G-046 — The seeded corpus decides on four channels nothing delivers, and only one screen says so
+
+**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-017](BACKLOG.md)
+
+8,255 of the 10,400 seeded decisions — 79% — are on sms, push, email or
+outbound_call. Every one of those slots is now correctly registered, correctly
+channelled and `decidable: true`, and every one has `delivery: null`.
+
+[ADR-013](adr/ADR-013-delivery.md) §7 decided that the corpus should keep
+deciding: a decision is not a delivery, the engine's behaviour on an sms
+decision is real, and a corpus confined to web would misrepresent the product
+in the other direction. What it must stop doing is being silent about it.
+
+Phase one made it visible in two places — `/placements` names the four slots
+that decide and deliver nothing, and `/creatives?view=coverage` measures content
+only against what can be delivered. **`/performance` still does not.** Its
+channel breakdown puts 2,145 web decisions that reached somebody beside 8,255
+that could not have, with the same provenance marker on both, and provenance
+answers a different question: *synthetic* means no real customer, not
+*undeliverable*.
+
+**Done when:** `/performance` separates delivered from undeliverable in its
+channel breakdown, and a decision on a placement with no delivery mode carries
+that in the payload rather than only in the interface — the rule the provenance
+work already established.
+
 ### G-044 — The seeded catalogue has almost no content for an outbound call
 
 **Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-015](BACKLOG.md)
@@ -713,31 +746,34 @@ four blocks read 202 / 38 / 164 / 0 on 2026-09-10.
 same proportion as its other channels, or `retention_queue` is switched off and
 the corpus stops deciding for a channel the demo cannot illustrate.
 
-### G-043 — A placement's `active` flag carries two different meanings
+### G-045 — An untouched number field sends zero, and each descriptor pays for it separately
 
-**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-017](BACKLOG.md)
+**Registered:** 2026-09-10 · **Status:** Open · **Work item:** none
 
-`Placement.active` is read as *"this slot is live and may be decided for"* —
-`decidePlacement` refuses an inactive one, and the storefront renders only
-active slots. It was also being written as *"this slot is delivered end to
-end"*: `weekly_offers_send` was `active: false` with the reason *"nothing
-delivers it yet — W-017"*, while the corpus decided for it 2,042 times.
+`toPayload` in `packages/ui-metadata/src/codec.ts` reads a number field as
+`Number(raw || 0)`, so a field the author never touched arrives as `0` rather
+than as absent. The server's own default is then overwritten by a value nobody
+chose.
 
-One boolean cannot answer both questions, and the two come apart exactly where
-this platform is today: it decides on five channels and delivers on one, because
-the outbound adapter is W-017. Under the first meaning every configured slot is
-live; under the second only web is. The fixture author had to choose, chose the
-second for email and the first for everything else, and nothing could tell.
+Three descriptors have hit it in two days:
 
-Resolved for the fixture on 2026-09-10 by taking the first meaning — the corpus
-decides for the slot, so the slot is live and only the sending is missing — and
-`tests/unit/fixtures.test.ts` now fails if the corpus decides for an inactive
-slot. **The model is unchanged.** A tenant still cannot say "decidable, not yet
-deliverable", which is the state four of its five channels are actually in.
+- `Offer.boost` and `financials.termMonths`, where 0 is a sensible value and the
+  bug is invisible.
+- `Objective.sortOrder`, 2026-09-09: a new objective sorted above everything
+  that existed. Worked around by passing a default from the screen.
+- `Placement.slotCount`, 2026-09-10: the spec's `minimum: 1` then made the form
+  silently unsubmittable — the browser refused it and nothing said why. Worked
+  around the same way.
 
-**Done when:** `Placement` distinguishes being decidable from being delivered,
-or an ADR records that one flag is deliberate and says which question it
-answers.
+Two workarounds in two days for one cause is the signal. The fix belongs in the
+codec — an untouched number should be absent from the payload rather than zero,
+so the server's default applies — and it is not a one-line change, because
+`toPayload` cannot currently tell "the author typed 0" from "the author typed
+nothing" without consulting `touched`.
+
+**Done when:** a number field the author never touched is omitted from the
+payload, and a descriptor no longer needs a screen-supplied default to avoid
+sending zero.
 
 ## Resolved
 
@@ -788,6 +824,27 @@ The corpus regenerates byte-identical, so nothing in either fix touched a hash.
 linted turned out to be almost clean, which means the cost of this gap was not
 accumulated debt — it was that a real error sat visible-to-nobody for days while
 `docs/CAPABILITIES.md` claimed the lint was clean.
+
+### G-043 — A placement's `active` flag carried two different meanings
+
+**Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-058](BACKLOG.md)
+
+`Placement.active` was read as *"this slot is live and may be decided for"* —
+`decidePlacement` refuses an inactive one — and written as *"this slot is
+delivered end to end"*: `weekly_offers_send` was `active: false` because nothing
+sent it, while the corpus decided for it 2,042 times. In the spec it was
+`type: boolean` with no description at all, so the field carrying two meanings
+was not documented as carrying one.
+
+Split by [ADR-013](adr/ADR-013-delivery.md) phase one into `decidable` and
+`delivery: { mode } | null`. `caller` is what web has always been — the platform
+returns a slate and the website renders it — and `null` is the honest state of a
+slot worth deciding for that has no far end, which is four of the demo tenant's
+five channels.
+
+**Resolved by:** `apps/console/tests/e2e/placement-authoring.spec.ts`,
+*"deciding and delivering are separately settable"*, which sets a slot to refuse
+requests while keeping a deliverer — a state one boolean could not express.
 
 ### G-042 — Nothing related a creative's channel to the channel a decision is made for
 

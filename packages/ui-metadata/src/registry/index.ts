@@ -3,6 +3,7 @@ import { offerDescriptor } from './offer';
 import { creativeDescriptor } from './creative';
 import { objectiveDescriptor } from './objective';
 import { categoryDescriptor } from './category';
+import { placementDescriptor } from './placement';
 
 /**
  * The metadata registry.
@@ -17,6 +18,7 @@ import { categoryDescriptor } from './category';
  */
 export const REGISTRY: Record<string, EntityDescriptor> = {
   Objective: objectiveDescriptor,
+  Placement: placementDescriptor,
   Category: categoryDescriptor,
   Offer: offerDescriptor,
   Creative: creativeDescriptor,
@@ -48,6 +50,7 @@ export const USER_EDITABLE_ENTITIES = [
   'Audience',
   'Model',
   'Channel',
+  'Placement',
   'Theme',
   'Layout',
   'Persona',
@@ -83,4 +86,10 @@ export function descriptorFor(entity: string): EntityDescriptor {
   return found;
 }
 
-export { objectiveDescriptor, categoryDescriptor, offerDescriptor, creativeDescriptor };
+export {
+  objectiveDescriptor,
+  categoryDescriptor,
+  placementDescriptor,
+  offerDescriptor,
+  creativeDescriptor,
+};

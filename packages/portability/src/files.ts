@@ -84,5 +84,6 @@ export function readBundle(dir: string): TenantBundle {
     registry_events: read('registry_events') as TenantBundle['registry_events'],
     decision_records: read('decision_records') as TenantBundle['decision_records'],
     outcome_events: read('outcome_events') as TenantBundle['outcome_events'],
+    delivery_attempts: read('delivery_attempts') as TenantBundle['delivery_attempts'],
   };
 }

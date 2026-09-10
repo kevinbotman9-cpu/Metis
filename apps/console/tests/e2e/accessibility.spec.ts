@@ -18,6 +18,7 @@ const PAGES = [
   { path: '/frequency-policy', name: 'frequency policy' },
   { path: '/arbitration', name: 'arbitration' },
   { path: '/decision-flows', name: 'flows' },
+  { path: '/placements', name: 'placements' },
   // The detail routes were outside this sweep entirely until 2026-09-06,
   // which meant the compile report, the flow canvas, the registry panel and
   // the shadow panel had never been scanned.

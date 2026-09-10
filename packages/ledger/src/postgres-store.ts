@@ -1,6 +1,12 @@
 import type { IdempotencyRecord, IdempotencyStore } from '@metis/runtime';
 import type { DecisionQuery, LedgerStore } from './ledger';
-import type { LedgerEntry, OutcomeEvent, OutcomeType } from './types';
+import type {
+  DeliveryAttempt,
+  DeliveryState,
+  LedgerEntry,
+  OutcomeEvent,
+  OutcomeType,
+} from './types';
 
 /**
  * Durable ledger storage.
@@ -32,6 +38,18 @@ interface EntryRow {
   flow_version: string;
   chain_hash: string;
   record: unknown;
+}
+
+interface DeliveryRow {
+  tenant_id: string;
+  decision_id: string;
+  placement_key: string;
+  channel: string;
+  state: DeliveryState;
+  at: Date | string;
+  reason: string | null;
+  permanent: boolean | null;
+  provider_ref: string | null;
 }
 
 interface OutcomeRow {
@@ -188,6 +206,46 @@ export class PostgresLedgerStore implements LedgerStore {
         event.detail ? JSON.stringify(event.detail) : null,
       ]
     );
+  }
+
+  async appendDelivery(attempt: DeliveryAttempt): Promise<void> {
+    await this.db.query(
+      `INSERT INTO delivery_attempts
+         (tenant_id, decision_id, placement_key, channel, state, at, reason, permanent, provider_ref)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        attempt.tenantId,
+        attempt.decisionId,
+        attempt.placementKey,
+        attempt.channel,
+        attempt.state,
+        attempt.at,
+        attempt.reason,
+        attempt.permanent,
+        attempt.providerRef,
+      ]
+    );
+  }
+
+  async deliveriesFor(tenantId: string, decisionId: string): Promise<DeliveryAttempt[]> {
+    const { rows } = await this.db.query<DeliveryRow>(
+      `SELECT tenant_id, decision_id, placement_key, channel, state, at, reason, permanent, provider_ref
+         FROM delivery_attempts
+        WHERE tenant_id = $1 AND decision_id = $2
+        ORDER BY seq ASC`,
+      [tenantId, decisionId]
+    );
+    return rows.map((r) => ({
+      tenantId: r.tenant_id,
+      decisionId: r.decision_id,
+      placementKey: r.placement_key,
+      channel: r.channel,
+      state: r.state,
+      at: typeof r.at === 'string' ? r.at : new Date(r.at).toISOString(),
+      reason: r.reason,
+      permanent: r.permanent,
+      providerRef: r.provider_ref,
+    }));
   }
 
   async outcomesFor(tenantId: string, decisionId: string): Promise<OutcomeEvent[]> {

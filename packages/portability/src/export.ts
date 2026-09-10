@@ -87,6 +87,13 @@ export async function exportTenant(
     await Promise.all(records.map((r) => ledger.outcomesFor(tenantId, r.decisionId)))
   ).flat();
 
+  // ADR-013. Carried for the same reason the outcomes are: without it a
+  // decision whose delivery was suppressed reads as offered-and-unmeasured,
+  // which is indistinguishable from a channel that did not report back.
+  const deliveries = (
+    await Promise.all(records.map((r) => ledger.deliveriesFor(tenantId, r.decisionId)))
+  ).flat();
+
   // Read as one snapshot, because that is how the engine consumes it: a
   // decision records the hash of the catalogue it saw, so assembling a bundle
   // from several reads could describe a moment that never existed.
@@ -111,6 +118,7 @@ export async function exportTenant(
     registry_events: events,
     decision_records: records,
     outcome_events: outcomes,
+    delivery_attempts: deliveries,
   };
 
   // ADR-003, so a bundle hash means the same thing as a chain hash: the same

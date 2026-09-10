@@ -56,7 +56,12 @@ const creative = (over: Partial<CreativeDto>): CreativeDto =>
     ...over,
   }) as CreativeDto;
 
-const placement = (key: string, channel: string, active = true): PlacementDto =>
+const placement = (
+  key: string,
+  channel: string,
+  delivers = true,
+  decidable = true
+): PlacementDto =>
   ({
     id: `plc_${key}`,
     key,
@@ -65,7 +70,8 @@ const placement = (key: string, channel: string, active = true): PlacementDto =>
     channel,
     slotCount: 1,
     artifactId: 'next-best-action',
-    active,
+    decidable,
+    delivery: delivers ? { mode: 'caller' } : null,
     updatedAt: '2026-01-01T00:00:00.000Z',
     updatedBy: 'x@y.z',
   }) as PlacementDto;
@@ -107,9 +113,30 @@ export const AllThreeStates: Story = {
   name: 'live, off and none — three states with three remedies',
 };
 
-export const NothingServed: Story = {
+export const NothingDeliverable: Story = {
   args: { offers, creatives, placements: [placement('homepage_hero', 'web', false)] },
-  name: 'No channel served — nothing to measure against',
+  name: 'Decidable and undeliverable — nothing to measure against',
+};
+
+/**
+ * The demo tenant's real shape on 2026-09-10: web delivers, four channels
+ * decide and nothing sends what they produce. The banner is the point — the
+ * table below it counts against one column, and without the banner that would
+ * look like a tenant with one channel rather than one with four dead ends.
+ */
+export const MostChannelsUndeliverable: Story = {
+  args: {
+    offers,
+    creatives,
+    placements: [
+      placement('homepage_hero', 'web'),
+      placement('weekly_offers_send', 'email', false),
+      placement('triggered_outbound', 'sms', false),
+      placement('app_inbox', 'push', false),
+      placement('retention_queue', 'outbound_call', false),
+    ],
+  },
+  name: 'Four channels decide and nothing delivers them',
 };
 
 export const Loading: Story = {

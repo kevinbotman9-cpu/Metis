@@ -1,6 +1,6 @@
 import { InMemoryIdempotencyStore, type IdempotencyStore } from '@metis/runtime';
 import type { DecisionQuery, LedgerStore } from './ledger';
-import type { LedgerEntry, OutcomeEvent } from './types';
+import type { DeliveryAttempt, LedgerEntry, OutcomeEvent } from './types';
 
 /**
  * In-memory ledger.
@@ -17,6 +17,7 @@ import type { LedgerEntry, OutcomeEvent } from './types';
 export class InMemoryLedgerStore implements LedgerStore {
   private readonly entries = new Map<string, LedgerEntry>();
   private readonly outcomes: OutcomeEvent[] = [];
+  private readonly deliveries: DeliveryAttempt[] = [];
   readonly idempotency: IdempotencyStore = new InMemoryIdempotencyStore();
 
   // Length-prefixed, like the idempotency store: a tenant id containing the
@@ -58,6 +59,16 @@ export class InMemoryLedgerStore implements LedgerStore {
     this.outcomes.push(event);
   }
 
+  async appendDelivery(attempt: DeliveryAttempt): Promise<void> {
+    this.deliveries.push(attempt);
+  }
+
+  async deliveriesFor(tenantId: string, decisionId: string): Promise<DeliveryAttempt[]> {
+    return this.deliveries.filter(
+      (d) => d.tenantId === tenantId && d.decisionId === decisionId
+    );
+  }
+
   async outcomesFor(tenantId: string, decisionId: string): Promise<OutcomeEvent[]> {
     return this.outcomes.filter((o) => o.tenantId === tenantId && o.decisionId === decisionId);
   }
@@ -66,6 +77,7 @@ export class InMemoryLedgerStore implements LedgerStore {
   clear(): void {
     this.entries.clear();
     this.outcomes.length = 0;
+    this.deliveries.length = 0;
     (this.idempotency as InMemoryIdempotencyStore).clear();
   }
 

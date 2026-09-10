@@ -28,7 +28,8 @@ export type EntityName =
   | 'registry_environments'
   | 'registry_events'
   | 'decision_records'
-  | 'outcome_events';
+  | 'outcome_events'
+  | 'delivery_attempts';
 
 export interface EntityDeclaration {
   /** Matches the table name, so the completeness check can compare directly. */
@@ -66,6 +67,14 @@ export const ENTITIES: EntityDeclaration[] = [
   // History. §9 names decision, interaction and outcome histories explicitly.
   { table: 'decision_records', included: true },
   { table: 'outcome_events', included: true },
+
+  // What the platform did about delivering each decision — ADR-013. Exported
+  // for the same reason outcomes are: a decision whose delivery was suppressed
+  // reads as offered-and-unmeasured without it, which is indistinguishable from
+  // a channel that simply did not report back. The distinction is exactly what
+  // this record exists to make, and an export that dropped it would move a
+  // tenant whose history no longer explains itself.
+  { table: 'delivery_attempts', included: true },
 
   {
     table: 'idempotency_keys',

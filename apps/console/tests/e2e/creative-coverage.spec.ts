@@ -95,23 +95,25 @@ test.describe('content coverage @screen-only', () => {
     await expect(row.getByText('live')).toHaveCount(0);
   });
 
-  test('measures against the channels the tenant serves, not a list in the page', async ({
+  test('measures against the channels that can deliver, not the ones that decide', async ({
     page,
   }) => {
     await openCoverage(page);
     const columns = await coverage(page).locator('thead th').allInnerTexts();
 
-    // Every active placement's channel is a column, and nothing else is. The
-    // page cannot invent a channel nobody delivers on, and cannot omit one
-    // somebody does.
-    const placements = await page.request.get('/api/placements/telco-uk');
-    const served = new Set(
-      (await placements.json()).placements
-        .filter((p: { active: boolean }) => p.active)
-        .map((p: { channel: string }) => p.channel)
-    );
-    expect(served.size).toBeGreaterThan(1);
-    expect(columns.length).toBe(served.size + 2); // offer, the channels, cannot-send
+    // A channel with a `delivery` mode is a column; one that merely decides is
+    // not. This read `active` until 2026-09-10 and counted content against four
+    // channels with nothing that sends, reporting 38 offers with nothing to
+    // send where the number that can reach a customer is 127. ADR-013 §2.
+    const placements = (await (await page.request.get('/api/placements/telco-uk')).json())
+      .placements as { decidable: boolean; delivery: unknown; channel: string }[];
+    const deliverable = new Set(placements.filter((p) => p.delivery).map((p) => p.channel));
+    const decidable = new Set(placements.filter((p) => p.decidable).map((p) => p.channel));
+
+    // The demo tenant decides on more channels than it can deliver on, which is
+    // the whole reason the two sets have to be told apart here.
+    expect(decidable.size).toBeGreaterThan(deliverable.size);
+    expect(columns.length).toBe(deliverable.size + 2); // offer, the channels, cannot-send
   });
 
   test('every offer on it reaches the offer it counts', async ({ page }) => {

@@ -82,8 +82,33 @@ export function CreativeCoverage({
   const [search, setSearch] = useState('');
   const [channelFilter, setChannelFilter] = useState('');
 
+  /**
+   * The channels this tenant can actually reach somebody on.
+   *
+   * `p.delivery`, not `p.active` — and the difference is the whole correction.
+   * Until 2026-09-10 this counted content against every *decidable* slot, which
+   * on the seeded tenant meant five channels, four of which have nothing that
+   * sends. It reported 38 offers with "nothing to send" when the number that
+   * can actually reach a customer is 127, and it showed 164 offers as "partly
+   * covered" against holes on channels no message could have left through.
+   *
+   * That is the same shape of error as counting a decision that won a slot as
+   * an impression (G-041): a denominator counting what the platform *decided*
+   * where the question was what it can *deliver*. ADR-013 §2.
+   */
   const channels = useMemo(
-    () => [...new Set(placements.filter((p) => p.active).map((p) => p.channel))].sort(),
+    () => [...new Set(placements.filter((p) => p.delivery).map((p) => p.channel))].sort(),
+    [placements]
+  );
+
+  /** Slots that decide and have nothing to send the result. Named, not hidden. */
+  const undeliverableChannels = useMemo(
+    () =>
+      [
+        ...new Set(
+          placements.filter((p) => p.decidable && !p.delivery).map((p) => p.channel)
+        ),
+      ].sort(),
     [placements]
   );
 
@@ -228,8 +253,8 @@ export function CreativeCoverage({
       <Card>
         <CardBody>
           <EmptyState
-            title="No channel is being served"
-            description="Coverage is measured against the channels the tenant's active placements deliver on, and none is active. Activate a placement and every offer's content can be measured against it."
+            title="Nothing can be delivered"
+            description="Coverage is measured against the channels a placement actually delivers on, and no placement has a delivery mode. Every slot here decides and nothing sends the result, so there is no denominator to measure content against."
           />
         </CardBody>
       </Card>
@@ -275,10 +300,45 @@ export function CreativeCoverage({
         </div>
       </div>
 
+      {undeliverableChannels.length > 0 ? (
+        // Stated rather than silently excluded. These channels decide and
+        // nothing sends the result, so counting content holes in them would be
+        // measuring against a denominator that cannot deliver — but leaving
+        // them off the screen entirely would hide the larger fact. ADR-013 §2.
+        <Card className="mb-stack border-hold/40">
+          <CardBody>
+            <div className="flex flex-wrap items-start gap-3">
+              <Badge tone="hold">Not counted</Badge>
+              <div className="min-w-0 flex-1">
+                <p className="text-body font-medium text-content">
+                  {undeliverableChannels.length}{' '}
+                  {undeliverableChannels.length === 1 ? 'channel decides' : 'channels decide'} and
+                  nothing delivers the result
+                </p>
+                <p className="mt-1 text-body text-content-muted">
+                  {undeliverableChannels
+                    .map((ch) => CHANNEL_LABEL[ch] ?? ch)
+                    .join(', ')}{' '}
+                  — every slot on{' '}
+                  {undeliverableChannels.length === 1 ? 'this channel' : 'these channels'} is
+                  decidable and has no delivery mode, so content written for{' '}
+                  {undeliverableChannels.length === 1 ? 'it' : 'them'} could not reach anybody.
+                  Coverage below is measured against what can actually be delivered.
+                </p>
+                <p className="mt-1.5 text-label text-content-subtle">
+                  ADR-013. The adapter is W-017, blocked on W-008 — there is no recipient
+                  address in the profile schema.
+                </p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader
           title="Content coverage"
-          description="One row per active offer, one column per channel this tenant serves. An offer with nothing live on a channel wins that channel's slots and renders nothing in them."
+          description="One row per active offer, one column per channel this tenant can deliver on. An offer with nothing live on a channel wins that channel's slots and renders nothing in them."
         />
         <DataTable
           columns={columns}

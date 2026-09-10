@@ -41,14 +41,14 @@ describe('the storefront demo names things that exist', () => {
     for (const { placement } of declared) {
       const configured = placements.find((p) => p.key === placement);
       expect(configured, `the page asks for ${placement}, which is not configured`).toBeDefined();
-      expect(configured?.active, `${placement} is configured but inactive`).toBe(true);
+      expect(configured?.decidable, `${placement} is configured but not decidable`).toBe(true);
     }
   });
 
   it('every configured placement is answered by an active flow', () => {
     // A draft flow deciding on a live site would be a real defect, not a
     // cosmetic one: nothing else in the stack stops it.
-    for (const p of placements.filter((x) => x.active)) {
+    for (const p of placements.filter((x) => x.decidable)) {
       const flow = artifacts.find((a) => a.id === p.artifactId);
       expect(flow, `${p.key} names ${p.artifactId}, which is not a flow`).toBeDefined();
       expect(flow?.status, `${p.key} names ${p.artifactId}, which is ${flow?.status}`).toBe(

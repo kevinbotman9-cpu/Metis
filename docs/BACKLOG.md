@@ -182,6 +182,7 @@ otherwise.
 | W-055 | 12 | A disabled control states its reason accessibly | OPEN | 2 |
 | W-056 | 13 | Taxonomy authoring — objectives and categories from the screen | DONE | 2 |
 | W-057 | 13 | An offer must be deliverable on a channel somebody serves | DONE | 2 |
+| W-058 | 14 | Delivery record and the decidable/deliverable split | DONE | 2 |
 
 ---
 
@@ -1449,3 +1450,37 @@ is the trigger rather than a date. See the ADR.
 an unserved channel, and an `@screen-only` test reads the coverage of every
 active offer against every channel served — `creative-coverage.spec.ts`,
 "counts the offers that can reach nobody, and they are the rows it shows".
+### W-058 — Delivery record and the decidable/deliverable split
+
+**Registered:** 2026-09-10 · **Stage:** 14 · **Status:** DONE
+**Check:** `packages/ledger/tests/suite.ts`, `apps/console/tests/e2e/placement-authoring.spec.ts` and `packages/ui-metadata/tests/descriptors.test.ts`
+
+Gate 2 · Depends: none · [ADR-013](adr/ADR-013-delivery.md) phase one · Gap [G-043](gaps.md)
+
+Phase one of ADR-013, accepted 2026-09-10. The record and the split, with
+nothing sending behind them.
+
+`Placement.active` becomes `decidable` plus `delivery: { mode } | null`. A
+`DeliveryAttempt` is a record the platform writes about itself, bound to a
+decision id and refused without one — **not** an `OutcomeType`, because the
+outcome funnel is nested and monotone and folding sends into it would make every
+rate a ratio over a denominator mixing what the customer did with what the
+platform did. `decidePlacement` writes `dispatched` or `suppressed` on every
+decision it makes.
+
+The coverage screen's denominator is corrected with it: it counted content
+against every *decidable* channel and reported 38 offers with nothing to send,
+where the number that can actually reach a customer is **127**.
+
+`Placement` joins `USER_EDITABLE_ENTITIES` with a descriptor and `/placements`,
+the list–detail screen the console spec has declared since it was written.
+
+**The adapter is blocked, not deprioritised.** W-017 needs a recipient address
+and none exists anywhere in the profile schema — the `Address` entity is a
+*service* address. W-008 first. This is a dependency, not a sequencing
+preference.
+
+**Done when:** an `@screen-only` test sets a slot to refuse requests while
+keeping a deliverer — a state one boolean could not express — and switching a
+channel's delivery on changes what the coverage screen measures against.
+`placement-authoring.spec.ts`.

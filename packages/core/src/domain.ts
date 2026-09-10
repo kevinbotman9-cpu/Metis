@@ -625,9 +625,41 @@ export interface Placement {
   slotCount: number;
   /** Which flow answers for this slot. */
   artifactId: string;
-  active: boolean;
+  /**
+   * May a decision be made for this slot. `decidePlacement` answers 404 when
+   * it is false.
+   *
+   * This was `active`, and `active` was answering two questions at once —
+   * whether a decision may be made, and whether anything delivers the result.
+   * The two come apart exactly where this platform is: it decides on five
+   * channels and delivers on one. `weekly_offers_send` was `active: false` on
+   * the grounds that nothing sent it, while the corpus decided for it 2,042
+   * times. ADR-013 §2, G-043.
+   */
+  decidable: boolean;
+  /**
+   * Who gets the result of a decision to the customer, and `null` when nothing
+   * does.
+   *
+   * `caller` — the platform returns a slate and whoever asked renders it. That
+   * is what web has always been, and why web looked solved: `decidePlacement`
+   * answers and the website delivers. The platform itself has never sent
+   * anything.
+   *
+   * `adapter` — the platform sends it. Nothing does yet.
+   *
+   * `null` is not a defect to be corrected away. It is the honest state of a
+   * slot worth deciding for that has no far end.
+   */
+  delivery: PlacementDelivery | null;
   updatedAt: string;
   updatedBy: string;
+}
+
+export interface PlacementDelivery {
+  mode: 'caller' | 'adapter';
+  /** Which adapter. Absent while `mode` is `caller`. */
+  adapterId?: string;
 }
 
 /** Which connector was configured to supply a field. Reproducible. */

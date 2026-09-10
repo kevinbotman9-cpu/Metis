@@ -23,6 +23,8 @@ import {
   frequencyPolicies,
   arbitrationConfig,
   connectors,
+  creatives,
+  placements,
 } from './catalogue';
 import { artifacts, type ArtifactSummary } from './artifacts';
 import { profileSchema } from './profile-schema';
@@ -50,7 +52,38 @@ export const compileContext: CompileContext = {
   // which is all a connector can supply and all the previous check could see.
   profileSchema,
   tenant: { id: 'telco-uk', latencyBudgetMs: 50, maxNodes: 100 },
+  // ADR-012 §B2. Without these the check falls back to "has an id in
+  // `creativeIds`", which an offer whose only creative is switched off, or is
+  // written for a channel nobody delivers on, satisfies.
+  creatives,
 };
+
+/**
+ * The channels a flow's own slots are decided for — ADR-012 §B2.
+ *
+ * Decidable rather than deliverable, deliberately. `NO_DELIVERABLE_CREATIVE`
+ * asks whether an offer has content for a channel it could win on; whether
+ * anything then sends it is a property of the channel, shown on `/placements`
+ * and the coverage screen, and not a reason to refuse a flow.
+ *
+ * Per flow, not per tenant. `retention-outbound` answers an outbound-call slot
+ * and should not be judged against web because some *other* flow's placement
+ * happens to be a web one. A global set was harmless while every active
+ * placement counted; it stopped being harmless the moment `delivery` narrowed
+ * the set to the one channel anything actually carries.
+ *
+ * An empty result skips the channel clause rather than failing everything: a
+ * flow whose slots deliver nothing is not a flow whose candidates are all
+ * wrong, and `NO_DELIVERABLE_CREATIVE` still fires on an offer with no active
+ * creative at all.
+ */
+export function servedChannelsFor(artifactId: string): string[] {
+  return [
+    ...new Set(
+      placements.filter((p) => p.artifactId === artifactId && p.decidable).map((p) => p.channel)
+    ),
+  ];
+}
 
 /**
  * A flow as authored, from the console's view of it.
@@ -88,7 +121,15 @@ export interface FlowCompilation {
 
 export const compilations: FlowCompilation[] = artifacts.map((a) => ({
   artifactId: a.id,
-  result: compileDecisionFlow(toSource(a), compileContext),
+  // The same context the route builds, so a seeded compile and a live recompile
+  // of unchanged content produce the same artifact. They diverged on
+  // 2026-09-10 — the route had `creatives` and `servedChannels` and this did
+  // not — and `registry.spec.ts` caught it as a republish of identical content
+  // being refused as different.
+  result: compileDecisionFlow(toSource(a), {
+    ...compileContext,
+    servedChannels: servedChannelsFor(a.id),
+  }),
 }));
 
 const byId = new Map(compilations.map((c) => [c.artifactId, c]));

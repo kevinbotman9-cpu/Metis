@@ -249,6 +249,67 @@ export function describeLedger(label: string, harness: StoreHarness): void {
       });
     });
 
+    /**
+     * ADR-013 §1. What the platform did about a decision, kept apart from what
+     * the customer did about it.
+     */
+    describe('delivery attempts', () => {
+      beforeEach(async () => {
+        await ledger.record(ledger.entryFor(decisionRecord({ id: 'dec_d' }), T));
+      });
+
+      const attempt = (over: Partial<Parameters<typeof ledger.recordDelivery>[0]> = {}) => ({
+        tenantId: T,
+        decisionId: 'dec_d',
+        placementKey: 'weekly_offers_send',
+        channel: 'email',
+        state: 'suppressed' as const,
+        at: AT,
+        reason: 'no_adapter',
+        permanent: null,
+        providerRef: null,
+        ...over,
+      });
+
+      it('records what the platform did, in the order it did it', async () => {
+        await ledger.recordDelivery(attempt({ state: 'dispatched', reason: null, at: '2026-06-01T12:00:01.000Z' }));
+        await ledger.recordDelivery(attempt({ state: 'failed', reason: 'hard_bounce', permanent: true, at: '2026-06-01T12:00:09.000Z' }));
+
+        const rows = await ledger.deliveriesFor(T, 'dec_d');
+        expect(rows.map((d) => d.state)).toEqual(['dispatched', 'failed']);
+        expect(rows[1].permanent).toBe(true);
+      });
+
+      it('keeps the deliverer’s own reference, because the return path is keyed by it', async () => {
+        // Bounce and complaint webhooks arrive keyed by the provider's id, not
+        // ours. Without this the join back to a decision would have to be
+        // reconstructed from customer and time, which ADR-008 §2 forbids.
+        await ledger.recordDelivery(attempt({ state: 'dispatched', reason: null, providerRef: 'prov_abc123' }));
+        expect((await ledger.deliveriesFor(T, 'dec_d'))[0].providerRef).toBe('prov_abc123');
+      });
+
+      it('refuses an attempt for a decision nobody made', async () => {
+        // The same invariant as an outcome, for the same reason: a row that
+        // cannot be joined to a decision records nothing.
+        await expect(
+          ledger.recordDelivery(attempt({ decisionId: 'dec_nope' }))
+        ).rejects.toThrow(LedgerError);
+      });
+
+      it('does not leak attempts across tenants', async () => {
+        await ledger.recordDelivery(attempt());
+        expect(await ledger.deliveriesFor('telco-ie', 'dec_d')).toEqual([]);
+      });
+
+      it('keeps deliveries out of the outcome funnel', async () => {
+        // The whole reason this is a separate record. A delivery appearing as
+        // an outcome would put the platform's own actions into the denominator
+        // every rate on /performance is computed over.
+        await ledger.recordDelivery(attempt({ state: 'dispatched', reason: null }));
+        expect(await ledger.outcomesFor(T, 'dec_d')).toEqual([]);
+      });
+    });
+
     describe('idempotency', () => {
       const request = {
         tenantId: T,
