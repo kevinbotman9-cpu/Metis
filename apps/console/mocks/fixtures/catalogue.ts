@@ -1490,11 +1490,88 @@ export const placements: Placement[] = [
     id: 'plc_weekly_offers_send',
     key: 'weekly_offers_send',
     name: 'Weekly offers email',
-    description: 'The weekly send. Configured, and nothing delivers it yet — W-017.',
+    description:
+      'The weekly send. Decided here; delivered by nothing yet — the outbound adapter is W-017.',
     channel: 'email',
     slotCount: 2,
     artifactId: 'next-best-action',
+    // Active, and the reason is worth stating because it was `false` until
+    // 2026-09-10 on the grounds that nothing delivers it. That conflated two
+    // different questions — see the note below — and the corpus settled it: it
+    // decides for this slot 2,042 times, so the slot is live and only the
+    // sending is missing.
+    active: true,
+    updatedAt: iso(-200),
+    updatedBy: 'priya.nair@telco.example',
+  },
+
+  // The three slots the corpus decides for and the registry had never heard of.
+  //
+  // Every one of these appears in `decision-index.json` as a `placement` on
+  // thousands of decisions — `triggered_outbound` 2,097 times, `retention_queue`
+  // 2,061, `app_inbox` 2,055 — and none of them existed here. `decidePlacement`
+  // would have answered 404 for all three. Nothing checked, because nothing
+  // joined the corpus back to this list; `tests/unit/fixtures.test.ts` does now.
+  {
+    id: 'plc_triggered_outbound',
+    key: 'triggered_outbound',
+    name: 'Triggered SMS',
+    type: 'feature_band',
+    description: 'A single message on a trigger — usage threshold, contract date, network event.',
+    channel: 'sms',
+    slotCount: 1,
+    artifactId: 'next-best-action',
+    active: true,
+    updatedAt: iso(-200),
+    updatedBy: 'priya.nair@telco.example',
+  },
+  {
+    id: 'plc_app_inbox',
+    key: 'app_inbox',
+    name: 'App inbox',
+    type: 'tile',
+    description: 'The message list inside the app. Two slots, and the customer is known.',
+    channel: 'push',
+    slotCount: 2,
+    artifactId: 'next-best-action',
+    active: true,
+    updatedAt: iso(-200),
+    updatedBy: 'priya.nair@telco.example',
+  },
+  // Configured and switched off, which is a state a real tenant has and the
+  // only one that proves `active` is load-bearing: `decidePlacement` answers
+  // 404 for it. Nothing decides for this slot, which is what makes it safe to
+  // leave off — the corpus deciding for an inactive slot is now a failing test
+  // in `fixtures.test.ts`.
+  //
+  // It exists because activating `weekly_offers_send` on 2026-09-10 left the
+  // fixture with no inactive placement at all, and `placement-decision.test.ts`
+  // said so rather than passing vacuously.
+  {
+    id: 'plc_basket_upsell',
+    key: 'basket_upsell',
+    name: 'Basket upsell (paused)',
+    type: 'feature_band',
+    description:
+      'A strip in the checkout basket. Switched off after the January test; the slot is kept so the history reads.',
+    channel: 'web',
+    slotCount: 1,
+    artifactId: 'inbound-web-offers',
     active: false,
+    updatedAt: iso(-1400),
+    updatedBy: 'marcus.webb@telco.example',
+  },
+  {
+    id: 'plc_retention_queue',
+    key: 'retention_queue',
+    name: 'Retention call queue',
+    type: 'hero',
+    description:
+      'What the agent is prompted to offer on a save call. One action, and a person reads it aloud.',
+    channel: 'outbound_call',
+    slotCount: 1,
+    artifactId: 'retention-outbound',
+    active: true,
     updatedAt: iso(-200),
     updatedBy: 'priya.nair@telco.example',
   },

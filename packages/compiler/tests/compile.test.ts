@@ -14,9 +14,10 @@ import {
   formatReport,
   type DecisionFlowSource,
   type CompileContext,
+  type CompileResult,
 } from '../src/decision-flow/compile';
 import { suggest, didYouMean } from '../src/decision-flow/diagnostics';
-import type { Offer, TargetingPolicy, FrequencyPolicy } from '@metis/core/domain';
+import type { Creative, Offer, TargetingPolicy, FrequencyPolicy } from '@metis/core/domain';
 import type { ProfileSchema } from '@metis/core/profile-schema';
 
 const gbp = (amount: number) => ({ amount, currency: 'GBP' as const });
@@ -403,6 +404,101 @@ describe('candidate set', () => {
     expect(r.ok).toBe(false);
     const diag = r.diagnostics.find((x) => x.code === 'NO_DELIVERABLE_CREATIVE')!;
     expect(diag.message).toContain('nothing to deliver');
+  });
+
+  /**
+   * ADR-012 §B2. Until 2026-09-10 this check read `creativeIds.length === 0`
+   * while its remedy told the author to *"add at least one active creative for
+   * a channel this flow serves"* — it checked neither `active` nor the channel,
+   * so both states below compiled clean and the offer then won a slot with
+   * nothing to render in it.
+   */
+  describe('an offer whose creatives cannot actually deliver', () => {
+    const creative = (over: Partial<Creative> = {}): Creative =>
+      ({
+        id: 'cr1',
+        offerId: 'p1',
+        name: 'Hero',
+        channel: 'web',
+        locale: 'en-GB',
+        active: true,
+        content: { channel: 'web', headline: 'H', subheadline: 'S', ctaLabel: 'Go' },
+        updatedAt: '2026-09-01T00:00:00.000Z',
+        updatedBy: 'x@y.z',
+        ...over,
+      }) as Creative;
+
+    /** The NO_DELIVERABLE_CREATIVE diagnostic about `upsell_5g`, not about p2. */
+    const forUpsell = (r: CompileResult) =>
+      r.diagnostics.find((x) => x.code === 'NO_DELIVERABLE_CREATIVE' && x.at === 'upsell_5g');
+
+    /** p2 needs live content too, or its own diagnostic drowns out the one under test. */
+    const p2Creative = creative({ id: 'cr_p2', offerId: 'p2', channel: 'web' });
+
+    it('fails when every creative it has is switched off', () => {
+      const r = compileDecisionFlow(valid, {
+        ...ctx,
+        offers: [offer({ id: 'p1', key: 'upsell_5g', creativeIds: ['cr1'] }), ctx.offers[1]],
+        creatives: [creative({ active: false }), p2Creative],
+      });
+      const diag = forUpsell(r)!;
+      expect(diag, 'no diagnostic about upsell_5g').toBeDefined();
+      // The count and the state, because "add a creative" is the wrong remedy
+      // for an offer that has one and nobody turned it on.
+      expect(diag.message).toContain('none of them active');
+    });
+
+    it('fails when its live creatives are on channels this flow does not serve', () => {
+      const r = compileDecisionFlow(valid, {
+        ...ctx,
+        offers: [offer({ id: 'p1', key: 'upsell_5g', creativeIds: ['cr1'] }), ctx.offers[1]],
+        creatives: [creative({ channel: 'email' }), p2Creative],
+        servedChannels: ['web', 'sms'],
+      });
+      const diag = forUpsell(r)!;
+      expect(diag, 'no diagnostic about upsell_5g').toBeDefined();
+      expect(diag.message).toContain('only on email');
+      // Naming the channels it could be written for, rather than telling
+      // somebody to duplicate content they have already written.
+      expect(diag.remedy).toContain('sms, web');
+    });
+
+    it('passes when one live creative is on a served channel', () => {
+      const r = compileDecisionFlow(valid, {
+        ...ctx,
+        offers: [offer({ id: 'p1', key: 'upsell_5g', creativeIds: ['cr1'] }), ctx.offers[1]],
+        creatives: [
+          creative({ channel: 'email', active: false }),
+          creative({ id: 'cr2', channel: 'sms' }),
+          p2Creative,
+        ],
+        servedChannels: ['web', 'sms'],
+      });
+      expect(forUpsell(r)).toBeUndefined();
+    });
+
+    it('does not apply the channel clause when the caller cannot say what is served', () => {
+      // A flow whose placements are unknown is not assumed to serve nothing.
+      const r = compileDecisionFlow(valid, {
+        ...ctx,
+        offers: [offer({ id: 'p1', key: 'upsell_5g', creativeIds: ['cr1'] }), ctx.offers[1]],
+        creatives: [creative({ channel: 'email' }), p2Creative],
+      });
+      expect(forUpsell(r)).toBeUndefined();
+    });
+
+    it('checks every candidate, not just the first', () => {
+      // Found by this suite: supplying `creatives` at all makes the check
+      // apply to the whole candidate set, and p2 had none.
+      const r = compileDecisionFlow(valid, {
+        ...ctx,
+        creatives: [creative({ channel: 'web' })],
+      });
+      const about = r.diagnostics
+        .filter((x) => x.code === 'NO_DELIVERABLE_CREATIVE')
+        .map((x) => x.at);
+      expect(about).toEqual(['upsell_data']);
+    });
   });
 
   it('warns about a retired candidate rather than failing', () => {

@@ -1,13 +1,13 @@
 # ADR-012: An offer that wins a channel it has no creative for
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-09-09 (proposed)
+**Decided:** 2026-09-10
+**Deciders:** product owner
 **Owner:** Product owner
-**Decision needed by:** 2026-10-09. After that date the number below is a
-number the demo has been showing for a month, and Spine 5 — the CSR's ranked
-slate — is the next thing that would be built on top of a ranking that can
-return an action nobody can deliver. Deciding late costs a second consumer of
-the same wrong answer.
+**Decision needed by:** — decided
+
+**Decided: option C, sequenced. B now; A deferred and not scheduled.**
 **Constrains:** `packages/compiler/src/decision-flow/compile.ts`,
 `packages/core/src/creative.ts`, `packages/runtime/src/deterministic`,
 `docs/conformance/*`, `apps/console/app/offers`.
@@ -131,7 +131,30 @@ largest source of the failure — running A against today's fixtures would
 eliminate 62% of winning candidates and leave the demo emptier than the defect
 does.
 
-## Recommendation, not a decision
+## Decision
+
+**Option C, sequenced. B is built; A is deferred and not scheduled.**
+
+1. `offerMayBeActive` takes the channels the tenant serves and refuses an offer
+   with nothing active to send on any of them.
+2. `NO_DELIVERABLE_CREATIVE` checks for an **active** creative on a channel the
+   flow serves — what its own remedy text has always said and never checked.
+3. A coverage surface shows offers against channels, so whoever owns the
+   catalogue can see the holes rather than discovering them through a demo.
+
+**A is deferred, and the condition for reconsidering it is coverage, not
+time.** Refusing to rank while 38 of 202 active offers have nothing to send on
+any channel would delete the evidence rather than fix the cause: 62% of wins
+would become eliminations, the storefront's "no creative" notice would stop
+appearing, `/performance` would show a healthy corpus, and the catalogue would be
+exactly as empty as it is today with nothing left pointing at it.
+
+A becomes reconsiderable once coverage is healthy — when the number the screen
+from (3) reports is small enough that eliminating those candidates removes a
+rounding error rather than the majority of the corpus. Nobody should schedule A
+against a date. The screen is the trigger.
+
+## Why the recommendation was C
 
 **C, sequenced.** The argument for doing B alone is that ranking is about offers
 and delivery is about content, and folding content availability into arbitration
@@ -141,7 +164,7 @@ a clean win for something the customer could never have been shown is a record
 that is true about arbitration and false about the world, and this product's
 central claim is that the trace is what you can rely on.
 
-The thing that should not happen is A alone. It would make the corpus look
+The thing that must not happen is A alone. It would make the corpus look
 healthy by removing the evidence — 62% of wins would become eliminations, the
 storefront's "no creative" notice would stop appearing, and the catalogue would
 still have 38 active offers with nothing to send on any channel.

@@ -225,7 +225,8 @@ export function validateCreativeContent(
 }
 
 /**
- * Whether an offer may be active, given the creatives it has.
+ * Whether an offer may be active, given the creatives it has and the channels
+ * the tenant actually serves.
  *
  * `domain.ts` says "at least one is required to go active" and nothing enforced
  * it, so an offer could be active, win a decision, and have nothing to render —
@@ -234,7 +235,25 @@ export function validateCreativeContent(
  *
  * Active rather than merely present: a creative that exists and is switched off
  * cannot be delivered, so it cannot be the reason an offer is deliverable.
+ *
+ * **And on a channel somebody serves.** Until 2026-09-10 this was
+ * `creatives.some((c) => c.active)`, so one active email creative made an offer
+ * activatable and it could then win a web placement with nothing to render.
+ * ADR-012 §B1. `servedChannels` is the set of channels the tenant's active
+ * placements deliver on; an offer whose only content is on a channel nobody
+ * serves is as undeliverable as an offer with no content at all, and the
+ * difference should be visible where somebody can still fix it.
+ *
+ * Omitting `servedChannels` keeps the channel-blind behaviour, for a caller
+ * that genuinely does not know which channels are served. It is a narrower
+ * question than the one this function is for, and the two console callers both
+ * pass the set.
  */
-export function offerMayBeActive(creatives: Creative[]): boolean {
-  return creatives.some((c) => c.active);
+export function offerMayBeActive(
+  creatives: Creative[],
+  servedChannels?: readonly string[]
+): boolean {
+  return creatives.some(
+    (c) => c.active && (servedChannels === undefined || servedChannels.includes(c.channel))
+  );
 }

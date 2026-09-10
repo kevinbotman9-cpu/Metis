@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
 import { useAuth } from '@/components/auth-provider';
@@ -19,6 +20,7 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { FilterBlocks, type FilterBlock } from '@/components/ui/filter-blocks';
 import { Button } from '@/components/ui/button';
 import { CreativeFormDialog } from '@/components/creative-form-dialog';
+import { CreativeCoverage } from '@/components/creative-coverage';
 import { apiClient, type CreativeDto, type OfferDto } from '@/lib/api-client';
 import { summariseCreative } from '@/lib/creative-summary';
 import { PLACEMENT_TYPES } from '@metis/core/domain';
@@ -50,6 +52,28 @@ const CHANNEL_LABEL: Record<string, string> = {
 const TYPE_LABEL = new Map<string, string>(PLACEMENT_TYPES.map((p) => [p.id, p.label]));
 
 function CreativesView() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+
+  /**
+   * Which question this screen is answering, in the URL.
+   *
+   * The library and the coverage matrix are two views of one dataset — the same
+   * creatives, asked "what do we have" and "where are the holes" — so they share
+   * a route rather than splitting into two. Navigation state belongs in the URL
+   * (the locked decision in CLAUDE.md), which also means somebody can send a
+   * link to the coverage view rather than describing how to reach it.
+   */
+  const view = params.get('view') === 'coverage' ? 'coverage' : 'library';
+  const setView = (next: 'library' | 'coverage') => {
+    const q = new URLSearchParams(params.toString());
+    if (next === 'coverage') q.set('view', 'coverage');
+    else q.delete('view');
+    const qs = q.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
   const [lens, setLens] = useState('all');
   const [channel, setChannel] = useState('');
   const [search, setSearch] = useState('');
@@ -71,6 +95,16 @@ function CreativesView() {
     queryKey: ['offers'],
     queryFn: () => apiClient.listOffers(),
     retry: false,
+  });
+
+  // The channels this tenant serves come from its active placements, so
+  // coverage is measured against what is actually delivered rather than a list
+  // written here. Only fetched for the view that needs it.
+  const placements = useQuery({
+    queryKey: ['placements'],
+    queryFn: () => apiClient.listPlacements(),
+    retry: false,
+    enabled: view === 'coverage',
   });
 
   const byOffer = useMemo(
@@ -249,9 +283,42 @@ function CreativesView() {
     <PageBody>
       <PageHeader
         title="Creatives"
-        description="Every piece of content in the catalogue, across offers. A creative belongs to one offer and is delivered on one channel."
+        description={
+          view === 'coverage'
+            ? 'Which offers have something to send, and on which channels. An offer with nothing live on a channel wins that channel’s slots and renders nothing.'
+            : 'Every piece of content in the catalogue, across offers. A creative belongs to one offer and is delivered on one channel.'
+        }
+        actions={
+          <div className="flex gap-2" role="group" aria-label="View">
+            <Button
+              variant={view === 'library' ? 'primary' : 'secondary'}
+              size="md"
+              aria-pressed={view === 'library'}
+              onClick={() => setView('library')}
+            >
+              Library
+            </Button>
+            <Button
+              variant={view === 'coverage' ? 'primary' : 'secondary'}
+              size="md"
+              aria-pressed={view === 'coverage'}
+              onClick={() => setView('coverage')}
+            >
+              Coverage
+            </Button>
+          </div>
+        }
       />
 
+      {view === 'coverage' ? (
+        <CreativeCoverage
+          offers={offers.data?.offers ?? []}
+          creatives={all}
+          placements={placements.data?.placements ?? []}
+          isLoading={creatives.isLoading || offers.isLoading || placements.isLoading}
+        />
+      ) : (
+      <>
       <FilterBlocks
         blocks={LENSES.map(({ match: _match, ...b }) => b)}
         activeId={lens}
@@ -303,6 +370,9 @@ function CreativesView() {
         emptyTitle="No creatives match"
         emptyDescription="Content is written on an offer. Open one and add a creative there."
       />
+
+      </>
+      )}
 
       {editing ? (
         <CreativeFormDialog

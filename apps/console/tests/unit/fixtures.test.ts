@@ -15,6 +15,7 @@ import {
   frequencyPolicies,
   boosts,
   autonomySettings,
+  placements,
 } from '@/mocks/fixtures/catalogue';
 import { decisions, sampleTraces, findTrace } from '@/mocks/fixtures/decisions';
 
@@ -307,5 +308,58 @@ describe('console decisions come from the real engine', () => {
     for (const t of traces) {
       if (t.winner) expect(keys).toContain(t.winner);
     }
+  });
+});
+
+describe('every slot the corpus decides for is a slot the tenant has', () => {
+  /**
+   * The join nothing was making.
+   *
+   * On 2026-09-10 the corpus decided against five `(channel, placement)` pairs
+   * and the registry held two of them. `triggered_outbound` on 2,097 decisions,
+   * `retention_queue` on 2,061 and `app_inbox` on 2,055 existed only inside
+   * `decision-index.json` — `decidePlacement` would have answered 404 for all
+   * three, and the storefront could never have rendered them.
+   *
+   * It went unnoticed because a placement is not part of the hashed catalogue
+   * snapshot: it governs delivery, not the decision, so nothing in the engine,
+   * the compiler or the conformance corpora ever had to resolve one. That is
+   * the right modelling and it is exactly why this check has to exist here.
+   */
+  const configured = new Map(placements.map((p) => [p.key, p]));
+
+  it('names a placement that exists', () => {
+    const unknown = [
+      ...new Set(decisions.filter((d) => d.placement).map((d) => d.placement)),
+    ].filter((key) => !configured.has(key));
+    expect(unknown, 'the corpus decides for a slot the tenant has never configured').toEqual([]);
+  });
+
+  it('decides on the channel the slot is configured for', () => {
+    // A slot carries its channel. A decision that says `sms` for a slot
+    // registered as `web` is two different facts about the same delivery, and
+    // whichever one the reader believes, the other is wrong.
+    const wrong = [
+      ...new Set(
+        decisions
+          .filter((d) => d.placement && configured.has(d.placement))
+          .filter((d) => configured.get(d.placement)!.channel !== d.channel)
+          .map((d) => `${d.placement}: decided on ${d.channel}, configured as ${configured.get(d.placement)!.channel}`)
+      ),
+    ];
+    expect(wrong).toEqual([]);
+  });
+
+  it('decides only for slots that are live', () => {
+    // `active` is what `decidePlacement` refuses on, so a decision for an
+    // inactive slot is a decision the API would not have made.
+    const inactive = [
+      ...new Set(
+        decisions
+          .filter((d) => d.placement && configured.get(d.placement)?.active === false)
+          .map((d) => d.placement)
+      ),
+    ];
+    expect(inactive, 'the corpus decides for a slot the platform would refuse').toEqual([]);
   });
 });
