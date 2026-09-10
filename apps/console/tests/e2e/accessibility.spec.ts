@@ -92,6 +92,40 @@ test.describe('accessibility', () => {
       ).toEqual([]);
     });
 
+    test('the trace with a stage and a rule open has no violations', async ({ page }) => {
+      // The Cascade's panes are separate renders reached by clicking, and the
+      // first-paint scan says nothing about them. This is the design north
+      // star screen, so the state a compliance officer actually reads — a
+      // stage open, a rule expanded, the evidence pane populated — is the one
+      // that has to be clean.
+      await openFirstTrace(page);
+      const rail = page.getByRole('navigation', { name: 'Elimination funnel' });
+      await expect(rail).toBeVisible({ timeout: 20_000 });
+
+      const names: string[] = [];
+      for (const b of await rail.getByRole('button').all()) {
+        names.push((await b.getAttribute('aria-label')) ?? '');
+      }
+      const withRemovals = names.find((n) => / removed here/.test(n));
+      expect(withRemovals, 'no stage in this trace removed anything').toBeTruthy();
+
+      await rail.getByRole('button', { name: withRemovals! }).click();
+
+      // `toBeVisible` rather than `isVisible()`: the latter does not auto-wait,
+      // so under load it reads the middle pane before React has re-rendered it,
+      // silently skips the click, and scans a state the test did not mean to
+      // scan. That is how this test passed alone and failed once in a full run.
+      const group = page.getByRole('button', { name: /: \d+ removed$/ }).first();
+      await expect(group).toBeVisible();
+      await group.click();
+      await expect(group).toHaveAttribute('aria-expanded', 'true');
+
+      const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+      expect(
+        results.violations.map((v) => `${v.id}: ${v.nodes.length} node(s) — ${v.help}`)
+      ).toEqual([]);
+    });
+
     test('dark theme has no contrast violations', async ({ page }) => {
       await openAccountPanel(page, /Marcus Webb/);
       await page.getByRole('group', { name: 'Colour scheme' }).getByText('Dark').click();

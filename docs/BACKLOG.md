@@ -189,6 +189,9 @@ otherwise.
 | W-062 | 14 | Redact, audit and expire the inbound call log | OPEN | 1 |
 | W-063 | 14 | The flake hunt runs all four passes and keeps its evidence | DONE | 1 |
 | W-064 | 14 | A slot names a decision only when it is showing that offer | OPEN | 2 |
+| W-065 | 14 | The trace reader on Cascade — the elimination funnel as the navigation | DONE | 1 |
+| W-066 | 14 | A refusal names its pack, its freshness and what the customer was told | OPEN | 1 |
+| W-067 | 14 | The seeded candidate set is authored, not selected | OPEN | 2 |
 
 ---
 
@@ -1490,6 +1493,75 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-067 — The seeded candidate set is authored, not selected
+
+**Registered:** 2026-09-10 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet
+
+Gate 2 · Gap [G-059](gaps.md)
+
+`candidateCount` is exactly 22 on all 3,467 `next-best-action` decisions,
+because the artifact enumerates 22 `candidateKeys` out of a 251-offer catalogue.
+The elimination that follows is genuine — every tier fires, six of eight reason
+codes appear, and only 8 in 30 decisions produce a winner — but the funnel's
+mouth is a fixture decision.
+
+`/decisions/[id]` is the demo path's centre and the first figure on its rail is
+this one.
+
+**Done when:** the seeded flow selects candidates by a rule the trace can show,
+or the demo script states that the candidate set is authored.
+
+### W-066 — A refusal names its pack, its freshness and what the customer was told
+
+**Registered:** 2026-09-10 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet
+
+Gate 1 · Gaps [G-055](gaps.md), [G-056](gaps.md), [G-057](gaps.md), [G-058](gaps.md)
+
+Four holes in the provenance story, found together while rebuilding the trace
+reader and worth fixing together because they are the same question asked four
+ways: *on what basis was this refused, and can you show me?*
+
+The platform records the rule, its conditions and the field. It does not record
+which pack supplied the rule (G-055), when the value the rule read was computed
+(G-056), what the customer was told (G-057), or which targeting tier the node
+implements (G-058) — the last inferred from the node id because `nodeType` says
+how a node behaves rather than which question it answers.
+
+`/decisions/[id]` states all four as explicit absences today, which is the most
+an honest screen can do over data that is not there.
+
+**Done when:** each is either recorded or has an ADR saying why it is not.
+
+### W-065 — The trace reader on Cascade
+
+**Registered:** 2026-09-10 · **Stage:** 14 · **Status:** DONE
+**Check:** `apps/console/tests/e2e/trace-cascade.spec.ts`, `apps/console/tests/unit/trace-cascade.test.ts`
+
+Gate 1 · Depends: W-060
+
+The design north star and the centre of the demo path, rebuilt on
+[§4.7 Cascade](METIS_CONSOLE_SPEC.md). It was a vertical list of nodes in a
+card: it showed the order and hid the shape, so a reader could see that seven
+nodes ran and not that 22 candidates became one.
+
+The rail is the elimination funnel and is **derived from the trace's own
+nodes**, not from the three-tier targeting model. Flows differ —
+`inbound-web-offers` has one filter node and neither relevance nor suitability —
+so a fixed six-stage rail would show three permanently empty stages on two
+thirds of this tenant's decisions.
+
+The middle pane groups a stage's removals by `ruleId` rather than by reason
+code. The code is a closed set of eight that a whole tier shares, so grouping by
+it yields one group per stage; the rule names something a person can go and
+change.
+
+**Done when:** the funnel conserves candidates, the rail survives selection, the
+stage and rule are both in the URL, every removed action reaches its offer, the
+rail is operable from the keyboard alone, and Replay and Export still work —
+each asserted from the screen with no API setup.
+
 ### W-064 — A slot names a decision only when it is showing that offer
 
 **Registered:** 2026-09-10 · **Stage:** 14 · **Status:** OPEN

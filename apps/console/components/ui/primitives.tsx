@@ -158,12 +158,25 @@ export function AutonomyBadge({ level, name }: { level: string; name?: string })
 export function Card({
   className,
   children,
+  label,
 }: {
   className?: string;
   children: ReactNode;
+  /**
+   * Names the card as a landmark.
+   *
+   * A `<section>` with an accessible name is a `region`, reachable by landmark
+   * navigation and addressable by name. Without one it is an anonymous group
+   * that a screen reader walks straight past — and on a screen where the same
+   * label appears in two cards, "the one in the evidence pane" stops being a
+   * thing anybody can say. Optional: most cards carry a heading and do not
+   * need it.
+   */
+  label?: string;
 }) {
   return (
     <section
+      aria-label={label}
       className={cn(
         'rounded-xl border border-border bg-surface shadow',
         className

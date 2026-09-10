@@ -693,6 +693,150 @@ have produced.
 
 ---
 
+### G-059 — Every `next-best-action` decision considers the same 22 offers, out of 251
+
+**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-067](BACKLOG.md)
+
+`candidateCount` is **exactly 22 on all 3,467** `next-best-action` decisions —
+minimum 22, maximum 22, mean 22. The flow's artifact carries a fixed
+`candidateKeys` list of 22 entries, and the catalogue holds 251 offers. Nothing
+in the decision narrows the candidate set; authoring already did.
+
+**The filtering is genuine.** Averaged over 30 sampled traces, eligibility
+removes 4.4, relevance 1.4, the contact constraint 5.4, suitability 5.4 and
+ranking 5.1, and only 8 of the 30 produce a winner at all. Six of the eight
+reason codes fire. The elimination cascade is real work over a real policy set,
+and the trace reader shows it honestly.
+
+What is not real is the width of the funnel's mouth. A viewer sees *22
+considered, 1 offered* and reads it as the platform choosing from what it had;
+the platform chose from a list somebody typed. `retention-outbound` and
+`plan-fit-nudges` build their candidate sets partly from a seeded helper, so the
+shape differs by flow — this entry is about `next-best-action`, which is the
+flow with all three targeting tiers and therefore the one the trace reader
+demonstrates.
+
+**The demo path leans on this screen.** `/decisions/[id]` is the design north
+star — the trace is the hero — and it is the centre of the eight-minute
+walkthrough. The number a viewer anchors on is the first one on the rail, and it
+is a fixture decision rather than an engine result. That is not dishonest, and
+nobody watching would know to ask.
+
+Two things could change it, and they are different in kind. A candidate set
+built by a query over the catalogue rather than by an enumerated list would make
+the entry figure a property of the tenant's data — closer to how a real
+deployment works, and a modelling change. Or the seed could simply enumerate
+more, which widens the mouth without making it mean anything.
+
+**Done when:** either the seeded flow selects candidates by a rule the trace can
+show, or the demo script says out loud that the candidate set is authored — so
+the figure is understood rather than assumed.
+
+### G-058 — A node's type cannot say which question the node answers
+
+**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-066](BACKLOG.md)
+
+`filter_suitability` has `nodeType: 'constraint'`. So does `constraint_contact`.
+One is the FCA-facing affordability tier and the other is a weekly contact cap,
+and the compiled artifact records the same type for both.
+
+The type says how a node *behaves* — it removes candidates against a predicate —
+and nothing says which of the three targeting tiers, or none of them, it
+implements. `filter_eligibility` and `filter_relevance` are both `'filter'`, so
+the same collision exists one tier up.
+
+The trace reader needs the tier to label its rail, and with the type unusable it
+infers from the node **id**: `/suitab/` matches `filter_suitability`,
+`/frequen|contact|cap/` matches `constraint_contact`. That works on this
+tenant's four flows and is fragile in exactly the way a name derived from an
+identifier always is. A flow authored tomorrow with a node called
+`check_the_money` gets labelled by its raw id, which the screen renders honestly
+and which is still not the tier.
+
+The information exists upstream: a `TargetingPolicy` has `kind: eligibility |
+relevance | suitability`, and a filter node names the policies it applies. The
+tier could be derived from the policies rather than guessed from the id — that
+is a compiler change, not a console one, and it would put the tier in the
+artifact where the trace could simply read it.
+
+**Done when:** an elimination names the tier it belongs to, or the compiled node
+carries it — so no reader has to parse an identifier to find out which question
+refused an offer.
+
+### G-057 — Nothing records what a customer was told when an offer was withheld
+
+**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-066](BACKLOG.md)
+
+A decision that offers nothing, or that removes 21 of 22 candidates, produces a
+complete internal record: the rule, its conditions, the field, the reason code.
+It produces **no customer-facing text at all**.
+
+Creatives say what an offer *is*, per channel. Nothing anywhere says what a
+person was shown, or told, when an offer was refused — or whether they were told
+anything.
+
+This surfaced while rebuilding the trace reader. The design mockup for that
+screen included a line per refusal in a customer's own words — *"You have opted
+out of marketing contact"* — and the field does not exist; the mockup invented
+it. The screen now states the absence where that line would have gone.
+
+On a product whose design north star is the compliance officer, this is the
+question a regulator asks that the platform cannot answer. Every other part of
+"why was this not offered to me" is recorded to the field and the rule. The half
+the customer actually experienced is not recorded at all.
+
+**Done when:** either a refusal can carry customer-facing wording that the trace
+records alongside the reason code, or an ADR states why the platform deliberately
+does not model what the customer was told.
+
+### G-056 — `sourceCalls` records how long a value took to fetch, never when it was computed
+
+**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-066](BACKLOG.md)
+
+A `SourceCall` carries `connectorId`, `ms`, `cacheHit`, `outcome` and `fields`.
+It has no timestamp.
+
+So a decision can say *the consent registry answered in 12ms and it was a cache
+hit*, and cannot say **when the value it returned was true**. For a cache hit
+that is the whole question: the figure the decision used may have been computed
+seconds or hours earlier, and nothing in the record distinguishes those.
+
+`ms` without a timestamp looks like an oversight rather than a decision — a
+duration is the less useful of the two for an audit, and it is the one that was
+modelled.
+
+The consequence for the trace reader is direct: the evidence pane can name the
+connector that supplied the field a rule read, and has to state *when* as an
+explicit absence. A regulator asking "was that consent flag current" gets no
+answer.
+
+**Done when:** a source call records when its value was computed — distinct from
+when it was fetched, for a cache hit — or an ADR says why the fetch time is the
+only thing worth recording.
+
+### G-055 — No pack is recorded against the rule it supplied
+
+**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-066](BACKLOG.md)
+
+A `TargetingPolicy` has an id, a name, a kind, a description, conditions and a
+scope. It has no package.
+
+A compiled artifact does lock `packageVersions` — `@metis/nodes-core@1.4.0`,
+`@metis/core@2.1.0` for this tenant — so a decision can say which packs it
+compiled against. It cannot say which of them supplied a given rule.
+
+That is the wrong granularity for the question packs exist to answer. A
+regulatory pack is the unit a customer installs, audits and is held to; "this
+offer was refused by a rule that came from the UK GDPR pack version 1.4" is the
+sentence a compliance officer wants, and the platform can produce neither half
+of the attribution.
+
+The trace reader states it as an absence and names the artifact's packs beside
+it, which is the most it can honestly say.
+
+**Done when:** a rule names the package that supplied it, so a refusal can be
+attributed to a pack rather than to a bare policy id.
+
 ### G-054 — The flake hunt stopped at the first flake and threw away the evidence
 
 **Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-063](BACKLOG.md)

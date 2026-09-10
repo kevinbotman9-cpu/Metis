@@ -27,8 +27,23 @@ export interface CascadeStage {
   pct: number;
   /** The short right-hand figure — usually a percentage of the stage above. */
   note: string;
-  /** Daily values, for the sparkline. */
-  series: number[];
+  /**
+   * Daily values, for the sparkline. Optional.
+   *
+   * A decomposition over time has one — `/performance` draws decisions per day
+   * under each stage. A decomposition of a single event does not: one decision
+   * trace is an instant, and a sparkline under it would be drawing a shape out
+   * of nothing. The stage renders without it rather than with a flat line,
+   * which would read as "no activity" instead of "not that kind of question".
+   */
+  series?: number[];
+  /**
+   * What this stage took out, when the interesting figure is the loss rather
+   * than the survivors. `/performance` counts what is left at each stage; a
+   * trace counts what each node removed, and both are the same pattern read
+   * from opposite ends.
+   */
+  removed?: number;
   /**
    * The loop breaks here, and this says why.
    *
@@ -66,6 +81,8 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
                 // assembled from its contents reads the figure, the proportion
                 // and then "Deliverable per day" as one run-on sentence.
                 aria-label={`${stage.label}: ${stage.value.toLocaleString('en-GB')}, ${stage.note}${
+                  stage.removed ? `, ${stage.removed.toLocaleString('en-GB')} removed here` : ''
+                }${
                   stage.broken ? `. ${stage.broken}` : ''
                 }`}
                 onClick={() => onSelect(current ? null : stage.id)}
@@ -116,13 +133,21 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
                   />
                 </span>
 
-                <span className="mt-2 block">
-                  <Sparkline
-                    values={stage.series}
-                    label={`${stage.label} per day`}
-                    tone={stage.broken ? 'hold' : 'accent'}
-                  />
-                </span>
+                {stage.series ? (
+                  <span className="mt-2 block">
+                    <Sparkline
+                      values={stage.series}
+                      label={`${stage.label} per day`}
+                      tone={stage.broken ? 'hold' : 'accent'}
+                    />
+                  </span>
+                ) : null}
+
+                {stage.removed !== undefined && stage.removed > 0 ? (
+                  <span className="mt-2 block text-label text-content-subtle">
+                    −{stage.removed.toLocaleString('en-GB')} removed here
+                  </span>
+                ) : null}
 
                 {stage.broken ? (
                   <span className="mt-2 block text-label leading-snug text-block">
