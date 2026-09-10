@@ -245,6 +245,11 @@ function currentCompileContext() {
     connectors: store.connectors,
     arbitration: store.arbitration,
     profileSchema: store.profileSchema,
+    // ADR-012 §B2. Without these two `NO_DELIVERABLE_CREATIVE` falls back to
+    // "has an id in `creativeIds`", which an offer whose only creative is
+    // switched off, or is written for a channel nobody serves, satisfies.
+    creatives: store.creatives,
+    servedChannels: servedChannels(),
   };
 }
 
@@ -338,6 +343,21 @@ function policyProblems(conditions: TargetingPolicy['conditions']) {
 }
 
 const blankString = (v: unknown) => typeof v !== 'string' || v.trim() === '';
+
+/**
+ * The channels this tenant actually delivers on.
+ *
+ * An active placement is a live slot, and a slot carries its channel — so the
+ * set of channels somebody can be reached on is exactly the set the active
+ * placements name. Read from the store rather than listed, because a placement
+ * switched off should narrow it on the next request.
+ *
+ * ADR-012 §B1: an offer whose only content is on a channel nobody serves is as
+ * undeliverable as an offer with no content at all.
+ */
+const servedChannels = (): string[] => [
+  ...new Set(store.placements.filter((p) => p.active).map((p) => p.channel)),
+];
 
 function creativeProblems(channel: Creative['channel'], content: Creative['content']) {
   const problems = validateCreativeContent(channel, content);
@@ -2590,11 +2610,11 @@ async function handlePut(req: Request, { params }: Ctx) {
         const remaining = store.creatives.filter(
           (c) => c.offerId === offerId && c.id !== creativeId
         );
-        if (!offerMayBeActive(remaining)) {
+        if (!offerMayBeActive(remaining, servedChannels())) {
           return json(
             {
               error: 'conflict',
-              message: `'${before.name}' is the only active creative on '${offer.name}', which is active. Pause or retire the offer first.`,
+              message: `'${before.name}' is the only active creative on '${offer.name}' for a channel this tenant delivers on, and '${offer.name}' is active. Pause or retire the offer first.`,
             },
             409
           );
@@ -2700,11 +2720,12 @@ async function handlePut(req: Request, { params }: Ctx) {
       // Same invariant as creation, at the other moment it can be broken.
       if (body.status === 'active' && before.status !== 'active') {
         const own = store.creatives.filter((c) => c.offerId === before.id);
-        if (!offerMayBeActive(own)) {
+        const served = servedChannels();
+        if (!offerMayBeActive(own, served)) {
           return json(
             {
               error: 'conflict',
-              message: `'${before.name}' has no active creative, so it cannot be activated — it would win decisions with nothing to render.`,
+              message: `'${before.name}' has no active creative on any channel this tenant delivers on (${served.sort().join(', ')}), so it cannot be activated — it would win decisions with nothing to render.`,
             },
             409
           );

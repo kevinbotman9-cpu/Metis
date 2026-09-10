@@ -12,6 +12,7 @@ const PAGES = [
   { path: '/objectives', name: 'objectives' },
   { path: '/offers', name: 'offers' },
   { path: '/creatives', name: 'creatives' },
+  { path: '/creatives?view=coverage', name: 'creative coverage' },
   { path: '/offers/prop_5g_unlimited_24', name: 'offer detail' },
   { path: '/targeting-policies', name: 'targeting policies' },
   { path: '/frequency-policy', name: 'frequency policy' },

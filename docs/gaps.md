@@ -686,38 +686,58 @@ have produced.
 
 ---
 
-### G-042 — Nothing relates a creative's channel to the channel a decision is made for
+### G-044 — The seeded catalogue has almost no content for an outbound call
 
-**Registered:** 2026-09-09 · **Status:** Open · **Work item:** [W-015](BACKLOG.md)
+**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-015](BACKLOG.md)
 
-Two guards exist against an offer that cannot be delivered, and both are
-channel-blind.
+Now visible on `/creatives?view=coverage`, which is what that screen is for.
 
-`offerMayBeActive` (`packages/core/src/creative.ts:238`) is
-`creatives.some((c) => c.active)`, so one active email creative makes an offer
-activatable and it may then win a web placement.
-`NO_DELIVERABLE_CREATIVE` (`packages/compiler/src/decision-flow/compile.ts:653`)
-fires only when `creativeIds.length === 0` — no creative at all, active or not,
-on any channel — while its own remedy text asks for *"at least one active
-creative for a channel this flow serves"*.
+Of 435 creatives in the seeded catalogue, **two are for an outbound call**, and
+they cover two of 251 offers. Every other channel is authored in volume — 78
+active email, 79 sms, 75 web, 69 push. So 200 of the 202 active offers have
+nothing an agent could read aloud, and before the outcome generator was
+corrected on 2026-09-09 the corpus was reporting 284 outbound-call impressions
+of which 281 were impossible.
 
-The result, measured: **2,122 of 3,425 offered decisions pick an offer with
-nothing to render on the channel that won** (98% of outbound-call wins, 81% of
-push, 77% of sms, 29% of email, 26% of web), and 38 of 202 active offers have no
-active creative anywhere.
+**This is a content gap, not a modelling one.** The channel is modelled, the
+placement is now registered (`retention_queue`), decisions are made for it 2,061
+times, and the compiler and `offerMayBeActive` will both now refuse an offer
+that has nothing on any served channel. What is missing is that somebody wrote
+two creatives and stopped.
 
-The decision record shows a clean win with no elimination and no diagnostic, so
-a compliance officer reading the trace cannot tell. The storefront is the only
-surface that says anything, and it says it to whoever is watching the demo
-rather than to whoever owns the catalogue.
+The wider shape, for whoever picks this up: **no active offer has live content
+on all five channels served**, and 38 have live content on none. The screen's
+four blocks read 202 / 38 / 164 / 0 on 2026-09-10.
 
-Written up in [ADR-012](adr/ADR-012-an-offer-with-nothing-to-render.md), which
-sets out three options — refuse to rank, surface it as a catalogue defect, or
-both — with the cost of each. **Not implemented; the ADR is Proposed and the
-product owner decides.** Option A moves every chain hash in every conformance
-corpus, which is why it is an ADR and not a patch.
+**Done when:** either the seeded catalogue carries outbound-call content in the
+same proportion as its other channels, or `retention_queue` is switched off and
+the corpus stops deciding for a channel the demo cannot illustrate.
 
-**Done when:** ADR-012 is Accepted and whatever it decides has a check behind it.
+### G-043 — A placement's `active` flag carries two different meanings
+
+**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-017](BACKLOG.md)
+
+`Placement.active` is read as *"this slot is live and may be decided for"* —
+`decidePlacement` refuses an inactive one, and the storefront renders only
+active slots. It was also being written as *"this slot is delivered end to
+end"*: `weekly_offers_send` was `active: false` with the reason *"nothing
+delivers it yet — W-017"*, while the corpus decided for it 2,042 times.
+
+One boolean cannot answer both questions, and the two come apart exactly where
+this platform is today: it decides on five channels and delivers on one, because
+the outbound adapter is W-017. Under the first meaning every configured slot is
+live; under the second only web is. The fixture author had to choose, chose the
+second for email and the first for everything else, and nothing could tell.
+
+Resolved for the fixture on 2026-09-10 by taking the first meaning — the corpus
+decides for the slot, so the slot is live and only the sending is missing — and
+`tests/unit/fixtures.test.ts` now fails if the corpus decides for an inactive
+slot. **The model is unchanged.** A tenant still cannot say "decidable, not yet
+deliverable", which is the state four of its five channels are actually in.
+
+**Done when:** `Placement` distinguishes being decidable from being delivered,
+or an ADR records that one flag is deliberate and says which question it
+answers.
 
 ## Resolved
 
@@ -768,6 +788,32 @@ The corpus regenerates byte-identical, so nothing in either fix touched a hash.
 linted turned out to be almost clean, which means the cost of this gap was not
 accumulated debt — it was that a real error sat visible-to-nobody for days while
 `docs/CAPABILITIES.md` claimed the lint was clean.
+
+### G-042 — Nothing related a creative's channel to the channel a decision is made for
+
+**Registered:** 2026-09-09 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-057](BACKLOG.md)
+
+Two guards existed against an offer that cannot be delivered and both were
+channel-blind. `offerMayBeActive` was `creatives.some((c) => c.active)`, so one
+active email creative made an offer activatable and it could then win a web
+placement. `NO_DELIVERABLE_CREATIVE` fired only when `creativeIds.length === 0`
+— no creative at all, active or not, on any channel — while its own remedy text
+asked for *"at least one active creative for a channel this flow serves"*.
+
+Closed by [ADR-012](adr/ADR-012-an-offer-with-nothing-to-render.md) option B,
+accepted 2026-09-10. Both take the channels the tenant's active placements
+deliver on. The compiler now separates three states, because the remedy differs
+for each: no creative written, creatives that are all switched off, and live
+creatives on channels this flow does not serve.
+
+**Option A — eliminating such a candidate before arbitration — is deferred and
+not scheduled**, and the ADR records the condition for reconsidering it:
+coverage, not time. Refusing to rank while 38 of 202 active offers have nothing
+to send on any channel would delete the evidence rather than fix the cause.
+
+**Resolved by:** `packages/compiler/tests/compile.test.ts`, *"an offer whose
+creatives cannot actually deliver"*, and
+`apps/console/tests/e2e/creative-coverage.spec.ts`.
 
 ### G-041 — The seeded corpus reported impressions for offers that could not have been rendered
 

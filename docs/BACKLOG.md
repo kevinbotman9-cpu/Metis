@@ -181,6 +181,7 @@ otherwise.
 | W-054 | 17 | Flow version diff — canvas, textual, semantic | OPEN | 2 |
 | W-055 | 12 | A disabled control states its reason accessibly | OPEN | 2 |
 | W-056 | 13 | Taxonomy authoring — objectives and categories from the screen | DONE | 2 |
+| W-057 | 13 | An offer must be deliverable on a channel somebody serves | DONE | 2 |
 
 ---
 
@@ -1420,3 +1421,31 @@ fourteen user-editable entities rather than two.
 under it, and files an offer under both without an API call, a fixture edit or a
 reload — `taxonomy-authoring.spec.ts`, "the whole taxonomy step, and an offer
 filed under what it made".
+### W-057 — An offer must be deliverable on a channel somebody serves
+
+**Registered:** 2026-09-10 · **Stage:** 13 · **Status:** DONE
+**Check:** `packages/compiler/tests/compile.test.ts`, `apps/console/tests/e2e/creative-coverage.spec.ts` and `apps/console/tests/unit/fixtures.test.ts`
+
+Gate 2 · Depends: none · [ADR-012](adr/ADR-012-an-offer-with-nothing-to-render.md) · Gap [G-042](gaps.md)
+
+Option B of ADR-012, accepted 2026-09-10. Two guards existed against an offer
+that cannot be delivered and both were channel-blind: `offerMayBeActive` was
+`creatives.some((c) => c.active)`, and `NO_DELIVERABLE_CREATIVE` fired only when
+`creativeIds.length === 0` while its own remedy asked for *"at least one active
+creative for a channel this flow serves"*. An offer whose single creative was
+switched off, or written for a channel nobody serves, passed both and then won a
+slot with nothing to render.
+
+Both now take the channels the tenant's active placements deliver on. The
+compiler distinguishes three states, because the remedies differ: no creative,
+creatives that are all switched off, and live creatives on channels this flow
+does not serve.
+
+**Option A — refusing to rank such a candidate — is deferred and not
+scheduled.** It is reconsiderable once coverage is healthy, and the screen below
+is the trigger rather than a date. See the ADR.
+
+**Done when:** a compile refuses an offer whose only creative is inactive or on
+an unserved channel, and an `@screen-only` test reads the coverage of every
+active offer against every channel served — `creative-coverage.spec.ts`,
+"counts the offers that can reach nobody, and they are the rows it shows".

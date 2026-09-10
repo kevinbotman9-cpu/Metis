@@ -36,6 +36,7 @@ Nothing is marked BUILT unless a test would fail if it broke.
 | `/login` | BUILT | Three demo accounts with different roles. Session restore, guard, logout. |
 | `/` | BUILT | Catalogue counts, decision volume, approval queue, agent activity. |
 | `/objectives` | BUILT | List–detail over the top two levels of the taxonomy. Both forms are declared, not coded; a category is authored from the objective that owns it. `taxonomy-authoring.spec.ts` walks it and then files an offer under what it made. |
+| `/creatives?view=coverage` | BUILT | Active offers against the channels the tenant serves, in three states — live, switched off, nothing written. The screen ADR-012 option B exists to provide. |
 | `/offers` | BUILT | Objective › Category tree, sortable catalogue, search and status filter. The summary figures are the filter, creative coverage is a bar rather than a count, and a row opens a detail drawer with paging — see the note below. |
 | `/offers/[id]` | BUILT | Financials, per-channel creatives, three-tier policy, resolved autonomy. |
 | `/targeting-policies` | BUILT | Eligibility / relevance / suitability with conditions rendered. |

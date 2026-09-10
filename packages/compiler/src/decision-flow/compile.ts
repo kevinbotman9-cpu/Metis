@@ -18,6 +18,7 @@
 
 import { createHash } from 'node:crypto';
 import type {
+  Creative,
   Offer,
   TargetingPolicy,
   FrequencyPolicy,
@@ -117,6 +118,30 @@ export interface MissingScoreDefault {
 
 export interface CompileContext {
   offers: Offer[];
+  /**
+   * The tenant's creatives, so `NO_DELIVERABLE_CREATIVE` can check what its
+   * remedy text has always asked for.
+   *
+   * That check read `creativeIds.length === 0` until 2026-09-10 while telling
+   * the author to *"add at least one active creative for a channel this flow
+   * serves"* — it checked neither `active` nor the channel, so an offer whose
+   * only creative was switched off, or was written for a channel this flow
+   * never touches, compiled clean. ADR-012 §B2.
+   *
+   * Omitted, the check falls back to its old shape rather than passing: a
+   * caller who cannot supply creatives still gets the weaker error, and never
+   * silence.
+   */
+  creatives?: Creative[];
+  /**
+   * The channels this flow's active placements deliver on.
+   *
+   * Passed rather than derived from placements, because the compiler has no
+   * business knowing what a placement is — it compiles a graph, and *which
+   * slots route to this flow* is the caller's fact. Omitted, the channel half
+   * of the check is skipped and only `active` is enforced.
+   */
+  servedChannels?: readonly string[];
   targetingPolicies: TargetingPolicy[];
   frequencyPolicies: FrequencyPolicy[];
   arbitration: ArbitrationConfig;
@@ -336,6 +361,44 @@ export function resolveRange(range: string, available: string[]): string | null 
 // ---------------------------------------------------------------------------
 
 const SCORE_TYPES: FlowNodeType[] = ['score-model', 'score-adaptive'];
+
+/**
+ * Why this offer cannot be delivered, in the words the diagnostic will use, or
+ * `null` when it can.
+ *
+ * Three distinct states, kept distinct because the remedy differs. An offer
+ * with no creative at all needs content written. One whose creatives are all
+ * switched off needs somebody to turn one on — a materially different
+ * conversation, and the state the old check could not see at all. One whose
+ * content is real and live but on channels this flow never touches is a
+ * routing mistake rather than a content gap, and telling its author to "add a
+ * creative" would be telling them to duplicate work they have already done.
+ *
+ * The channel clause is only applied when the caller says which channels the
+ * flow serves. A flow whose placements are unknown is not assumed to serve
+ * nothing.
+ */
+function deliverabilityProblem(offer: Offer, ctx: CompileContext): string | null {
+  if (!ctx.creatives) {
+    // The pre-2026-09-10 check, kept for a caller that cannot supply creatives.
+    return offer.creativeIds.length === 0 ? 'has no creative' : null;
+  }
+
+  const own = ctx.creatives.filter((c) => c.offerId === offer.id);
+  if (own.length === 0) return 'has no creative';
+
+  const live = own.filter((c) => c.active);
+  if (live.length === 0) {
+    return `has ${own.length} creative${own.length === 1 ? '' : 's'} and none of them active`;
+  }
+
+  const served = ctx.servedChannels;
+  if (!served?.length) return null;
+  if (live.some((c) => served.includes(c.channel))) return null;
+
+  const has = [...new Set(live.map((c) => c.channel))].sort().join(', ');
+  return `has active creatives only on ${has}, which this flow does not serve`;
+}
 
 export function compileDecisionFlow(
   source: DecisionFlowSource,
@@ -650,15 +713,20 @@ export function compileDecisionFlow(
       );
     }
 
-    if (p.status !== 'retired' && p.creativeIds.length === 0) {
-      d.push(
-        error(
-          'NO_DELIVERABLE_CREATIVE',
-          `Offer '${key}' has no creative, so even if it wins there is nothing to deliver.`,
-          'Add at least one active creative for a channel this flow serves.',
-          key
-        )
-      );
+    if (p.status !== 'retired') {
+      const problem = deliverabilityProblem(p, ctx);
+      if (problem) {
+        d.push(
+          error(
+            'NO_DELIVERABLE_CREATIVE',
+            `Offer '${key}' ${problem}, so even if it wins there is nothing to deliver.`,
+            ctx.servedChannels?.length
+              ? `Add an active creative on one of: ${[...ctx.servedChannels].sort().join(', ')}.`
+              : 'Add at least one active creative for a channel this flow serves.',
+            key
+          )
+        );
+      }
     }
 
     for (const id of p.policyIds) {

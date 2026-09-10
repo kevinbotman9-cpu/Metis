@@ -607,6 +607,7 @@ export type {
   ReplayResultDto,
   TaxonomyDto,
   CreativeDto,
+  PlacementDto,
   ConnectorDto,
   PublishedVersionDto,
   EnvironmentStateDto,
