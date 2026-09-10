@@ -191,6 +191,7 @@ otherwise.
 | W-064 | 14 | A slot names a decision only when it is showing that offer | OPEN | 2 |
 | W-065 | 14 | The trace reader on Cascade — the elimination funnel as the navigation | DONE | 1 |
 | W-066 | 14 | A refusal names its pack, its freshness and what the customer was told | OPEN | 1 |
+| W-067 | 14 | The seeded candidate set is authored, not selected | OPEN | 2 |
 
 ---
 
@@ -1492,6 +1493,25 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-067 — The seeded candidate set is authored, not selected
+
+**Registered:** 2026-09-10 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet
+
+Gate 2 · Gap [G-059](gaps.md)
+
+`candidateCount` is exactly 22 on all 3,467 `next-best-action` decisions,
+because the artifact enumerates 22 `candidateKeys` out of a 251-offer catalogue.
+The elimination that follows is genuine — every tier fires, six of eight reason
+codes appear, and only 8 in 30 decisions produce a winner — but the funnel's
+mouth is a fixture decision.
+
+`/decisions/[id]` is the demo path's centre and the first figure on its rail is
+this one.
+
+**Done when:** the seeded flow selects candidates by a rule the trace can show,
+or the demo script states that the candidate set is authored.
+
 ### W-066 — A refusal names its pack, its freshness and what the customer was told
 
 **Registered:** 2026-09-10 · **Stage:** 14 · **Status:** OPEN

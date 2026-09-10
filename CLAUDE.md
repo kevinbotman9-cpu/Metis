@@ -281,6 +281,15 @@ These are high-touch and need product/design review before code.
 - Do not report numbers from a run you disturbed — a branch switch mid-suite, a
   dev server saturated by another suite, a server that has been up for hours.
   Re-run on a stable tree or discard the run and say so.
+- **Never pipe a failing test run through `head`, `tail` or `wc`.** Capture the
+  complete output and read what you need out of the file. A truncated capture
+  cannot be un-truncated: the run is over, the failure is a name with no detail
+  behind it, and the only way back is to run the suite again and hope it
+  reproduces. Two failures this month were fully diagnosable and became
+  name-only at the moment of capture — the flake-hunt job uploaded an empty
+  artifact because its reporter and its upload path disagreed, and a full e2e
+  run was piped through `tail -12` by hand, leaving one red test with nothing
+  but its title. Pipe to a file, or use a reporter that writes one.
 
 ### Working a spine unattended
 

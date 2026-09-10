@@ -693,6 +693,45 @@ have produced.
 
 ---
 
+### G-059 — Every `next-best-action` decision considers the same 22 offers, out of 251
+
+**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-067](BACKLOG.md)
+
+`candidateCount` is **exactly 22 on all 3,467** `next-best-action` decisions —
+minimum 22, maximum 22, mean 22. The flow's artifact carries a fixed
+`candidateKeys` list of 22 entries, and the catalogue holds 251 offers. Nothing
+in the decision narrows the candidate set; authoring already did.
+
+**The filtering is genuine.** Averaged over 30 sampled traces, eligibility
+removes 4.4, relevance 1.4, the contact constraint 5.4, suitability 5.4 and
+ranking 5.1, and only 8 of the 30 produce a winner at all. Six of the eight
+reason codes fire. The elimination cascade is real work over a real policy set,
+and the trace reader shows it honestly.
+
+What is not real is the width of the funnel's mouth. A viewer sees *22
+considered, 1 offered* and reads it as the platform choosing from what it had;
+the platform chose from a list somebody typed. `retention-outbound` and
+`plan-fit-nudges` build their candidate sets partly from a seeded helper, so the
+shape differs by flow — this entry is about `next-best-action`, which is the
+flow with all three targeting tiers and therefore the one the trace reader
+demonstrates.
+
+**The demo path leans on this screen.** `/decisions/[id]` is the design north
+star — the trace is the hero — and it is the centre of the eight-minute
+walkthrough. The number a viewer anchors on is the first one on the rail, and it
+is a fixture decision rather than an engine result. That is not dishonest, and
+nobody watching would know to ask.
+
+Two things could change it, and they are different in kind. A candidate set
+built by a query over the catalogue rather than by an enumerated list would make
+the entry figure a property of the tenant's data — closer to how a real
+deployment works, and a modelling change. Or the seed could simply enumerate
+more, which widens the mouth without making it mean anything.
+
+**Done when:** either the seeded flow selects candidates by a rule the trace can
+show, or the demo script says out loud that the candidate set is authored — so
+the figure is understood rather than assumed.
+
 ### G-058 — A node's type cannot say which question the node answers
 
 **Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-066](BACKLOG.md)
