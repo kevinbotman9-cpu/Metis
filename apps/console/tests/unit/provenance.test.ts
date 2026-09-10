@@ -10,7 +10,7 @@ import { provenanceFor, provenanceOver, isSeededDecision } from '../../mocks/pro
  * A synthetic number says so, wherever it goes.
  *
  * The seeded `demo-telco-uk` tenant became indistinguishable from real
- * reporting on 2026-09-09. 10,400 decisions, 887 measured outcomes, click
+ * reporting on 2026-09-09. 10,400 decisions, 416 measured outcomes, click
  * rates between 16% and 35%, realised value in pounds that differs plausibly
  * from expected, and a genuine-looking underperformer — every figure derived
  * from `seededUnitInterval` and none from a customer. The only marker was a

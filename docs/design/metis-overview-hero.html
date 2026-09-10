@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>METIS — Overview with a hero visual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:#232528;font-family:"Inter Tight",system-ui,sans-serif}
+.chooser{position:sticky;top:0;z-index:200;display:flex;gap:12px;align-items:center;padding:10px 18px;
+  background:#191b1e;border-bottom:1px solid #33363a;color:#c9ccd1;font-size:13px}
+.chooser .brand{font-weight:700;color:#fff;letter-spacing:-.02em}
+.chooser .sep{width:1px;height:20px;background:#33363a}
+.chooser button{font:inherit;color:#c9ccd1;background:none;border:1px solid transparent;padding:5px 12px;
+  border-radius:99px;cursor:pointer}
+.chooser button:hover{border-color:#4a4e54;color:#fff}
+.stage{padding:22px}
+.caption{max-width:1560px;margin:0 auto 14px;color:#a7abb1;font-size:13px;line-height:1.7}
+.caption b{color:#fff;font-weight:600}
+.wrapper{max-width:1560px;margin:0 auto;border-radius:10px;overflow:hidden;box-shadow:0 26px 70px rgba(0,0,0,.5)}
+:focus-visible{outline:2px solid #7aa2ff;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.m{--page:#F4F7F9;--surface:#FFFFFF;--sunken:#EDF1F4;--border:#CBD5DC;--border-strong:#7E8D99;
+  --n200:#E3E9ED;--text:#16222C;--text-muted:#3E505E;--text-subtle:#5E6F7C;--accent:#2563C7;
+  --eligible:23 124 85;--filtered:140 90 0;--suppressed:195 58 46;--ranked:14 110 122;
+  --rail:#2C3A47;--rail-fg:#FFFFFF;--rail-dim:#8FA6B8;--rail-line:#3B4B59;--navbg:#1E2830;
+  font-family:"Inter Tight",sans-serif;background:var(--page);color:var(--text);position:relative}
+[data-theme="dark"] .m{--page:#131B22;--surface:#18222B;--sunken:#101820;--border:#33454F;
+  --border-strong:#5E7382;--n200:#22303A;--text:#E7EEF3;--text-muted:#B4C4CE;--text-subtle:#8497A4;
+  --accent:#63A8E8;--eligible:63 191 140;--filtered:240 168 92;--suppressed:240 115 106;--ranked:79 201 216;
+  --rail:#0D141A;--rail-fg:#EAF1F6;--rail-dim:#7E93A3;--rail-line:#1C2831;--navbg:#0A1014}
+
+.m .top{display:flex;align-items:center;height:50px;background:var(--navbg);color:var(--rail-fg)}
+.m .brandcell{width:48px;height:50px;display:grid;place-items:center;flex:none;border-right:1px solid var(--rail-line)}
+.m .logo{width:22px;height:22px;border-radius:5px;background:var(--rail-fg);color:var(--navbg);
+  display:grid;place-items:center;font-weight:800;font-size:13px;letter-spacing:-.04em}
+.m .crumb{display:flex;align-items:center;gap:9px;padding-left:18px;font-size:12.5px;color:var(--rail-dim)}
+.m .crumb b{color:var(--rail-fg);font-weight:600}
+.m .crumb i{font-style:normal;opacity:.45}
+.m .top .env{margin-left:16px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--rail-dim);
+  padding:3px 9px;border:1px solid var(--rail-line);border-radius:4px}
+.m .top .who{margin-left:auto;padding-right:18px;font-size:12.5px;color:var(--rail-dim)}
+.m .top .who b{color:var(--rail-fg);font-weight:600}
+
+.m .shell{display:flex;align-items:stretch;min-height:760px}
+.m .icons{width:48px;flex:none;background:var(--navbg);display:flex;flex-direction:column;align-items:center;
+  padding:8px 0;gap:2px}
+.m .ic{width:34px;height:34px;border-radius:7px;display:grid;place-items:center;cursor:pointer;
+  color:var(--rail-dim);border:0;background:none;padding:0;position:relative}
+.m .ic:hover{background:rgba(255,255,255,.07);color:var(--rail-fg)}
+.m .ic[aria-current="true"]{background:var(--rail-fg);color:var(--navbg)}
+.m .ic svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.m .ic .tip{position:absolute;left:42px;top:50%;transform:translateY(-50%);background:var(--navbg);
+  color:var(--rail-fg);font-size:12px;padding:5px 10px;border-radius:5px;white-space:nowrap;opacity:0;
+  pointer-events:none;transition:opacity .12s;border:1px solid var(--rail-line);z-index:40}
+.m .ic:hover .tip{opacity:1}
+.m .icdiv{width:22px;height:1px;background:var(--rail-line);margin:6px 0}
+.m .icons .btm{margin-top:auto;display:flex;flex-direction:column;gap:2px;align-items:center}
+
+.m .col{flex:1;min-width:0;display:flex;flex-direction:column}
+.m .prov{display:flex;align-items:center;gap:9px;padding:8px 20px;font-size:12.5px;
+  background:rgb(var(--filtered)/.11);color:rgb(var(--filtered));border-bottom:1px solid var(--border)}
+.m .prov i{width:7px;height:7px;border-radius:50%;background:currentColor;display:block;flex:none}
+.m .prov b{font-weight:600}
+.m .hd{display:flex;align-items:flex-end;gap:20px;padding:16px 22px 15px;background:var(--surface);
+  border-bottom:1px solid var(--border)}
+.m .hd h1{margin:0;font-size:21px;font-weight:700;letter-spacing:-.03em}
+.m .hd p{margin:4px 0 0;font-size:13px;color:var(--text-subtle)}
+.m .hd .r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.m .hd button{font:inherit;font-size:12.5px;font-weight:600;padding:7px 14px;border-radius:5px;cursor:pointer;
+  border:1px solid var(--border-strong);background:var(--surface);color:var(--text)}
+.m .hd button.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.m .hd .when{font-size:12px;color:var(--text-subtle);margin-right:6px}
+.m .body{display:grid;grid-template-columns:268px 1fr 316px;flex:1;min-height:0}
+
+/* cascade rail */
+.m .casc{background:var(--rail)}
+.m .stg{display:block;width:100%;text-align:left;font:inherit;cursor:pointer;background:none;border:0;
+  border-bottom:1px solid var(--rail-line);padding:12px 18px 14px}
+.m .stg:hover{background:rgba(255,255,255,.045)}
+.m .stg[aria-current="true"]{background:rgba(255,255,255,.07);box-shadow:inset 3px 0 0 var(--sel)}
+.m .stg .lbl{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--rail-dim);line-height:1.3}
+.m .stg .lbl i{width:7px;height:7px;border-radius:2px;background:var(--sel);display:block;flex:none}
+.m .stg .num{display:flex;align-items:baseline;gap:9px;margin:6px 0 0}
+.m .stg .num strong{font-size:30px;font-weight:800;letter-spacing:-.05em;line-height:1;color:var(--rail-fg);
+  font-variant-numeric:tabular-nums}
+.m .stg .num em{font-style:normal;font-size:12px;color:var(--rail-dim)}
+.m .stg .spk{display:block;margin-top:8px;height:22px}
+.m .stg .spk svg{width:100%;height:22px;overflow:visible}
+.m .stg.brk .num strong,.m .stg.brk .lbl{color:rgb(var(--suppressed))}
+.m .stg .note{display:block;font-size:11.5px;color:rgb(var(--suppressed));margin-top:7px;line-height:1.4}
+.m .cascfoot{padding:13px 18px 18px;font-size:11.5px;color:var(--rail-dim);line-height:1.6}
+.m .cascfoot b{color:var(--rail-fg);font-weight:600}
+.m .home{display:block;width:100%;text-align:left;font:inherit;cursor:pointer;background:rgba(255,255,255,.05);
+  border:0;border-bottom:1px solid var(--rail-line);padding:11px 18px;font-size:12px;color:var(--rail-dim)}
+.m .home[aria-current="true"]{color:var(--rail-fg);font-weight:600;box-shadow:inset 3px 0 0 var(--rail-fg)}
+.m .home:hover{background:rgba(255,255,255,.08)}
+
+/* middle */
+.m .mid{padding:0;border-right:1px solid var(--border);background:var(--page);overflow:auto}
+.m .pad{padding:20px 22px 26px}
+.m .mid h2{margin:0 0 3px;font-size:19px;font-weight:700;letter-spacing:-.025em}
+.m .mid .sub{margin:0 0 18px;font-size:13px;color:var(--text-subtle);line-height:1.6;max-width:66ch}
+
+/* value strip */
+.m .val{display:flex;align-items:stretch;background:var(--surface);border-bottom:1px solid var(--border)}
+.m .vcell{padding:16px 22px 17px;border-right:1px solid var(--n200);flex:none}
+.m .vcell span{display:block;font-size:11.5px;color:var(--text-subtle)}
+.m .vcell strong{display:block;font-size:30px;font-weight:800;letter-spacing:-.045em;margin-top:3px;
+  font-variant-numeric:tabular-nums;line-height:1.05}
+.m .vcell .d{font-size:12px;margin-top:5px;font-variant-numeric:tabular-nums}
+.m .vcell .d.up{color:rgb(var(--eligible))}
+.m .vcell .d.dn{color:rgb(var(--suppressed))}
+.m .vcell.lost strong{color:rgb(var(--suppressed))}
+.m .vcell.wide{flex:1;border-right:0;display:flex;align-items:center;gap:14px}
+.m .vgauge{flex:1;height:9px;border-radius:5px;background:var(--n200);overflow:hidden;display:flex}
+.m .vgauge i{display:block;height:100%}
+
+/* hero flow */
+.m .flowcard{background:var(--surface);border-bottom:1px solid var(--border);padding:18px 22px 8px}
+.m .flowhead{display:flex;align-items:baseline;gap:12px;margin-bottom:6px}
+.m .flowhead h3{margin:0;font-size:14px;font-weight:600}
+.m .flowhead .rt{margin-left:auto;font-size:11.5px;color:var(--text-subtle)}
+.m .flow{width:100%;height:280px;display:block}
+.m .flow text{font-family:"Inter Tight",sans-serif}
+.m .flow .fnum{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13px;fill:var(--text)}
+.m .flow .flab{font-size:11.5px;fill:var(--text-subtle)}
+.m .flow .fdrop{font-size:11px;fill:var(--text-subtle);font-family:"IBM Plex Mono",monospace}
+.m .flow .fbrk{font-size:11.5px;fill:rgb(var(--suppressed));font-weight:600}
+.m .flow .node{cursor:pointer}
+.m .flow .node:hover .nrect{filter:brightness(1.08)}
+
+/* trends */
+.m .trends{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);
+  border-bottom:1px solid var(--border)}
+.m .tr{padding:14px 20px 12px;border-right:1px solid var(--n200)}
+.m .tr:last-child{border-right:0}
+.m .tr .lb{font-size:11.5px;color:var(--text-subtle)}
+.m .tr .vv{display:flex;align-items:baseline;gap:9px;margin:3px 0 6px}
+.m .tr .vv strong{font-size:19px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.m .tr .vv em{font-style:normal;font-size:12px;font-variant-numeric:tabular-nums}
+.m .tr .vv em.up{color:rgb(var(--eligible))}
+.m .tr .vv em.dn{color:rgb(var(--suppressed))}
+.m .tr svg{width:100%;height:38px;display:block;overflow:visible}
+
+.m .card{background:var(--surface);border:1px solid var(--border);border-radius:7px;margin-bottom:14px;overflow:hidden}
+.m .cardh{display:flex;align-items:center;gap:12px;padding:11px 15px;border-bottom:1px solid var(--n200)}
+.m .cardh h3{margin:0;font-size:13.5px;font-weight:600}
+.m .cardh .rt{margin-left:auto;font-size:11.5px;color:var(--text-subtle)}
+.m table{width:100%;border-collapse:collapse}
+.m th{text-align:left;font-size:11px;font-weight:600;color:var(--text-subtle);letter-spacing:.03em;
+  padding:9px 15px;border-bottom:1px solid var(--n200)}
+.m th.n{text-align:right}
+.m td{padding:10px 15px;border-bottom:1px solid var(--n200);font-size:12.5px}
+.m tr:last-child td{border-bottom:0}
+.m tbody tr{cursor:pointer}
+.m tbody tr:hover td{background:var(--sunken)}
+.m tbody tr[aria-selected="true"] td{background:rgb(var(--ranked)/.09)}
+.m .n{text-align:right;font-variant-numeric:tabular-nums;font-family:"IBM Plex Mono",monospace}
+.m .nm{font-weight:600}
+.m .key{display:block;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--text-subtle);margin-top:1px}
+.m .pill{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px}
+.m .pill.ok{background:rgb(var(--eligible)/.13);color:rgb(var(--eligible))}
+.m .pill.no{background:rgb(var(--suppressed)/.13);color:rgb(var(--suppressed))}
+.m .pill.part{background:rgb(var(--filtered)/.15);color:rgb(var(--filtered))}
+.m .meter{display:flex;align-items:center;gap:8px}
+.m .meter i{height:5px;border-radius:3px;display:block;background:rgb(var(--ranked))}
+.m .meter span{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--text-muted)}
+
+.m .side{background:var(--surface);padding:18px 20px 24px;overflow:auto}
+.m .side h4{margin:0 0 2px;font-size:11px;font-weight:600;color:var(--text-subtle);letter-spacing:.04em;
+  text-transform:uppercase}
+.m .side .pick{font-size:15.5px;font-weight:600;margin:0 0 14px;letter-spacing:-.015em;line-height:1.35}
+.m .fld{padding:11px 0;border-top:1px solid var(--n200)}
+.m .fld .k{font-size:11.5px;color:var(--text-subtle);margin-bottom:3px}
+.m .fld .v{font-size:13px;font-weight:500;line-height:1.5}
+.m .quote{margin:14px 0 0;padding:12px 14px;background:var(--sunken);border-left:3px solid var(--qc);
+  font-size:12.5px;line-height:1.65;color:var(--text-muted);border-radius:0 5px 5px 0}
+.m .quote b{display:block;color:var(--text);font-weight:600;margin-bottom:5px;font-size:11px;
+  letter-spacing:.04em;text-transform:uppercase}
+.m .go{display:block;width:100%;margin-top:14px;text-align:left;font:inherit;font-size:12.5px;font-weight:600;
+  padding:10px 13px;border-radius:6px;cursor:pointer;border:1px solid var(--border-strong);
+  background:var(--surface);color:var(--text)}
+.m .go span{display:block;font-weight:400;font-size:11.5px;color:var(--text-subtle);margin-top:2px}
+</style>
+</head>
+<body>
+
+<div class="chooser">
+  <span class="brand">METIS · Overview — hero visual</span>
+  <span class="sep"></span>
+  <button id="themeBtn">Switch to dark</button>
+</div>
+
+<div class="stage">
+<p class="caption"><b>First paint is the shape and the money.</b> One hero diagram carrying the whole story,
+a value strip above it and three trends below — then the same cascade rail for anyone who wants to go deeper.
+The unusual move is drawing the <i>losses</i> as volume leaving the diagram: 6,976 decisions with nothing
+eligible, and 2,122 that chose an offer with nothing to send. Most dashboards draw only the path that
+worked. Click a node in the diagram, or a stage in the rail, to drill in. <b>Loop</b> at the top of the
+rail returns to this view.</p>
+
+<div class="wrapper">
+<div class="m" id="app">
+  <div class="top">
+    <div class="brandcell"><span class="logo">M</span></div>
+    <div class="crumb"><b>Overview</b><i>›</i><span id="cr">The loop</span></div>
+    <span class="env">telco-uk · development</span>
+    <span class="who">Signed in as <b>Priya Raman</b> · Compliance</span>
+  </div>
+  <div class="shell">
+    <div class="icons">
+      <button class="ic" aria-current="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span class="tip">Overview</span></button>
+      <div class="icdiv"></div>
+      <button class="ic"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 015.5 4H10l2 2.5h6.5A1.5 1.5 0 0120 8v10.5a1.5 1.5 0 01-1.5 1.5h-13A1.5 1.5 0 014 18.5z"/></svg><span class="tip">Catalogue</span></button>
+      <button class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg><span class="tip">Policy</span></button>
+      <button class="ic"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="12" r="2.4"/><path d="M8.4 7.2l7.3 3.6M8.4 16.8l7.3-3.6"/></svg><span class="tip">Decisioning</span></button>
+      <button class="ic"><svg viewBox="0 0 24 24"><path d="M4 18l4.5-6 3.5 3.5L20 6"/><path d="M15 6h5v5"/></svg><span class="tip">Intelligence</span></button>
+      <button class="ic"><svg viewBox="0 0 24 24"><path d="M4 7.5h16v9H4z"/><path d="M4 8l8 5.5L20 8"/></svg><span class="tip">Channels</span></button>
+      <button class="ic"><svg viewBox="0 0 24 24"><path d="M9 4v6.2L4.4 18a1.4 1.4 0 001.2 2.1h12.8a1.4 1.4 0 001.2-2.1L15 10.2V4"/><path d="M8 4h8"/></svg><span class="tip">Simulation</span></button>
+      <button class="ic"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l4.5 4.5"/></svg><span class="tip">Evidence</span></button>
+      <button class="ic"><svg viewBox="0 0 24 24"><circle cx="7" cy="6" r="2.2"/><circle cx="7" cy="18" r="2.2"/><circle cx="17" cy="12" r="2.2"/><path d="M7 8.2v7.6M9.2 6h3.6a2 2 0 012 2v1.9"/></svg><span class="tip">Releases</span></button>
+      <button class="ic"><svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg><span class="tip">Insights</span></button>
+      <div class="btm"><div class="icdiv"></div>
+        <button class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M21 12h-2.5M5.5 12H3"/></svg><span class="tip">Administration</span></button></div>
+    </div>
+    <div class="col">
+      <div class="prov"><i></i><b>Generated data.</b> 10,400 of 10,401 records are produced from a fixed seed. Not evidence of anything.</div>
+      <div class="hd">
+        <div><h1>The loop</h1><p>What this platform decided, and what came back.</p></div>
+        <div class="r"><span class="when">Last 30 days · to 10 Sept 14:02</span>
+          <button>Change range</button><button class="pri">Export</button></div>
+      </div>
+      <div class="body">
+        <div class="casc" id="casc"></div>
+        <div class="mid" id="mid"></div>
+        <div class="side" id="side"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<script>
+const C={grey:'126 141 153',teal:'14 110 122',red:'195 58 46',amber:'140 90 0',green:'23 124 85'};
+const SPK={
+  dec:[318,340,352,331,366,349,377,361,384,372,396,381,402,394,410,398,421,409,433,418,428,441,436,452,447,459,468,455,472,481],
+  off:[122,128,119,134,127,141,133,146,138,151,144,157,149,162,155,168,159,171,164,176,169,181,174,186,178,190,183,195,188,192],
+  del:[86,84,81,79,76,74,71,69,66,64,61,59,56,54,51,49,47,45,43,42,41,40,39,38,38,38,38,38,38,38],
+  seen:[24,26,25,28,27,30,29,31,30,33,32,34,33,35,34,36,35,37,36,38,37,39,38,40,39,41,40,42,41,42],
+  act:[4,5,4,6,5,6,5,7,6,7,6,8,7,8,7,8,7,9,8,9,8,9,8,10,9,10,9,10,9,10]
+};
+const LOOP=[
+{k:'dec',label:'Decisions made',n:'10,401',em:'in 30 days',rgb:C.grey,
+ title:'10,401 decisions in the last 30 days',
+ sub:'Every request that reached a decision flow and returned a ranked slate. p95 38.4 ms, no model call in the path, all replayable.',
+ rows:[['web','2,146','homepage_hero, plans_tile','ok'],['sms','2,055','app_inbox','ok'],['push','2,061','retention_queue','ok'],['email','2,042','weekly_offers_send','ok'],['outbound_call','2,097','triggered_outbound','ok']],
+ side:{h:'All decisions',p:'10,401 across 5 channels',
+  f:[['Flows','inbound-web-offers v12 · 3 others'],['p95 latency','38.4 ms of 50 ms budget'],['Replayable','10,401 of 10,401']],
+  q:['Reading','Every one produced a decision record, a chain hash and a trace. That part of the platform works.'],
+  qc:C.grey,go:['Open decision records','Search by customer, offer, rule or outcome']}},
+{k:'off',label:'Offered something',n:'3,425',em:'33%',rgb:C.teal,
+ title:'3,425 decisions returned an offer',
+ sub:'The rest found nothing eligible after targeting policy and frequency. A healthy proportion for a single-slot hero placement.',
+ rows:[['web','1,132','53% of decisions','ok'],['sms','598','29%','ok'],['push','571','28%','ok'],['email','613','30%','ok'],['outbound_call','511','24%','ok']],
+ side:{h:'Offered',p:'3,425 of 10,401 · 33%',
+  f:[['Empty slates','6,976 · nothing eligible'],['Most common cause','frequency cap reached'],['Under-served','1,204 customers · never eligible']],
+  q:['Worth a look','1,204 customers were eligible for nothing on every decision in the window.'],
+  qc:C.teal,go:['Run under-served analysis','Find customers with no eligible offer']}},
+{k:'del',label:'Deliverable',n:'1,303',em:'38%',rgb:C.red,brk:true,
+ note:'2,122 chose an offer with nothing to send.',
+ title:'Only 1,303 of those could actually be delivered',
+ sub:'The loop breaks here. An offer won its slot and there was no active creative for the channel that won — or no adapter behind that channel at all.',
+ rows:[['web','566 of 1,132','storefront renders it','ok'],['email','0 of 613','no adapter — W-017 open','no'],['sms','0 of 598','no adapter','no'],['push','0 of 571','no adapter','no'],['outbound_call','0 of 511','no adapter · 2 creatives exist','no']],
+ side:{h:'Undeliverable',p:'2,122 decisions · 62% of offered',
+  f:[['Winner had no creative','1,214 decisions'],['Channel has no adapter','908 decisions'],['Active offers with nothing to send','127 of 202']],
+  q:['What this means','The platform decided correctly and the customer saw nothing. A replay of any of these returns a byte-identical hash confirming a choice that could never have been shown.'],
+  qc:C.red,go:['Open coverage matrix','202 offers × the channels that deliver']}},
+{k:'seen',label:'Seen',n:'887',em:'68%',rgb:C.amber,
+ title:'887 impressions came back',
+ sub:'An impression is of an offer somebody saw. A slot that filled nothing had none.',
+ rows:[['web','566','real, from the storefront','ok'],['sms','88','generated','part'],['push','90','generated','part'],['email','93','generated','part'],['outbound_call','50','generated','part']],
+ side:{h:'Impressions',p:'887 · 68% of deliverable',
+  f:[['Web','566 · reported on render'],['Everything else','321 · generated'],['Median lag','1.4 s from decision']],
+  q:['Provenance','566 are real reports from the storefront. The other 321 are generated and describe channels with no sender.'],
+  qc:C.amber,go:['Open performance','Rates by offer, category and channel']}},
+{k:'act',label:'Acted on',n:'184',em:'20.7%',rgb:C.green,funnel:true,
+ title:'184 clicks, 26 acceptances, 20 conversions',
+ sub:'The funnel nests: every acceptance had a click, every click had an impression. Rates are taken over what was measured, never over what was decided.',
+ side:{h:'Outcomes',p:'184 clicks · 20.7% of seen',
+  f:[['Acceptances','26 · 14.1% of clicks'],['Conversions','20 · 76.9% of acceptances'],['Realised value','£4,180 of £11,940 expected']],
+  q:['One to look at','acq_sim_30 was offered 135 times, seen 85, clicked 27% — and accepted zero times on every channel.'],
+  qc:C.green,go:['Open acq_sim_30','High reach, no takers']}}];
+
+let cur=-1; // -1 = the loop overview
+
+/* ── sparkline ─────────────────────────────────────────── */
+function spark(vals,rgb,h=22,fill=true){
+  const mx=Math.max(...vals),mn=Math.min(...vals),r=(mx-mn)||1,w=100;
+  const pts=vals.map((v,i)=>[i/(vals.length-1)*w,h-((v-mn)/r)*(h-3)-1.5]);
+  const d=pts.map((p,i)=>`${i?'L':'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+  const a=`${d} L${w} ${h} L0 ${h} Z`;
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    ${fill?`<path d="${a}" fill="rgb(${rgb}/.14)"/>`:''}
+    <path d="${d}" fill="none" stroke="rgb(${rgb})" stroke-width="1.6" vector-effect="non-scaling-stroke"/>
+    <circle cx="${pts[pts.length-1][0]}" cy="${pts[pts.length-1][1]}" r="2" fill="rgb(${rgb})"/></svg>`;
+}
+
+/* ── the hero flow ─────────────────────────────────────── */
+function flow(){
+  const W=1000,H=280,top=34,maxH=176;
+  const S=[{k:'dec',v:10401,l:'Decided',rgb:C.grey},
+           {k:'off',v:3425,l:'Offered',rgb:C.teal},
+           {k:'del',v:1303,l:'Deliverable',rgb:C.red},
+           {k:'seen',v:887,l:'Seen',rgb:C.amber},
+           {k:'act',v:184,l:'Acted on',rgb:C.green}];
+  const drops=[{after:0,v:6976,t:'6,976 · nothing eligible',brk:false},
+               {after:1,v:2122,t:'2,122 · nothing to send',brk:true},
+               {after:2,v:416,t:'416 · not seen',brk:false},
+               {after:3,v:703,t:'703 · no action',brk:false}];
+  const px=v=>Math.max(v/10401*maxH,3.5);
+  const colW=150, gap=(W-40-colW*0)/5, bw=22;
+  const x=i=>28+i*((W-90)/4);
+
+  let g='';
+  // ribbons between stages
+  for(let i=0;i<S.length-1;i++){
+    const h1=px(S[i].v),h2=px(S[i+1].v);
+    const x1=x(i)+bw,x2=x(i+1);
+    const y1=top,y2=top;
+    const cx=(x1+x2)/2;
+    g+=`<path d="M${x1} ${y1} C${cx} ${y1},${cx} ${y2},${x2} ${y2}
+        L${x2} ${y2+h2} C${cx} ${y2+h2},${cx} ${y1+h1},${x1} ${y1+h1} Z"
+        fill="rgb(${S[i+1].rgb}/.20)"/>`;
+  }
+  // drop-out ribbons
+  drops.forEach(d=>{
+    const i=d.after, h1=px(S[i].v), h2=px(S[i+1].v), dh=px(d.v);
+    const x1=x(i)+bw, x2=x(i)+bw+92;
+    const yTop=top+h2, cx=(x1+x2)/2;
+    const yEnd=top+maxH+14;
+    g+=`<path d="M${x1} ${yTop} C${cx} ${yTop},${cx} ${yEnd},${x2} ${yEnd}
+        L${x2} ${yEnd+Math.min(dh,26)} C${cx} ${yEnd+Math.min(dh,26)},${cx} ${yTop+h1-h2},${x1} ${yTop+h1} Z"
+        fill="rgb(${d.brk?C.red:C.grey}/${d.brk?'.26':'.13'})"/>
+      <text class="${d.brk?'fbrk':'fdrop'}" x="${x2+8}" y="${yEnd+13}">${d.t}</text>`;
+  });
+  // nodes
+  S.forEach((s,i)=>{
+    const h=px(s.v);
+    g+=`<g class="node" data-i="${i}">
+      <rect class="nrect" x="${x(i)}" y="${top}" width="${bw}" height="${h}" rx="3" fill="rgb(${s.rgb})"/>
+      <text class="fnum" x="${x(i)}" y="${top-14}">${s.v.toLocaleString()}</text>
+      <text class="flab" x="${x(i)}" y="${top-1}" dy="-1">${s.l}</text></g>`;
+  });
+  return `<svg class="flow" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${g}</svg>`;
+}
+
+/* ── panes ─────────────────────────────────────────────── */
+function overviewHTML(){
+  return `<div class="val">
+    <div class="vcell"><span>Realised value</span><strong>£4,180</strong>
+      <div class="d up">▲ £610 vs previous 30 days</div></div>
+    <div class="vcell lost"><span>Left on the table</span><strong>£7,760</strong>
+      <div class="d">expected value of what was decided and never delivered</div></div>
+    <div class="vcell wide"><span style="width:74px">Loop closure</span>
+      <div class="vgauge"><i style="width:35%;background:rgb(${C.eligible||C.green})"></i>
+        <i style="width:65%;background:rgb(${C.red}/.35)"></i></div>
+      <strong style="font-size:20px;flex:none">35%</strong></div>
+  </div>
+
+  <div class="flowcard">
+    <div class="flowhead"><h3>From decision to outcome</h3>
+      <span class="rt">bar height is volume · last 30 days</span></div>
+    ${flow()}
+  </div>
+
+  <div class="trends">
+    <div class="tr"><div class="lb">Decisions per day</div>
+      <div class="vv"><strong>481</strong><em class="up">▲ 51%</em></div>${spark(SPK.dec,C.grey)}</div>
+    <div class="tr"><div class="lb">Deliverable share</div>
+      <div class="vv"><strong>38%</strong><em class="dn">▼ 48 pts</em></div>${spark(SPK.del,C.red)}</div>
+    <div class="tr"><div class="lb">Realised value per day</div>
+      <div class="vv"><strong>£139</strong><em class="up">▲ 17%</em></div>${spark(SPK.act,C.green)}</div>
+  </div>
+
+  <div class="pad">
+    <div class="card"><div class="cardh"><h3>Wants your attention</h3>
+      <span class="rt">3 things</span></div>
+      <table><tbody>
+        <tr><td style="width:9px;padding-right:0"><span style="display:block;width:8px;height:8px;
+          border-radius:2px;background:rgb(${C.red})"></span></td>
+          <td><span class="nm">Four channels decide and nothing delivers</span>
+          <span class="key">8,255 decisions · email, sms, push, outbound_call</span></td>
+          <td class="n" style="width:110px">W-017 open</td></tr>
+        <tr><td style="padding-right:0"><span style="display:block;width:8px;height:8px;border-radius:2px;
+          background:rgb(${C.amber})"></span></td>
+          <td><span class="nm">127 active offers have nothing to send</span>
+          <span class="key">of 202 · they can still win a slot</span></td>
+          <td class="n">coverage</td></tr>
+        <tr><td style="padding-right:0"><span style="display:block;width:8px;height:8px;border-radius:2px;
+          background:rgb(${C.teal})"></span></td>
+          <td><span class="nm">Sim-only 30GB — high reach, no takers</span>
+          <span class="key">acq_sim_30 · 135 offered, 27% clicked, 0% accepted</span></td>
+          <td class="n">acq_sim_30</td></tr>
+      </tbody></table></div>
+  </div>`;
+}
+
+function detailHTML(){
+  const s=LOOP[cur];
+  let body;
+  if(s.funnel){
+    body=`<div class="card"><div class="cardh"><h3>The funnel, nested</h3>
+      <span class="rt">each stage a subset of the one above</span></div><table><tbody>
+      ${[['Seen','887','',C.grey,100],['Clicked','184','20.7% of seen',C.teal,21],
+         ['Accepted','26','14.1% of clicked',C.amber,3],['Converted','20','76.9% of accepted',C.green,2.3]]
+        .map(r=>`<tr><td style="width:100px"><span class="nm">${r[0]}</span></td>
+          <td class="n" style="width:66px">${r[1]}</td>
+          <td><div class="meter"><i style="width:${r[4]*3}px;background:rgb(${r[3]})"></i><span>${r[2]}</span></div></td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="card"><div class="cardh"><h3>High reach, no takers</h3><span class="rt">worth a look</span></div>
+      <table><thead><tr><th>Offer</th><th class="n">Offered</th><th class="n">Seen</th><th class="n">Clicked</th><th class="n">Accepted</th></tr></thead>
+      <tbody><tr aria-selected="true"><td><span class="nm">Sim-only 30GB</span><span class="key">acq_sim_30</span></td>
+        <td class="n">135</td><td class="n">85</td><td class="n">27%</td>
+        <td class="n" style="color:rgb(var(--suppressed));font-weight:600">0%</td></tr>
+        <tr><td><span class="nm">Loyalty tier upgrade</span><span class="key">ret_tier_up</span></td>
+        <td class="n">204</td><td class="n">141</td><td class="n">24%</td><td class="n">18%</td></tr>
+      </tbody></table></div>`;
+  } else {
+    body=`<div class="card"><div class="cardh"><h3>By channel</h3><span class="rt">last 30 days</span></div>
+      <table><thead><tr><th>Channel</th><th class="n">${cur===2?'Delivered':'Count'}</th>
+        <th>${cur===2?'Why':'Placement'}</th></tr></thead>
+      <tbody>${s.rows.map((r,i)=>`<tr ${i===0?'aria-selected="true"':''}>
+        <td><span class="nm">${r[0]}</span></td><td class="n">${r[1]}</td>
+        <td>${r[3]==='ok'&&cur!==2?r[2]:`<span class="pill ${r[3]}">${r[2]}</span>`}</td></tr>`).join('')}
+      </tbody></table></div>
+      ${cur===2?`<div class="card"><div class="cardh"><h3>Offers with nothing to send anywhere</h3>
+        <span class="rt">127 of 202 active</span></div><table><tbody>
+        <tr><td><span class="nm">Premium 5G unlimited</span><span class="key">acq_5g_prem</span></td>
+          <td class="n" style="width:160px">0 creatives active</td><td class="n" style="width:90px">41 wins</td></tr>
+        <tr><td><span class="nm">Flagship handset 12mo</span><span class="key">acq_flag_12</span></td>
+          <td class="n">2 drafted, none live</td><td class="n">28 wins</td></tr>
+        <tr><td colspan="3" style="color:var(--text-subtle)">and 125 more…</td></tr>
+        </tbody></table></div>`:''}`;
+  }
+  return `<div class="pad"><h2>${s.title}</h2><p class="sub">${s.sub}</p>${body}</div>`;
+}
+
+function sideHTML(){
+  if(cur<0){
+    return `<h4>This period</h4><p class="pick">Loop closure 35%</p>
+      <div class="fld"><div class="k">Decided</div><div class="v">10,401 · ▲ 51% on the previous 30 days</div></div>
+      <div class="fld"><div class="k">Reached somebody</div><div class="v">887 · 8.5% of decisions</div></div>
+      <div class="fld"><div class="k">Realised value</div><div class="v">£4,180 of £11,940 expected</div></div>
+      <div class="fld"><div class="k">Replayable</div><div class="v">10,401 of 10,401 · byte-identical</div></div>
+      <div class="quote" style="--qc:rgb(${C.red})"><b>The one number to fix</b>
+        Deliverable share has fallen from 86% to 38% as decision volume grew, because four of five
+        channels decide and none of them sends. Volume grew; reach did not.</div>
+      <button class="go">Open the delivery gap<span>W-017 · what an adapter needs first</span></button>`;
+  }
+  const d=LOOP[cur].side;
+  return `<h4>${d.h}</h4><p class="pick">${d.p}</p>
+    ${d.f.map(f=>`<div class="fld"><div class="k">${f[0]}</div><div class="v">${f[1]}</div></div>`).join('')}
+    <div class="quote" style="--qc:rgb(${d.qc})"><b>${d.q[0]}</b>${d.q[1]}</div>
+    <button class="go">${d.go[0]}<span>${d.go[1]}</span></button>`;
+}
+
+function draw(){
+  document.getElementById('casc').innerHTML=
+    `<button class="home" aria-current="${cur<0}" data-i="-1">← The loop, whole</button>` +
+    LOOP.map((s,i)=>`<button class="stg ${s.brk?'brk':''}" style="--sel:rgb(${s.rgb})"
+      aria-current="${i===cur}" data-i="${i}">
+      <span class="lbl"><i></i>${s.label}</span>
+      <span class="num"><strong>${s.n}</strong><em>${s.em}</em></span>
+      <span class="spk">${spark(SPK[s.k],s.rgb)}</span>
+      ${s.note?`<span class="note">${s.note}</span>`:''}</button>`).join('')
+    + `<div class="cascfoot">The loop is <b>closed on web</b> and open on four channels. Until a sender
+       exists, every figure below “Deliverable” describes one channel.</div>`;
+  document.getElementById('mid').innerHTML = cur<0 ? overviewHTML() : detailHTML();
+  document.getElementById('side').innerHTML = sideHTML();
+  document.getElementById('cr').textContent = cur<0 ? 'The loop' : LOOP[cur].label;
+  const f=document.querySelector('.flow');
+  if(f) f.addEventListener('click',e=>{
+    const n=e.target.closest('.node'); if(n){cur=+n.dataset.i;draw();}});
+}
+document.getElementById('casc').addEventListener('click',e=>{
+  const b=e.target.closest('[data-i]'); if(b){cur=+b.dataset.i;draw();}});
+document.getElementById('themeBtn').addEventListener('click',e=>{
+  const d=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',d?'light':'dark');
+  e.target.textContent=d?'Switch to dark':'Switch to light';});
+draw();
+</script>
+</body>
+</html>

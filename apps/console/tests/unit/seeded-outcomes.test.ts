@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { decisions } from '../../mocks/fixtures/decisions';
 import { seededOutcomesFor, POOR_PERFORMER } from '../../mocks/fixtures/outcomes';
 import { decisionIndexOf, inChurnCohort } from '../../mocks/fixtures/engine';
-import { creatives, offers } from '../../mocks/fixtures/catalogue';
+import { creatives, offers, placements } from '../../mocks/fixtures/catalogue';
 import type { OutcomeEvent } from '@metis/ledger';
 
 /**
@@ -15,6 +15,10 @@ import type { OutcomeEvent } from '@metis/ledger';
  * corpus that can teach somebody the wrong thing.
  */
 
+/** Whether an offer had live content on the channel that won. */
+const couldRenderOn = (d: (typeof decisions)[number]) =>
+  creatives.some((c) => c.active && c.offerId === d.winnerOfferId && c.channel === d.channel);
+
 const ALL = decisions.map((d) => ({ d, events: seededOutcomesFor(d) }));
 const WITH = ALL.filter((x) => x.events.length > 0);
 const has = (events: OutcomeEvent[], type: string) => events.some((e) => e.type === type);
@@ -23,11 +27,13 @@ const count = (type: string) => WITH.filter((x) => has(x.events, type)).length;
 describe('the seeded outcomes have a shape a marketer can read', () => {
   it('covers the corpus, not a corner of it', () => {
     expect(decisions.length).toBeGreaterThan(10_000);
-    // 887 on 2026-09-09, down from 2,101. The drop is the creative rule below,
-    // not a loss of coverage: 1,214 of the old 2,101 were impressions of offers
-    // with nothing to render on the channel that won them.
+    // 416 on 2026-09-10, down from 887 and from 2,101 before that. Two rules
+    // took it there and neither is a loss of coverage: an offer must have a
+    // creative on the winning channel, and something must deliver that channel.
+    // The corpus is thin because the platform delivers on one channel of five,
+    // which is the fact it is now reporting rather than obscuring.
     expect(WITH.length, 'a corpus with no outcomes is the state this replaced').toBeGreaterThan(
-      800
+      300
     );
   });
 
@@ -85,29 +91,75 @@ describe('the seeded outcomes have a shape a marketer can read', () => {
     // measuring the catalogue's creative coverage instead, which is a different
     // fact and a much larger one.
     const offered = ALL.filter((x) => x.d.winner).length;
-    const couldRender = ALL.filter(
-      (x) => x.d.winner && creatives.some(
-        (c) => c.active && c.offerId === x.d.winnerOfferId && c.channel === x.d.channel
-      )
+    const deliverableChannels = new Set<string>(
+      placements.filter((p) => p.delivery).map((p) => p.channel)
+    );
+    // The denominator moved with the rule on 2026-09-10. `COVERAGE` is how much
+    // of a channel reports back, and it can only ever apply to a decision that
+    // could be rendered **and** delivered — measuring it over everything
+    // renderable was measuring the delivery gap instead, which is a different
+    // and much larger fact.
+    const reachable = ALL.filter(
+      (x) =>
+        x.d.winner &&
+        deliverableChannels.has(x.d.channel) &&
+        creatives.some(
+          (c) => c.active && c.offerId === x.d.winnerOfferId && c.channel === x.d.channel
+        )
     ).length;
 
-    const reporting = WITH.length / couldRender;
+    const reporting = WITH.length / reachable;
     expect(reporting, 'the per-channel reporting coverage').toBeGreaterThan(0.45);
     expect(reporting).toBeLessThan(0.8);
 
-    // And the wider gap, which is the catalogue's and not this generator's:
-    // 2,122 of 3,425 offered decisions have a winner with nothing to render on
-    // the channel that won. Registered as G-041's second half.
-    expect(couldRender).toBeLessThan(offered * 0.5);
+    // And the wider gaps, which are the catalogue's and the platform's rather
+    // than this generator's: most offered decisions have a winner with nothing
+    // to render, and most of what is left is on a channel nothing delivers.
+    expect(reachable).toBeLessThan(offered * 0.5);
   });
 
-  it('reports web most and an outbound call least', () => {
-    const rate = (channel: string) => {
-      const rows = ALL.filter((x) => x.d.winner && x.d.channel === channel);
-      return rows.filter((x) => x.events.length > 0).length / rows.length;
-    };
-    expect(rate('web')).toBeGreaterThan(rate('email'));
-    expect(rate('email')).toBeGreaterThan(rate('outbound_call'));
+  it('starts no funnel where nothing delivers the winning channel', () => {
+    // The rule itself, asserted against the decisions it excludes rather than
+    // against the ones it keeps. Every offered decision on a channel with no
+    // deliverer produces no events at all — not a shortened funnel, none.
+    //
+    // 2,687 of the 3,425 offered decisions are in this state on 2026-09-10:
+    // email, sms, push and outbound_call are all `delivery: null` since ADR-013
+    // split `active`, and web is the only channel anything carries.
+    const deliverable = new Set<string>(placements.filter((p) => p.delivery).map((p) => p.channel));
+    const undeliverable = ALL.filter((x) => x.d.winner && !deliverable.has(x.d.channel));
+
+    expect(undeliverable.length, 'the corpus decides on channels nothing delivers').toBeGreaterThan(
+      2_000
+    );
+    expect(
+      undeliverable.filter((x) => x.events.length > 0).map((x) => x.d.id).slice(0, 10),
+      'a seeded outcome for a message that could never have been sent'
+    ).toEqual([]);
+  });
+
+  it('reports nothing at all on a channel nothing delivers', () => {
+    // This asserted web > email > outbound_call, which was `COVERAGE` doing its
+    // job. Since 2026-09-10 only web has a deliverer, so the other four report
+    // zero and the old ordering is unobservable — 0 > 0 is not a property.
+    //
+    // What is still checkable, and matters more: nothing is reported for a
+    // channel that cannot send. A single outcome on one of these would be an
+    // impression of a message that never left the building.
+    const deliverable = new Set<string>(placements.filter((p) => p.delivery).map((p) => p.channel));
+    const leaked = WITH.filter((x) => !deliverable.has(x.d.channel)).map(
+      (x) => `${x.d.id} on ${x.d.channel}`
+    );
+    expect(leaked.slice(0, 10), 'an outcome on a channel with no deliverer').toEqual([]);
+
+    // And `COVERAGE` still governs the channel that does deliver, rather than
+    // every reachable decision reporting.
+    const reachable = ALL.filter(
+      (x) => x.d.winner && x.d.channel === 'web' && couldRenderOn(x.d)
+    ).length;
+    const webRate = WITH.filter((x) => x.d.channel === 'web').length / reachable;
+    expect(webRate).toBeGreaterThan(0.6);
+    expect(webRate).toBeLessThan(0.85);
   });
 
   it('puts a value on conversions and on nothing else', () => {
@@ -129,11 +181,14 @@ describe('the seeded outcomes have a shape a marketer can read', () => {
         .filter((e) => e.type === 'conversion')
         .map((e) => [e.valueMinor ?? 0, margin.get(x.d.winner!) ?? 0] as const)
     );
-    // 20 conversions in the whole corpus on 2026-09-09, down from 49 when the
-    // generator counted wins rather than renders. The guard is here so the
-    // ratio below is not computed over an empty set; it is calibration, and the
-    // property it guards — that realised and expected disagree — is unchanged.
-    expect(pairs.length).toBeGreaterThan(10);
+    // **4 conversions in the whole corpus** on 2026-09-10, from 20 and before
+    // that 49. The guard exists so the ratio below is not computed over an
+    // empty set, and at four it barely guards anything — which is worth stating
+    // rather than hiding behind a lower number. The corpus is this thin because
+    // the platform delivers on one channel of five; the demo's realised-versus-
+    // expected story now rests on four data points, and that is a fact about
+    // the product rather than about this generator. G-047.
+    expect(pairs.length).toBeGreaterThan(2);
     expect(pairs.filter(([got, want]) => got !== want).length / pairs.length).toBeGreaterThan(0.9);
   });
 
@@ -166,7 +221,8 @@ describe('the seeded outcomes have a shape a marketer can read', () => {
   });
 
   it('records rejections, so "nobody said" and "they said no" stay different', () => {
-    expect(count('rejection')).toBeGreaterThan(50);
+    // 27 on 2026-09-10, from 138. Same cause as every other number here.
+    expect(count('rejection')).toBeGreaterThan(15);
   });
 
   it('lags every outcome behind its decision, from the decision’s own clock', () => {

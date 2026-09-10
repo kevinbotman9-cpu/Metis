@@ -5,7 +5,7 @@ import { decisions } from './fixtures/decisions';
  * Whether the numbers in a response came from a customer or from a seed.
  *
  * On 2026-09-09 the seeded `demo-telco-uk` tenant crossed from obviously-fake
- * to indistinguishable. 10,400 decisions, 887 measured outcomes, click rates
+ * to indistinguishable. 10,400 decisions, 416 measured outcomes, click rates
  * between 16% and 35%, realised value in pounds that differs plausibly from
  * expected, and a genuine-looking underperformer — every figure derived from
  * `seededUnitInterval` and none of it from a person. The only thing separating
@@ -49,7 +49,7 @@ export function provenanceFor(decisionId: string): Provenance {
  * Provenance for a set.
  *
  * `mixed` is the normal state of a demo tenant somebody has clicked in, and it
- * is the answer most worth stating plainly: a report that joins 887 seeded
+ * is the answer most worth stating plainly: a report that joins 416 seeded
  * outcomes to the four a reviewer just produced is not evidence, and neither is
  * it a pure fixture. The counts are carried so a reader can see the ratio
  * rather than take the word for it.

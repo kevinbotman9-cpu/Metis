@@ -693,31 +693,63 @@ have produced.
 
 ---
 
-### G-046 — The seeded corpus decides on four channels nothing delivers, and only one screen says so
+### G-048 — The vocabulary check cannot see a file until it is committed
+
+**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-001](BACKLOG.md)
+
+`tests/vocabulary.test.ts` scans `git ls-files`, so an untracked file is
+invisible to it. Its own doc comment says so — *"an untracked file can carry any
+vocabulary at all until it is added"* — and treats it as deliberate, on the
+grounds that the check guards what the repo actually carries.
+
+The hole is worse than that framing suggests, because the files most likely to
+introduce new prose are exactly the ones it cannot see: **new** ones. A slice
+adds a component, runs the suite green, commits, and the violation appears in
+the *next* session's run with nothing pointing at who wrote it.
+
+Found on 2026-09-10 exactly this way. `apps/console/components/placement-form-dialog.tsx`
+was written the previous day using one of the renamed words in its ordinary
+English sense — the same slip the check's own comment records finding on its
+first run, in the same words — and `npx vitest run tests/` reported 48 passing
+while the file was untracked. It failed the moment it was committed, one slice
+later.
+
+(This entry cannot quote the word, because doing so fails the check it is
+about. That is correct behaviour and a small demonstration of why the rule is
+worth having: the register is scanned like everything else.)
+
+The same blind spot applies to `tests/source-hygiene.test.ts` and every other
+check built on `git ls-files`.
+
+**Done when:** the scan reads tracked files **and** the working tree's untracked
+ones, so a new file is checked in the session that writes it.
+
+### G-047 — The seeded corpus has four conversions
 
 **Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-017](BACKLOG.md)
 
-8,255 of the 10,400 seeded decisions — 79% — are on sms, push, email or
-outbound_call. Every one of those slots is now correctly registered, correctly
-channelled and `decidable: true`, and every one has `delivery: null`.
+A consequence of G-046 rather than a defect in it, and worth its own entry
+because it is now the demo's binding constraint.
 
-[ADR-013](adr/ADR-013-delivery.md) §7 decided that the corpus should keep
-deciding: a decision is not a delivery, the engine's behaviour on an sms
-decision is real, and a corpus confined to web would misrepresent the product
-in the other direction. What it must stop doing is being silent about it.
+The corrected corpus holds **416 impressions, 79 clicks, 6 acceptances, 27
+rejections and 4 conversions** across two years and 10,400 decisions. The
+realised-versus-expected value story on `/performance` — one of the things the
+demo exists to show — now rests on four data points, and
+`seeded-outcomes.test.ts` says so where it guards the ratio.
 
-Phase one made it visible in two places — `/placements` names the four slots
-that decide and deliver nothing, and `/creatives?view=coverage` measures content
-only against what can be delivered. **`/performance` still does not.** Its
-channel breakdown puts 2,145 web decisions that reached somebody beside 8,255
-that could not have, with the same provenance marker on both, and provenance
-answers a different question: *synthetic* means no real customer, not
-*undeliverable*.
+Nothing here is wrong. The platform delivers on one channel of five, and the
+numbers are what that looks like when reported honestly. But a reviewer opening
+`/performance` sees a product that decided 10,400 times and converted four, and
+the reason is W-017 rather than anything about the decisions.
 
-**Done when:** `/performance` separates delivered from undeliverable in its
-channel breakdown, and a decision on a placement with no delivery mode carries
-that in the payload rather than only in the interface — the rule the provenance
-work already established.
+Raising the coverage constants to make the funnel look fuller would be inventing
+reach the platform does not have, and is the wrong fix. The right one is an
+adapter, or a demo that shows one channel working well rather than five
+channels mostly not.
+
+**Done when:** either W-017 lands and the corpus reports on more than one
+channel, or the demo states on `/performance` that its numbers describe a single
+delivered channel — which is the Cascade rebuild — [G-046](gaps.md)'s screen half.
 
 ### G-044 — The seeded catalogue has almost no content for an outbound call
 
@@ -824,6 +856,40 @@ The corpus regenerates byte-identical, so nothing in either fix touched a hash.
 linted turned out to be almost clean, which means the cost of this gap was not
 accumulated debt — it was that a real error sat visible-to-nobody for days while
 `docs/CAPABILITIES.md` claimed the lint was clean.
+
+### G-046 — The seeded corpus recorded outcomes on channels nothing delivers
+
+**Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-059](BACKLOG.md)
+
+`seededOutcomesFor` required the winning offer to have an active creative on the
+decision's channel — the rule G-041 added — and never asked whether anything
+**delivered** that channel. Since ADR-013 split `active`, four of the demo
+tenant's five channels are `delivery: null`.
+
+The tell was that the funnel inverted:
+
+| stage | before | after |
+|---|---|---|
+| decisions | 10,400 | 10,400 |
+| offered | 3,425 | 3,425 |
+| **deliverable** | 738 | 738 |
+| **seen** | **887** | **416** |
+| acted | 184 | 79 |
+
+**887 seen against 738 deliverable.** More people saw a message than could have
+been sent one, and a funnel whose stages are not nested is the sign that they
+measure different populations. 471 of the impressions and 105 of the actions
+were on email, sms, push or outbound_call — channels with nothing that sends.
+
+It is exactly the error G-041 corrected, one level out: that one counted a win
+as a render, this one counted a render on a channel with no sender.
+
+Impressions 887 → 416, clicks 184 → 79, acceptances 26 → 6, rejections 57 → 27,
+conversions 20 → 4. Five prose citations of `887` corrected with it.
+
+**Resolved by:** `apps/console/tests/unit/seeded-outcomes.test.ts`, *"starts no
+funnel where nothing delivers the winning channel"* — verified to bite by
+removing the rule, which produced ten named decision ids.
 
 ### G-043 — A placement's `active` flag carried two different meanings
 

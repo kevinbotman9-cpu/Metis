@@ -33,6 +33,22 @@ These are non-negotiable. Every PR must enforce them.
    Before building any screen, ask: *could a customer add a field to this without a
    vendor ticket?*
 
+9. **Never trust a check you have not seen fail.** Write the assertion, break the
+   thing it guards, watch it go red, restore. A check verified only by passing is a
+   check whose subject you have assumed. Three tests here were found passing for
+   the wrong reason — a substring locator matching the page's own heading, a
+   `toHaveCount(0)` that beat the fetch, and a `toContain("2")` satisfied by any
+   number starting with 2. All three were green for weeks. When you fix a defect,
+   write the check that would have caught it, and prove that one bites too.
+
+10. **Never assume a text-parsing check behaves the same on both platforms.** CI is
+    Linux; the machines this is written on are Windows. `.` does not match a
+    carriage return, so `$`-anchored patterns over markdown mis-parse under
+    `core.autocrlf=true` — `gaps-register.test.ts` reported 36 anonymous entries and
+    35 duplicate ids that did not exist: green in the only place anyone looks, red
+    in every place anyone works. Normalise line endings once, where the file is
+    read, not at each call site.
+
 ---
 
 ## The Unit of Work: Vertical Slices
@@ -40,7 +56,7 @@ These are non-negotiable. Every PR must enforce them.
 There are no backend PRs and no frontend PRs. There are slices.
 
 A slice is one thing a named persona can do end to end. It is not done until all
-ten of these exist **in the same PR**:
+nine of these exist **in the same PR**:
 
 | # | Artefact | Where it lives |
 |---|---|---|
@@ -53,10 +69,16 @@ ten of these exist **in the same PR**:
 | 7 | Trace contribution, if it affects a decision | `packages/ledger` |
 | 8 | Deterministic test + one `@screen-only` e2e | `tests/`, `apps/console/tests/e2e` |
 | 9 | Accessibility pass on the new route | `npm run test:a11y`, axe clean |
-| 10 | Docs page generated from the typed contract | `docs/api/` |
 
-If you cannot finish all ten, **make the slice smaller**. Do not ship 1–4 and
-promise 5–10 later.
+Artefact 10 was *"a docs page generated from the typed contract in `docs/api/`"*. That
+directory has never existed, there is no generator and no check, so every slice this
+repo has shipped was nine-tenths of a slice and none of them said so. Removed rather
+than left standing: a definition of done containing an item nobody has ever met
+teaches everyone to round off. Registered as a work item; the spec is readable and
+`validate-spec.mjs` keeps it honest in the meantime.
+
+If you cannot finish all nine, **make the slice smaller**. Do not ship 1–4 and
+promise 5–9 later.
 
 A capability is not built until a user can do it from the screen, alone, without
 you. Backend work with no screen is not progress; it is inventory, and it is
@@ -225,14 +247,42 @@ These are high-touch and need product/design review before code.
 
 ## Session Discipline
 
-- One slice per session. If the slice is bigger than one session, split it.
+- One slice per branch, one branch per PR. `git fetch` and verify local `main`
+  matches `origin/main` before branching — a stale local ref has already sent one
+  slice off a week-old commit.
 - Start the session by running `npm run conformance` and reporting the current
-  failure count. End the session the same way. Do not end with a higher failure
-  count than you started with.
-- If you are more than 60% through context and slice artefacts 5–10 are not done,
+  failure count. End the session the same way.
+- **The count may not rise, with one exception:** a rule that fires once per route
+  and has no implementation behind it (today, `layout-manifests`, W-041). Adding a
+  screen adds exactly one such failure. When that happens, say which rule and why,
+  and never invent a format nothing reads in order to move a number.
+- If you are more than 60% through context and slice artefacts 5–9 are not done,
   stop, commit nothing, and report what remains.
 - Do not proceed past a red gate. Report it and stop.
 - Read-only means read-only. Do not fix things during a survey phase.
+- Do not report numbers from a run you disturbed — a branch switch mid-suite, a
+  dev server saturated by another suite, a server that has been up for hours.
+  Re-run on a stable tree or discard the run and say so.
+
+### Working a spine unattended
+
+When the product owner opens a spine rather than a single slice, work it slice by
+slice, in order, branching and opening a PR for each. **Stop and report** when any
+of these happens:
+
+- a decision is needed that is not already settled in an accepted ADR;
+- a gate goes red for a reason outside the slice;
+- you find something wrong outside the slice;
+- the spine's next step turns out to be wrong as written.
+
+Otherwise keep going until the spine closes. Erring toward stopping is correct;
+the cost of an unnecessary stop is one message.
+
+### Say where you are
+
+At the start of a slice, list the artefacts you expect to build and mark each as it
+lands. When starting a long-running suite, say roughly how long it takes. There is
+no progress bar; the narration is the only signal anyone has.
 
 ### End every session by naming what is wrong
 
