@@ -134,9 +134,10 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      # Covers navigation, auth, RBAC, persistence, and axe-core at WCAG 2.2 AA.
-      - name: End-to-end and accessibility
-        run: npm run test:e2e
+      # The end-to-end suite moved to the sharded `e2e` job below. It was ~13
+      # minutes of a serial job that gates every push, and it is the only step
+      # here that parallelises cleanly: every other step is a suite small enough
+      # that a runner's startup would cost more than it saved.
 
       # Builds and serves the standalone output, then measures what a browser
       # actually downloads per route. Separate from the E2E step because that
@@ -145,27 +146,144 @@ jobs:
       - name: Route bundle budgets
         run: npm run test:bundle
 
-      # A test that passed on retry is reported as passing by every reporter
-      # here, and CI has never run this suite more than once per push — so a
-      # suite failing one run in three passed two pushes in three, and nothing
-      # said so. This reads the JSON reporter's output and puts every flaky
-      # test in the run summary, where it is seen without opening an artifact.
+      # The flaky-test summary moved with the suite, into `e2e-report`. It has
+      # to read one report covering every shard, which is what `merge-reports`
+      # produces — running it per shard would print four partial summaries and
+      # none of them would be the answer.
+
+      # What the bundle-budget run leaves behind. This said
+      # `apps/console/playwright-report` and pointed at the html reporter's
+      # directory, which nothing in this repo writes — the same mistake the
+      # flake hunt made, in the job next door.
+      - name: Upload bundle-budget report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-budget-report
+          path: apps/console/test-results
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # The end-to-end suite, split four ways.
+  #
+  # It was ~13 minutes inside `verify`, serially, gating every push — more than
+  # the rest of that job put together. Four runners take a quarter of the tests
+  # each and finish in roughly a quarter of the time, at the cost of four
+  # `npm ci` installs.
+  #
+  # `fail-fast: false` because a shard failing tells you nothing about the other
+  # three, and cancelling them throws away the evidence of whether the failure is
+  # local to one group of specs or general.
+  #
+  # **The count lives in one place.** `tests/e2e-sharding.test.ts` reads this
+  # matrix and asserts that the shards partition the suite — every test in
+  # exactly one shard, none dropped, none run twice. Changing 4 here without
+  # changing it there fails that check rather than silently running three
+  # quarters of the suite.
+  e2e:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    defaults:
+      run:
+        working-directory: apps/console
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+        working-directory: .
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      # Covers navigation, auth, RBAC, persistence, and axe-core at WCAG 2.2 AA.
       #
-      # It does not fail the job. A flake is a defect to investigate, not a
-      # reason to block a push that is otherwise green; the nightly job below is
-      # the one that fails on them, because that is the run whose whole purpose
-      # is to find them.
+      # `blob` rather than the config's reporters: it is the only format
+      # `merge-reports` can recombine, and a merged report is what the flaky
+      # summary needs. The json and github reporters are produced from the merge,
+      # once, in the job below.
+      - name: End-to-end and accessibility (shard ${{ matrix.shard }}/4)
+        run: npx playwright test --shard=${{ matrix.shard }}/4 --reporter=blob
+
+      - name: Upload blob report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-${{ matrix.shard }}
+          path: apps/console/blob-report
+          retention-days: 7
+          if-no-files-found: error
+
+  # One report over all four shards, and the gate.
+  #
+  # `needs` with `if: always()` so this runs even when a shard failed — that is
+  # exactly when the merged report is worth having. The shards do not fail the
+  # workflow themselves; this job does, after saying which tests were flaky.
+  e2e-report:
+    if: always() && github.event_name != 'schedule'
+    needs: [e2e]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/console
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+        working-directory: .
+
+      - name: Download blob reports
+        uses: actions/download-artifact@v5
+        with:
+          path: apps/console/all-blob-reports
+          pattern: blob-report-*
+          merge-multiple: true
+
+      # Fails loudly if a shard produced nothing. A merge over three reports
+      # succeeds and reports on three quarters of the suite, which is the
+      # silent-drop failure this whole job exists to make impossible.
+      - name: Every shard reported
+        run: |
+          found=$(ls all-blob-reports/*.zip 2>/dev/null | wc -l)
+          echo "blob reports: $found"
+          [ "$found" -eq 4 ] || { echo "::error::expected 4 blob reports, found $found"; exit 1; }
+
+      - name: Merge into one report
+        run: npx playwright merge-reports --reporter=json all-blob-reports > playwright-results.json
+
       - name: Report flaky tests
         if: always()
         run: node ../../scripts/report-flaky.mjs playwright-results.json
 
-      - name: Upload Playwright report
-        if: failure()
+      - name: Upload merged report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: apps/console/playwright-report
+          name: e2e-report
+          path: apps/console/playwright-results.json
           retention-days: 7
+          if-no-files-found: ignore
+
+      # The gate. A shard that failed has to fail the workflow, and it has to do
+      # it after the summary above rather than instead of it.
+      - name: Every shard must be green
+        if: always()
+        run: |
+          echo "shards: ${{ needs.e2e.result }}"
+          [ "${{ needs.e2e.result }}" = "success" ] || exit 1
 
   spec:
     if: github.event_name != 'schedule'
