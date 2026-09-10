@@ -529,6 +529,14 @@ export interface AuthUser {
   email: string;
   name: string;
   roles: ("architect" | "marketer" | "compliance" | "analyst" | "operator" | "admin")[];
+  /** What this account may do. Left as free strings rather than an enum because a tenant may carry permissions from an installed pack, but the set the console itself gates on is closed and listed here.
+
+Reads: `view:offers`, `view:flows`, `view:decisions`, `view:audit`, `view:policies`, `view:integrations`, `view:autonomy`. Writes: `edit:offers`, `edit:flows`, `edit:policies`, `edit:arbitration`, `edit:integrations`, `edit:autonomy`, `publish:flows`, `promote:flows`, `request:changes`, `approve:changes`, `admin:settings`.
+
+`view:integrations` and `view:autonomy` were added on 2026-09-10. The four screens they gate had no read permission and the only candidates were `edit:integrations` and `edit:autonomy`; gating a read behind a write means nobody may look who may not change, which is backwards on a product built around a compliance officer who changes nothing.
+
+A route is gated by declaring the permission on its entry in the console's navigation manifest. `RequireAuth` reads the same declaration, so the rail and the route cannot disagree.
+ */
   permissions: string[];
   tenantId: string;
 }

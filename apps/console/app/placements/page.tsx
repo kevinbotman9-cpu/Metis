@@ -14,7 +14,6 @@ import {
   CardBody,
   Badge,
   ErrorState,
-  PermissionDenied,
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
@@ -292,22 +291,12 @@ function PlacementsView() {
 }
 
 export default function PlacementsPage() {
+  // `view:flows` is enforced by `RequireAuth`, from the manifest entry the
+  // navigation rail reads. This page wrote the check itself while the
+  // manifest declared nothing, so the rail drew a link it would then refuse.
   return (
     <RequireAuth>
-      <Guarded />
+      <PlacementsView />
     </RequireAuth>
   );
-}
-
-function Guarded() {
-  const { hasPermission } = useAuth();
-  if (!hasPermission('view:flows')) {
-    return (
-      <PageBody>
-        <PageHeader title="Placements" />
-        <PermissionDenied permission="view:flows" />
-      </PageBody>
-    );
-  }
-  return <PlacementsView />;
 }

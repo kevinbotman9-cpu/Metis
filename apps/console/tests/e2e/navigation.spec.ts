@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, ACCOUNTS } from './helpers';
+import { login, openAccountPanel, ACCOUNTS } from './helpers';
 
 /**
  * The regression suite for "the links are not working".
@@ -41,7 +41,6 @@ const NAV_ITEMS: { group: string; label: string; heading: string | RegExp; linkN
   { group: 'Administration', label: 'Agentic AI', heading: 'Agentic AI' },
   { group: 'Administration', label: 'Data model', heading: 'Data model' },
   { group: 'Administration', label: 'Intake', heading: 'Intake' },
-  { group: 'Administration', label: 'Settings', heading: 'Settings' },
 ];
 
 /** Open a group in the rail if it is not already open. */
@@ -69,6 +68,22 @@ test.describe('navigation', () => {
       await expect(page.getByText('This page could not be found')).toHaveCount(0);
     });
   }
+
+  test('Settings is reached from the account panel, not the rail', async ({ page }) => {
+    // It was Administration › Tenancy, beside Tenants and Residency, until
+    // 2026-09-10 — a personal preference filed behind a heading that reads as
+    // a permission boundary. It is Account, Appearance and Environment: the
+    // signed-in user's own name, theme and which environment they are looking
+    // at, which is why it is gated on nothing and lives beside the appearance
+    // controls that are part of it.
+    await expect(
+      page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Settings', exact: true })
+    ).toHaveCount(0);
+
+    await openAccountPanel(page, /Marcus Webb/);
+    await page.getByRole('link', { name: 'Account settings' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  });
 
   test('marks the current page in the sidebar', async ({ page }) => {
     const nav = page.getByRole('navigation', { name: 'Main' });

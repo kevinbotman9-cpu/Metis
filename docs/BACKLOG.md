@@ -185,6 +185,8 @@ otherwise.
 | W-058 | 14 | Delivery record and the decidable/deliverable split | DONE | 2 |
 | W-059 | 14 | A seeded outcome requires a deliverer, not only a creative | DONE | 2 |
 | W-060 | 14 | Cascade, and `/performance` rebuilt on it | DONE | 2 |
+| W-061 | 14 | Every route enforces the permission its nav entry declares | DONE | 1 |
+| W-062 | 14 | Redact, audit and expire the inbound call log | OPEN | 1 |
 
 ---
 
@@ -1486,6 +1488,56 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-062 — Redact, audit and expire the inbound call log
+
+**Registered:** 2026-09-10 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet
+
+Gate 1 · Depends: W-061 · Gap [G-051](gaps.md)
+
+`/integrations/traffic` renders request and response bodies verbatim, so a
+decision request shows a customer identifier and whatever profile attributes the
+caller sent. W-061 decided who may open the screen. It did not touch what is on
+it.
+
+Nothing redacts, nothing records who looked, and nothing expires. On a product
+whose design north star is the compliance officer, a surface holding personal
+data that leaves no trace of being read is the wrong shape regardless of who
+holds the key.
+
+**Done when:** payloads are redacted by default with a deliberate reveal, the
+reveal reaches the audit log, and a retention window exists — or an ADR records
+why each is not needed.
+
+### W-061 — Every route enforces the permission its nav entry declares
+
+**Registered:** 2026-09-10 · **Stage:** 14 · **Status:** DONE
+**Check:** `apps/console/tests/unit/route-authorisation.test.ts`, `apps/console/tests/e2e/route-authorisation.spec.ts`
+
+Gate 1 · Gap [G-050](gaps.md)
+
+`RequireAuth` checked for a session and never for a permission. Of twenty-one
+routes, four hand-wrote a guard and sixteen enforced nothing — three of them
+while declaring a permission the rail obeyed and the route ignored.
+
+Enforcement moved into `RequireAuth`, derived from the same manifest the rail is
+built from, so a route cannot opt out by omission. The four hand-written
+wrappers were deleted. Ten routes that declared nothing were given a permission
+by product decision and four were left ungated deliberately: Home, Approvals,
+Settings and Data model.
+
+`view:integrations` and `view:autonomy` joined the vocabulary. Gating a read
+behind an `edit:` permission means nobody can look without being able to change.
+
+A fourth fixture account exists because of this work. Sarah, Priya and Marcus
+held every gated permission between them, so no test could observe a refusal;
+Oliver Reed holds `view:integrations` and is refused the other six.
+
+**Done when:** every route goes through `RequireAuth`; the rail and the route
+never disagree in either direction; a detail page inherits its list's permission;
+every gated permission has an account that lacks it; and an account refused a
+screen is told which permission would admit it — each verified to bite.
+
 ### W-060 — Cascade, and `/performance` rebuilt on it
 
 **Registered:** 2026-09-10 · **Stage:** 14 · **Status:** DONE

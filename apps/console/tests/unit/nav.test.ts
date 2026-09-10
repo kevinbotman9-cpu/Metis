@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { buildNav, activeGroup, firstHref } from '@/lib/nav/build-nav';
-import { PERSONA_MANIFEST, type GroupNode } from '@/lib/nav/persona-manifest';
+import { PERSONA_MANIFEST, PERSONAL_ROUTES, type GroupNode } from '@/lib/nav/persona-manifest';
 import { ROUTES } from '@/lib/nav/routes.generated';
 import { users } from '@/mocks/fixtures/catalogue';
 
@@ -171,9 +171,14 @@ describe('the real manifest against the real routes', () => {
     expect(missing, 'routes the admin cannot reach from the rail').toEqual([]);
   });
 
-  it('every existing route has a manifest entry', () => {
+  it('every existing route has a manifest entry, or is a personal one', () => {
     // A page.tsx with no place in the tree is unreachable from navigation —
-    // the exact defect the manifest exists to make impossible.
+    // the exact defect the manifest exists to make impossible. `/settings` is
+    // the declared exception and reached from the account panel instead: it is
+    // the signed-in user's own name, theme and environment, and it sat under
+    // Administration › Tenancy beside Tenants and Residency until 2026-09-10.
+    // The exception is a list, not a predicate, so adding to it is a decision
+    // somebody has to write down.
     const declared = new Set(
       PERSONA_MANIFEST.flatMap((g) =>
         g.children.flatMap((s) => [
@@ -182,19 +187,58 @@ describe('the real manifest against the real routes', () => {
         ])
       )
     );
-    expect(ROUTES.filter((r) => !declared.has(r)), 'routes with no manifest entry').toEqual([]);
+    expect(
+      ROUTES.filter((r) => !declared.has(r) && !PERSONAL_ROUTES.includes(r)),
+      'routes with no manifest entry'
+    ).toEqual([]);
   });
 
-  it('the compliance officer is hidden from Policy, not disabled, and sees Evidence', () => {
-    // Priya is compliance only. Policy is tagged marketer/architect and its
-    // screens carry no permission, so nothing lets her in. Decisioning is also
-    // tagged architect, but she holds view:flows — the permission on Decision
-    // flows — and a granted permission outranks a persona tag.
+  it('a granted permission outranks a persona tag, in every group', () => {
+    // Priya is compliance only, and three groups tagged for other personas let
+    // her in on permissions she holds. That is rule 5, and until 2026-09-10 it
+    // was almost never reached, because the screens those groups hold declared
+    // no permission for it to act on.
+    //
+    // Policy is the sharpest case. It is tagged marketer/architect, and this
+    // test used to assert Priya could not see it — she holds `edit:policies`
+    // and is the person who authors the qualification model. The rail hid the
+    // policy screens from the one account entitled to change them, and the
+    // reason was not a decision anybody made: it was that nothing declared the
+    // entitlement, so there was nothing for rule 5 to find. The same omission
+    // hid Placements, which had enforced `view:flows` since it was built.
+    //
+    // Three variants of one defect, all fixed by declaring what was already
+    // true.
     const nav = buildNav(PERSONA_MANIFEST, ROUTES, account('priya.natarajan@telco.example'));
-    expect(labels(nav)).not.toContain('Policy');
     expect(labels(nav)).toContain('Evidence');
+
+    // In on `view:policies`, and only the screens it names.
+    const policy = nav.find((g) => g.label === 'Policy');
+    expect(policy?.children.map((s) => s.label)).toEqual(['Targeting policies', 'Frequency policy']);
+
+    // In on `view:flows`, and Arbitration comes with it now that it declares one.
     const decisioning = nav.find((g) => g.label === 'Decisioning');
-    expect(decisioning?.children.map((s) => s.label)).toEqual(['Decision flows']);
+    expect(decisioning?.children.map((s) => s.label)).toEqual([
+      'Decision flows',
+      'Arbitration & boosts',
+      'Placements',
+    ]);
+  });
+
+  it('the operator sees the pipes and nothing else', () => {
+    // Oliver holds `view:integrations` alone. Every group he is not tagged for
+    // and holds no permission inside is absent, and the one group he reaches
+    // shows only the screens that name his permission — not Data model, which
+    // is deliberately ungated and therefore admitted by persona, which he does
+    // not have for Administration.
+    const nav = buildNav(PERSONA_MANIFEST, ROUTES, account('oliver.reed@telco.example'));
+    expect(labels(nav)).toEqual(['Overview', 'Administration']);
+    const admin = nav.find((g) => g.label === 'Administration');
+    expect(admin?.children.flatMap((s) => s.children.map((c) => c.label))).toEqual([
+      'Integrations',
+      'Inbound traffic',
+      'Intake',
+    ]);
   });
 });
 

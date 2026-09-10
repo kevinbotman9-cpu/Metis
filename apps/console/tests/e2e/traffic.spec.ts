@@ -43,7 +43,13 @@ async function callAsStorefront(page: import('@playwright/test').Page) {
 
 test.describe('inbound traffic', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page, ACCOUNTS.sarah);
+    // Marcus, not Sarah. `/integrations/traffic` gates on `view:integrations`
+    // since 2026-09-10 and a decision architect does not hold it — the screen
+    // renders request and response bodies verbatim, customer identifiers
+    // included, and was open to every signed-in account until then ([G-051]).
+    // Marcus is the admin and also holds `view:decisions`, which the call's
+    // link to the decision it produced needs.
+    await login(page, ACCOUNTS.marcus);
     await page.request.post('/api/inbound-calls/clear');
   });
 
