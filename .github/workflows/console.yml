@@ -72,13 +72,20 @@ jobs:
         run: npx tsc --noEmit
         working-directory: apps/console
 
-      - name: Lint
+      # `working-directory: .` is the whole point of this step and was missing.
+      # The job defaults to apps/console, so this ran the *console's* lint and
+      # `eslint packages bench tests scripts` had never run on a pull request —
+      # found on 2026-09-10 when an unused import reached a PR behind three
+      # reports that lint was clean. G-060.
+      - name: Lint (packages, bench, tests, scripts)
         run: npm run lint
+        working-directory: .
 
       # The root config ignores apps/console, so the console needs its own run.
       # Without this step the console was linted by nobody.
       - name: Lint (console)
         run: npm run lint -w @metis/console
+        working-directory: .
 
       # The Phase 0 gate: same artifact + same inputs = byte-identical decision.
       - name: Determinism (execution engine)
@@ -88,6 +95,21 @@ jobs:
       # Nothing reaches the runtime that the compiler would have rejected.
       - name: Compiler
         run: npm run test:compiler
+        working-directory: .
+
+      # These three are in the root `npm test` chain and were in no CI step:
+      # canonical serialisation, the catalogue model and the export/import
+      # round trip all ran on developer machines and nowhere else. G-060.
+      - name: Core
+        run: npm run test:core
+        working-directory: .
+
+      - name: Catalogue
+        run: npm run test:catalogue
+        working-directory: .
+
+      - name: Portability
+        run: npm run test:portability
         working-directory: .
 
       # The decision ledger: append-only records, outcomes and durable
@@ -145,6 +167,13 @@ jobs:
       # meaningless.
       - name: Route bundle budgets
         run: npm run test:bundle
+
+      # The UX contract. `npm run conformance` is named in CLAUDE.md as the
+      # command every session opens and closes with, did not exist as a script
+      # until 2026-09-10, and therefore ran in CI not at all. G-060.
+      - name: UX conformance holds at the baseline
+        run: node scripts/check-conformance.mjs
+        working-directory: .
 
       # The flaky-test summary moved with the suite, into `e2e-report`. It has
       # to read one report covering every shard, which is what `merge-reports`
@@ -306,24 +335,14 @@ jobs:
       # committed. A stale corpus means the TypeScript conformance test is
       # asserting against yesterday's output.
       - name: The conformance corpus matches the reference
-        run: |
-          npm run corpus
-          if ! git diff --exit-code --stat docs/conformance/; then
-            echo "::error::a conformance corpus is stale. Run: npm run corpus"
-            exit 1
-          fi
+        run: node scripts/check-regenerated.mjs corpus docs/conformance/
 
       # packages/client is generated from the spec and committed. If these
       # disagree, someone hand-edited the client or changed the spec without
       # regenerating - either way the types the console compiles against are
       # no longer the contract.
       - name: The generated client matches the spec
-        run: |
-          npm run generate
-          if ! git diff --exit-code --stat packages/client/src/generated.ts; then
-            echo "::error::packages/client is stale. Run: npm run generate"
-            exit 1
-          fi
+        run: node scripts/check-regenerated.mjs generate packages/client/src/generated.ts
 
   # A second implementation of ADR-003, held to the same corpus as the
   # TypeScript reference. If both jobs are green, a decision hashed by either

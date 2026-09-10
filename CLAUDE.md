@@ -269,7 +269,19 @@ These are high-touch and need product/design review before code.
   matches `origin/main` before branching — a stale local ref has already sent one
   slice off a week-old commit.
 - Start the session by running `npm run conformance` and reporting the current
-  failure count. End the session the same way.
+  failure count. End the session the same way. The count is ratcheted against
+  `docs/ux-conformance-baseline.json`, and `npm run gates` fails if it rises —
+  or if it falls and the baseline was not lowered in the same commit.
+- **Report gates by running `npm run gates`, never by naming individual
+  commands.** It runs exactly what CI runs, in CI's order, and
+  `tests/gates-parity.test.ts` fails if the two ever drift. A claim of "lint
+  clean" or "gates green" from anything else is a claim about an unknown
+  subset, and the subsets were not small: until 2026-09-10 the root lint ran
+  nowhere on a pull request, `test:core`, `test:catalogue` and
+  `test:portability` ran in no CI job at all, and `npm run conformance` — named
+  twice in this file — was not a script. Three sessions reported lint clean
+  while the directory they were editing went unlinted. `npm run gates -- <id>`
+  re-runs one gate.
 - **The count may not rise, with one exception:** a rule that fires once per route
   and has no implementation behind it (today, `layout-manifests`, W-041). Adding a
   screen adds exactly one such failure. When that happens, say which rule and why,

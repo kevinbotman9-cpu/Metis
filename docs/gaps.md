@@ -693,6 +693,73 @@ have produced.
 
 ---
 
+### G-060 — The local gate and the CI gate were different gates, and nothing said so
+
+**Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-068](BACKLOG.md)
+
+Running the obvious commands in a terminal and seeing green meant having
+checked *some* subset of what CI checks. Which subset was knowable only by
+reading `.github/workflows/console.yml` line by line, and three things had
+drifted out of it entirely.
+
+**The root lint ran nowhere on a pull request.** `verify` sets
+`working-directory: apps/console` as a job default. Its `Lint` step — written
+to be the root lint, and commented as such — therefore ran `npm run lint`
+*inside the console*, which is the console's own lint. The step immediately
+after it, `Lint (console)`, ran the console's lint again. So
+`eslint packages bench tests scripts` had never run in CI, and the two steps
+that looked like belt and braces were the same brace twice.
+
+**Three workspaces ran nowhere in CI.** `test:core`, `test:catalogue` and
+`test:portability` are in the root `npm test` chain and appeared in no workflow
+step: canonical serialisation, the catalogue model and the export/import round
+trip were verified on developer machines and nowhere else.
+
+**`npm run conformance` was not a script.** CLAUDE.md names it twice — every
+session is told to open and close by running it — and `package.json` had no
+such entry. Every session has been invoking
+`node --import tsx scripts/conformance.mjs` by hand, and the documented command
+would have failed. The UX contract therefore ran in CI not at all.
+
+The three met in one place on 2026-09-10. A two-character mistake — an unused
+`useMemo` import — reached a pull request behind three consecutive session
+reports that lint was clean. Each report was made after running the root lint,
+which does not cover the console; CI caught it with the console lint, which is
+the one CI runs twice.
+
+That is the shape of the defect: **not that a check was missing, but that two
+different sets of checks both called themselves "the gates"**, and every claim
+made from a terminal was about the smaller one without saying so.
+
+**Resolved by:** `npm run gates` runs the list in `scripts/gates.mjs`, which is
+exactly what CI runs, in each job's order, stopping where CI stops.
+`tests/gates-parity.test.ts` reads that list and the workflow and fails when
+either gains or loses a step the other does not have — verified to bite in both
+directions, by adding a step to the workflow and by removing a gate from the
+script. A workflow step that is genuinely setup goes in `NOT_A_GATE` with a
+reason, and a job outside the local run is declared with one.
+
+The three holes were closed in the same change: the root lint gained
+`working-directory: .`, the three workspaces gained steps, and `conformance`
+gained a script and a CI step.
+
+**One gate needed a different shape.** `npm run conformance` exits non-zero on
+a healthy tree — 26 standing failures, most of them `layout-manifests`, a rule
+that fires once per route with no implementation behind it. Wired in raw it
+would have reddened every pull request and taught everyone to ignore the one
+check that reads the UI contract. `scripts/check-conformance.mjs` enforces what
+CLAUDE.md actually says — the count may not rise — against
+`docs/ux-conformance-baseline.json`, and fails equally when the count falls and
+the baseline was not lowered in the same commit, because unrecorded slack is
+where the next regression hides. Verified in all three directions: rise exits 1,
+unrecorded fall exits 1, at the baseline exits 0.
+
+**What it does not cover:** `kotlin-conformance` stays out of the local run, so
+a change that breaks the JVM engine is caught on the pull request rather than
+before it. Running Gradle before every console commit is the wrong trade; the
+declaration in `OUT_OF_SCOPE` says so out loud rather than leaving it to be
+discovered.
+
 ### G-059 — Every `next-best-action` decision considers the same 22 offers, out of 251
 
 **Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-067](BACKLOG.md)
