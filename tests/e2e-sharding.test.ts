@@ -87,9 +87,15 @@ function list(shard?: string): Listed {
     shell: process.platform === 'win32',
   });
 
-  const report = JSON.parse(out) as { suites?: unknown[] };
+  /** Only the shape this needs; Playwright's report carries a great deal more. */
+  interface Suite {
+    specs?: { file: string; line: number; title: string; tests?: { projectName: string }[] }[];
+    suites?: Suite[];
+  }
+
+  const report = JSON.parse(out) as { suites?: Suite[] };
   const ids: { project: string; id: string }[] = [];
-  const walk = (suite: Record<string, any>) => {
+  const walk = (suite: Suite) => {
     for (const spec of suite.specs ?? []) {
       for (const t of spec.tests ?? []) {
         ids.push({ project: t.projectName, id: `${spec.file}:${spec.line}|${spec.title}` });
@@ -97,7 +103,7 @@ function list(shard?: string): Listed {
     }
     for (const child of suite.suites ?? []) walk(child);
   };
-  for (const s of (report.suites ?? []) as Record<string, any>[]) walk(s);
+  for (const s of report.suites ?? []) walk(s);
 
   return {
     chromium: ids.filter((x) => x.project === 'chromium').map((x) => x.id),
