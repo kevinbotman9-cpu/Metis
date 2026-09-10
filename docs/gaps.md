@@ -693,6 +693,38 @@ have produced.
 
 ---
 
+### G-049 — `/performance` gave a delivered decision and an undeliverable one the same marker
+
+**Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-060](BACKLOG.md)
+
+The screen half of [G-046](gaps.md), registered separately because the corpus
+half was a seeding rule and this one is a reading of the numbers.
+
+`/performance` opened on four figures in a row — decisions, offered, offered
+nothing, with an outcome — and a table of rates beneath them. Nothing anywhere
+on it distinguished a decision that reached a customer from one that won a slot
+on a channel with no sender, and **2,687 of the 3,426 decisions that offered
+something are the second kind**.
+
+Every figure on the old screen was correct. A marketer read `3,426 offered` and
+a click rate under it and drew a conclusion that was false, because the two
+numbers described different populations and the screen said so nowhere. That is
+the failure mode this platform is least able to afford: it is the most
+screenshot-able surface in the product and the one whose numbers most look like
+evidence.
+
+Rebuilt on **Cascade** — `docs/METIS_CONSOLE_SPEC.md` §4.7, added by the same
+slice. Five stages that nest, the break at `deliverable` drawn in the block
+colour with the count that fell out stated on the stage itself, and every rate
+below it naming the channel it describes. The overview, before a stage is
+selected, puts the realised value beside the expected margin of what was decided
+and never delivered.
+
+**Resolved by:** `apps/console/tests/e2e/performance-cascade.spec.ts` — six
+checks, each verified to bite: smoothing the break, rendering a rate for an
+undeliverable channel, and dropping the rail on selection each turn exactly one
+of them red.
+
 ### G-048 — The vocabulary check cannot see a file until it is committed
 
 **Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-001](BACKLOG.md)
@@ -749,7 +781,8 @@ channels mostly not.
 
 **Done when:** either W-017 lands and the corpus reports on more than one
 channel, or the demo states on `/performance` that its numbers describe a single
-delivered channel — which is the Cascade rebuild — [G-046](gaps.md)'s screen half.
+delivered channel. The second of those is done: [G-049](gaps.md), the Cascade
+rebuild, states it on the rail and on every rate below the break. W-017 remains.
 
 ### G-044 — The seeded catalogue has almost no content for an outbound call
 

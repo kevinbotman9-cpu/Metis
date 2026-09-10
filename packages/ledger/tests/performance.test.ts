@@ -12,7 +12,12 @@ import type { LedgerEntry, OutcomeEvent } from '../src/types';
  * folding suppressed decisions into the offers that failed.
  */
 
-const entry = (over: Partial<LedgerEntry> & { winner: string | null; id: string }): LedgerEntry =>
+// `channel` is not a `LedgerEntry` field — it lives inside the recorded
+// decision, and these tests set it often enough to be worth naming here rather
+// than casting at every call site.
+const entry = (
+  over: Partial<LedgerEntry> & { winner: string | null; id: string; channel?: string }
+): LedgerEntry =>
   ({
     tenantId: 't',
     decisionId: over.id,
@@ -24,7 +29,7 @@ const entry = (over: Partial<LedgerEntry> & { winner: string | null; id: string 
     record: {
       decision: {
         winner: over.winner,
-        channel: (over as { channel?: string }).channel ?? 'web',
+        channel: over.channel ?? 'web',
       },
     },
   }) as unknown as LedgerEntry;
@@ -203,5 +208,110 @@ describe('the window', () => {
   it('has no window when there is nothing in it', () => {
     const report = buildPerformance([], map([]));
     expect(report).toMatchObject({ decisions: 0, from: null, to: null, rows: [] });
+  });
+});
+
+/**
+ * The loop, and the property the Cascade pattern rests on.
+ *
+ * `METIS_CONSOLE_SPEC.md` §4.7: every stage is a subset of the one above it. A
+ * figure below one that exceeds it means the two are counting different
+ * populations, and the screen is lying. That is not hypothetical — `/performance`
+ * showed 887 seen against 738 deliverable for a day, and the inversion is how
+ * G-046 was found.
+ */
+describe('the loop', () => {
+  const corpus = () => {
+    const entries = [
+      entry({ id: 'd1', winner: 'a', channel: 'web' }),
+      entry({ id: 'd2', winner: 'a', channel: 'web' }),
+      entry({ id: 'd3', winner: 'b', channel: 'email' }),
+      entry({ id: 'd4', winner: null, channel: 'email' }),
+      entry({ id: 'd5', winner: 'b', channel: 'sms' }),
+    ];
+    const events = map([
+      outcome('d1', 'impression'),
+      outcome('d1', 'click'),
+      outcome('d2', 'impression'),
+    ]);
+    return { entries, events };
+  };
+
+  it('counts the five stages, each a subset of the one before', () => {
+    const { entries, events } = corpus();
+    const r = buildPerformance(entries, events, ['web']);
+
+    expect(r.decisions).toBe(5);
+    expect(r.offered).toBe(4);
+    expect(r.deliverable).toBe(2);
+    expect(r.measured).toBe(2);
+    expect(r.acted).toBe(1);
+
+    // Stated as the invariant rather than as five separate numbers, because it
+    // is the invariant a reader of the rail is relying on.
+    expect(r.offered).toBeLessThanOrEqual(r.decisions);
+    expect(r.deliverable!).toBeLessThanOrEqual(r.offered);
+    expect(r.measured).toBeLessThanOrEqual(r.deliverable!);
+    expect(r.acted).toBeLessThanOrEqual(r.measured);
+  });
+
+  it('says nothing about deliverability when nobody said which channels deliver', () => {
+    // Null, not zero. "Nothing is deliverable" and "nobody told us" are
+    // different answers, and a rail that renders the second as the first would
+    // report a total break that is really a missing argument.
+    const { entries, events } = corpus();
+    expect(buildPerformance(entries, events).deliverable).toBeNull();
+  });
+
+  it('breaks the loop down per channel, so a rate can name its population', () => {
+    const { entries, events } = corpus();
+    const r = buildPerformance(entries, events, ['web']);
+    const byChannel = new Map(r.channels.map((c) => [c.channel, c]));
+
+    expect(byChannel.get('web')).toMatchObject({
+      delivers: true,
+      decisions: 2,
+      offered: 2,
+      deliverable: 2,
+      seen: 2,
+      acted: 1,
+    });
+    // Decided on, and carried by nothing. The stage that makes the break real.
+    expect(byChannel.get('email')).toMatchObject({
+      delivers: false,
+      decisions: 2,
+      offered: 1,
+      deliverable: 0,
+    });
+    expect(byChannel.get('sms')?.delivers).toBe(false);
+  });
+
+  it('holds the nesting on every channel, not only in the total', () => {
+    // A total can nest while a channel does not, and the per-channel rate is
+    // what the screen puts next to a number.
+    const { entries, events } = corpus();
+    const r = buildPerformance(entries, events, ['web']);
+    for (const c of r.channels) {
+      expect(c.offered, `${c.channel}: offered exceeds decisions`).toBeLessThanOrEqual(c.decisions);
+      expect(c.deliverable, `${c.channel}: deliverable exceeds offered`).toBeLessThanOrEqual(
+        c.offered
+      );
+      expect(c.acted, `${c.channel}: acted exceeds seen`).toBeLessThanOrEqual(c.seen);
+    }
+  });
+
+  it('gives the rail a daily series, oldest first', () => {
+    const r = buildPerformance(
+      [
+        entry({ id: 'a', winner: 'x', channel: 'web', occurredAt: '2026-06-02T09:00:00.000Z' }),
+        entry({ id: 'b', winner: 'x', channel: 'web', occurredAt: '2026-06-01T09:00:00.000Z' }),
+        entry({ id: 'c', winner: null, channel: 'web', occurredAt: '2026-06-01T18:00:00.000Z' }),
+      ],
+      map([outcome('b', 'impression')]),
+      ['web']
+    );
+    expect(r.series.map((d) => d.date)).toEqual(['2026-06-01', '2026-06-02']);
+    expect(r.series[0]).toMatchObject({ decisions: 2, offered: 1, deliverable: 1, seen: 1 });
+    expect(r.series[1]).toMatchObject({ decisions: 1, offered: 1, deliverable: 1, seen: 0 });
   });
 });

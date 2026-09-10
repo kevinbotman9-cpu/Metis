@@ -323,11 +323,58 @@ export interface PerformanceReport {
   suppressed: number;
   /** Decisions with at least one outcome recorded against them. */
   measured: number;
+  /** Offered decisions on a channel something actually delivers.
+
+The stage the loop breaks at: a decision can be correct, recorded
+and replayable and still reach nobody, because the channel that won
+it has no sender. ADR-013.
+
+Null when the caller did not say which channels deliver — absent
+rather than zero, because "nothing is deliverable" and "nobody told
+us" are different answers and a screen must not render the second as
+the first.
+ */
+  deliverable: number | null;
+  /** Decisions with a click, acceptance or conversion. The customer did something. */
+  acted: number;
+  /** The same five stages per channel, so a rate below the break can name the population it describes. */
+  channels: ChannelStages[];
+  /** Daily, oldest first. What the rail's sparklines are drawn from. */
+  series: LoopDay[];
   from?: string;
   to?: string;
   provenance?: Provenance;
   /** Per-arm counts for every running or stopped experiment, recomputed from each decision's customer reference rather than read from a stored assignment. */
   arms?: ArmPerformance[];
+}
+
+/** One channel's path through the loop.
+
+Every field is a subset of the one before it. That nesting is the
+property the Cascade pattern rests on — `METIS_CONSOLE_SPEC.md` §4.7 —
+and a figure that exceeds the one above it means the two are counting
+different populations.
+ */
+export interface ChannelStages {
+  channel: "email" | "sms" | "web" | "push" | "outbound_call";
+  /** Whether anything carries a decision on this channel to a customer. */
+  delivers: boolean;
+  decisions: number;
+  offered: number;
+  deliverable: number;
+  seen: number;
+  acted: number;
+}
+
+/** One day of the loop, for the rail's sparklines. */
+export interface LoopDay {
+  /** `YYYY-MM-DD`, from the decision's own timestamp rather than a clock. */
+  date: string;
+  decisions: number;
+  offered: number;
+  deliverable: number;
+  seen: number;
+  acted: number;
 }
 
 /** The tenant's customer data model. A contract about what fields exist and how entities relate; it says nothing about where values come from, which is already two separate answers (the caller sends them, or a connector resolves them). */

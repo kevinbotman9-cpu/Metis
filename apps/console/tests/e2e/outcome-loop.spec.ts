@@ -23,17 +23,34 @@ import { login, ACCOUNTS, resetStore } from './helpers';
  */
 
 /**
- * The `With an outcome` metric on /performance, as a number.
+ * The `Seen` stage of the loop on /performance, as a number.
  *
- * The label and the figure share a container, so the digits have to be pulled
- * out of the text. Read through one function rather than inline in three tests,
- * because two of them compare two readings of it and a difference in how they
- * were parsed would look like a difference in what was measured.
+ * The decisions the platform knows anything about — its own denominator for
+ * every rate below it. This was a metric block labelled `With an outcome` until
+ * 2026-09-10; it is now the fourth stage of the Cascade rail, and the figure is
+ * read from the button's accessible name rather than its text because the
+ * button also contains a sparkline and a proportion.
+ *
+ * Read through one function rather than inline in three tests, because two of
+ * them compare two readings of it and a difference in how they were parsed
+ * would look like a difference in what was measured.
  */
 async function measuredCount(page: import('@playwright/test').Page): Promise<number> {
-  const metric = page.getByText('WITH AN OUTCOME').locator('..');
-  await expect(metric).toBeVisible();
-  return Number((await metric.innerText()).replace(/[^0-9]/g, ''));
+  const button = page
+    .getByRole('navigation', { name: 'The loop' })
+    .getByRole('button', { name: /^Seen: / });
+  await expect(button).toBeVisible({ timeout: 20_000 });
+  const label = (await button.getAttribute('aria-label')) ?? '';
+  return Number(label.split(':')[1].split(',')[0].replace(/[^0-9]/g, ''));
+}
+
+/** The rates live behind the `Acted on` stage; the overview is the shape. */
+async function openActed(page: import('@playwright/test').Page) {
+  await page
+    .getByRole('navigation', { name: 'The loop' })
+    .getByRole('button', { name: /^Acted on: / })
+    .click();
+  await expect(page.locator('main table')).toBeVisible({ timeout: 20_000 });
 }
 
 test.describe('the outcome loop @screen-only', () => {
@@ -75,10 +92,9 @@ test.describe('the outcome loop @screen-only', () => {
     // The sentence this whole slice exists to make untrue.
     await expect(page.getByText(/Nothing has been reported back/)).toHaveCount(0);
 
-    // A real count, not a dash. `WITH AN OUTCOME` is the report's own
-    // denominator — the decisions it knows anything about.
-    const measured = page.getByText('WITH AN OUTCOME').locator('..');
-    await expect(measured).not.toContainText(/^0$/);
+    // A real count, not a dash. `Seen` is the report's own denominator — the
+    // decisions it knows anything about.
+    expect(await measuredCount(page)).toBeGreaterThan(0);
   });
 
   test('two outcomes on one decision count as one measured decision, not two', async ({
@@ -187,7 +203,7 @@ test.describe('the seeded corpus reports back @screen-only', () => {
     // this is why the assertion is on the DOM and not on a string.
     // `evaluateAll` does not auto-wait, unlike every assertion around it, so
     // the table has to be there before it runs.
-    await expect(page.locator('main table')).toBeVisible({ timeout: 20_000 });
+    await openActed(page);
     const percents = await page
       .locator('main table')
       .evaluateAll((tables) =>
@@ -209,6 +225,7 @@ test.describe('the seeded corpus reports back @screen-only', () => {
     // decisions and is accepted by almost nobody.
     await login(page, ACCOUNTS.sarah);
     await page.goto('/performance');
+    await openActed(page);
     await expect(page.getByText('acq_sim_30').first()).toBeVisible();
   });
 });

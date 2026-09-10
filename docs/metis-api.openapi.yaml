@@ -586,7 +586,9 @@ components:
             without this document in front of them.
     PerformanceReport:
       type: object
-      required: [rows, decisions, offered, suppressed, measured]
+      required:
+        [rows, decisions, offered, suppressed, measured, deliverable, acted,
+         channels, series]
       properties:
         rows:
           type: array
@@ -602,6 +604,34 @@ components:
         measured:
           type: integer
           description: Decisions with at least one outcome recorded against them.
+        deliverable:
+          type: [integer, 'null']
+          description: |
+            Offered decisions on a channel something actually delivers.
+
+            The stage the loop breaks at: a decision can be correct, recorded
+            and replayable and still reach nobody, because the channel that won
+            it has no sender. ADR-013.
+
+            Null when the caller did not say which channels deliver — absent
+            rather than zero, because "nothing is deliverable" and "nobody told
+            us" are different answers and a screen must not render the second as
+            the first.
+        acted:
+          type: integer
+          description: >-
+            Decisions with a click, acceptance or conversion. The customer did
+            something.
+        channels:
+          type: array
+          items: { $ref: '#/components/schemas/ChannelStages' }
+          description: >-
+            The same five stages per channel, so a rate below the break can name
+            the population it describes.
+        series:
+          type: array
+          items: { $ref: '#/components/schemas/LoopDay' }
+          description: Daily, oldest first. What the rail's sparklines are drawn from.
         from: { type: string, nullable: true, format: date-time }
         to: { type: string, nullable: true, format: date-time }
         provenance:
@@ -613,6 +643,43 @@ components:
             Per-arm counts for every running or stopped experiment, recomputed
             from each decision's customer reference rather than read from a
             stored assignment.
+
+    ChannelStages:
+      type: object
+      description: |
+        One channel's path through the loop.
+
+        Every field is a subset of the one before it. That nesting is the
+        property the Cascade pattern rests on — `METIS_CONSOLE_SPEC.md` §4.7 —
+        and a figure that exceeds the one above it means the two are counting
+        different populations.
+      required: [channel, delivers, decisions, offered, deliverable, seen, acted]
+      properties:
+        channel:
+          type: string
+          enum: [email, sms, web, push, outbound_call]
+        delivers:
+          type: boolean
+          description: Whether anything carries a decision on this channel to a customer.
+        decisions: { type: integer }
+        offered: { type: integer }
+        deliverable: { type: integer }
+        seen: { type: integer }
+        acted: { type: integer }
+
+    LoopDay:
+      type: object
+      description: One day of the loop, for the rail's sparklines.
+      required: [date, decisions, offered, deliverable, seen, acted]
+      properties:
+        date:
+          type: string
+          description: '`YYYY-MM-DD`, from the decision''s own timestamp rather than a clock.'
+        decisions: { type: integer }
+        offered: { type: integer }
+        deliverable: { type: integer }
+        seen: { type: integer }
+        acted: { type: integer }
 
     ProfileSchema:
       type: object
