@@ -25,6 +25,12 @@ const PAGES = [
   { path: '/decision-flows/next-best-action', name: 'flow detail' },
   { path: '/decisions', name: 'decisions' },
   { path: '/performance', name: 'performance' },
+  // The Cascade's stage panes are separate renders reached by a query
+  // parameter, and the first paint scan says nothing about them. `deliverable`
+  // is the break — the one pane whose whole job is contrast against a
+  // background — and `acted` is the only one carrying a table.
+  { path: '/performance?stage=deliverable', name: 'performance, the break' },
+  { path: '/performance?stage=acted', name: 'performance, acted on' },
   { path: '/experiments', name: 'experiments' },
   { path: '/data-model', name: 'data model' },
   { path: '/data-model/intake', name: 'intake' },

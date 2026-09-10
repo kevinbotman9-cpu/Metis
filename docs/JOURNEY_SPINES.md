@@ -270,8 +270,10 @@ Three reasons, in order of weight.
    from Spine 5's outcomes, cost from Spine 7's accounting, adoption from having
    personas who can log in. Built before those, an executive dashboard shows an
    executive four confident figures about nothing — and `/performance` spent its
-   whole life until 2026-09-09 opening on `WITH AN OUTCOME: 0`, which is exactly
-   that failure at one-quarter scale.
+   whole life until 2026-09-09 opening on a metric block reading `WITH AN
+   OUTCOME: 0`, which is exactly that failure at one-quarter scale. That block is
+   gone: the screen is a Cascade since 2026-09-10 and the figure is the `Seen`
+   stage of the loop.
 
 **What survives:** the executive summary is a slice of Spine 7, built after the
 operator has numbers worth summarising. The click-through rule stays where it is,

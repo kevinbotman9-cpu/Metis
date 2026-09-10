@@ -283,7 +283,7 @@ built when a spine in `docs/JOURNEY_SPINES.md` reaches them.
 ### Insights
 | Screen | Pattern | Notes |
 |---|---|---|
-| Performance | Dashboard | Acceptance, conversion, by offer and segment. |
+| Performance | Cascade | The loop: decisions → offered → deliverable → seen → acted. The break at deliverable is drawn, and rates below it name the channel they describe. |
 | Attribution | Dashboard | Contribution by touchpoint. |
 | Value | Dashboard | ARPU, CLV movement, incremental value. |
 | Cost | Dashboard | Cost per thousand decisions, broken to component. |
@@ -326,8 +326,14 @@ built when a spine in `docs/JOURNEY_SPINES.md` reaches them.
 
 ## Part 4 — Layout patterns
 
-Six patterns. Every screen uses one. A screen that needs a seventh is a design
+Seven patterns. Every screen uses one. A screen that needs an eighth is a design
 review, not an invention.
+
+The seventh, **Cascade**, was that review: `/performance` had four figures in a
+row where the product has a loop, and the break in that loop — four channels
+that decide and deliver nothing — was expressible in none of the six. It was
+added on 2026-09-10 rather than approximated with a dashboard, and §4.7 states
+what earns it so the count does not drift again.
 
 ### 4.1 List–detail (split canvas)
 
@@ -442,6 +448,49 @@ a persistent summary bar across the top holding the three numbers that matter.
 - Winners, losers and unchanged as three tabs with counts in the tab label.
 - Export the result set. Every simulation result is itself versioned and addressable
   by ID.
+
+### 4.7 Cascade
+
+A decomposition read top to bottom, where each stage is a subset of the one above
+it and the interesting fact is what falls out between them. Three panes: a rail
+of stages on the left, the selected stage in the middle, evidence for what is
+selected on the right. Nav stays as the 48px icon rail outside it.
+
+The rail is not navigation. It is the subject: each stage carries a figure, a
+proportion, a bar and a sparkline, so the shape of the decomposition is legible
+before anything is clicked.
+
+- **Every stage is a subset of the one above.** If a figure below exceeds one
+  above it, the stages are measuring different populations and the screen is
+  lying. `/performance` showed 887 seen against 738 deliverable for a day, and
+  that inversion was how the defect was found.
+- **A break is drawn, not smoothed.** Where the decomposition loses most of its
+  volume for a structural reason rather than a behavioural one, that stage is
+  rendered in the suppressed colour, carries the count that fell out, and says
+  why. A smaller bar is not enough: a reader takes a small bar for a poor result
+  and a break for a broken thing, and only one of those is actionable.
+- **Rates below a break name their population.** A rate computed over a subset
+  must say which subset, in the same line as the number. "20.7% click rate" over
+  one delivered channel of five is not a click rate for the product.
+- **Selecting a stage changes the middle and right panes, never the rail.** The
+  rail is the constant; losing it on selection turns a decomposition into a
+  drill-down and the reader loses their place in the whole.
+- **First paint has no selection.** Before anything is chosen the middle pane
+  shows the decomposition whole — the shape and, where there is one, the money.
+
+#### A rail is earned by having a spine
+
+Cascade is for a screen that explains **one** decomposition, where the stages are
+ordered, nested and named, and where a reader's first question is *where does it
+fall off*. The performance loop — decisions → offered → deliverable → seen →
+acted — is the case it was built for.
+
+It is not a general layout. A canvas has a topology rather than a sequence; a
+form has fields rather than stages; a settings screen has unrelated groups. Give
+those Workbench, the declared form renderer, or a list–detail, and give Cascade
+only to screens with a spine. A rail over an arbitrary list is a table of
+contents wearing a decomposition's clothes, and it teaches a reader to expect a
+subset relationship that is not there.
 
 ---
 

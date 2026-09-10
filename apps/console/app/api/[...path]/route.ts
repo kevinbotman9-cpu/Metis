@@ -347,6 +347,16 @@ function policyProblems(conditions: TargetingPolicy['conditions']) {
 const blankString = (v: unknown) => typeof v !== 'string' || v.trim() === '';
 
 /**
+ * The channels something actually carries to a customer.
+ *
+ * `delivery`, not `decidable` — ADR-013 §2. What `/performance` needs for the
+ * stage its loop breaks at, and what the coverage screen measures against.
+ */
+const deliverableChannels = (): string[] => [
+  ...new Set(store.placements.filter((p) => p.delivery).map((p) => p.channel)),
+];
+
+/**
  * The channels this tenant decides on at all.
  *
  * What `offerMayBeActive` wants, and **not** the channels anything delivers on.
@@ -1043,7 +1053,11 @@ async function handleGet(req: Request, { params }: Ctx) {
         outcomes.set(entry.decisionId, [...(outcomes.get(entry.decisionId) ?? []), ...events]);
       }
 
-      const report = buildPerformance(all, outcomes);
+      // The channels something actually delivers on — ADR-013. Passed rather
+      // than inferred: the ledger has no opinion about placements, and without
+      // this the report answers null for `deliverable` rather than zero, which
+      // is the difference between "nothing is deliverable" and "nobody said".
+      const report = buildPerformance(all, outcomes, deliverableChannels());
 
       // Per-arm counts, recomputed from each decision's customer reference.
       // Nothing stored the arm; it is a function of the reference and the

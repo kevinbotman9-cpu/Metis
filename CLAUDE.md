@@ -211,7 +211,7 @@ Never use "submit" for buttons. Buttons name their effect ("Publish", "Approve",
 - **Uncertain which audience this screen is for** → check the persona list in the Experience Layer plan (`METIS_Experience_Layer_Build_Plan.md`)
 - **Uncertain what state to show** → the Playwright test file has the full state matrix (loading, empty, error, permission-denied, stale-data)
 - **Uncertain whether a design decision is right** → check the design direction (§5 of the Experience Layer plan); if it conflicts, flag for product review
-- **Uncertain what screen this is, where it sits in nav, or which layout pattern it uses** → `docs/METIS_CONSOLE_SPEC.md`. Parts 2 and 3 are the screen inventory and nav tree; Part 4 the six layout patterns; Part 5 the visual specification; Part 6 the demo bar
+- **Uncertain what screen this is, where it sits in nav, or which layout pattern it uses** → `docs/METIS_CONSOLE_SPEC.md`. Parts 2 and 3 are the screen inventory and nav tree; Part 4 the seven layout patterns; Part 5 the visual specification; Part 6 the demo bar
 - **Uncertain what to build next** → `docs/JOURNEY_SPINES.md`. Work is pulled from there in order, not from a feature list. One spine open at a time
 - **Uncertain whether a UI rule is enforced or advisory** → `docs/UX_CONTRACT.md`. Every rule there is checked by `npm run conformance`; a rule with no check is a suggestion
 

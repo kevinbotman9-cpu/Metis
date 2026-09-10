@@ -15,4 +15,9 @@ export type {
 } from './types';
 
 export { buildPerformance, OUTCOME_TYPES } from './performance';
-export type { PerformanceReport, PerformanceRow } from './performance';
+export type {
+  PerformanceReport,
+  PerformanceRow,
+  ChannelStages,
+  LoopDay,
+} from './performance';

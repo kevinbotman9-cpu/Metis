@@ -184,6 +184,7 @@ otherwise.
 | W-057 | 13 | An offer must be deliverable on a channel somebody serves | DONE | 2 |
 | W-058 | 14 | Delivery record and the decidable/deliverable split | DONE | 2 |
 | W-059 | 14 | A seeded outcome requires a deliverer, not only a creative | DONE | 2 |
+| W-060 | 14 | Cascade, and `/performance` rebuilt on it | DONE | 2 |
 
 ---
 
@@ -1485,6 +1486,39 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-060 — Cascade, and `/performance` rebuilt on it
+
+**Registered:** 2026-09-10 · **Stage:** 14 · **Status:** DONE
+**Check:** `apps/console/tests/e2e/performance-cascade.spec.ts`
+
+Gate 2 · Depends: W-058, W-059 · Gap [G-049](gaps.md)
+
+A seventh layout pattern in `docs/METIS_CONSOLE_SPEC.md` §4.7, and the first
+screen built on it.
+
+Cascade is for a screen that explains **one decomposition**: stages read top to
+bottom, each a subset of the one above, where the interesting fact is what falls
+out between them. The rail is the subject rather than navigation, and it carries
+figure, proportion, bar and sparkline so the shape is legible before anything is
+clicked. Where the decomposition loses volume for a structural reason rather
+than a behavioural one, the stage is drawn as a break — block colour, the count
+that fell out, and why.
+
+The rule Part 4 now states: **a rail is earned by having a spine.** Screens that
+explain one decomposition get Cascade; canvas, forms and settings do not, and a
+rail bolted onto a screen with no spine is a table of contents pretending to be
+an argument.
+
+`/performance` is the first: decisions → offered → deliverable → seen → acted,
+with the break at `deliverable` where 2,687 of 3,426 offered decisions won a
+slot on a channel nothing sends. Every rate under it names the channel it
+describes.
+
+**Done when:** the five stages nest, the break states its count on the stage
+itself, every rate below it names its population, and selecting a stage keeps
+the rail — all asserted from the screen with no API setup, and each verified to
+bite by breaking the thing it checks.
+
 ### W-059 — A seeded outcome requires a deliverer, not only a creative
 
 **Registered:** 2026-09-10 · **Stage:** 14 · **Status:** DONE

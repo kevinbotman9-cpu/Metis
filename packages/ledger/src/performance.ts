@@ -71,6 +71,36 @@ export interface PerformanceRow {
   clickRate: number | null;
 }
 
+/**
+ * One stage of the loop, for one channel.
+ *
+ * Every field is a subset of the one before it — that is the property the
+ * Cascade pattern rests on (`METIS_CONSOLE_SPEC.md` §4.7), and the one that
+ * caught G-046: `seen` exceeded `deliverable` for a day, which meant the two
+ * were counting different populations.
+ */
+export interface ChannelStages {
+  channel: string;
+  /** Whether anything carries a decision on this channel to a customer. */
+  delivers: boolean;
+  decisions: number;
+  offered: number;
+  deliverable: number;
+  seen: number;
+  acted: number;
+}
+
+/** One day of the loop, for the rail's sparklines. */
+export interface LoopDay {
+  /** `YYYY-MM-DD`, from the decision's own timestamp. */
+  date: string;
+  decisions: number;
+  offered: number;
+  deliverable: number;
+  seen: number;
+  acted: number;
+}
+
 export interface PerformanceReport {
   rows: PerformanceRow[];
   /** Every decision in range, including the ones that offered nothing. */
@@ -87,6 +117,24 @@ export interface PerformanceReport {
   suppressed: number;
   /** Decisions with at least one outcome recorded against them. */
   measured: number;
+  /**
+   * Offered decisions on a channel something actually delivers.
+   *
+   * The stage between `offered` and `measured`, and the one the loop breaks at:
+   * a decision can be correct, recorded and replayable and still reach nobody,
+   * because the channel that won it has no sender. ADR-013.
+   *
+   * Null when the caller did not say which channels deliver — absent rather
+   * than zero, because "nothing is deliverable" and "nobody told us" are
+   * different answers and a screen must not render the second as the first.
+   */
+  deliverable: number | null;
+  /** Decisions with a click, acceptance or conversion — the customer did something. */
+  acted: number;
+  /** The same five stages per channel, so a rate can name its population. */
+  channels: ChannelStages[];
+  /** Daily, oldest first. */
+  series: LoopDay[];
   /** The window the numbers cover, from the decisions themselves. */
   from: string | null;
   to: string | null;
@@ -108,7 +156,16 @@ function rate(numerator: number, denominator: number): number | null {
  */
 export function buildPerformance(
   entries: LedgerEntry[],
-  outcomes: Map<string, OutcomeEvent[]>
+  outcomes: Map<string, OutcomeEvent[]>,
+  /**
+   * The channels something delivers on, from the tenant's placements.
+   *
+   * Omitted means the caller does not know, and `deliverable` comes back null
+   * rather than zero. The ledger has no opinion about placements — they are not
+   * part of the hashed catalogue and this package does not import them — so the
+   * fact is passed in by whoever does.
+   */
+  deliverableChannels?: readonly string[]
 ): PerformanceReport {
   type Bucket = {
     action: string;
@@ -126,15 +183,65 @@ export function buildPerformance(
   let offered = 0;
   let suppressed = 0;
   let measured = 0;
+  let acted = 0;
+  let deliverable = 0;
   let from: string | null = null;
   let to: string | null = null;
+
+  const delivers = deliverableChannels ? new Set(deliverableChannels) : null;
+  const ACTED: OutcomeType[] = ['click', 'acceptance', 'conversion'];
+
+  const perChannel = new Map<string, ChannelStages>();
+  const stageOf = (channel: string): ChannelStages => {
+    let row = perChannel.get(channel);
+    if (!row) {
+      row = {
+        channel,
+        delivers: delivers ? delivers.has(channel) : false,
+        decisions: 0,
+        offered: 0,
+        deliverable: 0,
+        seen: 0,
+        acted: 0,
+      };
+      perChannel.set(channel, row);
+    }
+    return row;
+  };
+
+  const days = new Map<string, LoopDay>();
+  const dayOf = (at: string): LoopDay => {
+    const date = at.slice(0, 10);
+    let d = days.get(date);
+    if (!d) {
+      d = { date, decisions: 0, offered: 0, deliverable: 0, seen: 0, acted: 0 };
+      days.set(date, d);
+    }
+    return d;
+  };
 
   for (const entry of entries) {
     if (from === null || entry.occurredAt < from) from = entry.occurredAt;
     if (to === null || entry.occurredAt > to) to = entry.occurredAt;
 
     const events = outcomes.get(entry.decisionId) ?? [];
+    const didAct = events.some((e) => ACTED.includes(e.type));
     if (events.length > 0) measured += 1;
+    if (didAct) acted += 1;
+
+    const channel = entry.record.decision.channel;
+    const stage = stageOf(channel);
+    const day = dayOf(entry.occurredAt);
+    stage.decisions += 1;
+    day.decisions += 1;
+    if (events.length > 0) {
+      stage.seen += 1;
+      day.seen += 1;
+    }
+    if (didAct) {
+      stage.acted += 1;
+      day.acted += 1;
+    }
 
     const winner = entry.record.decision.winner;
     if (!winner) {
@@ -142,8 +249,13 @@ export function buildPerformance(
       continue;
     }
     offered += 1;
-
-    const channel = entry.record.decision.channel;
+    stage.offered += 1;
+    day.offered += 1;
+    if (delivers?.has(channel)) {
+      deliverable += 1;
+      stage.deliverable += 1;
+      day.deliverable += 1;
+    }
     // JSON rather than a delimiter: it is injective for strings, so an action
     // containing whatever separator was chosen cannot collide with another
     // triple — and it stays printable, which a control character does not.
@@ -207,6 +319,13 @@ export function buildPerformance(
     offered,
     suppressed,
     measured,
+    deliverable: delivers ? deliverable : null,
+    acted,
+    // Widest first: the reader is looking for where the volume went.
+    channels: [...perChannel.values()].sort(
+      (a, b) => b.decisions - a.decisions || a.channel.localeCompare(b.channel)
+    ),
+    series: [...days.values()].sort((a, b) => a.date.localeCompare(b.date)),
     from,
     to,
   };
