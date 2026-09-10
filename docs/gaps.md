@@ -693,6 +693,75 @@ have produced.
 
 ---
 
+### G-054 — The flake hunt stopped at the first flake and threw away the evidence
+
+**Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-063](BACKLOG.md)
+
+Run #33 was the first time the scheduled hunt ever fired, and it reported one
+sample out of four.
+
+The four runs were a plain `run:` chain, so Run 1's failure ended the job and
+Runs 2, 3 and **Run 4 — shuffled group order** were skipped. Run 4 is the only
+step that varies which specs have run before which, which is the whole reason
+the job exists; it has never executed. A hunt for a suite that fails one run in
+three that stops after the first failure has learned nothing it did not already
+know.
+
+The upload was worse, because it looked fine: `##[warning]No files were found
+with the provided path: apps/console/playwright-report`. Two independent causes.
+`--reporter=line` on the command line replaces the config's reporter list, so
+`playwright-results.json` was never written; and `playwright-report` is the
+*html* reporter's directory, which nothing in this repo produces. The trace and
+the screenshot **were** captured — the log names
+`test-results/…/trace.zip` — and an upload pointed at the wrong directory
+discarded them. By the time anyone read the run, the failure could not be
+reproduced from it.
+
+`if: failure()` on the upload would also have stopped firing once the runs
+carried `continue-on-error`, so it is now `if: always()`.
+
+**Resolved by:** `tests/flake-hunt.test.ts`, over
+`.github/workflows/console.yml`. Each run carries an `id` and
+`continue-on-error`, a final *"Every run must be clean"* step reads all four
+outcomes and fails once with all four visible, and each run writes its own
+`playwright-results-N.json` and `test-results/run-N`. `playwright.config.ts`
+reads `PLAYWRIGHT_JSON_OUTPUT_NAME` explicitly, because a config `outputFile`
+wins over the environment variable and four runs would otherwise have
+overwritten each other.
+
+### G-053 — A storefront slot can name a decision while showing no offer
+
+**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-064](BACKLOG.md)
+
+`runPlacement` decides `status: 'filled'` from `rendered.length`, where
+`rendered = filled.filter((f) => f.creative)` — *any* entry with a creative. But
+`renderHero` and `renderInline` both read `r.filled?.[0]` and fall back to
+`fallbackReason(r)` when that **first** entry has no creative.
+
+So a slate whose first entry lacks a creative and whose second has one takes
+both branches: `status` is `filled`, so the slot gets `data-decision-id` and
+reports an impression; and the renderer draws the "won this slot, and has no web
+creative for it" notice, with no call to action. The customer sees an
+explanation of an absence, and `/performance` counts it as seen.
+
+That is G-041's defect a third time — counting a win rather than a render — in
+the one place the last two corrections did not look. It is a narrower case: it
+needs a multi-entry slate whose first entry is the one without content.
+
+**Not what made run #33 red.** That was a torn read in the test, fixed in
+[G-054](gaps.md)'s slice. This is latent and does not currently fire: the
+storefront runs fixed preset customers against a deterministic engine, so the
+slates are stable and none of them is currently shaped this way. It is one
+catalogue edit away from firing, and it would present as an intermittent
+impression count rather than as anything obviously wrong.
+
+`renderCards` is not affected — it iterates rather than indexing.
+
+**Done when:** the hero and inline renderers draw the first entry that has a
+creative, or `status` is decided by what the renderer will actually draw rather
+than by what exists in the slate — and a test covers a slate whose first entry
+has no creative.
+
 ### G-052 — A generated fixture records a measured duration, so it never regenerates identically
 
 **Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-001](BACKLOG.md)

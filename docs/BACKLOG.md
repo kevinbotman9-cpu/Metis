@@ -187,6 +187,8 @@ otherwise.
 | W-060 | 14 | Cascade, and `/performance` rebuilt on it | DONE | 2 |
 | W-061 | 14 | Every route enforces the permission its nav entry declares | DONE | 1 |
 | W-062 | 14 | Redact, audit and expire the inbound call log | OPEN | 1 |
+| W-063 | 14 | The flake hunt runs all four passes and keeps its evidence | DONE | 1 |
+| W-064 | 14 | A slot names a decision only when it is showing that offer | OPEN | 2 |
 
 ---
 
@@ -1488,6 +1490,49 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-064 — A slot names a decision only when it is showing that offer
+
+**Registered:** 2026-09-10 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet
+
+Gate 2 · Gap [G-053](gaps.md)
+
+`status: 'filled'` is decided by `rendered.length` — any entry with a creative —
+while `renderHero` and `renderInline` draw `filled?.[0]` and fall back when that
+first entry has none. A slate whose first entry lacks a creative and whose second
+has one gets a decision id, reports an impression, and shows a notice with no
+call to action.
+
+Latent: the storefront runs fixed preset customers against a deterministic
+engine, so no current slate is shaped this way. One catalogue edit changes that,
+and it would present as an impression count that drifts rather than as a visible
+fault.
+
+**Done when:** the two renderers draw the first entry that has a creative, or
+`status` follows what the renderer will draw — with a test over a slate whose
+first entry has no creative.
+
+### W-063 — The flake hunt runs all four passes and keeps its evidence
+
+**Registered:** 2026-09-10 · **Stage:** 14 · **Status:** DONE
+**Check:** `tests/flake-hunt.test.ts`
+
+Gate 1 · Gap [G-054](gaps.md)
+
+Run #33, the first time the hunt fired, reported one of four samples: the runs
+were a plain step chain, so Run 1's failure skipped Runs 2, 3 and the shuffled
+one — the only step that varies order, and the reason the job exists.
+
+Each run now carries `continue-on-error` and an `id`; a final gate reads all four
+outcomes and fails once with all four printed. Each writes its own
+`playwright-results-N.json` and `test-results/run-N`, and the upload is
+`if: always()` over the directories that are actually written — it found nothing
+at all on #33, because `--reporter=line` had replaced the json reporter and the
+path named the html reporter's directory.
+
+**Done when:** a failing Run 1 does not prevent Run 4 from executing, proved by
+running it; and a failed hunt uploads the trace of what failed.
+
 ### W-062 — Redact, audit and expire the inbound call log
 
 **Registered:** 2026-09-10 · **Stage:** 14 · **Status:** OPEN

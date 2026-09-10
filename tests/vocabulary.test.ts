@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { sourceFiles } from './source-files';
 
 /**
  * The vocabulary stays vendor-neutral, and something checks it.
@@ -29,10 +29,18 @@ import { resolve } from 'node:path';
  * This file excludes itself, because a check that reads its own list passes on
  * anything. That lesson cost a real defect elsewhere in this repo.
  *
- * **Tracked files only.** The scan reads `git ls-files`, so a document or script
- * that has not been committed is invisible to it. That is deliberate — the check
- * guards what the repo actually carries — but it means an untracked file can
- * carry any vocabulary at all until it is added.
+ * **The whole tree, not just what is committed.** The scan reads `sourceFiles`,
+ * which unions `git ls-files` with the untracked-and-not-ignored set. This said
+ * "tracked files only" and called it deliberate — *the check guards what the
+ * repo actually carries* — which is true of a CI run, where everything is
+ * committed by definition, and wrong about the run that matters. The author is
+ * at a local `npm test` with the file they just wrote still untracked, and that
+ * is the one moment the fix is an edit rather than a rewritten commit.
+ *
+ * G-048 is what the old reading cost: `placement-form-dialog.tsx` used a
+ * renamed-away-from word, the slice that introduced it went green because the
+ * file was untracked, and it surfaced four slices later during a merge, in a PR
+ * about something else.
  *
  * Some of these words have ordinary English senses, and the first run found
  * one: "the block treatment" in a comment, meaning the styling. It was reworded
@@ -138,11 +146,9 @@ const ALLOWED = new Map<string, string>([
   ],
 ]);
 
+/** Named for what it returns, which is no longer only what git tracks. */
 function tracked(): string[] {
-  return execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8', maxBuffer: 32e6 })
-    .split('\n')
-    .map((f) => f.trim())
-    .filter(Boolean);
+  return sourceFiles(root);
 }
 
 describe('the vocabulary is vendor-neutral, and stays that way', () => {

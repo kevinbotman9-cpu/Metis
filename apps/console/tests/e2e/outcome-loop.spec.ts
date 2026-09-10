@@ -155,14 +155,27 @@ test.describe('the outcome loop @screen-only', () => {
     // impression rate would be measuring page views, and every rate below it
     // would inherit the error.
     await page.goto('/storefront/index.html');
-    await expect(page.locator('.cta').first()).toBeVisible({ timeout: 20_000 });
 
-    const slots = await page.locator('[id^="slot-"]').all();
-    for (const slot of slots) {
-      const hasOffer = (await slot.locator('.cta').count()) > 0;
-      const hasId = (await slot.getAttribute('data-decision-id')) !== null;
-      expect(hasId, 'only a slot showing an offer carries a decision id').toBe(hasOffer);
-    }
+    // Wait for a slot to carry its decision, not merely for a button to appear
+    // — the same gate the re-decide test above uses, and for the same reason.
+    // Waiting on `.cta` waits on nothing: the "Helpful things" cards ship three
+    // static `.cta ghost` buttons in the initial HTML, outside every slot, so
+    // while the slots are still skeletons those are the only `.cta` in the
+    // document and `.first()` matches one at load. That is how this test came
+    // to enumerate slots mid-decide, and it is what run #33's flake-hunt found.
+    await expect(page.locator('[data-decision-id]').first()).toBeVisible({ timeout: 20_000 });
+
+    // Both properties of a slot, read in one pass over the live DOM rather than
+    // two awaits per slot. Two awaits are two round-trips to a page that is
+    // still mutating: `runPlacement` renders the offer and *then* sets the id,
+    // so a slot completing between them reads as id-without-content and the
+    // assertion fails on a state that never existed.
+    const torn = await page.locator('[id^="slot-"]').evaluateAll((slots) =>
+      slots
+        .filter((s) => (s.dataset.decisionId != null) !== (s.querySelector('.cta') != null))
+        .map((s) => `${s.id}: id=${s.dataset.decisionId ?? 'none'} cta=${s.querySelector('.cta') !== null}`)
+    );
+    expect(torn, 'a slot names a decision it is not showing').toEqual([]);
   });
 });
 

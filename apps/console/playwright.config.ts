@@ -22,8 +22,18 @@ export default defineConfig({
   // passing, and CI has never run this suite more than once per push — so a
   // suite failing one run in three passed two pushes in three, silently. The
   // workflow reads this file and writes any flaky test into the run summary.
+  // `PLAYWRIGHT_JSON_OUTPUT_NAME` is read explicitly rather than relied on
+  // implicitly: a config `outputFile` wins over the environment variable, so
+  // the flake hunt's four runs would each have overwritten the last and the
+  // job would have uploaded one file describing whichever ran last. Named here
+  // so the workflow can give each run its own, and so the precedence is
+  // visible in the file rather than in a Playwright release note.
   reporter: process.env.CI
-    ? [['github'], ['list'], ['json', { outputFile: 'playwright-results.json' }]]
+    ? [
+        ['github'],
+        ['list'],
+        ['json', { outputFile: process.env.PLAYWRIGHT_JSON_OUTPUT_NAME || 'playwright-results.json' }],
+      ]
     : [['list']],
   // Refuses a reused dev server that has been up too long. See the file, and
   // G-035 in docs/gaps.md.

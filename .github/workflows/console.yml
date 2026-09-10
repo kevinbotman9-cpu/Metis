@@ -269,14 +269,38 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
+      # Each run reports its own result and none of them gates the next.
+      #
+      # These were a plain `run:` chain until 2026-09-10, so the first failure
+      # ended the job and every later step was skipped. Run #33 — the first
+      # time the hunt ever fired — failed in Run 1 and skipped Runs 2, 3 and
+      # the shuffled one, which is the only step that varies order and the
+      # reason the job exists. A flake hunt that stops at the first flake has
+      # reported one sample and called it a night.
+      #
+      # `continue-on-error` rather than `if: always()`: the step still shows
+      # red in the UI and its outcome is readable from `steps.<id>.outcome`,
+      # where `if: always()` alone would leave the job green.
       - name: Run 1
-        run: npx playwright test --fail-on-flaky-tests --reporter=line
+        id: run1
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-results-1.json
+        run: npx playwright test --fail-on-flaky-tests --output=test-results/run-1
 
       - name: Run 2
-        run: npx playwright test --fail-on-flaky-tests --reporter=line
+        id: run2
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-results-2.json
+        run: npx playwright test --fail-on-flaky-tests --output=test-results/run-2
 
       - name: Run 3
-        run: npx playwright test --fail-on-flaky-tests --reporter=line
+        id: run3
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-results-3.json
+        run: npx playwright test --fail-on-flaky-tests --output=test-results/run-3
 
       # Playwright sorts spec files by path and has no shuffle, so the order is
       # varied by splitting the suite into four groups and running the groups in
@@ -287,6 +311,8 @@ jobs:
       # Seeded from the run id, so each night differs and any single failure can
       # be reproduced from the log.
       - name: Run 4 — shuffled group order
+        id: run4
+        continue-on-error: true
         run: |
           mapfile -t SPECS < <(ls tests/e2e/*.spec.ts | shuf --random-source=<(yes ${{ github.run_id }}))
           echo "::group::order"
@@ -300,14 +326,41 @@ jobs:
             chunk=("${SPECS[@]:start:per}")
             [ ${#chunk[@]} -eq 0 ] && continue
             echo "--- group $((g+1)): ${#chunk[@]} files"
-            npx playwright test "${chunk[@]}" --fail-on-flaky-tests --reporter=line || fail=1
+            PLAYWRIGHT_JSON_OUTPUT_NAME="playwright-results-4-g$((g+1)).json"               npx playwright test "${chunk[@]}" --fail-on-flaky-tests --output="test-results/run-4-g$((g+1))" || fail=1
           done
           exit $fail
 
+      # `if: always()`, and the paths a run actually writes.
+      #
+      # This uploaded nothing on run #33: `--reporter=line` on the command line
+      # replaces the config's reporter list, so no `playwright-results.json`
+      # was written, and `playwright-report` is the *html* reporter's directory,
+      # which nothing here has ever produced. The trace and the screenshot were
+      # captured — the log names `test-results/.../trace.zip` — and then thrown
+      # away by an upload pointed at the wrong directory.
+      #
+      # `if: failure()` would not fire either, now that the runs carry
+      # `continue-on-error`: the job's status at this point is success until the
+      # gate below runs.
       - name: Upload Playwright report
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: flake-hunt-report
-          path: apps/console/playwright-report
+          path: |
+            apps/console/test-results
+            apps/console/playwright-results-*.json
           retention-days: 14
+          if-no-files-found: ignore
+
+      # The gate. Every run has reported by now, so the job fails once, with all
+      # four outcomes visible rather than only the first.
+      - name: Every run must be clean
+        if: always()
+        run: |
+          fail=0
+          for r in "1:${{ steps.run1.outcome }}" "2:${{ steps.run2.outcome }}" "3:${{ steps.run3.outcome }}" "4:${{ steps.run4.outcome }}"; do
+            echo "run ${r%%:*}: ${r#*:}"
+            [ "${r#*:}" = "success" ] || fail=1
+          done
+          exit $fail

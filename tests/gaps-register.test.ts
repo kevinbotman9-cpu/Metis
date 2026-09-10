@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { sourceFiles } from './source-files';
 
 /**
  * The gap register stays usable.
@@ -151,9 +151,13 @@ describe('the gap register stays usable', () => {
     // The three that started this were in page components and a unit test as
     // well as in the register. Checking one document would have found one of
     // three problems.
-    const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
-      .split('\n')
-      .filter((f) => /\.(md|ts|tsx|mjs|js|yaml|kt)$/.test(f));
+    // Untracked files included. The three dangling ids that prompted this check
+    // were in page components and a unit test as well as in the register, and a
+    // page component is untracked for exactly as long as it takes to write —
+    // which is when citing a work item that does not exist is easiest to do.
+    const tracked = sourceFiles(root).filter((f) =>
+      /\.(md|ts|tsx|mjs|js|yaml|kt)$/.test(f)
+    );
 
     const dangling: string[] = [];
     for (const file of tracked) {
