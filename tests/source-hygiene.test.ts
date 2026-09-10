@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, join, relative, sep } from 'node:path';
+import { sourceFiles } from './source-files';
 
 /**
  * No literal control characters in tracked source.
@@ -98,16 +98,14 @@ describe('no build output inside a source tree', () => {
 });
 
 describe('source hygiene', () => {
-  it('no tracked text file holds a literal control character', () => {
-    const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
-      .split('\n')
-      .map((f) => f.trim())
-      .filter(Boolean)
+  it('no text file in the tree holds a literal control character', () => {
+    // `sourceFiles` rather than `git ls-files` directly: a file that has not
+    // been committed yet is still a file this check should read, and the
+    // helper carries the guard against an empty list. G-048 is what the
+    // tracked-only version cost.
+    const tracked = sourceFiles(root)
       .filter((f) => !BINARY.test(f))
       .filter((f) => !ALLOWED.has(f));
-
-    // A guard on the guard: an empty list would make this pass vacuously.
-    expect(tracked.length, 'git ls-files returned nothing').toBeGreaterThan(50);
 
     const offenders: string[] = [];
     for (const file of tracked) {
