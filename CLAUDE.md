@@ -49,6 +49,24 @@ These are non-negotiable. Every PR must enforce them.
     in every place anyone works. Normalise line endings once, where the file is
     read, not at each call site.
 
+    **This applies to writing a file, not only to reading one — and so far every
+    instance has been on the writing side.** A patch whose pattern is
+    hand-written with `\n` does not match a CRLF file, and all three ways it goes
+    wrong are quiet: the replacement silently does not apply and an unasserted
+    script reports success; a blanket `replace('\n', '\r\n')` over the *pattern*
+    corrupts any escape sequence inside it, so patching a line containing
+    `.split('\n')` rewrites the source's two characters into a real line break;
+    and a `\` continuation followed by CR stops being a continuation, so a
+    patched YAML or shell block changes meaning rather than failing. All three
+    happened in one session on 2026-09-10, in the storefront, a workflow's gate
+    step and three test files.
+
+    Normalise to `\n`, patch with plain `\n` patterns, restore the endings the
+    file had. `scripts/patch-file.mjs` does exactly that and asserts every match,
+    because the failure being guarded against is a patch that quietly does
+    nothing. Use it, or do the same three steps by hand — but never hand-escape a
+    pattern to match what you think is on disk.
+
 ---
 
 ## The Unit of Work: Vertical Slices
