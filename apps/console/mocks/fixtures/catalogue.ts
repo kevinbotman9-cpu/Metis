@@ -1369,6 +1369,12 @@ export const users: FixtureUser[] = [
       'publish:flows',
       'view:decisions',
       'view:audit',
+      // Added 2026-09-10 with the gate on /targeting-policies and
+      // /frequency-policy. She had neither view: nor edit:policies while the
+      // Policy group was tagged to her personas, so enforcing the declaration
+      // would have emptied the group for the persona it exists for. The
+      // fixture was wrong, not the permission.
+      'view:policies',
       'request:changes',
     ],
     tenantId: 'telco-uk',
@@ -1387,7 +1393,14 @@ export const users: FixtureUser[] = [
       'view:policies',
       'edit:policies',
       'approve:changes',
+      // She held `edit:autonomy` and no permission to read the ladder, which
+      // was survivable only while nothing checked. `view:integrations` reaches
+      // the inbound call log — request and response bodies, customer ids
+      // included — and a compliance officer refused that while an operator saw
+      // it would be the wrong way round on this product.
+      'view:autonomy',
       'edit:autonomy',
+      'view:integrations',
     ],
     tenantId: 'telco-uk',
   },
@@ -1409,12 +1422,38 @@ export const users: FixtureUser[] = [
       'approve:changes',
       'request:changes',
       'edit:arbitration',
+      'view:autonomy',
       'edit:autonomy',
+      'view:integrations',
       'edit:integrations',
       'publish:flows',
       'promote:flows',
       'admin:settings',
     ],
+    tenantId: 'telco-uk',
+  },
+  {
+    // The account that makes the guard falsifiable.
+    //
+    // Sarah, Priya and Marcus each hold every permission the navigation
+    // manifest gates a screen on. So until 2026-09-10 no seeded account could
+    // be refused anything, and a test that signed in and found a screen open
+    // could not tell an enforced permission from an unenforced one. That is
+    // half of why `/decisions`, `/decision-flows` and `/performance` declared
+    // a permission nothing checked and nothing went red for a year.
+    //
+    // He held `view:decisions` for one afternoon, until the check that every
+    // gated permission has an account refusing it pointed out that all four
+    // accounts had it and nothing could exercise that gate either. An operator
+    // keeps the pipes running: he reads what called in and what went back, and
+    // has no business in the offer catalogue, the compliance log, the
+    // decision history or the flows.
+    id: 'usr_oliver',
+    email: 'oliver.reed@telco.example',
+    password: 'demo',
+    name: 'Oliver Reed',
+    roles: ['operator'],
+    permissions: ['view:integrations'],
     tenantId: 'telco-uk',
   },
 ];

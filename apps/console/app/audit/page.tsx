@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
-import { useAuth } from '@/components/auth-provider';
 import {
   PageBody,
   PageHeader,
@@ -13,7 +12,6 @@ import {
   Badge,
   Metric,
   ErrorState,
-  PermissionDenied,
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { apiClient, type AuditEventDto } from '@/lib/api-client';
@@ -163,22 +161,13 @@ function AuditView() {
 }
 
 export default function AuditPage() {
+  // `view:audit` is enforced by `RequireAuth`, from the same manifest
+  // entry the navigation rail reads. It was written out longhand here
+  // until 2026-09-10, which was fine for this page and no help at all
+  // to the sixteen routes that never wrote it.
   return (
     <RequireAuth>
-      <Guarded />
+      <AuditView />
     </RequireAuth>
   );
-}
-
-function Guarded() {
-  const { hasPermission } = useAuth();
-  if (!hasPermission('view:audit')) {
-    return (
-      <PageBody>
-        <PageHeader title="Audit log" />
-        <PermissionDenied permission="view:audit" />
-      </PageBody>
-    );
-  }
-  return <AuditView />;
 }

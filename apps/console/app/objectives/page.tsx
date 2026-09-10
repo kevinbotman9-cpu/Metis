@@ -15,7 +15,6 @@ import {
   Badge,
   EmptyState,
   ErrorState,
-  PermissionDenied,
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
@@ -294,22 +293,13 @@ function TaxonomyView() {
 }
 
 export default function ObjectivesPage() {
+  // `view:offers` is enforced by `RequireAuth`, from the same manifest
+  // entry the navigation rail reads. It was written out longhand here
+  // until 2026-09-10, which was fine for this page and no help at all
+  // to the sixteen routes that never wrote it.
   return (
     <RequireAuth>
-      <Guarded />
+      <TaxonomyView />
     </RequireAuth>
   );
-}
-
-function Guarded() {
-  const { hasPermission } = useAuth();
-  if (!hasPermission('view:offers')) {
-    return (
-      <PageBody>
-        <PageHeader title="Objectives" />
-        <PermissionDenied permission="view:offers" />
-      </PageBody>
-    );
-  }
-  return <TaxonomyView />;
 }

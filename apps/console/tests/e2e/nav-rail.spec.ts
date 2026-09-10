@@ -15,16 +15,24 @@ const nav = (page: import('@playwright/test').Page) =>
   page.getByRole('navigation', { name: 'Main' });
 
 test.describe('navigation rail @screen-only', () => {
-  test('a compliance officer sees Evidence; Policy is hidden, not disabled', async ({ page }) => {
+  test('a group the user holds no permission inside is hidden, not disabled', async ({ page }) => {
     await login(page, ACCOUNTS.priya);
     const rail = nav(page);
 
     await expect(rail.getByRole('button', { name: 'Evidence', exact: true })).toBeVisible();
+
     // Hidden means absent. A disabled group would still be here to find.
-    await expect(rail.getByRole('button', { name: 'Policy', exact: true })).toHaveCount(0);
-    await expect(rail.getByText('Policy', { exact: true })).toHaveCount(0);
-    // Nothing is built for the operator yet, so nobody sees that group.
+    // Journeys is tagged marketer and none of its screens exist yet, so there
+    // is nothing to admit her on. Operations is the same for the operator.
+    await expect(rail.getByRole('button', { name: 'Journeys', exact: true })).toHaveCount(0);
     await expect(rail.getByRole('button', { name: 'Operations', exact: true })).toHaveCount(0);
+
+    // Policy was this assertion until 2026-09-10, and it was asserting a bug.
+    // Priya holds `edit:policies` and authors the qualification model; the rail
+    // hid the screens from the one account entitled to change them, because
+    // they declared no permission for the "a granted permission outranks a
+    // persona tag" rule to act on. Now they do, and she sees them.
+    await expect(rail.getByRole('button', { name: 'Policy', exact: true })).toBeVisible();
   });
 
   test('a permission on a screen opens its group for a persona the spec does not name', async ({ page }) => {

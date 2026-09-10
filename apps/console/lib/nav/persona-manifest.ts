@@ -106,15 +106,22 @@ export const PERSONA_MANIFEST: readonly GroupNode[] = [
     personas: ['marketer', 'architect'],
     children: [
       {
+        // Rows 8 and 9 of the 2026-09-10 authorisation review. `edit:policies`
+        // already gated authoring on both; the read was open to anyone signed
+        // in. Sarah gained `view:policies` in the same change — Policy is
+        // tagged to her personas and she is the decision architect the group
+        // exists for, so a gate that emptied it for her meant the fixture was
+        // wrong, not the permission.
         label: 'Targeting policies',
         href: '/targeting-policies',
+        permission: 'view:policies',
         children: [
           { label: 'Eligibility', href: '/targeting-policies/eligibility' },
           { label: 'Relevance', href: '/targeting-policies/relevance' },
           { label: 'Suitability', href: '/targeting-policies/suitability' },
         ],
       },
-      { label: 'Frequency policy', href: '/frequency-policy' },
+      { label: 'Frequency policy', href: '/frequency-policy', permission: 'view:policies' },
       { label: 'Consent & permissions', href: '/consent' },
       // Boosts are edited on Decisioning › Arbitration & boosts.
       { label: 'Constraints', href: '/constraints' },
@@ -132,8 +139,14 @@ export const PERSONA_MANIFEST: readonly GroupNode[] = [
         children: [{ label: 'Flow versions', href: '/decision-flows/versions' }],
       },
       { label: 'Ranking functions', href: '/ranking-functions' },
-      { label: 'Arbitration & boosts', href: '/arbitration' },
-      { label: 'Placements', href: '/placements' },
+      { label: 'Arbitration & boosts', href: '/arbitration', permission: 'view:flows' },
+      // Declared because the page already enforces it. `/placements` guarded
+      // `view:flows` from the day it was built while the manifest said
+      // nothing, so the rail offered the link to anyone in the Decisioning
+      // group and the page refused whoever followed it without the
+      // permission. The declaration changes who can reach the screen not at
+      // all; it stops the rail advertising a wall.
+      { label: 'Placements', href: '/placements', permission: 'view:flows' },
       { label: 'Node library', href: '/node-library' },
     ],
   },
@@ -152,7 +165,7 @@ export const PERSONA_MANIFEST: readonly GroupNode[] = [
         ],
       },
       { label: 'Drift monitors', href: '/drift' },
-      { label: 'Experiments', href: '/experiments' },
+      { label: 'Experiments', href: '/experiments', permission: 'view:flows' },
       { label: 'Propensity explorer', href: '/propensity' },
     ],
   },
@@ -186,7 +199,7 @@ export const PERSONA_MANIFEST: readonly GroupNode[] = [
     icon: 'simulation',
     personas: ['architect', 'compliance'],
     children: [
-      { label: 'Simulations', href: '/simulations' },
+      { label: 'Simulations', href: '/simulations', permission: 'view:flows' },
       { label: 'Version comparison', href: '/simulations/compare' },
       { label: 'Under-served analysis', href: '/simulations/under-served' },
       { label: 'Bias check', href: '/simulations/bias' },
@@ -258,8 +271,12 @@ export const PERSONA_MANIFEST: readonly GroupNode[] = [
           { label: 'Packs', href: '/admin/packs' },
           { label: 'Packages', href: '/admin/packages' },
           { label: 'Package registry', href: '/admin/package-registry' },
-          { label: 'Integrations', href: '/integrations' },
-          { label: 'Inbound traffic', href: '/integrations/traffic' },
+          // `view:integrations` was added to the vocabulary on 2026-09-10
+          // rather than gating these on `edit:integrations`. Gating a read
+          // behind a write permission means nobody can look without being able
+          // to change, which on a compliance-first product is backwards.
+          { label: 'Integrations', href: '/integrations', permission: 'view:integrations' },
+          { label: 'Inbound traffic', href: '/integrations/traffic', permission: 'view:integrations' },
         ],
       },
       {
@@ -277,26 +294,49 @@ export const PERSONA_MANIFEST: readonly GroupNode[] = [
           { label: 'Roles & permissions', href: '/admin/roles' },
           { label: 'Users', href: '/admin/users' },
           // The autonomy ladder and its guardrails: access control for agents.
-          { label: 'Agentic AI', href: '/agentic' },
+          { label: 'Agentic AI', href: '/agentic', permission: 'view:autonomy' },
         ],
       },
       {
         label: 'Data',
         children: [
+          // Data model stays ungated deliberately: it is the profile *schema*
+          // — field names and types — not a customer's values, and the only
+          // permission that half fits is `view:flows`, which would be gating it
+          // on the wrong thing. Intake is different: it writes.
           { label: 'Data model', href: '/data-model' },
-          { label: 'Intake', href: '/data-model/intake' },
+          { label: 'Intake', href: '/data-model/intake', permission: 'view:integrations' },
           { label: 'Profile store', href: '/admin/profile-store' },
           { label: 'Consent taxonomy', href: '/admin/consent-taxonomy' },
         ],
       },
       {
+        // `/settings` was filed here and is not a tenancy screen: it is
+        // Account, Appearance and Environment — the signed-in user's own
+        // identity and theme. It is reached from the account panel in the
+        // header band, with the appearance controls it belongs beside. See
+        // PERSONAL_ROUTES below.
         label: 'Tenancy',
         children: [
           { label: 'Tenants', href: '/admin/tenants' },
           { label: 'Residency', href: '/admin/residency' },
-          { label: 'Settings', href: '/settings' },
         ],
       },
     ],
   },
 ];
+
+/**
+ * Screens reached from the account panel rather than the navigation rail.
+ *
+ * A personal screen is not a smaller administration screen. `/settings` holds
+ * the signed-in user's own name, colour scheme, density and which environment
+ * they are looking at; it was filed under Administration › Tenancy, beside
+ * Tenants and Residency, which put a personal preference behind a heading that
+ * reads as a permission boundary and left the 2026-09-10 authorisation review
+ * asking what to gate it on. Nothing: it is yours.
+ *
+ * `tests/unit/nav.test.ts` allows these to be absent from the tree above; every
+ * other route must appear in it.
+ */
+export const PERSONAL_ROUTES: readonly string[] = ['/settings'];

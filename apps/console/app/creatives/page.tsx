@@ -14,7 +14,6 @@ import {
   Select,
   Field,
   ErrorState,
-  PermissionDenied,
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { FilterBlocks, type FilterBlock } from '@/components/ui/filter-blocks';
@@ -387,21 +386,13 @@ function CreativesView() {
 }
 
 export default function CreativesPage() {
+  // `view:offers` is enforced by `RequireAuth`, from the same manifest
+  // entry the navigation rail reads. It was written out longhand here
+  // until 2026-09-10, which was fine for this page and no help at all
+  // to the sixteen routes that never wrote it.
   return (
     <RequireAuth>
-      <Guarded />
+      <CreativesView />
     </RequireAuth>
   );
-}
-
-function Guarded() {
-  const { hasPermission } = useAuth();
-  if (!hasPermission('view:offers')) {
-    return (
-      <PageBody>
-        <PermissionDenied permission="view:offers" />
-      </PageBody>
-    );
-  }
-  return <CreativesView />;
 }

@@ -357,9 +357,24 @@ export function AppShell({ children }: { children: ReactNode }) {
                     </div>
                   </div>
 
+                  {/*
+                    Account settings, beside the appearance controls that are
+                    part of them. `/settings` sat in the rail under
+                    Administration › Tenancy until 2026-09-10, next to Tenants
+                    and Residency — a personal preference filed behind a
+                    heading that reads as a permission boundary.
+                  */}
+                  <Link
+                    href="/settings"
+                    onClick={() => setMenuOpen(false)}
+                    className="mt-1 block w-full rounded px-3 py-1.5 text-left text-body text-content hover:bg-surface-sunken"
+                  >
+                    Account settings
+                  </Link>
+
                   <button
                     onClick={handleLogout}
-                    className="mt-1 w-full rounded px-3 py-1.5 text-left text-body text-content hover:bg-surface-sunken"
+                    className="w-full rounded px-3 py-1.5 text-left text-body text-content hover:bg-surface-sunken"
                   >
                     Sign out
                   </button>

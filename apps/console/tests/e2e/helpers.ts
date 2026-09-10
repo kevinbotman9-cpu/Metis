@@ -7,6 +7,16 @@ export const ACCOUNTS = {
   priya: 'priya.natarajan@telco.example',
   /** Administrator. Everything, including arbitration weights. */
   marcus: 'marcus.webb@telco.example',
+  /**
+   * Operator. `view:decisions` and nothing else.
+   *
+   * The only account that can be refused anything. The other three each hold
+   * every permission the navigation manifest gates a screen on, so a test
+   * signing in as one of them cannot tell an enforced permission from an
+   * unenforced one — which is half of why three routes declared a permission
+   * nothing checked and nothing went red.
+   */
+  oliver: 'oliver.reed@telco.example',
 } as const;
 
 /** Sign in through the real form, so the login path stays covered. */
