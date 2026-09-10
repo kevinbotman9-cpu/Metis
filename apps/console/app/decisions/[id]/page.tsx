@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
@@ -22,6 +22,9 @@ import { Button } from '@/components/ui/button';
 import { apiClient, ApiError } from '@/lib/api-client';
 import { downloadJson, evidenceFilename } from '@/lib/download';
 import { ProvenanceBanner } from '@/components/ui/provenance-banner';
+import { CascadeRail, type CascadeStage } from '@/components/cascade-rail';
+import { TraceEvidence } from '@/components/trace-evidence';
+import { CODE_MEANING, groupDenials, stagesFor } from '@/components/trace-cascade';
 import { cn } from '@/lib/cn';
 
 const AUDIENCES = [
@@ -36,11 +39,49 @@ type AudienceKey = (typeof AUDIENCES)[number]['key'];
 
 function TraceView({ decisionId }: { decisionId: string }) {
   const [audience, setAudience] = useState<AudienceKey>('analyst');
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+
+  // Which stage is open lives in the URL: a colleague should be able to be sent
+  // the node that removed the offer, rather than told how to reach it.
+  const selectedNode = params.get('stage');
+  const setSelectedNode = (id: string | null) => {
+    const next = new URLSearchParams(params.toString());
+    if (id) next.set('stage', id);
+    else next.delete('stage');
+    // The rule only means anything inside a stage, so it goes when the stage does.
+    next.delete('rule');
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  const selectedGroupId = params.get('rule');
+  const setSelectedGroupId = (id: string | null) => {
+    const next = new URLSearchParams(params.toString());
+    if (id) next.set('rule', id);
+    else next.delete('rule');
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
   const { data: trace, isLoading, error, refetch } = useQuery({
     queryKey: ['trace', decisionId],
     queryFn: () => apiClient.getDecisionRecord(decisionId),
     retry: false,
+  });
+
+  // The evidence pane resolves a ruleId to the policy that bears it, and the
+  // artifact to the packs it compiled against. Both are lookups rather than
+  // trace content; neither blocks the screen if it fails.
+  const policies = useQuery({
+    queryKey: ['targeting-policies'],
+    queryFn: () => apiClient.listTargetingPolicies(),
+  });
+  const artifact = useQuery({
+    queryKey: ['artifact', trace?.artifactId],
+    queryFn: () => apiClient.getArtifact(trace!.artifactId),
+    enabled: Boolean(trace?.artifactId),
   });
 
   const replay = useMutation({
@@ -91,6 +132,36 @@ function TraceView({ decisionId }: { decisionId: string }) {
   const ranked = Object.entries(trace.scores).sort((a, b) => b[1].priority - a[1].priority);
   const maxPriority = ranked[0]?.[1].priority ?? 1;
   const show = (...keys: AudienceKey[]) => keys.includes(audience);
+
+  // --- the cascade -------------------------------------------------------
+  const stages = stagesFor(trace);
+  const selectedStage = stages.find((s) => s.nodeId === selectedNode) ?? null;
+  const groups = selectedStage ? groupDenials(selectedStage.denials) : [];
+  const selectedGroup =
+    groups.find((g) => (g.ruleId ?? `code:${g.codes[0]}`) === selectedGroupId) ?? null;
+
+  const policyName = (ruleId: string | null) =>
+    ruleId ? (policies.data?.policies ?? []).find((p) => p.id === ruleId)?.name : undefined;
+
+  const packageVersions =
+    (artifact.data?.compilation?.artifact?.packageVersions as Record<string, string> | undefined) ??
+    null;
+
+  const entered = Math.max(1, trace.candidateCount || 1);
+  const railStages: CascadeStage[] = stages.map((s) => ({
+    id: s.nodeId,
+    label: s.label,
+    // The figure is what survived. A stage that shows what it removed would
+    // make the rail read as a list of events rather than as a funnel, and the
+    // removal is already on the line beneath.
+    value: s.survived,
+    pct: (s.survived / entered) * 100,
+    note:
+      s.nodeId === '__entry'
+        ? `${trace.artifactId} ${trace.artifactVersion}`
+        : `${((s.survived / entered) * 100).toFixed(0)}% of entrants`,
+    removed: s.removed,
+  }));
 
   return (
     <PageBody>
@@ -194,79 +265,162 @@ function TraceView({ decisionId }: { decisionId: string }) {
         <Metric label="Artifact" value={trace.artifactVersion} sub={trace.artifactId} />
       </div>
 
+      {/*
+        The elimination funnel as a Cascade — METIS_CONSOLE_SPEC.md §4.7.
+
+        This was a vertical list of nodes inside one card, which showed the
+        order and hid the shape: a reader could see that five nodes ran and not
+        that 22 candidates became one. The rail is the funnel now, the middle
+        pane holds what the selected stage removed grouped by the rule that
+        removed it, and the right pane holds the evidence behind whatever is
+        selected.
+
+        The stages come from the trace's own nodes rather than from the
+        three-tier targeting model. Flows differ — `inbound-web-offers` has one
+        filter and no relevance or suitability at all — so a fixed rail would
+        show three permanently empty stages on two thirds of this tenant's
+        decisions, which is a screen lying about the flow it is showing.
+      */}
+      <div className="mb-stack grid gap-3 xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,21rem)]">
+        <Card className="self-start">
+          <CascadeRail
+            label="Elimination funnel"
+            stages={railStages}
+            selected={selectedNode}
+            onSelect={setSelectedNode}
+            foot={
+              <>
+                {trace.candidateCount} entered,{' '}
+                <strong className="font-semibold text-content">
+                  {trace.winner ? '1 was offered' : 'none was offered'}
+                </strong>
+                . Every stage is what the flow actually ran, not the policy model.
+              </>
+            }
+          />
+        </Card>
+
+        <div className="min-w-0">
+          {selectedStage ? (
+            <Card>
+              <CardHeader
+                title={
+                  selectedStage.removed > 0
+                    ? `${selectedStage.label} removed ${selectedStage.removed}`
+                    : `${selectedStage.label} removed nothing`
+                }
+                description={
+                  selectedStage.removed > 0
+                    ? 'Grouped by the rule that removed them. A reason code is shared by a whole tier; the rule is the thing somebody can go and change.'
+                    : selectedStage.reason || 'Every candidate carried on from this node.'
+                }
+              />
+              <CardBody>
+                {groups.length === 0 ? (
+                  <p className="text-label text-content-muted">
+                    Nothing was removed here, so there is nothing to explain.
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {groups.map((g) => {
+                      const groupId = g.ruleId ?? `code:${g.codes[0]}`;
+                      const open = groupId === selectedGroupId;
+                      return (
+                        <li key={groupId}>
+                          <button
+                            type="button"
+                            aria-expanded={open}
+                            aria-label={`${g.ruleId ?? g.codes[0]}: ${g.keys.length} removed`}
+                            onClick={() => setSelectedGroupId(open ? null : groupId)}
+                            className={cn(
+                              'w-full rounded border px-cell py-2 text-left transition-colors',
+                              'hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-accent',
+                              open ? 'border-accent bg-surface-sunken' : 'border-border'
+                            )}
+                          >
+                            <span className="flex items-baseline justify-between gap-2">
+                              <span className="font-mono text-label text-content">
+                                {g.ruleId ?? g.codes[0]}
+                              </span>
+                              <span className="tnum text-label text-content-muted">
+                                {g.keys.length} removed
+                              </span>
+                            </span>
+                            <span className="mt-0.5 block text-label text-content-subtle">
+                              {policyName(g.ruleId) ?? CODE_MEANING[g.codes[0]] ?? ''}
+                            </span>
+                          </button>
+
+                          {open ? (
+                            <ul className="mt-1 flex flex-col border-l-2 border-accent/40 pl-3">
+                              {g.keys.map((k) => (
+                                <li key={k} className="py-1">
+                                  {/* Every number on this screen reaches its
+                                      source; an action key reaches the offer
+                                      it names. */}
+                                  <Link
+                                    href={`/offers?action=${encodeURIComponent(k)}`}
+                                    className="font-mono text-label text-accent underline-offset-2 hover:underline"
+                                  >
+                                    {k}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </CardBody>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader
+                title={`${trace.candidateCount} candidates, ${trace.winner ? 'one offered' : 'none offered'}`}
+                description="The flow that ran, node by node. Select a stage in the rail to see what it removed."
+              />
+              <CardBody>
+                <ol className="flex flex-col gap-1.5">
+                  {stages.map((st) => (
+                    <li key={st.nodeId} className="flex items-baseline gap-2 text-label">
+                      <span className="tnum w-10 shrink-0 text-right text-content-muted">
+                        {st.survived}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-content">{st.label}</span>
+                      <span className="tnum w-16 shrink-0 text-right text-content-subtle">
+                        {st.removed > 0 ? `−${st.removed}` : '—'}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+                {!trace.winner ? (
+                  <p className="mt-3 text-label text-content-muted">
+                    This decision returned no offer. Every candidate was removed before
+                    arbitration could rank one, which is a result rather than a failure.
+                  </p>
+                ) : null}
+              </CardBody>
+            </Card>
+          )}
+        </div>
+
+        <Card className="self-start" label="Evidence">
+          <CardBody>
+            <TraceEvidence
+              trace={trace}
+              stage={selectedStage}
+              group={selectedGroup}
+              policies={policies.data?.policies ?? []}
+              packageVersions={packageVersions}
+            />
+          </CardBody>
+        </Card>
+      </div>
+
       <div className="grid gap-stack lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-stack">
-          {/* Cascade */}
-          <Card>
-            <CardHeader
-              title="Elimination cascade"
-              description="Each node in order, and what it removed."
-            />
-            <CardBody>
-              <ol className="space-y-0">
-                {trace.eliminations.map((step, i) => {
-                  const last = i === trace.eliminations.length - 1;
-                  const removed = step.denials.length;
-                  return (
-                    <li key={step.nodeId} className="relative flex gap-3 pb-4 last:pb-0">
-                      {!last && (
-                        <span
-                          aria-hidden
-                          className="absolute left-[0.6875rem] top-6 h-[calc(100%-1rem)] w-px bg-border"
-                        />
-                      )}
-                      <span
-                        className={cn(
-                          'z-10 mt-0.5 flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-full text-[0.625rem] font-semibold',
-                          removed > 0
-                            ? 'bg-block-subtle text-block'
-                            : 'bg-pass-subtle text-pass'
-                        )}
-                      >
-                        {i + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-baseline gap-2">
-                          <span className="font-mono text-label font-medium text-accent">
-                            {step.nodeId}
-                          </span>
-                          {show('engineer', 'analyst') && (
-                            <Badge tone="outline">{step.nodeType}</Badge>
-                          )}
-                          <span className="text-label text-content-subtle">
-                            {step.survived.length} survived
-                          </span>
-                        </div>
-                        <p className="mt-1 text-body text-content-muted">{step.reason}</p>
-                        {removed > 0 && (
-                          <ul className="mt-1.5 space-y-1">
-                            {step.denials.map((d) => (
-                              <li key={d.key} className="flex flex-wrap items-baseline gap-1.5">
-                                <Badge tone="block">{d.key}</Badge>
-                                {/* The code is the answer to "why not this
-                                    one"; the prose above is about the node.
-                                    Shown to every audience, because a support
-                                    agent needs it as much as an engineer. */}
-                                <span className="font-mono text-label font-medium text-block">
-                                  {d.code}
-                                </span>
-                                {d.ruleId && show('engineer', 'analyst', 'regulator') ? (
-                                  <span className="font-mono text-label text-content-subtle">
-                                    {d.ruleId}
-                                  </span>
-                                ) : null}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            </CardBody>
-          </Card>
-
           {/* Scores */}
           {show('analyst', 'business', 'engineer') && (
             <Card>
