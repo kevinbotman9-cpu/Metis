@@ -1406,6 +1406,69 @@ sending zero.
 
 ## Resolved
 
+### G-085 — Storybook could not build, and could not render a story with real data, while every pull request was required to screenshot one
+
+**Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** none — a defect, fixed in the slice that registered it
+
+**What was broken.** `npm run build-storybook` failed on main:
+`"createHash" is not exported by "__vite-browser-external"`, in
+`packages/runtime/src/deterministic/canonical.ts`. The fixtures a realistic
+story renders from are the engine's output — `mocks/fixtures/catalogue.ts`
+imports `seed.ts`, which runs `@metis/runtime`'s deterministic engine — and
+the engine hashes with `createHash('sha256')` from `node:crypto`, which a
+browser does not have. One failing import fails the whole preview bundle, so no
+story built at all. In `storybook dev`, where modules load one by one, the two
+story files that import fixture values — `nav-rail.stories.tsx` and
+`layouts/list-detail.stories.tsx` — threw *"Module node:crypto has been
+externalized for browser compatibility"*; both were loaded and seen to throw.
+The other fifteen import no fixture values and were not individually checked.
+
+**How long.** Measured from the history, and by building it:
+
+| From | To | Storybook | CLAUDE.md required Storybook-first and a Storybook screenshot |
+|---|---|---|---|
+| 2026-09-03 20:36 (`27b325a`) | 2026-09-04 08:17 (`e500ddd`) | Absent until 21:55 (`4a5147d`), then unable to boot: `@storybook/nextjs` 7.6 needs `next/config`, which Next 16 removed — per `e500ddd`, *"so the stories actually run"*. Not rebuilt here | Yes |
+| 2026-09-04 08:17 | 2026-09-09 05:04 | Worked. Built here at `9af3938` (2026-09-08 19:54), the commit before the break | Yes |
+| 2026-09-09 05:04 (`7af77ff`, *"demo-telco-uk is a tenant with a history"*) | this fix | `build-storybook` failed. Built here at `7af77ff` and seen to fail with the error above | Yes |
+
+About **71 hours of the 188** the requirement had existed when this was
+written (2026-09-11 16:45) — the first 12 with no Storybook that ran, the
+last 60 with one that could not build. **All 31
+pull requests this repository has merged** landed inside the second window;
+six of them changed a story (#1, #4, #7, #8, #10, #31), and none could have
+attached the screenshot the definition of done asks for from a built
+Storybook. Nothing said so, because no gate and no workflow step ran
+Storybook — `tests/gates-parity.test.ts` holds the gates to the workflow, and
+neither had it.
+
+**Fixed.**
+
+- `.storybook/main.ts` resolves `node:crypto` to `.storybook/node-crypto.ts`
+  — SHA-256, FIPS 180-4, fifty lines — for the browser bundle only. The
+  engine's production hashing, every decision id and chain hash, still runs on
+  Node's native implementation; the runtime is unchanged.
+- `tests/unit/storybook-crypto.test.ts` holds the shim to `node:crypto` byte
+  for byte: the published vectors, every length from 0 to 300 across the
+  padding boundaries, multi-byte text, a megabyte, streamed updates, the
+  `readUIntBE` the engine reads a digest through — and the engine's own
+  `hash` and `seededUnitInterval` over the seeded catalogue, loaded once on
+  each implementation. One round constant changed made all seven fail, the
+  engine-level test included.
+- **A gate, and a step.** `storybook` in `scripts/gates.mjs` and *Storybook
+  builds* in `verify`, after the unit tests. Removing the alias turned the
+  gate red on the same error; removing the workflow step and keeping the gate
+  turned `gates-parity` red. `build-storybook` gains `--disable-telemetry`:
+  without it a failed build stops at an interactive crash-report prompt, which
+  would hang a local `npm run gates` rather than fail it.
+
+**Evidence.** With the fix, the static build loads all 94 stories in
+Chromium, each rendered and none throwing; a story id that does not exist was
+reported as an error by the same probe, so it can fail.
+
+**Not done.** A build proves the bundle, not that each story renders. The
+render probe above ran by hand; making it a gate needs a browser in `verify`
+or a job of its own, which is a decision about CI time rather than a fix.
+
 ### G-081 — The migration tests force-drop their database while its connections are still closing, and fail with every assertion passed
 
 **Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** none — a defect in tests written for G-076 to G-078, fixed in the slice that registered it
