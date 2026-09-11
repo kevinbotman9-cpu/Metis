@@ -19,6 +19,7 @@ import {
   objectives,
   categories,
   offers,
+  packs,
   targetingPolicies,
   frequencyPolicies,
   arbitrationConfig,
@@ -37,6 +38,9 @@ const AVAILABLE_PACKAGES: Record<string, string[]> = {
 
 export const compileContext: CompileContext = {
   offers,
+  // Without this the artifact records no policy sources and a refusal can name
+  // a rule and no pack, which is the whole of G-055.
+  packs,
   targetingPolicies,
   frequencyPolicies,
   arbitration: arbitrationConfig,

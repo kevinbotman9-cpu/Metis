@@ -792,3 +792,174 @@ describe('policy conditions against the data model', () => {
     expect(report.diagnostics.filter((d) => d.code === 'UNRESOLVED_FIELD')).toEqual([]);
   });
 });
+
+/**
+ * The tier, and the pack that supplied a rule.
+ *
+ * Both are compile-time facts that used to be nowhere. The tier was inferred by
+ * the console from node ids with `/suitab/` and `/frequen|contact|cap/`
+ * (G-058); the pack could not be inferred at all, so a refusal named a policy
+ * id and nothing else (G-055). Neither is in the hashed decision: the artifact
+ * carries them, so a chain hash is unmoved by either.
+ */
+describe('what compilation works out about a node', () => {
+  const suitability: TargetingPolicy = { ...policy, id: 'pol_afford', kind: 'suitability' };
+  const relevance: TargetingPolicy = { ...policy, id: 'pol_recent', kind: 'relevance' };
+
+  const withNodes = (nodes: DecisionFlowSource['nodes']): DecisionFlowSource => ({
+    ...valid,
+    nodes: [
+      ...nodes,
+      { id: 'arbitrate', type: 'arbitrate', label: 'Arbitrate', estimatedMs: 2 },
+    ],
+    edges: nodes.map((n) => ({ from: n.id, to: 'arbitrate' })),
+  });
+
+  const context: CompileContext = {
+    ...ctx,
+    targetingPolicies: [policy, suitability, relevance],
+    packs: [
+      {
+        id: 'pack_uk_consumer_duty',
+        name: 'UK Consumer Duty',
+        version: '1.4.0',
+        policyIds: ['pol_afford'],
+      },
+    ],
+  };
+
+  const compiled = (source: DecisionFlowSource, over: Partial<CompileContext> = {}) => {
+    const r = compileDecisionFlow(source, { ...context, ...over });
+    expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    return r.artifact!;
+  };
+
+  it('names the tier from the policies a node declares, not from its id', () => {
+    // `check_the_money` is the case the id patterns could never have handled:
+    // nothing in the name says suitability, and the policies do.
+    const a = compiled(
+      withNodes([
+        { id: 'source', type: 'source', label: 'Profile', estimatedMs: 4 },
+        {
+          id: 'check_the_money',
+          type: 'constraint',
+          label: 'Affordability',
+          policyIds: ['pol_afford'],
+          estimatedMs: 1,
+        },
+      ])
+    );
+    expect(a.nodes.find((n) => n.id === 'check_the_money')?.tier).toBe('suitability');
+  });
+
+  it('calls a constraint node with no targeting policies a frequency node', () => {
+    // Which is what it is: the engine enforces caps and consent at every
+    // constraint node, and this one declares nothing else.
+    const a = compiled(
+      withNodes([
+        { id: 'source', type: 'source', label: 'Profile', estimatedMs: 4 },
+        { id: 'cap', type: 'constraint', label: 'Frequency & suppression', estimatedMs: 1 },
+      ])
+    );
+    expect(a.nodes.find((n) => n.id === 'cap')?.tier).toBe('frequency');
+  });
+
+  it('leaves the tier absent when a node mixes two tiers', () => {
+    // Rather than picking one. A node asking two questions has no single
+    // answer, and a wrong label on the trace reader is worse than none.
+    const a = compiled(
+      withNodes([
+        { id: 'source', type: 'source', label: 'Profile', estimatedMs: 4 },
+        {
+          id: 'mixed',
+          type: 'filter',
+          label: 'Mixed',
+          policyIds: ['pol_afford', 'pol_recent'],
+          estimatedMs: 1,
+        },
+      ])
+    );
+    const node = a.nodes.find((n) => n.id === 'mixed')!;
+    expect(node.tier).toBeUndefined();
+    expect('tier' in node, 'absent, not explicitly undefined: the artifact hash is taken over this').toBe(false);
+  });
+
+  it('gives a source or arbitrate node no tier at all', () => {
+    const a = compiled(
+      withNodes([{ id: 'source', type: 'source', label: 'Profile', estimatedMs: 4 }])
+    );
+    expect(a.nodes.every((n) => n.tier === undefined)).toBe(true);
+  });
+
+  it('records which pack supplied each rule the flow references', () => {
+    const a = compiled(
+      withNodes([
+        { id: 'source', type: 'source', label: 'Profile', estimatedMs: 4 },
+        {
+          id: 'money',
+          type: 'constraint',
+          label: 'Affordability',
+          policyIds: ['pol_afford'],
+          estimatedMs: 1,
+        },
+      ])
+    );
+    expect(a.policySources).toEqual({
+      pol_afford: { packId: 'pack_uk_consumer_duty', name: 'UK Consumer Duty', version: '1.4.0' },
+    });
+  });
+
+  it('records nothing for a rule no pack claims', () => {
+    // A tenant's own rule is the answer, not a hole. `pol_age` is in no pack.
+    const a = compiled(
+      withNodes([
+        { id: 'source', type: 'source', label: 'Profile', estimatedMs: 4 },
+        { id: 'gate', type: 'filter', label: 'Eligibility', policyIds: ['pol_age'], estimatedMs: 1 },
+      ])
+    );
+    expect(a.policySources).toBeUndefined();
+  });
+
+  it('records no policy sources when the tenant has no packs installed', () => {
+    const a = compiled(
+      withNodes([
+        { id: 'source', type: 'source', label: 'Profile', estimatedMs: 4 },
+        {
+          id: 'money',
+          type: 'constraint',
+          label: 'Affordability',
+          policyIds: ['pol_afford'],
+          estimatedMs: 1,
+        },
+      ]),
+      { packs: undefined }
+    );
+    expect(a.policySources).toBeUndefined();
+  });
+
+  it('keeps the artifact hash sensitive to the tier', () => {
+    // The tier is part of what was compiled, so two artifacts that disagree
+    // about it are different artifacts. Nothing here reaches the chain hash:
+    // the hashed decision names the artifact by id and version, not by hash.
+    const source = withNodes([
+      { id: 'source', type: 'source', label: 'Profile', estimatedMs: 4 },
+      {
+        id: 'money',
+        type: 'constraint',
+        label: 'Affordability',
+        policyIds: ['pol_afford'],
+        estimatedMs: 1,
+      },
+    ]);
+    // The same flow, compiled against a catalogue where that one policy is a
+    // different kind. Nothing else about the source moves, so the tier is the
+    // only thing the two artifacts can disagree about.
+    const asSuitability = compiled(source);
+    const asRelevance = compiled(source, {
+      targetingPolicies: [policy, { ...suitability, kind: 'relevance' }, relevance],
+    });
+    expect(asSuitability.nodes.find((n) => n.id === 'money')?.tier).toBe('suitability');
+    expect(asRelevance.nodes.find((n) => n.id === 'money')?.tier).toBe('relevance');
+    expect(asSuitability.artifactHash).not.toBe(asRelevance.artifactHash);
+  });
+});

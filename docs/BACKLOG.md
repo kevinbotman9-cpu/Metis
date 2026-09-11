@@ -198,6 +198,7 @@ otherwise.
 | W-071 | 14 | An aggregate latency figure with a measured source | OPEN | 2 |
 | W-072 | 14 | The register's sections agree with its statuses | DONE | 1 |
 | W-073 | 14 | A duplicate-entry check for the gap register | OPEN | 2 |
+| W-074 | 14 | Integration fields and policy fields are one vocabulary | OPEN | 2 |
 
 ---
 
@@ -1499,6 +1500,23 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-074 — Integration fields and policy fields are one vocabulary
+
+**Registered:** 2026-09-11 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet
+
+Gate 2 · Gaps [G-069](gaps.md), [G-070](gaps.md)
+
+A policy names `customer.bill_to_income_ratio`; a connector provides
+`monthlySpend`. Nothing maps between them, so no rule reads a value any
+integration supplied and the trace's source attribution never resolves. The same
+work should settle where consent and frequency enforcement lives, because both
+change what a decision records and both move chain hashes.
+
+**Done when:** a policy condition can name a field a connector supplies, the
+trace resolves it, and the corpus is regenerated with the hash movement recorded
+deliberately.
+
 ### W-073 — A duplicate-entry check for the gap register
 
 **Registered:** 2026-09-11 · **Stage:** 14 · **Status:** OPEN
@@ -1617,8 +1635,8 @@ or the demo script states that the candidate set is authored.
 
 ### W-066 — A refusal names its pack, its freshness and what the customer was told
 
-**Registered:** 2026-09-10 · **Stage:** 14 · **Status:** OPEN
-**Check:** none yet
+**Registered:** 2026-09-10 · **Stage:** 14 · **Status:** PARTIAL
+**Check:** `packages/compiler/tests/compile.test.ts` (`what compilation works out about a node`); `packages/runtime/tests/integration.test.ts` (`when a source value was computed`); `apps/console/tests/e2e/trace-cascade.spec.ts`
 
 Gate 1 · Gaps [G-055](gaps.md), [G-056](gaps.md), [G-057](gaps.md), [G-058](gaps.md)
 

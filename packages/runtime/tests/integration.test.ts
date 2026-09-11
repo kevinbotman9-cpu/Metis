@@ -332,3 +332,82 @@ describe('integrations and determinism', () => {
     );
   });
 });
+
+/**
+ * When a value was computed, as distinct from when it was fetched.
+ *
+ * `SourceCall` carried `ms` and `cacheHit` and no timestamp, so a decision
+ * could say the consent registry answered in 12ms from cache and could not say
+ * *when the value it returned was true* — which for a cache hit is the whole
+ * question a regulator asks (G-056). Both fields are in the measured half, so
+ * none of this reaches a chain hash.
+ */
+describe('when a source value was computed', () => {
+  const withEntry = (store: Map<string, { value: unknown; storedAt: number }>) => ({
+    get: (k: string) => store.get(k)?.value,
+    set: (k: string, v: unknown) => void store.set(k, { value: v, storedAt: Date.now() }),
+    entry: (k: string) => store.get(k),
+  });
+
+  it('records a live read as computed when it was asked for', async () => {
+    const g = gateway({ score: { value: 720 } });
+    const resolved = await resolveInputs(artifact, [connector()], request, g);
+
+    const call = resolved.calls[0];
+    expect(call.cacheHit).toBe(false);
+    expect(call.fetchedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    // Equal by definition: the connector computed the value as it answered.
+    expect(call.observedAt).toBe(call.fetchedAt);
+  });
+
+  it('dates a cache hit to when the value was stored, not when it was read', async () => {
+    const store = new Map<string, { value: unknown; storedAt: number }>();
+    const g = gateway({ score: { value: 720 } });
+    const cached: IntegrationGateway = { fetch: g.fetch, cache: withEntry(store) };
+    const connectors = [connector({ cacheTtlSeconds: 60 })];
+
+    const first = await resolveInputs(artifact, connectors, request, cached);
+    // Age the entry rather than sleeping: the assertion is about which clock
+    // the field reports, and a real delay would only make the test slow.
+    const entry = [...store.values()][0];
+    entry.storedAt -= 45_000;
+    const second = await resolveInputs(artifact, connectors, request, cached);
+
+    expect(second.calls[0].cacheHit).toBe(true);
+    const observed = Date.parse(second.calls[0].observedAt!);
+    const fetched = Date.parse(second.calls[0].fetchedAt);
+    expect(fetched - observed).toBeGreaterThanOrEqual(45_000);
+    // The first read is its own witness: a live call has no age.
+    expect(first.calls[0].observedAt).toBe(first.calls[0].fetchedAt);
+  });
+
+  it('leaves the time unknown when the cache cannot say, rather than copying the read time', async () => {
+    // The failure this guards: filling `observedAt` with the fetch time would
+    // make every cache hit look fresh, which is worse than admitting the cache
+    // does not keep the answer.
+    const store = new Map<string, unknown>();
+    const g = gateway({ score: { value: 720 } });
+    const cached: IntegrationGateway = {
+      fetch: g.fetch,
+      cache: { get: (k) => store.get(k), set: (k, v) => void store.set(k, v) },
+    };
+    const connectors = [connector({ cacheTtlSeconds: 60 })];
+
+    await resolveInputs(artifact, connectors, request, cached);
+    const second = await resolveInputs(artifact, connectors, request, cached);
+
+    expect(second.calls[0].cacheHit).toBe(true);
+    expect(second.calls[0].observedAt).toBeUndefined();
+    expect(second.calls[0].fetchedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('dates a call the connector never received', async () => {
+    const g = gateway({ score: { value: 720 } });
+    const resolved = await resolveInputs(artifact, [connector({ active: false })], request, g);
+
+    expect(resolved.calls[0].outcome).toBe('skipped');
+    expect(resolved.calls[0].fetchedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    // Nothing was computed, so nothing is dated.
+    expect(resolved.calls[0].observedAt).toBeUndefined();
+  });
+});

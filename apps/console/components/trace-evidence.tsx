@@ -2,7 +2,12 @@
 
 import Link from 'next/link';
 import { Badge } from '@/components/ui/primitives';
-import type { TargetingPolicyDto, TraceDto } from '@/lib/api-client';
+import type {
+  PolicySourceDto,
+  SourceCallDto,
+  TargetingPolicyDto,
+  TraceDto,
+} from '@/lib/api-client';
 import { CODE_MEANING, type DenialGroup, type TraceStage } from '@/components/trace-cascade';
 
 /**
@@ -13,23 +18,25 @@ import { CODE_MEANING, type DenialGroup, type TraceStage } from '@/components/tr
  * happened" but "on what basis, and can you show me". Every claim here names
  * its source or says why it has none.
  *
- * **Two of the five things asked for do not exist, and are drawn as absences.**
- * A pane that silently omitted them would read as complete, and the reader
- * would conclude the platform records more than it does. Both are registered:
+ * **Two of the absences this pane was drawing are now answers.** Both were
+ * drawn rather than omitted, which is why they were easy to close:
  *
- * - *The pack that supplied the rule.* A `TargetingPolicy` has an id, a name, a
- *   kind, a description, conditions and a scope. It has no package. The
- *   compiled artifact does lock `packageVersions`, so the decision can say
- *   which packs it compiled against — but not which of them supplied a given
- *   rule. G-055.
- * - *When the value was computed.* `sourceCalls` records the connector, the
- *   duration and whether it was a cache hit. There is no timestamp, so a value
- *   read from cache cannot be dated at all. G-056.
+ * - *The pack that supplied the rule.* The compiler resolves each policy the
+ *   flow references to the pack that supplied it and pins the result in the
+ *   artifact, so a refusal names "UK Consumer Duty 1.4.0" rather than a bare
+ *   policy id. G-055. A rule no pack claims is still an absence, and a
+ *   truthful one: the tenant authored it.
+ * - *When the value was computed.* A `SourceCall` carries `fetchedAt`, and
+ *   `observedAt` for the value itself — the same thing for a live read, and
+ *   the age of the entry for a cache hit. G-056. A cache that cannot say when
+ *   it stored a value leaves `observedAt` absent, which is drawn as unknown
+ *   rather than filled in with the read time.
  *
- * And a third, which is not a rendering problem but a modelling one: there is
- * no customer-facing refusal text anywhere in the platform. Creatives say what
- * an offer *is*; nothing says what a customer was told when one was withheld.
- * A regulator asking "what were they told" has no answer today. G-057.
+ * **One remains, and it is a modelling question rather than a rendering one:**
+ * there is no customer-facing refusal text anywhere in the platform. Creatives
+ * say what an offer *is*; nothing says what a customer was told when one was
+ * withheld. A regulator asking "what were they told" has no answer today.
+ * G-057.
  */
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -52,6 +59,33 @@ export interface TraceEvidenceProps {
   group: DenialGroup | null;
   policies: TargetingPolicyDto[];
   packageVersions: Record<string, string> | null;
+  /**
+   * Which pack supplied each rule, from the artifact. Null while the artifact
+   * query is in flight; an empty map when the tenant has no packs installed.
+   * The two are different sentences and the pane says which it is.
+   */
+  policySources: Record<string, PolicySourceDto> | null;
+}
+
+/** When a value was computed, in the words the record can support. */
+function whenComputed(call: SourceCallDto): React.ReactNode {
+  if (!call.observedAt) {
+    return (
+      <Absent reason="this cache does not record when it stored the value (G-056)" />
+    );
+  }
+  const observed = new Date(call.observedAt);
+  const fetched = new Date(call.fetchedAt);
+  const ageSeconds = Math.max(0, Math.round((fetched.getTime() - observed.getTime()) / 1000));
+  return (
+    <>
+      <span className="tnum">{observed.toISOString().replace('T', ' ').slice(0, 19)}Z</span>
+      <span className="text-content-muted">
+        {' '}
+        · {call.cacheHit ? `cached, ${ageSeconds}s older than this decision` : 'read live'}
+      </span>
+    </>
+  );
 }
 
 export function TraceEvidence({
@@ -60,6 +94,7 @@ export function TraceEvidence({
   group,
   policies,
   packageVersions,
+  policySources,
 }: TraceEvidenceProps) {
   const policy = group?.ruleId ? policies.find((p) => p.id === group.ruleId) : undefined;
 
@@ -68,6 +103,11 @@ export function TraceEvidence({
   const fields = (policy?.conditions ?? []).map((c) => c.field).filter(Boolean);
   const bindings = (trace.sourceBindings ?? []).filter((b) => fields.includes(b.field));
   const calls = trace.sourceCalls ?? [];
+  const pack = group?.ruleId ? policySources?.[group.ruleId] : undefined;
+  // The calls behind the fields this rule read, deduplicated by connector.
+  const readCalls = [...new Set(bindings.map((b) => b.connectorId))]
+    .map((id) => calls.find((c) => c.connectorId === id))
+    .filter((c): c is SourceCallDto => Boolean(c));
 
   if (!stage) {
     return (
@@ -85,6 +125,26 @@ export function TraceEvidence({
           {/* Not the chain hash: the Metadata card below already carries it,
               and the hero screen showing the same evidence twice invites the
               reader to wonder whether they are the same hash. */}
+          {/* The decision's inputs, dated. Here rather than only under a rule
+              because the times are a property of the values this decision used,
+              and because a rule's own fields resolve to a connector far less
+              often than they should — policy conditions name dotted paths
+              (customer.bill_to_income_ratio) and connectors provide flat
+              fields (monthlySpend), so the two never meet. G-069. */}
+          <Row label="Values fetched">
+            {calls.length > 0 ? (
+              <ul className="flex flex-col gap-0.5">
+                {calls.map((call) => (
+                  <li key={call.connectorId}>
+                    <span className="font-mono text-[0.6875rem]">{call.connectorId}</span>{' '}
+                    {whenComputed(call)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Absent reason="this decision recorded no connector calls" />
+            )}
+          </Row>
           <Row label="Compiled against">
             {packageVersions && Object.keys(packageVersions).length > 0 ? (
               <ul className="flex flex-col gap-0.5">
@@ -167,24 +227,22 @@ export function TraceEvidence({
               )}
             </Row>
 
-            {/* Named as an absence rather than omitted. See the file comment. */}
             <Row label="Pack that supplied it">
-              <Absent
-                reason={
-                  <>
-                    no pack is recorded against a rule (
-                    <Link href="/docs" className="text-accent underline-offset-2 hover:underline">
-                      G-055
-                    </Link>
-                    ). The artifact compiled against{' '}
-                    {packageVersions && Object.keys(packageVersions).length > 0
-                      ? Object.entries(packageVersions)
-                          .map(([n, v]) => `${n}@${v}`)
-                          .join(', ')
-                      : 'no recorded packs'}
-                  </>
-                }
-              />
+              {pack ? (
+                <>
+                  <span className="font-semibold text-content">{pack.name}</span>{' '}
+                  <Badge tone="outline">{pack.version}</Badge>
+                  <p className="mt-0.5 font-mono text-[0.6875rem] text-content-muted">
+                    {pack.packId}
+                  </p>
+                </>
+              ) : policySources === null ? (
+                <Absent reason="the artifact has not loaded" />
+              ) : group.ruleId ? (
+                <Absent reason="no installed pack claims this rule — the tenant authored it" />
+              ) : (
+                <Absent reason="there is no rule to attribute" />
+              )}
             </Row>
 
             <Row label="Source system">
@@ -217,7 +275,18 @@ export function TraceEvidence({
             </Row>
 
             <Row label="When the value was computed">
-              <Absent reason="not recorded — sourceCalls carries duration and cache state, never a timestamp (G-056)" />
+              {readCalls.length > 0 ? (
+                <ul className="flex flex-col gap-0.5">
+                  {readCalls.map((call) => (
+                    <li key={call.connectorId}>
+                      <span className="font-mono text-[0.6875rem]">{call.connectorId}</span>{' '}
+                      {whenComputed(call)}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Absent reason="no connector call supplied a field this rule reads" />
+              )}
             </Row>
 
             <Row label="What the customer was told">

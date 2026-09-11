@@ -89,6 +89,16 @@ function resolveCreative(offerId: string | null, channel: string): string | null
   return creatives.find((t) => t.offerId === offerId && t.active)?.id ?? null;
 }
 
+/** A stable fraction in [0, 1) from a string. Seeded, so a fixture is fixed. */
+function fraction(seed: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 100000) / 100000;
+}
+
 /**
  * The call record for a set of bindings.
  *
@@ -96,22 +106,42 @@ function resolveCreative(offerId: string | null, channel: string): string | null
  * produced rather than performing it, so latency here comes from the
  * connector's own declaration rather than a stopwatch. Stated plainly because
  * a measured-looking number that was not measured is worse than none.
+ *
+ * The same is true of the two timestamps, and for the same reason. `fetchedAt`
+ * is the decision's own time, which is when it would have asked. `observedAt`
+ * is that time less an age derived from the decision id and the connector, so
+ * a cached value looks its age and the same decision always looks the same.
+ * On the live path neither is reconstructed: `resolveInputs` records when it
+ * asked, and the cache reports when it stored what it returned (G-056).
  */
-function sourceCallsFor(bindings: SourceBinding[]): SourceCall[] {
+function sourceCallsFor(
+  bindings: SourceBinding[],
+  decisionId: string,
+  occurredAt: string
+): SourceCall[] {
   const byConnector = new Map<string, string[]>();
   for (const b of bindings) {
     byConnector.set(b.connectorId, [...(byConnector.get(b.connectorId) ?? []), b.field]);
   }
+  const askedAt = Date.parse(occurredAt);
   return [...byConnector.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([connectorId, fields]) => {
       const connector = connectors.find((c) => c.id === connectorId);
+      const ttl = connector?.cacheTtlSeconds ?? 0;
+      const cacheHit = ttl > 0;
+      // Inside the TTL by construction: a value older than its own TTL would
+      // have been evicted, and a fixture showing one would be describing a
+      // cache that cannot exist.
+      const ageSeconds = cacheHit ? Math.floor(fraction(`${decisionId}:${connectorId}`) * ttl) : 0;
       return {
         connectorId,
         ms: connector?.declaredP95Ms ?? 0,
-        cacheHit: (connector?.cacheTtlSeconds ?? 0) > 0,
+        cacheHit,
         outcome: 'ok' as const,
         fields: fields.sort(),
+        fetchedAt: new Date(askedAt).toISOString(),
+        observedAt: new Date(askedAt - ageSeconds * 1000).toISOString(),
       };
     });
 }
@@ -158,7 +188,7 @@ function toTrace({ trace }: GeneratedDecision): TraceRecord {
     consentState: d.consentState,
     creativeId: resolveCreative(d.winnerOfferId, d.channel),
     sourceBindings: d.sourceBindings,
-    sourceCalls: sourceCallsFor(d.sourceBindings),
+    sourceCalls: sourceCallsFor(d.sourceBindings, trace.id, d.occurredAt),
     chainHash: trace.chainHash,
     inputSnapshotHash: d.inputSnapshotHash,
   };
