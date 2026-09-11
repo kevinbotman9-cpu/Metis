@@ -3,7 +3,7 @@ export { InMemoryRegistryStore } from './memory-store';
 export { PostgresRegistryStore, type Queryable } from './postgres-store';
 export {
   createRegistryStore,
-  readMigration,
+  MIGRATIONS_DIR,
   type StoreHandle,
   type CreateStoreOptions,
 } from './create-store';

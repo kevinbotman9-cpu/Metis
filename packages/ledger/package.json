@@ -8,6 +8,7 @@
     "test": "vitest run --config ./vitest.config.ts"
   },
   "dependencies": {
+    "@metis/core": "*",
     "@metis/runtime": "*"
   },
   "devDependencies": {

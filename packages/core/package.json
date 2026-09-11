@@ -14,6 +14,11 @@
     "./profile-schema": "./src/profile-schema.ts",
     "./intake": "./src/intake.ts",
     "./experiment": "./src/experiment.ts",
-    "./volume": "./src/volume.ts"
+    "./volume": "./src/volume.ts",
+    "./migrate": "./src/migrate.ts"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.0"
   }
 }

@@ -1,6 +1,6 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { migrate, type Connectable, type MigrateResult } from '@metis/core/migrate';
 import type { RegistryStore } from './registry';
 import { InMemoryRegistryStore } from './memory-store';
 import { PostgresRegistryStore, type Queryable } from './postgres-store';
@@ -29,7 +29,11 @@ export interface StoreHandle {
 
 export interface CreateStoreOptions {
   databaseUrl?: string;
-  /** Apply the schema before returning. Safe to repeat; the DDL is idempotent. */
+  /**
+   * Apply any migration this database has not run before returning. Safe to
+   * repeat: each file runs once, and a database that disagrees with the files
+   * is refused rather than patched.
+   */
   migrate?: boolean;
 }
 
@@ -79,54 +83,39 @@ export async function createRegistryStore(
   };
 }
 
-/** The schema, as committed. */
-export function readMigration(): string {
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  return fs.readFileSync(path.resolve(here, '../migrations/001_registry.sql'), 'utf8');
-}
-
-/** A pool that can hand out a dedicated connection, which the lock below needs. */
-export interface Connectable {
-  connect(): Promise<{
-    query(text: string, values?: unknown[]): Promise<unknown>;
-    release(): void;
-  }>;
-}
+/** Where this store's numbered migrations live: `001_registry.sql` onward. */
+export const MIGRATIONS_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../migrations'
+);
 
 /**
- * Apply the schema, under a lock, on one connection.
+ * This store's advisory lock key.
  *
- * The DDL is idempotent but not concurrency-safe: `CREATE OR REPLACE FUNCTION`
- * takes an exclusive lock on the function's `pg_proc` row and the trigger
- * statements take one on each table, so two processes running it at once can
- * take those locks in opposite orders and deadlock. That is not a test
- * artefact — every service instance runs this on startup, and instances start
- * together.
- *
- * An advisory lock is the fix rather than reordering the statements, because
- * the ordering that deadlocks today is not the only ordering a future
- * migration could introduce. The key is an arbitrary constant, namespaced to
- * this schema.
- *
- * Session-scoped rather than transaction-scoped, because the migration carries
- * its own BEGIN/COMMIT — so it must be taken on a checked-out client, not
- * through the pool, or the unlock could land on a different connection than the
- * lock.
+ * Every service instance migrates on startup and instances start together, so
+ * the runner serialises them: two running DDL at once can deadlock on the
+ * function and trigger locks, and before the runner, two applying the old file
+ * in the wrong order left a column out (G-076). An arbitrary constant, distinct
+ * from the ledger's and the catalogue's so the three do not queue behind each
+ * other for no reason.
  */
 const MIGRATION_LOCK_KEY = 0x6d657469; // 'meti'
 
-export async function runMigration(pool: Connectable): Promise<void> {
-  const client = await pool.connect();
-  try {
-    await client.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_KEY]);
-    try {
-      await client.query(readMigration());
-    } finally {
-      await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_KEY]);
-    }
-  } finally {
-    client.release();
-  }
+/**
+ * Bring the database up to this store's migrations. `@metis/core/migrate` says
+ * what it refuses and why; `to` stops at an earlier version, for the checks
+ * that build a database as an older release left it.
+ */
+export function runMigration(
+  pool: Connectable,
+  options: { to?: number } = {}
+): Promise<MigrateResult> {
+  return migrate(pool, {
+    component: 'registry',
+    dir: MIGRATIONS_DIR,
+    lockKey: MIGRATION_LOCK_KEY,
+    to: options.to,
+  });
 }
 
 function redact(url: string): string {

@@ -39,7 +39,12 @@ jobs:
         working-directory: apps/console
 
     steps:
+      # Full history, so `origin/main` is here: `tests/migrations-frozen.test.ts`
+      # compares every migration file against where the branch left main, and
+      # fails rather than skips without it (G-077).
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
