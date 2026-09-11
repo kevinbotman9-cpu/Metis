@@ -673,6 +673,63 @@ have produced.
 
 ---
 
+### G-075 — Retention suitability is decided per request, not per offer, and in the seed by a coin flip
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-026](BACKLOG.md)
+
+**Suitability is not being checked for retention offers.** `pol_afford_retention`
+— *"a retention offer must reduce, not increase, the customer bill"* — sits on
+the suitability tier, the tier that exists for the FCA (G-015 calls it *"the
+FCA-facing tier"*), scoped to the whole retention objective
+(`apps/console/mocks/fixtures/catalogue.ts:913-923`). Its one condition reads
+`offer.monthly_delta`. That is one number per request, not one per offer: the
+engine evaluates every condition against `request.input`
+(`packages/runtime/src/deterministic/engine.ts:431`), so every retention
+candidate in a decision is tested against the same value and they all pass or
+all fail together. Whether a particular offer would raise this customer's bill
+is never asked.
+
+In the seeded corpus the value is a coin flip —
+`offer: { monthly_delta: r('delta') > 0.5 ? -500 : 300 }`
+(`apps/console/mocks/fixtures/engine.ts:275`). Executed over the seed,
+`retention-outbound` — twenty candidates, all of them retention offers — made
+2,378 decisions in which retention offers reached the policy. **None split.** In
+all 1,188 where the coin came up `300`, every one of those offers was refused; in
+all 1,190 where it came up `-500`, none was.
+
+**The trace names a real policy either way.** Each refusal is recorded as
+`SUITABILITY_FAILED` with `ruleId: pol_afford_retention`, which reads as an
+affordability judgement about that offer for that customer. Each pass reads as
+the same judgement going the other way. Neither is one. A compliance officer
+opening either trace is shown a named suitability rule applied, and nothing in
+the record says the rule compared a single request-level number that did not
+come from the offer. Since G-055 closed, the refusal is also attributed to a
+pack: `pol_afford_retention` belongs to *UK Consumer Duty 1.4.0*
+(`catalogue.ts:804-808`), and the trace reader names that pack beside the
+refusal (`apps/console/components/trace-evidence.tsx:24-27`). A coin flip is
+now presented as a Consumer Duty affordability refusal.
+
+**Fixing it is a modelling change, not an edit to the rule.** The profile schema
+has no way to express a per-offer input: `offer.monthly_delta` is declared on an
+entity the request supplies once (`apps/console/mocks/fixtures/profile-schema.ts:255-267`),
+and a condition can read only request paths, never a field of the candidate it
+is judging. The facts a real check needs exist separately — an offer carries
+`financials.price` (`packages/core/src/domain.ts:50-60`), and the billing
+connector resolves `monthlySpend` — and there is no way to write a condition
+that combines them per candidate. Rewording the rule, or supplying a better
+number on the request, leaves it deciding every retention offer at once.
+
+Found while tracing the data spine for
+[ADR-014](adr/ADR-014-the-data-spine.md), which describes it under *Smaller
+breaks found on the way*.
+
+**Done when:** a suitability condition can be evaluated per candidate against
+that candidate's own values, both engines agree, and a corpus case in which one
+retention offer lowers the bill and another raises it records one refused and one
+passed, under the same policy in the same decision.
+
+---
+
 ### G-070 — Consent and frequency denials attach to whichever constraint node ran first
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-074](BACKLOG.md)
