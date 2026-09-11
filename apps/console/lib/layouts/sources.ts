@@ -1,7 +1,9 @@
 import {
   apiClient,
   type CategoryDto,
+  type CreativeDto,
   type ObjectiveDto,
+  type OfferDto,
   type PlacementDto,
   type TaxonomyDto,
 } from '@/lib/api-client';
@@ -49,6 +51,17 @@ export const LIST_SOURCES: Record<string, ListSource> = {
         return { ...o, categoryCount: own.size, offerCount: offersUnder(t, own) } as unknown as Row;
       });
     },
+  },
+  'taxonomy.offers': {
+    queryKey: ['taxonomy'],
+    queryFn: () => apiClient.getTaxonomy(),
+    select: (data) =>
+      (data as TaxonomyDto).offers.map((o) => ({ ...o, creativeCount: o.creativeIds.length }) as unknown as Row),
+  },
+  creatives: {
+    queryKey: ['creatives'],
+    queryFn: () => apiClient.listAllCreatives(),
+    select: (data) => (data as { creatives: CreativeDto[] }).creatives as unknown as Row[],
   },
   'taxonomy.categories': {
     queryKey: ['taxonomy'],
@@ -123,6 +136,34 @@ export const ENTITY_BINDINGS: Record<string, EntityBinding> = {
         ? await apiClient.updateObjective(String(existing.id), body as Partial<ObjectiveDto>)
         : await apiClient.createObjective(body as Partial<ObjectiveDto>)) as unknown as Row,
     invalidate: TAXONOMY_WRITES,
+  },
+  Offer: {
+    identity: (row) => String(row.id),
+    permission: 'edit:offers',
+    save: async (body, existing) =>
+      (existing
+        ? await apiClient.updateOffer(String(existing.id), body as Partial<OfferDto>)
+        : await apiClient.createOffer(body as Partial<OfferDto>)) as unknown as Row,
+    invalidate: [['offers'], ['offer'], ['taxonomy']],
+  },
+  Creative: {
+    identity: (row) => String(row.id),
+    permission: 'edit:offers',
+    // DRAFT: createCreative takes the offer as a path parameter, and a binding
+    // is given only the form's body — which drops `offerId`, an unmanaged field.
+    // So a creative can be edited from here and not created. The contract has
+    // no way to pass the parent through.
+    save: async (body, existing) => {
+      if (!existing) {
+        throw new Error('A creative is created under an offer, and this binding is not told which one.');
+      }
+      return (await apiClient.updateCreative(
+        String(existing.offerId),
+        String(existing.id),
+        body as Partial<CreativeDto>
+      )) as unknown as Row;
+    },
+    invalidate: [['creatives'], ['offer'], ['taxonomy']],
   },
   Category: {
     identity: (row) => String(row.id),

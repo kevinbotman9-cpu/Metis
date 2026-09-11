@@ -10,6 +10,7 @@ import {
 } from './types';
 import { placementsLayout } from './placements';
 import { objectivesLayout } from './objectives';
+import { offersLayout } from './offers';
 
 export * from './types';
 export { declaredScreen } from './page';
@@ -71,6 +72,7 @@ export type PanelId = keyof typeof PANELS;
 export const LAYOUTS: Record<string, LayoutManifest> = {
   [placementsLayout.id]: placementsLayout,
   [objectivesLayout.id]: objectivesLayout,
+  [offersLayout.id]: offersLayout,
 };
 
 export function layoutFor(id: string): LayoutManifest {
@@ -269,4 +271,4 @@ export function validateLayout(
   return problems;
 }
 
-export { placementsLayout, objectivesLayout };
+export { placementsLayout, objectivesLayout, offersLayout };

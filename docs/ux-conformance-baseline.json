@@ -1,5 +1,5 @@
 {
-  "failures": 24,
+  "failures": 23,
   "warnings": 2,
   "recorded": "2026-09-11",
   "why": "The count npm run conformance reports today. It is a ratchet, not a target: this number may fall and may not rise, per CLAUDE.md Session Discipline, and there is no exception. layout-manifests has an implementation since ADR-015, so a new screen is a manifest, not a new failure.",
