@@ -68,8 +68,14 @@ jobs:
       # The per-package tsconfigs have rootDir and include problems that make
       # `tsc --build` fail on pre-existing Phase 0 files; registered in
       # docs/gaps.md rather than papered over here.
+      #
+      # `npm run typecheck` is `next typegen && tsc --noEmit`. `next-env.d.ts`
+      # is untracked (G-052), and until it was, the committed copy imported
+      # `.next/dev/types/…`, which does not exist on a runner — a side-effect
+      # import of a missing file is silently dropped, so this step checked
+      # without the route types every local run had.
       - name: Typecheck (console and the packages it uses)
-        run: npx tsc --noEmit
+        run: npm run typecheck
         working-directory: apps/console
 
       # `working-directory: .` is the whole point of this step and was missing.
@@ -340,9 +346,21 @@ jobs:
       # packages/client is generated from the spec and committed. If these
       # disagree, someone hand-edited the client or changed the spec without
       # regenerating - either way the types the console compiles against are
-      # no longer the contract.
-      - name: The generated client matches the spec
-        run: node scripts/check-regenerated.mjs generate packages/client/src/generated.ts
+      # no longer the contract. The decision index and the route list come out
+      # of the same `npm run generate` and are held to the same bytes; the
+      # index could not be until it stopped carrying a stopwatch reading (G-052).
+      - name: Generated files match their sources
+        run: node scripts/check-regenerated.mjs generate packages/client/src/generated.ts apps/console/mocks/fixtures/decision-index.json apps/console/lib/nav/routes.generated.ts
+
+      # Which checks a pull request must pass lives in a ruleset in GitHub's
+      # settings, not in this file, and nothing held the two together: a new
+      # job was not required, and a renamed one stayed required and blocked
+      # every pull request. GITHUB_TOKEN is the one every job already has; no
+      # secret is needed to read the rules.
+      - name: Required checks match the workflow
+        run: node scripts/check-required-checks.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
   # A second implementation of ADR-003, held to the same corpus as the
   # TypeScript reference. If both jobs are green, a decision hashed by either

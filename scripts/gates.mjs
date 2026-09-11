@@ -39,6 +39,8 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -63,7 +65,7 @@ export const GATES = [
     id: 'typecheck-console',
     label: 'Typecheck (console and the packages it uses)',
     cwd: 'apps/console',
-    command: 'npx tsc --noEmit',
+    command: 'npm run typecheck',
   },
   {
     // Covers `packages bench tests scripts`. Distinct from the console's lint
@@ -114,10 +116,19 @@ export const GATES = [
     command: 'node scripts/check-regenerated.mjs corpus docs/conformance/',
   },
   {
+    // Every tracked file `npm run generate` writes, not only the client. The
+    // decision index was regenerated here and never compared, because it could
+    // not be: it carried a stopwatch reading and changed on every run (G-052).
     id: 'client',
-    label: 'The generated client matches the spec',
+    label: 'Generated files match their sources',
     cwd: '.',
-    command: 'node scripts/check-regenerated.mjs generate packages/client/src/generated.ts',
+    command: 'node scripts/check-regenerated.mjs generate packages/client/src/generated.ts apps/console/mocks/fixtures/decision-index.json apps/console/lib/nav/routes.generated.ts',
+  },
+  {
+    id: 'required-checks',
+    label: 'Required checks match the workflow',
+    cwd: '.',
+    command: 'node scripts/check-required-checks.mjs',
   },
   {
     // The UX contract, as a ratchet rather than a pass/fail. The repo has 26
@@ -146,6 +157,45 @@ export const NOT_A_GATE = {
 
 // --- runner ----------------------------------------------------------------
 
+/**
+ * The working tree as git sees it: every path `git status` lists, with a hash
+ * of its bytes.
+ *
+ * Until 2026-09-11 every run rewrote two tracked generated files — the decision
+ * index and `next-env.d.ts` — so the command that proves a tree is clean was
+ * the command that made it dirty, and the next `git commit -a` swept 2.2 MB of
+ * timings into whatever the slice was about (G-052). The run now compares this
+ * before and after, and fails if a gate wrote to anything git tracks or would
+ * offer to add.
+ *
+ * Paths already dirty when the run starts are compared by content, so a slice
+ * in progress can still run its gates. Not a gate, and not in CI: a runner
+ * discards its tree, so there is nothing there for this to protect.
+ */
+function treeState() {
+  const out = spawnSync('git', ['status', '--porcelain=v1', '-z', '--untracked-files=all'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).stdout;
+  const entries = out.split('\0').filter(Boolean);
+  const state = new Map();
+  for (let i = 0; i < entries.length; i++) {
+    const code = entries[i].slice(0, 2);
+    const file = entries[i].slice(3);
+    // A rename carries its source as the next entry.
+    if (code.startsWith('R') || code.startsWith('C')) i++;
+    const abs = path.join(root, file);
+    const bytes = existsSync(abs) && statSync(abs).isFile() ? readFileSync(abs) : null;
+    state.set(file, `${code} ${bytes ? createHash('sha256').update(bytes).digest('hex') : 'absent'}`);
+  }
+  return state;
+}
+
+function changedSince(before) {
+  const after = treeState();
+  return [...after.keys()].filter((file) => before.get(file) !== after.get(file));
+}
+
 function run(gate) {
   const started = Date.now();
   const result = spawnSync(gate.command, {
@@ -168,6 +218,7 @@ if (isMain) {
     process.exit(2);
   }
 
+  const before = treeState();
   const done = [];
   for (const [i, gate] of selected.entries()) {
     console.log(`\n\u001b[1m── ${i + 1}/${selected.length}  ${gate.label}\u001b[0m  (${gate.command})`);
@@ -190,6 +241,22 @@ if (isMain) {
   const skipped = selected.length - done.length;
   if (skipped > 0) console.log(`  ${skipped} gate(s) not reached`);
   console.log('─'.repeat(60));
+
+  // Only after a green run. `check-regenerated` leaves its output in place on
+  // failure on purpose — the diff is the evidence — and the failure is already
+  // the headline.
+  if (failed.length === 0) {
+    const written = changedSince(before);
+    if (written.length > 0) {
+      console.error(
+        `\n\u001b[31m✗ The gates passed and changed the working tree:\u001b[0m\n` +
+          written.map((f) => `    ${f}`).join('\n') +
+          '\n  A gate wrote to a file git tracks, or would offer to add. Either the file is ' +
+          'generated and should be ignored, or the gate should stop writing it. G-052.'
+      );
+      process.exit(1);
+    }
+  }
 
   process.exit(failed.length > 0 ? 1 : 0);
 }

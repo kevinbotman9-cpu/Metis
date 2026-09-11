@@ -597,7 +597,15 @@ export interface ConsentState {
   thirdParty: boolean;
 }
 
-/** A decision as it appears in search results, without the trace. */
+/** A decision as it appears in search results, without the trace.
+
+Carries no latency. A decision's duration is a measurement of one
+execution and is read from its trace (`DecisionRecord.totalMs`). Until
+2026-09-11 this schema required `totalMs`, and the only thing that
+ever served it was a stopwatch reading of the fixture generator, frozen
+on whichever machine last built the index (G-052). An aggregate over
+decisions needs a measured source, and none exists (G-061).
+ */
 export interface Decision {
   id: string;
   artifactId: string;
@@ -612,7 +620,6 @@ export interface Decision {
   winner: string | null;
   winnerOfferId: string | null;
   candidateCount: number;
-  totalMs: number;
 }
 
 /** A decision plus the full reasoning behind it. Everything here except

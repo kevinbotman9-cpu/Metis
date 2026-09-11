@@ -1,0 +1,9 @@
+# One line ending, everywhere (2026-09-11). Git already stored every text file
+# as LF — core.autocrlf converted on add — but Windows checkouts got CRLF, so the
+# bytes a Windows session read and wrote were not the bytes CI tested. CLAUDE.md
+# Rule 10 records what that cost. Pinned here rather than per machine.
+* text=auto eol=lf
+
+# cmd.exe mis-parses labels and `goto` in a batch file with LF endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf

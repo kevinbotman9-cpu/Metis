@@ -52,7 +52,11 @@ export const COLUMNS = [
   'winner',
   'winnerOfferId',
   'candidateCount',
-  'totalMs',
+  // No latency column. One was here until 2026-09-11: a stopwatch reading of
+  // this script, frozen on whichever machine last ran it, so the file never
+  // regenerated to the same bytes, and the screens presented it as platform
+  // performance (G-052). A decision's duration is on its trace, measured when
+  // the trace is re-executed.
   'chainHash',
 ];
 
@@ -72,12 +76,6 @@ for (let i = 0; i < DECISION_COUNT; i++) {
     d.winner,
     d.winnerOfferId,
     d.candidateKeys.length,
-    // Measured on the machine that built this file, and then frozen. Latency
-    // is the one column here that is not reproducible from the seed — it is a
-    // stopwatch reading — so the staleness check ignores it rather than
-    // failing on every machine. Said plainly because a measured-looking number
-    // whose provenance is unclear is worse than none.
-    Number(trace.measured.totalMs.toFixed(3)),
     trace.chainHash,
   ]);
 }

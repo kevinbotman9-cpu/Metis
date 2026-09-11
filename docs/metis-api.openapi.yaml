@@ -1194,10 +1194,18 @@ components:
 
     Decision:
       type: object
-      description: A decision as it appears in search results, without the trace.
+      description: |
+        A decision as it appears in search results, without the trace.
+
+        Carries no latency. A decision's duration is a measurement of one
+        execution and is read from its trace (`DecisionRecord.totalMs`). Until
+        2026-09-11 this schema required `totalMs`, and the only thing that
+        ever served it was a stopwatch reading of the fixture generator, frozen
+        on whichever machine last built the index (G-052). An aggregate over
+        decisions needs a measured source, and none exists (G-061).
       required:
         [id, artifactId, artifactVersion, tenantId, customerId, timestamp, channel,
-         placement, winner, winnerOfferId, candidateCount, totalMs]
+         placement, winner, winnerOfferId, candidateCount]
       properties:
         id:
           type: string
@@ -1224,8 +1232,6 @@ components:
           type: [string, 'null']
         candidateCount:
           type: integer
-        totalMs:
-          type: number
 
     DecisionRecord:
       type: object

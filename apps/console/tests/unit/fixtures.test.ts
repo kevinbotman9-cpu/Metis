@@ -146,20 +146,23 @@ describe('decision fixtures', () => {
     // in three at 64-80ms, because generating 5,000 decisions on a busy machine
     // means a few land inside a GC pause. It was asserting that the machine was
     // idle.
-    for (const d of decisions) {
-      expect(Number.isFinite(d.totalMs)).toBe(true);
-      expect(d.totalMs).toBeGreaterThanOrEqual(0);
+    //
+    // Over sampled traces rather than the flat rows: the rows carry no latency
+    // since 2026-09-11 (G-052), and a trace's is measured when it is executed.
+    for (const t of traces) {
+      expect(Number.isFinite(t.totalMs)).toBe(true);
+      expect(t.totalMs).toBeGreaterThanOrEqual(0);
     }
   });
 
   it('keeps the latency distribution well inside the budget', () => {
-    // p95, which is the promise the platform actually makes, and which 5,000
+    // p95, which is the promise the platform actually makes, and which 600
     // samples make robust to the outliers above. The enforced gate lives in
     // bench/harness where it can control the workload; this is a sanity check
     // that the fixture corpus is not wildly unrepresentative.
-    const sorted = decisions.map((d) => d.totalMs).sort((a, b) => a - b);
+    const sorted = traces.map((t) => t.totalMs).sort((a, b) => a - b);
     const p95 = sorted[Math.ceil(0.95 * sorted.length) - 1];
-    expect(p95, `p95 was ${p95}ms across ${sorted.length} decisions`).toBeLessThan(50);
+    expect(p95, `p95 was ${p95}ms across ${sorted.length} traces`).toBeLessThan(50);
   });
 
   it('produces both offered and suppressed outcomes', () => {

@@ -99,10 +99,6 @@ function DecisionsView() {
   const suppressed = rows.length - offered;
   const overPage =
     rows.length < total ? `across ${rows.length.toLocaleString('en-GB')} loaded rows` : undefined;
-  const avgLatency =
-    rows.length > 0
-      ? (rows.reduce((sum, d) => sum + d.totalMs, 0) / rows.length).toFixed(1)
-      : '—';
 
   const columns: Column<DecisionDto>[] = [
     {
@@ -170,18 +166,6 @@ function DecisionsView() {
       sortValue: (d) => d.artifactVersion,
       cell: (d) => <span className="font-mono text-label text-content-muted">{d.artifactVersion}</span>,
     },
-    {
-      key: 'totalMs',
-      header: 'Latency',
-      align: 'right',
-      width: 'w-24',
-      sortValue: (d) => d.totalMs,
-      cell: (d) => (
-        <span className={d.totalMs > 20 ? 'text-hold' : 'text-content-muted'}>
-          {d.totalMs.toFixed(1)}ms
-        </span>
-      ),
-    },
   ];
 
   return (
@@ -195,7 +179,7 @@ function DecisionsView() {
           metrics cannot crop this out without also losing the metrics. */}
       <ProvenanceBanner provenance={data?.provenance} />
 
-      <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Metric label="Decisions" value={total} sub="in the current filter" />
         <Metric label="Offer made" value={offered} tone="pass" sub={overPage} />
         <Metric
@@ -204,7 +188,6 @@ function DecisionsView() {
           tone={suppressed > 0 ? 'hold' : 'neutral'}
           sub={overPage ?? 'policy or consent'}
         />
-        <Metric label="Avg latency" value={`${avgLatency}ms`} sub="SLA 50ms" tone="accent" />
       </div>
 
       <div className="mb-stack">

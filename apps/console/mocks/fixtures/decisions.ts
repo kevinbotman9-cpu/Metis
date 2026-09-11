@@ -42,10 +42,16 @@ export interface DecisionRecord {
   winner: string | null;
   winnerOfferId: string | null;
   candidateCount: number;
-  totalMs: number;
 }
 
 export interface TraceRecord extends DecisionRecord {
+  /**
+   * Measured when this trace was executed — here, when it was re-executed on
+   * being opened. Not on the flat row: a frozen stopwatch reading in a committed
+   * index changed on every regeneration and was shown as platform latency
+   * (G-052).
+   */
+  totalMs: number;
   eliminations: EliminationStep[];
   scores: Record<
     string,
@@ -179,7 +185,6 @@ export const decisions: DecisionRecord[] = (index.rows as unknown[][]).map((row)
   winner: row[8] as string | null,
   winnerOfferId: row[9] as string | null,
   candidateCount: row[10] as number,
-  totalMs: row[11] as number,
 }));
 
 /**
