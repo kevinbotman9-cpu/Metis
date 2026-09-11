@@ -144,7 +144,7 @@ they are not connected. The capability map's consent row states its limit as
   are `cust_` plus a base-36 counter and so can be enumerated. And the `record`
   column beside it holds the whole `DecisionRecord`
   (`packages/ledger/src/types.ts:39-40`), whose hashed `customerRef` is the raw
-  `customerId` (`engine.ts:659`). ADR-004, lines 86–87: *"the ledger already
+  `customerId` (`engine.ts:659`). ADR-004, lines 88–89: *"the ledger already
   hashes the customer reference per tenant, so the subject is pseudonymous."* It
   does not, in the one column that holds everything else. [G-068](../gaps.md).
 - **A per-candidate fact supplied once per request.** `pol_afford_retention` —
@@ -389,14 +389,16 @@ data source that wrote it, which is W-010's done-when.
 - **Merges the partner reports are recorded append-only as alias facts** —
   *A became B at t*, and retractions for an unmerge (1.7). Phase two; deferred,
   with its consequence stated below.
-- **One pseudonym function for every store.** The profile store and the
-  interaction read (§10) key on an HMAC under a per-tenant key — never the raw
-  id, never an unkeyed hash — and the ledger's `subjectHash` moves to the same
-  function in the same slice, or profile and history cannot be joined. Whether
-  the hashed decision may keep `customerRef` in clear (`engine.ts:659`) is
-  ADR-004's to settle and moves every chain hash. It is named here because it is
-  what makes ADR-004's pseudonymity sentence untrue today, and because it must be
-  settled before the store is keyed.
+- **One pseudonym scheme for every store**, the one ADR-004's amendment of
+  2026-09-11 sets out: the profile store, the ledger and the interaction read
+  (§10) key on `HMAC(subjectKey, customerRef)`, found through the key store by a
+  tenant-keyed pseudonym — never the raw id, never an unkeyed hash. A key per
+  tenant alone is not enough: it would let anyone holding it find an erased
+  person's rows. The same amendment settles `customerRef` in the hashed decision
+  (`engine.ts:659`): the stored record becomes ciphertext under the subject key,
+  so the field may stay and no chain hash moves. Both must be in place before the
+  store is keyed, because the ledger's append-only triggers make the first real
+  row the last chance to change either.
 
 ### 7. Consent: read from its source, never assumed, never granted by a caller
 

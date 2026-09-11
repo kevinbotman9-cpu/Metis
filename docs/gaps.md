@@ -675,7 +675,7 @@ have produced.
 
 ### G-068 — The ledger stores the raw customer reference beside the hash that was meant to replace it
 
-**Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-006](BACKLOG.md) · **Decision:** [ADR-004](adr/ADR-004-retention-and-erasure.md), Accepted 2026-09-09 on a premise this entry contradicts
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-006](BACKLOG.md) · **Decision:** [ADR-004](adr/ADR-004-retention-and-erasure.md), Accepted 2026-09-09 on a premise this entry contradicts; the correction is its *Amendment, 2026-09-11*
 
 `decision_records` has a `subject_hash` column so that *"the subject is
 queryable without the ledger holding the identifier in clear"*
@@ -696,7 +696,7 @@ way.
 ADR-004 rests on the opposite. Its rejection of *"tokenise identifiers only"*
 begins *"the ledger already hashes the customer reference per tenant, so the
 subject is pseudonymous rather than identified"*
-(`docs/adr/ADR-004-retention-and-erasure.md:86-87`), and concludes that the
+(`docs/adr/ADR-004-retention-and-erasure.md:88-89`), and concludes that the
 per-subject key is needed for the attributes, the identifier being handled.
 
 **Why now rather than later.** `decision_records` is append-only by trigger
