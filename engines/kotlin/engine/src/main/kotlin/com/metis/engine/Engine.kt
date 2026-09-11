@@ -288,7 +288,13 @@ object Engine {
                         val connector = connectorById[connectorId] ?: continue
                         if (!connector.active) continue
                         for (binding in connector.provides) {
-                            if (!request.input.containsKey(binding.field)) continue
+                            // By path, not by key. A connector declares where its
+                            // value lands as a path into the profile (ADR-014
+                            // §2); containsKey asked for a key literally named
+                            // "customer.monthly_spend", which never exists, so
+                            // every binding was dropped (G-069). The same
+                            // mistake was in the TypeScript engine.
+                            if (readPath(request.input, binding.field) == null) continue
                             sourceBindings.add(SourceBinding(binding.field, connectorId, node.id))
                         }
                     }
@@ -538,6 +544,7 @@ object Engine {
                 compareBy({ it.field }, { it.connectorId }, { it.nodeId })
             ),
             packageVersions = artifact.packageVersions,
+            schema = artifact.schema,
             candidateKeys = artifact.candidateKeys,
             eliminations = eliminations,
             scores = scores,

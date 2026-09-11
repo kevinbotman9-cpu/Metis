@@ -163,6 +163,9 @@ class DecisionConformanceTest {
         edges = n["edges"].map { ExecEdge(it["from"].asText(), it["to"].asText()) },
         candidateKeys = n["candidateKeys"].map { it.asText() },
         packageVersions = n["packageVersions"].properties().associate { (k, v) -> k to v.asText() },
+        schema = n["schema"]?.let {
+            SchemaPin(it["id"].asText(), it["version"].asText(), it["hash"].asText())
+        },
         missingScoreDefault = n["missingScoreDefault"]?.let {
             MissingScoreDefault(
                 propensity = it["propensity"].asDouble(),

@@ -142,8 +142,23 @@ data class ExecArtifact(
     val edges: List<ExecEdge>,
     val candidateKeys: List<String>,
     val packageVersions: Map<String, String>,
+    /** The data model this flow was compiled against. ADR-014 §2. */
+    val schema: SchemaPin? = null,
     /** Null when the flow declares none; the engine then uses a neutral 1.0. */
     val missingScoreDefault: MissingScoreDefault? = null,
+)
+
+/**
+ * The data model a decision was read against.
+ *
+ * Pinned by the artifact and carried into the decision, so a replay can tell
+ * that the meaning of a path changed underneath it. Part of the hashed
+ * decision, which is why it is here rather than beside the measurements.
+ */
+data class SchemaPin(
+    val id: String,
+    val version: String,
+    val hash: String,
 )
 
 // --- Request -----------------------------------------------------------------
@@ -234,6 +249,8 @@ data class DeterministicDecision(
     val catalogueSnapshotHash: String,
     val sourceBindings: List<SourceBinding>,
     val packageVersions: Map<String, String>,
+    /** Null when the artifact pins no model. Recorded, never omitted. */
+    val schema: SchemaPin?,
     val candidateKeys: List<String>,
     val eliminations: List<EliminationStep>,
     val scores: Map<String, CandidateScore>,

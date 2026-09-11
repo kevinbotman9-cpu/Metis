@@ -28,9 +28,12 @@ test.describe('the data model', () => {
   test('shows what a decision can read, and what it cannot', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1, name: 'Data model' })).toBeVisible();
 
-    // The root entity is what a request carries; the rest hang off it.
-    await expect(page.getByText('DecisionInput')).toBeVisible();
+    // Two roots, and the screen says which is which: the subject a decision
+    // reads, and the request it was made for. ADR-014 §2.
+    await expect(page.getByText('profile root')).toBeVisible();
+    await expect(page.getByText('request root')).toBeVisible();
     await expect(page.getByText('Customer').first()).toBeVisible();
+    await expect(page.getByText('Context').first()).toBeVisible();
 
     // Personal data is marked, because retention needs to know.
     await expect(page.getByText('special category').first()).toBeVisible();
@@ -43,7 +46,7 @@ test.describe('the data model', () => {
     // Twice on the page by design: once in the list, once in the card that
     // explains what a rollup is and how it is computed. `.first()` rather than
     // a looser matcher, so a path vanishing from the list would still fail.
-    await expect(page.getByText('accounts.worst_arrears_days').first()).toBeVisible();
+    await expect(page.getByText('customer.worst_arrears_days').first()).toBeVisible();
     await expect(page.getByText('rollup').first()).toBeVisible();
 
     // A rollup is the only way to read across a one-to-many, so the raw path

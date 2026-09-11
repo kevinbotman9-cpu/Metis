@@ -754,6 +754,70 @@ const CASES = [
     }),
     request: request(),
   },
+  {
+    // The case that would have caught it. Both engines derived source bindings
+    // by asking whether the input had a *key* named after the connector's
+    // field — `field in input` in TypeScript, `containsKey` in Kotlin — which
+    // is true only when the field has no dots in it. The case above declares
+    // `tenureMonths`, so it passed while every nested binding was dropped and
+    // the trace attributed nothing (G-069). This one declares a path.
+    name: 'a connector supplies a value nested under the profile root',
+    artifact: artifact({
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source', connectorIds: ['conn_bureau'] },
+        {
+          id: 'n2_filter',
+          type: 'filter',
+          label: 'Eligibility',
+          policyIds: ['pol_band'],
+        },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n2_filter' },
+        { from: 'n2_filter', to: 'n3_arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({
+      connectors: [
+        {
+          id: 'conn_bureau',
+          name: 'Credit bureau',
+          kind: 'rest',
+          description: 'Fixture.',
+          target: 'https://bureau.example',
+          declaredP95Ms: 12,
+          timeoutMs: 60,
+          onFailure: 'fail',
+          cacheTtlSeconds: 600,
+          provides: [{ field: 'customer.credit_band', path: 'file.band', type: 'string' }],
+          active: true,
+          updatedAt: '2020-01-01T00:00:00.000Z',
+          updatedBy: 'f',
+        },
+      ],
+      targetingPolicies: [
+        policy({
+          id: 'pol_band',
+          conditions: [{ field: 'customer.credit_band', operator: 'in', value: ['A', 'B'] }],
+        }),
+      ],
+    }),
+    request: request({ input: { customer: { credit_band: 'A' } } }),
+  },
+  {
+    // The data model the flow compiled against, carried into the decision.
+    // ADR-014 §2. Every other case pins none and records `schema: null`, so
+    // this one is what proves the two engines agree on a pin that is present:
+    // an absent key and a null one hash differently, and so do two engines
+    // that disagree about which they wrote.
+    name: 'a pinned schema is part of the decision',
+    artifact: artifact({
+      schema: { id: 'schema_fixture', version: '3.1.0', hash: 'a'.repeat(64) },
+    }),
+    catalogue: catalogue(),
+    request: request(),
+  },
 ];
 
 // --- Emit -------------------------------------------------------------------

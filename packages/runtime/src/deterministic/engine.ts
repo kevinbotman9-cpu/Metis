@@ -365,7 +365,12 @@ export function execute(
           const connector = connectorById.get(connectorId);
           if (!connector || !connector.active) continue;
           for (const binding of connector.provides) {
-            if (!(binding.field in request.input)) continue;
+            // By path, not by key. A connector declares where its value lands as
+            // a path into the profile (ADR-014 §2), and `field in input` asked
+            // whether the input had a key literally called
+            // `customer.monthly_spend` — which it never does, so every binding
+            // was dropped and the trace could attribute nothing (G-069).
+            if (readPath(request.input, binding.field) === undefined) continue;
             sourceBindings.push({ field: binding.field, connectorId, nodeId: node.id });
           }
         }
@@ -670,6 +675,9 @@ export function execute(
         a.nodeId.localeCompare(b.nodeId)
     ),
     packageVersions: artifact.packageVersions,
+    // Explicitly null rather than omitted when the artifact pins none: a
+    // decision that cannot name its model should say so (ADR-014 §2).
+    schema: artifact.schema ?? null,
     candidateKeys: artifact.candidateKeys,
     eliminations,
     scores,

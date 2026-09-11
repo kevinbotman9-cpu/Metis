@@ -10,6 +10,11 @@
 profile store (unbuilt), and every future store holding subject data.
 **Amended:** 2026-09-11 — a premise was wrong: the ledger was never
 pseudonymous. The decision stands; see *Amendment, 2026-09-11* at the end.
+**Amendment accepted:** 2026-09-11, product owner, with its deployment
+constraint taken as binding: **no deployment may write the ledger to PostgreSQL
+with real customer references** until per-subject encryption of the whole
+record, a per-subject-keyed subject column, and a rule for free-form columns all
+exist. The conformance corpora are unaffected — their references are synthetic.
 
 ## Context
 

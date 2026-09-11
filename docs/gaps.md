@@ -729,6 +729,95 @@ retention offer lowers the bill and another raises it records one refused and on
 passed, under the same policy in the same decision.
 
 ---
+### G-071 — Two compile contexts disagree, and the registry published under the weaker one
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-075](BACKLOG.md)
+
+`retention-outbound` — *Retention Outbound Queue*, active, version 3.1.0 —
+compiles or does not depending on who asks.
+
+- **The console's compile view rejects it.** `compiled.ts` compiles with
+  `servedChannels`, so ADR-012 §B2's channel-aware `NO_DELIVERABLE_CREATIVE`
+  fires 18 times, one per offer whose creatives cannot be rendered on a channel
+  this flow serves. `/decision-flows` shows the flow red and the home page
+  counts it blocked.
+- **The registry accepted it.** `seedRegistry` publishes against plain
+  `compileContext`, which omits `servedChannels`, so the same check falls back
+  to *"has an id in `creativeIds`"* — which these offers satisfy. Version 3.1.0
+  is published and promoted to production, and the decide route executes it.
+
+So the flow is live because one context accepted it, and shown as broken
+because another rejects it. Neither is wrong about its own question; nothing
+holds them to each other.
+
+**What it decides.** Of the 3,466 seeded decisions this flow made, **807 award
+an offer today's channel-aware check refuses** — 23%, across 8 distinct offers.
+The engine is not wrong to award them: ADR-012 deferred option A, eliminating
+such a candidate before arbitration, so nothing in the decision path filters
+them. The compiler is the only thing that knows, and the context that knows is
+not the context that published.
+
+**Nothing fails.** The screen shows it, no check asserts it. A publish today
+through the console's own route would be rejected, because
+`currentCompileContext` passes `servedChannels`; the seeded registry does not,
+and nothing compares what the registry accepted against what the console would
+accept now.
+
+**Found on 2026-09-11 while pinning the schema.** The seeded exec artifacts
+first took their pin from the console's compile view, so two of four carried
+none — and every one of this flow's decisions then disagreed with the same
+decision made through the route, which runs what the registry published. The
+fixtures now pin from the registry's context, which is what the route executes,
+and the corpus agrees again.
+
+That fix is also the sharp version of the problem: **a pin is only worth what
+the artifact it sits on is worth**, and there are two artifacts for this flow —
+one the registry published and one the console would refuse to publish. The
+same is true of `policySources` and the node tiers from [G-055](gaps.md) and
+[G-058](gaps.md), which are equally pinned to whichever compile happened.
+
+It has been in this state since 2026-09-10, when [G-042](gaps.md) tightened
+`NO_DELIVERABLE_CREATIVE` from *"no creative at all"* to *"no active creative
+on a channel this flow serves"*. Before that it compiled clean. The offers it
+awards have been undeliverable for longer than that; the check that says so is
+a day old.
+
+**Done when:** one compile context serves both, or a check fails when a
+published version would be rejected by the context the console compiles with
+today.
+
+### G-072 — The decide route injects `experiments` at the input root, which no root declares
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-075](BACKLOG.md)
+
+`POST /api/decisions` assigns experiment arms and writes them into the decision
+input as a third root-level branch, `experiments.<key>`, so a policy can read
+`experiments.checkout_banner`. The schema declares two roots, `customer` and
+`context`, and neither contains it.
+
+**What that does to the pin.** A decision now carries `{ schemaId, version,
+hash }` and the claim it makes is *this decision's fields were resolved through
+this model*. A branch the model does not declare makes that claim true of a
+subset and silently false of the rest: `inputSnapshotHash` covers the injected
+branch, the pin does not describe it, and a reader six months later cannot tell
+whether `experiments` was a field the schema lost or a field it never had. The
+compiler cannot check a policy that reads it, either — `conditionProblems`
+resolves against the schema, so `experiments.anything` is an unresolved field,
+and the only reason no diagnostic fires is that no fixture policy reads one.
+
+**It should be declared in `Context`, not moved and not removed.** An arm
+assignment is request-scoped by construction — it is computed for this decision
+and never stored against the subject, which is exactly what `Context` is for —
+and it must stay in the hashed input, because a decision that cannot say which
+arm it was in cannot be explained. Declaring it is a schema change:
+`context.experiments` as a map is not a shape `SchemaField` can express today,
+so it needs either a field type for a keyed map or one declared field per live
+experiment, and the second turns starting an experiment into a schema version.
+That choice is the work, and it is why this is registered rather than fixed
+here.
+
+**Done when:** every branch of a decision input is declared by the schema the
+decision pins, and something fails when one is not.
 
 ### G-070 — Consent and frequency denials attach to whichever constraint node ran first
 
@@ -755,42 +844,6 @@ on each node ([G-058](gaps.md)) makes that visible; it did not cause it.
 or the denial records which enforcement produced it, so attribution does not
 depend on graph order. Either changes the hashed decision, so it moves chain
 hashes and has to be done deliberately.
-### G-069 — A rule's fields and a connector's fields are different vocabularies
-
-**Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-074](BACKLOG.md)
-
-A targeting policy names fields as dotted paths into the profile:
-`customer.bill_to_income_ratio`, `contract.days_to_end`,
-`usage.pct_of_allowance_3mo_avg`. A connector declares what it provides as flat
-names: `monthlySpend`, `arrearsDays`, `inGoodStanding`, `dataUsageGb`.
-**Nothing maps one onto the other**, so no policy in this tenant reads a field
-any connector supplies.
-
-**The trace cannot say where a value came from.** The evidence pane's *Source
-system* row resolves a rule's fields against `sourceBindings` and finds nothing,
-every time, for every rule. It has been drawing "no connector supplied a field
-this rule reads; the value came from the request" since it was built, which
-reads as a fact about the decision and is really a fact about the vocabularies.
-Found on 2026-09-11 while wiring [G-056](gaps.md), which is why the value
-timestamps went onto the decision rather than under the rule.
-
-**The seeded decisions do not consume integration data at all.** The generator
-builds a nested profile, and the connectors' declared fields are read by no
-policy, so the integrations in this corpus are decorative: the latency budget
-counts them, the trace records bindings for them, and no decision turns on a
-value any of them supplied. A demo claiming a connector fed a refusal would be
-describing something that did not happen.
-
-A modelling gap rather than a fixture typo. Either connectors declare what they
-provide in profile-schema paths, or something maps between the two and the
-mapping belongs in the artifact. Either changes what decisions read, so it moves
-every chain hash in the corpora — which is why it is registered here rather than
-fixed in passing.
-
-**Done when:** a policy condition can name a field a connector supplies, a
-decision reads it, and the trace's source attribution resolves — with the corpus
-regenerated deliberately and the hash movement recorded.
-
 ### G-068 — The ledger stores the raw customer reference beside the hash that was meant to replace it
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-006](BACKLOG.md) · **Decision:** [ADR-004](adr/ADR-004-retention-and-erasure.md), Accepted 2026-09-09 on a premise this entry contradicts; the correction is its *Amendment, 2026-09-11*
@@ -1655,6 +1708,94 @@ Both passed on arrival: neither has this defect. Each check was then seen to
 fail with G-076's shape planted in its own migration — a column moved out of
 its `CREATE` into an `ALTER` ahead of it — on both the one-run comparison and the
 store's reads, and passes again with the migration restored.
+### G-069 — A rule's fields and a connector's fields are different vocabularies
+
+**Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** [W-074](BACKLOG.md)
+
+A targeting policy names fields as dotted paths into the profile:
+`customer.bill_to_income_ratio`, `contract.days_to_end`,
+`usage.pct_of_allowance_3mo_avg`. A connector declares what it provides as flat
+names: `monthlySpend`, `arrearsDays`, `inGoodStanding`, `dataUsageGb`.
+**Nothing maps one onto the other**, so no policy in this tenant reads a field
+any connector supplies.
+
+**The trace cannot say where a value came from.** The evidence pane's *Source
+system* row resolves a rule's fields against `sourceBindings` and finds nothing,
+every time, for every rule. It has been drawing "no connector supplied a field
+this rule reads; the value came from the request" since it was built, which
+reads as a fact about the decision and is really a fact about the vocabularies.
+Found on 2026-09-11 while wiring [G-056](gaps.md), which is why the value
+timestamps went onto the decision rather than under the rule.
+
+**The seeded decisions do not consume integration data at all.** The generator
+builds a nested profile, and the connectors' declared fields are read by no
+policy, so the integrations in this corpus are decorative: the latency budget
+counts them, the trace records bindings for them, and no decision turns on a
+value any of them supplied. A demo claiming a connector fed a refusal would be
+describing something that did not happen.
+
+A modelling gap rather than a fixture typo. Either connectors declare what they
+provide in profile-schema paths, or something maps between the two and the
+mapping belongs in the artifact. Either changes what decisions read, so it moves
+every chain hash in the corpora — which is why it is registered here rather than
+fixed in passing.
+
+**Done when:** a policy condition can name a field a connector supplies, a
+decision reads it, and the trace's source attribution resolves — with the corpus
+regenerated deliberately and the hash movement recorded.
+
+**Resolved by** ADR-014 §2's first instalment, accepted 2026-09-11.
+
+**Profile paths won**, and the reasoning is in the code rather than in taste:
+the engine already resolved every policy condition by dotted path
+(`readPath`), the compiler already validated those paths against this schema
+segment by segment, and a connector already declared two names per field —
+`path` into its own payload and `field` for where the value lands. Only the
+second changed meaning. A mapping layer was rejected: it would have been a
+third vocabulary, and to be replayable it would have had to be pinned in the
+artifact, which is one more thing to drift.
+
+**What changed:**
+
+- **Two roots.** `Customer` holds what is true of a subject whoever supplied
+  it; `Context` holds what only the caller knows. Aliases are declared, so
+  `customer.age` still resolves and `address.fibre_available` became
+  `customer.address.fibre_available`.
+- **Every field declares `origin` and `class`**, both required by the type.
+  `origin: 'connector:conn_credit_bureau'` is what lets a trace name the system
+  behind a value; `class` is declared and not yet acted on, because consent is
+  ADR-014 §7 and its own chain-hash move.
+- **The schema is pinned.** The compiler hashes its content into
+  `{ id, version, hash }`, the artifact carries it, and every decision carries
+  the same triple — `null`, explicitly, when an artifact pins none.
+- **Connectors declare profile paths**, `resolveInputs` writes by path, and the
+  caller's input is merged branch by branch rather than replacing a whole
+  branch. A shallow spread would have dropped every resolved value behind one
+  field the caller happened to send.
+- **`pol_credit_pass` reads `customer.credit_band`**, supplied by
+  `conn_credit_bureau`. About one customer in seven is refused on a value the
+  tenant's own record does not hold, and the trace names the connector that
+  supplied it.
+
+**The same bug existed in both engines, and neither had seen it.** Source
+bindings were derived with `binding.field in request.input` in TypeScript and
+`request.input.containsKey(binding.field)` in Kotlin — a flat-key test against
+a path, so every binding was dropped and the trace could attribute nothing. The
+Kotlin half surfaced only because all 60 service decisions diverged after the
+TypeScript half was fixed.
+
+**The corpora moved once, deliberately**, and every hash was diffed: 981 fields
+compared, before and after. `decision-corpus`: 28 chain hashes, being the 27
+existing cases plus one new case that pins a schema — no existing input or
+catalogue hash moved, because that corpus's inputs and catalogues did not
+change. `service-cases`: 60 of 60, on all three hashes. `canonical-corpus`:
+none, because it tests serialisation rather than decisions. The Kotlin engine
+reproduces all of it byte for byte.
+
+**What it does not cover:** the decide route still injects `experiments` at the
+input root, which neither root declares ([G-072](gaps.md)); and two of the
+schema's own fields — `credit_status` and `credit_band` — now describe the same
+question from two sources, which is a modelling tidy-up nobody has done.
 
 ### G-058 — A node's type cannot say which question the node answers
 
