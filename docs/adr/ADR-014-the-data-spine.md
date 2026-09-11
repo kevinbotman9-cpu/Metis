@@ -161,8 +161,8 @@ they are not connected. The capability map's consent row states its limit as
   problem: it has no way to say *per candidate*.
 
 The consent default, the dropped rollups, the capability row and the ledger are
-registered as G-065 to G-068. The per-candidate `offer.monthly_delta` and the
-inert activation are not registered; they are listed here so they cannot be
+registered as G-065 to G-068, and the per-candidate `offer.monthly_delta` as
+G-075. The inert activation is not registered; it is listed here so it cannot be
 lost.
 
 ### What exists, is right, and survives

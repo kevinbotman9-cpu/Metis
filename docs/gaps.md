@@ -673,6 +673,174 @@ have produced.
 
 ---
 
+### G-077 — A change inside an existing `CREATE` never reaches a database that already has the table
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — the fix needs a decision first; the options are below
+
+**How the schema changes today.** Each of the three stores has one migration
+file (`packages/{registry,ledger,catalogue}/migrations/001_*.sql`), re-run whole
+by `runMigration` on every start, built from `CREATE … IF NOT EXISTS`. That
+statement does nothing to a table that already exists. So editing a column, a
+constraint or a default inside it changes every *new* database and silently
+never reaches an existing one. The only way a change reaches an existing
+database is a hand-written conditional statement in the same file — an
+`ALTER … IF NOT EXISTS`, or a `DO` block that probes `information_schema` first
+— and nothing records which of them a given database has run.
+
+**The registry has needed four of those in seven days**: the `strategy_name` →
+`flow_name` rename, `shadow_version`, the widened event-type `CHECK`, and
+`tests`. One of the four was placed where it could not work, which is G-076. The
+ledger and catalogue have so far only added whole tables, which do reach an
+existing database.
+
+**The checks added for G-076 cannot see this.** They migrate an *empty* database
+once and twice and compare; an edit inside a `CREATE` applies to an empty
+database identically both times. The one upgrade case that exists covers a
+single column, `registry_versions.tests`. CI never sees an old database at all,
+because every job starts with a new one.
+
+**It has already happened.** Every historical version of each migration was
+built into a database and upgraded with today's migration, then compared with a
+fresh one — a one-off diagnostic, not a check. Ledger and catalogue: every
+version reaches today's schema. Registry: every version does except the first.
+A registry database created before the vocabulary rename (`929d6ef`, 2026-09-04)
+ends with both foreign keys on `registry_environments` still named
+`…_strategy_name_active_versi_fkey` and `…_strategy_name_previous_ver_fkey`: the
+rename renamed the columns and not the constraints. The local
+`metis_registry_test` this was written on carries both. They behave identically
+today; the first change that names either constraint misses it on that database,
+and `IF EXISTS` makes the miss silent.
+
+#### The fix, which is not built here
+
+1. **Numbered migrations, each run once, with a recorded version.** `001_…`,
+   `002_…` per package; a `schema_migrations` table (version, checksum, applied
+   at) written in the same transaction as each migration, under the advisory
+   lock `runMigration` already takes; a runner that applies what is missing in
+   order and **refuses to start if an applied file's checksum has changed**. A
+   change is a new file, reviewed as one. Nothing edits history.
+2. **An upgrade-diff check, keeping the one idempotent file.** CI builds a
+   database from the base branch's migration, applies the pull request's, and
+   diffs it against a fresh one — the diagnostic above, run on every change. It
+   detects and fixes nothing: every change is still hand-written conditional DDL
+   in one growing file, a constraint change still needs a `DO` block, and it
+   proves an upgrade from the previous version only, not from whatever version a
+   deployment is actually on. A data backfill has nowhere to go.
+3. **A declarative schema-diff tool at deploy** (Atlas, pg-schema-diff and the like).
+   The target schema is declared and the tool writes the `ALTER`s. That puts
+   generated DDL against production at start-up, and an ambiguous change — a
+   rename — reads as drop-and-add, which on an append-only table is data loss
+   nobody reviewed.
+4. **Freeze the `CREATE` bodies.** A check refuses any edit inside an existing
+   `CREATE`, so every change has to be an `ALTER` placed after it. The cheapest
+   option. It keeps the conditional-DDL file and its reasoning cost, and still
+   records nothing about what a database has run.
+
+**Option 1, with a runner written here rather than a dependency.** The
+one-connection lock and the file's own `BEGIN`/`COMMIT` are already bespoke in
+three copies of `create-store.ts`, and what is needed is small: read a
+directory, compare against a table, apply in order, record a checksum.
+`node-pg-migrate` would also do it, and brings its own lock and table
+conventions to reconcile with those.
+
+**What option 1 costs today: one slice, and nothing else.** No chain hash moves,
+no API changes, no data moves. The runner once, three `create-store.ts` files
+switched to it, the three existing checks kept (all migrations applied to an
+empty database produce the schema), and one new check: a file under
+`migrations/` that exists on `main` may not change. And one thing that is only
+free now: **each `001` can be rewritten as a plain baseline**, the rename block
+and the conditional steps deleted and the two constraints given their current
+names, because no database exists whose upgrade path has to be preserved.
+
+**What it costs once a database holds real data — and this is what should
+decide the timing.**
+
+- **Nothing records what any database has run.** Adopting numbered migrations
+  then starts with inferring each live database's version from its schema, by
+  the kind of diff above, one environment at a time, and recording a baseline
+  that was guessed. A wrong guess applies DDL to production, or skips DDL it
+  needed.
+- **The shims become permanent.** Every conditional step in each `001` is then
+  load-bearing for some live database, so none can be removed, and every reader
+  of the file carries all of them, correctly ordered, forever.
+- **Changes that need existing rows rewritten stop being free.** The ledger's
+  three tables, `registry_events` and `catalogue_events` refuse `UPDATE` and
+  `DELETE` by trigger. Today a `NOT NULL` column with no default, a narrowed
+  `CHECK`, or ADR-004's amendment — encrypting `decision_records.record` and
+  re-deriving its subject column — costs nothing, because there are no rows.
+  Once there are, each needs either a trigger bypass inside a migration, which
+  ADR-004 rejects as the end of the guarantee, or a new table beside the old
+  one that still holds what it cannot delete.
+- **The timing is fixed from both sides.** ADR-004's amendment already says no
+  deployment may write real customer references to the PostgreSQL ledger until
+  its changes land. Those are the first non-additive changes this schema will
+  need, and they need a mechanism that runs a change once and records that it
+  did. So: before or with ADR-004's ledger changes, and before the first
+  database that holds real data — which is the same date.
+
+**Done when:** a database created from any earlier migration reaches the same
+schema as a fresh one, held by a check that builds such a database rather than
+assuming it; an edit to a change that has already been applied is refused by a
+check; and which option was taken is recorded.
+
+---
+
+### G-075 — Retention suitability is decided per request, not per offer, and in the seed by a coin flip
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-026](BACKLOG.md)
+
+**Suitability is not being checked for retention offers.** `pol_afford_retention`
+— *"a retention offer must reduce, not increase, the customer bill"* — sits on
+the suitability tier, the tier that exists for the FCA (G-015 calls it *"the
+FCA-facing tier"*), scoped to the whole retention objective
+(`apps/console/mocks/fixtures/catalogue.ts:913-923`). Its one condition reads
+`offer.monthly_delta`. That is one number per request, not one per offer: the
+engine evaluates every condition against `request.input`
+(`packages/runtime/src/deterministic/engine.ts:431`), so every retention
+candidate in a decision is tested against the same value and they all pass or
+all fail together. Whether a particular offer would raise this customer's bill
+is never asked.
+
+In the seeded corpus the value is a coin flip —
+`offer: { monthly_delta: r('delta') > 0.5 ? -500 : 300 }`
+(`apps/console/mocks/fixtures/engine.ts:275`). Executed over the seed,
+`retention-outbound` — twenty candidates, all of them retention offers — made
+2,378 decisions in which retention offers reached the policy. **None split.** In
+all 1,188 where the coin came up `300`, every one of those offers was refused; in
+all 1,190 where it came up `-500`, none was.
+
+**The trace names a real policy either way.** Each refusal is recorded as
+`SUITABILITY_FAILED` with `ruleId: pol_afford_retention`, which reads as an
+affordability judgement about that offer for that customer. Each pass reads as
+the same judgement going the other way. Neither is one. A compliance officer
+opening either trace is shown a named suitability rule applied, and nothing in
+the record says the rule compared a single request-level number that did not
+come from the offer. Since G-055 closed, the refusal is also attributed to a
+pack: `pol_afford_retention` belongs to *UK Consumer Duty 1.4.0*
+(`catalogue.ts:804-808`), and the trace reader names that pack beside the
+refusal (`apps/console/components/trace-evidence.tsx:24-27`). A coin flip is
+now presented as a Consumer Duty affordability refusal.
+
+**Fixing it is a modelling change, not an edit to the rule.** The profile schema
+has no way to express a per-offer input: `offer.monthly_delta` is declared on an
+entity the request supplies once (`apps/console/mocks/fixtures/profile-schema.ts:255-267`),
+and a condition can read only request paths, never a field of the candidate it
+is judging. The facts a real check needs exist separately — an offer carries
+`financials.price` (`packages/core/src/domain.ts:50-60`), and the billing
+connector resolves `monthlySpend` — and there is no way to write a condition
+that combines them per candidate. Rewording the rule, or supplying a better
+number on the request, leaves it deciding every retention offer at once.
+
+Found while tracing the data spine for
+[ADR-014](adr/ADR-014-the-data-spine.md), which describes it under *Smaller
+breaks found on the way*.
+
+**Done when:** a suitability condition can be evaluated per candidate against
+that candidate's own values, both engines agree, and a corpus case in which one
+retention offer lowers the bill and another raises it records one refused and one
+passed, under the same policy in the same decision.
+
+---
 ### G-071 — Two compile contexts disagree, and the registry published under the weaker one
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-075](BACKLOG.md)
@@ -1291,6 +1459,86 @@ sending zero.
 
 ## Resolved
 
+### G-076 — The registry migration leaves out a column on a fresh database, and CI fails when the wrong test file migrates first
+
+**Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** none — a defect, fixed in the slice that registered it
+
+`packages/registry/migrations/001_registry.sql` adds `registry_versions.tests`
+with `ALTER TABLE IF EXISTS … ADD COLUMN IF NOT EXISTS` at line 68 — **before**
+`CREATE TABLE IF NOT EXISTS registry_versions` at line 71, which does not
+declare the column. On a database that has never been migrated, the first run
+skips the `ALTER`, because there is no table yet, and then creates the table
+without the column. The column exists only after a second run.
+
+CI starts an empty PostgreSQL for every `verify` job, and two files in the
+Registry step migrate it in parallel vitest workers: `tests/create-store.test.ts`
+through `createRegistryStore`, and `tests/postgres.test.ts` directly. The
+advisory lock in `runMigration` serialises the two runs and does not order them.
+When `create-store.test.ts` takes the lock first, the second run adds the column
+and the suite passes. When `postgres.test.ts` takes it first, it starts querying
+a table with no `tests` column:
+
+```
+tests/postgres.test.ts > registry over postgres > stores a flow that compiles
+error: column "tests" does not exist
+  at PostgresRegistryStore.getVersion  packages/registry/src/postgres-store.ts:87
+```
+
+**It has failed four of the last sixty Console runs**, every time on that test
+with that error, and once on `main`:
+
+| Run | Event | Branch | Commit |
+|---|---|---|---|
+| 34324459994 | pull_request | `feat/shadow-mode` | `a2494d3` |
+| 34499075432 | pull_request | `feat/delivery-record` | `4173581` |
+| 34516083121 | workflow_dispatch | `main` | `e6d62ab` |
+| 34581324960 | pull_request | `docs/retention-suitability` | `eac2fd3` |
+
+`e6d62ab` is the clearest of them: it passed `verify` on push at 18:36 and failed
+it on a manual dispatch at 18:43, with no change in between.
+
+**Nothing registered it.** Each of the first three was followed by a green run on
+the next attempt, which is what a race looks like from outside, and the fourth
+landed on a docs-only pull request whose code was byte-identical to a `main` that
+had just passed.
+
+**The flake hunt cannot see it.** It re-runs the Playwright suite — three passes
+and a shuffled one — and never runs the registry's PostgreSQL tests; the job has
+no database. Repeating them would not help if it did: the race exists only on a
+database's first migration, and every later run finds the column already there.
+It is a race in database setup, not in the suite, and repeating the suite against
+one database cannot reproduce it.
+
+**Done when:** the `CREATE` declares `tests`; the `ALTER` stays for databases
+created before it; and a check that migrates a fresh database once asserts the
+schema is complete — the same schema two runs produce — verified to bite by
+reverting the migration.
+
+**Closed 2026-09-11, in the slice that registered it.** The `CREATE` now
+declares `tests`, and the `ALTER` stays for databases whose table predates the
+column, with a comment saying why both exist
+(`packages/registry/migrations/001_registry.sql`).
+`packages/registry/tests/migration.test.ts` gives each case an empty database of
+its own — the condition every other check in the package hides — and asserts
+three things: one run produces the schema two runs produce, compared across
+columns, constraints, indexes and triggers rather than against a hand-kept list;
+the store can read after one run; and the `ALTER` still adds the column to a
+table that lacks it.
+
+Verified to bite twice. With the migration reverted to its committed form, all
+three fail — the first on exactly one missing column, `registry_versions.tests`,
+the second on CI's own error. With the `CREATE` fixed and the `ALTER` deleted,
+the first two pass and the third fails alone, so the upgrade path is held by its
+own check rather than borrowed from the fresh-database ones. The Registry step's
+78 tests then pass against a freshly created database, the state CI starts every
+job in.
+
+**Extended the same day to the other two migrations in the tree**, the ledger's
+and the catalogue's (`packages/{ledger,catalogue}/tests/migration.test.ts`).
+Both passed on arrival: neither has this defect. Each check was then seen to
+fail with G-076's shape planted in its own migration — a column moved out of
+its `CREATE` into an `ALTER` ahead of it — on both the one-run comparison and the
+store's reads, and passes again with the migration restored.
 ### G-069 — A rule's fields and a connector's fields are different vocabularies
 
 **Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** [W-074](BACKLOG.md)
