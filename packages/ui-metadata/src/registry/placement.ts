@@ -156,9 +156,9 @@ export const placementDescriptor: EntityDescriptor = {
       order: 20,
       options: {
         static: [
-          { value: '', label: 'Nothing — decides, and nobody sends it' },
-          { value: 'caller', label: 'Whoever asked, rendering the slate' },
-          { value: 'adapter', label: 'The platform, through an adapter' },
+          { value: '', label: 'Nothing — decides, and nobody sends it', short: 'Nothing' },
+          { value: 'caller', label: 'Whoever asked, rendering the slate', short: 'Whoever asked' },
+          { value: 'adapter', label: 'The platform, through an adapter', short: 'An adapter' },
         ],
       },
     },

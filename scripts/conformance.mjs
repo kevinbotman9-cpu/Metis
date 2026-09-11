@@ -15,13 +15,15 @@
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative, extname, sep } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const CONFIG = {
   root: process.cwd(),
   consoleAppDir: "apps/console/app",
   uiKitDir: "packages/ui-kit",
   apiClientDir: "packages/api-client",
-  layoutManifestDir: "packages/ui-metadata/layouts",
+  layoutRegistry: "packages/ui-metadata/src/layouts/index.ts",
+  layoutSources: "apps/console/lib/layouts/sources.ts",
   capabilityMap: "docs/CAPABILITIES.md",
   e2eDir: "apps/console/tests/e2e",
 };
@@ -62,6 +64,21 @@ function walk(dir, exts = [".ts", ".tsx", ".js", ".jsx", ".css"]) {
 
 const read = (p) => readFileSync(p, "utf8");
 const rel = (p) => posix(relative(CONFIG.root, p));
+
+/**
+ * The layout registry and the page recogniser, imported rather than read as
+ * text: `npm run conformance` and `check-conformance.mjs` both run this file
+ * under tsx. If the registry cannot load, every page is read as undeclared —
+ * the checks below then fail loudly rather than pass over nothing.
+ */
+let LAYOUTS = {};
+let declaredScreen = () => null;
+let layoutRegistryError = null;
+try {
+  ({ LAYOUTS, declaredScreen } = await import(pathToFileURL(join(CONFIG.root, CONFIG.layoutRegistry)).href));
+} catch (err) {
+  layoutRegistryError = err;
+}
 
 function routeFiles() {
   return walk(CONFIG.consoleAppDir, [".tsx"]).filter((p) =>
@@ -129,8 +146,13 @@ function checkTokensOnly() {
 // ------------------------------------------------- CHECK 4: mock-mode honesty
 
 function checkMockBanner() {
+  // A declared screen's page names no data layer at all — the host resolves the
+  // manifest's sources — so it is judged by that host, the only place its data
+  // can come from. Read alone, every converted page would look unwired.
+  const hostFile = join(CONFIG.root, CONFIG.layoutSources);
+  const host = existsSync(hostFile) ? read(hostFile) : "";
   for (const f of routeFiles()) {
-    const src = read(f);
+    const src = declaredScreen(read(f)) ? host : read(f);
     const usesClient = new RegExp(CONFIG.apiClientDir.split("/").pop()).test(src);
     const hasBanner = /MockModeBanner/.test(src);
     const looksMocked = /\b(mock|MOCK|fixture|sampleData|stubData|placeholderData)\b/.test(src);
@@ -158,8 +180,24 @@ const SHELL_EXEMPT = new Set(["/login"]);
 /** `[id]`, `[...path]`, `[[...path]]` — any dynamic segment. */
 const isDynamicRoute = (routePath) => /\[[^\]]+\]/.test(routePath);
 
+/**
+ * A route passes only if its page renders through a manifest the registry
+ * holds, declared for that route. ADR-015 §5.1.
+ *
+ * Until 2026-09-11 this passed any route whose path appeared anywhere in a file
+ * under a directory that did not exist — so one file listing twenty-one paths
+ * would have cleared every route without converting a screen. Now the page
+ * itself is read: it must be `<Screen manifest="…" />` and nothing else.
+ *
+ * The `[id]` exemption stays until ADR-015's third step narrows it to a
+ * list–detail's declared `detailRoute`, together with enough conversions that
+ * the count does not rise (§5.3). There is no pending list for routes: the
+ * baseline is the ledger, and it falls only as pages are converted (§5.4).
+ */
 function checkLayoutManifests() {
-  const manifests = walk(CONFIG.layoutManifestDir, [".json", ".ts"]).map(read).join("\n");
+  if (layoutRegistryError) {
+    fail("layout-manifests", `Could not load the layout registry at ${CONFIG.layoutRegistry}: ${layoutRegistryError.message}`);
+  }
   for (const f of routeFiles()) {
     // The root route is `app/page.tsx`: nothing precedes the filename once the
     // app dir is stripped, so the separator is optional and the result is "/".
@@ -173,8 +211,16 @@ function checkLayoutManifests() {
     // one screen with two panes, not two screens. UX_CONTRACT.md §2.
     if (isDynamicRoute(routePath) || SHELL_EXEMPT.has(routePath)) continue;
 
-    if (!manifests.includes(routePath)) {
-      fail("layout-manifests", `Route "${routePath}" has no layout manifest. Screens are declared, not coded. See UX_CONTRACT.md §2.`);
+    const id = declaredScreen(read(f));
+    if (!id) {
+      fail("layout-manifests", `Route "${routePath}" does not render through a layout manifest: its page must be \`<Screen manifest="…" />\` and nothing else. Screens are declared, not coded. See UX_CONTRACT.md §2.`);
+      continue;
+    }
+    const manifest = LAYOUTS[id];
+    if (!manifest) {
+      fail("layout-manifests", `Route "${routePath}" renders manifest "${id}", which the layout registry does not hold.`);
+    } else if (manifest.route !== routePath) {
+      fail("layout-manifests", `Route "${routePath}" renders manifest "${id}", which is declared for "${manifest.route}".`);
     }
   }
 }

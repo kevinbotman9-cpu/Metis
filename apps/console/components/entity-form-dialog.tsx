@@ -1,18 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   descriptorFor,
   toFormState,
   toPayload,
   type FormState,
-  type Option,
 } from '@metis/ui-metadata';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { FormRenderer } from '@/components/ui/form-renderer';
 import { useAuth } from '@/components/auth-provider';
-import { apiClient, ApiError } from '@/lib/api-client';
+import { ApiError } from '@/lib/api-client';
+import { useOptionSources } from '@/lib/option-sources';
 
 /**
  * Create or edit any registered entity, from its descriptor.
@@ -52,58 +52,6 @@ export interface EntityFormDialogProps<T extends object> {
   /** Query keys to invalidate once the write lands. */
   invalidate?: readonly (readonly unknown[])[];
   onSaved?: (record: T) => void;
-}
-
-/**
- * Named option sources, resolved once for the whole registry.
- *
- * A descriptor names a source; this maps the name to data. It is the only
- * place a descriptor's vocabulary meets a query, and it is deliberately a flat
- * table rather than a per-entity hook.
- */
-function useOptionSources(enabled: boolean): Record<string, readonly Option[]> {
-  const { data: taxonomy } = useQuery({
-    queryKey: ['taxonomy'],
-    queryFn: () => apiClient.getTaxonomy(),
-    enabled,
-  });
-
-  const { data: placements } = useQuery({
-    queryKey: ['placements'],
-    queryFn: () => apiClient.listPlacements(),
-    enabled,
-  });
-
-  const { data: artifacts } = useQuery({
-    queryKey: ['artifacts'],
-    queryFn: () => apiClient.listArtifacts(),
-    enabled,
-  });
-
-  return useMemo(
-    () => ({
-      'taxonomy.objectives': (taxonomy?.objectives ?? []).map((o) => ({
-        value: o.id,
-        label: o.name,
-      })),
-      'taxonomy.categories': (taxonomy?.categories ?? []).map((c) => ({
-        value: c.id,
-        label: c.name,
-        objectiveId: c.objectiveId,
-      })),
-      // `channel` and `type` are carried so a descriptor can filter slots by
-      // the channel chosen and suggest the shape the slot declares.
-      placements: (placements?.placements ?? [])
-        .filter((p) => p.decidable)
-        .map((p) => ({ value: p.key, label: p.name, channel: p.channel, type: p.type })),
-      // Which flow answers a slot. Active only: pointing a live placement at a
-      // draft flow would put an unpublished decision in front of a customer.
-      flows: (artifacts?.artifacts ?? [])
-        .filter((a) => a.status === 'active')
-        .map((a) => ({ value: a.id, label: a.name })),
-    }),
-    [taxonomy, placements, artifacts]
-  );
 }
 
 export function EntityFormDialog<T extends object>({
