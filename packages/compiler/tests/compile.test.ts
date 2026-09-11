@@ -707,24 +707,24 @@ describe('policy conditions against the data model', () => {
     id: 's',
     tenantId: 't',
     version: '1.0.0',
-    root: 'Input',
+    roots: {
+      profile: { alias: 'customer', entity: 'Customer' },
+      request: { alias: 'context', entity: 'Context' },
+    },
     updatedAt: '2026-01-01T00:00:00Z',
     updatedBy: 'test',
     entities: [
       {
-        name: 'Input',
+        name: 'Context',
         description: '',
         fields: [],
-        relationships: [
-          { name: 'customer', entity: 'Customer', cardinality: 'one', description: '' },
-        ],
       },
       {
         name: 'Customer',
         description: '',
         fields: [
-          { name: 'age', type: 'integer', description: '' },
-          { name: 'credit_status', type: 'enum', members: ['pass', 'refer'], description: '' },
+          { origin: 'profile', class: 'attribute', name: 'age', type: 'integer', description: '' },
+          { origin: 'profile', class: 'attribute', name: 'credit_status', type: 'enum', members: ['pass', 'refer'], description: '' },
         ],
       },
     ],

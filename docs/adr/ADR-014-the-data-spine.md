@@ -1,9 +1,13 @@
 # ADR-014: The data spine — what a customer attribute passes through, and where METIS stops
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-09-11 (proposed)
+**Decided:** 2026-09-11
+**Deciders:** Product owner
 **Owner:** Product owner
-**Decision needed by:** 2026-09-18. Spine 1's fifth slice is ad-hoc distribution
+**Accepted as written**, with Segment as the reference partner for the boundary
+in §1 and the build order in *Build first, defer* taken as given.
+**Decision needed by:** — decided. It had been 2026-09-18. Spine 1's fifth slice is ad-hoc distribution
 simulation (W-020), and a simulation needs a population to run over. There is
 none. If that slice opens before this is decided it will have to generate one,
 and the only generator in the tree is `seededUnitInterval` — so the screen whose

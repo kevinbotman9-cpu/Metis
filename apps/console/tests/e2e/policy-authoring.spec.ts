@@ -43,7 +43,7 @@ test.describe('the data model', () => {
     // Twice on the page by design: once in the list, once in the card that
     // explains what a rollup is and how it is computed. `.first()` rather than
     // a looser matcher, so a path vanishing from the list would still fail.
-    await expect(page.getByText('accounts.worst_arrears_days').first()).toBeVisible();
+    await expect(page.getByText('customer.worst_arrears_days').first()).toBeVisible();
     await expect(page.getByText('rollup').first()).toBeVisible();
 
     // A rollup is the only way to read across a one-to-many, so the raw path

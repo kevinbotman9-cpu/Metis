@@ -183,6 +183,16 @@ object Json {
         candidateKeys = (n["candidateKeys"] ?: mapper.createArrayNode()).map { it.asText() },
         packageVersions = (n["packageVersions"] ?: mapper.createObjectNode())
             .properties().associate { (k, v) -> k to v.asText() },
+        // The data model the flow was compiled against. ADR-014 §2: it is in
+        // the hashed decision, so dropping it here is the failure the comment
+        // below describes, with a hash divergence attached.
+        schema = n["schema"]?.takeIf { !it.isNull }?.let {
+            SchemaPin(
+                id = req(it["id"], "schema.id").asText(),
+                version = req(it["version"], "schema.version").asText(),
+                hash = req(it["hash"], "schema.hash").asText(),
+            )
+        },
         // Dropping this silently is exactly the failure `docs/gaps.md` records
         // about this file: it maps wire fields by literal string, so a field
         // added to the artifact and not added here produces a decision that

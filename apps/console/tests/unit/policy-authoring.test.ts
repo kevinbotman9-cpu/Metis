@@ -95,7 +95,7 @@ describe('the data model is served', () => {
     const res = await call(['profile-schema', 'telco-uk'], undefined, 'GET');
     const { paths } = (await res.json()) as { paths: { path: string; kind: string }[] };
 
-    expect(paths.some((p) => p.path === 'accounts.worst_arrears_days' && p.kind === 'aggregation')).toBe(true);
+    expect(paths.some((p) => p.path === 'customer.worst_arrears_days' && p.kind === 'aggregation')).toBe(true);
     // There is no single arrears_days to compare across many accounts.
     expect(paths.some((p) => p.path.startsWith('customer.accounts.'))).toBe(false);
   });
@@ -135,7 +135,7 @@ describe('creating a policy', () => {
     expect(body.error).toBe('invalid_policy');
     expect(body.problems[0].field).toBe('conditions.0');
     expect(body.problems[0].code).toBe('UNKNOWN_FIELD');
-    expect(body.problems[0].message).toContain("Did you mean 'address.fibre_available'?");
+    expect(body.problems[0].message).toContain("Did you mean 'customer.address.fibre_available'?");
   });
 
   it('refuses a comparison the type cannot satisfy', async () => {

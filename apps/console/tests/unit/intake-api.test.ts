@@ -58,7 +58,7 @@ const MAPPINGS = [
   },
   { column: 'standing', path: 'customer.account_status' },
   { column: 'plan', path: 'customer.current_plan' },
-  { column: 'fibre', path: 'address.fibre_available', transform: { kind: 'to_boolean' } },
+  { column: 'fibre', path: 'customer.address.fibre_available', transform: { kind: 'to_boolean' } },
 ];
 
 /** Fills two of the five, so activation must refuse it. */

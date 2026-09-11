@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { POST } from '@/app/api/[...path]/route';
 import { catalogueSnapshot, execArtifacts } from '@/mocks/fixtures/engine';
 import { RecordedIntegrationGateway } from '@/mocks/gateway';
+import { readPath } from '@metis/runtime/deterministic/engine';
 import { resolveInputs, requiredConnectors } from '@metis/runtime';
 
 /**
@@ -59,10 +60,10 @@ describe('POST /api/decisions resolves its connectors', () => {
     // The caller sent none of these. They are in the decision because the
     // endpoint fetched them.
     const byField = new Map(body.decision.sourceBindings.map((b) => [b.field, b.connectorId]));
-    expect(byField.get('monthlySpend')).toBe('conn_billing_ledger');
-    expect(byField.get('arrearsDays')).toBe('conn_billing_ledger');
-    expect(byField.get('tenureMonths')).toBe('conn_network_usage');
-    expect(byField.get('marketingConsent')).toBe('conn_consent_registry');
+    expect(byField.get('customer.monthly_spend')).toBe('conn_billing_ledger');
+    expect(byField.get('customer.arrears_days')).toBe('conn_billing_ledger');
+    expect(byField.get('customer.tenure_months')).toBe('conn_network_usage');
+    expect(byField.get('customer.marketing_consent')).toBe('conn_consent_registry');
   });
 
   it('is reproducible: the same customer resolves to the same decision', async () => {
@@ -116,8 +117,10 @@ describe('the recorded gateway serves every field the live flows need', () => {
         const connector = (catalogueSnapshot.connectors ?? []).find((c) => c.id === connectorId);
         if (!connector?.active) continue;
         for (const binding of connector.provides) {
+          // Read by path: a connector declares where its value lands as a
+          // path into the profile, so the value is nested (ADR-014 §2).
           expect(
-            typeof resolved.input[binding.field],
+            typeof readPath(resolved.input, binding.field),
             `${connector.id} did not supply ${binding.field}`
           ).toBe(binding.type);
         }

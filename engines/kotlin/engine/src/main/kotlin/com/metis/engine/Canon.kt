@@ -37,6 +37,14 @@ object Canon {
         "catalogueSnapshotHash" to str(d.catalogueSnapshotHash),
         "sourceBindings" to arr(d.sourceBindings.map { binding(it) }),
         "packageVersions" to obj(*d.packageVersions.map { (k, v) -> k to str(v) }.toTypedArray()),
+        // Null rather than an absent key when the artifact pins no model: the
+        // TypeScript writes `schema: null`, and an absent key hashes
+        // differently from a null one.
+        "schema" to (
+            d.schema?.let {
+                obj("id" to str(it.id), "version" to str(it.version), "hash" to str(it.hash))
+            } ?: Value.Null
+        ),
         "candidateKeys" to arr(d.candidateKeys.map { str(it) }),
         "eliminations" to arr(d.eliminations.map { elimination(it) }),
         "scores" to obj(*d.scores.map { (k, v) -> k to score(v) }.toTypedArray()),

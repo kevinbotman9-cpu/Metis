@@ -136,6 +136,23 @@ export const compilations: FlowCompilation[] = artifacts.map((a) => ({
   }),
 }));
 
+/**
+ * The schema pin as the registry publishes it.
+ *
+ * The pin is over the schema's content, so it is the same for every flow; what
+ * differs is whether a flow has a compiled artifact to carry it. Taken from a
+ * compile against `compileContext` — the context `seedRegistry` publishes with
+ * — rather than from `compilations` above, which adds `servedChannels` and
+ * therefore rejects `retention-outbound` under ADR-012 §B2 while the registry
+ * accepted it.
+ *
+ * That disagreement is [G-071](../../../docs/gaps.md), and this constant is
+ * where it shows: the seeded decisions have to carry the pin the *published*
+ * artifact carries, or the corpus stops describing what the route does.
+ */
+export const schemaPin = compileDecisionFlow(toSource(artifacts[0]), compileContext).artifact
+  ?.schema;
+
 const byId = new Map(compilations.map((c) => [c.artifactId, c]));
 
 export function findCompilation(artifactId: string): FlowCompilation | undefined {

@@ -22,8 +22,8 @@ test.describe('integrations', () => {
     const row = page.getByRole('row').filter({ hasText: 'Billing ledger' });
     await expect(row).toBeVisible();
     // The fields it binds are the contract with the policies.
-    await expect(row.getByText('monthlySpend')).toBeVisible();
-    await expect(row.getByText('arrearsDays')).toBeVisible();
+    await expect(row.getByText('customer.monthly_spend')).toBeVisible();
+    await expect(row.getByText('customer.arrears_days')).toBeVisible();
   });
 
   test('flags a connector that cannot fit the latency budget', async ({ page }) => {

@@ -47,6 +47,7 @@ import {
   connectors,
 } from './catalogue';
 import { artifacts, type ArtifactSummary } from './artifacts';
+import { schemaPin } from './compiled';
 
 /** The catalogue exactly as the engine sees it. */
 export const catalogueSnapshot: CatalogueSnapshot = {
@@ -69,6 +70,16 @@ function toExecArtifact(a: ArtifactSummary): ExecArtifact {
       '@metis/nodes-core': '1.4.0',
       '@metis/core': '2.1.0',
     },
+    // Taken from the compiler rather than computed here, so the pin a decision
+    // carries is the one compilation produced. Two implementations of the same
+    // hash would eventually disagree, and the disagreement would surface as a
+    // chain hash nobody could explain. ADR-014 §2.
+    //
+    // The registry's pin, not the console's compile view's: `seedRegistry`
+    // publishes against a context without `servedChannels`, so it accepted a
+    // flow the console's view rejects (G-071), and the route executes what the
+    // registry published.
+    schema: schemaPin,
     nodes: a.nodes.map((n) => ({
       id: n.id,
       // The canvas renders a couple of node types the engine treats as
@@ -195,19 +206,56 @@ export function connectorPayload(index: number): Record<string, unknown> {
   // contradicting the consent it acted on.
   const churning = inChurnCohort(index);
 
+  // The bureau's band, A best. Bands D and E fail `pol_credit_pass`, which is
+  // what makes an integration part of a decision here rather than a
+  // declaration beside one: about one customer in seven is refused on a value
+  // no part of this tenant's own record holds.
+  const band = r('band');
+  const creditBand = band > 0.86 ? 'E' : band > 0.72 ? 'D' : band > 0.45 ? 'C' : band > 0.2 ? 'B' : 'A';
+
   return {
     // conn_billing_ledger
-    monthlySpend: 1200 + Math.floor(r('spend') * 9000),
-    arrearsDays: arrears,
-    inGoodStanding: arrears === 0,
+    'customer.monthly_spend': 1200 + Math.floor(r('spend') * 9000),
+    'customer.arrears_days': arrears,
+    'customer.in_good_standing': arrears === 0,
     // conn_network_usage
-    dataUsageGb: Number((r('data') * 120).toFixed(2)),
-    roamingDays: Math.floor(r('roam') * 14),
-    tenureMonths: Math.floor(r('tenure') * 72),
+    'customer.usage.data_usage_gb': Number((r('data') * 120).toFixed(2)),
+    'customer.usage.roaming_days': Math.floor(r('roam') * 14),
+    'customer.tenure_months': Math.floor(r('tenure') * 72),
     // conn_consent_registry
-    marketingConsent: churning ? r('mkt') > 0.72 : r('mkt') > 0.08,
-    profilingConsent: churning ? r('prof') > 0.68 : r('prof') > 0.12,
+    'customer.marketing_consent': churning ? r('mkt') > 0.72 : r('mkt') > 0.08,
+    'customer.profiling_consent': churning ? r('prof') > 0.68 : r('prof') > 0.12,
+    // conn_credit_bureau
+    'customer.credit_score': 380 + Math.floor(r('score') * 440),
+    'customer.credit_band': creditBand,
   };
+}
+
+/**
+ * Merge path-keyed values into a nested input.
+ *
+ * The same walk `resolveInputs` does on the live path. Kept identical on
+ * purpose: a seeded decision and a resolved one must produce the same shape, or
+ * the corpus stops describing the thing it is a corpus of.
+ */
+function writePath(input: Record<string, unknown>, path: string, value: unknown): void {
+  const segments = path.split('.');
+  let cursor = input;
+  for (const segment of segments.slice(0, -1)) {
+    const next = cursor[segment];
+    if (typeof next !== 'object' || next === null) cursor[segment] = {};
+    cursor = cursor[segment] as Record<string, unknown>;
+  }
+  cursor[segments[segments.length - 1]] = value;
+}
+
+/** The seeded input, on the two roots the schema declares. ADR-014 §2. */
+function inputFor(index: number, base: Record<string, unknown>): Record<string, unknown> {
+  const input = structuredClone(base);
+  for (const [path, value] of Object.entries(connectorPayload(index))) {
+    writePath(input, path, value);
+  }
+  return input;
 }
 
 /**
@@ -253,7 +301,19 @@ function buildRequest(index: number): DecisionRequest {
     placement: placements[channel],
     // Fixed relative to T0 so the set does not drift with the wall clock.
     occurredAt: occurredAt(index),
-    input: {
+    // Two roots: what is true of the subject, and what only this request
+    // knows. ADR-014 §2. The connector-supplied values are merged in at the
+    // paths their connectors declare — the same paths `resolveInputs` writes
+    // on the live path, which is what makes a seeded decision and a resolved
+    // one the same shape (G-069).
+    //
+    // Recorded, not fetched: the corpus is built synchronously at import and
+    // resolution is asynchronous because real I/O is. What is stored is what a
+    // real system stores — the input snapshot resolution produced — so the
+    // traces carry genuine provenance and the console can show where each
+    // field came from. The live path really does resolve;
+    // `decision-resolution.test.ts` fails if that wiring is removed.
+    input: inputFor(index, {
       customer: {
         age,
         credit_status: r('credit') > 0.15 ? 'pass' : 'refer',
@@ -261,34 +321,23 @@ function buildRequest(index: number): DecisionRequest {
         current_plan: r('plan') > 0.75 ? '5g_unlimited' : 'standard',
         bill_to_income_ratio: Number((0.01 + r('bti') * 0.06).toFixed(4)),
         arrears_count_12mo: r('arrears') > 0.85 ? 1 : 0,
+        address: { fibre_available: r('fibre') > 0.4 },
+        usage: {
+          pct_of_allowance_3mo_avg: Number((churning ? r('usage') * 0.3 : r('usage')).toFixed(4)),
+          months_of_history: Math.floor(r('history') * 18),
+        },
+        contract: {
+          days_to_end: churning ? Math.floor(r('contract') * 21) : Math.floor(r('contract') * 200),
+        },
+        events: {
+          pac_requested_within_days: churning ? Math.floor(r('pac') * 9) : Math.floor(r('pac') * 40),
+        },
+        device: { residual_value: Math.floor(r('device') * 40000) },
       },
-      address: { fibre_available: r('fibre') > 0.4 },
-      usage: {
-        pct_of_allowance_3mo_avg: Number((churning ? r('usage') * 0.3 : r('usage')).toFixed(4)),
-        months_of_history: Math.floor(r('history') * 18),
+      context: {
+        offer: { monthly_delta: r('delta') > 0.5 ? -500 : 300 },
       },
-      contract: { days_to_end: churning ? Math.floor(r('contract') * 21) : Math.floor(r('contract') * 200) },
-      events: {
-        pac_requested_within_days: churning ? Math.floor(r('pac') * 9) : Math.floor(r('pac') * 40),
-      },
-      device: { residual_value: Math.floor(r('device') * 40000) },
-      offer: { monthly_delta: r('delta') > 0.5 ? -500 : 300 },
-
-      // Fields the connectors supply, at the names they declare.
-      //
-      // These are recorded, not fetched: the 5,000-decision corpus is built
-      // synchronously at import, and resolution is asynchronous because real
-      // I/O is. What is stored here is exactly what a real system stores - the
-      // input snapshot resolution produced - so the traces carry genuine
-      // provenance and the console can show where each field came from.
-      //
-      // The live path really does resolve — as of 2026-09-07, and not before.
-      // `POST /api/decisions` runs resolveInputs through a gateway before
-      // executing; this comment claimed as much for some time while nothing
-      // called the resolver at all. `decision-resolution.test.ts` is what makes
-      // the claim checkable, and it fails if the wiring is removed.
-      ...connectorPayload(index),
-    },
+    }),
     contactHistory: {
       channel,
       withinPeriod: {

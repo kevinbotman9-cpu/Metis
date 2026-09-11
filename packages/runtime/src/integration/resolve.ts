@@ -127,6 +127,74 @@ function coerce(
   }
 }
 
+/**
+ * Read a dotted path out of the input.
+ *
+ * The same walk `readPath` does in the engine, repeated here rather than
+ * imported: resolution runs before the deterministic core and must not depend
+ * on it — that direction is what keeps I/O out of the engine's import graph.
+ */
+function readAt(input: Record<string, unknown>, path: string): unknown {
+  return path
+    .split('.')
+    .reduce<unknown>(
+      (acc, key) =>
+        acc !== null && typeof acc === 'object' ? (acc as Record<string, unknown>)[key] : undefined,
+      input
+    );
+}
+
+/**
+ * Write a value at a dotted path, creating the objects on the way.
+ *
+ * A connector declares where its value lands as a path into the profile —
+ * `customer.credit_band` — because that is the vocabulary policies read and
+ * the compiler validates against. Assigning it as a flat key with a dot in the
+ * name would produce something `readPath` can never find, which is the shape
+ * of G-069: two vocabularies, no meeting point, and every rule reading past
+ * the values its integrations supplied.
+ */
+function writeAt(input: Record<string, unknown>, path: string, value: unknown): void {
+  const segments = path.split('.');
+  let cursor = input;
+  for (const segment of segments.slice(0, -1)) {
+    const next = cursor[segment];
+    if (typeof next !== 'object' || next === null) cursor[segment] = {};
+    cursor = cursor[segment] as Record<string, unknown>;
+  }
+  cursor[segments[segments.length - 1]] = value;
+}
+
+/**
+ * The caller's input over the fetched one, branch by branch.
+ *
+ * A shallow spread cannot do this once a field is a path: the caller's
+ * `customer` object would replace the fetched `customer` object whole, and
+ * every value an integration supplied would vanish behind one the caller
+ * happened to send. Leaves are compared, not branches — which is the same rule
+ * as before, applied to a tree instead of a flat map.
+ */
+function deepPrefer(
+  fetched: Record<string, unknown>,
+  supplied: Record<string, unknown>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...fetched };
+  for (const [key, value] of Object.entries(supplied)) {
+    const existing = out[key];
+    const bothBranches =
+      existing !== null &&
+      typeof existing === 'object' &&
+      !Array.isArray(existing) &&
+      value !== null &&
+      typeof value === 'object' &&
+      !Array.isArray(value);
+    out[key] = bothBranches
+      ? deepPrefer(existing as Record<string, unknown>, value as Record<string, unknown>)
+      : value;
+  }
+  return out;
+}
+
 function cacheKey(connector: Connector, ctx: ResolutionContext): string {
   return `${connector.id}:${ctx.tenantId}:${ctx.customerId}`;
 }
@@ -315,9 +383,11 @@ export async function resolveInputs(
     calls.push(r.call);
     for (const field of Object.keys(r.values).sort()) {
       // The request wins: a caller that already has the value should not have
-      // it overwritten by a slower, staler copy.
-      if (field in request.input) continue;
-      fetched[field] = r.values[field];
+      // it overwritten by a slower, staler copy. Compared by path, because a
+      // field is a path now — `field in request.input` asked whether the input
+      // had a key called `customer.credit_band`, which it never does.
+      if (readAt(request.input, field) !== undefined) continue;
+      writeAt(fetched, field, r.values[field]);
       bindings.push({ field, connectorId: r.connector.id, nodeId: r.nodeId });
     }
   }
@@ -327,5 +397,5 @@ export async function resolveInputs(
   );
   calls.sort((a, b) => a.connectorId.localeCompare(b.connectorId));
 
-  return { input: { ...fetched, ...request.input }, bindings, calls };
+  return { input: deepPrefer(fetched, request.input), bindings, calls };
 }
