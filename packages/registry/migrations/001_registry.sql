@@ -64,7 +64,14 @@ END $$;
 ALTER INDEX IF EXISTS registry_events_by_strategy RENAME TO registry_events_by_flow;
 
 -- Added 2026-09-06 with the flow-test gate. `CREATE TABLE IF NOT EXISTS` does
--- not add a column to a table that already exists, so this runs beside it.
+-- not add a column to a table that already exists, so this runs beside it —
+-- for databases whose table predates the column.
+--
+-- It cannot give a new database the column, and for five days nothing else did:
+-- this runs before the CREATE below, so on an empty database it finds no table
+-- and does nothing, and the column arrived only on a second run. The CREATE
+-- now declares it too. G-076; `tests/migration.test.ts` holds one run on an
+-- empty database to the schema two runs produce.
 ALTER TABLE IF EXISTS registry_versions
   ADD COLUMN IF NOT EXISTS tests jsonb NOT NULL DEFAULT '[]'::jsonb;
 
@@ -90,6 +97,11 @@ CREATE TABLE IF NOT EXISTS registry_versions (
     -- flow that shipped near its latency budget is a different thing to
     -- explain in six months than one that shipped clean.
     warnings       jsonb       NOT NULL DEFAULT '[]'::jsonb,
+
+    -- The flow's own test cases, run by the flow-test gate at publish. Declared
+    -- here as well as added by the ALTER above, which cannot reach a table that
+    -- does not exist yet. G-076.
+    tests          jsonb       NOT NULL DEFAULT '[]'::jsonb,
 
     PRIMARY KEY (tenant_id, flow_name, version)
 );
