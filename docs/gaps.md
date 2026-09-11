@@ -1422,6 +1422,16 @@ become two:
   `outbound_call` and had no live flow left to answer it; a slot that still
   called itself decidable would be claiming an agent can be prompted with an
   offer nothing will produce.
+- **The seeded history has no outbound-call decisions at all.** The generator
+  drew a fifth of its decisions for that slot, and a corpus that kept doing so
+  would be seeding history the platform would now refuse to make. Four channels
+  remain — web 2,657, sms 2,603, email 2,574, push 2,566. The demo loses the
+  one channel a human being was going to speak on, which is the honest state of
+  a tenant with two outbound-call creatives.
+
+**A check already here caught the half-done version.** `fixtures.test.ts` —
+*decides only for slots that are live* — failed with `['retention_queue']` when
+the flow was retired and the generator was not, which is exactly its job.
 
 **Why not author the eighteen creatives instead.** That would have turned a red
 check green by inventing the content whose absence is the finding. This tenant
