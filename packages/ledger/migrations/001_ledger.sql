@@ -8,10 +8,20 @@
 -- duplication is the point — the same argument as 001_registry.sql. Enforced
 -- only in application code, "append-only" survives exactly as long as nobody
 -- writes a migration script, an admin query, or a second service.
+--
+-- ## How this file changes: it does not
+--
+-- Version 1, the baseline. Applied once by `@metis/core/migrate`, in a
+-- transaction with the row that records it and its checksum. Once a database
+-- has run it, the runner refuses to start if the text differs, and
+-- `tests/migrations-frozen.test.ts` refuses a pull request that edits it. A
+-- change to this schema is `002_*.sql`.
+--
+-- Rewritten on 2026-09-11 (G-077) from one file of `CREATE … IF NOT EXISTS`
+-- re-applied at every start, which could not reach a table that already
+-- existed. Nothing in it had to be kept for an older database: none held data.
 
-BEGIN;
-
-CREATE TABLE IF NOT EXISTS decision_records (
+CREATE TABLE decision_records (
     tenant_id     text        NOT NULL,
     -- The engine's decision id, which is a content hash of the decision. Two
     -- decisions cannot share one without being the same decision.
@@ -42,11 +52,11 @@ CREATE TABLE IF NOT EXISTS decision_records (
 );
 
 -- §8's access pattern: every decision about this subject, most recent first.
-CREATE INDEX IF NOT EXISTS decision_records_by_subject
+CREATE INDEX decision_records_by_subject
     ON decision_records (tenant_id, subject_hash, occurred_at DESC);
 
 -- And the operational one: what did this flow decide over this window.
-CREATE INDEX IF NOT EXISTS decision_records_by_flow
+CREATE INDEX decision_records_by_flow
     ON decision_records (tenant_id, flow_id, occurred_at DESC);
 
 -- --------------------------------------------------------------------------
@@ -56,7 +66,7 @@ CREATE INDEX IF NOT EXISTS decision_records_by_flow
 -- Durable rather than in process memory, which is the point of moving it here:
 -- a retry arriving after a restart still finds its original decision.
 
-CREATE TABLE IF NOT EXISTS idempotency_keys (
+CREATE TABLE idempotency_keys (
     tenant_id     text        NOT NULL,
     key           text        NOT NULL,
 
@@ -82,7 +92,7 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
 -- Storage only. Nothing learns from these yet, and a table that quietly fed a
 -- model would be the opposite of the point.
 
-CREATE TABLE IF NOT EXISTS outcome_events (
+CREATE TABLE outcome_events (
     -- Monotonic and assigned by the database: two events can share a
     -- timestamp, and a sequence cannot.
     seq          bigserial   PRIMARY KEY,
@@ -102,7 +112,7 @@ CREATE TABLE IF NOT EXISTS outcome_events (
         REFERENCES decision_records (tenant_id, decision_id)
 );
 
-CREATE INDEX IF NOT EXISTS outcome_events_by_decision
+CREATE INDEX outcome_events_by_decision
     ON outcome_events (tenant_id, decision_id, seq);
 
 -- --------------------------------------------------------------------------
@@ -120,7 +130,7 @@ CREATE INDEX IF NOT EXISTS outcome_events_by_decision
 -- Same foreign key and same append-only trigger: an attempt that cannot be
 -- joined to a decision records nothing.
 
-CREATE TABLE IF NOT EXISTS delivery_attempts (
+CREATE TABLE delivery_attempts (
     seq           bigserial   PRIMARY KEY,
     tenant_id     text        NOT NULL,
     decision_id   text        NOT NULL,
@@ -149,14 +159,14 @@ CREATE TABLE IF NOT EXISTS delivery_attempts (
         REFERENCES decision_records (tenant_id, decision_id)
 );
 
-CREATE INDEX IF NOT EXISTS delivery_attempts_by_decision
+CREATE INDEX delivery_attempts_by_decision
     ON delivery_attempts (tenant_id, decision_id, seq);
 
 -- --------------------------------------------------------------------------
 -- Append-only
 -- --------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION ledger_reject_mutation() RETURNS trigger AS $$
+CREATE FUNCTION ledger_reject_mutation() RETURNS trigger AS $$
 BEGIN
     RAISE EXCEPTION
         'append-only: % on % is not permitted',
@@ -168,17 +178,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS decision_records_append_only ON decision_records;
 CREATE TRIGGER decision_records_append_only
     BEFORE UPDATE OR DELETE ON decision_records
     FOR EACH ROW EXECUTE FUNCTION ledger_reject_mutation();
 
-DROP TRIGGER IF EXISTS outcome_events_append_only ON outcome_events;
 CREATE TRIGGER outcome_events_append_only
     BEFORE UPDATE OR DELETE ON outcome_events
     FOR EACH ROW EXECUTE FUNCTION ledger_reject_mutation();
 
-DROP TRIGGER IF EXISTS delivery_attempts_append_only ON delivery_attempts;
 CREATE TRIGGER delivery_attempts_append_only
     BEFORE UPDATE OR DELETE ON delivery_attempts
     FOR EACH ROW EXECUTE FUNCTION ledger_reject_mutation();
@@ -190,4 +197,3 @@ CREATE TRIGGER delivery_attempts_append_only
 -- limit. The promise itself — which decision that key resolved to — is safe
 -- because the decision it points at cannot be changed or removed.
 
-COMMIT;

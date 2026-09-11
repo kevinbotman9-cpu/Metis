@@ -72,8 +72,12 @@ cases, so give it a database of its own.
 
 - **No connection pooling policy, retries or timeouts.** The store takes a
   `Queryable`; how connections are managed is the caller's decision.
-- **No migration runner.** One idempotent file, applied by
-  `createRegistryStore({ migrate: true })`. A second migration needs a real
-  runner, and that is the moment to add one rather than now.
+- **Migrations are numbered and run once.** `migrations/001_registry.sql` is
+  a plain baseline applied by `@metis/core/migrate` when the store is created,
+  recorded in `registry_schema_migrations` with its checksum. A change is
+  `002_*.sql`, never an edit: the runner refuses a database whose recorded
+  checksum no longer matches, and `tests/migrations-frozen.test.ts` refuses the
+  pull request. A database built before the runner is refused rather than
+  adopted — drop it once and let it be recreated (G-077).
 - **No signing.** `CompiledStrategy` has an `artifactHash` but nothing signs it,
   so the registry can prove content is unchanged and not who vouched for it.

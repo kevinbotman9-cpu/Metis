@@ -673,118 +673,6 @@ have produced.
 
 ---
 
-### G-077 — A change inside an existing `CREATE` never reaches a database that already has the table
-
-**Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — the fix needs a decision first; the options are below
-
-**How the schema changes today.** Each of the three stores has one migration
-file (`packages/{registry,ledger,catalogue}/migrations/001_*.sql`), re-run whole
-by `runMigration` on every start, built from `CREATE … IF NOT EXISTS`. That
-statement does nothing to a table that already exists. So editing a column, a
-constraint or a default inside it changes every *new* database and silently
-never reaches an existing one. The only way a change reaches an existing
-database is a hand-written conditional statement in the same file — an
-`ALTER … IF NOT EXISTS`, or a `DO` block that probes `information_schema` first
-— and nothing records which of them a given database has run.
-
-**The registry has needed four of those in seven days**: the `strategy_name` →
-`flow_name` rename, `shadow_version`, the widened event-type `CHECK`, and
-`tests`. One of the four was placed where it could not work, which is G-076. The
-ledger and catalogue have so far only added whole tables, which do reach an
-existing database.
-
-**The checks added for G-076 cannot see this.** They migrate an *empty* database
-once and twice and compare; an edit inside a `CREATE` applies to an empty
-database identically both times. The one upgrade case that exists covers a
-single column, `registry_versions.tests`. CI never sees an old database at all,
-because every job starts with a new one.
-
-**It has already happened.** Every historical version of each migration was
-built into a database and upgraded with today's migration, then compared with a
-fresh one — a one-off diagnostic, not a check. Ledger and catalogue: every
-version reaches today's schema. Registry: every version does except the first.
-A registry database created before the vocabulary rename (`929d6ef`, 2026-09-04)
-ends with both foreign keys on `registry_environments` still named
-`…_strategy_name_active_versi_fkey` and `…_strategy_name_previous_ver_fkey`: the
-rename renamed the columns and not the constraints. The local
-`metis_registry_test` this was written on carries both. They behave identically
-today; the first change that names either constraint misses it on that database,
-and `IF EXISTS` makes the miss silent.
-
-#### The fix, which is not built here
-
-1. **Numbered migrations, each run once, with a recorded version.** `001_…`,
-   `002_…` per package; a `schema_migrations` table (version, checksum, applied
-   at) written in the same transaction as each migration, under the advisory
-   lock `runMigration` already takes; a runner that applies what is missing in
-   order and **refuses to start if an applied file's checksum has changed**. A
-   change is a new file, reviewed as one. Nothing edits history.
-2. **An upgrade-diff check, keeping the one idempotent file.** CI builds a
-   database from the base branch's migration, applies the pull request's, and
-   diffs it against a fresh one — the diagnostic above, run on every change. It
-   detects and fixes nothing: every change is still hand-written conditional DDL
-   in one growing file, a constraint change still needs a `DO` block, and it
-   proves an upgrade from the previous version only, not from whatever version a
-   deployment is actually on. A data backfill has nowhere to go.
-3. **A declarative schema-diff tool at deploy** (Atlas, pg-schema-diff and the like).
-   The target schema is declared and the tool writes the `ALTER`s. That puts
-   generated DDL against production at start-up, and an ambiguous change — a
-   rename — reads as drop-and-add, which on an append-only table is data loss
-   nobody reviewed.
-4. **Freeze the `CREATE` bodies.** A check refuses any edit inside an existing
-   `CREATE`, so every change has to be an `ALTER` placed after it. The cheapest
-   option. It keeps the conditional-DDL file and its reasoning cost, and still
-   records nothing about what a database has run.
-
-**Option 1, with a runner written here rather than a dependency.** The
-one-connection lock and the file's own `BEGIN`/`COMMIT` are already bespoke in
-three copies of `create-store.ts`, and what is needed is small: read a
-directory, compare against a table, apply in order, record a checksum.
-`node-pg-migrate` would also do it, and brings its own lock and table
-conventions to reconcile with those.
-
-**What option 1 costs today: one slice, and nothing else.** No chain hash moves,
-no API changes, no data moves. The runner once, three `create-store.ts` files
-switched to it, the three existing checks kept (all migrations applied to an
-empty database produce the schema), and one new check: a file under
-`migrations/` that exists on `main` may not change. And one thing that is only
-free now: **each `001` can be rewritten as a plain baseline**, the rename block
-and the conditional steps deleted and the two constraints given their current
-names, because no database exists whose upgrade path has to be preserved.
-
-**What it costs once a database holds real data — and this is what should
-decide the timing.**
-
-- **Nothing records what any database has run.** Adopting numbered migrations
-  then starts with inferring each live database's version from its schema, by
-  the kind of diff above, one environment at a time, and recording a baseline
-  that was guessed. A wrong guess applies DDL to production, or skips DDL it
-  needed.
-- **The shims become permanent.** Every conditional step in each `001` is then
-  load-bearing for some live database, so none can be removed, and every reader
-  of the file carries all of them, correctly ordered, forever.
-- **Changes that need existing rows rewritten stop being free.** The ledger's
-  three tables, `registry_events` and `catalogue_events` refuse `UPDATE` and
-  `DELETE` by trigger. Today a `NOT NULL` column with no default, a narrowed
-  `CHECK`, or ADR-004's amendment — encrypting `decision_records.record` and
-  re-deriving its subject column — costs nothing, because there are no rows.
-  Once there are, each needs either a trigger bypass inside a migration, which
-  ADR-004 rejects as the end of the guarantee, or a new table beside the old
-  one that still holds what it cannot delete.
-- **The timing is fixed from both sides.** ADR-004's amendment already says no
-  deployment may write real customer references to the PostgreSQL ledger until
-  its changes land. Those are the first non-additive changes this schema will
-  need, and they need a mechanism that runs a change once and records that it
-  did. So: before or with ADR-004's ledger changes, and before the first
-  database that holds real data — which is the same date.
-
-**Done when:** a database created from any earlier migration reaches the same
-schema as a fresh one, held by a check that builds such a database rather than
-assuming it; an edit to a change that has already been applied is refused by a
-check; and which option was taken is recorded.
-
----
-
 ### G-075 — Retention suitability is decided per request, not per offer, and in the seed by a coin flip
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-026](BACKLOG.md)
@@ -1406,6 +1294,173 @@ sending zero.
 
 ## Resolved
 
+### G-077 — A change inside an existing `CREATE` never reaches a database that already has the table
+
+**Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** none — decided and built the day it was registered; see *Closed* at the end
+
+**How the schema changes today.** Each of the three stores has one migration
+file (`packages/{registry,ledger,catalogue}/migrations/001_*.sql`), re-run whole
+by `runMigration` on every start, built from `CREATE … IF NOT EXISTS`. That
+statement does nothing to a table that already exists. So editing a column, a
+constraint or a default inside it changes every *new* database and silently
+never reaches an existing one. The only way a change reaches an existing
+database is a hand-written conditional statement in the same file — an
+`ALTER … IF NOT EXISTS`, or a `DO` block that probes `information_schema` first
+— and nothing records which of them a given database has run.
+
+**The registry has needed four of those in seven days**: the `strategy_name` →
+`flow_name` rename, `shadow_version`, the widened event-type `CHECK`, and
+`tests`. One of the four was placed where it could not work, which is G-076. The
+ledger and catalogue have so far only added whole tables, which do reach an
+existing database.
+
+**The checks added for G-076 cannot see this.** They migrate an *empty* database
+once and twice and compare; an edit inside a `CREATE` applies to an empty
+database identically both times. The one upgrade case that exists covers a
+single column, `registry_versions.tests`. CI never sees an old database at all,
+because every job starts with a new one.
+
+**It has already happened.** Every historical version of each migration was
+built into a database and upgraded with today's migration, then compared with a
+fresh one — a one-off diagnostic, not a check. Ledger and catalogue: every
+version reaches today's schema. Registry: every version does except the first.
+A registry database created before the vocabulary rename (`929d6ef`, 2026-09-04)
+ends with both foreign keys on `registry_environments` still named
+`…_strategy_name_active_versi_fkey` and `…_strategy_name_previous_ver_fkey`: the
+rename renamed the columns and not the constraints. The local
+`metis_registry_test` this was written on carries both. They behave identically
+today; the first change that names either constraint misses it on that database,
+and `IF EXISTS` makes the miss silent.
+
+#### The fix, as it was registered
+
+1. **Numbered migrations, each run once, with a recorded version.** `001_…`,
+   `002_…` per package; a `schema_migrations` table (version, checksum, applied
+   at) written in the same transaction as each migration, under the advisory
+   lock `runMigration` already takes; a runner that applies what is missing in
+   order and **refuses to start if an applied file's checksum has changed**. A
+   change is a new file, reviewed as one. Nothing edits history.
+2. **An upgrade-diff check, keeping the one idempotent file.** CI builds a
+   database from the base branch's migration, applies the pull request's, and
+   diffs it against a fresh one — the diagnostic above, run on every change. It
+   detects and fixes nothing: every change is still hand-written conditional DDL
+   in one growing file, a constraint change still needs a `DO` block, and it
+   proves an upgrade from the previous version only, not from whatever version a
+   deployment is actually on. A data backfill has nowhere to go.
+3. **A declarative schema-diff tool at deploy** (Atlas, pg-schema-diff and the like).
+   The target schema is declared and the tool writes the `ALTER`s. That puts
+   generated DDL against production at start-up, and an ambiguous change — a
+   rename — reads as drop-and-add, which on an append-only table is data loss
+   nobody reviewed.
+4. **Freeze the `CREATE` bodies.** A check refuses any edit inside an existing
+   `CREATE`, so every change has to be an `ALTER` placed after it. The cheapest
+   option. It keeps the conditional-DDL file and its reasoning cost, and still
+   records nothing about what a database has run.
+
+**Option 1, with a runner written here rather than a dependency.** The
+one-connection lock and the file's own `BEGIN`/`COMMIT` are already bespoke in
+three copies of `create-store.ts`, and what is needed is small: read a
+directory, compare against a table, apply in order, record a checksum.
+`node-pg-migrate` would also do it, and brings its own lock and table
+conventions to reconcile with those.
+
+**What option 1 costs today: one slice, and nothing else.** No chain hash moves,
+no API changes, no data moves. The runner once, three `create-store.ts` files
+switched to it, the three existing checks kept (all migrations applied to an
+empty database produce the schema), and one new check: a file under
+`migrations/` that exists on `main` may not change. And one thing that is only
+free now: **each `001` can be rewritten as a plain baseline**, the rename block
+and the conditional steps deleted and the two constraints given their current
+names, because no database exists whose upgrade path has to be preserved.
+
+**What it costs once a database holds real data — and this is what should
+decide the timing.**
+
+- **Nothing records what any database has run.** Adopting numbered migrations
+  then starts with inferring each live database's version from its schema, by
+  the kind of diff above, one environment at a time, and recording a baseline
+  that was guessed. A wrong guess applies DDL to production, or skips DDL it
+  needed.
+- **The shims become permanent.** Every conditional step in each `001` is then
+  load-bearing for some live database, so none can be removed, and every reader
+  of the file carries all of them, correctly ordered, forever.
+- **Changes that need existing rows rewritten stop being free.** The ledger's
+  three tables, `registry_events` and `catalogue_events` refuse `UPDATE` and
+  `DELETE` by trigger. Today a `NOT NULL` column with no default, a narrowed
+  `CHECK`, or ADR-004's amendment — encrypting `decision_records.record` and
+  re-deriving its subject column — costs nothing, because there are no rows.
+  Once there are, each needs either a trigger bypass inside a migration, which
+  ADR-004 rejects as the end of the guarantee, or a new table beside the old
+  one that still holds what it cannot delete.
+- **The timing is fixed from both sides.** ADR-004's amendment already says no
+  deployment may write real customer references to the PostgreSQL ledger until
+  its changes land. Those are the first non-additive changes this schema will
+  need, and they need a mechanism that runs a change once and records that it
+  did. So: before or with ADR-004's ledger changes, and before the first
+  database that holds real data — which is the same date.
+
+**Done when:** a database created from any earlier migration reaches the same
+schema as a fresh one, held by a check that builds such a database rather than
+assuming it; an edit to a change that has already been applied is refused by a
+check; and which option was taken is recorded.
+
+#### Closed 2026-09-11, with option 1
+
+`packages/core/src/migrate.ts` applies `packages/{registry,ledger,catalogue}/migrations/NNN_*.sql`
+in order, each once, in a transaction with a row in `<store>_schema_migrations`
+recording its version, name and checksum, under the store's own advisory lock. A
+runner written here rather than `node-pg-migrate`: the three copies of the lock
+and transaction handling in `create-store.ts` are now one. Before applying
+anything it refuses an applied file that has changed or been renamed, an applied
+file that is gone, a gap or duplicate in the numbering, a file with its own
+`BEGIN` or `COMMIT`, and a database that has the first migration's objects and
+no record of running it — one built before this, refused rather than adopted so
+its drift is not carried forward.
+
+**The one-time freedom was taken.** Each `001` is now a plain baseline: no
+`IF NOT EXISTS`, no conditional blocks, no `BEGIN`/`COMMIT`. The registry's
+rename block and its three other upgrade steps are deleted, and the two foreign
+keys on `registry_environments` are named in the migration —
+`registry_environments_active_version_fkey` and
+`registry_environments_previous_version_fkey` — so nothing depends on a name
+Postgres generated from a column that has since been renamed, and no database
+carries the `strategy_name` names forward.
+
+**Checked three ways, each seen to fail:**
+
+- **An edited applied file.** The runner refuses it —
+  `refuses an applied file that has changed, and applies nothing` and
+  `refuses a renamed applied file` in `packages/core/tests/migrate.test.ts`,
+  both red with the checksum comparison taken out of the runner. And a pull
+  request cannot make the edit in the first place: `tests/migrations-frozen.test.ts`
+  compares every migration file where the branch left `main` against the
+  working tree by the same checksum. Against a commit holding the runner it went
+  red on a one-line comment added to `001_registry.sql`, and on
+  `001_ledger.sql` deleted; a new `002` passed. CI checks out with
+  `fetch-depth: 0` so `origin/main` is there, and the check fails rather than
+  skips without it.
+- **A missing file in the sequence.** `refuses a missing file in the sequence`
+  — refused from the directory, before a connection is opened — and
+  `refuses a database that has run a file which is no longer there`; red with
+  the gap check and the missing-file check taken out respectively.
+- **A database at an older version reaching a fresh one's schema.**
+  `brings a database at an older version to the schema a fresh one has` in core,
+  over a three-file sequence, and
+  `brings a database at every earlier version to the schema a fresh one has` in
+  each store. With the runner made to skip a file on resume, both went red —
+  the store's version proved with a temporary registry `002`, failing on
+  exactly the index that file created. Until a store has a `002` its loop has
+  nothing to iterate, and its comment says so rather than hiding it.
+
+The G-076 checks stay in all three stores: one run produces the schema two runs
+produce, and the store can read after one run.
+
+**What it costs, once.** A database built before this is refused, with a message
+naming it and saying to drop it; the local `metis_registry_test` on the machine
+this was written on is one. CI is unaffected — every job starts with an empty
+database. After that, the cost is the one this was chosen for: a change to a
+schema is a new file.
+
 ### G-076 — The registry migration leaves out a column on a fresh database, and CI fails when the wrong test file migrates first
 
 **Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** none — a defect, fixed in the slice that registered it
@@ -1479,6 +1534,11 @@ the first two pass and the third fails alone, so the upgrade path is held by its
 own check rather than borrowed from the fresh-database ones. The Registry step's
 78 tests then pass against a freshly created database, the state CI starts every
 job in.
+
+**Superseded the same day by G-077.** The `ALTER` kept above for databases
+created before the column is gone with the rest of `001`'s upgrade steps:
+`001_registry.sql` is now a plain baseline applied once by the runner, and a
+database built before it is refused rather than patched.
 
 **Extended the same day to the other two migrations in the tree**, the ledger's
 and the catalogue's (`packages/{ledger,catalogue}/tests/migration.test.ts`).
