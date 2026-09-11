@@ -194,6 +194,10 @@ export interface PolicyCondition {
 export interface SchemaField {
   /** The path segment, e.g. `age` in `customer.age`. */
   name: string;
+  /** Where the value comes from. ADR-014 §2. One of profile, request, interaction, aggregation, or connector:<id> naming the integration — which is what lets a trace attribute a value to the system that produced it. Required: an undeclared origin is the gap. */
+  origin: string;
+  /** What the field is, as opposed to what it holds. Consent is handled by ADR-014 §7 and contact points by §8, and neither rule should have to match on a field name. Declared now; acted on when §7 lands. */
+  class: "attribute" | "consent" | "contact_point" | "identifier";
   /** integer and decimal are separate because the difference is a real authoring constraint, and because the value control differs. */
   type: "string" | "integer" | "decimal" | "boolean" | "timestamp" | "enum" | "money";
   description: string;
@@ -435,12 +439,24 @@ export interface ProfileSchema {
   tenantId: string;
   /** Bumped whenever the shape changes. */
   version: string;
-  /** The entity the decision input *is*. */
-  root: string;
+  roots: SchemaRoots;
   entities: SchemaEntity[];
   aggregations: SchemaAggregation[];
   updatedAt: string;
   updatedBy: string;
+}
+
+/** A root, and the path segment that addresses it. */
+export interface SchemaRoot {
+  /** The first path segment, e.g. customer in customer.age. Declared rather than derived from the entity name, so renaming one is not silently renaming every policy's field path. */
+  alias: string;
+  entity: string;
+}
+
+/** The two roots a path can start from. ADR-014 §2. A decision reads a subject and a request, and they have different lifetimes: the profile is held against a customer and written by ingestion; the context is what only the caller can know and is never stored. One root called DecisionInput modelled a request body and called it a customer. */
+export interface SchemaRoots {
+  profile: SchemaRoot;
+  request: SchemaRoot;
 }
 
 /** One selectable path, as the policy editor's field picker lists them. */

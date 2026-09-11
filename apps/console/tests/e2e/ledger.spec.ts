@@ -53,14 +53,18 @@ test.describe('the decision ledger', () => {
    * these are written out rather than left to the platform.
    */
   const RESOLVED = {
-    monthlySpend: 4200,
-    arrearsDays: 0,
-    inGoodStanding: true,
-    dataUsageGb: 42.5,
-    roamingDays: 3,
-    tenureMonths: 26,
-    marketingConsent: true,
-    profilingConsent: true,
+    customer: {
+      monthly_spend: 4200,
+      arrears_days: 0,
+      in_good_standing: true,
+      tenure_months: 26,
+      marketing_consent: true,
+      profiling_consent: true,
+      credit_score: 700,
+      credit_band: 'A',
+      usage: { data_usage_gb: 42.5, roaming_days: 3 },
+    },
+    context: { device_in_stock: true },
   };
 
   test('a decision made now can be replayed, given the inputs back', async ({ request }) => {
@@ -72,7 +76,9 @@ test.describe('the decision ledger', () => {
     // long as an audit needs without keeping the customer data it was made
     // from. Replaying one is therefore the caller handing the input back, and
     // the engine proving it is the same input.
-    const input = { customer: { age: 41 }, ...RESOLVED };
+    // The caller's branches win leaf by leaf, so `age` joins the resolved
+    // fields under the same root rather than replacing them.
+    const input = { ...RESOLVED, customer: { ...RESOLVED.customer, age: 41 } };
     const made = await decide(request, body({ customerId: 'cust_replay_live', input }));
     expect(made.status).toBe(200);
 
@@ -91,11 +97,11 @@ test.describe('the decision ledger', () => {
   });
 
   test('replaying with the wrong inputs blames the inputs, not the engine', async ({ request }) => {
-    const input = { customer: { age: 41 }, ...RESOLVED };
+    const input = { ...RESOLVED, customer: { ...RESOLVED.customer, age: 41 } };
     const made = await decide(request, body({ customerId: 'cust_replay_wrong', input }));
 
     const replayed = await request.post(`/api/decisions/${made.json.id}/replay`, {
-      data: { input: { ...input, customer: { age: 99 } } },
+      data: { input: { ...input, customer: { ...input.customer, age: 99 } } },
     });
     expect(replayed.status()).toBe(200);
     const result = await replayed.json();
