@@ -196,6 +196,8 @@ otherwise.
 | W-069 | 14 | Generated files regenerate to the same bytes, and the gates leave the tree as they found it | DONE | 1 |
 | W-070 | 14 | The checks `main` requires are the jobs the workflow runs | DONE | 1 |
 | W-071 | 14 | An aggregate latency figure with a measured source | OPEN | 2 |
+| W-072 | 14 | The register's sections agree with its statuses | DONE | 1 |
+| W-073 | 14 | A duplicate-entry check for the gap register | OPEN | 2 |
 
 ---
 
@@ -1497,6 +1499,35 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-073 — A duplicate-entry check for the gap register
+
+**Registered:** 2026-09-11 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet
+
+Gate 2 · Gap [G-064](gaps.md)
+
+Two entries described the same defect a day apart. Measured over every pair in
+the register: text similarity cannot separate duplicates from neighbours — the
+known pair ranks fifteenth of 1,953 — but shared citations can. No pair of open
+entries cites two of the same source files, and the duplicate does.
+
+**Done when:** an entry citing two or more of the same source files as an open
+entry fails, unless one names the other's id, and the check is shown to fire on
+G-037 and G-052 as they stood on 2026-09-10.
+
+### W-072 — The register's sections agree with its statuses
+
+**Registered:** 2026-09-11 · **Stage:** 14 · **Status:** DONE
+**Check:** `tests/gaps-register.test.ts`
+
+Gate 1 · Gap [G-064](gaps.md)
+
+Four resolved entries sat under `## Open`, so the headings said 38 open where
+34 were.
+
+**Done when:** an entry whose section and status disagree fails, in both
+directions, and the four are moved. Verified three ways.
+
 ### W-071 — An aggregate latency figure with a measured source
 
 **Registered:** 2026-09-11 · **Stage:** 14 · **Status:** OPEN

@@ -66,6 +66,8 @@ interface Entry {
   title: string;
   meta: string;
   line: number;
+  /** The `##` heading the entry sits under: Open, or Resolved. */
+  section: string;
 }
 
 function entries(): Entry[] {
@@ -82,6 +84,7 @@ function entries(): Entry[] {
       // The metadata line is the first non-blank line after the heading.
       meta: (lines.slice(i + 1, i + 4).find((l) => l.trim() !== '') ?? '').trim(),
       line: i + 1,
+      section,
     });
   });
   return found;
@@ -134,6 +137,42 @@ describe('the gap register stays usable', () => {
       }
     }
     expect(bad).toEqual([]);
+  });
+
+  it('files every entry under the section its status names', () => {
+    // The register's own instructions say a closed entry moves to Resolved.
+    // Nothing checked it, and four had not moved: G-049, G-050, G-054 and
+    // G-060, all resolved within a week of being written. The Open section
+    // listed 38 entries where 34 were open, so anyone counting what is still
+    // wrong by reading the headings got a number that was wrong by four — and
+    // reading an entry to find out is exactly the cost the register exists to
+    // remove.
+    const expected: Record<string, string> = { Open: 'Open', Resolved: 'Resolved' };
+    const misfiled = all
+      .filter((e) => e.meta.match(/\*\*Status:\*\* (\w+)/)?.[1] !== expected[e.section])
+      .map(
+        (e) =>
+          `${e.id} (gaps.md:${e.line}) is under "## ${e.section}" with ` +
+          `${e.meta.match(/\*\*Status:\*\* \w+/)?.[0] ?? '(no status)'}`
+      );
+    expect(
+      misfiled,
+      'move the entry to the section its status names, or correct the status'
+    ).toEqual([]);
+  });
+
+  it('has both sections populated, so the check above is checking something', () => {
+    // A guard on the guard. If a restructure renamed either heading, every
+    // entry would land in one section and the comparison above would still
+    // pass for that half.
+    const bySection = new Map<string, number>();
+    for (const e of all) bySection.set(e.section, (bySection.get(e.section) ?? 0) + 1);
+    expect(bySection.get('Open'), 'no entries under ## Open').toBeGreaterThan(10);
+    expect(bySection.get('Resolved'), 'no entries under ## Resolved').toBeGreaterThan(10);
+    expect([...bySection.keys()].sort(), 'an entry sits outside Open and Resolved').toEqual([
+      'Open',
+      'Resolved',
+    ]);
   });
 
   it('cites no work item the backlog has never heard of', () => {

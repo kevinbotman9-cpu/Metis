@@ -27,7 +27,8 @@ the ids, dates and statuses are new, and the table is gone.
    with no work item is a note, not a register entry.
 3. When it closes, move the entry to **Resolved**, set `**Resolved:**`, and say
    what closed it. Do not delete it: the record of what was wrong is worth more
-   than the tidiness.
+   than the tidiness. `tests/gaps-register.test.ts` fails if an entry's section
+   and its status disagree, in either direction.
 
 Since 2026-09-04 the spec is enforced rather than aspirational. `packages/client`
 is generated from it, the console compiles against those types, and
@@ -713,73 +714,6 @@ p50, p95 and p99 over a stated window, from measurements the running decision
 path records, and a console screen reads it with the window and the source
 stated beside the number.
 
-### G-060 — The local gate and the CI gate were different gates, and nothing said so
-
-**Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-068](BACKLOG.md)
-
-Running the obvious commands in a terminal and seeing green meant having
-checked *some* subset of what CI checks. Which subset was knowable only by
-reading `.github/workflows/console.yml` line by line, and three things had
-drifted out of it entirely.
-
-**The root lint ran nowhere on a pull request.** `verify` sets
-`working-directory: apps/console` as a job default. Its `Lint` step — written
-to be the root lint, and commented as such — therefore ran `npm run lint`
-*inside the console*, which is the console's own lint. The step immediately
-after it, `Lint (console)`, ran the console's lint again. So
-`eslint packages bench tests scripts` had never run in CI, and the two steps
-that looked like belt and braces were the same brace twice.
-
-**Three workspaces ran nowhere in CI.** `test:core`, `test:catalogue` and
-`test:portability` are in the root `npm test` chain and appeared in no workflow
-step: canonical serialisation, the catalogue model and the export/import round
-trip were verified on developer machines and nowhere else.
-
-**`npm run conformance` was not a script.** CLAUDE.md names it twice — every
-session is told to open and close by running it — and `package.json` had no
-such entry. Every session has been invoking
-`node --import tsx scripts/conformance.mjs` by hand, and the documented command
-would have failed. The UX contract therefore ran in CI not at all.
-
-The three met in one place on 2026-09-10. A two-character mistake — an unused
-`useMemo` import — reached a pull request behind three consecutive session
-reports that lint was clean. Each report was made after running the root lint,
-which does not cover the console; CI caught it with the console lint, which is
-the one CI runs twice.
-
-That is the shape of the defect: **not that a check was missing, but that two
-different sets of checks both called themselves "the gates"**, and every claim
-made from a terminal was about the smaller one without saying so.
-
-**Resolved by:** `npm run gates` runs the list in `scripts/gates.mjs`, which is
-exactly what CI runs, in each job's order, stopping where CI stops.
-`tests/gates-parity.test.ts` reads that list and the workflow and fails when
-either gains or loses a step the other does not have — verified to bite in both
-directions, by adding a step to the workflow and by removing a gate from the
-script. A workflow step that is genuinely setup goes in `NOT_A_GATE` with a
-reason, and a job outside the local run is declared with one.
-
-The three holes were closed in the same change: the root lint gained
-`working-directory: .`, the three workspaces gained steps, and `conformance`
-gained a script and a CI step.
-
-**One gate needed a different shape.** `npm run conformance` exits non-zero on
-a healthy tree — 26 standing failures, most of them `layout-manifests`, a rule
-that fires once per route with no implementation behind it. Wired in raw it
-would have reddened every pull request and taught everyone to ignore the one
-check that reads the UI contract. `scripts/check-conformance.mjs` enforces what
-CLAUDE.md actually says — the count may not rise — against
-`docs/ux-conformance-baseline.json`, and fails equally when the count falls and
-the baseline was not lowered in the same commit, because unrecorded slack is
-where the next regression hides. Verified in all three directions: rise exits 1,
-unrecorded fall exits 1, at the baseline exits 0.
-
-**What it does not cover:** `kotlin-conformance` stays out of the local run, so
-a change that breaks the JVM engine is caught on the pull request rather than
-before it. Running Gradle before every console commit is the wrong trade; the
-declaration in `OUT_OF_SCOPE` says so out loud rather than leaving it to be
-discovered.
-
 ### G-059 — Every `next-best-action` decision considers the same 22 offers, out of 251
 
 **Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-067](BACKLOG.md)
@@ -924,42 +858,6 @@ it, which is the most it can honestly say.
 **Done when:** a rule names the package that supplied it, so a refusal can be
 attributed to a pack rather than to a bare policy id.
 
-### G-054 — The flake hunt stopped at the first flake and threw away the evidence
-
-**Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-063](BACKLOG.md)
-
-Run #33 was the first time the scheduled hunt ever fired, and it reported one
-sample out of four.
-
-The four runs were a plain `run:` chain, so Run 1's failure ended the job and
-Runs 2, 3 and **Run 4 — shuffled group order** were skipped. Run 4 is the only
-step that varies which specs have run before which, which is the whole reason
-the job exists; it has never executed. A hunt for a suite that fails one run in
-three that stops after the first failure has learned nothing it did not already
-know.
-
-The upload was worse, because it looked fine: `##[warning]No files were found
-with the provided path: apps/console/playwright-report`. Two independent causes.
-`--reporter=line` on the command line replaces the config's reporter list, so
-`playwright-results.json` was never written; and `playwright-report` is the
-*html* reporter's directory, which nothing in this repo produces. The trace and
-the screenshot **were** captured — the log names
-`test-results/…/trace.zip` — and an upload pointed at the wrong directory
-discarded them. By the time anyone read the run, the failure could not be
-reproduced from it.
-
-`if: failure()` on the upload would also have stopped firing once the runs
-carried `continue-on-error`, so it is now `if: always()`.
-
-**Resolved by:** `tests/flake-hunt.test.ts`, over
-`.github/workflows/console.yml`. Each run carries an `id` and
-`continue-on-error`, a final *"Every run must be clean"* step reads all four
-outcomes and fails once with all four visible, and each run writes its own
-`playwright-results-N.json` and `test-results/run-N`. `playwright.config.ts`
-reads `PLAYWRIGHT_JSON_OUTPUT_NAME` explicitly, because a config `outputFile`
-wins over the environment variable and four runs would otherwise have
-overwritten each other.
-
 ### G-053 — A storefront slot can name a decision while showing no offer
 
 **Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-064](BACKLOG.md)
@@ -1030,102 +928,6 @@ ships.
 **Done when:** payloads are redacted by default with a deliberate reveal, the
 reveal is audited, and a retention window exists — or a decision is recorded
 that says why each of those is not needed.
-
-### G-050 — `RequireAuth` checked for a session and never for a permission
-
-**Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-061](BACKLOG.md)
-
-The navigation manifest's `permission` field gated one thing: whether a link was
-drawn in the rail. Nothing enforced it on the route.
-
-Twenty-one routes. Four enforced a permission by hand-writing their own
-`Guarded()` wrapper. **Sixteen enforced nothing**, and three of those sixteen —
-`/decisions`, `/decision-flows`, `/performance` — *declared* a permission the
-rail obeyed and the route ignored. The link was hidden and the URL was open. A
-detail page never had a guard at all, so `/offers` was shut while
-`/offers/prop_5g_unlimited_24` was not, and offer ids are printed in traces.
-
-Two things kept it invisible for the life of the console:
-
-**Every test asserted what a permitted user could see.** None asserted what a
-refused one could not. A guard is only observable through its refusals.
-
-**No account could be refused anything.** Sarah, Priya and Marcus hold
-`view:offers`, `view:flows`, `view:decisions` and `view:audit` between them with
-no gaps, so even a correctly written test signing in as one of them would have
-found every screen open and concluded nothing.
-
-The fix is not sixteen more guards. A guard a page opts into is a guard some
-page will not write, and the repository has the evidence: five wrote one, sixteen
-did not, and nothing went red. `RequireAuth` now derives the requirement from
-the same manifest `buildNav` reads, so a route cannot opt out by omission — only
-by not being a route. The four hand-written wrappers were deleted.
-
-Three variants of the same omission surfaced while fixing it, all of them the
-rail and the route disagreeing about what a screen requires:
-
-- `/placements` **enforced** `view:flows` while the manifest declared nothing,
-  so the rail offered the link to people the page then refused.
-- The Policy group hid `/targeting-policies` and `/frequency-policy` from Priya,
-  who holds `edit:policies` and authors the qualification model, because nothing
-  declared the entitlement for the rail's permission rule to find.
-- `/settings` was filed under Administration › Tenancy beside Tenants and
-  Residency. It is the signed-in user's own name, theme and environment; it is
-  now reached from the account panel and gated on nothing.
-
-`view:integrations` and `view:autonomy` were added to the vocabulary rather than
-gating four read surfaces on `edit:integrations` and `edit:autonomy`. "You may
-not look unless you may change" is backwards on this product.
-
-**Resolved by:** `apps/console/tests/unit/route-authorisation.test.ts` (eight
-assertions) and `apps/console/tests/e2e/route-authorisation.spec.ts`
-(`@screen-only`, seven). Verified to bite three ways: reverting `RequireAuth` to
-the session-only check turns one unit and three e2e red; a page rendering
-outside `RequireAuth` turns *wraps RequireAuth, without exception* red; and a
-page enforcing what the rail does not declare was red on arrival, on
-`/placements`.
-
-**The limit, stated rather than left to be discovered.** The check that no link
-is drawn to a screen that will refuse it covers the **navigation rail**, which
-is generated from the manifest and therefore enumerable. It does not cover links
-inside a page. `/integrations/traffic` links each call to the decision it
-produced, and `view:integrations` and `view:decisions` are different
-permissions: an operator who may read the call log may not read what it links
-to, and finds that out by clicking. Every screen with a cross-reference has the
-same shape. Enumerating in-page links means either a convention every `Link`
-follows or a crawl, and neither is this change.
-
-### G-049 — `/performance` gave a delivered decision and an undeliverable one the same marker
-
-**Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-060](BACKLOG.md)
-
-The screen half of [G-046](gaps.md), registered separately because the corpus
-half was a seeding rule and this one is a reading of the numbers.
-
-`/performance` opened on four figures in a row — decisions, offered, offered
-nothing, with an outcome — and a table of rates beneath them. Nothing anywhere
-on it distinguished a decision that reached a customer from one that won a slot
-on a channel with no sender, and **2,687 of the 3,426 decisions that offered
-something are the second kind**.
-
-Every figure on the old screen was correct. A marketer read `3,426 offered` and
-a click rate under it and drew a conclusion that was false, because the two
-numbers described different populations and the screen said so nowhere. That is
-the failure mode this platform is least able to afford: it is the most
-screenshot-able surface in the product and the one whose numbers most look like
-evidence.
-
-Rebuilt on **Cascade** — `docs/METIS_CONSOLE_SPEC.md` §4.7, added by the same
-slice. Five stages that nest, the break at `deliverable` drawn in the block
-colour with the count that fell out stated on the stage itself, and every rate
-below it naming the channel it describes. The overview, before a stage is
-selected, puts the realised value beside the expected margin of what was decided
-and never delivered.
-
-**Resolved by:** `apps/console/tests/e2e/performance-cascade.spec.ts` — six
-checks, each verified to bite: smoothing the break, rendering a rate for an
-undeliverable channel, and dropping the rail on selection each turn exactly one
-of them red.
 
 ### G-048 — The vocabulary check cannot see a file until it is committed
 
@@ -1244,6 +1046,50 @@ sending zero.
 
 ## Resolved
 
+### G-064 — Four resolved entries sat under `## Open`, so the register overstated what is wrong
+
+**Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** [W-072](BACKLOG.md)
+
+This file's own instructions say a closed entry moves to **Resolved**. Nothing
+checked it, and four had not moved: G-049, G-050, G-054 and G-060, each marked
+`**Status:** Resolved` while sitting under `## Open`. The Open section listed 38
+entries where 34 were open.
+
+The cost is small and exactly the cost this register exists to remove. Anyone
+counting what is still wrong by reading headings — which is how a register is
+read — got a number wrong by four, and could only find out by opening each
+entry. All four were written and resolved inside a week, by the sessions that
+wrote the entries.
+
+**Resolved by:** `tests/gaps-register.test.ts` compares each entry's section
+with its `**Status:**` line, and a second assertion fails if either section
+empties out, so a rename cannot make the first pass over nothing. The four
+entries were moved. Verified to bite three ways: on the four themselves, before
+they were moved; on an open entry marked Resolved where it stands; and on a
+resolved entry moved back under `## Open`.
+
+**On duplicate entries, which is the other half of the same problem.**
+[G-037](gaps.md) and [G-052](gaps.md) are one defect filed a day apart, and
+neither session found the other's entry. Whether a check could catch that was
+measured across all 1,953 pairs of entries rather than guessed:
+
+- **By text similarity, no.** On word overlap the known duplicate ranks 15th of
+  1,953. Fourteen pairs score higher and none is a duplicate, so a threshold
+  that catches it flags fifteen pairs to find one. A check with that precision
+  gets an exception list and then gets ignored.
+- **By shared citations, yes, narrowly.** Counting the source files an entry
+  cites in backticks, G-037 and G-052 share two. Across the 561 pairs where both
+  entries are open, **no pair shares two**, and the seven that share one share a
+  document like `CAPABILITIES.md` rather than code. So "a new entry citing two
+  of the same source files as an open entry, neither naming the other's id"
+  would have caught this duplicate and, on today's register, fires nowhere else.
+- **What it would still miss:** a duplicate written without citing the same
+  files. G-055 and G-057 read as neighbours and share no path at all.
+
+Not built in this slice: it is a second check with a different shape, and the
+measurement above is what it should be judged on. Registered as
+[W-073](BACKLOG.md).
+
 ### G-063 — Nothing held the checks `main` requires to the jobs that exist
 
 **Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** [W-070](BACKLOG.md)
@@ -1294,8 +1140,10 @@ offline.
   `GITHUB_TOKEN` set.
 - **It does not read `if:` conditions.** A job that is required and skipped on
   pull requests would pass it.
-- **The authenticated path has only run locally.** CI's use of `GITHUB_TOKEN`
-  has not been observed yet; it will be on this branch's first pull request run.
+- **The authenticated path has now run in CI**, twice: on pull request #16 and
+  on the push run for the merge commit `b6c7d5e`. Both `spec` jobs print the
+  list read from the API — `e2e-report, kotlin-conformance, spec, verify` —
+  against the six jobs in the workflow.
 
 ### G-062 — CI typechecked the console without Next's route types
 
@@ -1485,6 +1333,205 @@ without finding this entry — the register had no work item to hang it on, so
 nothing pointed back here. The index stopped carrying a measured duration. Both
 entries are kept: this one is the earlier record, and G-052 carries the second
 file, the decision and the checks.
+
+### G-060 — The local gate and the CI gate were different gates, and nothing said so
+
+**Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-068](BACKLOG.md)
+
+Running the obvious commands in a terminal and seeing green meant having
+checked *some* subset of what CI checks. Which subset was knowable only by
+reading `.github/workflows/console.yml` line by line, and three things had
+drifted out of it entirely.
+
+**The root lint ran nowhere on a pull request.** `verify` sets
+`working-directory: apps/console` as a job default. Its `Lint` step — written
+to be the root lint, and commented as such — therefore ran `npm run lint`
+*inside the console*, which is the console's own lint. The step immediately
+after it, `Lint (console)`, ran the console's lint again. So
+`eslint packages bench tests scripts` had never run in CI, and the two steps
+that looked like belt and braces were the same brace twice.
+
+**Three workspaces ran nowhere in CI.** `test:core`, `test:catalogue` and
+`test:portability` are in the root `npm test` chain and appeared in no workflow
+step: canonical serialisation, the catalogue model and the export/import round
+trip were verified on developer machines and nowhere else.
+
+**`npm run conformance` was not a script.** CLAUDE.md names it twice — every
+session is told to open and close by running it — and `package.json` had no
+such entry. Every session has been invoking
+`node --import tsx scripts/conformance.mjs` by hand, and the documented command
+would have failed. The UX contract therefore ran in CI not at all.
+
+The three met in one place on 2026-09-10. A two-character mistake — an unused
+`useMemo` import — reached a pull request behind three consecutive session
+reports that lint was clean. Each report was made after running the root lint,
+which does not cover the console; CI caught it with the console lint, which is
+the one CI runs twice.
+
+That is the shape of the defect: **not that a check was missing, but that two
+different sets of checks both called themselves "the gates"**, and every claim
+made from a terminal was about the smaller one without saying so.
+
+**Resolved by:** `npm run gates` runs the list in `scripts/gates.mjs`, which is
+exactly what CI runs, in each job's order, stopping where CI stops.
+`tests/gates-parity.test.ts` reads that list and the workflow and fails when
+either gains or loses a step the other does not have — verified to bite in both
+directions, by adding a step to the workflow and by removing a gate from the
+script. A workflow step that is genuinely setup goes in `NOT_A_GATE` with a
+reason, and a job outside the local run is declared with one.
+
+The three holes were closed in the same change: the root lint gained
+`working-directory: .`, the three workspaces gained steps, and `conformance`
+gained a script and a CI step.
+
+**One gate needed a different shape.** `npm run conformance` exits non-zero on
+a healthy tree — 26 standing failures, most of them `layout-manifests`, a rule
+that fires once per route with no implementation behind it. Wired in raw it
+would have reddened every pull request and taught everyone to ignore the one
+check that reads the UI contract. `scripts/check-conformance.mjs` enforces what
+CLAUDE.md actually says — the count may not rise — against
+`docs/ux-conformance-baseline.json`, and fails equally when the count falls and
+the baseline was not lowered in the same commit, because unrecorded slack is
+where the next regression hides. Verified in all three directions: rise exits 1,
+unrecorded fall exits 1, at the baseline exits 0.
+
+**What it does not cover:** `kotlin-conformance` stays out of the local run, so
+a change that breaks the JVM engine is caught on the pull request rather than
+before it. Running Gradle before every console commit is the wrong trade; the
+declaration in `OUT_OF_SCOPE` says so out loud rather than leaving it to be
+discovered.
+
+### G-054 — The flake hunt stopped at the first flake and threw away the evidence
+
+**Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-063](BACKLOG.md)
+
+Run #33 was the first time the scheduled hunt ever fired, and it reported one
+sample out of four.
+
+The four runs were a plain `run:` chain, so Run 1's failure ended the job and
+Runs 2, 3 and **Run 4 — shuffled group order** were skipped. Run 4 is the only
+step that varies which specs have run before which, which is the whole reason
+the job exists; it has never executed. A hunt for a suite that fails one run in
+three that stops after the first failure has learned nothing it did not already
+know.
+
+The upload was worse, because it looked fine: `##[warning]No files were found
+with the provided path: apps/console/playwright-report`. Two independent causes.
+`--reporter=line` on the command line replaces the config's reporter list, so
+`playwright-results.json` was never written; and `playwright-report` is the
+*html* reporter's directory, which nothing in this repo produces. The trace and
+the screenshot **were** captured — the log names
+`test-results/…/trace.zip` — and an upload pointed at the wrong directory
+discarded them. By the time anyone read the run, the failure could not be
+reproduced from it.
+
+`if: failure()` on the upload would also have stopped firing once the runs
+carried `continue-on-error`, so it is now `if: always()`.
+
+**Resolved by:** `tests/flake-hunt.test.ts`, over
+`.github/workflows/console.yml`. Each run carries an `id` and
+`continue-on-error`, a final *"Every run must be clean"* step reads all four
+outcomes and fails once with all four visible, and each run writes its own
+`playwright-results-N.json` and `test-results/run-N`. `playwright.config.ts`
+reads `PLAYWRIGHT_JSON_OUTPUT_NAME` explicitly, because a config `outputFile`
+wins over the environment variable and four runs would otherwise have
+overwritten each other.
+
+### G-050 — `RequireAuth` checked for a session and never for a permission
+
+**Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-061](BACKLOG.md)
+
+The navigation manifest's `permission` field gated one thing: whether a link was
+drawn in the rail. Nothing enforced it on the route.
+
+Twenty-one routes. Four enforced a permission by hand-writing their own
+`Guarded()` wrapper. **Sixteen enforced nothing**, and three of those sixteen —
+`/decisions`, `/decision-flows`, `/performance` — *declared* a permission the
+rail obeyed and the route ignored. The link was hidden and the URL was open. A
+detail page never had a guard at all, so `/offers` was shut while
+`/offers/prop_5g_unlimited_24` was not, and offer ids are printed in traces.
+
+Two things kept it invisible for the life of the console:
+
+**Every test asserted what a permitted user could see.** None asserted what a
+refused one could not. A guard is only observable through its refusals.
+
+**No account could be refused anything.** Sarah, Priya and Marcus hold
+`view:offers`, `view:flows`, `view:decisions` and `view:audit` between them with
+no gaps, so even a correctly written test signing in as one of them would have
+found every screen open and concluded nothing.
+
+The fix is not sixteen more guards. A guard a page opts into is a guard some
+page will not write, and the repository has the evidence: five wrote one, sixteen
+did not, and nothing went red. `RequireAuth` now derives the requirement from
+the same manifest `buildNav` reads, so a route cannot opt out by omission — only
+by not being a route. The four hand-written wrappers were deleted.
+
+Three variants of the same omission surfaced while fixing it, all of them the
+rail and the route disagreeing about what a screen requires:
+
+- `/placements` **enforced** `view:flows` while the manifest declared nothing,
+  so the rail offered the link to people the page then refused.
+- The Policy group hid `/targeting-policies` and `/frequency-policy` from Priya,
+  who holds `edit:policies` and authors the qualification model, because nothing
+  declared the entitlement for the rail's permission rule to find.
+- `/settings` was filed under Administration › Tenancy beside Tenants and
+  Residency. It is the signed-in user's own name, theme and environment; it is
+  now reached from the account panel and gated on nothing.
+
+`view:integrations` and `view:autonomy` were added to the vocabulary rather than
+gating four read surfaces on `edit:integrations` and `edit:autonomy`. "You may
+not look unless you may change" is backwards on this product.
+
+**Resolved by:** `apps/console/tests/unit/route-authorisation.test.ts` (eight
+assertions) and `apps/console/tests/e2e/route-authorisation.spec.ts`
+(`@screen-only`, seven). Verified to bite three ways: reverting `RequireAuth` to
+the session-only check turns one unit and three e2e red; a page rendering
+outside `RequireAuth` turns *wraps RequireAuth, without exception* red; and a
+page enforcing what the rail does not declare was red on arrival, on
+`/placements`.
+
+**The limit, stated rather than left to be discovered.** The check that no link
+is drawn to a screen that will refuse it covers the **navigation rail**, which
+is generated from the manifest and therefore enumerable. It does not cover links
+inside a page. `/integrations/traffic` links each call to the decision it
+produced, and `view:integrations` and `view:decisions` are different
+permissions: an operator who may read the call log may not read what it links
+to, and finds that out by clicking. Every screen with a cross-reference has the
+same shape. Enumerating in-page links means either a convention every `Link`
+follows or a crawl, and neither is this change.
+
+### G-049 — `/performance` gave a delivered decision and an undeliverable one the same marker
+
+**Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-060](BACKLOG.md)
+
+The screen half of [G-046](gaps.md), registered separately because the corpus
+half was a seeding rule and this one is a reading of the numbers.
+
+`/performance` opened on four figures in a row — decisions, offered, offered
+nothing, with an outcome — and a table of rates beneath them. Nothing anywhere
+on it distinguished a decision that reached a customer from one that won a slot
+on a channel with no sender, and **2,687 of the 3,426 decisions that offered
+something are the second kind**.
+
+Every figure on the old screen was correct. A marketer read `3,426 offered` and
+a click rate under it and drew a conclusion that was false, because the two
+numbers described different populations and the screen said so nowhere. That is
+the failure mode this platform is least able to afford: it is the most
+screenshot-able surface in the product and the one whose numbers most look like
+evidence.
+
+Rebuilt on **Cascade** — `docs/METIS_CONSOLE_SPEC.md` §4.7, added by the same
+slice. Five stages that nest, the break at `deliverable` drawn in the block
+colour with the count that fell out stated on the stage itself, and every rate
+below it naming the channel it describes. The overview, before a stage is
+selected, puts the realised value beside the expected margin of what was decided
+and never delivered.
+
+**Resolved by:** `apps/console/tests/e2e/performance-cascade.spec.ts` — six
+checks, each verified to bite: smoothing the break, rendering a rate for an
+undeliverable channel, and dropping the rail on selection each turn exactly one
+of them red.
 
 ### G-036 — The root lint step covers neither `tests/` nor `scripts/`
 
