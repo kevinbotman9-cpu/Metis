@@ -182,7 +182,12 @@ body{background:#232528;font-family:"Inter Tight",system-ui,sans-serif}
 
 <div class="chooser">
   <span class="brand">METIS · Cascade with the real nav</span>
-  <span class="sep"></span>
+    <span class="sep"></span>
+  <span style="color:#f0b429;font-weight:600">Figures illustrative</span>
+  <span style="color:#9aa0a6">— layout is the reference, not the numbers. Drawn before 2026-09-11;
+  the seed now runs 2 live flows, 10,400 decisions, 5,200 each, 35.0% offered, and no outbound_call.
+  Names here are checked against the fixtures; volumes are not.</span>
+<span class="sep"></span>
   <button id="navBtn">Expand nav</button>
   <button id="themeBtn">Switch to dark</button>
 </div>
@@ -277,7 +282,7 @@ const LOOP=[
 {label:'Decisions made',n:'10,401',pct:100,rgb:'126 141 153',em:'in 30 days',
  title:'10,401 decisions in the last 30 days',
  sub:'Every request that reached a decision flow and returned a ranked slate. p95 38.4 ms, no model call in the path, all replayable.',
- rows:[['web','2,146','homepage_hero, plans_tile','ok'],['sms','2,055','app_inbox','ok'],['push','2,061','retention_queue','ok'],['email','2,042','weekly_offers_send','ok'],['outbound_call','2,097','triggered_outbound','ok']],
+ rows:[['web','2,146','homepage_hero, homepage_grid','ok'],['sms','2,055','triggered_outbound','ok'],['push','2,061','app_inbox','ok'],['email','2,042','weekly_offers_send','ok'],['outbound_call','0','retention_queue — retired, no flow decides here','no']],
  side:{h:'All decisions',p:'10,401 across 5 channels',
   f:[['Flows','inbound-web-offers v12 · 3 others'],['p95 latency','38.4 ms of 50 ms budget'],['Replayable','10,401 of 10,401']],
   q:['Reading','Every one produced a decision record, a chain hash and a trace. That part of the platform works.'],
@@ -285,7 +290,7 @@ const LOOP=[
 {label:'Offered something',n:'3,425',pct:33,rgb:'14 110 122',em:'33%',
  title:'3,425 decisions returned an offer',
  sub:'The rest found nothing eligible after targeting policy and frequency. A healthy proportion for a single-slot hero placement.',
- rows:[['web','1,132','53% of decisions','ok'],['sms','598','29%','ok'],['push','571','28%','ok'],['email','613','30%','ok'],['outbound_call','511','24%','ok']],
+ rows:[['web','1,132','53% of decisions','ok'],['sms','598','29%','ok'],['push','571','28%','ok'],['email','613','30%','ok'],['outbound_call','0','no decisions — flow retired','no']],
  side:{h:'Offered',p:'3,425 of 10,401 · 33%',
   f:[['Empty slates','6,976 · nothing eligible'],['Most common cause','frequency cap reached'],['Under-served','1,204 customers · never eligible']],
   q:['Worth a look','1,204 customers were eligible for nothing on every decision in the window.'],
@@ -294,7 +299,7 @@ const LOOP=[
  note:'2,122 decisions picked an offer with nothing to send on the winning channel.',
  title:'Only 1,303 of those could actually be delivered',
  sub:'The loop breaks here. An offer won its slot and there was no active creative for the channel that won — or no adapter behind that channel at all.',
- rows:[['web','566 of 1,132','storefront renders it','ok'],['email','0 of 613','no adapter — W-017 open','no'],['sms','0 of 598','no adapter','no'],['push','0 of 571','no adapter','no'],['outbound_call','0 of 511','no adapter · 2 creatives exist','no']],
+ rows:[['web','566 of 1,132','storefront renders it','ok'],['email','0 of 613','no adapter — W-017 open','no'],['sms','0 of 598','no adapter','no'],['push','0 of 571','no adapter','no'],['outbound_call','—','flow retired · 2 creatives exist','no']],
  side:{h:'Undeliverable',p:'2,122 decisions · 62% of offered',
   f:[['Winner had no creative','1,214 decisions'],['Channel has no adapter','908 decisions'],['Active offers with nothing to send','38 of 202']],
   q:['What this means','The platform decided correctly and the customer saw nothing. A replay of any of these returns a byte-identical hash confirming a choice that could never have been shown.'],
@@ -302,7 +307,7 @@ const LOOP=[
 {label:'Seen',n:'887',pct:8.5,rgb:'140 90 0',em:'68%',
  title:'887 impressions came back',
  sub:'An impression is of an offer somebody saw. A slot that filled nothing had none.',
- rows:[['web','566','real, from the storefront','ok'],['sms','88','generated','part'],['push','90','generated','part'],['email','93','generated','part'],['outbound_call','50','generated','part']],
+ rows:[['web','566','real, from the storefront','ok'],['sms','88','generated','part'],['push','90','generated','part'],['email','93','generated','part'],['outbound_call','0','flow retired','no']],
  side:{h:'Impressions',p:'887 · 68% of deliverable',
   f:[['Web','566 · reported on render'],['Everything else','321 · generated'],['Median lag','1.4 s from decision']],
   q:['Provenance','566 are real reports from the storefront. The other 321 are generated and describe channels with no sender.'],

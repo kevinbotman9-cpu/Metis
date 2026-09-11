@@ -167,7 +167,12 @@ body{background:#232528;font-family:"Inter Tight",system-ui,sans-serif}
 
 <div class="chooser">
   <span class="brand">METIS · Cascade across screens</span>
-  <span class="sep"></span>
+    <span class="sep"></span>
+  <span style="color:#f0b429;font-weight:600">Figures illustrative</span>
+  <span style="color:#9aa0a6">— layout is the reference, not the numbers. Drawn before 2026-09-11;
+  the seed now runs 2 live flows, 10,400 decisions, 5,200 each, 35.0% offered, and no outbound_call.
+  Names here are checked against the fixtures; volumes are not.</span>
+<span class="sep"></span>
   <button data-scr="ov" aria-pressed="true"><span class="sw" style="background:#C33A2E"></span>Overview</button>
   <button data-scr="cat" aria-pressed="false"><span class="sw" style="background:#177C55"></span>Catalogue</button>
   <button data-scr="nope" aria-pressed="false"><span class="sw" style="background:#7E8D99"></span>Where it doesn't apply</button>
@@ -319,13 +324,13 @@ const LOOP = [
 ];
 
 const CHANROWS = {
-  dec:[['web','2,146','homepage_hero, plans_tile','ok'],['sms','2,055','app_inbox','ok'],
-       ['push','2,061','retention_queue','ok'],['email','2,042','weekly_offers_send','ok'],
-       ['outbound_call','2,097','triggered_outbound','ok']],
+  dec:[['web','2,146','homepage_hero, homepage_grid','ok'],['sms','2,055','triggered_outbound','ok'],
+       ['push','2,061','app_inbox','ok'],['email','2,042','weekly_offers_send','ok'],
+       ['outbound_call','0','retention_queue — retired, no flow decides here','no']],
   off:[['web','1,132','53% offered','ok'],['sms','598','29%','ok'],['push','571','28%','ok'],
-       ['email','613','30%','ok'],['outbound_call','511','24%','ok']],
+       ['email','613','30%','ok'],['outbound_call','0','no decisions — flow retired','no']],
   seen:[['web','566','real, from the storefront','ok'],['sms','88','seeded','part'],
-        ['push','90','seeded','part'],['email','93','seeded','part'],['outbound_call','50','seeded','part']]
+        ['push','90','seeded','part'],['email','93','seeded','part'],['outbound_call','0','flow retired','no']]
 };
 
 const BREAKROWS = [
