@@ -44,6 +44,45 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-079 — A pull request can sit with no checks at all, and nothing says so
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — the platform is GitHub's; the mitigation is a habit
+
+GitHub created **no check suite at all** for PR #23's head commit on two
+separate occasions:
+
+- **On open.** `2486223` sat for over thirty minutes with zero check runs and
+  zero check suites. Closing and reopening the pull request, which normally
+  re-fires `pull_request`, produced nothing either.
+- **On a later push.** `f10ca61` behaved the same way.
+
+Both times Actions itself was healthy: other lanes' pull requests ran normally
+forty minutes earlier, `GET /actions/permissions` returned enabled, and the
+workflow was `active`. Two other pushes on the same branch triggered normally,
+so it is intermittent rather than a configuration fault — the event simply
+never arrived.
+
+**The diagnostic is `workflow_dispatch`.** Dispatching `console.yml` on the
+branch created a run immediately, both times. That separates the two
+explanations cleanly:
+
+- **A dispatch also fails** → Actions is down, or the workflow is disabled, and
+  no amount of pushing will help.
+- **A dispatch works** → the workflow and the runners are fine and the
+  `pull_request` event was lost; push again, or dispatch and rely on the check
+  runs it writes against the same head SHA.
+
+**Why it matters more than it looks.** A pull request with no checks does not
+look failed — it looks like it is waiting. The ruleset refuses the merge, which
+is the safe direction, but nothing distinguishes *"CI has not started"* from
+*"CI is slow"*, and the only reason this was noticed twice is that somebody was
+watching for named checks rather than for a green tick. A session that waited
+politely would still be waiting.
+
+**Done when:** something notices that a head commit has no check suite N minutes
+after it was pushed and says so — or the process says to dispatch after a fixed
+wait, and the wait is written down.
+
 ### G-001 — Project references do not build
 
 **Registered:** 2026-09-04 · **Status:** Open · **Work item:** [W-001](BACKLOG.md)
@@ -729,63 +768,6 @@ retention offer lowers the bill and another raises it records one refused and on
 passed, under the same policy in the same decision.
 
 ---
-### G-071 — Two compile contexts disagree, and the registry published under the weaker one
-
-**Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-075](BACKLOG.md)
-
-`retention-outbound` — *Retention Outbound Queue*, active, version 3.1.0 —
-compiles or does not depending on who asks.
-
-- **The console's compile view rejects it.** `compiled.ts` compiles with
-  `servedChannels`, so ADR-012 §B2's channel-aware `NO_DELIVERABLE_CREATIVE`
-  fires 18 times, one per offer whose creatives cannot be rendered on a channel
-  this flow serves. `/decision-flows` shows the flow red and the home page
-  counts it blocked.
-- **The registry accepted it.** `seedRegistry` publishes against plain
-  `compileContext`, which omits `servedChannels`, so the same check falls back
-  to *"has an id in `creativeIds`"* — which these offers satisfy. Version 3.1.0
-  is published and promoted to production, and the decide route executes it.
-
-So the flow is live because one context accepted it, and shown as broken
-because another rejects it. Neither is wrong about its own question; nothing
-holds them to each other.
-
-**What it decides.** Of the 3,466 seeded decisions this flow made, **807 award
-an offer today's channel-aware check refuses** — 23%, across 8 distinct offers.
-The engine is not wrong to award them: ADR-012 deferred option A, eliminating
-such a candidate before arbitration, so nothing in the decision path filters
-them. The compiler is the only thing that knows, and the context that knows is
-not the context that published.
-
-**Nothing fails.** The screen shows it, no check asserts it. A publish today
-through the console's own route would be rejected, because
-`currentCompileContext` passes `servedChannels`; the seeded registry does not,
-and nothing compares what the registry accepted against what the console would
-accept now.
-
-**Found on 2026-09-11 while pinning the schema.** The seeded exec artifacts
-first took their pin from the console's compile view, so two of four carried
-none — and every one of this flow's decisions then disagreed with the same
-decision made through the route, which runs what the registry published. The
-fixtures now pin from the registry's context, which is what the route executes,
-and the corpus agrees again.
-
-That fix is also the sharp version of the problem: **a pin is only worth what
-the artifact it sits on is worth**, and there are two artifacts for this flow —
-one the registry published and one the console would refuse to publish. The
-same is true of `policySources` and the node tiers from [G-055](gaps.md) and
-[G-058](gaps.md), which are equally pinned to whichever compile happened.
-
-It has been in this state since 2026-09-10, when [G-042](gaps.md) tightened
-`NO_DELIVERABLE_CREATIVE` from *"no creative at all"* to *"no active creative
-on a channel this flow serves"*. Before that it compiled clean. The offers it
-awards have been undeliverable for longer than that; the check that says so is
-a day old.
-
-**Done when:** one compile context serves both, or a check fails when a
-published version would be rejected by the context the console compiles with
-today.
-
 ### G-072 — The decide route injects `experiments` at the input root, which no root declares
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-075](BACKLOG.md)
@@ -1347,6 +1329,125 @@ sending zero.
 
 ## Resolved
 
+### G-071 — Two compile contexts disagree, and the registry published under the weaker one
+
+**Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** [W-075](BACKLOG.md)
+
+`retention-outbound` — *Retention Outbound Queue*, active, version 3.1.0 —
+compiles or does not depending on who asks.
+
+- **The console's compile view rejects it.** `compiled.ts` compiles with
+  `servedChannels`, so ADR-012 §B2's channel-aware `NO_DELIVERABLE_CREATIVE`
+  fires 18 times, one per offer whose creatives cannot be rendered on a channel
+  this flow serves. `/decision-flows` shows the flow red and the home page
+  counts it blocked.
+- **The registry accepted it.** `seedRegistry` publishes against plain
+  `compileContext`, which omits `servedChannels`, so the same check falls back
+  to *"has an id in `creativeIds`"* — which these offers satisfy. Version 3.1.0
+  is published and promoted to production, and the decide route executes it.
+
+So the flow is live because one context accepted it, and shown as broken
+because another rejects it. Neither is wrong about its own question; nothing
+holds them to each other.
+
+**What it decides.** Of the 3,466 seeded decisions this flow made, **807 award
+an offer today's channel-aware check refuses** — 23%, across 8 distinct offers.
+The engine is not wrong to award them: ADR-012 deferred option A, eliminating
+such a candidate before arbitration, so nothing in the decision path filters
+them. The compiler is the only thing that knows, and the context that knows is
+not the context that published.
+
+**Nothing fails.** The screen shows it, no check asserts it. A publish today
+through the console's own route would be rejected, because
+`currentCompileContext` passes `servedChannels`; the seeded registry does not,
+and nothing compares what the registry accepted against what the console would
+accept now.
+
+**Found on 2026-09-11 while pinning the schema.** The seeded exec artifacts
+first took their pin from the console's compile view, so two of four carried
+none — and every one of this flow's decisions then disagreed with the same
+decision made through the route, which runs what the registry published. The
+fixtures now pin from the registry's context, which is what the route executes,
+and the corpus agrees again.
+
+That fix is also the sharp version of the problem: **a pin is only worth what
+the artifact it sits on is worth**, and there are two artifacts for this flow —
+one the registry published and one the console would refuse to publish. The
+same is true of `policySources` and the node tiers from [G-055](gaps.md) and
+[G-058](gaps.md), which are equally pinned to whichever compile happened.
+
+It has been in this state since 2026-09-10, when [G-042](gaps.md) tightened
+`NO_DELIVERABLE_CREATIVE` from *"no creative at all"* to *"no active creative
+on a channel this flow serves"*. Before that it compiled clean. The offers it
+awards have been undeliverable for longer than that; the check that says so is
+a day old.
+
+**Done when:** one compile context serves both, or a check fails when a
+published version would be rejected by the context the console compiles with
+today.
+
+**Resolved by one builder.** `compileContextFor(flowId, sources)` in
+`apps/console/mocks/fixtures/compiled.ts` is the only place a compile context is
+assembled. The caller supplies the catalogue it wants judged — the fixtures for
+a seeded compile, the store for a live one — and the per-flow part, which
+channels this flow's own slots deliver on, is computed from that same catalogue
+rather than from a second lookup. `seedRegistry`, the publish route and the
+console's flow list all call it. The route's private `decidableChannelsFor` and
+the fixture's `servedChannelsFor` were the same logic written twice; both are
+gone.
+
+**Not "the console drops `servedChannels`".** That would undo ADR-012 §B2, the
+check that exists because an offer whose only creative is switched off used to
+compile clean. The weaker context was not a decision anybody took; it was
+`seedRegistry` being written before `servedChannels` existed and never
+revisited.
+
+**The check that would have caught it:**
+`apps/console/tests/unit/compile-context.test.ts` — every version the registry
+has in production must compile under the context the registry publishes with,
+and the flow list's verdict must equal the publish verdict. Verified to bite by
+recreating the bug: publishing with an empty channel set and marking the flow
+active fails two of its four assertions, naming the flow in production the
+compiler refuses.
+
+**What the demo loses.** `retention-outbound` is `retired`, so three live flows
+become two:
+
+- **3,466 of the 10,400 seeded decisions came from it**, a third of the corpus.
+  They are gone; the two surviving flows now make 5,200 each.
+- **Every one of the 807 offers it made was undeliverable.** Its 807 winning
+  decisions and the 807 that awarded an offer the compiler refuses are the same
+  set — the flow never once produced an offer that could be delivered.
+- **Its slot is no longer decidable.** `plc_retention_queue` delivers on
+  `outbound_call` and had no live flow left to answer it; a slot that still
+  called itself decidable would be claiming an agent can be prompted with an
+  offer nothing will produce.
+- **The seeded history has no outbound-call decisions at all.** The generator
+  drew a fifth of its decisions for that slot, and a corpus that kept doing so
+  would be seeding history the platform would now refuse to make. Four channels
+  remain — web 2,657, sms 2,603, email 2,574, push 2,566. The demo loses the
+  one channel a human being was going to speak on, which is the honest state of
+  a tenant with two outbound-call creatives.
+
+**A check already here caught the half-done version.** `fixtures.test.ts` —
+*decides only for slots that are live* — failed with `['retention_queue']` when
+the flow was retired and the generator was not, which is exactly its job.
+
+**Why not author the eighteen creatives instead.** That would have turned a red
+check green by inventing the content whose absence is the finding. This tenant
+has **two** active outbound-call creatives against 78 email, 79 sms, 75 web and
+69 push — [G-044](gaps.md) — so a retention flow that can only telephone people
+has almost nothing to say on the telephone. Writing eighteen call scripts into
+the fixture would have buried that.
+
+**The corpora moved once**, predicted and then diffed: every decision id and
+chain hash in `decision-index.json` was compared before and after. 3,468
+decisions kept their exact chain hash, 6,932 were replaced, and
+`service-cases.json` moved 120 of 180 hash fields — the chain and input halves,
+not the catalogue, which this change does not touch. `decision-corpus.json` and
+`canonical-corpus.json` moved **zero**, as predicted: their cases are synthetic
+and name none of this tenant's flows.
+
 ### G-078 — The new migration tests run beside the Postgres suites and flake, in whichever package loses the race
 
 **Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** none — the fix is a
@@ -1455,6 +1556,15 @@ starts with.**
 
 The first row is the argument against trusting a green run here: thirty in a
 row passed while the race was running every time.
+
+**One hazard this leaves standing.** These suites **skip rather than fail when
+the database is unreachable** — `it.skip("postgres at … is not reachable")`.
+With the shared test databases missing from a development machine, a serialised
+run reported *"3 passed | 2 skipped"* per package and exited green: the whole
+PostgreSQL half had not run, and the only sign was a skip count. CI is safe,
+because its service container is always there. It is why the evidence above
+counts tests rather than exit codes.
+
 
 ### G-077 — A change inside an existing `CREATE` never reaches a database that already has the table
 

@@ -265,14 +265,18 @@ function inputFor(index: number, base: Record<string, unknown>): Record<string, 
 function buildRequest(index: number): DecisionRequest {
   const r = (salt: string) => seededUnitInterval('req', index, salt);
 
-  const channels = ['web', 'email', 'sms', 'push', 'outbound_call'];
+  // No `outbound_call`. Its only slot, `retention_queue`, stopped being
+  // decidable when `retention-outbound` was retired — 18 of that flow's 20
+  // candidates have no active creative on the channel (G-071, G-044) — and a
+  // corpus that kept deciding for it would be seeding history the platform
+  // would now refuse to make. `fixtures.test.ts` fails when these disagree.
+  const channels = ['web', 'email', 'sms', 'push'];
   const channel = channels[Math.floor(r('channel') * channels.length)];
   const placements: Record<string, string> = {
     web: 'account_dashboard_hero',
     email: 'weekly_offers_send',
     sms: 'triggered_outbound',
     push: 'app_inbox',
-    outbound_call: 'retention_queue',
   };
 
   const age = 16 + Math.floor(r('age') * 60);

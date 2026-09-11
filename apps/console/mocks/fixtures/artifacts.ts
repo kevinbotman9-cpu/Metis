@@ -287,7 +287,24 @@ export const artifacts: ArtifactSummary[] = [
     versions: ['3.1.0', '3.0.4'],
     nodeCount: 6,
     estimatedP95LatencyMs: 19.7,
-    status: 'active',
+    /**
+     * Retired, because it cannot be published. G-071.
+     *
+     * This flow serves one channel, `outbound_call`, and 18 of its 20
+     * candidates have no active creative on it — they have live web and push
+     * content, which this flow never speaks through. ADR-012 §B2's check says
+     * so, and once the registry compiles against the same context the console
+     * does, the publish is refused and there is nothing to promote.
+     *
+     * It was `active` while two compile contexts disagreed, and it made 3,466
+     * seeded decisions. **Every one of the 807 offers it made was
+     * undeliverable.** The alternative — authoring 18 outbound-call creatives
+     * into the fixture — would have turned a red check green by inventing the
+     * content whose absence is the finding: the tenant has two active
+     * outbound-call creatives against 78 email, 79 sms, 75 web and 69 push,
+     * which is [G-044](../../../../docs/gaps.md).
+     */
+    status: 'retired',
     candidateKeys: ['retention_offer', 'winback_credit', ...seededCandidateKeys('iss_retention')],
     nodes: [
       {
