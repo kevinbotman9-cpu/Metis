@@ -73,4 +73,25 @@ describe('database test suites', () => {
         'the `test` block of each one\'s vitest.config.ts.'
     ).toEqual([]);
   });
+
+  it('never force-drop a database while its pool is still closing', () => {
+    // G-081. `pool.end()` resolves before the pool's connections have closed.
+    // `DROP DATABASE … WITH (FORCE)` straight after it terminates one still
+    // closing; the server sends that connection `57P01`, the pool re-emits it
+    // with nobody listening, and Vitest fails the file as an unhandled error —
+    // with every assertion in it passed. A plain drop waits for them instead.
+    const forcing = databasePackages()
+      .flatMap((p) => testFiles(path.join(packagesDir, p, 'tests')))
+      .filter((f) =>
+        /DROP\s+DATABASE[^;`'"]*WITH\s*\(\s*FORCE\s*\)/i.test(
+          read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+        )
+      )
+      .map((f) => path.relative(root, f).replace(/\\/g, '/'));
+    expect(
+      forcing,
+      'These test files force-drop a database. Drop it plainly after `pool.end()`: the drop waits ' +
+        'for the pool\'s connections to leave, and names a connection that never does (G-081).'
+    ).toEqual([]);
+  });
 });
