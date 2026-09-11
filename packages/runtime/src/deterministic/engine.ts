@@ -231,6 +231,14 @@ export function topologicalOrder(artifact: ExecArtifact): ExecNode[] {
  */
 const SERVICE_EXEMPT_THRESHOLD = 50;
 
+const DAY_MS = 86_400_000;
+
+/**
+ * An ISO-8601 instant with an explicit offset, which is the only form both
+ * engines read identically. See `declinedMsAgo`.
+ */
+const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+
 /**
  * The catalogue snapshot hash, memoised per snapshot object.
  *
@@ -445,6 +453,29 @@ export function execute(
         // Frequency policy and consent are enforced at constraint nodes only.
         if (node.type === 'constraint') {
           const used = request.contactHistory?.withinPeriod ?? {};
+          const rejects = request.contactHistory?.rejects ?? {};
+          const decidedAt = Date.parse(request.occurredAt);
+
+          /**
+           * How long ago this offer was declined, in milliseconds, or null.
+           *
+           * Parsed strictly. `Date.parse` reads a timestamp with no zone as
+           * local time and Kotlin's `Instant.parse` refuses it outright, so a
+           * caller sending one would get two different answers from two engines
+           * that are required to agree. Refusing it in both is the only version
+           * of this that cannot drift.
+           */
+          const declinedMsAgo = (key: string): number | null => {
+            const at = rejects[key];
+            if (at === undefined) return null;
+            if (!ISO_INSTANT.test(at)) {
+              throw new Error(
+                `contactHistory.rejects[${JSON.stringify(key)}] must be an ISO-8601 instant ` +
+                  `with an explicit offset or Z, got ${JSON.stringify(at)}`
+              );
+            }
+            return decidedAt - Date.parse(at);
+          };
 
           // A frequency policy binds to a scope, exactly like an engagement
           // policy. Applying them all to every candidate is wrong: a
@@ -476,9 +507,8 @@ export function execute(
             });
           } else {
             candidates = candidates.filter((p) => {
-              const breached = relevantTo(p).filter(
-                (c) => (used[c.period] ?? 0) >= c.maxContacts
-              );
+              const relevant = relevantTo(p);
+              const breached = relevant.filter((c) => (used[c.period] ?? 0) >= c.maxContacts);
               if (breached.length > 0) {
                 // The first breached cap, in catalogue order. Naming which one
                 // is the difference between "we contacted them too much" and a
@@ -488,8 +518,26 @@ export function execute(
                   code: 'FREQUENCY_CAP_BREACHED',
                   ruleId: breached[0].id,
                 });
+                return false;
               }
-              return breached.length === 0;
+
+              // A cooldown is about the offer that was declined, not about
+              // everything its policy governs. The scope says which offers
+              // carry this rest period and how long it runs; read the other
+              // way, a single "no" to one offer would silence every offer a
+              // tenant-scoped policy covers. Widening that is a modelling
+              // change with its own field, not a default (G-086).
+              const ago = declinedMsAgo(p.key);
+              if (ago !== null) {
+                const cooling = relevant.filter(
+                  (c) => c.cooldownDaysAfterReject > 0 && ago < c.cooldownDaysAfterReject * DAY_MS
+                );
+                if (cooling.length > 0) {
+                  denials.push({ key: p.key, code: 'COOLDOWN_ACTIVE', ruleId: cooling[0].id });
+                  return false;
+                }
+              }
+              return true;
             });
           }
         }

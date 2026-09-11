@@ -43,6 +43,15 @@ export type {
   ReplayResult,
 } from './deterministic/types';
 
+/**
+ * The closed set of reason codes, as a value.
+ *
+ * Exported so a consumer can assert it covers all of them rather than
+ * hand-listing the ones it happens to know about — which is how the console's
+ * label map stayed complete only by coincidence (G-086).
+ */
+export { REASON_CODES } from './deterministic/types';
+
 export {
   requestHash,
   classify,

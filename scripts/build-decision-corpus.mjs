@@ -478,6 +478,99 @@ const CASES = [
     request: request({ contactHistory: { channel: 'web', withinPeriod: { week: 5 } } }),
   },
   {
+    // G-086. The cooldown was declared on every catalogue and enforced by
+    // neither engine; these three cases are what stops that returning, because
+    // the Kotlin engine has to produce the same denial for the same input.
+    //
+    // Per-offer on purpose: the decline suppresses the offer that was declined,
+    // and the policy's scope says which offers carry the rest period. Read the
+    // other way, one "no" would silence every candidate a tenant-scoped policy
+    // covers — which is what `offer_b` and `offer_c` are here to prove it does
+    // not do.
+    name: 'a decline inside the rest period suppresses that offer and no other',
+    artifact: artifact({
+      candidateKeys: threeKeys,
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source' },
+        { id: 'n2_constraint', type: 'constraint', label: 'Frequency policy', frequencyPolicyIds: ['cp_1'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n2_constraint' },
+        { from: 'n2_constraint', to: 'n3_arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({
+      offers: three,
+      frequencyPolicies: [frequencyPolicy({ cooldownDaysAfterReject: 30 })],
+    }),
+    request: request({
+      contactHistory: {
+        channel: 'web',
+        withinPeriod: { week: 0 },
+        // Five days before the decision. The cap is nowhere near breached, so
+        // a suppression here can only be the cooldown.
+        rejects: { offer_a: '2026-05-27T12:00:00.000Z' },
+      },
+    }),
+  },
+  {
+    name: 'a decline older than the rest period does not suppress',
+    artifact: artifact({
+      candidateKeys: threeKeys,
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source' },
+        { id: 'n2_constraint', type: 'constraint', label: 'Frequency policy', frequencyPolicyIds: ['cp_1'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n2_constraint' },
+        { from: 'n2_constraint', to: 'n3_arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({
+      offers: three,
+      frequencyPolicies: [frequencyPolicy({ cooldownDaysAfterReject: 30 })],
+    }),
+    request: request({
+      contactHistory: {
+        channel: 'web',
+        withinPeriod: { week: 0 },
+        // Thirty-one days. The window is closed and the offer is back.
+        rejects: { offer_a: '2026-05-01T12:00:00.000Z' },
+      },
+    }),
+  },
+  {
+    // Both reasons are true at once. Which one the customer is told is a fact
+    // about the platform, so it is pinned rather than left to whichever engine
+    // evaluated first.
+    name: 'a breached cap is reported ahead of an active cooldown',
+    artifact: artifact({
+      candidateKeys: threeKeys,
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source' },
+        { id: 'n2_constraint', type: 'constraint', label: 'Frequency policy', frequencyPolicyIds: ['cp_1'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n2_constraint' },
+        { from: 'n2_constraint', to: 'n3_arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({
+      offers: three,
+      frequencyPolicies: [frequencyPolicy({ cooldownDaysAfterReject: 30 })],
+    }),
+    request: request({
+      contactHistory: {
+        channel: 'web',
+        withinPeriod: { week: 5 },
+        rejects: { offer_a: '2026-05-27T12:00:00.000Z' },
+      },
+    }),
+  },
+  {
     name: 'frequency policy scoped to a category leaves the rest alone',
     // The defect this case exists for: applying every frequency policy to every
     // candidate once suppressed an entire catalogue.

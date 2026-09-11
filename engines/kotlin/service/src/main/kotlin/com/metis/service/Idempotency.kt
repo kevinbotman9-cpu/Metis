@@ -54,11 +54,18 @@ object Idempotency {
         // unit, which is the whole reason both engines land on the same bytes.
         val history: Value = r.contactHistory?.let {
             Value.Obj(
-                listOf(
+                listOfNotNull(
                     "channel" to Value.Str(it.channel),
                     "withinPeriod" to Value.Obj(
                         it.withinPeriod.map { (k, v) -> k to (Value.Num(v) as Value) }
                     ),
+                    // Only when present. The TypeScript canonicaliser drops an
+                    // undefined key, so emitting "rejects": null here would give
+                    // the same request two hashes depending on which engine saw
+                    // it — and idempotency is the one place that must not vary.
+                    it.rejects?.let { rj ->
+                        "rejects" to Value.Obj(rj.map { (k, v) -> k to (Value.Str(v) as Value) })
+                    },
                 )
             )
         } ?: Value.Null

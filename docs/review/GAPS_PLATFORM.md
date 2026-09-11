@@ -135,7 +135,7 @@ limit. `ABSENT` = nothing.
 | Line | State | What exists / what blocks it |
 |---|---|---|
 | Eligibility / relevance / suitability as distinct layers | **PRESENT** | `PolicyKind` at `core/src/domain.ts:174`, distinct reason codes, distinct audit lines |
-| Frequency and suppression policy, caps | **PARTIAL** | Caps and cooldowns enforced; `FREQUENCY_CAP_BREACHED` is live. Outcome-conditioned suppression needs interaction history |
+| Frequency and suppression policy, caps | **PARTIAL** | Caps and rest-after-decline both enforced, in both engines, since 2026-09-11 — `FREQUENCY_CAP_BREACHED` and `COOLDOWN_ACTIVE` are live and name the rule. The decline arrives on the request; the platform records no rejection of its own, because the outcome funnel is monotone. Outcome-conditioned suppression driven by the platform's own interaction history is still absent (G-086) |
 | Multi-level arbitration | **ABSENT** | One arbitration node. No within-group-then-across-group |
 | Channel- and placement-specific ranking | **ABSENT** | One ranking function per tenant |
 | Slate and bundle selection | **ABSENT** | Verified: no `slate`/`slots` anywhere in the engine. Returns a single action |

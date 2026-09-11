@@ -44,6 +44,43 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-087 — The storefront's explanation panel has rendered nothing since the day it was written
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — one of two shapes is wrong and somebody has to say which
+
+`STOREFRONT_DEMO.md` says of the demo panel: *"Every figure in the panel comes
+from the decision the platform returned."* **No figure in it has ever come from
+anywhere.** The detail body of every decision card renders as an empty `<div>`:
+no eliminations, no scores, no chain hash, no connector provenance, no slate.
+
+```js
+return (await res.json()).decision;   // getDecisionTrace has no `decision` key
+```
+
+`GET /decisions/{id}/trace` serves the trace at the **top level**. Reading
+`.decision` off it yields `undefined`, the card's whole detail block is a
+template literal guarded by `const d = r.decision`, and an undefined `d` makes
+it the empty string. No error, no console warning, a page that looks perfect
+above the fold.
+
+**Unwrapping it is not the fix**, which is why this is registered rather than
+patched. Corrected to read the response itself, the next line throws:
+`d.candidateKeys.map` — the DTO carries `candidateCount`, a number, and no
+`candidateKeys` at all. Nor does it carry `catalogueSnapshotHash`. The panel was
+written against the engine's `DeterministicDecision`; the route serves a
+different, narrower shape. Either the trace DTO is missing fields a caller
+needs, or the panel reads for fields it was never going to get, and choosing
+between those is a contract decision, not a patch from inside another slice.
+
+**Since 2026-09-07**, in `3d55f1a` — the commit that built the slate and the
+panel together. Four days, and every demo given from this page in them.
+
+**Why nothing caught it.** `storefront-reporting.spec.ts` and
+`outcome-loop.spec.ts` both drive this page hard, and both assert only on what
+the *site* renders and what it reports back. Neither opens the panel. The panel
+is the artefact this project points at when it says the trace is the hero, and
+it is the one part of the page no test looks at.
+
 ### G-080 — The capability map's "configurable without code" answers a proxy, and the question it names is answered no
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — a correction to `docs/CAPABILITIES.md` and a missing check; the product half is ADR-006 §2, which nothing implements
@@ -1405,6 +1442,55 @@ payload, and a descriptor no longer needs a screen-supplied default to avoid
 sending zero.
 
 ## Resolved
+
+### G-086 — The reject cooldown was authored, displayed, hashed, and enforced by neither engine
+
+**Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** none — a defect, fixed in the slice that registered it
+
+**What was false.** `/frequency-policy` told every reader:
+
+> Frequency caps **and cooldowns**. These suppress an otherwise-winning offer,
+> and the suppression is recorded in the trace so it can be explained.
+
+and counted a metric, **"With cooldown — suppress after decline"**, over the
+three policies carrying a non-zero value. `docs/review/GAPS_PLATFORM.md` said
+*"Caps and cooldowns enforced"*. None of it was true. A customer who declined an
+offer was shown the same offer on the very next request.
+
+**What was actually there.** `cooldownDaysAfterReject` was declared on
+`FrequencyPolicy` in `packages/core/src/domain.ts`, served by the API, authored
+in the fixtures, rendered on the screen, and **hashed into every
+`CatalogueSnapshot`** — so every decision this platform has ever made attests to
+a rule that never ran. Read by nothing: the field appeared in thirteen files and
+in neither engine's constraint node.
+
+**Why it survived.** Three things pointed the wrong way at once.
+
+- The reason code's own documentation claimed it. `types.ts` described
+  `FREQUENCY_CAP_BREACHED` as *"A frequency cap **or cooldown** was already
+  spent"*, so a reader of the engine saw the case handled.
+- Nothing could have caught it. No test named the field, and none could have:
+  `DecisionRequest` had nowhere to put a rejection, so there was no input that
+  would have made a correct engine behave differently from the broken one.
+- It is the half of a pair whose other half works. Caps are enforced, and
+  "frequency policy" reads as one feature.
+
+**The fix.** A cooldown needs an event the engine can see. `contactHistory`
+gained `rejects` — the most recent decline per offer key, supplied by the caller
+exactly as contact counts already are — and the constraint node now suppresses a
+candidate when any offer inside a policy's scope was declined inside that
+policy's window. Both engines, with a conformance case pinning them together,
+and a distinct reason code, `COOLDOWN_ACTIVE`, because *"they said no
+recently"* and *"we have contacted them too much"* are different facts about a
+customer and a trace that conflates them cannot answer either question.
+
+**What this deliberately does not do.** The platform still cannot record a
+rejection of its own. `OutcomeType` is a monotone funnel — conversion ⊆
+acceptance ⊆ click ⊆ impression — with no negative event in it, so a decline has
+no home in the interaction log and the caller has to supply it. That is
+consistent with how caps already work, and it is a smaller claim than the screen
+used to make. Outcome-conditioned suppression driven by the platform's own
+interaction history is [G-044](gaps.md)'s neighbourhood and remains absent.
 
 ### G-085 — Storybook could not build, and could not render a story with real data, while every pull request was required to screenshot one
 

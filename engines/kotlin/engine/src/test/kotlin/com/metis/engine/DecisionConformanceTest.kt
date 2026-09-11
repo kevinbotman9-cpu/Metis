@@ -115,6 +115,7 @@ class DecisionConformanceTest {
                 period = c["period"].asText(),
                 scope = scope(c["scope"]),
                 active = c["active"].asBoolean(),
+                cooldownDaysAfterReject = c["cooldownDaysAfterReject"]?.asDouble() ?: 0.0,
             )
         },
         arbitration = ArbitrationConfig(
@@ -188,6 +189,8 @@ class DecisionConformanceTest {
             ContactHistory(
                 it["channel"].asText(),
                 it["withinPeriod"].properties().associate { (k, v) -> k to v.asDouble() },
+                it["rejects"]?.takeIf { r -> !r.isNull }
+                    ?.properties()?.associate { (k, v) -> k to v.asText() },
             )
         },
         consent = n["consent"]?.let {

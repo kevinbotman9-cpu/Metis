@@ -61,8 +61,8 @@ function FrequencyPolicyView() {
     },
     {
       key: 'cooldown',
-      header: 'Cooldown',
-      width: 'w-28',
+      header: 'Rest after decline',
+      width: 'w-36',
       align: 'right',
       sortValue: (p) => p.cooldownDaysAfterReject,
       cell: (p) =>
@@ -103,7 +103,7 @@ function FrequencyPolicyView() {
     <PageBody>
       <PageHeader
         title="Frequency policy"
-        description="Frequency caps and cooldowns. These suppress an otherwise-winning offer, and the suppression is recorded in the trace so it can be explained."
+        description="Caps limit how often we contact someone; cooldowns rest an offer after they decline it. Both suppress an otherwise-winning offer, and the trace names which rule did it."
       />
 
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -151,6 +151,20 @@ function FrequencyPolicyView() {
               no offer. The trace keeps the full ranking, so you can answer both{' '}
               <em>&ldquo;what would we have offered?&rdquo;</em> and{' '}
               <em>&ldquo;why did nothing go out?&rdquo;</em> from the same record.
+            </p>
+            <p className="mt-3 text-body text-content-muted">
+              A cap and a rest period are told apart in the trace:{' '}
+              <code className="font-mono text-label">FREQUENCY_CAP_BREACHED</code> means we have
+              contacted them too often, <code className="font-mono text-label">COOLDOWN_ACTIVE</code>{' '}
+              means they declined that offer and the rest period has not elapsed. Both name the rule
+              that did it.
+            </p>
+            <p className="mt-3 text-body text-content-muted">
+              <strong className="text-content">Where the decline comes from.</strong> The platform
+              does not record rejections of its own — the outcome funnel runs impression, click,
+              acceptance, conversion, and has no negative event in it. The caller states the decline
+              on the request, the same way it states how many times it has already made contact.
+              Rest periods apply to the offer that was declined, not to everything the rule covers.
             </p>
           </CardBody>
         </Card>

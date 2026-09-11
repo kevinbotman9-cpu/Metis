@@ -115,6 +115,7 @@ object Json {
                 period = req(c["period"], "frequencyPolicy.period").asText(),
                 scope = scope(req(c["scope"], "frequencyPolicy.scope")),
                 active = c["active"]?.asBoolean() ?: true,
+                cooldownDaysAfterReject = c["cooldownDaysAfterReject"]?.asDouble() ?: 0.0,
             )
         },
         arbitration = ArbitrationConfig(
@@ -222,6 +223,11 @@ object Json {
                 req(it["channel"], "contactHistory.channel").asText(),
                 (it["withinPeriod"] ?: mapper.createObjectNode())
                     .properties().associate { (k, v) -> k to v.asDouble() },
+                // Null and absent stay distinguishable: the request hash has to
+                // agree with the TypeScript canonicaliser, which drops an
+                // undefined key and keeps an empty object.
+                it["rejects"]?.takeIf { r -> !r.isNull }
+                    ?.properties()?.associate { (k, v) -> k to v.asText() },
             )
         },
         consent = n["consent"]?.takeIf { !it.isNull }?.let {

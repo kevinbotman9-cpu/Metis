@@ -4283,6 +4283,978 @@
       }
     },
     {
+      "name": "a decline inside the rest period suppresses that offer and no other",
+      "artifact": {
+        "id": "art_fixture",
+        "version": "1.0.0",
+        "tenantId": "t",
+        "nodes": [
+          {
+            "id": "n1_source",
+            "type": "source",
+            "label": "Source"
+          },
+          {
+            "id": "n2_constraint",
+            "type": "constraint",
+            "label": "Frequency policy",
+            "frequencyPolicyIds": [
+              "cp_1"
+            ]
+          },
+          {
+            "id": "n3_arbitrate",
+            "type": "arbitrate",
+            "label": "Arbitrate"
+          }
+        ],
+        "edges": [
+          {
+            "from": "n1_source",
+            "to": "n2_constraint"
+          },
+          {
+            "from": "n2_constraint",
+            "to": "n3_arbitrate"
+          }
+        ],
+        "candidateKeys": [
+          "offer_a",
+          "offer_b",
+          "offer_c"
+        ],
+        "packageVersions": {
+          "@metis/nodes-core": "2.0.0"
+        }
+      },
+      "catalogue": {
+        "offers": [
+          {
+            "id": "p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
+            "key": "offer_a",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 1.25,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          },
+          {
+            "id": "p_b",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
+            "key": "offer_b",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 0.8,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          },
+          {
+            "id": "p_c",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
+            "key": "offer_c",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 1,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          }
+        ],
+        "targetingPolicies": [],
+        "frequencyPolicies": [
+          {
+            "id": "cp_1",
+            "name": "Fixture cap",
+            "description": "Fixture.",
+            "channel": null,
+            "maxContacts": 3,
+            "period": "week",
+            "cooldownDaysAfterReject": 30,
+            "scope": {
+              "level": "tenant",
+              "targetId": null
+            },
+            "active": true
+          }
+        ],
+        "arbitration": {
+          "id": "arb",
+          "tenantId": "t",
+          "weights": {
+            "propensity": 1,
+            "value": 1,
+            "boost": 1,
+            "context": 1
+          },
+          "utility": {
+            "id": "multiplicative",
+            "version": "1.0.0"
+          },
+          "formula": "P^wP x V^wV x B^wB x C^wC",
+          "updatedAt": "2020-01-01T00:00:00.000Z",
+          "updatedBy": "fixture"
+        },
+        "boosts": [],
+        "connectors": []
+      },
+      "request": {
+        "tenantId": "t",
+        "customerId": "cust_1",
+        "channel": "web",
+        "placement": "hero",
+        "occurredAt": "2026-06-01T12:00:00.000Z",
+        "input": {
+          "tenureMonths": 24
+        },
+        "contactHistory": {
+          "channel": "web",
+          "withinPeriod": {
+            "week": 0
+          },
+          "rejects": {
+            "offer_a": "2026-05-27T12:00:00.000Z"
+          }
+        }
+      },
+      "expected": {
+        "id": "dec_db64e08005e358df",
+        "chainHash": "db64e08005e358df0868e5c6f38be7ed8a2b0b3293662fc4b5eff9a3a3ff4583",
+        "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+        "catalogueSnapshotHash": "48eb3c3d27d56c0140b67b74ad224e32d5507f8b142fa19dfa359d72499387d4",
+        "decision": {
+          "tenantId": "t",
+          "artifactId": "art_fixture",
+          "artifactVersion": "1.0.0",
+          "customerRef": "cust_1",
+          "occurredAt": "2026-06-01T12:00:00.000Z",
+          "channel": "web",
+          "placement": "hero",
+          "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+          "catalogueSnapshotHash": "48eb3c3d27d56c0140b67b74ad224e32d5507f8b142fa19dfa359d72499387d4",
+          "sourceBindings": [],
+          "packageVersions": {
+            "@metis/nodes-core": "2.0.0"
+          },
+          "schema": null,
+          "candidateKeys": [
+            "offer_a",
+            "offer_b",
+            "offer_c"
+          ],
+          "eliminations": [
+            {
+              "nodeId": "n1_source",
+              "nodeType": "source",
+              "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
+              "denials": [],
+              "survived": [
+                "offer_a",
+                "offer_b",
+                "offer_c"
+              ]
+            },
+            {
+              "nodeId": "n2_constraint",
+              "nodeType": "constraint",
+              "reason": "Frequency policy removed 1 candidate(s).",
+              "denials": [
+                {
+                  "key": "offer_a",
+                  "code": "COOLDOWN_ACTIVE",
+                  "ruleId": "cp_1"
+                }
+              ],
+              "survived": [
+                "offer_b",
+                "offer_c"
+              ]
+            },
+            {
+              "nodeId": "n3_arbitrate",
+              "nodeType": "arbitrate",
+              "reason": "Ranked 2 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_c.",
+              "denials": [
+                {
+                  "key": "offer_b",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                }
+              ],
+              "survived": [
+                "offer_c"
+              ]
+            }
+          ],
+          "scores": {
+            "offer_b": {
+              "propensity": 1,
+              "value": 0.038333,
+              "boost": 0.8,
+              "context": 1,
+              "cost": 0.02,
+              "priority": 0.0306664
+            },
+            "offer_c": {
+              "propensity": 1,
+              "value": 0.038333,
+              "boost": 1,
+              "context": 1,
+              "cost": 0.02,
+              "priority": 0.038333
+            }
+          },
+          "arbitration": {
+            "formula": "P^wP x V^wV x B^wB x C^wC",
+            "utility": {
+              "id": "multiplicative",
+              "version": "1.0.0"
+            },
+            "missingScore": {
+              "applied": [
+                "offer_b",
+                "offer_c"
+              ],
+              "approved": null
+            },
+            "winner": "offer_c",
+            "runnerUp": "offer_b"
+          },
+          "constraintsApplied": [
+            "cp_1"
+          ],
+          "consentState": {
+            "marketing": true,
+            "profiling": true,
+            "thirdParty": false
+          },
+          "winner": "offer_c",
+          "winnerOfferId": "p_c"
+        }
+      }
+    },
+    {
+      "name": "a decline older than the rest period does not suppress",
+      "artifact": {
+        "id": "art_fixture",
+        "version": "1.0.0",
+        "tenantId": "t",
+        "nodes": [
+          {
+            "id": "n1_source",
+            "type": "source",
+            "label": "Source"
+          },
+          {
+            "id": "n2_constraint",
+            "type": "constraint",
+            "label": "Frequency policy",
+            "frequencyPolicyIds": [
+              "cp_1"
+            ]
+          },
+          {
+            "id": "n3_arbitrate",
+            "type": "arbitrate",
+            "label": "Arbitrate"
+          }
+        ],
+        "edges": [
+          {
+            "from": "n1_source",
+            "to": "n2_constraint"
+          },
+          {
+            "from": "n2_constraint",
+            "to": "n3_arbitrate"
+          }
+        ],
+        "candidateKeys": [
+          "offer_a",
+          "offer_b",
+          "offer_c"
+        ],
+        "packageVersions": {
+          "@metis/nodes-core": "2.0.0"
+        }
+      },
+      "catalogue": {
+        "offers": [
+          {
+            "id": "p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
+            "key": "offer_a",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 1.25,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          },
+          {
+            "id": "p_b",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
+            "key": "offer_b",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 0.8,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          },
+          {
+            "id": "p_c",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
+            "key": "offer_c",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 1,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          }
+        ],
+        "targetingPolicies": [],
+        "frequencyPolicies": [
+          {
+            "id": "cp_1",
+            "name": "Fixture cap",
+            "description": "Fixture.",
+            "channel": null,
+            "maxContacts": 3,
+            "period": "week",
+            "cooldownDaysAfterReject": 30,
+            "scope": {
+              "level": "tenant",
+              "targetId": null
+            },
+            "active": true
+          }
+        ],
+        "arbitration": {
+          "id": "arb",
+          "tenantId": "t",
+          "weights": {
+            "propensity": 1,
+            "value": 1,
+            "boost": 1,
+            "context": 1
+          },
+          "utility": {
+            "id": "multiplicative",
+            "version": "1.0.0"
+          },
+          "formula": "P^wP x V^wV x B^wB x C^wC",
+          "updatedAt": "2020-01-01T00:00:00.000Z",
+          "updatedBy": "fixture"
+        },
+        "boosts": [],
+        "connectors": []
+      },
+      "request": {
+        "tenantId": "t",
+        "customerId": "cust_1",
+        "channel": "web",
+        "placement": "hero",
+        "occurredAt": "2026-06-01T12:00:00.000Z",
+        "input": {
+          "tenureMonths": 24
+        },
+        "contactHistory": {
+          "channel": "web",
+          "withinPeriod": {
+            "week": 0
+          },
+          "rejects": {
+            "offer_a": "2026-05-01T12:00:00.000Z"
+          }
+        }
+      },
+      "expected": {
+        "id": "dec_7b97814776fa3bd8",
+        "chainHash": "7b97814776fa3bd87fb8d7806c04bd8e76a411ed3052070a984c52851120d809",
+        "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+        "catalogueSnapshotHash": "48eb3c3d27d56c0140b67b74ad224e32d5507f8b142fa19dfa359d72499387d4",
+        "decision": {
+          "tenantId": "t",
+          "artifactId": "art_fixture",
+          "artifactVersion": "1.0.0",
+          "customerRef": "cust_1",
+          "occurredAt": "2026-06-01T12:00:00.000Z",
+          "channel": "web",
+          "placement": "hero",
+          "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+          "catalogueSnapshotHash": "48eb3c3d27d56c0140b67b74ad224e32d5507f8b142fa19dfa359d72499387d4",
+          "sourceBindings": [],
+          "packageVersions": {
+            "@metis/nodes-core": "2.0.0"
+          },
+          "schema": null,
+          "candidateKeys": [
+            "offer_a",
+            "offer_b",
+            "offer_c"
+          ],
+          "eliminations": [
+            {
+              "nodeId": "n1_source",
+              "nodeType": "source",
+              "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
+              "denials": [],
+              "survived": [
+                "offer_a",
+                "offer_b",
+                "offer_c"
+              ]
+            },
+            {
+              "nodeId": "n2_constraint",
+              "nodeType": "constraint",
+              "reason": "All 3 candidate(s) passed frequency policy.",
+              "denials": [],
+              "survived": [
+                "offer_a",
+                "offer_b",
+                "offer_c"
+              ]
+            },
+            {
+              "nodeId": "n3_arbitrate",
+              "nodeType": "arbitrate",
+              "reason": "Ranked 3 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
+              "denials": [
+                {
+                  "key": "offer_b",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                },
+                {
+                  "key": "offer_c",
+                  "code": "NOT_RANKED",
+                  "ruleId": null
+                }
+              ],
+              "survived": [
+                "offer_a"
+              ]
+            }
+          ],
+          "scores": {
+            "offer_a": {
+              "propensity": 1,
+              "value": 0.038333,
+              "boost": 1.25,
+              "context": 1,
+              "cost": 0.02,
+              "priority": 0.04791625
+            },
+            "offer_b": {
+              "propensity": 1,
+              "value": 0.038333,
+              "boost": 0.8,
+              "context": 1,
+              "cost": 0.02,
+              "priority": 0.0306664
+            },
+            "offer_c": {
+              "propensity": 1,
+              "value": 0.038333,
+              "boost": 1,
+              "context": 1,
+              "cost": 0.02,
+              "priority": 0.038333
+            }
+          },
+          "arbitration": {
+            "formula": "P^wP x V^wV x B^wB x C^wC",
+            "utility": {
+              "id": "multiplicative",
+              "version": "1.0.0"
+            },
+            "missingScore": {
+              "applied": [
+                "offer_a",
+                "offer_b",
+                "offer_c"
+              ],
+              "approved": null
+            },
+            "winner": "offer_a",
+            "runnerUp": "offer_c"
+          },
+          "constraintsApplied": [
+            "cp_1"
+          ],
+          "consentState": {
+            "marketing": true,
+            "profiling": true,
+            "thirdParty": false
+          },
+          "winner": "offer_a",
+          "winnerOfferId": "p_a"
+        }
+      }
+    },
+    {
+      "name": "a breached cap is reported ahead of an active cooldown",
+      "artifact": {
+        "id": "art_fixture",
+        "version": "1.0.0",
+        "tenantId": "t",
+        "nodes": [
+          {
+            "id": "n1_source",
+            "type": "source",
+            "label": "Source"
+          },
+          {
+            "id": "n2_constraint",
+            "type": "constraint",
+            "label": "Frequency policy",
+            "frequencyPolicyIds": [
+              "cp_1"
+            ]
+          },
+          {
+            "id": "n3_arbitrate",
+            "type": "arbitrate",
+            "label": "Arbitrate"
+          }
+        ],
+        "edges": [
+          {
+            "from": "n1_source",
+            "to": "n2_constraint"
+          },
+          {
+            "from": "n2_constraint",
+            "to": "n3_arbitrate"
+          }
+        ],
+        "candidateKeys": [
+          "offer_a",
+          "offer_b",
+          "offer_c"
+        ],
+        "packageVersions": {
+          "@metis/nodes-core": "2.0.0"
+        }
+      },
+      "catalogue": {
+        "offers": [
+          {
+            "id": "p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
+            "key": "offer_a",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 1.25,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          },
+          {
+            "id": "p_b",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_b",
+            "key": "offer_b",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 0.8,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          },
+          {
+            "id": "p_c",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_c",
+            "key": "offer_c",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 1,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          }
+        ],
+        "targetingPolicies": [],
+        "frequencyPolicies": [
+          {
+            "id": "cp_1",
+            "name": "Fixture cap",
+            "description": "Fixture.",
+            "channel": null,
+            "maxContacts": 3,
+            "period": "week",
+            "cooldownDaysAfterReject": 30,
+            "scope": {
+              "level": "tenant",
+              "targetId": null
+            },
+            "active": true
+          }
+        ],
+        "arbitration": {
+          "id": "arb",
+          "tenantId": "t",
+          "weights": {
+            "propensity": 1,
+            "value": 1,
+            "boost": 1,
+            "context": 1
+          },
+          "utility": {
+            "id": "multiplicative",
+            "version": "1.0.0"
+          },
+          "formula": "P^wP x V^wV x B^wB x C^wC",
+          "updatedAt": "2020-01-01T00:00:00.000Z",
+          "updatedBy": "fixture"
+        },
+        "boosts": [],
+        "connectors": []
+      },
+      "request": {
+        "tenantId": "t",
+        "customerId": "cust_1",
+        "channel": "web",
+        "placement": "hero",
+        "occurredAt": "2026-06-01T12:00:00.000Z",
+        "input": {
+          "tenureMonths": 24
+        },
+        "contactHistory": {
+          "channel": "web",
+          "withinPeriod": {
+            "week": 5
+          },
+          "rejects": {
+            "offer_a": "2026-05-27T12:00:00.000Z"
+          }
+        }
+      },
+      "expected": {
+        "id": "dec_e77444aaad916d0b",
+        "chainHash": "e77444aaad916d0b3b40693f6af4f8dadc52fd9623899a6bf30daf7dbb3e02ee",
+        "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+        "catalogueSnapshotHash": "48eb3c3d27d56c0140b67b74ad224e32d5507f8b142fa19dfa359d72499387d4",
+        "decision": {
+          "tenantId": "t",
+          "artifactId": "art_fixture",
+          "artifactVersion": "1.0.0",
+          "customerRef": "cust_1",
+          "occurredAt": "2026-06-01T12:00:00.000Z",
+          "channel": "web",
+          "placement": "hero",
+          "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+          "catalogueSnapshotHash": "48eb3c3d27d56c0140b67b74ad224e32d5507f8b142fa19dfa359d72499387d4",
+          "sourceBindings": [],
+          "packageVersions": {
+            "@metis/nodes-core": "2.0.0"
+          },
+          "schema": null,
+          "candidateKeys": [
+            "offer_a",
+            "offer_b",
+            "offer_c"
+          ],
+          "eliminations": [
+            {
+              "nodeId": "n1_source",
+              "nodeType": "source",
+              "reason": "Loaded profile for cust_1. All 3 candidates are active and in their validity window.",
+              "denials": [],
+              "survived": [
+                "offer_a",
+                "offer_b",
+                "offer_c"
+              ]
+            },
+            {
+              "nodeId": "n2_constraint",
+              "nodeType": "constraint",
+              "reason": "Frequency policy removed 3 candidate(s).",
+              "denials": [
+                {
+                  "key": "offer_a",
+                  "code": "FREQUENCY_CAP_BREACHED",
+                  "ruleId": "cp_1"
+                },
+                {
+                  "key": "offer_b",
+                  "code": "FREQUENCY_CAP_BREACHED",
+                  "ruleId": "cp_1"
+                },
+                {
+                  "key": "offer_c",
+                  "code": "FREQUENCY_CAP_BREACHED",
+                  "ruleId": "cp_1"
+                }
+              ],
+              "survived": []
+            },
+            {
+              "nodeId": "n3_arbitrate",
+              "nodeType": "arbitrate",
+              "reason": "No candidates reached arbitration; decision returned no offer.",
+              "denials": [],
+              "survived": []
+            }
+          ],
+          "scores": {},
+          "arbitration": {
+            "formula": "P^wP x V^wV x B^wB x C^wC",
+            "utility": {
+              "id": "multiplicative",
+              "version": "1.0.0"
+            },
+            "missingScore": {
+              "applied": [],
+              "approved": null
+            },
+            "winner": null,
+            "runnerUp": null
+          },
+          "constraintsApplied": [
+            "cp_1"
+          ],
+          "consentState": {
+            "marketing": true,
+            "profiling": true,
+            "thirdParty": false
+          },
+          "winner": null,
+          "winnerOfferId": null
+        }
+      }
+    },
+    {
       "name": "frequency policy scoped to a category leaves the rest alone",
       "artifact": {
         "id": "art_fixture",

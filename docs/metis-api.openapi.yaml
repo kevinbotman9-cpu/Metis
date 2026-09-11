@@ -1219,6 +1219,7 @@ components:
             - RELEVANCE_FAILED
             - SUITABILITY_FAILED
             - FREQUENCY_CAP_BREACHED
+            - COOLDOWN_ACTIVE
             - CONSENT_WITHHELD
             - OUT_OF_VALIDITY_WINDOW
             - NOT_ACTIVE
@@ -2161,6 +2162,46 @@ components:
           format: date-time
         updatedBy:
           type: string
+
+    ContactHistory:
+      type: object
+      description: |
+        What has already been sent to this customer, and what they declined.
+
+        Supplied by the caller, not read from the interaction log: the engine
+        opens no sockets, so everything a decision depends on arrives with the
+        request. `withinPeriod` drives the caps; `rejects` drives
+        `cooldownDaysAfterReject`.
+
+        **A decline is not an outcome.** `OutcomeType` is a monotone funnel —
+        conversion ⊆ acceptance ⊆ click ⊆ impression — with no negative event in
+        it, so a rejection has nowhere to live in the interaction log and is
+        stated here instead. Until 2026-09-11 there was no way to state one at
+        all, and the cooldown every catalogue carried was enforced by neither
+        engine (G-086).
+      required: [channel, withinPeriod]
+      properties:
+        channel:
+          type: string
+          enum: [email, sms, web, push, outbound_call]
+        withinPeriod:
+          type: object
+          description: >
+            Contacts already made, keyed by period — `day`, `week`, `month`.
+            Compared against `maxContacts` on every frequency policy whose scope
+            covers the candidate.
+          additionalProperties:
+            type: number
+        rejects:
+          type: object
+          description: >
+            The most recent decline per offer key, ISO-8601 with an explicit
+            offset or Z. Any other form is refused rather than guessed at: a
+            timestamp with no zone is local time to one engine and an error to
+            the other, and the two are required to agree.
+          additionalProperties:
+            type: string
+            format: date-time
 
     DeliveryAttempt:
       type: object
@@ -3571,7 +3612,7 @@ paths:
                       type: object
                       description: Customer and context attributes, already resolved.
                     contactHistory:
-                      type: object
+                      $ref: '#/components/schemas/ContactHistory'
                     consent:
                       type: object
                     idempotencyKey:
@@ -3713,7 +3754,7 @@ paths:
                   type: object
                   description: The decision's original input, exactly as it was.
                 contactHistory:
-                  type: object
+                  $ref: '#/components/schemas/ContactHistory'
       responses:
         '200':
           description: |
@@ -4126,7 +4167,7 @@ paths:
                     input:
                       type: object
                     contactHistory:
-                      type: object
+                      $ref: '#/components/schemas/ContactHistory'
                     consent:
                       type: object
                     idempotencyKey:
