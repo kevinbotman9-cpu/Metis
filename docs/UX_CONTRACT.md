@@ -21,10 +21,20 @@ instead, where a human can apply judgement.
 
 ## 2. Layouts are artefacts
 
-- A screen is a layout manifest: regions, slots, occupancy, persona.
-- Manifests are versioned and diffable like decision flows.
-- **Check:** every route resolves to a manifest. A route rendering a hardcoded
-  arrangement of components fails.
+- A screen is a layout manifest: one instance of one of the seven patterns,
+  with the pattern's parameters filled and panels placed in the slots the
+  pattern declares (ADR-015). A manifest never declares a region of its own,
+  and holds no permission or persona — those stay in `apps/console/lib/nav`.
+- Manifests live in `packages/ui-metadata/src/layouts/`, beside the descriptors,
+  and are versioned in git with a `formatVersion` for the format itself.
+- **Check:** a route's `page.tsx` is `<Screen manifest="…" />` and nothing else,
+  naming a manifest the registry holds and declared for that route
+  (`scripts/conformance.mjs`, `layout-manifests`). A route rendering an
+  arrangement of its own fails; so does a path merely written down somewhere.
+- **Check:** every manifest names a route that exists, panels that exist and may
+  fill the slots they are in, an entity with a descriptor or a pending reason,
+  and columns and facets that are that entity's fields
+  (`packages/ui-metadata/tests/layouts.test.ts`).
 
 Two exemptions, both narrow and both decided rather than assumed:
 
@@ -34,7 +44,9 @@ Two exemptions, both narrow and both decided rather than assumed:
   navigating. A detail route with its own manifest would declare a second screen
   where the design has one, and would then have to be kept in step with the
   parent by hand. The parent's manifest is where the detail pane's regions are
-  declared.
+  declared. ADR-015 §5.3 narrows this to the `[id]` routes a list–detail
+  manifest names as its `detailRoute`; that lands with its third build step, not
+  yet, and until then every dynamic route is exempt.
 - **Routes outside the app shell are exempt entirely.** Today that is `/login`,
   which renders before there is a session, a persona or a nav — the three things
   a manifest is composed against. A manifest for it would resolve nothing.

@@ -6,6 +6,7 @@ import { ROUTES } from '@/lib/nav/routes.generated';
 import { requirementFor, DECLARED_ROUTE_PERMISSIONS } from '@/lib/nav/route-permissions';
 import { buildNav } from '@/lib/nav/build-nav';
 import { users } from '@/mocks/fixtures/catalogue';
+import { declaredScreen } from '@metis/ui-metadata';
 
 /**
  * The check that would have caught it.
@@ -58,6 +59,14 @@ function pages(): [string, string][] {
   return found;
 }
 
+/** The body of `Screen` after its first statement — what every declared page renders. */
+const SCREEN_ROOT = (() => {
+  const src = readFileSync(resolve(__dirname, '../../components/layouts/screen.tsx'), 'utf8').replace(/\r\n/g, '\n');
+  const body = /export function Screen\([^)]*\)[^{]*\{\n[^\n]*\n([\s\S]*?)\n\}\n/.exec(src)?.[1];
+  if (!body) throw new Error('could not find `export function Screen` in components/layouts/screen.tsx');
+  return body.replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+})();
+
 const account = (email: string) => {
   const u = users.find((x) => x.email === email);
   if (!u) throw new Error(`no fixture account ${email}`);
@@ -72,12 +81,24 @@ describe('every route is behind the permission its nav entry declares', () => {
     // `/login` is the exception and the only one: it is where an unauthorised
     // visitor is sent, so wrapping it in the thing that redirects there would
     // be a loop.
+    //
+    // A declared screen's page is `<Screen manifest="…" />` and nothing else
+    // (ADR-015), so it is guarded by what `Screen` renders, and is read as that.
     const escaped = pages()
       .filter(([route]) => route !== '/login')
-      .filter(([, src]) => !/<RequireAuth[\s>]/.test(src))
+      .filter(([, src]) => !/<RequireAuth[\s>]/.test(declaredScreen(src) ? SCREEN_ROOT : src))
       .map(([route]) => route);
 
     expect(escaped, 'these routes render outside RequireAuth and enforce nothing').toEqual([]);
+  });
+
+  it('guards a declared screen around everything it renders', () => {
+    // The substitution above is only as good as this. `Screen` must return
+    // RequireAuth as its outermost element, with the pattern inside it — a
+    // RequireAuth rendered beside the screen, or inside one branch of it, would
+    // satisfy a search for the tag and guard nothing.
+    expect(pages().filter(([, src]) => declaredScreen(src)).length, 'no declared screens found').toBeGreaterThan(0);
+    expect(SCREEN_ROOT).toMatch(/^\s*return\s*\(\s*<RequireAuth>[\s\S]*<PatternHost\b[\s\S]*<\/RequireAuth>\s*\);\s*$/);
   });
 
   it('applies the requirement in RequireAuth, not merely computes it', () => {
