@@ -679,4 +679,54 @@ export interface SourceCall {
   fields: string[];
   /** Present when the call did not succeed. */
   detail?: string;
+  /**
+   * When this decision asked for the value.
+   *
+   * `ms` says how long the answer took; this says when it was asked for. A
+   * duration on its own cannot place a call in time, which is what an audit
+   * needs (G-056).
+   */
+  fetchedAt: string;
+  /**
+   * When the value itself was computed at the source.
+   *
+   * The same as `fetchedAt` for a call that went to the connector. For a cache
+   * hit it is when the cached value was fetched, which may be minutes older —
+   * and *"was that consent flag current"* is a question only this field can
+   * answer.
+   *
+   * Absent when a cache cannot say: `IntegrationCache` may implement `entry`
+   * and return the time it stored a value, and a cache that does not is
+   * recorded as not knowing rather than having the fetch time copied over it.
+   */
+  observedAt?: string;
+}
+
+/**
+ * A pack, and the policies it supplied.
+ *
+ * A pack is the unit a customer installs and is audited against, and until
+ * 2026-09-11 nothing connected one to the rules it brought with it: an artifact
+ * pinned `packageVersions`, and a refusal could name a policy id and no pack
+ * (G-055). The compiler resolves this at compile time and writes the result
+ * into the artifact, so the attribution is pinned with everything else the
+ * decision was made against.
+ *
+ * Declaring membership is all this does. Installing a pack, versioning its
+ * contents and refusing a policy that two packs both claim are not modelled.
+ */
+export interface PackManifest {
+  id: string;
+  /** Human name, for a screen that has to say which pack refused someone. */
+  name: string;
+  version: string;
+  /** Targeting policy ids this pack supplied. */
+  policyIds: string[];
+}
+
+/** Which pack supplied a rule, as pinned in a compiled artifact. */
+export interface PolicySource {
+  packId: string;
+  name: string;
+  version: string;
 }

@@ -45,6 +45,15 @@ export interface IntegrationGateway {
 export interface IntegrationCache {
   get(key: string): unknown | undefined;
   set(key: string, value: unknown, ttlSeconds: number): void;
+  /**
+   * The value and when it was fetched from the source.
+   *
+   * Optional, and the reason `SourceCall.observedAt` is optional too. A cache
+   * that cannot say when it stored something makes a decision unable to say
+   * whether the consent flag it used was current, and that is recorded as not
+   * known rather than filled in with the time of the cache read (G-056).
+   */
+  entry?(key: string): { value: unknown; storedAt: number } | undefined;
 }
 
 export interface ResolvedInput {
@@ -223,23 +232,31 @@ export async function resolveInputs(
             outcome: 'skipped' as const,
             fields: [],
             detail: 'Connector is not active',
+            fetchedAt: new Date().toISOString(),
           },
         };
       }
 
       const started = Date.now();
       const key = cacheKey(connector, context);
-      const cached =
-        connector.cacheTtlSeconds > 0 ? gateway.cache?.get(key) : undefined;
+      const usable = connector.cacheTtlSeconds > 0 ? gateway.cache : undefined;
+      // `entry` when the cache implements it, so a hit can say how old the
+      // value is; `get` otherwise, which answers with the value alone.
+      const entry = usable?.entry?.(key);
+      const cached = entry ? entry.value : usable?.get(key);
 
       let payload: unknown;
       let cacheHit = false;
       let outcome: SourceCall['outcome'] = 'ok';
       let detail: string | undefined;
+      let observedAt: string | undefined;
 
       if (cached !== undefined) {
         payload = cached;
         cacheHit = true;
+        // Absent when the cache does not keep the time: an unknown age is worth
+        // more to an auditor than a fetch time wearing the value's clothes.
+        observedAt = entry ? new Date(entry.storedAt).toISOString() : undefined;
       } else {
         try {
           payload = await withTimeout(
@@ -285,6 +302,10 @@ export async function resolveInputs(
           outcome,
           fields: Object.keys(values).sort(),
           ...(detail ? { detail } : {}),
+          fetchedAt: new Date(started).toISOString(),
+          // A call that went to the connector computed its value as it
+          // answered, so the two times are the same by definition.
+          ...(cacheHit ? (observedAt ? { observedAt } : {}) : { observedAt: new Date(started).toISOString() }),
         } satisfies SourceCall,
       };
     })

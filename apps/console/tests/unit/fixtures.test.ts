@@ -16,6 +16,7 @@ import {
   boosts,
   autonomySettings,
   placements,
+  connectors,
 } from '@/mocks/fixtures/catalogue';
 import { decisions, sampleTraces, findTrace } from '@/mocks/fixtures/decisions';
 
@@ -364,5 +365,88 @@ describe('every slot the corpus decides for is a slot the tenant has', () => {
       ),
     ];
     expect(inactive, 'the corpus decides for a slot the platform would refuse').toEqual([]);
+  });
+});
+
+/**
+ * What the artifact says about a rule, and what a call says about its value.
+ *
+ * Three absences the trace reader used to draw are now answers, and each one
+ * is a fixture claim as much as a code one: a tier the compiler derived
+ * (G-058), the pack that supplied a rule (G-055), and when a value was
+ * computed (G-056).
+ */
+describe('provenance the artifact and the calls carry', () => {
+  it('gives every filtering node a tier, without reading its id', async () => {
+    const { compilations } = await import('@/mocks/fixtures/compiled');
+    const missing: string[] = [];
+    for (const c of compilations) {
+      for (const n of c.result.artifact?.nodes ?? []) {
+        if (n.type !== 'filter' && n.type !== 'constraint') continue;
+        if (!n.tier) missing.push(`${c.artifactId}:${n.id}`);
+      }
+    }
+    expect(missing, 'a filtering node with no tier makes the rail guess again').toEqual([]);
+  });
+
+  it('resolves the tier the id patterns would have got wrong', async () => {
+    const { compilations } = await import('@/mocks/fixtures/compiled');
+    const nba = compilations.find((c) => c.artifactId === 'next-best-action')!.result.artifact!;
+    const tiers = Object.fromEntries(nba.nodes.map((n) => [n.id, n.tier ?? null]));
+    // Both are `constraint`. One is the affordability tier and the other a
+    // contact cap, which is the collision G-058 was about.
+    expect(tiers.filter_suitability).toBe('suitability');
+    expect(tiers.constraint_contact).toBe('frequency');
+    expect(tiers.source_customer).toBeNull();
+  });
+
+  it('attributes a rule to the pack that supplied it, and says nothing about the rest', async () => {
+    const { compilations } = await import('@/mocks/fixtures/compiled');
+    const nba = compilations.find((c) => c.artifactId === 'next-best-action')!.result.artifact!;
+    expect(nba.policySources?.pol_afford_5g).toEqual({
+      packId: 'pack_uk_consumer_duty',
+      name: 'UK Consumer Duty',
+      version: '1.4.0',
+    });
+    // A rule the tenant wrote is absent rather than attributed to nothing,
+    // which is what the evidence pane renders as "the tenant authored it".
+    expect(nba.policySources?.pol_credit_pass).toBeUndefined();
+  });
+
+  it('dates every source call, and never after the decision asked', () => {
+    for (const t of traces.slice(0, 50)) {
+      for (const call of t.sourceCalls) {
+        expect(Number.isFinite(Date.parse(call.fetchedAt)), `${t.id}: unparsable fetchedAt`).toBe(
+          true
+        );
+        expect(call.observedAt, `${t.id}: no observedAt`).toBeTruthy();
+        const observed = Date.parse(call.observedAt!);
+        const fetched = Date.parse(call.fetchedAt);
+        // A value computed after it was asked for is a clock nobody should
+        // believe; one older than its own TTL would have been evicted.
+        expect(observed).toBeLessThanOrEqual(fetched);
+        const ttl = connectors.find((c) => c.id === call.connectorId)?.cacheTtlSeconds ?? 0;
+        expect(fetched - observed).toBeLessThanOrEqual(Math.max(ttl, 0) * 1000);
+      }
+    }
+  });
+});
+
+/**
+ * A seeded cache that always looks fresh would be a fixture claiming every
+ * value was computed at the instant it was used — which is the thing
+ * `observedAt` exists to disprove (G-056). An e2e pattern of `\d+s older`
+ * stayed green against exactly that, so the property is asserted here too.
+ */
+describe('cached values look their age', () => {
+  it('gives cache hits a spread of ages, none beyond its TTL', () => {
+    const ages = traces
+      .slice(0, 100)
+      .flatMap((t) => t.sourceCalls.filter((c) => c.cacheHit && c.observedAt))
+      .map((c) => (Date.parse(c.fetchedAt) - Date.parse(c.observedAt!)) / 1000);
+
+    expect(ages.length).toBeGreaterThan(50);
+    expect(ages.filter((a) => a > 0).length / ages.length).toBeGreaterThan(0.9);
+    expect(new Set(ages).size, 'every cached value the same age is not a cache').toBeGreaterThan(10);
   });
 });

@@ -134,7 +134,10 @@ function TraceView({ decisionId }: { decisionId: string }) {
   const show = (...keys: AudienceKey[]) => keys.includes(audience);
 
   // --- the cascade -------------------------------------------------------
-  const stages = stagesFor(trace);
+  // The compiled nodes carry the tier each node implements, so the rail reads
+  // it instead of inferring one from the node id (G-058).
+  const compiled = artifact.data?.compilation?.artifact ?? null;
+  const stages = stagesFor(trace, compiled?.nodes);
   const selectedStage = stages.find((s) => s.nodeId === selectedNode) ?? null;
   const groups = selectedStage ? groupDenials(selectedStage.denials) : [];
   const selectedGroup =
@@ -143,9 +146,10 @@ function TraceView({ decisionId }: { decisionId: string }) {
   const policyName = (ruleId: string | null) =>
     ruleId ? (policies.data?.policies ?? []).find((p) => p.id === ruleId)?.name : undefined;
 
-  const packageVersions =
-    (artifact.data?.compilation?.artifact?.packageVersions as Record<string, string> | undefined) ??
-    null;
+  const packageVersions = compiled?.packageVersions ?? null;
+  // Null while the artifact is in flight; an empty map when the tenant has no
+  // packs installed. The evidence pane says which of the two it is.
+  const policySources = artifact.data ? (compiled?.policySources ?? {}) : null;
 
   const entered = Math.max(1, trace.candidateCount || 1);
   const railStages: CascadeStage[] = stages.map((s) => ({
@@ -414,6 +418,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
               group={selectedGroup}
               policies={policies.data?.policies ?? []}
               packageVersions={packageVersions}
+              policySources={policySources}
             />
           </CardBody>
         </Card>

@@ -24,6 +24,9 @@ import type {
   FrequencyPolicy,
   ArbitrationConfig,
   PolicyScope,
+  PolicyKind,
+  PackManifest,
+  PolicySource,
   Connector,
 } from '@metis/core/domain';
 import {
@@ -68,6 +71,33 @@ export interface FlowNode {
   connectorIds?: string[];
   /** Worst-case contribution to latency, in milliseconds. */
   estimatedMs: number;
+}
+
+/**
+ * Which question a node answers, as opposed to how it behaves.
+ *
+ * `type` says a node removes candidates against a predicate; two nodes with
+ * `type: 'constraint'` can be an affordability tier and a weekly contact cap.
+ * Nothing recorded the difference, so the trace reader inferred it from node
+ * ids with `/suitab/` and `/frequen|contact|cap/` — fragile in the way any
+ * meaning read out of an identifier is (G-058).
+ *
+ * Derived here, at compile time, from the kinds of the targeting policies a
+ * node declares, and written into the artifact so a reader can look it up.
+ *
+ * **It names the node's declared policies, not everything the node enforces.**
+ * The engine applies frequency caps and consent at *every* constraint node
+ * regardless of tier, so a `CONSENT_WITHHELD` denial can be recorded against a
+ * node whose tier is `suitability`. A denial's reason code is what says why a
+ * candidate went; this says what the node was built to ask.
+ */
+export type NodeTier = PolicyKind | 'frequency';
+
+/**
+ * A node as compiled: what the author wrote, plus what compilation worked out.
+ */
+export interface CompiledNode extends FlowNode {
+  tier?: NodeTier;
 }
 
 export interface FlowEdge {
@@ -179,6 +209,13 @@ export interface CompileContext {
    * rather than every flow turning red on the day this shipped.
    */
   profileSchema?: ProfileSchema;
+  /**
+   * Packs installed for this tenant, and the policies each supplied.
+   *
+   * Omitted means none are installed, and the artifact records no policy
+   * sources rather than inventing them.
+   */
+  packs?: PackManifest[];
   tenant: { id: string; latencyBudgetMs: number; maxNodes: number };
 }
 
@@ -197,11 +234,24 @@ export interface CompiledDecisionFlow {
   id: string;
   version: string;
   tenantId: string;
-  nodes: FlowNode[];
+  nodes: CompiledNode[];
   edges: FlowEdge[];
   candidateKeys: string[];
   /** Exact versions, locked at compile time so a replay is reproducible. */
   packageVersions: Record<string, string>;
+  /**
+   * Which pack supplied each targeting policy this flow references.
+   *
+   * `packageVersions` pins the packs a decision compiled against; this says
+   * which of them a given rule came from, so a refusal can be attributed to
+   * "the UK GDPR pack, version 1.4" rather than to a bare policy id (G-055).
+   *
+   * Only policies the flow's nodes actually reference, keyed by policy id.
+   * A policy no pack claims is absent rather than recorded as belonging to
+   * nothing — a tenant authors its own rules, and that is not a gap in the
+   * record, it is the answer.
+   */
+  policySources?: Record<string, PolicySource>;
   /** Carried from the source, pinned by the artifact hash. */
   missingScoreDefault?: MissingScoreDefault;
   costManifest: CostManifest;
@@ -214,6 +264,54 @@ export interface CompileResult {
   ok: boolean;
   artifact: CompiledDecisionFlow | null;
   diagnostics: Diagnostic[];
+}
+
+/**
+ * The tier a node implements, or nothing when its policies do not agree.
+ *
+ * A node whose policies span two tiers has no single answer to "which question
+ * does this ask", and guessing one would put a wrong label on a screen that
+ * exists to be trusted. It compiles, with a warning, and the field is absent.
+ */
+export function tierOf(
+  node: FlowNode,
+  policies: Pick<TargetingPolicy, 'id' | 'kind'>[]
+): NodeTier | undefined {
+  const byId = new Map(policies.map((p) => [p.id, p]));
+  const kinds = new Set(
+    (node.policyIds ?? []).map((id) => byId.get(id)?.kind).filter((k): k is PolicyKind => Boolean(k))
+  );
+  if (kinds.size === 1) return [...kinds][0];
+  if (kinds.size > 1) return undefined;
+
+  // No targeting policies. A constraint node still enforces frequency caps and
+  // consent — that is what the engine does at every constraint node — so its
+  // question is the frequency one. Any other node type asks nothing tiered.
+  return node.type === 'constraint' ? 'frequency' : undefined;
+}
+
+/**
+ * Which pack supplied each policy the flow references.
+ *
+ * Resolved from the manifests the caller supplies. Omitted manifests mean the
+ * tenant has no packs installed, and every rule is its own — which is recorded
+ * as an absent map rather than as an empty claim.
+ */
+export function policySourcesFor(
+  nodes: FlowNode[],
+  packs: PackManifest[]
+): Record<string, PolicySource> | undefined {
+  const referenced = new Set(nodes.flatMap((n) => n.policyIds ?? []));
+  const sources: Record<string, PolicySource> = {};
+  for (const pack of packs) {
+    for (const policyId of pack.policyIds) {
+      if (!referenced.has(policyId) || sources[policyId]) continue;
+      sources[policyId] = { packId: pack.id, name: pack.name, version: pack.version };
+    }
+  }
+  const ordered = Object.keys(sources).sort();
+  if (ordered.length === 0) return undefined;
+  return Object.fromEntries(ordered.map((id) => [id, sources[id]]));
 }
 
 // ---------------------------------------------------------------------------
@@ -968,14 +1066,23 @@ export function compileDecisionFlow(
     withinBudget,
   };
 
+  const policySources = policySourcesFor(source.nodes, ctx.packs ?? []);
+
   const body = {
     id: source.id,
     version: source.version,
     tenantId: source.tenantId,
-    nodes: source.nodes,
+    nodes: source.nodes.map((n) => {
+      const tier = tierOf(n, ctx.targetingPolicies);
+      // Spread rather than `tier: undefined`: the artifact hash is taken over
+      // this object, and absent and explicitly-undefined canonicalise
+      // differently.
+      return tier ? { ...n, tier } : n;
+    }),
     edges: source.edges,
     candidateKeys: source.candidateKeys,
     packageVersions,
+    ...(policySources ? { policySources } : {}),
     costManifest,
     // Spread so the field is absent rather than explicitly undefined when the
     // flow declares none. The artifact hash is taken over this object, and

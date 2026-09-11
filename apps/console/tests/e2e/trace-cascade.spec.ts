@@ -145,26 +145,105 @@ test.describe('the trace reads as a cascade @screen-only', () => {
     await expect(offer).toBeVisible();
   });
 
-  test('the evidence pane states what the platform does not record', async ({ page }) => {
+  test('the evidence pane dates the value and attributes the rule', async ({ page }) => {
     await openRichTrace(page);
     const names = await stageNames(page);
     await rail(page).getByRole('button', { name: names.find((n) => / removed here/.test(n))! }).click();
     await page.getByRole('button', { name: /: \d+ removed$/ }).first().click();
 
-    // Three things the mockup asked for that the platform has no field for.
-    // Drawn as absences with their reason and their gap id, because a pane that
-    // omitted them would read as complete and the reader would conclude the
-    // platform records more than it does.
-    await expect(page.getByText(/no pack is recorded against a rule/)).toBeVisible();
-    await expect(page.getByText(/never a timestamp/)).toBeVisible();
+    const evidence = page.getByRole('region', { name: 'Evidence' });
+
+    // When the value was computed. This was an absence until 2026-09-11 —
+    // `sourceCalls` carried a duration and a cache flag and no time at all, so
+    // a cached consent flag could not be dated (G-056). Whether this rule reads
+    // a connector-bound field depends on the rule; what must never come back is
+    // the old sentence saying the platform cannot date anything. The test below
+    // asserts the timestamp itself on a rule that does read one.
+    await expect(evidence.getByText('When the value was computed')).toBeVisible();
+    await expect(page.getByText(/never a timestamp/)).toHaveCount(0);
+
+    // The pack that supplied the rule. This decision's rules are the tenant's
+    // own, and saying so is the answer rather than an absence — the pack case
+    // is the test below.
+    await expect(evidence.getByText('Pack that supplied it')).toBeVisible();
+    await expect(evidence.getByText(/the tenant authored it|UK /)).toBeVisible();
+
+    // The one that is still nothing, stated rather than omitted: a pane that
+    // left it out would read as complete.
     await expect(page.getByText(/No customer-facing refusal text exists/)).toBeVisible();
 
-    // And what it does record, so the absences are not the whole pane.
-    // Scoped to the pane: "Reason code" appears here and in the denial detail
-    // card below, and the assertion is about this one.
-    const evidence = page.getByRole('region', { name: 'Evidence' });
+    // And what it always recorded, so the new rows are not the whole pane.
     await expect(evidence.getByText('Reason code')).toBeVisible();
     await expect(evidence.getByText('Field it evaluated')).toBeVisible();
+  });
+
+  test('a rule from a pack names the pack that supplied it', async ({ page }) => {
+    // Walked from the list rather than opened by id: decision ids are
+    // generated, and a test that hardcoded one would be asserting a fixture
+    // constant. Affordability rules are this tenant's most common refusal, so
+    // a few rows always reach one; failing after eight says so out loud rather
+    // than passing quietly on a decision that had none.
+    let found = false;
+    for (let row = 0; row < 8 && !found; row++) {
+      await page.goto('/decisions');
+      await page.locator('tr[data-row]').nth(row).click();
+      await expect(rail(page)).toBeVisible({ timeout: 20_000 });
+
+      for (const name of await stageNames(page)) {
+        if (!/ removed here/.test(name)) continue;
+        await rail(page).getByRole('button', { name }).click();
+        // Wait for the pane to name *this* stage before reading it. `count()`
+        // does not auto-wait, and waiting for "a rule button" is not enough:
+        // the previous stage's rules are still on screen for a moment, so an
+        // early read walks past a stage that does have the rule. The first
+        // version of this test reported no affordability rule in eight
+        // decisions while the fourth had one, twenty candidates deep.
+        const label = name.split(':')[0];
+        await expect(page.getByText(new RegExp(`^${label} removed \\d+$`))).toBeVisible();
+        const group = page.getByRole('button', { name: /^pol_afford\w*: \d+ removed$/ });
+        if ((await group.count()) === 0) continue;
+        await group.first().click();
+        found = true;
+        break;
+      }
+    }
+    expect(found, 'no affordability rule in the first eight decisions').toBe(true);
+
+    const evidence = page.getByRole('region', { name: 'Evidence' });
+    await expect(evidence.getByText('UK Consumer Duty')).toBeVisible();
+    await expect(evidence.getByText('1.4.0')).toBeVisible();
+    await expect(evidence.getByText('pack_uk_consumer_duty')).toBeVisible();
+
+    // Under a rule, the connector row is an absence for a reason that is not
+    // G-056: this tenant's policies name dotted paths and its connectors
+    // provide flat fields, so no rule's field resolves to a call at all
+    // (G-065). The pane says which absence it is rather than implying the
+    // platform cannot date a value.
+    await expect(evidence.getByText(/no connector call supplied a field this rule reads/)).toBeVisible();
+  });
+
+  test('the decision names when each value it used was computed', async ({ page }) => {
+    // G-056. The times belong to the decision's inputs, so they are on the
+    // pane before anything is selected — which is also the first thing a
+    // reader sees. A cached value carries its age: "was that consent flag
+    // current" is the question, and an age is the answer.
+    await openRichTrace(page);
+    const evidence = page.getByRole('region', { name: 'Evidence' });
+
+    await expect(evidence.getByText('Values fetched')).toBeVisible();
+    await expect(evidence.getByText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z/).first()).toBeVisible();
+    // A non-zero age on purpose. `cached, 0s older` satisfies a looser pattern
+    // while telling the reader every value was computed at the instant it was
+    // used — which is the claim this row exists to disprove, and which a
+    // deliberately broken fixture produced while a \d+ pattern stayed green.
+    await expect(
+      evidence.getByText(/cached, [1-9]\d*s older than this decision|read live/).first()
+    ).toBeVisible();
+
+    // Every connector the decision called is dated, not just the first.
+    const dated = await evidence.getByText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z/).count();
+    const connectors = await evidence.getByText(/^conn_/).count();
+    expect(dated, 'a connector call with no time on it').toBe(connectors);
   });
 
   test('the rail is operable from the keyboard alone', async ({ page }) => {

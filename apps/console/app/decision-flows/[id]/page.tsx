@@ -147,12 +147,13 @@ function FlowDetail({ artifactId }: { artifactId: string }) {
                             'Synthetic. This flow belongs to the seeded demo tenant ' +
                             'demo-telco-uk and was authored by nobody.',
                         },
-                        id: artifact.id,
+                        // Only what the compiled artifact does not carry. The
+                        // spread below has always won at runtime for id,
+                        // version, candidateKeys, nodes and edges — the
+                        // compiled form is the executable one — and the spec
+                        // described four of its fields until 2026-09-11, which
+                        // is the only reason the duplicates typechecked.
                         name: artifact.name,
-                        version: artifact.activeVersion,
-                        candidateKeys: artifact.candidateKeys,
-                        nodes: artifact.nodes,
-                        edges: artifact.edges,
                         ...compiled,
                       })
                   : undefined

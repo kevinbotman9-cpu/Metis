@@ -47,23 +47,39 @@ export interface HttpGatewayOptions {
  * depend on whether it was lucky with the cache.
  */
 export class MemoryIntegrationCache implements IntegrationCache {
-  private readonly entries = new Map<string, { value: unknown; expiresAt: number }>();
+  private readonly entries = new Map<
+    string,
+    { value: unknown; expiresAt: number; storedAt: number }
+  >();
 
   constructor(private readonly now: () => number = Date.now) {}
 
   get(key: string): unknown | undefined {
+    return this.entry(key)?.value;
+  }
+
+  /**
+   * The value and when it was stored.
+   *
+   * Storing the time as well as the expiry is what lets a trace say when the
+   * value a decision used was computed, rather than only that it came from
+   * cache (G-056). Expiry cannot stand in for it: a TTL says when a value
+   * stops being usable, not when it was true.
+   */
+  entry(key: string): { value: unknown; storedAt: number } | undefined {
     const entry = this.entries.get(key);
     if (!entry) return undefined;
     if (entry.expiresAt <= this.now()) {
       this.entries.delete(key);
       return undefined;
     }
-    return entry.value;
+    return { value: entry.value, storedAt: entry.storedAt };
   }
 
   set(key: string, value: unknown, ttlSeconds: number): void {
     if (ttlSeconds <= 0) return;
-    this.entries.set(key, { value, expiresAt: this.now() + ttlSeconds * 1000 });
+    const at = this.now();
+    this.entries.set(key, { value, expiresAt: at + ttlSeconds * 1000, storedAt: at });
   }
 
   /** Test and operations affordance; resolution never calls it. */
