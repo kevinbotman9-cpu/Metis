@@ -1140,8 +1140,10 @@ offline.
   `GITHUB_TOKEN` set.
 - **It does not read `if:` conditions.** A job that is required and skipped on
   pull requests would pass it.
-- **The authenticated path has only run locally.** CI's use of `GITHUB_TOKEN`
-  has not been observed yet; it will be on this branch's first pull request run.
+- **The authenticated path has now run in CI**, twice: on pull request #16 and
+  on the push run for the merge commit `b6c7d5e`. Both `spec` jobs print the
+  list read from the API — `e2e-report, kotlin-conformance, spec, verify` —
+  against the six jobs in the workflow.
 
 ### G-062 — CI typechecked the console without Next's route types
 
