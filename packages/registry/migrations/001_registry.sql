@@ -1,4 +1,4 @@
--- METIS artifact registry.
+-- METIS artifact registry — version 1, the baseline.
 --
 -- The application already refuses to overwrite a published version. This
 -- schema refuses too, with triggers that reject UPDATE and DELETE outright.
@@ -8,76 +8,23 @@
 -- script, an admin query, or a second service. Enforced in the database, it
 -- survives all three. If the two ever disagree, the database wins and the
 -- application finds out loudly rather than silently.
-
-BEGIN;
-
--- --------------------------------------------------------------------------
--- Taxonomy rename, 2026-09-05: strategy_name -> flow_name
--- --------------------------------------------------------------------------
 --
--- `CREATE TABLE IF NOT EXISTS` below is a no-op against a database created
--- before the rename, so it would leave the old column in place and every
--- query would fail with 42703 — a missing-column error a long way from its
--- cause. This block renames it first, and does nothing on a fresh database.
+-- ## How this file changes: it does not
 --
--- Inline rather than as `002_`, because there is no migration runner yet: the
--- schema is applied whole at startup. When a second real migration arrives,
--- that is the moment to add one, and this block should move into it.
-
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.columns
-               WHERE table_name = 'registry_versions' AND column_name = 'strategy_name') THEN
-        ALTER TABLE registry_versions RENAME COLUMN strategy_name TO flow_name;
-    END IF;
-    IF EXISTS (SELECT 1 FROM information_schema.columns
-               WHERE table_name = 'registry_environments' AND column_name = 'strategy_name') THEN
-        ALTER TABLE registry_environments RENAME COLUMN strategy_name TO flow_name;
-    END IF;
-    IF EXISTS (SELECT 1 FROM information_schema.columns
-               WHERE table_name = 'registry_events' AND column_name = 'strategy_name') THEN
-        ALTER TABLE registry_events RENAME COLUMN strategy_name TO flow_name;
-    END IF;
-END $$;
-
-ALTER INDEX IF EXISTS registry_versions_by_strategy RENAME TO registry_versions_by_flow;
-
--- Added after the table shipped, and there is still no migration runner, so it
--- goes in here guarded rather than in an 002_. When a second real migration
--- arrives, that is the moment to add the runner and move both of these.
-ALTER TABLE IF EXISTS registry_environments ADD COLUMN IF NOT EXISTS shadow_version text;
-
--- `CREATE TABLE IF NOT EXISTS` below creates the CHECK with the current list,
--- but it does not *evolve* one that already exists — an existing database keeps
--- the old set and rejects ShadowStarted with a check violation. Dropped and
--- recreated rather than left to chance, and unconditionally, because the
--- constraint's content is what changes rather than its presence.
-DO $$
-BEGIN
-    IF to_regclass('registry_events') IS NOT NULL THEN
-        ALTER TABLE registry_events DROP CONSTRAINT IF EXISTS registry_events_type_check;
-        ALTER TABLE registry_events ADD CONSTRAINT registry_events_type_check
-            CHECK (type IN ('ArtifactPublished', 'PublishRejected', 'VersionPromoted',
-                            'VersionRolledBack', 'ShadowStarted', 'ShadowStopped'));
-    END IF;
-END $$;
-ALTER INDEX IF EXISTS registry_events_by_strategy RENAME TO registry_events_by_flow;
-
--- Added 2026-09-06 with the flow-test gate. `CREATE TABLE IF NOT EXISTS` does
--- not add a column to a table that already exists, so this runs beside it —
--- for databases whose table predates the column.
+-- Applied once by `@metis/core/migrate`, in a transaction with the row that
+-- records it and its checksum. Once a database has run it, the runner refuses
+-- to start if the text differs, and `tests/migrations-frozen.test.ts` refuses a
+-- pull request that edits it. A change to this schema is `002_*.sql`.
 --
--- It cannot give a new database the column, and for five days nothing else did:
--- this runs before the CREATE below, so on an empty database it finds no table
--- and does nothing, and the column arrived only on a second run. The CREATE
--- now declares it too. G-076; `tests/migration.test.ts` holds one run on an
--- empty database to the schema two runs produce.
-ALTER TABLE IF EXISTS registry_versions
-  ADD COLUMN IF NOT EXISTS tests jsonb NOT NULL DEFAULT '[]'::jsonb;
+-- Rewritten as a plain baseline on 2026-09-11 (G-077). It used to open with
+-- conditional blocks — a column rename, two added columns, a widened check —
+-- each patching databases that `CREATE TABLE IF NOT EXISTS` could not reach,
+-- and one placed where it could not work (G-076). No database whose upgrade
+-- path had to be kept existed, so they were deleted rather than carried.
 
-CREATE TABLE IF NOT EXISTS registry_versions (
+CREATE TABLE registry_versions (
     tenant_id      text        NOT NULL,
-    flow_name  text        NOT NULL,
+    flow_name      text        NOT NULL,
     version        text        NOT NULL,
 
     -- The compiled artifact, exactly as the compiler emitted it. Stored whole
@@ -98,22 +45,20 @@ CREATE TABLE IF NOT EXISTS registry_versions (
     -- explain in six months than one that shipped clean.
     warnings       jsonb       NOT NULL DEFAULT '[]'::jsonb,
 
-    -- The flow's own test cases, run by the flow-test gate at publish. Declared
-    -- here as well as added by the ALTER above, which cannot reach a table that
-    -- does not exist yet. G-076.
+    -- The flow's own test cases, run by the flow-test gate at publish.
     tests          jsonb       NOT NULL DEFAULT '[]'::jsonb,
 
     PRIMARY KEY (tenant_id, flow_name, version)
 );
 
-CREATE INDEX IF NOT EXISTS registry_versions_by_flow
+CREATE INDEX registry_versions_by_flow
     ON registry_versions (tenant_id, flow_name, published_at DESC);
 
 -- An environment pointer. The one mutable thing here, because that is what an
 -- environment is: a name for whatever is currently running.
-CREATE TABLE IF NOT EXISTS registry_environments (
+CREATE TABLE registry_environments (
     tenant_id        text        NOT NULL,
-    flow_name    text        NOT NULL,
+    flow_name        text        NOT NULL,
     environment      text        NOT NULL,
     active_version   text,
     -- What rollback returns to. Only the immediately previous version: a
@@ -130,25 +75,35 @@ CREATE TABLE IF NOT EXISTS registry_environments (
     -- An environment may point at nothing, but it may not point at a version
     -- that was never published. Without this the pointer can outlive its
     -- target and "production is running 2.4.0" stops being a fact.
-    FOREIGN KEY (tenant_id, flow_name, active_version)
+    --
+    -- Named rather than left to Postgres. The generated names are built from
+    -- the column list and truncated at 63 characters, so a rename of a column
+    -- leaves the old name behind — which is how a registry created before the
+    -- 2026-09-05 vocabulary rename came to carry `…_strategy_name_…_fkey` for
+    -- good (G-077). A later migration that names a constraint needs the name to
+    -- be the one written here.
+    CONSTRAINT registry_environments_active_version_fkey
+        FOREIGN KEY (tenant_id, flow_name, active_version)
         REFERENCES registry_versions (tenant_id, flow_name, version)
         DEFERRABLE INITIALLY DEFERRED,
-    FOREIGN KEY (tenant_id, flow_name, previous_version)
+    CONSTRAINT registry_environments_previous_version_fkey
+        FOREIGN KEY (tenant_id, flow_name, previous_version)
         REFERENCES registry_versions (tenant_id, flow_name, version)
         DEFERRABLE INITIALLY DEFERRED
 );
 
-CREATE TABLE IF NOT EXISTS registry_events (
+CREATE TABLE registry_events (
     -- Monotonic, assigned by the database. The order is a fact rather than a
     -- sort key: two events can share a timestamp, and a sequence cannot.
     seq           bigserial   PRIMARY KEY,
     at            timestamptz NOT NULL,
     actor         text        NOT NULL,
     type          text        NOT NULL
+        CONSTRAINT registry_events_type_check
         CHECK (type IN ('ArtifactPublished', 'PublishRejected', 'VersionPromoted',
                         'VersionRolledBack', 'ShadowStarted', 'ShadowStopped')),
     tenant_id     text        NOT NULL,
-    flow_name text        NOT NULL,
+    flow_name     text        NOT NULL,
     version       text        NOT NULL,
     environment   text,
     summary       text        NOT NULL,
@@ -156,16 +111,16 @@ CREATE TABLE IF NOT EXISTS registry_events (
     diagnostics   jsonb
 );
 
-CREATE INDEX IF NOT EXISTS registry_events_by_tenant
+CREATE INDEX registry_events_by_tenant
     ON registry_events (tenant_id, seq DESC);
-CREATE INDEX IF NOT EXISTS registry_events_by_flow
+CREATE INDEX registry_events_by_flow
     ON registry_events (tenant_id, flow_name, seq DESC);
 
 -- --------------------------------------------------------------------------
 -- Immutability
 -- --------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION registry_reject_mutation() RETURNS trigger AS $$
+CREATE FUNCTION registry_reject_mutation() RETURNS trigger AS $$
 BEGIN
     RAISE EXCEPTION
         'append-only: % on % is not permitted',
@@ -177,14 +132,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS registry_versions_append_only ON registry_versions;
 CREATE TRIGGER registry_versions_append_only
     BEFORE UPDATE OR DELETE ON registry_versions
     FOR EACH ROW EXECUTE FUNCTION registry_reject_mutation();
 
-DROP TRIGGER IF EXISTS registry_events_append_only ON registry_events;
 CREATE TRIGGER registry_events_append_only
     BEFORE UPDATE OR DELETE ON registry_events
     FOR EACH ROW EXECUTE FUNCTION registry_reject_mutation();
-
-COMMIT;

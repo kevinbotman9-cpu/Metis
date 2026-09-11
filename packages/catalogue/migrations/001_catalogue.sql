@@ -24,10 +24,20 @@
 -- The edit log is append-only and enforced by trigger, like the registry's.
 -- A catalogue is what the engine decided from; a change with no record of who
 -- made it is the first thing an auditor asks about.
+--
+-- ## How this file changes: it does not
+--
+-- Version 1, the baseline. Applied once by `@metis/core/migrate`, in a
+-- transaction with the row that records it and its checksum. Once a database
+-- has run it, the runner refuses to start if the text differs, and
+-- `tests/migrations-frozen.test.ts` refuses a pull request that edits it. A
+-- change to this schema is `002_*.sql`.
+--
+-- Rewritten on 2026-09-11 (G-077) from one file of `CREATE … IF NOT EXISTS`
+-- re-applied at every start, which could not reach a table that already
+-- existed. Nothing in it had to be kept for an older database: none held data.
 
-BEGIN;
-
-CREATE TABLE IF NOT EXISTS catalogue_objectives (
+CREATE TABLE catalogue_objectives (
   tenant_id   text NOT NULL,
   id          text NOT NULL,
   name        text NOT NULL,
@@ -36,7 +46,7 @@ CREATE TABLE IF NOT EXISTS catalogue_objectives (
   PRIMARY KEY (tenant_id, id)
 );
 
-CREATE TABLE IF NOT EXISTS catalogue_categories (
+CREATE TABLE catalogue_categories (
   tenant_id    text NOT NULL,
   id           text NOT NULL,
   objective_id text NOT NULL,
@@ -49,7 +59,7 @@ CREATE TABLE IF NOT EXISTS catalogue_categories (
     ON DELETE RESTRICT
 );
 
-CREATE TABLE IF NOT EXISTS catalogue_offers (
+CREATE TABLE catalogue_offers (
   tenant_id   text NOT NULL,
   id          text NOT NULL,
   category_id text NOT NULL,
@@ -66,7 +76,7 @@ CREATE TABLE IF NOT EXISTS catalogue_offers (
     ON DELETE RESTRICT
 );
 
-CREATE TABLE IF NOT EXISTS catalogue_creatives (
+CREATE TABLE catalogue_creatives (
   tenant_id  text NOT NULL,
   id         text NOT NULL,
   offer_id   text NOT NULL,
@@ -81,7 +91,7 @@ CREATE TABLE IF NOT EXISTS catalogue_creatives (
     ON DELETE RESTRICT
 );
 
-CREATE TABLE IF NOT EXISTS catalogue_targeting_policies (
+CREATE TABLE catalogue_targeting_policies (
   tenant_id  text NOT NULL,
   id         text NOT NULL,
   kind       text NOT NULL,
@@ -90,7 +100,7 @@ CREATE TABLE IF NOT EXISTS catalogue_targeting_policies (
   PRIMARY KEY (tenant_id, id)
 );
 
-CREATE TABLE IF NOT EXISTS catalogue_frequency_policies (
+CREATE TABLE catalogue_frequency_policies (
   tenant_id  text NOT NULL,
   id         text NOT NULL,
   body       jsonb NOT NULL,
@@ -98,7 +108,7 @@ CREATE TABLE IF NOT EXISTS catalogue_frequency_policies (
   PRIMARY KEY (tenant_id, id)
 );
 
-CREATE TABLE IF NOT EXISTS catalogue_boosts (
+CREATE TABLE catalogue_boosts (
   tenant_id  text NOT NULL,
   id         text NOT NULL,
   body       jsonb NOT NULL,
@@ -108,13 +118,13 @@ CREATE TABLE IF NOT EXISTS catalogue_boosts (
 
 -- One ranking function per tenant. The engine reads exactly one, so a table
 -- that allowed two would be modelling a state the engine cannot represent.
-CREATE TABLE IF NOT EXISTS catalogue_arbitration (
+CREATE TABLE catalogue_arbitration (
   tenant_id  text PRIMARY KEY,
   body       jsonb NOT NULL,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS catalogue_events (
+CREATE TABLE catalogue_events (
   seq       bigserial PRIMARY KEY,
   tenant_id text NOT NULL,
   at        timestamptz NOT NULL,
@@ -125,28 +135,26 @@ CREATE TABLE IF NOT EXISTS catalogue_events (
   summary   text NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS catalogue_events_tenant_seq
+CREATE INDEX catalogue_events_tenant_seq
   ON catalogue_events (tenant_id, seq DESC);
 
-CREATE INDEX IF NOT EXISTS catalogue_offers_tenant_status
+CREATE INDEX catalogue_offers_tenant_status
   ON catalogue_offers (tenant_id, status);
 
-CREATE INDEX IF NOT EXISTS catalogue_creatives_offer
+CREATE INDEX catalogue_creatives_offer
   ON catalogue_creatives (tenant_id, offer_id);
 
 -- The edit log is a record of what happened. The application refusing to
 -- rewrite it is not enough on its own: anything holding the connection string
 -- could, and "the code does not do that" is not an answer to an auditor.
-CREATE OR REPLACE FUNCTION catalogue_events_are_append_only()
+CREATE FUNCTION catalogue_events_are_append_only()
 RETURNS trigger AS $$
 BEGIN
   RAISE EXCEPTION 'catalogue_events is append-only: % is not permitted', TG_OP;
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS catalogue_events_no_update ON catalogue_events;
 CREATE TRIGGER catalogue_events_no_update
   BEFORE UPDATE OR DELETE ON catalogue_events
   FOR EACH ROW EXECUTE FUNCTION catalogue_events_are_append_only();
 
-COMMIT;

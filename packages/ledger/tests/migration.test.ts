@@ -1,6 +1,7 @@
 import { describe, it, expect, afterAll } from 'vitest';
 import { Pool } from 'pg';
-import { runMigration } from '../src/create-store';
+import { readMigrations } from '@metis/core/migrate';
+import { runMigration, MIGRATIONS_DIR } from '../src/create-store';
 import { PostgresLedgerStore } from '../src/postgres-store';
 
 /**
@@ -14,8 +15,10 @@ import { PostgresLedgerStore } from '../src/postgres-store';
  * else checks this class: every other test here migrates a database some
  * other file may already have migrated, which is exactly what hides it.
  *
- * This migration passed on arrival. The check stays, because the next ALTER
- * added to a table that already exists is the same mistake waiting to be made.
+ * This migration passed on arrival. Since G-077 it is a numbered file the
+ * runner applies once and records, and the checks here hold it to that: one
+ * run is the whole schema, and a database at any earlier version reaches it.
+ * The runner's own refusals are proved in `packages/core/tests/migrate.test.ts`.
  * Same shape as `packages/registry/tests/migration.test.ts`.
  */
 
@@ -72,6 +75,7 @@ async function schemaOf(pool: Pool) {
         FROM information_schema.triggers
        WHERE trigger_schema = 'public'
        ORDER BY event_object_table, trigger_name, event_manipulation`),
+    versions: await rows(`SELECT version, name, checksum FROM ledger_schema_migrations ORDER BY version`),
   };
 }
 
@@ -85,7 +89,7 @@ if (!reachable) {
         await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
       }
       await admin.end();
-    });
+    }, 60_000);
 
     it('produces, in one run, the schema that two runs produce', async () => {
       const db = await emptyDatabase();
@@ -99,6 +103,25 @@ if (!reachable) {
       // absence after one run would be the worst version of this defect.
       expect(once.triggers.length, 'the migration created no triggers').toBeGreaterThan(0);
       expect(once).toEqual(twice);
+    });
+
+    it('brings a database at every earlier version to the schema a fresh one has', async () => {
+      // One migration today, so there is no earlier version to build and this
+      // loop has nothing to iterate — said here rather than hidden. It has
+      // teeth from the first 002_*.sql without anybody remembering to add a
+      // case, and the runner's version of it is proved in core with three.
+      const files = readMigrations(MIGRATIONS_DIR);
+      const fresh = await emptyDatabase();
+      await runMigration(fresh);
+      const target = await schemaOf(fresh);
+      expect(target.versions).toHaveLength(files.length);
+
+      for (let older = 1; older < files.length; older++) {
+        const db = await emptyDatabase();
+        await runMigration(db, { to: older });
+        await runMigration(db);
+        expect(await schemaOf(db), `a database left at version ${older}`).toEqual(target);
+      }
     });
 
     it('leaves the store able to read after one run', async () => {
