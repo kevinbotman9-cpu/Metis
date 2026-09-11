@@ -1450,7 +1450,8 @@ and name none of this tenant's flows.
 
 ### G-078 — The new migration tests run beside the Postgres suites and flake, in whichever package loses the race
 
-**Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** none — a defect, fixed in the slice after the one that found it
+**Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** none — the fix is a
+one-line sequencing change and the choice is below; see *Closed* at the end
 
 `packages/{registry,ledger,catalogue}/tests/migration.test.ts`, added on
 2026-09-11 for [G-076](gaps.md), each **create and drop their own database** —
@@ -1502,20 +1503,68 @@ serial time to matter.
 concurrently with each other, and a run of each package's tests repeated ten
 times is clean.
 
-**Resolved by `fileParallelism: false`** in the Vitest config of all three
-database packages, which was option 3 above. Registry, ledger and catalogue now
-run one test file at a time: 80, 81 and 43 tests, no skips, no contention.
+#### Closed 2026-09-11
 
-**One thing the investigation turned up that is worth keeping.** These suites
-**skip rather than fail when the database is unreachable** — `it.skip("postgres
-at … is not reachable")`. On the machine this was fixed on, the three shared
-test databases had gone missing, and the first serialised run reported *"3
-passed | 2 skipped"* per package and a green exit. A local run can therefore
-report success while the entire PostgreSQL half of a package never executed,
-and the only sign is a skip count nobody reads. CI is safe — its service
-container is always there — so this is a local-confidence problem, not a
-CI-correctness one, and it is why the numbers above name the test counts rather
-than the exit code.
+**What deadlocked, read from the server log CI kept.** Not the migration tests
+themselves. Process 127 was the ledger's `postgres.test.ts` running
+`TRUNCATE outcome_events, idempotency_keys, decision_records` between cases;
+process 129 was the ledger migration being re-applied to the same database —
+the pre-runner file, `BEGIN; CREATE TABLE IF NOT EXISTS …`, which
+`create-store.test.ts` re-ran every time it built a store. The re-run took
+`ShareLock` for each `CREATE INDEX IF NOT EXISTS` and the truncate took
+`AccessExclusiveLock` for each table, in opposite orders. The new migration
+tests' `CREATE` and `DROP DATABASE` calls appear in the same log as forced
+checkpoints seconds before: they widened a window between two files that were
+already racing. That merge commit was tested before the runner (G-077) landed.
+
+Reproduced directly: 200 truncates against 200 concurrent migration re-runs on
+one database gave **4 deadlocks with the pre-runner file** (`5aefa4b`) and
+**0 with the runner**, which runs no DDL on a database already at its version.
+
+**The hook timeout is a second mechanism, and it is not concurrency.** It
+recurred in core with its files already serialised: all 128 assertions passed
+and the file failed in `afterAll`, five databases left behind. The server log
+says why. Every case created a database of its own; each `CREATE DATABASE`
+copies the template into shared buffers; and the first `DROP DATABASE` forces
+a checkpoint that writes them all — 10,231 buffers, **53.9 seconds** on the
+development machine, against a 60-second limit. The runs either side scraped
+through at 50.6 and 44.6. CI's checkpoints take milliseconds, which is why this
+half showed only locally.
+
+**Fixed both ways.**
+
+- **`fileParallelism: false`** in the Vitest config of every package whose
+  tests open a PostgreSQL connection: registry, ledger, catalogue — option 3
+  above — and core, whose runner tests create databases.
+  `tests/database-suites-serialised.test.ts` holds it for a package that
+  starts talking to the database later; it went red naming `ledger` with the
+  setting removed, and again with it commented out.
+- **One database per migration test file, emptied between cases** with
+  `DROP SCHEMA public CASCADE; CREATE SCHEMA public`, instead of one per case.
+  Each case still starts from nothing — no tables, functions, triggers or
+  version table — and there is one template copy to flush instead of ten. The
+  runner's bites were re-run under it and fail exactly as before.
+
+**Evidence: repeated runs, each against a freshly created database, as CI
+starts with.**
+
+| Tree | Result |
+|---|---|
+| `main`, before either fix | ledger, registry, catalogue 30 of 30 green — and in all 30 the database files ran at the same time, by Vitest's own timings |
+| Files serialised only | ledger, registry, catalogue 30 of 30, one file at a time; core failed its first run on the checkpoint above |
+| Both fixes | ledger, registry, catalogue and core 10 of 10 each — 40 of 40, no two database files overlapping in any run, no skipped test counted as a pass, no database left behind, and no checkpoint over 7.4 seconds |
+
+The first row is the argument against trusting a green run here: thirty in a
+row passed while the race was running every time.
+
+**One hazard this leaves standing.** These suites **skip rather than fail when
+the database is unreachable** — `it.skip("postgres at … is not reachable")`.
+With the shared test databases missing from a development machine, a serialised
+run reported *"3 passed | 2 skipped"* per package and exited green: the whole
+PostgreSQL half had not run, and the only sign was a skip count. CI is safe,
+because its service container is always there. It is why the evidence above
+counts tests rather than exit codes.
+
 
 ### G-077 — A change inside an existing `CREATE` never reaches a database that already has the table
 
