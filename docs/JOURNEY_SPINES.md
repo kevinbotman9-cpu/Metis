@@ -29,8 +29,9 @@ and every route it touches passes conformance."*
 The second clause makes every spine in this file permanently unclosable, for a
 reason that has nothing to do with any spine. `node scripts/conformance.mjs`
 reports 24 failures, and 19 of them are one rule — `[layout-manifests]` — firing
-once per route because layout manifests do not exist anywhere in the product
-(W-041, `docs/UX_CONTRACT.md` §2). Spine 1 touches eight of those routes. Under
+once per route whose page is not yet a layout manifest (W-041,
+`docs/UX_CONTRACT.md` §2; the format exists since ADR-015, and the count falls
+only as routes are converted). Spine 1 touches eight of those routes. Under
 the original rule, closing Spine 1 requires building the whole of Spine 6's
 layout work first, which inverts the ordering this file sets and hides the real
 reason a spine is stuck.
@@ -208,7 +209,7 @@ evaluation.***
 | Step | State | Where it is |
 |---|---|---|
 | Add a custom field to an entity, no code change | BUILT for two entities of fourteen | `packages/ui-metadata/src/registry/`, diffed against the spec by `packages/ui-metadata/tests/descriptors.test.ts`. Offer and Creative have descriptors; the other twelve are listed in `PENDING` with a reason each |
-| Reorder panels and save a versioned layout | ABSENT | Layout manifests do not exist. This is the 19 `[layout-manifests]` conformance failures, W-041 |
+| Reorder panels and save a versioned layout | ABSENT | Manifests exist as repository files (`packages/ui-metadata/src/layouts/`, ADR-015) and nothing serves or stores one, so no administrator can reorder anything; ADR-015 §8 defers that to overlays. W-041 |
 | Install a theme package and rebrand | ABSENT | Token sets are files; `apps/console/app/settings/page.tsx` toggles light/dark and density only |
 | Install a node package and use the node on the canvas | ABSENT | No package system anywhere in the tree. W-038 |
 | Scope a role to one objective | ABSENT | Roles are displayed, not scoped (`settings/page.tsx:48`). W-043 |

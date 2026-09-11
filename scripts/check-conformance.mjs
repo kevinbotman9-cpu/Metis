@@ -3,16 +3,17 @@
  * UX conformance as a gate: the failure count may not rise.
  *
  * `scripts/conformance.mjs` exits non-zero whenever anything fails, and this
- * repository has 26 standing failures — most of them `layout-manifests`, a rule
- * that fires once per route and has no implementation behind it (W-041). That
- * is the documented state, not a regression, so wiring the script straight into
- * CI would paint every pull request red and teach everyone to ignore it.
+ * repository has standing failures — most of them `layout-manifests`, one per
+ * route not yet converted to a manifest. That is the documented state, not a
+ * regression, so wiring the script straight into CI would paint every pull
+ * request red and teach everyone to ignore it.
  *
- * CLAUDE.md states the actual rule: *"The count may not rise, with one
- * exception: a rule that fires once per route and has no implementation behind
- * it. Adding a screen adds exactly one such failure."* That is a ratchet, and a
- * ratchet needs a number written down. `docs/ux-conformance-baseline.json` is
- * that number.
+ * CLAUDE.md states the actual rule: the count may not rise, and there is no
+ * exception. Until 2026-09-11 a new screen could add one `layout-manifests`
+ * failure, because the rule had no implementation behind it; ADR-015 gave it
+ * one, and a new screen is now a manifest. That is a ratchet, and a ratchet
+ * needs a number written down. `docs/ux-conformance-baseline.json` is that
+ * number.
  *
  * Three outcomes:
  *
@@ -63,9 +64,9 @@ if (failures > baseline.failures) {
   console.error(
     `\nUX conformance failures rose: ${baseline.failures} → ${failures}.\n` +
       `By rule: ${Object.entries(counts).map(([r, n]) => `${r} ${n}`).join(', ')}\n` +
-      'If this is a new screen adding one `layout-manifests` failure, say which rule and why, ' +
-      `then raise the baseline in ${path.relative(root, BASELINE_FILE)}. Otherwise it is a ` +
-      'contract this change broke.'
+      'A new screen is a manifest and a one-line page, not a new failure: see ADR-015 and ' +
+      'packages/ui-metadata/src/layouts. There is no exception to raise the baseline for — ' +
+      'this is a contract this change broke.'
   );
   process.exit(1);
 }
