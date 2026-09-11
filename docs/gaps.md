@@ -44,6 +44,58 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-080 — The stale-server guard cannot fire against a server stale enough to have lost its uptime endpoint
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — a two-line fix, and the second half is a decision
+
+[G-035](gaps.md) put a guard in `apps/console/tests/global-setup.ts`: Playwright
+reuses whatever is on port 3000, a long-lived `next dev` degrades, so the setup
+asks `GET /api/_test/uptime` and refuses a server older than two hours. It has
+a hole, and the hole is the shape of the thing it guards.
+
+```ts
+const res = await fetch(`${baseURL}/api/_test/uptime`);
+if (!res.ok) return;                       // ← a 404 is treated as "no server"
+```
+
+**A 404 makes it return silently**, on the assumption that nothing is listening
+and Playwright is about to start its own. But a server answering 404 *is*
+listening, `reuseExistingServer` takes it, and the suite runs against it. **The
+staler a dev server is, the likelier it has lost the endpoint the guard asks
+about — so the check is least able to fire exactly when it matters most.**
+
+**Observed 2026-09-11.** A `next dev` for this repository had been up since
+11:42 serving a broken module graph: `/` answered 200, `/api/taxonomy` and
+`/api/_test/uptime` both 404. A gates run at 14:53 reused it. Every test failed
+at sign-in, because no page rendered without the API:
+
+- **341 failed, 4 passed**, where the same commit had run 382 passed / 31
+  skipped an hour earlier;
+- **65 minutes** against a normal 14, because 341 tests each waited out a
+  10-second locator timeout;
+- the guard printed nothing.
+
+The run was discarded and re-run against a fresh server: 22 of 22 green, e2e
+815 seconds. Nothing was wrong with the commit.
+
+**Two things to fix, and the second is a decision.**
+
+1. **A server that answers the port but not the endpoint should be refused, not
+   ignored.** Distinguish "connection refused" — nothing there, carry on — from
+   "something answered and it was not our API", which is a server nobody should
+   measure against. That is the two-line half.
+2. **`reuseExistingServer: true` assumes one agent per machine.** Two lanes now
+   work in this repository on one host, and whichever suite starts second
+   silently inherits the other's server — with its state, its uptime and its
+   module graph. [G-002](gaps.md) describes the fixture-staleness half of this
+   and [G-035](gaps.md) the degradation half; neither anticipated a second
+   agent owning the port. The options are a per-lane port, refusing a server
+   this process did not start, or accepting the coupling and saying so.
+
+**Done when:** a suite that reuses a server which does not answer
+`/api/_test/uptime` stops with a message naming it, and the multi-agent case in
+point 2 has an answer written down.
+
 ### G-079 — A pull request can sit with no checks at all, and nothing says so
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — the platform is GitHub's; the mitigation is a habit
