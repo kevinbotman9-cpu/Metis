@@ -111,15 +111,4 @@ test.describe('decision search and trace', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText('no offer');
     await expect(page.getByText(/decision returned no offer/)).toBeVisible();
   });
-
-  test('sorts by latency', async ({ page }) => {
-    await page.getByRole('button', { name: /Latency/ }).click();
-    const cells = await page
-      .locator('tr[data-row]')
-      .locator('td:last-child')
-      .allInnerTexts();
-    const values = cells.map((c) => parseFloat(c));
-    const sorted = [...values].sort((a, b) => a - b);
-    expect(values).toEqual(sorted);
-  });
 });

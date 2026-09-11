@@ -54,8 +54,6 @@ function Home() {
 
   const suppressed = decs.filter((d) => !d.winner).length;
   const offered = decs.length - suppressed;
-  const avgLatency =
-    decs.length > 0 ? (decs.reduce((s, d) => s + d.totalMs, 0) / decs.length).toFixed(2) : '0';
 
   const artifacts = flows.data?.artifacts ?? [];
   const compileFailing = artifacts.filter((a) => a.compileOk === false).length;
@@ -76,16 +74,11 @@ function Home() {
         description="Everything the platform decided, offered and changed for telco-uk."
       />
 
-      <div className="mb-stack grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+      <div className="mb-stack grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
         <BigStat
           label="Decisions"
           value={(decisions.data?.total ?? 0).toLocaleString('en-GB')}
           sub="last 7 days"
-        />
-        <BigStat
-          label="Avg latency"
-          value={`${avgLatency}ms`}
-          sub={`SLA 50ms · ${((Number(avgLatency) / 50) * 100).toFixed(0)}% of budget`}
         />
         <HealthSummary
           label="Decision outcomes"

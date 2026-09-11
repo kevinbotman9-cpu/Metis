@@ -12,8 +12,10 @@ import index from '@/mocks/fixtures/decision-index.json';
  * survived — and nothing else would catch it, because each half is internally
  * consistent.
  *
- * Latency is the one column not compared. It is a stopwatch reading taken on
- * whichever machine built the file, and asserting it would fail everywhere else.
+ * Every column is compared. Latency used to be the exception — a stopwatch
+ * reading taken on whichever machine built the file — and is no longer in the
+ * index at all (G-052), so the whole file regenerates to the same bytes, which
+ * the `client` gate checks.
  */
 
 const rows = index.rows as unknown[][];
@@ -28,7 +30,7 @@ describe('the committed decision index matches the generator', () => {
     expect(index.columns).toEqual([
       'slot', 'id', 'artifactId', 'artifactVersion', 'customerId', 'timestamp',
       'channel', 'placement', 'winner', 'winnerOfferId', 'candidateCount',
-      'totalMs', 'chainHash',
+      'chainHash',
     ]);
   });
 
@@ -59,7 +61,7 @@ describe('the committed decision index matches the generator', () => {
       expect(row[8], `row ${k}: winner`).toBe(d.winner);
       expect(row[9], `row ${k}: winnerOfferId`).toBe(d.winnerOfferId);
       expect(row[10], `row ${k}: candidateCount`).toBe(d.candidateKeys.length);
-      expect(row[12], `row ${k}: chainHash`).toBe(trace.chainHash);
+      expect(row[11], `row ${k}: chainHash`).toBe(trace.chainHash);
     }
   });
 

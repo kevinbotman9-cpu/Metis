@@ -193,6 +193,9 @@ otherwise.
 | W-066 | 14 | A refusal names its pack, its freshness and what the customer was told | OPEN | 1 |
 | W-067 | 14 | The seeded candidate set is authored, not selected | OPEN | 2 |
 | W-068 | 14 | One gate: `npm run gates` is what CI runs | DONE | 1 |
+| W-069 | 14 | Generated files regenerate to the same bytes, and the gates leave the tree as they found it | DONE | 1 |
+| W-070 | 14 | The checks `main` requires are the jobs the workflow runs | DONE | 1 |
+| W-071 | 14 | An aggregate latency figure with a measured source | OPEN | 2 |
 
 ---
 
@@ -1494,6 +1497,52 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-071 — An aggregate latency figure with a measured source
+
+**Registered:** 2026-09-11 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet
+
+Gate 2 · Gap [G-061](gaps.md)
+
+The console has latency per decision, on the trace, and nothing over many. The
+three figures that looked like an aggregate read a stopwatch reading of the
+fixture generator and were removed. `/operations/latency` is in the nav with no
+route behind it.
+
+**Done when:** a spec operation serves p50, p95 and p99 over a stated window
+from what the running decision path measures, and a screen shows it with the
+window and the source beside the number.
+
+### W-070 — The checks `main` requires are the jobs the workflow runs
+
+**Registered:** 2026-09-11 · **Stage:** 14 · **Status:** DONE
+**Check:** `scripts/check-required-checks.mjs` (gate `required-checks`); `tests/required-checks.test.ts`
+
+Gate 1 · Gap [G-063](gaps.md)
+
+The required-status-check list is a ruleset in GitHub's settings and was held to
+nothing. The check reads it from the API and fails when a job runs without being
+required, when a required check has no job, or when a declared exemption has
+gone stale.
+
+**Done when:** each direction fails against the live ruleset and the check runs
+on every pull request with the token CI already provides. The four failure
+modes were verified locally; the CI run is the pull request's.
+
+### W-069 — Generated files regenerate to the same bytes, and the gates leave the tree as they found it
+
+**Registered:** 2026-09-11 · **Stage:** 14 · **Status:** DONE
+**Check:** gate `client` (`scripts/check-regenerated.mjs` over every generated file); the tree comparison in `scripts/gates.mjs`
+
+Gate 1 · Gaps [G-037](gaps.md), [G-052](gaps.md), [G-062](gaps.md)
+
+`npm run gates` rewrote two tracked generated files every run. The decision
+index carried a stopwatch reading, and `next-env.d.ts` had no committable form
+that both `next dev` and `next build` agree on.
+
+**Done when:** two consecutive full runs from a clean tree leave `git status`
+empty, and something fails when a run does not.
+
 ### W-068 — One gate: `npm run gates` is what CI runs
 
 **Registered:** 2026-09-10 · **Stage:** 14 · **Status:** DONE

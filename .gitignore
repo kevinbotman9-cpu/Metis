@@ -76,6 +76,11 @@ logs/
 
 # Next.js build output
 apps/console/.next/
+# Written by `next dev`, `next build` and `next typegen`, which disagree about
+# its contents, so no committed copy survives all three — every gates run left
+# it modified (G-052). Next's own docs say to ignore it. The console's
+# `npm run typecheck` runs `next typegen` first, so it exists before tsc reads it.
+apps/console/next-env.d.ts
 
 # tsc emits alongside sources when outDir is unset; never commit build output into src/
 packages/*/src/**/*.js
