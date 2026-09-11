@@ -1505,7 +1505,7 @@ channel's delivery on changes what the coverage screen measures against.
 **Registered:** 2026-09-11 · **Stage:** 14 · **Status:** OPEN
 **Check:** none yet
 
-Gate 2 · Gaps [G-065](gaps.md), [G-066](gaps.md)
+Gate 2 · Gaps [G-069](gaps.md), [G-070](gaps.md)
 
 A policy names `customer.bill_to_income_ratio`; a connector provides
 `monthlySpend`. Nothing maps between them, so no rule reads a value any

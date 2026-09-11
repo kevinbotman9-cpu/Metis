@@ -217,7 +217,7 @@ test.describe('the trace reads as a cascade @screen-only', () => {
     // Under a rule, the connector row is an absence for a reason that is not
     // G-056: this tenant's policies name dotted paths and its connectors
     // provide flat fields, so no rule's field resolves to a call at all
-    // (G-065). The pane says which absence it is rather than implying the
+    // (G-069). The pane says which absence it is rather than implying the
     // platform cannot date a value.
     await expect(evidence.getByText(/no connector call supplied a field this rule reads/)).toBeVisible();
   });

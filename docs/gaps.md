@@ -673,7 +673,7 @@ have produced.
 
 ---
 
-### G-065 — A rule's fields and a connector's fields are different vocabularies
+### G-069 — A rule's fields and a connector's fields are different vocabularies
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-074](BACKLOG.md)
 
@@ -709,7 +709,7 @@ fixed in passing.
 decision reads it, and the trace's source attribution resolves — with the corpus
 regenerated deliberately and the hash movement recorded.
 
-### G-066 — Consent and frequency denials attach to whichever constraint node ran first
+### G-070 — Consent and frequency denials attach to whichever constraint node ran first
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-074](BACKLOG.md)
 
@@ -1126,7 +1126,7 @@ bundle is built from exec artifacts, which carry neither new field.
 **What it does not cover:** the tier names the policies a node *declares*, not
 everything it enforces. Consent and frequency are applied at every constraint
 node, so a `CONSENT_WITHHELD` denial can sit under a node whose tier is
-`suitability`. See [G-066](gaps.md).
+`suitability`. See [G-070](gaps.md).
 
 ### G-056 — `sourceCalls` records how long a value took to fetch, never when it was computed
 
@@ -1171,7 +1171,7 @@ moved.**
 used, each with its connector and its age. Not under the selected rule, where it
 would be more useful — a rule's fields do not resolve to a connector at all in
 this tenant, for a reason that has nothing to do with timestamps:
-[G-065](gaps.md).
+[G-069](gaps.md).
 
 ### G-055 — No pack is recorded against the rule it supplied
 

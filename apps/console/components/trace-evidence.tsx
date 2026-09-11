@@ -130,7 +130,7 @@ export function TraceEvidence({
               and because a rule's own fields resolve to a connector far less
               often than they should — policy conditions name dotted paths
               (customer.bill_to_income_ratio) and connectors provide flat
-              fields (monthlySpend), so the two never meet. G-065. */}
+              fields (monthlySpend), so the two never meet. G-069. */}
           <Row label="Values fetched">
             {calls.length > 0 ? (
               <ul className="flex flex-col gap-0.5">
