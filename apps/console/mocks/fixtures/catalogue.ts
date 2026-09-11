@@ -21,6 +21,7 @@ import type {
   AutonomySetting,
   AgentActivity,
   Connector,
+  PackManifest,
   Placement,
 } from '@metis/core/domain';
 import { seededOffers, seededCreatives } from './seed';
@@ -784,6 +785,35 @@ const authoredCreatives: Creative[] = [
 // ---------------------------------------------------------------------------
 
 export const creatives: Creative[] = [...authoredCreatives, ...seededCreatives];
+
+/**
+ * Packs installed for this tenant, and the policies each supplied.
+ *
+ * Four of the eleven targeting policies come from a pack; the rest this tenant
+ * wrote. That mix is the point: a trace has to be able to say "UK Consumer Duty
+ * 1.4.0 refused this" *and* "no pack claims this rule, the tenant authored it",
+ * and a fixture where everything came from a pack would only ever exercise the
+ * first sentence.
+ *
+ * Membership is all this records. Installing a pack, versioning its contents,
+ * and what happens when two packs claim one policy are not modelled — the
+ * compiler resolves in declaration order and the first pack wins.
+ */
+export const packs: PackManifest[] = [
+  {
+    id: 'pack_uk_consumer_duty',
+    name: 'UK Consumer Duty',
+    version: '1.4.0',
+    // The affordability rules. The pack a regulator asks about by name.
+    policyIds: ['pol_afford_5g', 'pol_afford_retention', 'pol_afford_insurance'],
+  },
+  {
+    id: 'pack_uk_age_restrictions',
+    name: 'UK Age Restrictions',
+    version: '2.1.0',
+    policyIds: ['pol_age_18'],
+  },
+];
 
 export const targetingPolicies: TargetingPolicy[] = [
   {

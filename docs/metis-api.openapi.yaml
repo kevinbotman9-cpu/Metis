@@ -37,11 +37,11 @@ components:
         nodes:
           type: array
           items:
-            type: object
+            $ref: '#/components/schemas/CompiledNode'
         edges:
           type: array
           items:
-            type: object
+            $ref: '#/components/schemas/CompiledEdge'
         candidateKeys:
           type: array
           items:
@@ -51,6 +51,17 @@ components:
           description: Exact versions, locked at compile time so a replay is reproducible.
           additionalProperties:
             type: string
+        policySources:
+          type: object
+          description: |
+            Which pack supplied each targeting policy this flow references,
+            keyed by policy id. packageVersions pins the packs a decision
+            compiled against; this says which of them a given rule came from,
+            so a refusal can be attributed to a pack rather than to a bare
+            policy id. Policies no pack claims are absent: a tenant authoring
+            its own rule is the answer, not a hole in the record.
+          additionalProperties:
+            $ref: '#/components/schemas/PolicySource'
         costManifest:
           $ref: '#/components/schemas/CostManifest'
         artifactHash:
@@ -63,6 +74,82 @@ components:
           type: string
           format: date-time
           description: Metadata, not part of the hash.
+
+    CompiledNode:
+      type: object
+      description: |
+        A node as compiled: what the author wrote, plus what compilation
+        worked out.
+      required: [id, type, label]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [source, filter, constraint, score-model, score-adaptive, switch,
+                 explain-annotate, arbitrate]
+        label:
+          type: string
+        policyIds:
+          type: array
+          items:
+            type: string
+        frequencyPolicyIds:
+          type: array
+          items:
+            type: string
+        connectorIds:
+          type: array
+          items:
+            type: string
+        model:
+          type: object
+          required: [id, version]
+          properties:
+            id:
+              type: string
+            version:
+              type: string
+        estimatedMs:
+          type: number
+        tier:
+          type: string
+          enum: [eligibility, relevance, suitability, frequency]
+          description: |
+            Which question the node answers, derived at compile time from the
+            kinds of the targeting policies it declares. type says how a node
+            behaves - an affordability tier and a weekly contact cap are both
+            constraint - so without this a reader has to infer the tier from
+            the node id.
+
+            It names the node's declared policies, not everything it enforces:
+            the engine applies frequency caps and consent at every constraint
+            node, so a CONSENT_WITHHELD denial can be recorded against a node
+            whose tier is suitability. A denial's reason code says why a
+            candidate went; this says what the node was built to ask. Absent
+            when a node's policies span more than one tier.
+
+    CompiledEdge:
+      type: object
+      description: An edge in a compiled flow. Distinct from FlowEdge, which is the canvas shape.
+      required: [from, to]
+      properties:
+        from:
+          type: string
+        to:
+          type: string
+
+    PolicySource:
+      type: object
+      description: Which pack supplied a rule, as pinned in a compiled artifact.
+      required: [packId, name, version]
+      properties:
+        packId:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
 
     Money:
       type: object
@@ -1591,22 +1678,14 @@ components:
             $ref: '#/components/schemas/Diagnostic'
         artifact:
           oneOf:
-            - type: object
-              required: [packageVersions, artifactHash, compiledAt, costManifest]
-              properties:
-                packageVersions:
-                  type: object
-                  additionalProperties:
-                    type: string
-                artifactHash:
-                  type: string
-                compiledAt:
-                  type: string
-                  format: date-time
-                costManifest:
-                  $ref: '#/components/schemas/CostManifest'
+            - $ref: '#/components/schemas/CompiledDecisionFlow'
             - type: 'null'
-          description: Null when compilation failed
+          description: |
+            Null when compilation failed. The whole artifact, which is what the
+            registry stores and the engine runs: this described four of its
+            fields until 2026-09-11, so a reader could not see the nodes, and
+            the tier each one implements was invisible to the console that
+            needed it.
 
     FlowNode:
       type: object
@@ -2166,7 +2245,7 @@ components:
     SourceCall:
       type: object
       description: What an integration actually did. Measured; never hashed, absent on replay.
-      required: [connectorId, ms, cacheHit, outcome, fields]
+      required: [connectorId, ms, cacheHit, outcome, fields, fetchedAt]
       properties:
         connectorId:
           type: string
@@ -2183,6 +2262,24 @@ components:
             type: string
         detail:
           type: string
+        fetchedAt:
+          type: string
+          format: date-time
+          description: |
+            When this decision asked for the value. ms says how long the answer
+            took; a duration on its own cannot place a call in time.
+        observedAt:
+          type: string
+          format: date-time
+          description: |
+            When the value itself was computed at the source. The same as
+            fetchedAt for a call that reached the connector; for a cache hit it
+            is when the cached value was fetched, which may be much older.
+
+            Absent when a cache cannot say. A cache that does not record when it
+            stored a value leaves a decision unable to say whether the flag it
+            used was current, and that is recorded as unknown rather than
+            filled in with the time of the cache read.
 
     ArtifactSummary:
       type: object

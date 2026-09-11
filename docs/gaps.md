@@ -681,7 +681,7 @@ have produced.
 — *"a retention offer must reduce, not increase, the customer bill"* — sits on
 the suitability tier, the tier that exists for the FCA (G-015 calls it *"the
 FCA-facing tier"*), scoped to the whole retention objective
-(`apps/console/mocks/fixtures/catalogue.ts:884-893`). Its one condition reads
+(`apps/console/mocks/fixtures/catalogue.ts:913-923`). Its one condition reads
 `offer.monthly_delta`. That is one number per request, not one per offer: the
 engine evaluates every condition against `request.input`
 (`packages/runtime/src/deterministic/engine.ts:431`), so every retention
@@ -703,7 +703,11 @@ affordability judgement about that offer for that customer. Each pass reads as
 the same judgement going the other way. Neither is one. A compliance officer
 opening either trace is shown a named suitability rule applied, and nothing in
 the record says the rule compared a single request-level number that did not
-come from the offer.
+come from the offer. Since G-055 closed, the refusal is also attributed to a
+pack: `pol_afford_retention` belongs to *UK Consumer Duty 1.4.0*
+(`catalogue.ts:804-808`), and the trace reader names that pack beside the
+refusal (`apps/console/components/trace-evidence.tsx:24-27`). A coin flip is
+now presented as a Consumer Duty affordability refusal.
 
 **Fixing it is a modelling change, not an edit to the rule.** The profile schema
 has no way to express a per-offer input: `offer.monthly_delta` is declared on an
@@ -725,6 +729,67 @@ retention offer lowers the bill and another raises it records one refused and on
 passed, under the same policy in the same decision.
 
 ---
+
+### G-070 — Consent and frequency denials attach to whichever constraint node ran first
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-074](BACKLOG.md)
+
+The engine enforces frequency caps and consent at *every* `constraint` node,
+whatever that node is for — `engine.ts`, the `case 'constraint'` branch. A flow
+with two constraint nodes records those denials against whichever one the
+topological sort ran first, and the second finds the candidates already gone.
+
+The data shows it. Across 400 seeded decisions, `constraint_fair_value` — a
+suitability node — carries 416 `SUITABILITY_FAILED` denials and also 52
+`CONSENT_WITHHELD` and 23 `FREQUENCY_CAP_BREACHED`, because it is its flow's
+only constraint node. In `next-best-action`, `constraint_contact` takes all 184
+consent denials and `filter_suitability` none — both sit in parallel branches,
+so which one gets them is a tie-break rather than a decision.
+
+The reason code is right and the rule id is right. The node is not: a screen
+grouping refusals by stage shows a consent refusal under Suitability in one flow
+and under Frequency & suppression in another, for the same cause. The tier now
+on each node ([G-058](gaps.md)) makes that visible; it did not cause it.
+
+**Done when:** consent and frequency are enforced at a node that declares them,
+or the denial records which enforcement produced it, so attribution does not
+depend on graph order. Either changes the hashed decision, so it moves chain
+hashes and has to be done deliberately.
+### G-069 — A rule's fields and a connector's fields are different vocabularies
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-074](BACKLOG.md)
+
+A targeting policy names fields as dotted paths into the profile:
+`customer.bill_to_income_ratio`, `contract.days_to_end`,
+`usage.pct_of_allowance_3mo_avg`. A connector declares what it provides as flat
+names: `monthlySpend`, `arrearsDays`, `inGoodStanding`, `dataUsageGb`.
+**Nothing maps one onto the other**, so no policy in this tenant reads a field
+any connector supplies.
+
+**The trace cannot say where a value came from.** The evidence pane's *Source
+system* row resolves a rule's fields against `sourceBindings` and finds nothing,
+every time, for every rule. It has been drawing "no connector supplied a field
+this rule reads; the value came from the request" since it was built, which
+reads as a fact about the decision and is really a fact about the vocabularies.
+Found on 2026-09-11 while wiring [G-056](gaps.md), which is why the value
+timestamps went onto the decision rather than under the rule.
+
+**The seeded decisions do not consume integration data at all.** The generator
+builds a nested profile, and the connectors' declared fields are read by no
+policy, so the integrations in this corpus are decorative: the latency budget
+counts them, the trace records bindings for them, and no decision turns on a
+value any of them supplied. A demo claiming a connector fed a refusal would be
+describing something that did not happen.
+
+A modelling gap rather than a fixture typo. Either connectors declare what they
+provide in profile-schema paths, or something maps between the two and the
+mapping belongs in the artifact. Either changes what decisions read, so it moves
+every chain hash in the corpora — which is why it is registered here rather than
+fixed in passing.
+
+**Done when:** a policy condition can name a field a connector supplies, a
+decision reads it, and the trace's source attribution resolves — with the corpus
+regenerated deliberately and the hash movement recorded.
 
 ### G-068 — The ledger stores the raw customer reference beside the hash that was meant to replace it
 
@@ -971,37 +1036,6 @@ more, which widens the mouth without making it mean anything.
 show, or the demo script says out loud that the candidate set is authored — so
 the figure is understood rather than assumed.
 
-### G-058 — A node's type cannot say which question the node answers
-
-**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-066](BACKLOG.md)
-
-`filter_suitability` has `nodeType: 'constraint'`. So does `constraint_contact`.
-One is the FCA-facing affordability tier and the other is a weekly contact cap,
-and the compiled artifact records the same type for both.
-
-The type says how a node *behaves* — it removes candidates against a predicate —
-and nothing says which of the three targeting tiers, or none of them, it
-implements. `filter_eligibility` and `filter_relevance` are both `'filter'`, so
-the same collision exists one tier up.
-
-The trace reader needs the tier to label its rail, and with the type unusable it
-infers from the node **id**: `/suitab/` matches `filter_suitability`,
-`/frequen|contact|cap/` matches `constraint_contact`. That works on this
-tenant's four flows and is fragile in exactly the way a name derived from an
-identifier always is. A flow authored tomorrow with a node called
-`check_the_money` gets labelled by its raw id, which the screen renders honestly
-and which is still not the tier.
-
-The information exists upstream: a `TargetingPolicy` has `kind: eligibility |
-relevance | suitability`, and a filter node names the policies it applies. The
-tier could be derived from the policies rather than guessed from the id — that
-is a compiler change, not a console one, and it would put the tier in the
-artifact where the trace could simply read it.
-
-**Done when:** an elimination names the tier it belongs to, or the compiled node
-carries it — so no reader has to parse an identifier to find out which question
-refused an offer.
-
 ### G-057 — Nothing records what a customer was told when an offer was withheld
 
 **Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-066](BACKLOG.md)
@@ -1024,57 +1058,53 @@ question a regulator asks that the platform cannot answer. Every other part of
 "why was this not offered to me" is recorded to the field and the rule. The half
 the customer actually experienced is not recorded at all.
 
+**Assessed 2026-09-11, and deliberately not built.** The three entries beside
+this one were code changes. This is a modelling decision, and three questions
+have to be answered before any field is added. They are product and legal
+questions rather than engineering ones.
+
+**Where would the wording live?** Three candidates, and they are not
+equivalent.
+
+1. **On the reason code.** Eight codes, one sentence each, so a refusal always
+   has wording. It is also the least useful: every eligibility refusal in every
+   tenant would say the same sentence, and "you are not eligible for this" is
+   not what a regulator means by an explanation.
+2. **On the policy.** Precise, and authored by whoever wrote the rule — the
+   person who knows why it refuses. It is also where the disclosure risk sits:
+   some refusals must not be explained precisely, fraud and credit rules above
+   all, and a free-text field beside a rule invites exactly that. It needs an
+   explainability flag and a review step, which is a workflow rather than a
+   field.
+3. **On the creative, per channel.** What a customer is *shown* is
+   channel-shaped — an SMS refusal is not a web one — and creatives are already
+   the per-channel content model. This is where the sentence a person actually
+   read belongs, and it is furthest from the rule that caused it.
+
+**Who authors it, and in how many languages?** There is no message catalogue.
+`/packages/i18n` never existed and its stub was deleted on 2026-09-05; every
+string in the console is inline today, which CLAUDE.md's definition of done
+already records as a gap. Customer-facing copy is the one category of string
+that cannot live inline in a component, so this cannot close before that does.
+
+**Was the customer told anything at all?** Usually not. A suppressed offer means
+a slot rendered something else, or nothing. What a customer saw is a property of
+the *delivery*, not of the decision, so recording it honestly needs the delivery
+record to carry it — a different subsystem from the trace, and the only place
+"nothing was shown" can be recorded as a fact rather than inferred from an
+absent field.
+
+**Recommendation, for the product owner rather than for the next session:** the
+sentence belongs on the creative, per channel, with the policy carrying an
+explainability flag that decides whether a specific reason may be disclosed at
+all — and neither is worth building before there is a message catalogue to hold
+the strings. Declining to model it is also defensible: a platform that refuses
+to invent customer-facing copy is more honest than one that ships eight generic
+sentences and calls the gap closed.
+
 **Done when:** either a refusal can carry customer-facing wording that the trace
 records alongside the reason code, or an ADR states why the platform deliberately
 does not model what the customer was told.
-
-### G-056 — `sourceCalls` records how long a value took to fetch, never when it was computed
-
-**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-066](BACKLOG.md)
-
-A `SourceCall` carries `connectorId`, `ms`, `cacheHit`, `outcome` and `fields`.
-It has no timestamp.
-
-So a decision can say *the consent registry answered in 12ms and it was a cache
-hit*, and cannot say **when the value it returned was true**. For a cache hit
-that is the whole question: the figure the decision used may have been computed
-seconds or hours earlier, and nothing in the record distinguishes those.
-
-`ms` without a timestamp looks like an oversight rather than a decision — a
-duration is the less useful of the two for an audit, and it is the one that was
-modelled.
-
-The consequence for the trace reader is direct: the evidence pane can name the
-connector that supplied the field a rule read, and has to state *when* as an
-explicit absence. A regulator asking "was that consent flag current" gets no
-answer.
-
-**Done when:** a source call records when its value was computed — distinct from
-when it was fetched, for a cache hit — or an ADR says why the fetch time is the
-only thing worth recording.
-
-### G-055 — No pack is recorded against the rule it supplied
-
-**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-066](BACKLOG.md)
-
-A `TargetingPolicy` has an id, a name, a kind, a description, conditions and a
-scope. It has no package.
-
-A compiled artifact does lock `packageVersions` — `@metis/nodes-core@1.4.0`,
-`@metis/core@2.1.0` for this tenant — so a decision can say which packs it
-compiled against. It cannot say which of them supplied a given rule.
-
-That is the wrong granularity for the question packs exist to answer. A
-regulatory pack is the unit a customer installs, audits and is held to; "this
-offer was refused by a rule that came from the UK GDPR pack version 1.4" is the
-sentence a compliance officer wants, and the platform can produce neither half
-of the attribution.
-
-The trace reader states it as an absence and names the artifact's packs beside
-it, which is the most it can honestly say.
-
-**Done when:** a rule names the package that supplied it, so a refusal can be
-attributed to a pack rather than to a bare policy id.
 
 ### G-053 — A storefront slot can name a decision while showing no offer
 
@@ -1263,6 +1293,149 @@ payload, and a descriptor no longer needs a screen-supplied default to avoid
 sending zero.
 
 ## Resolved
+
+### G-058 — A node's type cannot say which question the node answers
+
+**Registered:** 2026-09-10 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** [W-066](BACKLOG.md)
+
+`filter_suitability` has `nodeType: 'constraint'`. So does `constraint_contact`.
+One is the FCA-facing affordability tier and the other is a weekly contact cap,
+and the compiled artifact records the same type for both.
+
+The type says how a node *behaves* — it removes candidates against a predicate —
+and nothing says which of the three targeting tiers, or none of them, it
+implements. `filter_eligibility` and `filter_relevance` are both `'filter'`, so
+the same collision exists one tier up.
+
+The trace reader needs the tier to label its rail, and with the type unusable it
+infers from the node **id**: `/suitab/` matches `filter_suitability`,
+`/frequen|contact|cap/` matches `constraint_contact`. That works on this
+tenant's four flows and is fragile in exactly the way a name derived from an
+identifier always is. A flow authored tomorrow with a node called
+`check_the_money` gets labelled by its raw id, which the screen renders honestly
+and which is still not the tier.
+
+The information exists upstream: a `TargetingPolicy` has `kind: eligibility |
+relevance | suitability`, and a filter node names the policies it applies. The
+tier could be derived from the policies rather than guessed from the id — that
+is a compiler change, not a console one, and it would put the tier in the
+artifact where the trace could simply read it.
+
+**Done when:** an elimination names the tier it belongs to, or the compiled node
+carries it — so no reader has to parse an identifier to find out which question
+refused an offer.
+
+**Resolved by:** the compiler derives the tier from the kinds of the targeting
+policies a node declares and writes it onto the compiled node — `tierOf` in
+`packages/compiler/src/decision-flow/compile.ts`. A constraint node declaring no
+targeting policies is `frequency`, which is what it enforces. A node whose
+policies span two tiers gets none rather than one of the two, and the field is
+absent rather than `undefined`, because the artifact hash is taken over that
+object.
+
+The trace reader reads it. Id matching survives only for nodes no tier
+describes, behind the node's `type`, which names a source or an arbitrate node
+exactly. `labelFor('check_the_money', 'constraint', 'suitability')` is the case
+the old patterns could never have handled, and it is a test.
+
+**No chain hash moved.** The tier is on the artifact, and the hashed decision
+names its artifact by id and version, never by hash. Verified rather than
+asserted: all 136 hash fields in `docs/conformance/` compared before and after
+regeneration, none moved, and the corpora did not change at all — the service
+bundle is built from exec artifacts, which carry neither new field.
+
+**What it does not cover:** the tier names the policies a node *declares*, not
+everything it enforces. Consent and frequency are applied at every constraint
+node, so a `CONSENT_WITHHELD` denial can sit under a node whose tier is
+`suitability`. See [G-070](gaps.md).
+
+### G-056 — `sourceCalls` records how long a value took to fetch, never when it was computed
+
+**Registered:** 2026-09-10 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** [W-066](BACKLOG.md)
+
+A `SourceCall` carries `connectorId`, `ms`, `cacheHit`, `outcome` and `fields`.
+It has no timestamp.
+
+So a decision can say *the consent registry answered in 12ms and it was a cache
+hit*, and cannot say **when the value it returned was true**. For a cache hit
+that is the whole question: the figure the decision used may have been computed
+seconds or hours earlier, and nothing in the record distinguishes those.
+
+`ms` without a timestamp looks like an oversight rather than a decision — a
+duration is the less useful of the two for an audit, and it is the one that was
+modelled.
+
+The consequence for the trace reader is direct: the evidence pane can name the
+connector that supplied the field a rule read, and has to state *when* as an
+explicit absence. A regulator asking "was that consent flag current" gets no
+answer.
+
+**Done when:** a source call records when its value was computed — distinct from
+when it was fetched, for a cache hit — or an ADR says why the fetch time is the
+only thing worth recording.
+
+**Resolved by:** `SourceCall` carries `fetchedAt` — when this decision asked —
+and `observedAt`, when the value was computed. They are the same for a call that
+reached the connector; for a cache hit `observedAt` is when the cache stored
+what it returned, which is the age an auditor needs. `IntegrationCache` gained
+an optional `entry(key)` returning the value and its `storedAt`, and
+`MemoryIntegrationCache` implements it.
+
+A cache that cannot say leaves `observedAt` absent, drawn as unknown. Filling it
+with the read time would make every cache hit look fresh, which is the failure
+this guards and which has its own test.
+
+Both fields are in `Measurements`, which is never hashed, so **no chain hash
+moved.**
+
+**Where it shows:** on the trace's evidence pane, as the values the decision
+used, each with its connector and its age. Not under the selected rule, where it
+would be more useful — a rule's fields do not resolve to a connector at all in
+this tenant, for a reason that has nothing to do with timestamps:
+[G-069](gaps.md).
+
+### G-055 — No pack is recorded against the rule it supplied
+
+**Registered:** 2026-09-10 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** [W-066](BACKLOG.md)
+
+A `TargetingPolicy` has an id, a name, a kind, a description, conditions and a
+scope. It has no package.
+
+A compiled artifact does lock `packageVersions` — `@metis/nodes-core@1.4.0`,
+`@metis/core@2.1.0` for this tenant — so a decision can say which packs it
+compiled against. It cannot say which of them supplied a given rule.
+
+That is the wrong granularity for the question packs exist to answer. A
+regulatory pack is the unit a customer installs, audits and is held to; "this
+offer was refused by a rule that came from the UK GDPR pack version 1.4" is the
+sentence a compliance officer wants, and the platform can produce neither half
+of the attribution.
+
+The trace reader states it as an absence and names the artifact's packs beside
+it, which is the most it can honestly say.
+
+**Done when:** a rule names the package that supplied it, so a refusal can be
+attributed to a pack rather than to a bare policy id.
+
+**Resolved by:** a pack declares the policies it supplied — `PackManifest` in
+`packages/core/src/domain.ts` — the compiler resolves every policy the flow
+references, and the artifact carries `policySources`: policy id to pack id, name
+and version. The trace reader names the pack behind a refusal, "UK Consumer Duty
+1.4.0", beside the rule that made it.
+
+A rule no pack claims is absent from the map, and the pane says the tenant
+authored it. That is an answer rather than a hole, and it is the common case:
+four of this tenant's eleven targeting policies come from a pack.
+
+**No chain hash moved**, for the same reason as [G-058](gaps.md): the
+attribution is on the artifact, and `packageVersions` in the hashed decision
+already pins which pack versions the decision compiled against. The two together
+answer the question without either being restated inside the hash.
+
+**What it does not cover:** installing a pack, versioning its contents, and what
+happens when two packs claim one policy — the compiler resolves in declaration
+order and the first wins, which is a rule nobody has agreed to. Pack membership
+is authored data with nothing enforcing it.
 
 ### G-064 — Four resolved entries sat under `## Open`, so the register overstated what is wrong
 

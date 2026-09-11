@@ -19,11 +19,19 @@ export interface CompiledDecisionFlow {
   id: string;
   version: string;
   tenantId: string;
-  nodes: Record<string, unknown>[];
-  edges: Record<string, unknown>[];
+  nodes: CompiledNode[];
+  edges: CompiledEdge[];
   candidateKeys: string[];
   /** Exact versions, locked at compile time so a replay is reproducible. */
   packageVersions: Record<string, string>;
+  /** Which pack supplied each targeting policy this flow references,
+keyed by policy id. packageVersions pins the packs a decision
+compiled against; this says which of them a given rule came from,
+so a refusal can be attributed to a pack rather than to a bare
+policy id. Policies no pack claims are absent: a tenant authoring
+its own rule is the answer, not a hole in the record.
+ */
+  policySources?: Record<string, PolicySource>;
   costManifest: CostManifest;
   /** sha256 over everything above. Excludes compiledAt, so two
 compilations of the same source produce the same hash - which is
@@ -32,6 +40,50 @@ what lets the registry treat a republish as a no-op.
   artifactHash: string;
   /** Metadata, not part of the hash. */
   compiledAt: string;
+}
+
+/** A node as compiled: what the author wrote, plus what compilation
+worked out.
+ */
+export interface CompiledNode {
+  id: string;
+  type: "source" | "filter" | "constraint" | "score-model" | "score-adaptive" | "switch" | "explain-annotate" | "arbitrate";
+  label: string;
+  policyIds?: string[];
+  frequencyPolicyIds?: string[];
+  connectorIds?: string[];
+  model?: {
+    id: string;
+    version: string;
+  };
+  estimatedMs?: number;
+  /** Which question the node answers, derived at compile time from the
+kinds of the targeting policies it declares. type says how a node
+behaves - an affordability tier and a weekly contact cap are both
+constraint - so without this a reader has to infer the tier from
+the node id.
+
+It names the node's declared policies, not everything it enforces:
+the engine applies frequency caps and consent at every constraint
+node, so a CONSENT_WITHHELD denial can be recorded against a node
+whose tier is suitability. A denial's reason code says why a
+candidate went; this says what the node was built to ask. Absent
+when a node's policies span more than one tier.
+ */
+  tier?: "eligibility" | "relevance" | "suitability" | "frequency";
+}
+
+/** An edge in a compiled flow. Distinct from FlowEdge, which is the canvas shape. */
+export interface CompiledEdge {
+  from: string;
+  to: string;
+}
+
+/** Which pack supplied a rule, as pinned in a compiled artifact. */
+export interface PolicySource {
+  packId: string;
+  name: string;
+  version: string;
 }
 
 export interface Money {
@@ -792,13 +844,13 @@ export interface CostManifest {
 export interface CompileResult {
   ok: boolean;
   diagnostics: Diagnostic[];
-  /** Null when compilation failed */
-  artifact: {
-    packageVersions: Record<string, string>;
-    artifactHash: string;
-    compiledAt: string;
-    costManifest: CostManifest;
-  } | null;
+  /** Null when compilation failed. The whole artifact, which is what the
+registry stores and the engine runs: this described four of its
+fields until 2026-09-11, so a reader could not see the nodes, and
+the tier each one implements was invisible to the console that
+needed it.
+ */
+  artifact: CompiledDecisionFlow | null;
 }
 
 /** One node in a decision graph. */
@@ -1144,6 +1196,20 @@ export interface SourceCall {
   outcome: "ok" | "timeout" | "error" | "skipped";
   fields: string[];
   detail?: string;
+  /** When this decision asked for the value. ms says how long the answer
+took; a duration on its own cannot place a call in time.
+ */
+  fetchedAt: string;
+  /** When the value itself was computed at the source. The same as
+fetchedAt for a call that reached the connector; for a cache hit it
+is when the cached value was fetched, which may be much older.
+
+Absent when a cache cannot say. A cache that does not record when it
+stored a value leaves a decision unable to say whether the flag it
+used was current, and that is recorded as unknown rather than
+filled in with the time of the cache read.
+ */
+  observedAt?: string;
 }
 
 /** A flow as the console lists and renders it. Distinct from

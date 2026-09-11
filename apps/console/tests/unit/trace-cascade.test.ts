@@ -58,15 +58,70 @@ describe('the rail is the flow that ran', () => {
     ]);
   });
 
-  it('names the tier from the node id, because the type cannot', () => {
-    // `filter_suitability` is `nodeType: 'constraint'` in this tenant's own
-    // flow, and `constraint_contact` is also `constraint`. The type says how a
-    // node behaves, not which question it answers, so two nodes answering
-    // different questions share one. Registered as a gap.
+  it('names the tier from the artifact, not from the node id', () => {
+    // The case the id patterns could never have handled: nothing in
+    // `check_the_money` says suitability, and the compiled tier does. Both
+    // nodes here are `constraint`, which is why the type cannot answer and why
+    // the tier is compiled in (G-058).
+    expect(labelFor('check_the_money', 'constraint', 'suitability')).toBe('Suitability');
+    expect(labelFor('anything_at_all', 'constraint', 'frequency')).toBe(
+      'Frequency & suppression'
+    );
+    // The tier wins over an id that says something else. An id is a name
+    // somebody typed; the tier is what the compiler resolved from the policies.
+    expect(labelFor('filter_eligibility', 'filter', 'relevance')).toBe('Relevance');
+  });
+
+  it('falls back to the type, then the id, for nodes no tier describes', () => {
+    // A source node is not a tier and never will be, and its type names it
+    // exactly. The id patterns are left for what neither can name.
+    expect(labelFor('anything', 'source')).toBe('Customer data loaded');
+    expect(labelFor('anything', 'arbitrate')).toBe('Ranked');
     expect(labelFor('filter_suitability', 'constraint')).toBe('Suitability');
     expect(labelFor('constraint_contact', 'constraint')).toBe('Frequency & suppression');
-    expect(labelFor('filter_web_eligibility', 'filter')).toBe('Eligibility');
-    expect(labelFor('arbitrate_priority', 'arbitrate')).toBe('Ranked');
+  });
+
+  it('takes a stage tier from the compiled nodes', () => {
+    const stages = stagesFor(
+      trace({
+        eliminations: [
+          {
+            nodeId: 'check_the_money',
+            nodeType: 'constraint',
+            reason: '',
+            denials: [],
+            survived: ['a'],
+          },
+          {
+            nodeId: 'unknown_node',
+            nodeType: 'constraint',
+            reason: '',
+            denials: [],
+            survived: ['a'],
+          },
+        ],
+      } as Partial<TraceDto>),
+      [{ id: 'check_the_money', tier: 'suitability' }]
+    );
+    expect(stages.map((s) => [s.nodeId, s.tier, s.label])).toEqual([
+      ['__entry', null, 'Candidates entered'],
+      ['check_the_money', 'suitability', 'Suitability'],
+      // No compiled node for it, so no tier, and it says its own id rather
+      // than guessing one.
+      ['unknown_node', null, 'unknown_node'],
+    ]);
+  });
+
+  it('labels every stage without the artifact, for the moment before it loads', () => {
+    const stages = stagesFor(
+      trace({
+        eliminations: [
+          { nodeId: 'filter_eligibility', nodeType: 'filter', reason: '', denials: [], survived: ['a'] },
+        ],
+      } as Partial<TraceDto>)
+    );
+    expect(stages.map((s) => s.label)).toEqual(['Candidates entered', 'Eligibility']);
+    expect(stages.every((s) => s.tier === null)).toBe(true);
   });
 
   it('shows an unrecognised node as its own id rather than inventing a name', () => {

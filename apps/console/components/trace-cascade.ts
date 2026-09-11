@@ -16,18 +16,30 @@ import type { TraceDto, DenialDto, EliminationDto } from '@/lib/api-client';
  * screen lying about the flow it is showing. The rail is built from
  * `eliminations`, which is the flow that actually ran.
  *
- * **`nodeType` cannot name the tier.** `filter_suitability` is
- * `nodeType: 'constraint'`, not `'filter'`, so the type says how the node
- * behaves and not which question it answers. The label falls back to the node
- * id, which is fragile in exactly the way a name derived from an identifier
- * always is; registered as a gap rather than papered over with a lookup table
- * that would silently mislabel the next flow somebody authors.
+ * **The tier comes from the artifact.** `nodeType` cannot name it:
+ * `filter_suitability` is `nodeType: 'constraint'`, and so is
+ * `constraint_contact` — one is an affordability tier and the other a weekly
+ * contact cap. Until 2026-09-11 this file inferred the tier from the node id
+ * with `/suitab/` and `/frequen|contact|cap/`, which worked on four flows and
+ * would have mislabelled the fifth (G-058). The compiler now derives the tier
+ * from the kinds of the policies a node declares and writes it into the
+ * compiled node, so this reads it.
+ *
+ * Id matching survives for the nodes a tier does not describe — a source node
+ * is not a tier — behind the node's `type`, which names those reliably. A node
+ * neither names shows its own id, which is the honest rendering of a name
+ * nobody has supplied.
  */
 
 /** One rail stage: a node, what it removed, and what came out the other side. */
 export interface TraceStage {
   nodeId: string;
   nodeType: string;
+  /**
+   * Which question the node asked, from the artifact. Null when the artifact
+   * is not loaded, or when the node's policies span more than one tier.
+   */
+  tier: string | null;
   /** What the node is for, in words. */
   label: string;
   /** The node's own prose. Not stable, per the spec — shown, never parsed. */
@@ -73,7 +85,34 @@ const NODE_LABELS: [RegExp, string][] = [
   [/histor|trigger/i, 'History'],
 ];
 
-export function labelFor(nodeId: string, nodeType: string): string {
+/** The tier, in the words the three-tier model uses about itself. */
+const TIER_LABELS: Record<string, string> = {
+  eligibility: 'Eligibility',
+  relevance: 'Relevance',
+  suitability: 'Suitability',
+  frequency: 'Frequency & suppression',
+};
+
+/**
+ * Node types that name a node on their own.
+ *
+ * These are not tiers and never will be, and their type is exact — a
+ * `score-model` node scores. Matching them here keeps the id patterns for the
+ * cases nothing else can name.
+ */
+const TYPE_LABELS: Record<string, string> = {
+  source: 'Customer data loaded',
+  'score-model': 'Scoring',
+  'score-adaptive': 'Scoring',
+  arbitrate: 'Ranked',
+  switch: 'Routing',
+};
+
+export function labelFor(nodeId: string, nodeType: string, tier?: string | null): string {
+  // The artifact first: it is the only one of the three that was decided at
+  // compile time rather than read out of a name.
+  if (tier && TIER_LABELS[tier]) return TIER_LABELS[tier];
+  if (TYPE_LABELS[nodeType]) return TYPE_LABELS[nodeType];
   for (const [pattern, label] of NODE_LABELS) {
     if (pattern.test(nodeId)) return label;
   }
@@ -89,9 +128,18 @@ export function labelFor(nodeId: string, nodeType: string): string {
  * in `eliminations`, and without it the rail would open on the first node's
  * survivors and never say how many entered.
  */
-export function stagesFor(trace: TraceDto): TraceStage[] {
+export function stagesFor(
+  trace: TraceDto,
+  /**
+   * The compiled nodes, when the artifact has loaded. Omitted, every stage's
+   * tier is null and the labels fall back to type and id — which is what the
+   * screen shows for the moment before the artifact query returns.
+   */
+  nodes?: readonly { id: string; tier?: string }[]
+): TraceStage[] {
   const timings = (trace.timings ?? {}) as Record<string, number>;
   const eliminations = (trace.eliminations ?? []) as EliminationDto[];
+  const tierById = new Map((nodes ?? []).map((n) => [n.id, n.tier ?? null]));
 
   const entry: TraceStage = {
     nodeId: '__entry',
@@ -103,12 +151,14 @@ export function stagesFor(trace: TraceDto): TraceStage[] {
     survived: trace.candidateCount ?? 0,
     denials: [],
     ms: null,
+    tier: null,
   };
 
   const rest = eliminations.map((e) => ({
     nodeId: e.nodeId,
     nodeType: e.nodeType,
-    label: labelFor(e.nodeId, e.nodeType),
+    tier: tierById.get(e.nodeId) ?? null,
+    label: labelFor(e.nodeId, e.nodeType, tierById.get(e.nodeId)),
     reason: e.reason ?? '',
     removed: (e.denials ?? []).length,
     survived: (e.survived ?? []).length,

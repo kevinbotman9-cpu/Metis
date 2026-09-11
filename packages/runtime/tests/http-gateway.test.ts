@@ -289,3 +289,21 @@ describe('MemoryIntegrationCache', () => {
     expect(second.calls[0].cacheHit).toBe(true);
   });
 });
+
+describe('MemoryIntegrationCache entries carry their age', () => {
+  it('reports when it stored a value, and forgets it on expiry', () => {
+    // A TTL says when a value stops being usable; it does not say when the
+    // value was true. `observedAt` on a source call needs the second (G-056).
+    let now = 1_000_000;
+    const cache = new MemoryIntegrationCache(() => now);
+
+    cache.set('k', { score: 1 }, 60);
+    expect(cache.entry('k')).toEqual({ value: { score: 1 }, storedAt: 1_000_000 });
+
+    now += 30_000;
+    expect(cache.entry('k')?.storedAt, 'the age is of the value, not of the read').toBe(1_000_000);
+
+    now += 31_000;
+    expect(cache.entry('k')).toBeUndefined();
+  });
+});
