@@ -1541,7 +1541,9 @@ index carried a stopwatch reading, and `next-env.d.ts` had no committable form
 that both `next dev` and `next build` agree on.
 
 **Done when:** two consecutive full runs from a clean tree leave `git status`
-empty, and something fails when a run does not.
+empty, and something fails when a run does not. Both verified on
+`e953eca`: two runs, 22 of 22 each, a clean tree after each, and the tree
+comparison shown to fail on a force-tracked `next-env.d.ts`.
 
 ### W-068 — One gate: `npm run gates` is what CI runs
 

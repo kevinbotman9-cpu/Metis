@@ -1454,6 +1454,10 @@ by a check.
   gates. Verified to bite by force-tracking the old `next-env.d.ts` and running
   the typecheck gate: the gate passed, and the run failed naming the file. On
   the real tree it is silent.
+- **Two back-to-back full runs** of `npm run gates` on `e953eca`, from a clean
+  tree, were 22 of 22 green each, and `git status` was empty before the first,
+  between them and after the second. That took 26 and 29 minutes; e2e is 20 of
+  each, 380 passed and 31 skipped, none flaky.
 
 ### G-037 — `build-decision-index.mjs` does not produce the same bytes twice
 
