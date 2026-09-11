@@ -1368,6 +1368,13 @@ own check rather than borrowed from the fresh-database ones. The Registry step's
 78 tests then pass against a freshly created database, the state CI starts every
 job in.
 
+**Extended the same day to the other two migrations in the tree**, the ledger's
+and the catalogue's (`packages/{ledger,catalogue}/tests/migration.test.ts`).
+Both passed on arrival: neither has this defect. Each check was then seen to
+fail with G-076's shape planted in its own migration — a column moved out of
+its `CREATE` into an `ALTER` ahead of it — on both the one-run comparison and the
+store's reads, and passes again with the migration restored.
+
 ### G-058 — A node's type cannot say which question the node answers
 
 **Registered:** 2026-09-10 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** [W-066](BACKLOG.md)
