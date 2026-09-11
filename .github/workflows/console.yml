@@ -164,6 +164,12 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # CLAUDE.md requires a story for every new component and a Storybook
+      # screenshot on every pull request. `build-storybook` failed on main from
+      # 2026-09-09 until this step existed, and no job ran it. G-085.
+      - name: Storybook builds
+        run: npm run build-storybook
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 

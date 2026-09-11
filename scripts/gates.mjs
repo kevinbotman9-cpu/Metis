@@ -98,6 +98,17 @@ export const GATES = [
   { id: 'test-integration', label: 'Integration', cwd: '.', command: 'npm run test:integration' },
   { id: 'test-console', label: 'Unit tests (console)', cwd: 'apps/console', command: 'npm test' },
   {
+    // CLAUDE.md requires a story for every new component and a Storybook
+    // screenshot on every pull request. `build-storybook` failed on main from
+    // 2026-09-09 05:04 until this gate existed — every one of the first
+    // thirty-one pull requests merged while it was broken — because nothing
+    // ran it. G-085.
+    id: 'storybook',
+    label: 'Storybook builds',
+    cwd: 'apps/console',
+    command: 'npm run build-storybook',
+  },
+  {
     // CI shards this four ways across four runners; one machine runs it whole.
     // The difference is declared so the parity check can accept it and reject
     // anything else.

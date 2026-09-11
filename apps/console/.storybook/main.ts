@@ -33,6 +33,11 @@ const config: StorybookConfig = {
       // packages/core/src/index.ts reads schema files from disk at import time,
       // so consumers take the domain module directly.
       '@metis/core/domain': path.resolve(__dirname, '../../../packages/core/src/domain.ts'),
+      // The fixtures are the engine's output, and the engine hashes with
+      // node:crypto, which a browser does not have. Resolved here, for the
+      // browser bundle only, to a SHA-256 held byte-identical to Node's by
+      // tests/unit/storybook-crypto.test.ts. G-085.
+      'node:crypto': path.resolve(__dirname, 'node-crypto.ts'),
     };
     return viteConfig;
   },
