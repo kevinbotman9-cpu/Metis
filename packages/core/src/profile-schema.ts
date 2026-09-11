@@ -80,11 +80,44 @@ export const NUMERIC_TYPES: readonly FieldType[] = ['integer', 'decimal', 'money
  */
 export type Sensitivity = 'none' | 'personal' | 'special_category';
 
+/**
+ * Where a field's value comes from. ADR-014 §2.
+ *
+ * Declared per field because it is what makes the boundary in §1 enforceable: a
+ * caller may narrow a decision and never widen it, and that rule cannot be
+ * checked unless each field says whether the caller is allowed to supply it at
+ * all. `connector:<id>` names the integration, so the trace can attribute a
+ * value to the system that produced it — which nothing could do while policies
+ * read dotted paths and connectors declared flat names (G-069).
+ */
+export type FieldOrigin =
+  | 'profile'
+  | 'request'
+  | 'interaction'
+  | 'aggregation'
+  | `connector:${string}`;
+
+/**
+ * What a field *is*, as opposed to what it holds. ADR-014 §2.
+ *
+ * Sharper than `sensitivity`, which nothing enforces: consent and contact
+ * points are handled by rules of their own — ADR-014 §7 and §8 — and those
+ * rules need to find their fields without matching on names.
+ *
+ * Declared now and enforced later, deliberately: §7 flips the consent default
+ * in both engines, which is its own chain-hash move and its own slice.
+ */
+export type FieldClass = 'attribute' | 'consent' | 'contact_point' | 'identifier';
+
 export interface SchemaField {
   /** The path segment, e.g. `age` in `customer.age`. */
   name: string;
   type: FieldType;
   description: string;
+  /** Where the value comes from. Required: an undeclared origin is the gap. */
+  origin: FieldOrigin;
+  /** What the field is, for the rules that treat some fields differently. */
+  class: FieldClass;
   /** Allowed values, for `enum`. The editor renders these; the compiler checks them. */
   members?: string[];
   /**
@@ -142,13 +175,60 @@ export interface SchemaAggregation {
   type: FieldType;
 }
 
+/**
+ * A root, and the path segment that addresses it.
+ *
+ * `{ alias: 'customer', entity: 'Customer' }` makes `customer.age` resolve to
+ * the `age` field of `Customer`. The alias is declared rather than derived
+ * from the entity name so a rename of one is not silently a rename of every
+ * policy's field path.
+ */
+export interface SchemaRoot {
+  alias: string;
+  entity: string;
+}
+
+/**
+ * The two roots. ADR-014 §2.
+ *
+ * A decision reads a subject and a request, and they are different things with
+ * different lifetimes: the profile is held against a customer and written by
+ * ingestion; the context is what only the caller can know — session, basket,
+ * the event that triggered the decision — and is never stored. One root called
+ * `DecisionInput` modelled a request body and called it a customer, and the
+ * fixture that declared it said so on its first day.
+ */
+export interface SchemaRoots {
+  profile: SchemaRoot;
+  request: SchemaRoot;
+}
+
+/**
+ * The schema a decision was read against. ADR-014 §2.
+ *
+ * A compiled artifact pins it, and the decision carries the same triple, so
+ * every decision names the model its fields were resolved through. Without it
+ * a replay six months later reads today's schema and cannot tell that the
+ * meaning of a path changed underneath it.
+ */
+export interface SchemaPin {
+  id: string;
+  version: string;
+  /** sha256 over the schema's content, so a silent edit is not the same pin. */
+  hash: string;
+}
+
 export interface ProfileSchema {
   id: string;
   tenantId: string;
   /** Bumped whenever the shape changes. Recorded with the decision. */
   version: string;
-  /** The entity the decision input *is*. */
-  root: string;
+  /**
+   * The two roots a path can start from.
+   *
+   * Was a single `root` naming one entity until 2026-09-11 (ADR-014 §2).
+   */
+  roots: SchemaRoots;
   entities: SchemaEntity[];
   aggregations: SchemaAggregation[];
   updatedAt: string;
@@ -178,15 +258,25 @@ const entityByName = (schema: ProfileSchema, name: string) =>
  * A path ending on a relationship (`customer.address`) does not resolve: it
  * names an object, and no operator compares one usefully.
  */
+/** The root a path addresses, by its first segment. */
+export function rootFor(schema: ProfileSchema, path: string): SchemaRoot | undefined {
+  const head = path.split('.')[0];
+  return [schema.roots.profile, schema.roots.request].find((r) => r.alias === head);
+}
+
 export function resolveField(schema: ProfileSchema, path: string): ResolvedPath | undefined {
   const aggregation = schema.aggregations.find((a) => a.produces === path);
   if (aggregation) return { kind: 'aggregation', path, aggregation };
 
-  const segments = path.split('.');
+  const root = rootFor(schema, path);
+  if (!root) return undefined;
+
+  // The first segment named the root; everything after it walks from there.
+  const segments = path.split('.').slice(1);
   const leaf = segments.pop();
   if (!leaf) return undefined;
 
-  let entity = entityByName(schema, schema.root);
+  let entity = entityByName(schema, root.entity);
   for (const segment of segments) {
     const rel = entity?.relationships?.find((r) => r.name === segment);
     if (!rel) return undefined;
@@ -237,7 +327,8 @@ export function listFieldPaths(schema: ProfileSchema): ResolvedPath[] {
     }
   };
 
-  walk(schema.root, '', 0);
+  walk(schema.roots.profile.entity, schema.roots.profile.alias, 0);
+  walk(schema.roots.request.entity, schema.roots.request.alias, 0);
   for (const aggregation of schema.aggregations) {
     out.push({ kind: 'aggregation', path: aggregation.produces, aggregation });
   }
@@ -388,7 +479,26 @@ export function schemaProblems(schema: ProfileSchema): string[] {
   const problems: string[] = [];
   const names = new Set(schema.entities.map((e) => e.name));
 
-  if (!names.has(schema.root)) problems.push(`Root entity '${schema.root}' is not defined.`);
+  for (const [role, root] of Object.entries(schema.roots)) {
+    if (!names.has(root.entity)) {
+      problems.push(`Root entity '${root.entity}' (${role}) is not defined.`);
+    }
+  }
+  if (schema.roots.profile.alias === schema.roots.request.alias) {
+    problems.push(`Both roots are addressed by '${schema.roots.profile.alias}'.`);
+  }
+
+  // A request field the caller cannot be trusted to widen with, or a profile
+  // field nothing can write, is a modelling mistake this catches at
+  // declaration rather than at decision time. ADR-014 §4.
+  for (const entity of schema.entities) {
+    for (const field of entity.fields) {
+      const underRequest = entity.name === schema.roots.request.entity;
+      if (underRequest && field.origin === 'profile') {
+        problems.push(`${entity.name}.${field.name} is under the request root and declares origin 'profile'.`);
+      }
+    }
+  }
 
   for (const entity of schema.entities) {
     for (const field of entity.fields) {
@@ -410,7 +520,7 @@ export function schemaProblems(schema: ProfileSchema): string[] {
     // Walk the relationship chain, and require the last hop to be `many` —
     // aggregating over a single related object is a field read wearing a
     // disguise, and would be better written as one.
-    let entity = entityByName(schema, schema.root);
+    let entity = entityByName(schema, schema.roots.profile.entity);
     let last: SchemaRelationship | undefined;
     for (const hop of agg.over) {
       last = entity?.relationships?.find((r) => r.name === hop);

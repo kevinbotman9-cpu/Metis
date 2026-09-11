@@ -34,13 +34,14 @@ const INPUT = {
     current_plan: 'standard',
     bill_to_income_ratio: 0.02,
     arrears_count_12mo: 0,
+    credit_band: 'A',
+    address: { fibre_available: true },
+    usage: { pct_of_allowance_3mo_avg: 0.88, months_of_history: 9 },
+    contract: { days_to_end: 150 },
+    events: { pac_requested_within_days: 999 },
+    device: { residual_value: 18000 },
   },
-  address: { fibre_available: true },
-  usage: { pct_of_allowance_3mo_avg: 0.88, months_of_history: 9 },
-  contract: { days_to_end: 150 },
-  events: { pac_requested_within_days: 999 },
-  device: { residual_value: 18000 },
-  offer: { monthly_delta: 300 },
+  context: { offer: { monthly_delta: 300 } },
 };
 const CONTACT = { channel: 'web', withinPeriod: { day: 0, week: 0, month: 0 } };
 
@@ -122,7 +123,10 @@ describe('configuration reaches the engine', () => {
     const fibre = store.targetingPolicies.find((p) => p.id === 'pol_fibre_available');
     expect(fibre, 'fixture has no fibre policy to test with').toBeDefined();
 
-    const withFibreOff = { ...INPUT, address: { fibre_available: false } };
+    const withFibreOff = {
+      ...INPUT,
+      customer: { ...INPUT.customer, address: { fibre_available: false } },
+    };
     const ask = async () => {
       const res = await call(['placements', 'telco-uk', 'homepage_hero', 'decisions'], {
         request: {

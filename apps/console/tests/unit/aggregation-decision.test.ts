@@ -36,13 +36,14 @@ const BASE = {
   customer: {
     age: 41, credit_status: 'pass', account_status: 'active', current_plan: 'standard',
     bill_to_income_ratio: 0.018, arrears_count_12mo: 0,
+    credit_band: 'A',
+    address: { fibre_available: true },
+    usage: { pct_of_allowance_3mo_avg: 0.94, months_of_history: 14 },
+    contract: { days_to_end: 210 },
+    events: { pac_requested_within_days: 999 },
+    device: { residual_value: 32000 },
   },
-  address: { fibre_available: true },
-  usage: { pct_of_allowance_3mo_avg: 0.94, months_of_history: 14 },
-  contract: { days_to_end: 210 },
-  events: { pac_requested_within_days: 999 },
-  device: { residual_value: 32000 },
-  offer: { monthly_delta: 300 },
+  context: { offer: { monthly_delta: 300 } },
 };
 
 const decide = async (input: unknown) => {
@@ -72,7 +73,7 @@ describe('a rollup decides', () => {
     // `candidateKeys` for offers, and it needs flow authoring to close. See
     // the test below, which holds the gap so it cannot close silently.
     const res = await call(['targeting-policies', 'telco-uk', 'pol_fibre_available'], {
-      conditions: [{ field: 'accounts.worst_arrears_days', operator: 'lt', value: 30 }],
+      conditions: [{ field: 'customer.worst_arrears_days', operator: 'lt', value: 30 }],
     }, PRIYA(), 'PUT');
     expect(res.status).toBe(200);
   });

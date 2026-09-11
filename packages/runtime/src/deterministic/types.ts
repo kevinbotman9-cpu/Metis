@@ -35,6 +35,19 @@ export type ExecNodeType =
   | 'explain-annotate'
   | 'arbitrate';
 
+/**
+ * The data model a decision was read against. ADR-014 §2.
+ *
+ * Mirrors `SchemaPin` in `@metis/core`, repeated for the same reason
+ * `MissingScoreDefault` is: the runtime does not otherwise depend on the
+ * schema module, and one triple is not worth the edge.
+ */
+export interface SchemaPin {
+  id: string;
+  version: string;
+  hash: string;
+}
+
 export interface ExecNode {
   id: string;
   type: ExecNodeType;
@@ -99,6 +112,8 @@ export interface ExecArtifact {
   candidateKeys: string[];
   /** Package versions pinned at compile time. */
   packageVersions: Record<string, string>;
+  /** The data model pinned at compile time. ADR-014 §2. */
+  schema?: SchemaPin;
   /**
    * Declared by the flow, carried into the decision.
    *
@@ -291,6 +306,15 @@ export interface DeterministicDecision {
    */
   sourceBindings: SourceBinding[];
   packageVersions: Record<string, string>;
+  /**
+   * The data model this decision's fields were resolved through, from the
+   * artifact. ADR-014 §2.
+   *
+   * `null` when the artifact pins none, which is a fact about the artifact and
+   * is recorded rather than omitted: absent and "compiled before the model
+   * existed" would otherwise be indistinguishable after the fact.
+   */
+  schema: SchemaPin | null;
   candidateKeys: string[];
   eliminations: EliminationStep[];
   scores: Record<string, CandidateScore>;

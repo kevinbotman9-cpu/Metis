@@ -32,13 +32,24 @@ import type { IntegrationGateway, ResolutionContext } from '@metis/runtime';
  * flow reads.
  */
 const RANGES: Record<string, [number, number]> = {
-  monthlySpend: [1200, 10200],
-  arrearsDays: [0, 60],
-  dataUsageGb: [0, 120],
-  roamingDays: [0, 14],
-  tenureMonths: [0, 72],
-  creditScore: [380, 820],
+  'customer.monthly_spend': [1200, 10200],
+  'customer.arrears_days': [0, 60],
+  'customer.usage.data_usage_gb': [0, 120],
+  'customer.usage.roaming_days': [0, 14],
+  'customer.tenure_months': [0, 72],
+  'customer.credit_score': [380, 820],
   stockLevel: [0, 400],
+};
+
+/**
+ * Values for the string fields a policy actually compares against.
+ *
+ * `customer.credit_band` is read by `pol_credit_pass`, so a generic string
+ * would make the rule refuse everything while looking correct — the defect
+ * class this repository keeps finding. The bands are the schema's own members.
+ */
+const CHOICES: Record<string, string[]> = {
+  'customer.credit_band': ['A', 'B', 'C', 'D', 'E'],
 };
 
 /** Write a value at a dotted path, creating the objects on the way. */
@@ -68,8 +79,15 @@ function recordedValue(connector: Connector, binding: FieldBinding, customerId: 
     // decisions in the console for reasons that are not about the flows.
     case 'boolean':
       return r > 0.12;
-    case 'string':
+    case 'string': {
+      const choices = CHOICES[binding.field];
+      // A declared member where the field has members. A generic string
+      // would make every policy comparing against one refuse everything
+      // while looking correct, which is the defect class this repository
+      // keeps finding.
+      if (choices) return choices[Math.floor(r * choices.length)];
       return `${binding.field}_${Math.floor(r * 1000)}`;
+    }
   }
 }
 

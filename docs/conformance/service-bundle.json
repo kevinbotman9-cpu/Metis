@@ -33,6 +33,11 @@
         "@metis/nodes-core": "1.4.0",
         "@metis/core": "2.1.0"
       },
+      "schema": {
+        "id": "schema_telco_uk",
+        "version": "2.0.0",
+        "hash": "d19358d6cc19a9d1eaffed75d6008fbad4baab1314083815e08c09d0b0e0dc41"
+      },
       "nodes": [
         {
           "id": "source_customer",
@@ -141,6 +146,11 @@
         "@metis/nodes-core": "1.4.0",
         "@metis/core": "2.1.0"
       },
+      "schema": {
+        "id": "schema_telco_uk",
+        "version": "2.0.0",
+        "hash": "d19358d6cc19a9d1eaffed75d6008fbad4baab1314083815e08c09d0b0e0dc41"
+      },
       "nodes": [
         {
           "id": "source_session",
@@ -222,6 +232,11 @@
       "packageVersions": {
         "@metis/nodes-core": "1.4.0",
         "@metis/core": "2.1.0"
+      },
+      "schema": {
+        "id": "schema_telco_uk",
+        "version": "2.0.0",
+        "hash": "d19358d6cc19a9d1eaffed75d6008fbad4baab1314083815e08c09d0b0e0dc41"
       },
       "nodes": [
         {
@@ -318,6 +333,11 @@
       "packageVersions": {
         "@metis/nodes-core": "1.4.0",
         "@metis/core": "2.1.0"
+      },
+      "schema": {
+        "id": "schema_telco_uk",
+        "version": "2.0.0",
+        "hash": "d19358d6cc19a9d1eaffed75d6008fbad4baab1314083815e08c09d0b0e0dc41"
       },
       "nodes": [
         {
@@ -10929,9 +10949,13 @@
         "description": "Required before any offer that creates a new credit agreement.",
         "conditions": [
           {
-            "field": "customer.credit_status",
-            "operator": "eq",
-            "value": "pass"
+            "field": "customer.credit_band",
+            "operator": "in",
+            "value": [
+              "A",
+              "B",
+              "C"
+            ]
           },
           {
             "field": "customer.account_status",
@@ -10954,7 +10978,7 @@
         "description": "Do not offer full fibre where the network has not been built.",
         "conditions": [
           {
-            "field": "address.fibre_available",
+            "field": "customer.address.fibre_available",
             "operator": "eq",
             "value": true
           }
@@ -10994,7 +11018,7 @@
         "description": "Only offer a data boost where usage justifies it.",
         "conditions": [
           {
-            "field": "usage.pct_of_allowance_3mo_avg",
+            "field": "customer.usage.pct_of_allowance_3mo_avg",
             "operator": "gte",
             "value": 0.8
           }
@@ -11014,7 +11038,7 @@
         "description": "Retention offers are only relevant near contract end.",
         "conditions": [
           {
-            "field": "contract.days_to_end",
+            "field": "customer.contract.days_to_end",
             "operator": "lte",
             "value": 90
           }
@@ -11034,7 +11058,7 @@
         "description": "Winback only applies to customers who signalled intent to leave.",
         "conditions": [
           {
-            "field": "events.pac_requested_within_days",
+            "field": "customer.events.pac_requested_within_days",
             "operator": "lte",
             "value": 14
           }
@@ -11079,7 +11103,7 @@
         "description": "A retention offer must reduce, not increase, the customer bill.",
         "conditions": [
           {
-            "field": "offer.monthly_delta",
+            "field": "context.offer.monthly_delta",
             "operator": "lte",
             "value": 0
           }
@@ -11099,7 +11123,7 @@
         "description": "FCA — do not offer insurance where the device value is below the total premium.",
         "conditions": [
           {
-            "field": "device.residual_value",
+            "field": "customer.device.residual_value",
             "operator": "gt",
             "value": 10800
           }
@@ -11119,7 +11143,7 @@
         "description": "Service messages need at least 3 months of usage history.",
         "conditions": [
           {
-            "field": "usage.months_of_history",
+            "field": "customer.usage.months_of_history",
             "operator": "gte",
             "value": 3
           }
@@ -11292,17 +11316,17 @@
         "cacheTtlSeconds": 300,
         "provides": [
           {
-            "field": "monthlySpend",
+            "field": "customer.monthly_spend",
             "path": "billing.rollingSpendPence",
             "type": "number"
           },
           {
-            "field": "arrearsDays",
+            "field": "customer.arrears_days",
             "path": "billing.arrearsDays",
             "type": "number"
           },
           {
-            "field": "inGoodStanding",
+            "field": "customer.in_good_standing",
             "path": "billing.goodStanding",
             "type": "boolean"
           }
@@ -11323,17 +11347,17 @@
         "cacheTtlSeconds": 900,
         "provides": [
           {
-            "field": "dataUsageGb",
+            "field": "customer.usage.data_usage_gb",
             "path": "usage.dataGb",
             "type": "number"
           },
           {
-            "field": "roamingDays",
+            "field": "customer.usage.roaming_days",
             "path": "usage.roamingDays",
             "type": "number"
           },
           {
-            "field": "tenureMonths",
+            "field": "customer.tenure_months",
             "path": "account.tenureMonths",
             "type": "number"
           }
@@ -11354,13 +11378,13 @@
         "cacheTtlSeconds": 60,
         "provides": [
           {
-            "field": "marketingConsent",
+            "field": "customer.marketing_consent",
             "path": "consent.marketing",
             "type": "boolean",
             "defaultValue": false
           },
           {
-            "field": "profilingConsent",
+            "field": "customer.profiling_consent",
             "path": "consent.profiling",
             "type": "boolean",
             "defaultValue": false
@@ -11382,12 +11406,12 @@
         "cacheTtlSeconds": 86400,
         "provides": [
           {
-            "field": "creditScore",
+            "field": "customer.credit_score",
             "path": "file.score",
             "type": "number"
           },
           {
-            "field": "creditBand",
+            "field": "customer.credit_band",
             "path": "file.band",
             "type": "string"
           }
@@ -11408,7 +11432,7 @@
         "cacheTtlSeconds": 600,
         "provides": [
           {
-            "field": "deviceInStock",
+            "field": "context.device_in_stock",
             "path": "stock.available",
             "type": "boolean"
           }

@@ -393,7 +393,10 @@ function pathsTo(schema: ProfileSchema, entity: string, field: string): string[]
       walk(rel.entity, prefix ? `${prefix}.${rel.name}` : rel.name, depth + 1);
     }
   };
-  walk(schema.root, '', 0);
+  // Both roots: ingestion writes the profile, and a mapping that reached only
+  // one of them would silently drop every context field (ADR-014 §2).
+  walk(schema.roots.profile.entity, schema.roots.profile.alias, 0);
+  walk(schema.roots.request.entity, schema.roots.request.alias, 0);
   return out;
 }
 

@@ -28,46 +28,59 @@ const schema: ProfileSchema = {
   id: 'schema_test',
   tenantId: 't',
   version: '1.0.0',
-  root: 'Input',
+  roots: {
+    profile: { alias: 'customer', entity: 'Customer' },
+    request: { alias: 'context', entity: 'Context' },
+  },
   updatedAt: '2026-01-01T00:00:00.000Z',
   updatedBy: 'test',
   entities: [
     {
-      name: 'Input',
-      description: 'root',
-      fields: [{ name: 'marketingConsent', type: 'boolean', description: 'flat, from a connector' }],
+      name: 'Customer',
+      description: 'The subject. ADR-014 §2.',
+      fields: [
+        { origin: 'profile', class: 'attribute', name: 'age', type: 'integer', description: '' },
+        { origin: 'profile', class: 'attribute', name: 'credit_status', type: 'enum', members: ['pass', 'refer', 'fail'], description: '' },
+        { origin: 'profile', class: 'attribute', name: 'name', type: 'string', description: '' },
+        { origin: 'profile', class: 'attribute', name: 'ratio', type: 'decimal', description: '' },
+        // A connector-supplied field, under the subject it is a fact about
+        // rather than flat at a root. Its origin names the integration.
+        {
+          origin: 'connector:conn_consent',
+          class: 'consent',
+          name: 'marketing_consent',
+          type: 'boolean',
+          description: 'from a connector',
+        },
+      ],
       relationships: [
-        { name: 'customer', entity: 'Customer', cardinality: 'one', description: '' },
         { name: 'address', entity: 'Address', cardinality: 'one', description: '' },
+        { name: 'accounts', entity: 'Account', cardinality: 'many', description: '' },
       ],
     },
     {
-      name: 'Customer',
-      description: '',
+      name: 'Context',
+      description: 'What only the caller knows. ADR-014 §2.',
       fields: [
-        { name: 'age', type: 'integer', description: '' },
-        { name: 'credit_status', type: 'enum', members: ['pass', 'refer', 'fail'], description: '' },
-        { name: 'name', type: 'string', description: '' },
-        { name: 'ratio', type: 'decimal', description: '' },
+        { origin: 'request', class: 'attribute', name: 'session_id', type: 'string', description: '' },
       ],
-      relationships: [{ name: 'accounts', entity: 'Account', cardinality: 'many', description: '' }],
     },
     {
       name: 'Address',
       description: '',
-      fields: [{ name: 'fibre_available', type: 'boolean', description: '' }],
+      fields: [{ origin: 'profile', class: 'attribute', name: 'fibre_available', type: 'boolean', description: '' }],
     },
     {
       name: 'Account',
       description: '',
-      fields: [{ name: 'arrears_days', type: 'integer', description: '' }],
+      fields: [{ origin: 'profile', class: 'attribute', name: 'arrears_days', type: 'integer', description: '' }],
     },
   ],
   aggregations: [
     {
-      produces: 'accounts.worst_arrears_days',
+      produces: 'customer.worst_arrears_days',
       description: '',
-      over: ['customer', 'accounts'],
+      over: ['accounts'],
       fn: 'max',
       field: 'arrears_days',
       type: 'integer',
@@ -78,19 +91,23 @@ const schema: ProfileSchema = {
 describe('the defect this exists to prevent', () => {
   it('rejects the typo that silently decided', () => {
     const problems = conditionProblems(schema, {
-      field: 'address.fibre_availabl',
+      field: 'customer.address.fibre_availabl',
       operator: 'eq',
       value: true,
     });
 
     expect(problems).toHaveLength(1);
     expect(problems[0].code).toBe('UNKNOWN_FIELD');
-    expect(problems[0].message).toContain("Did you mean 'address.fibre_available'?");
+    expect(problems[0].message).toContain("Did you mean 'customer.address.fibre_available'?");
   });
 
   it('accepts the field that was meant', () => {
     expect(
-      conditionProblems(schema, { field: 'address.fibre_available', operator: 'eq', value: true })
+      conditionProblems(schema, {
+        field: 'customer.address.fibre_available',
+        operator: 'eq',
+        value: true,
+      })
     ).toEqual([]);
   });
 });
@@ -102,12 +119,29 @@ describe('resolving a path', () => {
     expect(typeOf(r!)).toBe('integer');
   });
 
-  it('resolves a flat field on the root', () => {
-    expect(typeOf(resolveField(schema, 'marketingConsent')!)).toBe('boolean');
+  it('resolves a connector-supplied field under the subject it describes', () => {
+    // It was `marketingConsent`, flat at the root, because that is where a
+    // connector's payload happened to land. Nothing decided it, and no policy
+    // could read it alongside the grouped fields — G-069.
+    const r = resolveField(schema, 'customer.marketing_consent');
+    expect(typeOf(r!)).toBe('boolean');
+    expect(r!.kind === 'field' && r!.field.origin).toBe('connector:conn_consent');
+    expect(r!.kind === 'field' && r!.field.class).toBe('consent');
+  });
+
+  it('resolves a field on the request root', () => {
+    expect(typeOf(resolveField(schema, 'context.session_id')!)).toBe('string');
+  });
+
+  it('does not resolve a path whose first segment names no root', () => {
+    // `age` alone used to resolve when the root was implicit. With two roots a
+    // bare field name is ambiguous, and answering one of them would be a guess.
+    expect(resolveField(schema, 'age')).toBeUndefined();
+    expect(resolveField(schema, 'marketing_consent')).toBeUndefined();
   });
 
   it('resolves an aggregation as if it were a field', () => {
-    const r = resolveField(schema, 'accounts.worst_arrears_days');
+    const r = resolveField(schema, 'customer.worst_arrears_days');
     expect(r?.kind).toBe('aggregation');
     expect(typeOf(r!)).toBe('integer');
   });
@@ -116,7 +150,7 @@ describe('resolving a path', () => {
     // `customer.address` names an object. No operator compares one usefully,
     // and returning it would let a policy be authored that can never pass.
     expect(resolveField(schema, 'customer')).toBeUndefined();
-    expect(resolveField(schema, 'address')).toBeUndefined();
+    expect(resolveField(schema, 'customer.address')).toBeUndefined();
   });
 
   it('does not resolve through a many relationship', () => {
@@ -132,9 +166,10 @@ describe('the picker list', () => {
     const paths = listFieldPaths(schema).map((r) => r.path);
 
     expect(paths).toContain('customer.age');
-    expect(paths).toContain('address.fibre_available');
-    expect(paths).toContain('marketingConsent');
-    expect(paths).toContain('accounts.worst_arrears_days');
+    expect(paths).toContain('customer.address.fibre_available');
+    expect(paths).toContain('customer.marketing_consent');
+    expect(paths).toContain('context.session_id');
+    expect(paths).toContain('customer.worst_arrears_days');
     expect(paths).not.toContain('customer.accounts.arrears_days');
   });
 
@@ -151,21 +186,20 @@ describe('the picker list', () => {
       ...schema,
       entities: [
         {
-          name: 'Input',
+          name: 'Context',
           description: '',
           fields: [],
-          relationships: [{ name: 'customer', entity: 'Customer', cardinality: 'one', description: '' }],
         },
         {
           name: 'Customer',
           description: '',
-          fields: [{ name: 'age', type: 'integer', description: '' }],
+          fields: [{ origin: 'profile', class: 'attribute', name: 'age', type: 'integer', description: '' }],
           relationships: [{ name: 'household', entity: 'Household', cardinality: 'one', description: '' }],
         },
         {
           name: 'Household',
           description: '',
-          fields: [{ name: 'size', type: 'integer', description: '' }],
+          fields: [{ origin: 'profile', class: 'attribute', name: 'size', type: 'integer', description: '' }],
           relationships: [{ name: 'lead', entity: 'Customer', cardinality: 'one', description: '' }],
         },
       ],
@@ -207,7 +241,11 @@ describe('type rules', () => {
     ).toContain('VALUE_TYPE');
 
     expect(
-      conditionProblems(schema, { field: 'address.fibre_available', operator: 'eq', value: 'true' }).map(
+      conditionProblems(schema, {
+        field: 'customer.address.fibre_available',
+        operator: 'eq',
+        value: 'true',
+      }).map(
         (p) => p.code
       )
     ).toContain('VALUE_TYPE');
@@ -251,7 +289,7 @@ describe('type rules', () => {
   it('type-checks an aggregation like any other field', () => {
     expect(
       conditionProblems(schema, {
-        field: 'accounts.worst_arrears_days',
+        field: 'customer.worst_arrears_days',
         operator: 'gt',
         value: 'thirty',
       }).map((p) => p.code)
@@ -268,7 +306,7 @@ describe('the schema itself', () => {
     const broken: ProfileSchema = {
       ...schema,
       entities: schema.entities.map((e) =>
-        e.name === 'Input'
+        e.name === 'Customer'
           ? { ...e, relationships: [{ name: 'x', entity: 'Nope', cardinality: 'one', description: '' }] }
           : e
       ),
@@ -281,7 +319,18 @@ describe('the schema itself', () => {
       ...schema,
       entities: schema.entities.map((e) =>
         e.name === 'Address'
-          ? { ...e, fields: [{ name: 'band', type: 'enum' as const, description: '' }] }
+          ? {
+              ...e,
+              fields: [
+                {
+                  origin: 'profile' as const,
+                  class: 'attribute' as const,
+                  name: 'band',
+                  type: 'enum' as const,
+                  description: '',
+                },
+              ],
+            }
           : e
       ),
     };
@@ -304,7 +353,7 @@ describe('the schema itself', () => {
     const broken: ProfileSchema = {
       ...schema,
       aggregations: [
-        { produces: 'x', description: '', over: ['customer', 'accounts'], fn: 'max', field: 'nope', type: 'integer' },
+        { produces: 'x', description: '', over: ['accounts'], fn: 'max', field: 'nope', type: 'integer' },
       ],
     };
     expect(schemaProblems(broken).join(' ')).toContain("reads 'nope'");
@@ -314,7 +363,7 @@ describe('the schema itself', () => {
     const broken: ProfileSchema = {
       ...schema,
       aggregations: [
-        { produces: 'x', description: '', over: ['customer', 'accounts'], fn: 'sum', type: 'integer' },
+        { produces: 'x', description: '', over: ['accounts'], fn: 'sum', type: 'integer' },
       ],
     };
     expect(schemaProblems(broken).join(' ')).toContain('names no field');

@@ -147,7 +147,9 @@ export function resolveAggregations(
     // fields resolve: the request wins over anything computed for it.
     if (readPath(input, agg.produces) !== undefined) continue;
 
-    const found = collectionAt(input, agg.over);
+    // `over` is relative to the profile root, and the input nests under that
+    // root's alias — `customer.accounts`, not `accounts` (ADR-014 §2).
+    const found = collectionAt(input, [schema.roots.profile.alias, ...agg.over]);
     if ('reason' in found) {
       unresolved.push({ produces: agg.produces, reason: found.reason });
       continue;

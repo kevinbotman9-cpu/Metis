@@ -32,6 +32,7 @@ import type {
 import {
   conditionProblems,
   type ProfileSchema,
+  type SchemaPin,
 } from '@metis/core/profile-schema';
 import {
   resolveUtility,
@@ -239,6 +240,14 @@ export interface CompiledDecisionFlow {
   candidateKeys: string[];
   /** Exact versions, locked at compile time so a replay is reproducible. */
   packageVersions: Record<string, string>;
+  /**
+   * The data model this flow was compiled against. ADR-014 §2.
+   *
+   * Absent when the caller supplied no schema, which is how a flow compiled
+   * before the model existed still replays. Present, it is carried into every
+   * decision the artifact makes.
+   */
+  schema?: SchemaPin;
   /**
    * Which pack supplied each targeting policy this flow references.
    *
@@ -1068,6 +1077,18 @@ export function compileDecisionFlow(
 
   const policySources = policySourcesFor(source.nodes, ctx.packs ?? []);
 
+  // Hashed over the schema's content rather than its version string: a version
+  // somebody forgot to bump is exactly the case a pin has to survive.
+  const schemaPin: SchemaPin | undefined = ctx.profileSchema
+    ? {
+        id: ctx.profileSchema.id,
+        version: ctx.profileSchema.version,
+        hash: createHash('sha256')
+          .update(stableStringify(ctx.profileSchema), 'utf8')
+          .digest('hex'),
+      }
+    : undefined;
+
   const body = {
     id: source.id,
     version: source.version,
@@ -1082,6 +1103,7 @@ export function compileDecisionFlow(
     edges: source.edges,
     candidateKeys: source.candidateKeys,
     packageVersions,
+    ...(schemaPin ? { schema: schemaPin } : {}),
     ...(policySources ? { policySources } : {}),
     costManifest,
     // Spread so the field is absent rather than explicitly undefined when the

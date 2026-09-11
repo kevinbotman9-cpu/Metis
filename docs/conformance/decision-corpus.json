@@ -105,8 +105,8 @@
         }
       },
       "expected": {
-        "id": "dec_6dc0facb9789e701",
-        "chainHash": "6dc0facb9789e70144abef749ee2d4cfa1339eb83504512fc24991137ceb050f",
+        "id": "dec_27979f313e11c68a",
+        "chainHash": "27979f313e11c68aa121bad61bea0d98c6aebdfbb7d5d393b633e34f3ad2596e",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "b173bc87387140e021f158e72314c621f01f43803d5ee02a398413656e10dfae",
         "decision": {
@@ -123,6 +123,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a"
           ],
@@ -372,8 +373,8 @@
         }
       },
       "expected": {
-        "id": "dec_95864f4ffd2c5fea",
-        "chainHash": "95864f4ffd2c5feaae28eab65b24105927eea68da793db985f420ece30f56f3a",
+        "id": "dec_2d7b48cf2d7950db",
+        "chainHash": "2d7b48cf2d7950db91e5b17d55aa29ea82f4afcff4270106a715fba11c951dea",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "c05a161a7901180e3eaf8e92ba14d59a6506b8c3bdbdfe9bb140216990325a2d",
         "decision": {
@@ -390,6 +391,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -666,8 +668,8 @@
         }
       },
       "expected": {
-        "id": "dec_26f2b2b2c46b122f",
-        "chainHash": "26f2b2b2c46b122f341f26a8459477ede3d8364501bae9929d020ce2a00896d2",
+        "id": "dec_ab3d9fda50be15cb",
+        "chainHash": "ab3d9fda50be15cb146083de00b451cab7319e44c8aa8655c33e24b600fa6d25",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "c05a161a7901180e3eaf8e92ba14d59a6506b8c3bdbdfe9bb140216990325a2d",
         "decision": {
@@ -684,6 +686,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -959,8 +962,8 @@
         }
       },
       "expected": {
-        "id": "dec_507252f09ee1d29c",
-        "chainHash": "507252f09ee1d29cfe7b93e4afff5fabfcfa285691af42953c1047ec4594a6aa",
+        "id": "dec_964fd2ca9cef445f",
+        "chainHash": "964fd2ca9cef445fc39c85d1e79f20f764e2130b9b1fc53a3af570a63be9c76c",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "c05a161a7901180e3eaf8e92ba14d59a6506b8c3bdbdfe9bb140216990325a2d",
         "decision": {
@@ -977,6 +980,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -1270,8 +1274,8 @@
         }
       },
       "expected": {
-        "id": "dec_6386a2514614665f",
-        "chainHash": "6386a2514614665f79aa0b850a0bad2ba6c1855aefddfca451011bea44560df5",
+        "id": "dec_3526660d9e407fbb",
+        "chainHash": "3526660d9e407fbb6148332c28785236a51775d2b5f1cb1972ea1e3856d77437",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "c05a161a7901180e3eaf8e92ba14d59a6506b8c3bdbdfe9bb140216990325a2d",
         "decision": {
@@ -1288,6 +1292,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -1582,8 +1587,8 @@
         }
       },
       "expected": {
-        "id": "dec_0562f5b3cc887c96",
-        "chainHash": "0562f5b3cc887c9663af66b742e05f9c7b1fb1755d6cecd773842d5877620cc5",
+        "id": "dec_23ae84eec92cd6cb",
+        "chainHash": "23ae84eec92cd6cb3b796bcfcd9de733f48a413914993114e48ea52b0d7edfd2",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "52867812e366625e508b6ab711158a9302e3b61040b15234055a602f88e69339",
         "decision": {
@@ -1600,6 +1605,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -1839,8 +1845,8 @@
         }
       },
       "expected": {
-        "id": "dec_51b7fefc1708f074",
-        "chainHash": "51b7fefc1708f07452ddac166c27d225cfa09899294b0ddd38e0340bc4a7e1c7",
+        "id": "dec_1d51af13486b4edc",
+        "chainHash": "1d51af13486b4edc75b22d3a0f9eb5a1efacd45d272adae4742d3760893c10f3",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "cc5fddd18c1487dab9fc8e823a6d02f773d95407c34385a35361c6160333fa36",
         "decision": {
@@ -1857,6 +1863,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_z",
             "offer_a"
@@ -2123,8 +2130,8 @@
         }
       },
       "expected": {
-        "id": "dec_b7ee06595f225f83",
-        "chainHash": "b7ee06595f225f8351985897b5e0321d4992a70b86899c17800bc3d9156472b0",
+        "id": "dec_f604988952a000a7",
+        "chainHash": "f604988952a000a7a4c27557d83135be60be3ee098eac0d56e486e19a51be7e3",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "f4bf1822ab6dacd33de27cff3ce661214ae515e88d274b5c205940f6d27c8fae",
         "decision": {
@@ -2141,6 +2148,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -2450,8 +2458,8 @@
         }
       },
       "expected": {
-        "id": "dec_9996df7c7bb2a5f5",
-        "chainHash": "9996df7c7bb2a5f5be75899f9a824a73c37cd4edc59a84a9a6b4c8005c1693d9",
+        "id": "dec_7461be65b0b17b21",
+        "chainHash": "7461be65b0b17b21f5056b86f1385c309edecc4fd64845dd99461e594fa6f052",
         "inputSnapshotHash": "1507f0e43026165f54b2f00b683c6e640e3cda1df3f2d761f8794d97f5b88f5b",
         "catalogueSnapshotHash": "600272d93d90b728a918d0d6fb79e8242ac112a199e3d761fa7e79353d36b328",
         "decision": {
@@ -2468,6 +2476,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -2751,8 +2760,8 @@
         }
       },
       "expected": {
-        "id": "dec_8b51b4591d17c18f",
-        "chainHash": "8b51b4591d17c18f3158047808b989e086ff44203cada156259cd43cc0e5f2ed",
+        "id": "dec_18567aa2bf83f15f",
+        "chainHash": "18567aa2bf83f15fa52fb7edb5fd0d2648ac4380262f7200a4b4aca996f54586",
         "inputSnapshotHash": "d3e2b965c447462c911026996fe1c627647f74ea435dcd4c10cc675c01008f72",
         "catalogueSnapshotHash": "78e1bcf10b33fd68a2bfb71a205bfd5aa20f4f700817a2b0fa2cac4d9878a0f2",
         "decision": {
@@ -2769,6 +2778,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -3052,8 +3062,8 @@
         }
       },
       "expected": {
-        "id": "dec_a48127f41f2672e3",
-        "chainHash": "a48127f41f2672e3e5b2b8e4333b72e88eba09cf00b7b52c397276243684f428",
+        "id": "dec_ad6f1c13a82dbcb1",
+        "chainHash": "ad6f1c13a82dbcb1f2a39f7afaa43a7066976186c54fc26c0d72dc7357f356af",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "25890c248c37678f20950ce8b2b7ab10b68f738721a1acd3de449e75dcbfb74d",
         "decision": {
@@ -3070,6 +3080,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -3353,8 +3364,8 @@
         }
       },
       "expected": {
-        "id": "dec_13c205e1d431a3b8",
-        "chainHash": "13c205e1d431a3b800ebb3f02f4bc05556132860ba6de01b9234e3f790994404",
+        "id": "dec_1778e5acd1001de6",
+        "chainHash": "1778e5acd1001de690a3a6fd1231a4c148b7f14ce1a8542ee44cdfaf25ae0f0e",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "924858dd436d0bff6ae91c0cd6682c7150701f36fb3af5125654ab0b0b74a057",
         "decision": {
@@ -3371,6 +3382,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -3588,8 +3600,8 @@
         "input": {}
       },
       "expected": {
-        "id": "dec_e75ded49a41f5f06",
-        "chainHash": "e75ded49a41f5f06521c035b9014aae727f7dd2d8a6a45546e95c6dc16f9bbcd",
+        "id": "dec_e20bc959b86cb19a",
+        "chainHash": "e20bc959b86cb19ac2ea71321c4a88b642f0e634472dd35157e0eb742f626715",
         "inputSnapshotHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
         "catalogueSnapshotHash": "449065aa08fcf33091140f3b3dd0452516cd21bf40a448420f15e3bee9863422",
         "decision": {
@@ -3606,6 +3618,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a"
           ],
@@ -3878,8 +3891,8 @@
         }
       },
       "expected": {
-        "id": "dec_d8c0276c50746ec2",
-        "chainHash": "d8c0276c50746ec20c23d43a3239aaff68018bfca7fcb32567aeeeaa6a671dbf",
+        "id": "dec_69aea3dad571b49e",
+        "chainHash": "69aea3dad571b49ee7f0297daba46e8a0206481962397f8ce1931d97c42e362d",
         "inputSnapshotHash": "76ba7db6de00801343db3d1c472c701d6a95339964bf85d26abf8abf98cd9568",
         "catalogueSnapshotHash": "09ad174bf4d495862093744a6ea63908fd0ebe64750ae8a1224c5ba6b0102e34",
         "decision": {
@@ -3896,6 +3909,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a"
           ],
@@ -4174,8 +4188,8 @@
         }
       },
       "expected": {
-        "id": "dec_a3eec2bcebd64c84",
-        "chainHash": "a3eec2bcebd64c847a4a0b62c701340468b7385aeb5e22f64594d7cd1e4293b2",
+        "id": "dec_a95195750c9cdcc3",
+        "chainHash": "a95195750c9cdcc3cea0ba3ac4c10ab6288bda3d8ff3bc0c93553fbd538ae760",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "ec29426e2585db648e6dc53e60d2308f512e74bae9cd7caa28293c82f747de62",
         "decision": {
@@ -4192,6 +4206,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -4477,8 +4492,8 @@
         }
       },
       "expected": {
-        "id": "dec_f19fc9da1d89ad94",
-        "chainHash": "f19fc9da1d89ad942a9354312624aa5bf3872d54eb6a87b045fece2953671a34",
+        "id": "dec_f48ae470d2f4c820",
+        "chainHash": "f48ae470d2f4c820feaeee9e95171fa0161684f1c8d00d6f55433a4b5e1da0cb",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "2cedf6d12eb584e10bec6a9cf531af10991957bc277e927baf598d5e71375a43",
         "decision": {
@@ -4495,6 +4510,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -4803,8 +4819,8 @@
         }
       },
       "expected": {
-        "id": "dec_65d837bb891424a7",
-        "chainHash": "65d837bb891424a7beae5df4450edb829606fed781925592dea57a56807936e7",
+        "id": "dec_87b3761859c2c393",
+        "chainHash": "87b3761859c2c3931db9e6c90877967dc94d83a9922abcd9a7bb474a70cd8a71",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "9a02f9ca1a77d61f12a015a014340d6b0789fc67e06976c2717b248a0f8dd4fd",
         "decision": {
@@ -4821,6 +4837,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -5043,8 +5060,8 @@
         }
       },
       "expected": {
-        "id": "dec_6864f7403dc6a154",
-        "chainHash": "6864f7403dc6a154d588dcfdcb5ddff34824fff6d083b3a6927846425f0637f5",
+        "id": "dec_5804b5df70ea3583",
+        "chainHash": "5804b5df70ea35833b80678f0d15a55118b09f30627b03f56600707d79b04c83",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "d251fc579a20c455e0f0788f10a790c279aa9ec0a2d4f320dd5c3a3463b0bb49",
         "decision": {
@@ -5061,6 +5078,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a"
           ],
@@ -5359,8 +5377,8 @@
         }
       },
       "expected": {
-        "id": "dec_c1519f0aa37787d6",
-        "chainHash": "c1519f0aa37787d68c327f142db104c1e7712e8002fe8968917c988f2b747ecd",
+        "id": "dec_8934131a53e6c7ac",
+        "chainHash": "8934131a53e6c7ac9279ea000b0594a87f349e4b08da13fb447eeb53f42fbbef",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "474b804fc6fed3c9df9e356544fcc2fad7b117c71de975e71b4556a32a43e477",
         "decision": {
@@ -5377,6 +5395,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -5609,8 +5628,8 @@
         }
       },
       "expected": {
-        "id": "dec_abdb6ffef3932080",
-        "chainHash": "abdb6ffef3932080f31184fcbc59164f958e787b9a959c77da826033bcfbb9a0",
+        "id": "dec_2901aed7881df6e9",
+        "chainHash": "2901aed7881df6e977a7c4cc76a7991ee2dbe6d33df3ffc2102b2fcd8adbb455",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "d35e6165b9bd37761c3f76cd4d7bf86166454c4ada49f689123f67636a952d92",
         "decision": {
@@ -5627,6 +5646,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a"
           ],
@@ -5870,8 +5890,8 @@
         }
       },
       "expected": {
-        "id": "dec_acafc4def872f624",
-        "chainHash": "acafc4def872f624cbd0333703faa11aabe5ddcb1682d9d5662b264b06206a5d",
+        "id": "dec_8160a2af02050248",
+        "chainHash": "8160a2af02050248050eee833a922f55d02bbdff248829d3beb54d4517541226",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "cb459c1535e7246591c4c033a1b5f6520f3bc8b2888d79897c9793f9871bf738",
         "decision": {
@@ -5888,6 +5908,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_retired",
@@ -6096,8 +6117,8 @@
         }
       },
       "expected": {
-        "id": "dec_70c4f77cb4c22fed",
-        "chainHash": "70c4f77cb4c22fedf0e864410dff4d85e14309260037da6f903f0b3092cc33b5",
+        "id": "dec_44a4da599ab93bc9",
+        "chainHash": "44a4da599ab93bc9a2a72a964c2e3b1b282a7d38f396b92cef63bac8e9e088fd",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "97f50b6dee77148516fbb27ac98f6d0d0f16844cedec4100ddaa8d7514309df3",
         "decision": {
@@ -6114,6 +6135,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a"
           ],
@@ -6328,8 +6350,8 @@
         }
       },
       "expected": {
-        "id": "dec_f75d18bd83aeb4bd",
-        "chainHash": "f75d18bd83aeb4bd12c9f0203904ef217a95065ebc0bb30cf58fc1cc23de2a84",
+        "id": "dec_558566ea31933d91",
+        "chainHash": "558566ea31933d919f63873061048fdd7bf3bee10e44708b20ca2a163a58547e",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "386e25293c9ae10109d0e8bd4993ffbdce83bb1388ac5c374f5ae15a2995e85b",
         "decision": {
@@ -6352,6 +6374,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a"
           ],
@@ -6610,8 +6633,8 @@
         }
       },
       "expected": {
-        "id": "dec_2f70064894a4f67c",
-        "chainHash": "2f70064894a4f67c07973544f75365471061044e20fea644a1dd55dd159fb2fb",
+        "id": "dec_db13a1a88db3a9f3",
+        "chainHash": "db13a1a88db3a9f32e7d9c7bf3cc0d87f77044c5a52286ee63cbbbcb05978ab2",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "c05a161a7901180e3eaf8e92ba14d59a6506b8c3bdbdfe9bb140216990325a2d",
         "decision": {
@@ -6628,6 +6651,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b",
@@ -6917,8 +6941,8 @@
         }
       },
       "expected": {
-        "id": "dec_71090a0805f8893d",
-        "chainHash": "71090a0805f8893d5b192ec12f5df052d81e8f1575eecff29bc1e795b75c96c7",
+        "id": "dec_a3a61427e851d601",
+        "chainHash": "a3a61427e851d6016b5767630070b834deb522f6ca2bbac87ff4037829cd1ab5",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "4314e3a7a0b416c3b4e3788426d2982c53f416d24115a7a076c9884c5d9f191b",
         "decision": {
@@ -6935,6 +6959,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a",
             "offer_b"
@@ -7147,8 +7172,8 @@
         }
       },
       "expected": {
-        "id": "dec_4baedc00cdd586de",
-        "chainHash": "4baedc00cdd586de23b33b3efd3730da4803785c024c86a4b421c26e967a592e",
+        "id": "dec_a1d4fb08085f41e2",
+        "chainHash": "a1d4fb08085f41e259957a4c0bee5368a763dfb02f58e4b0f0c54e897c93bd15",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "367e309ba7005396fe6e6c522ddff8f445d30d9c0a85cc0836ade62fc642b26f",
         "decision": {
@@ -7165,6 +7190,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_a"
           ],
@@ -7386,8 +7412,8 @@
         }
       },
       "expected": {
-        "id": "dec_4869f3c2a8fca99c",
-        "chainHash": "4869f3c2a8fca99cc758bde195368b41b1fac1562bacbe9ba3334da6d14f73bc",
+        "id": "dec_d1abaf3905561b5d",
+        "chainHash": "d1abaf3905561b5d640c2fd5bc4ff4ebce88126c5e523c73b3d30147813d87a9",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "c72e672a08d6884e85c73550ffcb10e0be0778182d89a76bdef44dbb38a9817e",
         "decision": {
@@ -7404,6 +7430,7 @@
           "packageVersions": {
             "@metis/nodes-core": "2.0.0"
           },
+          "schema": null,
           "candidateKeys": [
             "offer_rich",
             "offer_zero"
@@ -7484,6 +7511,455 @@
           },
           "winner": "offer_rich",
           "winnerOfferId": "p_rich"
+        }
+      }
+    },
+    {
+      "name": "a connector supplies a value nested under the profile root",
+      "artifact": {
+        "id": "art_fixture",
+        "version": "1.0.0",
+        "tenantId": "t",
+        "nodes": [
+          {
+            "id": "n1_source",
+            "type": "source",
+            "label": "Source",
+            "connectorIds": [
+              "conn_bureau"
+            ]
+          },
+          {
+            "id": "n2_filter",
+            "type": "filter",
+            "label": "Eligibility",
+            "policyIds": [
+              "pol_band"
+            ]
+          },
+          {
+            "id": "n3_arbitrate",
+            "type": "arbitrate",
+            "label": "Arbitrate"
+          }
+        ],
+        "edges": [
+          {
+            "from": "n1_source",
+            "to": "n2_filter"
+          },
+          {
+            "from": "n2_filter",
+            "to": "n3_arbitrate"
+          }
+        ],
+        "candidateKeys": [
+          "offer_a"
+        ],
+        "packageVersions": {
+          "@metis/nodes-core": "2.0.0"
+        }
+      },
+      "catalogue": {
+        "offers": [
+          {
+            "id": "p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
+            "key": "offer_a",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 1,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          }
+        ],
+        "targetingPolicies": [
+          {
+            "id": "pol_band",
+            "name": "Fixture policy",
+            "kind": "eligibility",
+            "description": "Fixture.",
+            "conditions": [
+              {
+                "field": "customer.credit_band",
+                "operator": "in",
+                "value": [
+                  "A",
+                  "B"
+                ]
+              }
+            ],
+            "scope": {
+              "level": "tenant",
+              "targetId": null
+            },
+            "active": true,
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z"
+          }
+        ],
+        "frequencyPolicies": [],
+        "arbitration": {
+          "id": "arb",
+          "tenantId": "t",
+          "weights": {
+            "propensity": 1,
+            "value": 1,
+            "boost": 1,
+            "context": 1
+          },
+          "utility": {
+            "id": "multiplicative",
+            "version": "1.0.0"
+          },
+          "formula": "P^wP x V^wV x B^wB x C^wC",
+          "updatedAt": "2020-01-01T00:00:00.000Z",
+          "updatedBy": "fixture"
+        },
+        "boosts": [],
+        "connectors": [
+          {
+            "id": "conn_bureau",
+            "name": "Credit bureau",
+            "kind": "rest",
+            "description": "Fixture.",
+            "target": "https://bureau.example",
+            "declaredP95Ms": 12,
+            "timeoutMs": 60,
+            "onFailure": "fail",
+            "cacheTtlSeconds": 600,
+            "provides": [
+              {
+                "field": "customer.credit_band",
+                "path": "file.band",
+                "type": "string"
+              }
+            ],
+            "active": true,
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "f"
+          }
+        ]
+      },
+      "request": {
+        "tenantId": "t",
+        "customerId": "cust_1",
+        "channel": "web",
+        "placement": "hero",
+        "occurredAt": "2026-06-01T12:00:00.000Z",
+        "input": {
+          "customer": {
+            "credit_band": "A"
+          }
+        }
+      },
+      "expected": {
+        "id": "dec_293511b2a60aff1a",
+        "chainHash": "293511b2a60aff1a3fa5e84e175fc7107edad2060d5936154421b341348bd731",
+        "inputSnapshotHash": "68a8faea7723999e908c39802e40c2878ac6e48b52e6426152d0afd22531d3ca",
+        "catalogueSnapshotHash": "e1eaaa1b4bb9ce4bd2ec99235ef03cdaba22b6aaaa75019931e02bbba90e298c",
+        "decision": {
+          "tenantId": "t",
+          "artifactId": "art_fixture",
+          "artifactVersion": "1.0.0",
+          "customerRef": "cust_1",
+          "occurredAt": "2026-06-01T12:00:00.000Z",
+          "channel": "web",
+          "placement": "hero",
+          "inputSnapshotHash": "68a8faea7723999e908c39802e40c2878ac6e48b52e6426152d0afd22531d3ca",
+          "catalogueSnapshotHash": "e1eaaa1b4bb9ce4bd2ec99235ef03cdaba22b6aaaa75019931e02bbba90e298c",
+          "sourceBindings": [
+            {
+              "field": "customer.credit_band",
+              "connectorId": "conn_bureau",
+              "nodeId": "n1_source"
+            }
+          ],
+          "packageVersions": {
+            "@metis/nodes-core": "2.0.0"
+          },
+          "schema": null,
+          "candidateKeys": [
+            "offer_a"
+          ],
+          "eliminations": [
+            {
+              "nodeId": "n1_source",
+              "nodeType": "source",
+              "reason": "Loaded profile for cust_1. All 1 candidates are active and in their validity window. Fields from 1 connector(s): customer.credit_band.",
+              "denials": [],
+              "survived": [
+                "offer_a"
+              ]
+            },
+            {
+              "nodeId": "n2_filter",
+              "nodeType": "filter",
+              "reason": "All 1 candidate(s) passed eligibility.",
+              "denials": [],
+              "survived": [
+                "offer_a"
+              ]
+            },
+            {
+              "nodeId": "n3_arbitrate",
+              "nodeType": "arbitrate",
+              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
+              "denials": [],
+              "survived": [
+                "offer_a"
+              ]
+            }
+          ],
+          "scores": {
+            "offer_a": {
+              "propensity": 1,
+              "value": 0.038333,
+              "boost": 1,
+              "context": 1,
+              "cost": 0.02,
+              "priority": 0.038333
+            }
+          },
+          "arbitration": {
+            "formula": "P^wP x V^wV x B^wB x C^wC",
+            "utility": {
+              "id": "multiplicative",
+              "version": "1.0.0"
+            },
+            "missingScore": {
+              "applied": [
+                "offer_a"
+              ],
+              "approved": null
+            },
+            "winner": "offer_a",
+            "runnerUp": null
+          },
+          "constraintsApplied": [],
+          "consentState": {
+            "marketing": true,
+            "profiling": true,
+            "thirdParty": false
+          },
+          "winner": "offer_a",
+          "winnerOfferId": "p_a"
+        }
+      }
+    },
+    {
+      "name": "a pinned schema is part of the decision",
+      "artifact": {
+        "id": "art_fixture",
+        "version": "1.0.0",
+        "tenantId": "t",
+        "nodes": [
+          {
+            "id": "n1_source",
+            "type": "source",
+            "label": "Source"
+          },
+          {
+            "id": "n3_arbitrate",
+            "type": "arbitrate",
+            "label": "Arbitrate"
+          }
+        ],
+        "edges": [
+          {
+            "from": "n1_source",
+            "to": "n3_arbitrate"
+          }
+        ],
+        "candidateKeys": [
+          "offer_a"
+        ],
+        "packageVersions": {
+          "@metis/nodes-core": "2.0.0"
+        },
+        "schema": {
+          "id": "schema_fixture",
+          "version": "3.1.0",
+          "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "catalogue": {
+        "offers": [
+          {
+            "id": "p_a",
+            "categoryId": "grp_1",
+            "objectiveId": "iss_1",
+            "name": "Offer p_a",
+            "key": "offer_a",
+            "description": "Fixture offer.",
+            "status": "active",
+            "financials": {
+              "price": {
+                "amount": 3500,
+                "currency": "GBP"
+              },
+              "cost": {
+                "amount": 1200,
+                "currency": "GBP"
+              },
+              "expectedMargin": {
+                "amount": 2300,
+                "currency": "GBP"
+              },
+              "termMonths": 24,
+              "oneOff": false
+            },
+            "validity": {
+              "startsAt": "2020-01-01",
+              "endsAt": null
+            },
+            "boost": 1,
+            "policyIds": [],
+            "creativeIds": [],
+            "tags": [],
+            "createdAt": "2020-01-01T00:00:00.000Z",
+            "updatedAt": "2020-01-01T00:00:00.000Z",
+            "updatedBy": "fixture"
+          }
+        ],
+        "targetingPolicies": [],
+        "frequencyPolicies": [],
+        "arbitration": {
+          "id": "arb",
+          "tenantId": "t",
+          "weights": {
+            "propensity": 1,
+            "value": 1,
+            "boost": 1,
+            "context": 1
+          },
+          "utility": {
+            "id": "multiplicative",
+            "version": "1.0.0"
+          },
+          "formula": "P^wP x V^wV x B^wB x C^wC",
+          "updatedAt": "2020-01-01T00:00:00.000Z",
+          "updatedBy": "fixture"
+        },
+        "boosts": [],
+        "connectors": []
+      },
+      "request": {
+        "tenantId": "t",
+        "customerId": "cust_1",
+        "channel": "web",
+        "placement": "hero",
+        "occurredAt": "2026-06-01T12:00:00.000Z",
+        "input": {
+          "tenureMonths": 24
+        }
+      },
+      "expected": {
+        "id": "dec_68f1478e3ef4eced",
+        "chainHash": "68f1478e3ef4eced85f697cf4d3c328539fcc7874b8299841dd65c55fdf5285b",
+        "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+        "catalogueSnapshotHash": "b173bc87387140e021f158e72314c621f01f43803d5ee02a398413656e10dfae",
+        "decision": {
+          "tenantId": "t",
+          "artifactId": "art_fixture",
+          "artifactVersion": "1.0.0",
+          "customerRef": "cust_1",
+          "occurredAt": "2026-06-01T12:00:00.000Z",
+          "channel": "web",
+          "placement": "hero",
+          "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+          "catalogueSnapshotHash": "b173bc87387140e021f158e72314c621f01f43803d5ee02a398413656e10dfae",
+          "sourceBindings": [],
+          "packageVersions": {
+            "@metis/nodes-core": "2.0.0"
+          },
+          "schema": {
+            "id": "schema_fixture",
+            "version": "3.1.0",
+            "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "candidateKeys": [
+            "offer_a"
+          ],
+          "eliminations": [
+            {
+              "nodeId": "n1_source",
+              "nodeType": "source",
+              "reason": "Loaded profile for cust_1. All 1 candidates are active and in their validity window.",
+              "denials": [],
+              "survived": [
+                "offer_a"
+              ]
+            },
+            {
+              "nodeId": "n3_arbitrate",
+              "nodeType": "arbitrate",
+              "reason": "Ranked 1 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
+              "denials": [],
+              "survived": [
+                "offer_a"
+              ]
+            }
+          ],
+          "scores": {
+            "offer_a": {
+              "propensity": 1,
+              "value": 0.038333,
+              "boost": 1,
+              "context": 1,
+              "cost": 0.02,
+              "priority": 0.038333
+            }
+          },
+          "arbitration": {
+            "formula": "P^wP x V^wV x B^wB x C^wC",
+            "utility": {
+              "id": "multiplicative",
+              "version": "1.0.0"
+            },
+            "missingScore": {
+              "applied": [
+                "offer_a"
+              ],
+              "approved": null
+            },
+            "winner": "offer_a",
+            "runnerUp": null
+          },
+          "constraintsApplied": [],
+          "consentState": {
+            "marketing": true,
+            "profiling": true,
+            "thirdParty": false
+          },
+          "winner": "offer_a",
+          "winnerOfferId": "p_a"
         }
       }
     }

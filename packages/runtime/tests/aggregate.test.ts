@@ -17,7 +17,10 @@ const schema = (aggregations: SchemaAggregation[]): ProfileSchema => ({
   id: 's',
   tenantId: 't',
   version: '1.0.0',
-  root: 'Input',
+  roots: {
+    profile: { alias: 'customer', entity: 'Customer' },
+    request: { alias: 'context', entity: 'Context' },
+  },
   updatedAt: '2026-01-01T00:00:00.000Z',
   updatedBy: 'test',
   entities: [],
@@ -25,18 +28,18 @@ const schema = (aggregations: SchemaAggregation[]): ProfileSchema => ({
 });
 
 const WORST: SchemaAggregation = {
-  produces: 'accounts.worst_arrears_days',
+  produces: 'customer.worst_arrears_days',
   description: '',
-  over: ['customer', 'accounts'],
+  over: ['accounts'],
   fn: 'max',
   field: 'arrears_days',
   type: 'integer',
 };
 
 const ACTIVE_COUNT: SchemaAggregation = {
-  produces: 'accounts.active_count',
+  produces: 'customer.active_account_count',
   description: '',
-  over: ['customer', 'accounts'],
+  over: ['accounts'],
   fn: 'count',
   where: [{ field: 'status', operator: 'eq', value: 'active' }],
   type: 'integer',
@@ -50,7 +53,7 @@ describe('computing a rollup', () => {
       schema([WORST]),
       withAccounts([{ arrears_days: 0 }, { arrears_days: 34 }, { arrears_days: 12 }])
     );
-    expect(values['accounts.worst_arrears_days']).toBe(34);
+    expect(values['customer.worst_arrears_days']).toBe(34);
   });
 
   it('counts only the children the filter admits', () => {
@@ -58,7 +61,7 @@ describe('computing a rollup', () => {
       schema([ACTIVE_COUNT]),
       withAccounts([{ status: 'active' }, { status: 'closed' }, { status: 'active' }])
     );
-    expect(values['accounts.active_count']).toBe(2);
+    expect(values['customer.active_account_count']).toBe(2);
   });
 
   it('filters by the same comparison a policy would use', () => {
@@ -71,7 +74,7 @@ describe('computing a rollup', () => {
       ]),
       withAccounts([{ arrears_days: 31 }, { arrears_days: 30 }, { arrears_days: 90 }])
     );
-    expect(values['accounts.active_count']).toBe(2);
+    expect(values['customer.active_account_count']).toBe(2);
   });
 
   it('sums, mins and maxes', () => {
@@ -113,14 +116,14 @@ describe('absent is not zero', () => {
 
     expect(values).toEqual({});
     expect(unresolved).toEqual([
-      { produces: 'accounts.active_count', reason: "no 'customer.accounts' in the input" },
+      { produces: 'customer.active_account_count', reason: "no 'customer.accounts' in the input" },
     ]);
   });
 
   it('produces zero when the collection is empty', () => {
     // A customer with no accounts is a fact, not a gap, and counts as zero.
     const { values, unresolved } = resolveAggregations(schema([ACTIVE_COUNT]), withAccounts([]));
-    expect(values['accounts.active_count']).toBe(0);
+    expect(values['customer.active_account_count']).toBe(0);
     expect(unresolved).toEqual([]);
   });
 
@@ -159,11 +162,10 @@ describe('precedence and determinism', () => {
     // Matching how connector fields resolve: the request wins over anything
     // computed for it, so a caller holding a better number keeps it.
     const input = {
-      customer: { accounts: [{ arrears_days: 5 }] },
-      accounts: { worst_arrears_days: 99 },
+      customer: { accounts: [{ arrears_days: 5 }], worst_arrears_days: 99 },
     };
     const { values } = resolveAggregations(schema([WORST]), input);
-    expect(values['accounts.worst_arrears_days']).toBeUndefined();
+    expect(values['customer.worst_arrears_days']).toBeUndefined();
   });
 
   it('is byte-identical across runs', () => {
@@ -181,11 +183,10 @@ describe('merging into the input', () => {
     // `readPath` walks objects. A flat key containing a dot would never be
     // found, and the policy would silently compare against undefined.
     const merged = mergeAggregations({ customer: { age: 40 } }, {
-      'accounts.worst_arrears_days': 34,
+      'customer.worst_arrears_days': 34,
     });
     expect(merged).toEqual({
-      customer: { age: 40 },
-      accounts: { worst_arrears_days: 34 },
+      customer: { age: 40, worst_arrears_days: 34 },
     });
   });
 
@@ -199,9 +200,9 @@ describe('merging into the input', () => {
   });
 
   it('keeps sibling keys when nesting under an existing object', () => {
-    const merged = mergeAggregations({ accounts: { existing: true } }, {
-      'accounts.active_count': 2,
+    const merged = mergeAggregations({ customer: { existing: true } }, {
+      'customer.active_account_count': 2,
     });
-    expect(merged.accounts).toEqual({ existing: true, active_count: 2 });
+    expect(merged.customer).toEqual({ existing: true, active_account_count: 2 });
   });
 });

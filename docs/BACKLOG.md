@@ -198,7 +198,8 @@ otherwise.
 | W-071 | 14 | An aggregate latency figure with a measured source | OPEN | 2 |
 | W-072 | 14 | The register's sections agree with its statuses | DONE | 1 |
 | W-073 | 14 | A duplicate-entry check for the gap register | OPEN | 2 |
-| W-074 | 14 | Integration fields and policy fields are one vocabulary | OPEN | 2 |
+| W-074 | 14 | Integration fields and policy fields are one vocabulary | DONE | 2 |
+| W-075 | 14 | A live flow compiles, and every input branch is declared | OPEN | 1 |
 
 ---
 
@@ -1500,6 +1501,24 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-075 — A live flow compiles, and every input branch is declared
+
+**Registered:** 2026-09-11 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet
+
+Gate 1 · Gaps [G-071](gaps.md), [G-072](gaps.md)
+
+Both were found while pinning the schema, and both undermine what a pin claims.
+Two compile contexts disagree: the registry published `retention-outbound`
+against a context without `servedChannels` and the console's view rejects it
+with eighteen errors, so the flow is live and shown as broken at the same time,
+and 807 of its decisions award offers today's check refuses. And the decide route injects an
+`experiments` branch the schema does not declare, so the pin describes a subset
+of the input it is attached to.
+
+**Done when:** a live flow that does not compile fails a check, and a decision
+input carrying a branch the pinned schema does not declare fails one too.
+
 ### W-074 — Integration fields and policy fields are one vocabulary
 
 **Registered:** 2026-09-11 · **Stage:** 14 · **Status:** OPEN

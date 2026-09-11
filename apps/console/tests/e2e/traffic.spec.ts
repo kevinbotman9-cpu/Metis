@@ -24,8 +24,16 @@ const DECISION_BODY = {
     channel: 'web',
     occurredAt: '2026-09-07T12:00:00.000Z',
     input: {
-      customer: { age: 29, credit_status: 'pass', account_status: 'active' },
-      address: { fibre_available: true },
+      customer: {
+        age: 29,
+        credit_status: 'pass',
+        account_status: 'active',
+        // Eligibility reads the bureau's band. Supplied here so the storefront
+        // call decides the same way every run: a caller's value wins over the
+        // connector's, and the connector's is seeded per customer.
+        credit_band: 'A',
+        address: { fibre_available: true },
+      },
     },
     consent: { marketing: true, profiling: true, thirdParty: false },
   },

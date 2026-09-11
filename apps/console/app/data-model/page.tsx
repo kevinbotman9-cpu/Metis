@@ -79,14 +79,17 @@ function FieldRow({ field }: { field: SchemaFieldDto }) {
   );
 }
 
-function EntityCard({ entity, root }: { entity: SchemaEntityDto; root: boolean }) {
+function EntityCard({ entity, root }: { entity: SchemaEntityDto; root: string | null }) {
   return (
     <Card>
       <CardHeader
         title={
           <span className="flex items-center gap-2">
             {entity.name}
-            {root ? <Badge tone="accent">root</Badge> : null}
+            {/* Which root, not whether: a model with two says different things
+                about a subject and a request, and "root" alone would hide the
+                distinction the split exists to make (ADR-014 §2). */}
+            {root ? <Badge tone="accent">{root} root</Badge> : null}
           </span>
         }
         description={entity.description}
@@ -246,7 +249,17 @@ function DataModelView() {
         ) : (
           <div className="space-y-3 px-card py-3">
             {schema.entities.map((e) => (
-              <EntityCard key={e.name} entity={e} root={e.name === schema.root} />
+              <EntityCard
+                key={e.name}
+                entity={e}
+                root={
+                  e.name === schema.roots.profile.entity
+                    ? 'profile'
+                    : e.name === schema.roots.request.entity
+                      ? 'request'
+                      : null
+                }
+              />
             ))}
           </div>
         )}
