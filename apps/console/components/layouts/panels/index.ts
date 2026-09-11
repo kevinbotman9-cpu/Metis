@@ -1,6 +1,7 @@
 import type { PanelId } from '@metis/ui-metadata';
 import type { PanelComponent } from '../panel';
 import { EntityOverview } from './entity-overview';
+import { RelatedList } from './related-list';
 import { PlacementsUndeliverable } from './placements-undeliverable';
 
 /**
@@ -11,6 +12,7 @@ import { PlacementsUndeliverable } from './placements-undeliverable';
  */
 export const PANEL_COMPONENTS: { [K in PanelId]: PanelComponent } = {
   'core.entity-overview': EntityOverview,
+  'core.related-list': RelatedList,
   'placements.undeliverable': PlacementsUndeliverable,
 };
 

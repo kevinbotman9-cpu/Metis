@@ -1,4 +1,10 @@
-import { apiClient, type PlacementDto } from '@/lib/api-client';
+import {
+  apiClient,
+  type CategoryDto,
+  type ObjectiveDto,
+  type PlacementDto,
+  type TaxonomyDto,
+} from '@/lib/api-client';
 
 /**
  * Where a manifest's names meet the generated client. ADR-015 §2.
@@ -21,11 +27,36 @@ export interface ListSource {
   select: (data: unknown) => Row[];
 }
 
+/** The taxonomy answers in one snapshot; both levels read it, and count what is filed under them. */
+const offersUnder = (t: TaxonomyDto, categoryIds: ReadonlySet<string>) =>
+  t.offers.filter((o) => categoryIds.has(o.categoryId)).length;
+
 export const LIST_SOURCES: Record<string, ListSource> = {
   placements: {
     queryKey: ['placements'],
     queryFn: () => apiClient.listPlacements(),
     select: (data) => (data as { placements: PlacementDto[] }).placements as unknown as Row[],
+  },
+  // There is no listObjectives or listCategories: getTaxonomy returns both,
+  // and the engine reads the taxonomy as one snapshot.
+  'taxonomy.objectives': {
+    queryKey: ['taxonomy'],
+    queryFn: () => apiClient.getTaxonomy(),
+    select: (data) => {
+      const t = data as TaxonomyDto;
+      return t.objectives.map((o) => {
+        const own = new Set(t.categories.filter((c) => c.objectiveId === o.id).map((c) => c.id));
+        return { ...o, categoryCount: own.size, offerCount: offersUnder(t, own) } as unknown as Row;
+      });
+    },
+  },
+  'taxonomy.categories': {
+    queryKey: ['taxonomy'],
+    queryFn: () => apiClient.getTaxonomy(),
+    select: (data) => {
+      const t = data as TaxonomyDto;
+      return t.categories.map((c) => ({ ...c, offerCount: offersUnder(t, new Set([c.id])) }) as unknown as Row);
+    },
   },
 };
 
@@ -49,6 +80,20 @@ export interface EntityBinding {
   invalidate: readonly (readonly unknown[])[];
 }
 
+/** Either level of the taxonomy going stale takes the offers with it: an offer is filed under both. */
+const TAXONOMY_WRITES = [['taxonomy'], ['offers']] as const;
+
+/**
+ * Where a new record lands among its siblings.
+ *
+ * An empty number field sends `0` — `toPayload` reads `Number(raw || 0)` —
+ * and `sortOrder: 0` puts a brand new objective above everything that existed,
+ * which is not what "I left that box alone" means. The screen knows how many
+ * there are, so the box arrives filled in, and the person can see the answer
+ * and change it before saving.
+ */
+const nextSortOrder = (siblings: readonly Row[]) => ({ sortOrder: siblings.length + 1 });
+
 export const ENTITY_BINDINGS: Record<string, EntityBinding> = {
   Placement: {
     identity: (row) => String(row.key),
@@ -68,6 +113,26 @@ export const ENTITY_BINDINGS: Record<string, EntityBinding> = {
     // The coverage screen's denominator is the set of channels with a delivery
     // mode, so changing one here changes what that screen measures.
     invalidate: [['placements'], ['creatives'], ['offers']],
+  },
+  Objective: {
+    identity: (row) => String(row.id),
+    permission: 'edit:offers',
+    defaults: nextSortOrder,
+    save: async (body, existing) =>
+      (existing
+        ? await apiClient.updateObjective(String(existing.id), body as Partial<ObjectiveDto>)
+        : await apiClient.createObjective(body as Partial<ObjectiveDto>)) as unknown as Row,
+    invalidate: TAXONOMY_WRITES,
+  },
+  Category: {
+    identity: (row) => String(row.id),
+    permission: 'edit:offers',
+    defaults: nextSortOrder,
+    save: async (body, existing) =>
+      (existing
+        ? await apiClient.updateCategory(String(existing.id), body as Partial<CategoryDto>)
+        : await apiClient.createCategory(body as Partial<CategoryDto>)) as unknown as Row,
+    invalidate: TAXONOMY_WRITES,
   },
 };
 

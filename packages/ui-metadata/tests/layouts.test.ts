@@ -129,6 +129,50 @@ describe('validateLayout refuses', () => {
   });
 });
 
+/** A panel's parameters are references too, and are held to the same standard. */
+describe('validateLayout refuses a panel parameter', () => {
+  const base = LAYOUTS.objectives as ListDetailManifest;
+  const registry = { descriptors: REGISTRY, pending: PENDING };
+  const categories = (change: (params: Record<string, unknown>) => Record<string, unknown>) => {
+    const m = structuredClone(base) as ListDetailManifest;
+    const tabs = m.slots['detail.tabs'].map((o) =>
+      o.id === 'categories' ? { ...o, params: change({ ...(o.params ?? {}) }) } : o
+    );
+    return validateLayout({ ...m, slots: { ...m.slots, 'detail.tabs': tabs } }, registry);
+  };
+  const at = `layout 'objectives': 'categories'`;
+
+  it('that is required and missing', () => {
+    expect(categories(({ by: _, ...rest }) => rest)).toContain(`${at} needs 'by' (field)`);
+  });
+
+  it('that the panel does not take', () => {
+    expect(categories((p) => ({ ...p, colour: 'teal' }))).toContain(`${at} passes 'colour', which its panel does not take`);
+  });
+
+  it('naming a field the child entity does not have', () => {
+    expect(categories((p) => ({ ...p, by: 'offerId' }))).toContain(
+      `${at}: 'by' names 'offerId', which is not a field of Category`
+    );
+  });
+
+  it('naming an entity with no descriptor', () => {
+    expect(categories((p) => ({ ...p, entity: 'Widget' }))).toContain(`${at}: 'entity' names 'Widget', which has no descriptor`);
+  });
+
+  it('with an unlabelled column the child does not have', () => {
+    expect(categories((p) => ({ ...p, columns: ['offerCount'] }))).toContain(
+      `${at}: 'columns' has column 'offerCount', unlabelled and not a field of Category`
+    );
+  });
+
+  it('with a link that is not a path', () => {
+    expect(categories((p) => ({ ...p, link: { label: 'Offers', href: 'offers' } }))).toContain(
+      `${at}: 'link' must be { label, href } with a path`
+    );
+  });
+});
+
 describe('the panel declarations', () => {
   it('each fill at least one slot of a pattern that exists', () => {
     for (const [id, panel] of Object.entries(PANELS)) {

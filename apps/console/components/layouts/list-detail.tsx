@@ -273,6 +273,7 @@ export function ListDetail({
         descriptor={descriptor}
         rows={list.rows}
         record={record}
+        recordId={record ? identity(record) : null}
         context={context}
       />
     );

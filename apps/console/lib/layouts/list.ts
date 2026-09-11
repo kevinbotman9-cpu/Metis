@@ -77,8 +77,13 @@ export interface Column {
 
 /** A manifest's columns, labelled from the descriptor unless the manifest labels them itself. */
 export function columnsOf(manifest: ListDetailManifest, descriptor: EntityDescriptor): Column[] {
+  return columnsFrom(manifest.params.list.columns, descriptor);
+}
+
+/** Any list of columns over an entity — a manifest's, or a panel's over its own entity. */
+export function columnsFrom(columns: readonly ListColumn[], descriptor: EntityDescriptor): Column[] {
   const byField = new Map(descriptor.fields.map((f) => [f.field, f]));
-  return manifest.params.list.columns.map((c: ListColumn) => {
+  return columns.map((c: ListColumn) => {
     const field = typeof c === 'string' ? c : c.field;
     const own = byField.get(field);
     return {

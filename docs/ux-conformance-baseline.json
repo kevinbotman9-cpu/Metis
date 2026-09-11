@@ -1,5 +1,5 @@
 {
-  "failures": 25,
+  "failures": 24,
   "warnings": 2,
   "recorded": "2026-09-11",
   "why": "The count npm run conformance reports today. It is a ratchet, not a target: this number may fall and may not rise, per CLAUDE.md Session Discipline. The one sanctioned rise is layout-manifests, which fires once per route and has no implementation behind it (W-041) — adding a screen adds exactly one, and the session report has to say so.",

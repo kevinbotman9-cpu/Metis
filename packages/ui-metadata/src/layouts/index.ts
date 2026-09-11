@@ -9,6 +9,7 @@ import {
   type PatternId,
 } from './types';
 import { placementsLayout } from './placements';
+import { objectivesLayout } from './objectives';
 
 export * from './types';
 export { declaredScreen } from './page';
@@ -39,6 +40,23 @@ export const PANELS = {
     description:
       "The record's descriptor fields, read-only, in the descriptor's groups and order. A field added to the descriptor appears here with no manifest change.",
   },
+  'core.related-list': {
+    slots: ['list-detail.detail.tabs', 'list-detail.detail.aside'],
+    description:
+      "The records filed under the open one — categories under an objective, creatives under an offer — each editable, and a new one created already filed there. The child's form is its own descriptor.",
+    params: {
+      source: 'source',
+      entity: 'entity',
+      by: 'field',
+      title: 'field',
+      subtitle: 'field?',
+      description: 'field?',
+      sort: 'field?',
+      columns: 'columns?',
+      link: 'link?',
+      empty: 'empty',
+    },
+  },
   'placements.undeliverable': {
     slots: ['list-detail.list.toolbar'],
     entities: ['Placement'],
@@ -52,6 +70,7 @@ export type PanelId = keyof typeof PANELS;
 /** Every screen declared. The key is the id a route's page renders. */
 export const LAYOUTS: Record<string, LayoutManifest> = {
   [placementsLayout.id]: placementsLayout,
+  [objectivesLayout.id]: objectivesLayout,
 };
 
 export function layoutFor(id: string): LayoutManifest {
@@ -65,6 +84,75 @@ export function layoutFor(id: string): LayoutManifest {
 }
 
 const columnField = (c: ListColumn) => (typeof c === 'string' ? c : c.field);
+
+const isText = (v: unknown): v is string => typeof v === 'string' && v.trim() !== '';
+
+/**
+ * An occupant's parameters against its panel's declaration: each declared one
+ * present unless optional, of its kind, and naming what exists; none undeclared.
+ */
+function checkParams(
+  at: string,
+  params: Readonly<Record<string, unknown>>,
+  panel: PanelDeclaration,
+  descriptors: Record<string, EntityDescriptor>
+): string[] {
+  const problems: string[] = [];
+  const declared = panel.params ?? {};
+  for (const name of Object.keys(params)) {
+    if (!(name in declared)) problems.push(`${at} passes '${name}', which its panel does not take`);
+  }
+  const entityName = Object.entries(declared).find(([, k]) => k.startsWith('entity'))?.[0];
+  const entity = entityName ? descriptors[String(params[entityName])] : undefined;
+  const fields = new Set(entity?.fields.map((f) => f.field) ?? []);
+  const onEntity = (field: string) =>
+    fields.has(field) || (entity?.unmanaged.some((u) => u.field === field) ?? false);
+
+  for (const [name, declaredKind] of Object.entries(declared)) {
+    const optional = declaredKind.endsWith('?');
+    const kind = declaredKind.replace(/\?$/, '');
+    const value = params[name];
+    if (value === undefined) {
+      if (!optional) problems.push(`${at} needs '${name}' (${kind})`);
+      continue;
+    }
+    const wrong = (what: string) => problems.push(`${at}: '${name}' ${what}`);
+    switch (kind) {
+      case 'text':
+      case 'source':
+        if (!isText(value)) wrong(`must be a ${kind === 'source' ? 'source name' : 'string'}`);
+        break;
+      case 'entity':
+        if (!isText(value) || !descriptors[value]) wrong(`names '${String(value)}', which has no descriptor`);
+        break;
+      case 'field':
+        if (!isText(value) || !onEntity(value)) wrong(`names '${String(value)}', which is not a field of ${entity?.entity ?? 'its entity'}`);
+        break;
+      case 'columns':
+        if (!Array.isArray(value)) {
+          wrong('must be a list of columns');
+          break;
+        }
+        for (const c of value as ListColumn[]) {
+          if (typeof c === 'string' ? !fields.has(c) : !c.label && !fields.has(c.field)) {
+            wrong(`has column '${columnField(c)}', unlabelled and not a field of ${entity?.entity ?? 'its entity'}`);
+          }
+        }
+        break;
+      case 'link': {
+        const link = value as { label?: unknown; href?: unknown };
+        if (!isText(link.label) || !isText(link.href) || !link.href.startsWith('/')) wrong('must be { label, href } with a path');
+        break;
+      }
+      case 'empty': {
+        const empty = value as { title?: unknown; description?: unknown };
+        if (!isText(empty.title) || !isText(empty.description)) wrong('must be { title, description }');
+        break;
+      }
+    }
+  }
+  return problems;
+}
 
 /**
  * Everything wrong with a manifest, as sentences. Empty means it holds.
@@ -122,6 +210,7 @@ export function validateLayout(
       if (pattern.labelled.includes(slot) && !o.label) {
         problems.push(`${at}: '${o.id}' is in ${slot}, which names its occupants, and has no label`);
       }
+      problems.push(...checkParams(`${at}: '${o.id}'`, o.params ?? {}, panel, registry.descriptors));
     }
   }
   if ((manifest.slots['detail.tabs'] ?? []).length === 0) {
@@ -180,4 +269,4 @@ export function validateLayout(
   return problems;
 }
 
-export { placementsLayout };
+export { placementsLayout, objectivesLayout };

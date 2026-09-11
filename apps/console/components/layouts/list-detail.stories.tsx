@@ -1,19 +1,26 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
-import { placementDescriptor, placementsLayout, type ListDetailManifest } from '@metis/ui-metadata';
-import { placements, users } from '@/mocks/fixtures/catalogue';
+import {
+  objectiveDescriptor,
+  objectivesLayout,
+  placementDescriptor,
+  placementsLayout,
+  type EntityDescriptor,
+  type ListDetailManifest,
+} from '@metis/ui-metadata';
+import { categories, objectives, offers, placements, users } from '@/mocks/fixtures/catalogue';
 import { artifacts } from '@/mocks/fixtures/artifacts';
 import { NO_FILTER, type ListFilter } from '@/lib/layouts/list';
-import type { Row } from '@/lib/layouts/sources';
+import { LIST_SOURCES, type Row } from '@/lib/layouts/sources';
 import { ListDetail } from './list-detail';
 import type { LinkProps, PanelContext, SourceState } from './panel';
 
 /**
  * Switch theme and density in the toolbar to see all four axes.
  *
- * Every story is the real placements manifest over the seeded placements and
- * the real descriptor, so a story that looks wrong is the renderer being
- * wrong. The host's two jobs — resolving sources and keeping state in the URL —
+ * Every story is a real manifest over the seeded records and the real
+ * descriptor — placements, and objectives with their categories through the
+ * host's own source — so a story that looks wrong is the renderer being wrong. The host's two jobs — resolving sources and keeping state in the URL —
  * are played here by React state, which is all the renderer can tell apart.
  *
  * The five states UX_CONTRACT.md §4 requires are **Populated**, **Loading**,
@@ -22,9 +29,25 @@ import type { LinkProps, PanelContext, SourceState } from './panel';
  * keyboard on it — `j`/`k` should move without the pane falling behind.
  */
 
-const manifest = placementsLayout as ListDetailManifest;
 const seeded = placements as unknown as Row[];
-const identity = (r: Row) => String(r.key);
+const taxonomy = { objectives, categories, offers };
+const resolved = (name: string) => LIST_SOURCES[name].select(taxonomy);
+
+const SCREENS = {
+  placements: {
+    manifest: placementsLayout as ListDetailManifest,
+    descriptor: placementDescriptor,
+    identity: (r: Row) => String(r.key),
+    extra: {} as Record<string, Row[]>,
+  },
+  objectives: {
+    manifest: objectivesLayout as ListDetailManifest,
+    descriptor: objectiveDescriptor as EntityDescriptor,
+    identity: (r: Row) => String(r.id),
+    extra: { 'taxonomy.categories': resolved('taxonomy.categories') } as Record<string, Row[]>,
+  },
+};
+type ScreenName = keyof typeof SCREENS;
 const marcus = users.find((u) => u.email.startsWith('marcus'))!;
 
 const Anchor = ({ href, className, children }: LinkProps) => (
@@ -33,8 +56,19 @@ const Anchor = ({ href, className, children }: LinkProps) => (
   </a>
 );
 
-const context = (rows: Row[], status: SourceState['status'], editable: boolean): PanelContext => ({
-  sources: { placements: { rows, status } },
+const context = (
+  screen: ScreenName,
+  rows: Row[],
+  status: SourceState['status'],
+  editable: boolean,
+  noChildren: boolean
+): PanelContext => ({
+  sources: {
+    [SCREENS[screen].manifest.params.list.source]: { rows, status },
+    ...Object.fromEntries(
+      Object.entries(SCREENS[screen].extra).map(([k, v]) => [k, { rows: noChildren ? [] : v, status }])
+    ),
+  },
   optionSources: {
     flows: artifacts
       .filter((a) => a.status === 'active')
@@ -42,27 +76,31 @@ const context = (rows: Row[], status: SourceState['status'], editable: boolean):
   },
   permissions: marcus.permissions,
   canEdit: () => editable,
-  create: (entity, defaults) => console.info('create', entity, defaults),
+  create: (entity, seed) => console.info('create', entity, seed?.defaults),
   edit: (entity, record) => console.info('edit', entity, record.key),
   Link: Anchor,
 });
 
 interface Args {
+  screen?: ScreenName;
   rows: Row[];
   status: SourceState['status'];
   editable: boolean;
   initialFilter?: ListFilter;
+  /** Empties every source but the list's, so a related list has nothing under the open record. */
+  noChildren?: boolean;
 }
 
 /** Plays the host: selection, tab and filter held in state rather than the URL. */
-function Host({ rows, status, editable, initialFilter = NO_FILTER }: Args) {
+function Host({ screen = 'placements', rows, status, editable, initialFilter = NO_FILTER, noChildren = false }: Args) {
+  const { manifest, descriptor, identity } = SCREENS[screen];
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<string | null>(null);
   const [filter, setFilter] = useState<ListFilter>(initialFilter);
   return (
     <ListDetail
       manifest={manifest}
-      descriptor={placementDescriptor}
+      descriptor={descriptor}
       identity={identity}
       list={{ rows, status }}
       error={status === 'error' ? 'listPlacements answered 503: the registry is not reachable.' : undefined}
@@ -75,7 +113,7 @@ function Host({ rows, status, editable, initialFilter = NO_FILTER }: Args) {
       onFilter={setFilter}
       onCreate={editable ? () => console.info('create') : undefined}
       onEdit={editable ? (r) => console.info('edit', r.key) : undefined}
-      context={context(rows, status, editable)}
+      context={context(screen, rows, status, editable, noChildren)}
     />
   );
 }
@@ -135,4 +173,18 @@ export const Faceted: Story = {
 /** A filter nothing meets, which is not the same state as an empty list. */
 export const NothingMatches: Story = {
   args: { rows: seeded, status: 'ready', editable: true, initialFilter: { query: 'zzz', facets: {} } },
+};
+
+/**
+ * The second screen: objectives, with the categories filed under each in the
+ * first tab — `core.related-list`, the one panel this screen needed that the
+ * first did not.
+ */
+export const Objectives: Story = {
+  args: { screen: 'objectives', rows: resolved('taxonomy.objectives'), status: 'ready', editable: true },
+};
+
+/** The seeded objectives before anything is filed under them: the related list's empty state. */
+export const ObjectiveWithNoCategories: Story = {
+  args: { screen: 'objectives', rows: resolved('taxonomy.objectives'), status: 'ready', editable: true, noChildren: true },
 };

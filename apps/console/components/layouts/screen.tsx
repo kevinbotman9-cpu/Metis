@@ -155,8 +155,12 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
     optionSources,
     permissions: user?.permissions ?? [],
     canEdit,
-    create: (e, defaults) =>
-      setDialog({ entity: e, record: null, defaults: { ...bindingFor(e).defaults?.([]), ...defaults } }),
+    create: (e, seed) =>
+      setDialog({
+        entity: e,
+        record: null,
+        defaults: { ...bindingFor(e).defaults?.(seed?.siblings ?? []), ...seed?.defaults },
+      }),
     edit: (e, record) => setDialog({ entity: e, record }),
     Link,
   };

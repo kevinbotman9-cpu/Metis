@@ -64,7 +64,8 @@ test.describe('authoring the taxonomy @screen-only', () => {
 
     // Addressed by its own row rather than by position: other tests grow this
     // list, and a new objective sorts to the end.
-    const row = page.getByRole('row').filter({ hasText: 'win_back' });
+    // A listbox option: the list–detail pattern's list selects, it does not navigate.
+    const row = page.getByRole('option').filter({ hasText: 'win_back' });
     await expect(row).toHaveCount(1);
     await expect(page.getByText('No categories under this objective')).toBeVisible();
   });
@@ -191,7 +192,9 @@ test.describe('authoring the taxonomy @screen-only', () => {
 
     // And the count on the taxonomy screen followed it, which is the loop
     // closing: the objective now has an offer beneath it.
+    // Read off the category, in the open tab. The objective's own row in the
+    // list counts the same offer, so an unscoped '1 offer' would match twice.
     await page.goto('/objectives?objective=iss_win_back');
-    await expect(page.getByText('1 offer', { exact: true })).toBeVisible();
+    await expect(page.getByRole('tabpanel').getByText('1 offer', { exact: true })).toBeVisible();
   });
 });

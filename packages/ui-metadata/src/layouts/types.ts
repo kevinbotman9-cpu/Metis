@@ -132,4 +132,22 @@ export interface PanelDeclaration {
   entities?: readonly string[];
   /** What it shows, for whoever places it. */
   description: string;
+  /**
+   * The parameters an occupant passes it, by kind, so a manifest's references
+   * are checked the way its own are. A trailing `?` makes one optional.
+   */
+  params?: Readonly<Record<string, PanelParamKind>>;
 }
+
+/**
+ * - `text`: a string shown as it is.
+ * - `source`: a named source the host resolves.
+ * - `entity`: an entity with a descriptor — the panel's own, not the screen's.
+ * - `field`: a field of that `entity`.
+ * - `columns`: `ListColumn`s over that `entity`.
+ * - `link`: `{ label, href }`, where `{field}` in `href` is that field of the row.
+ * - `empty`: `{ title, description }`.
+ */
+export type PanelParamKind =
+  | 'text' | 'source' | 'entity' | 'field' | 'columns' | 'link' | 'empty'
+  | 'text?' | 'source?' | 'entity?' | 'field?' | 'columns?' | 'link?' | 'empty?';

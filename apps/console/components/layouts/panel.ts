@@ -28,8 +28,11 @@ export interface PanelContext {
   permissions: readonly string[];
   /** Whether the session may create or edit this entity. */
   canEdit: (entity: string) => boolean;
-  /** Opens the entity's descriptor form. The host owns the dialog. */
-  create: (entity: string, defaults?: Record<string, unknown>) => void;
+  /**
+   * Opens the entity's descriptor form. The host owns the dialog, and fills in
+   * the entity's own defaults given the records the new one lands beside.
+   */
+  create: (entity: string, seed?: { defaults?: Record<string, unknown>; siblings?: readonly Row[] }) => void;
   edit: (entity: string, record: Row) => void;
   /** next/link in the console; an anchor in Storybook, which has no router. */
   Link: ComponentType<LinkProps>;
@@ -43,6 +46,8 @@ export interface PanelProps {
   rows: readonly Row[];
   /** The open record — what a detail-slot panel reads. Null in a list slot. */
   record: Row | null;
+  /** The open record's identity: what a record filed under it points back to. */
+  recordId: string | null;
   context: PanelContext;
 }
 
