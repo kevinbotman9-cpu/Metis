@@ -673,6 +673,63 @@ have produced.
 
 ---
 
+### G-076 — The registry migration leaves out a column on a fresh database, and CI fails when the wrong test file migrates first
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — a defect, fixed in the slice that registers it
+
+`packages/registry/migrations/001_registry.sql` adds `registry_versions.tests`
+with `ALTER TABLE IF EXISTS … ADD COLUMN IF NOT EXISTS` at line 68 — **before**
+`CREATE TABLE IF NOT EXISTS registry_versions` at line 71, which does not
+declare the column. On a database that has never been migrated, the first run
+skips the `ALTER`, because there is no table yet, and then creates the table
+without the column. The column exists only after a second run.
+
+CI starts an empty PostgreSQL for every `verify` job, and two files in the
+Registry step migrate it in parallel vitest workers: `tests/create-store.test.ts`
+through `createRegistryStore`, and `tests/postgres.test.ts` directly. The
+advisory lock in `runMigration` serialises the two runs and does not order them.
+When `create-store.test.ts` takes the lock first, the second run adds the column
+and the suite passes. When `postgres.test.ts` takes it first, it starts querying
+a table with no `tests` column:
+
+```
+tests/postgres.test.ts > registry over postgres > stores a flow that compiles
+error: column "tests" does not exist
+  at PostgresRegistryStore.getVersion  packages/registry/src/postgres-store.ts:87
+```
+
+**It has failed four of the last sixty Console runs**, every time on that test
+with that error, and once on `main`:
+
+| Run | Event | Branch | Commit |
+|---|---|---|---|
+| 34324459994 | pull_request | `feat/shadow-mode` | `a2494d3` |
+| 34499075432 | pull_request | `feat/delivery-record` | `4173581` |
+| 34516083121 | workflow_dispatch | `main` | `e6d62ab` |
+| 34581324960 | pull_request | `docs/retention-suitability` | `eac2fd3` |
+
+`e6d62ab` is the clearest of them: it passed `verify` on push at 18:36 and failed
+it on a manual dispatch at 18:43, with no change in between.
+
+**Nothing registered it.** Each of the first three was followed by a green run on
+the next attempt, which is what a race looks like from outside, and the fourth
+landed on a docs-only pull request whose code was byte-identical to a `main` that
+had just passed.
+
+**The flake hunt cannot see it.** It re-runs the Playwright suite — three passes
+and a shuffled one — and never runs the registry's PostgreSQL tests; the job has
+no database. Repeating them would not help if it did: the race exists only on a
+database's first migration, and every later run finds the column already there.
+It is a race in database setup, not in the suite, and repeating the suite against
+one database cannot reproduce it.
+
+**Done when:** the `CREATE` declares `tests`; the `ALTER` stays for databases
+created before it; and a check that migrates a fresh database once asserts the
+schema is complete — the same schema two runs produce — verified to bite by
+reverting the migration.
+
+---
+
 ### G-070 — Consent and frequency denials attach to whichever constraint node ran first
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-074](BACKLOG.md)
