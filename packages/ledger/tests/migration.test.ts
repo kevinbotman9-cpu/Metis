@@ -97,7 +97,12 @@ if (!reachable) {
     afterAll(async () => {
       if (own) {
         await own.pool.end();
-        await admin.query(`DROP DATABASE IF EXISTS ${own.name} WITH (FORCE)`);
+        // Not `WITH (FORCE)`. `pool.end()` resolves before its connections have
+        // closed, and forcing terminates one still closing: the server sends it
+        // `57P01`, the pool re-emits that with nobody listening, and the file
+        // fails with every assertion passed (G-081). A plain drop waits for the
+        // connections to go, and refuses by name if one never does.
+        await admin.query(`DROP DATABASE IF EXISTS ${own.name}`);
       }
       await admin.end();
     }, 60_000);

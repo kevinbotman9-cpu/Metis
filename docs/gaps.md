@@ -1406,6 +1406,55 @@ sending zero.
 
 ## Resolved
 
+### G-081 — The migration tests force-drop their database while its connections are still closing, and fail with every assertion passed
+
+**Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** none — a defect in tests written for G-076 to G-078, fixed in the slice that registered it
+
+**What failed.** `verify` on PR #29, a change to this file alone: run
+34607009000, job 103287789058, the Core step. All 6 files and all 130 tests
+passed; Vitest then failed the step on one unhandled error — `57P01
+terminating connection due to administrator command` — from a connection to
+`metis_migrate_check_3109_…`, the database `tests/migrate.test.ts` makes for
+itself. Once in the 23 Console runs since the forced drops landed; the other
+two failures in that window are not it. Nothing on the branch touched a test.
+
+**Why.** Each of the four migration test files — core's `migrate.test.ts` and
+the `migration.test.ts` of registry, ledger and catalogue — ends with
+`await own.pool.end()` then `DROP DATABASE … WITH (FORCE)`. pg-pool's
+`end()` resolves when its list of clients is empty, and `_remove` empties that
+list *before* `client.end()` has closed anything (`node_modules/pg-pool/index.js`,
+`_remove` and `_pulseQueue`). So the drop can arrive while a connection is
+still closing. `FORCE` terminates it; the server sends it `57P01`; the
+client's idle listener re-emits that on the pool, and the pool has no error
+listener, so it surfaces as an uncaught exception. The client in CI's log is in
+exactly that state: `_ending: true`, `_ended: false`.
+
+**Reproduced.** With each connection held open 200 ms past the point
+`pool.end()` resolves, ten teardowns gave **20 uncaught `57P01`s with
+`FORCE`** — two connections, two errors, every time — and **none with a
+plain drop**, which waits for them to leave. Unheld, 20 forced teardowns on
+the development machine gave none: the window is narrow, and CI is where it
+opens.
+
+**Fixed.** All four files drop plainly. A plain `DROP DATABASE` never tells a
+backend to terminate — `57P01` cannot arise from it — and waits up to five
+seconds for other sessions to go. If one never does, it refuses, naming the
+database: *"is being accessed by other users"*, seen with a pool deliberately
+left open. `FORCE` had been turning that leak into a random uncaught error
+instead.
+
+**The check.** `tests/database-suites-serialised.test.ts`, *"never force-drop a
+database while its pool is still closing"*: no test file in a package that
+opens PostgreSQL connections may force-drop a database, comments aside. It went
+red naming `packages/core/tests/migrate.test.ts` with main's version of that
+file restored, and again naming `packages/catalogue/tests/migration.test.ts`.
+
+**Evidence.** Core, registry, ledger and catalogue, 3 runs each against a
+freshly created database: 12 of 12 green, no unhandled error in any log, no
+database left behind. That is evidence the plain drop works, not that the
+flake is gone — it never showed locally. The reproduction above is the
+evidence about the flake.
+
 ### G-071 — Two compile contexts disagree, and the registry published under the weaker one
 
 **Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** [W-075](BACKLOG.md)
