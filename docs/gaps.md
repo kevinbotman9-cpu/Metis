@@ -673,6 +673,171 @@ have produced.
 
 ---
 
+### G-068 — The ledger stores the raw customer reference beside the hash that was meant to replace it
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-006](BACKLOG.md) · **Decision:** [ADR-004](adr/ADR-004-retention-and-erasure.md), Accepted 2026-09-09 on a premise this entry contradicts
+
+`decision_records` has a `subject_hash` column so that *"the subject is
+queryable without the ledger holding the identifier in clear"*
+(`packages/ledger/src/types.ts:24-32`). The `record` column beside it holds the
+whole `DecisionRecord` (`types.ts:39-40`; `jsonb` at
+`packages/ledger/migrations/001_ledger.sql:37`), and the hashed half of that
+record carries `customerRef: request.customerId` — the raw identifier
+(`packages/runtime/src/deterministic/engine.ts:659`). Every row holds the
+identifier in clear, one column over from the hash that exists to avoid it.
+
+The hash would not be enough on its own either. `subjectHash` is an unkeyed
+sha256 of `tenantId.length:tenantId:customerRef`
+(`packages/ledger/src/ledger.ts:62-64`). Anyone who can list candidate
+identifiers can hash them and match: the seeded ids are `cust_` plus a base-36
+counter, and a real telco's account and phone numbers are enumerable the same
+way.
+
+ADR-004 rests on the opposite. Its rejection of *"tokenise identifiers only"*
+begins *"the ledger already hashes the customer reference per tenant, so the
+subject is pseudonymous rather than identified"*
+(`docs/adr/ADR-004-retention-and-erasure.md:86-87`), and concludes that the
+per-subject key is needed for the attributes, the identifier being handled.
+
+**Why now rather than later.** `decision_records` is append-only by trigger
+(`001_ledger.sql:171-174`). The console writes the ledger to PostgreSQL only
+when `METIS_DATABASE_URL` is set, and the truth audit found PostgreSQL *"used
+by no service"* (`docs/evaluation/TRUTH_AUDIT.md:78`), so what is in it today is
+test data. The first real customer id written there cannot be removed by any
+means the design permits. Correcting the shape now means dropping a store that
+holds nothing real; correcting it later means rewriting an append-only table,
+which is the operation ADR-004 exists to forbid.
+
+Found while tracing the data spine for
+[ADR-014](adr/ADR-014-the-data-spine.md) §6.
+
+**Done when:** a test records a decision and asserts the raw `customerId`
+appears in no column of `decision_records` in clear; the subject column cannot
+be recomputed from a candidate identifier without a key the ledger does not
+hold; and ADR-004 records the correction to its premise.
+
+---
+
+### G-067 — The capability map's rollup row names the wrong checks
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — a correction to `docs/CAPABILITIES.md`, owed by whoever next edits that row
+
+`docs/CAPABILITIES.md:329` — *"Aggregations over history resolved at decision
+time"* — names two tests, and neither exercises what the row claims:
+
+- `usage becomes decision input` is `packages/core/tests/volume.test.ts:78`. It
+  tests `resolveVolume`, a volume-cap module that nothing outside its own test
+  imports. The name reads like rollups; the subject is something else.
+- `merging into the input` is `packages/runtime/tests/aggregate.test.ts:179`,
+  which tests `mergeAggregations` on its own.
+
+The test that does exercise the claim — a rollup computed on the console's
+decision path and changing the decision — exists and is not named: `a rollup
+decides`, `apps/console/tests/unit/aggregation-decision.test.ts:62`.
+`docs/evaluation/TRUTH_AUDIT.md:163` carries the same two names, so the audit
+copied the citation rather than following it.
+
+And *"over history"* describes nothing. The rollups read collections the caller
+puts in the request (`packages/runtime/src/integration/aggregate.ts:48-69`);
+there is no history for them to read (W-011).
+
+The capability itself is not overstated — its wiring test exists. What is wrong
+is Rule 9's shape, in the register: a reader who breaks what the row describes
+and runs the two named checks will watch both stay green.
+
+Found while tracing the data spine for
+[ADR-014](adr/ADR-014-the-data-spine.md).
+
+**Done when:** the row names `a rollup decides`, verified to bite by removing the
+`resolveAggregations` call at `apps/console/app/api/[...path]/route.ts:606`;
+drops `usage becomes decision input`; and says what the rollups read.
+
+---
+
+### G-066 — A rollup that could not be computed leaves no trace
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-009](BACKLOG.md)
+
+`resolveAggregations` returns `unresolved` beside its values, with a reason for
+each, so that *"this customer has no accounts in arrears"* and *"we never loaded
+their accounts"* — which *"look identical in the input and mean opposite
+things"* — stay distinguishable
+(`packages/runtime/src/integration/aggregate.ts:38-45`). Its only caller
+computes it at `apps/console/app/api/[...path]/route.ts:606` and reads only
+`.values` at `:622`. `unresolved` reaches no record, no trace and no response.
+
+The test for this path shows what that costs.
+`suppresses when one child breaches it` and
+`suppresses when the children were never loaded`
+(`apps/console/tests/unit/aggregation-decision.test.ts:91-106`) both end with the
+fibre offer denied `ELIGIBILITY_FAILED` on `pol_fibre_available`. One customer
+is 34 days in arrears; the other's accounts were never looked at. The trace
+gives both the same reason code naming the same real policy — the failure
+`docs/review/DATA_MODEL_DESIGN.md` §0 opened with for typos, reintroduced one
+layer down for missing data. Failing closed is right. Failing closed without
+saying why is the defect.
+
+In the seeded tenant it is every decision. Both declared aggregations read
+`customer.accounts`, which no preset, seed or data source populates, so both are
+unresolved on every decision. The fixture says as much and adds that this is
+*"registered in docs/gaps.md"* (`apps/console/mocks/fixtures/profile-schema.ts:31-32`).
+It was not, until this entry.
+
+Found while tracing the data spine for
+[ADR-014](adr/ADR-014-the-data-spine.md).
+
+**Done when:** a decision records which rollups were unresolved and why, and a
+test asserts that the never-loaded case and the in-arrears case produce
+distinguishable records. W-009's own done-when — *"a miss is explicit in the
+record, not an implicit default"* — is this, for rollups.
+
+---
+
+### G-065 — Absent consent is granted, in both engines
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-013](BACKLOG.md) · **Decision:** [ADR-014](adr/ADR-014-the-data-spine.md) §7, Proposed
+
+**A decision request with no `consent` is decided as though marketing and
+profiling consent were given.** `packages/runtime/src/deterministic/engine.ts:302`:
+
+```ts
+const consent = request.consent ?? { marketing: true, profiling: true, thirdParty: false };
+```
+
+The Kotlin engine does the same
+(`engines/kotlin/engine/src/main/kotlin/com/metis/engine/Engine.kt:247`), so the
+two agree — and the conformance corpus proves they agree on it: 26 of the 27
+cases in `docs/conformance/decision-corpus.json` carry no `consent`.
+
+Three things make it worse than a default:
+
+- **The trace asserts it.** `consentState` is in the hashed decision
+  (`engine.ts:689`) and records the substituted value, so the record of a
+  decision nobody consented to says, under a chain hash, that consent was given.
+- **The right source is configured and not read.** `conn_consent_registry` is
+  set to fail closed — `defaultValue: false`, *"because assuming consent is the
+  one mistake with a regulator attached"*
+  (`apps/console/mocks/fixtures/catalogue.ts:1302-1320`). Its `marketingConsent`
+  and `profilingConsent` are fetched, hashed into the input snapshot, and read by
+  no policy. The engine's consent check reads `request.consent` and nothing else
+  (`engine.ts:460`).
+- **The caller grants it.** In the storefront, consent is three checkboxes the
+  visitor ticks (`apps/console/public/storefront/index.html:441-443`, sent at
+  `:644-648`). A request can grant what the registry withholds.
+
+Not G-015. That entry is a flow with no constraint node, where consent is never
+checked. This one is every flow that does check, checking a value that defaults
+to yes. The capability map's consent row gives its limit as *"consent arrives on
+the request"* (`docs/CAPABILITIES.md:259`), which is true and leaves out what
+happens when it does not arrive.
+
+**Done when:** absent consent is enforced as withheld and recorded as absent,
+distinct from withheld, in both engines, with a corpus case for each; consent is
+taken from the platform's source and the request can only narrow it; and
+restoring the default at `engine.ts:302` turns a named test red.
+
+---
+
 ### G-061 — No aggregate latency view has a source
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-071](BACKLOG.md)
