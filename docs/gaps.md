@@ -673,61 +673,6 @@ have produced.
 
 ---
 
-### G-078 — The new migration tests run beside the Postgres suites and flake, in whichever package loses the race
-
-**Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — the fix is a
-one-line sequencing change and the choice is below
-
-`packages/{registry,ledger,catalogue}/tests/migration.test.ts`, added on
-2026-09-11 for [G-076](gaps.md), each **create and drop their own database** —
-`CREATE DATABASE`, then `DROP DATABASE IF EXISTS … WITH (FORCE)` — and Vitest
-runs them in parallel with the package's existing `postgres.test.ts`, which is
-working in the shared `metis_*_test` database over the same server. Creating a
-database, force-dropping one, and migrating another concurrently is a lock
-pattern PostgreSQL is entitled to refuse.
-
-**Two failures, in different packages, neither reproducible afterwards:**
-
-- **CI**, on the merge commit for PR #23: `packages/ledger/tests/postgres.test.ts`
-  › *keeps tenants apart* failed with `40P01`, a deadlock — *"Process 127 waits
-  for AccessExclusiveLock on relation 17580; blocked by process 129. Process 129
-  waits for ShareLock on relation 17603; blocked by process 127."*
-- **Locally**, on the same commit, a different package:
-  `packages/registry/tests/migration.test.ts` timed out in a hook after 10s
-  while `postgres.test.ts` ran beside it.
-
-Neither reproduces. `test-registry` is 3 for 3 on `main` without the merge, and
-3 for 3 on the merge commit; a full `npm run gates` on the merge commit was
-22 of 22 with both Registry and Ledger green. **The failure moves between
-packages and survives on neither tree, which is the signature of contention
-rather than of a defect in either.**
-
-It will bite every pull request until those tests are serialised, and each time
-it will look like a different package's fault.
-
-**Three fixes, and the one to take:**
-
-1. **A per-package advisory lock.** `pg_advisory_lock` around migration and
-   teardown, so the two files take turns. The most surgical, and it puts
-   locking logic inside the thing under test — a migration test that passes
-   because its own lock worked is testing the lock.
-2. **A Vitest sequencing rule.** `sequence.groupOrder`, or marking the database
-   files sequential. Equivalent in effect and spread across two mechanisms;
-   somebody adding a fourth database file has to know to add it to the list.
-3. **`fileParallelism: false` for the three database packages**, in each
-   package's Vitest config. One line each, no new logic, and it covers every
-   file added later without anybody remembering.
-
-**Take 3.** These suites are I/O-bound against one server, so parallelism buys
-almost nothing — the whole registry suite is about 12 seconds — and the cost it
-does buy is a red pull request that reproduces nowhere. The advisory lock is
-worth revisiting only if a database suite ever grows large enough for the
-serial time to matter.
-
-**Done when:** the database suites in those three packages cannot run
-concurrently with each other, and a run of each package's tests repeated ten
-times is clean.
-
 ### G-075 — Retention suitability is decided per request, not per offer, and in the seed by a coin flip
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-026](BACKLOG.md)
@@ -1348,6 +1293,115 @@ payload, and a descriptor no longer needs a screen-supplied default to avoid
 sending zero.
 
 ## Resolved
+
+### G-078 — The new migration tests run beside the Postgres suites and flake, in whichever package loses the race
+
+**Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** none — the fix is a
+one-line sequencing change and the choice is below; see *Closed* at the end
+
+`packages/{registry,ledger,catalogue}/tests/migration.test.ts`, added on
+2026-09-11 for [G-076](gaps.md), each **create and drop their own database** —
+`CREATE DATABASE`, then `DROP DATABASE IF EXISTS … WITH (FORCE)` — and Vitest
+runs them in parallel with the package's existing `postgres.test.ts`, which is
+working in the shared `metis_*_test` database over the same server. Creating a
+database, force-dropping one, and migrating another concurrently is a lock
+pattern PostgreSQL is entitled to refuse.
+
+**Two failures, in different packages, neither reproducible afterwards:**
+
+- **CI**, on the merge commit for PR #23: `packages/ledger/tests/postgres.test.ts`
+  › *keeps tenants apart* failed with `40P01`, a deadlock — *"Process 127 waits
+  for AccessExclusiveLock on relation 17580; blocked by process 129. Process 129
+  waits for ShareLock on relation 17603; blocked by process 127."*
+- **Locally**, on the same commit, a different package:
+  `packages/registry/tests/migration.test.ts` timed out in a hook after 10s
+  while `postgres.test.ts` ran beside it.
+
+Neither reproduces. `test-registry` is 3 for 3 on `main` without the merge, and
+3 for 3 on the merge commit; a full `npm run gates` on the merge commit was
+22 of 22 with both Registry and Ledger green. **The failure moves between
+packages and survives on neither tree, which is the signature of contention
+rather than of a defect in either.**
+
+It will bite every pull request until those tests are serialised, and each time
+it will look like a different package's fault.
+
+**Three fixes, and the one to take:**
+
+1. **A per-package advisory lock.** `pg_advisory_lock` around migration and
+   teardown, so the two files take turns. The most surgical, and it puts
+   locking logic inside the thing under test — a migration test that passes
+   because its own lock worked is testing the lock.
+2. **A Vitest sequencing rule.** `sequence.groupOrder`, or marking the database
+   files sequential. Equivalent in effect and spread across two mechanisms;
+   somebody adding a fourth database file has to know to add it to the list.
+3. **`fileParallelism: false` for the three database packages**, in each
+   package's Vitest config. One line each, no new logic, and it covers every
+   file added later without anybody remembering.
+
+**Take 3.** These suites are I/O-bound against one server, so parallelism buys
+almost nothing — the whole registry suite is about 12 seconds — and the cost it
+does buy is a red pull request that reproduces nowhere. The advisory lock is
+worth revisiting only if a database suite ever grows large enough for the
+serial time to matter.
+
+**Done when:** the database suites in those three packages cannot run
+concurrently with each other, and a run of each package's tests repeated ten
+times is clean.
+
+#### Closed 2026-09-11
+
+**What deadlocked, read from the server log CI kept.** Not the migration tests
+themselves. Process 127 was the ledger's `postgres.test.ts` running
+`TRUNCATE outcome_events, idempotency_keys, decision_records` between cases;
+process 129 was the ledger migration being re-applied to the same database —
+the pre-runner file, `BEGIN; CREATE TABLE IF NOT EXISTS …`, which
+`create-store.test.ts` re-ran every time it built a store. The re-run took
+`ShareLock` for each `CREATE INDEX IF NOT EXISTS` and the truncate took
+`AccessExclusiveLock` for each table, in opposite orders. The new migration
+tests' `CREATE` and `DROP DATABASE` calls appear in the same log as forced
+checkpoints seconds before: they widened a window between two files that were
+already racing. That merge commit was tested before the runner (G-077) landed.
+
+Reproduced directly: 200 truncates against 200 concurrent migration re-runs on
+one database gave **4 deadlocks with the pre-runner file** (`5aefa4b`) and
+**0 with the runner**, which runs no DDL on a database already at its version.
+
+**The hook timeout is a second mechanism, and it is not concurrency.** It
+recurred in core with its files already serialised: all 128 assertions passed
+and the file failed in `afterAll`, five databases left behind. The server log
+says why. Every case created a database of its own; each `CREATE DATABASE`
+copies the template into shared buffers; and the first `DROP DATABASE` forces
+a checkpoint that writes them all — 10,231 buffers, **53.9 seconds** on the
+development machine, against a 60-second limit. The runs either side scraped
+through at 50.6 and 44.6. CI's checkpoints take milliseconds, which is why this
+half showed only locally.
+
+**Fixed both ways.**
+
+- **`fileParallelism: false`** in the Vitest config of every package whose
+  tests open a PostgreSQL connection: registry, ledger, catalogue — option 3
+  above — and core, whose runner tests create databases.
+  `tests/database-suites-serialised.test.ts` holds it for a package that
+  starts talking to the database later; it went red naming `ledger` with the
+  setting removed, and again with it commented out.
+- **One database per migration test file, emptied between cases** with
+  `DROP SCHEMA public CASCADE; CREATE SCHEMA public`, instead of one per case.
+  Each case still starts from nothing — no tables, functions, triggers or
+  version table — and there is one template copy to flush instead of ten. The
+  runner's bites were re-run under it and fail exactly as before.
+
+**Evidence: repeated runs, each against a freshly created database, as CI
+starts with.**
+
+| Tree | Result |
+|---|---|
+| `main`, before either fix | ledger, registry, catalogue 30 of 30 green — and in all 30 the database files ran at the same time, by Vitest's own timings |
+| Files serialised only | ledger, registry, catalogue 30 of 30, one file at a time; core failed its first run on the checkpoint above |
+| Both fixes | ledger, registry, catalogue and core 10 of 10 each — 40 of 40, no two database files overlapping in any run, no skipped test counted as a pass, no database left behind, and no checkpoint over 7.4 seconds |
+
+The first row is the argument against trusting a green run here: thirty in a
+row passed while the race was running every time.
 
 ### G-077 — A change inside an existing `CREATE` never reaches a database that already has the table
 
