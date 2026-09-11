@@ -44,6 +44,83 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-080 — The capability map's "configurable without code" answers a proxy, and the question it names is answered no
+
+**Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — a correction to `docs/CAPABILITIES.md` and a missing check; the product half is ADR-006 §2, which nothing implements
+
+**Five rows claim it, and they are the only five.** Of the 312 capability rows in
+`docs/CAPABILITIES.md` that carry the *Config?* column, five answer YES:
+objective and category as authorable levels (line 139), placement as a
+configured object (171), the creative form (219), the offer form (220), and the
+form descriptor registry itself (425). All five rest on one mechanism, the
+descriptor registry.
+
+**The column's definition tests something other than its name.** The legend,
+under *The two columns E3 added*, reads: *"**Config?** — configurable without
+code | `YES` only if adding a field or changing a rule needs no change under
+`apps/console/`."* The five rows pass that test: descriptors live in
+`packages/ui-metadata`, outside `apps/console/`. The question the column is
+named for — configurable *without code* — and the one `CLAUDE.md` Rule 8 tells
+every screen to ask — *"could a customer add a field to this without a vendor
+ticket?"* — are answered **no**, three times over:
+
+1. **A descriptor is code, compiled into the console.** The registry is
+   TypeScript under `packages/ui-metadata/src/registry/`, imported at build time
+   (`apps/console/components/entity-form-dialog.tsx:11`). Changing one is a
+   commit and a deploy. ADR-006 §2 says schemas *"are served through the API"*;
+   the OpenAPI spec has no descriptor operation at all.
+2. **An entity cannot gain a field without the vendor.** The drift check refuses
+   a descriptor field that the OpenAPI schema lacks
+   (`packages/ui-metadata/tests/descriptors.test.ts:90`), and Offer, Placement,
+   Objective and Category have no open field for a tenant to use; Creative's
+   only open object is its channel-shaped `content`. Adding a field to an offer
+   is an OpenAPI change, a server and store change and a descriptor change —
+   three vendor changes, then a deploy.
+3. **Nothing a tenant holds is read.** There is no stored descriptor and no
+   per-tenant override, so there is nowhere a customer's change could go.
+
+**What is true instead is real, and is a different claim.** The registry moved
+forms out of hand-written React into declared data drawn by one renderer, and
+the vendor's cost of adding a field fell. That is "declared, not hand-built" —
+the words rows 219 and 220 already use — and it earns a row. It is not
+"configurable without code".
+
+**Why this is the more serious of the two findings from ADR-015's survey.** It
+is a status claim, in the one document Rule 7 says makes status claims, on the
+axis Spine 6 calls the differentiator. The true figure is **0 of 312**, not 5:
+`docs/JOURNEY_SPINES.md` held these rows up as the exception to *"311 of 314
+capability rows"* answering NO. And the definition as written invites the
+column to be satisfied by moving code from `apps/console/` into a package, which
+changes where the code is and not whether a customer needs a vendor.
+
+**The check that would catch the difference**, in two halves:
+
+- **Behavioural — a YES is earned by a check that makes the change the way a
+  customer would.** Against a running console and API, with no rebuild: add a
+  field to one tenant's entity through a served operation, open the create
+  form, see the field, save a value, read it back through the API — and assert
+  that no file in the repository changed. Nothing in the product can pass this
+  today, which is the point: it fails until ADR-006 §2 is built and at least one
+  entity has a field a tenant can extend.
+- **Documentary — the column cannot say YES without that check.** Extend
+  `tests/docs-status.test.ts`, which already refuses completion words outside
+  the map, so that a row whose *Config?* cell is YES must cite a test file
+  carrying a marker such as `@no-vendor-ticket`. This is the same shape as
+  `tests/gaps-register.test.ts` requiring a DONE work item to cite a check that
+  exists on disk. The marker is the reviewable promise that the test performs
+  the behavioural check above; a row citing only `descriptors.test.ts`, which
+  changes nothing at runtime, fails.
+
+And the legend should ask the question it is named for: *YES only if a customer
+can add a field or change a rule with no commit, no deploy and no vendor
+ticket.*
+
+**Done when:** the five rows answer NO, with the reason; the legend names the
+real question; and the documentary check exists and has been seen to fail on a
+YES row that cites no marked check. Building the capability itself — descriptors
+served per tenant, and an entity a tenant can extend — is ADR-006 §2, and needs a
+work item of its own.
+
 ### G-079 — A pull request can sit with no checks at all, and nothing says so
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — the platform is GitHub's; the mitigation is a habit
