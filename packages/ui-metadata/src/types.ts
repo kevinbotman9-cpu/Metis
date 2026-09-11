@@ -61,6 +61,14 @@ export interface Condition {
 export interface Option {
   value: string;
   label: string;
+  /**
+   * The same answer, where there is no room for a sentence — a list row, a
+   * facet. The form and the overview keep `label`, which is where somebody is
+   * deciding and needs the whole of it.
+   */
+  short?: string;
+  /** Where the thing this option names can be read, when it is a record of its own. */
+  href?: string;
   /** Extra properties a filter can match against. */
   [key: string]: string | undefined;
 }

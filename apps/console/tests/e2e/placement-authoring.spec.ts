@@ -19,6 +19,9 @@ import { login, resetStore, ACCOUNTS } from './helpers';
 
 const dialog = (page: Page) => page.getByRole('dialog');
 
+// A placement in the list is a listbox option: the list–detail pattern's list
+// selects, it does not navigate, and a table row cannot say which one is open.
+
 async function openPlacements(page: Page) {
   await page.goto('/placements');
   await expect(page.getByRole('heading', { level: 1, name: 'Placements' })).toBeVisible({
@@ -54,9 +57,11 @@ test.describe('configuring a slot @screen-only', () => {
     await openPlacements(page);
     await createPlacement(page, 'Winback SMS');
 
-    const row = page.getByRole('row').filter({ hasText: 'winback_sms' });
+    const row = page.getByRole('option').filter({ hasText: 'winback_sms' });
     await expect(row).toHaveCount(1);
-    await expect(row.getByText('yes')).toBeVisible();
+    // The descriptor's own word for a slot that decides, where the hand-built
+    // page said 'yes'.
+    await expect(row.getByText('Decides')).toBeVisible();
     await expect(row.getByText('nothing')).toBeVisible();
   });
 
@@ -68,7 +73,7 @@ test.describe('configuring a slot @screen-only', () => {
     await openPlacements(page);
     await createPlacement(page, 'Winback SMS', 'caller');
 
-    const row = page.getByRole('row').filter({ hasText: 'winback_sms' });
+    const row = page.getByRole('option').filter({ hasText: 'winback_sms' });
     await expect(row.getByText('Whoever asked')).toBeVisible();
 
     await row.click();
@@ -95,7 +100,7 @@ test.describe('configuring a slot @screen-only', () => {
     await openPlacements(page);
     await createPlacement(page, 'Winback SMS');
 
-    await page.getByRole('row').filter({ hasText: 'winback_sms' }).click();
+    await page.getByRole('option').filter({ hasText: 'winback_sms' }).click();
     await page.getByRole('button', { name: /Edit placement Winback SMS/ }).click();
     await expect(dialog(page).getByLabel('Key')).toBeDisabled();
   });
@@ -150,7 +155,7 @@ test.describe('the coverage denominator counts what can be delivered @screen-onl
 
     // Give email a deliverer, by clicking.
     await page.goto('/placements');
-    await page.getByRole('row').filter({ hasText: 'weekly_offers_send' }).click();
+    await page.getByRole('option').filter({ hasText: 'weekly_offers_send' }).click();
     await page.getByRole('button', { name: /Edit placement Weekly offers email/ }).click();
     await page.getByRole('dialog').getByLabel('Delivered by').selectOption('caller');
     await page.getByRole('dialog').getByRole('button', { name: 'Save placement' }).click();

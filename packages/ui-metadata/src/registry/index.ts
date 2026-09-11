@@ -72,7 +72,8 @@ export const PENDING: Record<string, string> = {
   Model: 'Gate 2. No schema, no screen.',
   Channel: 'Supplied by a channel package rather than authored in the console.',
   Theme: 'Token sets are files today; the Themes screen is in the console spec, not built.',
-  Layout: 'Layout manifests do not exist yet — see UX_CONTRACT.md §2.',
+  Layout:
+    'Manifests exist as repository files (packages/ui-metadata/src/layouts, ADR-015), and nothing serves or stores one, so no user can edit a layout. ADR-015 §8 defers that to overlays.',
   Persona: 'The persona manifest is code (apps/console/lib/nav), not a user-editable entity yet.',
 };
 
