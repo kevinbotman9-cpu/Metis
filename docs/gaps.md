@@ -100,19 +100,27 @@ point 2 has an answer written down.
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — the platform is GitHub's; the mitigation is a habit
 
-GitHub created **no check suite at all** for PR #23's head commit on two
-separate occasions:
+GitHub has created **no check suite at all** for a pull request head commit
+**three times, on two different pull requests**, all on 2026-09-11:
 
-- **On open.** `2486223` sat for over thirty minutes with zero check runs and
-  zero check suites. Closing and reopening the pull request, which normally
-  re-fires `pull_request`, produced nothing either.
-- **On a later push.** `f10ca61` behaved the same way.
+- **PR #23, on open.** `2486223` sat for over thirty minutes with zero check
+  runs and zero check suites. Closing and reopening the pull request, which
+  normally re-fires `pull_request`, produced nothing either.
+- **PR #23, on a later push.** `f10ca61` behaved the same way.
+- **PR #33, on open.** `0b1d8ed`, opened 15:33:06Z, had zero check suites and
+  zero workflow runs at 15:43Z. For scale: PR #32 was opened nine minutes
+  earlier and its `pull_request` run was created **four seconds** later. Ten
+  minutes of nothing is roughly 150× the normal latency, not a slow queue.
 
-Both times Actions itself was healthy: other lanes' pull requests ran normally
-forty minutes earlier, `GET /actions/permissions` returned enabled, and the
-workflow was `active`. Two other pushes on the same branch triggered normally,
-so it is intermittent rather than a configuration fault — the event simply
-never arrived.
+Every time, Actions itself was healthy: other lanes' pull requests ran normally
+within the hour, `GET /actions/permissions` returned enabled, and the workflow
+was `active`. Other pushes on the same branches triggered normally, so it is
+intermittent rather than a configuration fault — the event simply never
+arrived.
+
+**It is not rare.** Three misses across the twelve or so pull-request events
+this repository saw on 2026-09-11 is a rate high enough that a session which
+waits politely for a green tick will, sooner or later, wait for ever.
 
 **The diagnostic is `workflow_dispatch`.** Dispatching `console.yml` on the
 branch created a run immediately, both times. That separates the two
@@ -131,9 +139,15 @@ is the safe direction, but nothing distinguishes *"CI has not started"* from
 watching for named checks rather than for a green tick. A session that waited
 politely would still be waiting.
 
-**Done when:** something notices that a head commit has no check suite N minutes
-after it was pushed and says so — or the process says to dispatch after a fixed
-wait, and the wait is written down.
+**The wait, until something automates it: ten minutes.** The normal latency is
+seconds, the three observed misses were still empty at ten, thirty and ten
+minutes, and no observed run has ever started later than a minute after its
+event. Ten minutes of an empty check-suite list means the event is gone, not
+late. Dispatch then.
+
+**Done when:** something notices that a head commit has no check suite ten
+minutes after it was pushed and says so — the wait above is a habit, and a
+habit is what failed twice before anyone wrote it down.
 
 ### G-001 — Project references do not build
 
