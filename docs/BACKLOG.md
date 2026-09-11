@@ -199,7 +199,7 @@ otherwise.
 | W-072 | 14 | The register's sections agree with its statuses | DONE | 1 |
 | W-073 | 14 | A duplicate-entry check for the gap register | OPEN | 2 |
 | W-074 | 14 | Integration fields and policy fields are one vocabulary | DONE | 2 |
-| W-075 | 14 | A live flow compiles, and every input branch is declared | OPEN | 1 |
+| W-075 | 14 | A live flow compiles, and every input branch is declared | PARTIAL | 1 |
 
 ---
 
@@ -1503,10 +1503,10 @@ channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
 ### W-075 — A live flow compiles, and every input branch is declared
 
-**Registered:** 2026-09-11 · **Stage:** 14 · **Status:** OPEN
-**Check:** none yet
+**Registered:** 2026-09-11 · **Stage:** 14 · **Status:** PARTIAL
+**Check:** `apps/console/tests/unit/compile-context.test.ts`
 
-Gate 1 · Gaps [G-071](gaps.md), [G-072](gaps.md)
+Gate 1 · Gaps [G-071](gaps.md) resolved, [G-072](gaps.md) open
 
 Both were found while pinning the schema, and both undermine what a pin claims.
 Two compile contexts disagree: the registry published `retention-outbound`

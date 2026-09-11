@@ -1646,7 +1646,16 @@ export const placements: Placement[] = [
     channel: 'outbound_call',
     slotCount: 1,
     artifactId: 'retention-outbound',
-    decidable: true,
+    /**
+     * Not decidable: the flow that answered it is retired. G-071.
+     *
+     * `retention-outbound` cannot be published — 18 of its 20 candidates have
+     * no active creative on `outbound_call`, the only channel this slot
+     * delivers through (G-044) — so there is no live flow to decide here. A
+     * slot that still called itself decidable would be claiming an agent can
+     * be prompted with an offer nothing will produce.
+     */
+    decidable: false,
     delivery: null,
     updatedAt: iso(-200),
     updatedBy: 'priya.nair@telco.example',

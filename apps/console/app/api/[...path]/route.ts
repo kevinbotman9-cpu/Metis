@@ -72,7 +72,12 @@ import {
   catalogueByHash,
   registerCatalogue,
 } from '@/mocks/catalogue-state';
-import { compilations, findCompilation, compileContext, toSource } from '@/mocks/fixtures/compiled';
+import {
+  compilations,
+  findCompilation,
+  compileContextFor,
+  toSource,
+} from '@/mocks/fixtures/compiled';
 import { compileDecisionFlow } from '@metis/compiler/decision-flow/compile';
 import type { ArtifactSummary } from '@/mocks/fixtures/artifacts';
 import type { DecisionFlowSource } from '@metis/compiler/decision-flow';
@@ -237,22 +242,19 @@ async function artifactFor(tenantId: string, flowId: string): Promise<ExecArtifa
  * artifacts, in the one place it would have been hardest to notice.
  */
 function currentCompileContext(artifactId?: string) {
-  return {
-    ...compileContext,
+  // The one builder, over the store rather than the fixtures. Three copies of
+  // this existed until 2026-09-11 and two of them disagreed, which is how a
+  // flow came to be live and shown as broken at the same time (G-071).
+  return compileContextFor(artifactId ?? '', {
     offers: store.offers,
     targetingPolicies: store.targetingPolicies,
     frequencyPolicies: store.frequencyPolicies,
     connectors: store.connectors,
     arbitration: store.arbitration,
     profileSchema: store.profileSchema,
-    // ADR-012 §B2. Without these two `NO_DELIVERABLE_CREATIVE` falls back to
-    // "has an id in `creativeIds`", which an offer whose only creative is
-    // switched off, or is written for a channel nobody serves, satisfies.
     creatives: store.creatives,
-    // This flow's own slots — ADR-013 §2. A flow answering an outbound-call slot
-    // must not be judged against web because another flow's placement is one.
-    servedChannels: artifactId ? decidableChannelsFor(artifactId) : [],
-  };
+    placements: store.placements,
+  });
 }
 
 /**
@@ -390,14 +392,6 @@ const decidableChannels = (): string[] => [
  * The channel has no adapter. Conflating the two is the exact error ADR-013
  * exists to end, made in the other direction.
  */
-const decidableChannelsFor = (artifactId: string): string[] => [
-  ...new Set(
-    store.placements
-      .filter((p) => p.artifactId === artifactId && p.decidable)
-      .map((p) => p.channel)
-  ),
-];
-
 /**
  * Record what the platform did about delivering one decision — ADR-013 §1.
  *

@@ -34,7 +34,7 @@ import type { DataSourceDefinition, ValidationReport } from '@metis/core/intake'
 import type { Experiment } from '@metis/core/experiment';
 import { experiments as seedExperiments } from './fixtures/experiments';
 import { artifacts as seedArtifacts, type ArtifactSummary } from './fixtures/artifacts';
-import { compileContext, toSource } from './fixtures/compiled';
+import { compileContextFor, toSource } from './fixtures/compiled';
 import { ArtifactRegistry, InMemoryRegistryStore } from '@metis/registry';
 import {
   changeSets as seedChangeSets,
@@ -223,11 +223,14 @@ function seed(): Store {
 async function seedRegistry(registry: ArtifactRegistry): Promise<void> {
   const at = '2026-08-01T09:00:00.000Z';
   for (const artifact of seedArtifacts) {
+    /** Which versions the registry actually accepted. */
+    const accepted = new Set<string>();
+
     // Oldest first, so the registry's publishedAt ordering matches the order
     // the versions were actually released in.
     for (const version of [...artifact.versions].reverse()) {
       const source = toSource(artifact);
-      await registry.publish(
+      const outcome = await registry.publish(
         {
           tenantId: 'telco-uk',
           flowName: artifact.id,
@@ -240,11 +243,21 @@ async function seedRegistry(registry: ArtifactRegistry): Promise<void> {
           actor: artifact.updatedBy,
           occurredAt: at,
         },
-        compileContext
+        // The context the console judges this flow by, not a weaker one.
+        // Publishing against a context without `servedChannels` is how
+        // `retention-outbound` became live while the console showed it
+        // blocked (G-071).
+        compileContextFor(artifact.id)
       );
+      if (outcome.status !== 'rejected') accepted.add(version);
     }
 
-    if (artifact.status === 'active') {
+    // Promote only what published. Seeding used to promote whatever the
+    // fixture called active, which was fine while the registry accepted
+    // everything and became a thrown error the moment it stopped — and a
+    // silent lie before that, since a flow the compiler refuses cannot be in
+    // production. A rejected flow simply has no active version.
+    if (artifact.status === 'active' && accepted.has(artifact.activeVersion)) {
       await registry.promote('telco-uk', artifact.id, artifact.activeVersion, 'production', artifact.updatedBy, at);
     }
   }
