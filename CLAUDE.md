@@ -282,10 +282,14 @@ These are high-touch and need product/design review before code.
   twice in this file — was not a script. Three sessions reported lint clean
   while the directory they were editing went unlinted. `npm run gates -- <id>`
   re-runs one gate.
-- **The count may not rise, with one exception:** a rule that fires once per route
-  and has no implementation behind it (today, `layout-manifests`, W-041). Adding a
-  screen adds exactly one such failure. When that happens, say which rule and why,
-  and never invent a format nothing reads in order to move a number.
+- **The count may not rise. There is no exception.** Until 2026-09-11 a new screen
+  was allowed to add one `layout-manifests` failure, because the rule had no
+  implementation behind it. It has one now (ADR-015): a new screen is a manifest
+  in `packages/ui-metadata/src/layouts/` and a `page.tsx` that is
+  `<Screen manifest="…" />` and nothing else, so it adds no failure. A screen on
+  a pattern with no renderer yet — list–detail is the only one today — needs that
+  renderer first, and building it is part of the slice. Never invent a format
+  nothing reads in order to move a number.
 - If you are more than 60% through context and slice artefacts 5–9 are not done,
   stop, commit nothing, and report what remains.
 - Do not proceed past a red gate. Report it and stop.

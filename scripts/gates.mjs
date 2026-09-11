@@ -142,10 +142,10 @@ export const GATES = [
     command: 'node scripts/check-required-checks.mjs',
   },
   {
-    // The UX contract, as a ratchet rather than a pass/fail. The repo has 26
-    // standing failures — mostly `layout-manifests`, a rule with no
-    // implementation behind it (W-041) — so `npm run conformance` exits 1 on a
-    // healthy tree and wiring it in raw would redden every pull request.
+    // The UX contract, as a ratchet rather than a pass/fail. The repo has
+    // standing failures — mostly `layout-manifests`, one per route not yet
+    // converted to a manifest — so `npm run conformance` exits 1 on a healthy
+    // tree and wiring it in raw would redden every pull request.
     // CLAUDE.md's rule is that the count may not *rise*; this enforces that
     // against a committed baseline, and fails just as loudly when it falls
     // without being recorded.
