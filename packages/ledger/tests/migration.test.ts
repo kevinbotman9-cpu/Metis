@@ -36,19 +36,30 @@ try {
   reachable = false;
 }
 
-const created: string[] = [];
-const pools: Pool[] = [];
+/**
+ * A database of this file's own, so no other file's migration can have run in
+ * it, emptied before each case.
+ *
+ * One per case was the first design, and it made cleanup the slowest thing in
+ * the package: every `CREATE DATABASE` copies the template into shared buffers,
+ * and the first `DROP DATABASE` forces a checkpoint that writes them all — 54
+ * seconds for ten databases on a development machine, past the hook's limit,
+ * failing a suite whose every assertion had passed (G-078). Dropping and
+ * recreating the `public` schema gives each case the same empty start — no
+ * tables, functions, triggers or version table — for one copy instead of ten.
+ */
+let own: { name: string; pool: Pool } | undefined;
 
-/** An empty database of its own, so no other file's migration can have run first. */
 async function emptyDatabase(): Promise<Pool> {
-  const name = `metis_migration_check_${process.pid}_${Date.now()}_${created.length}`;
-  await admin.query(`CREATE DATABASE ${name}`);
-  created.push(name);
-  const url = new URL(DATABASE_URL);
-  url.pathname = `/${name}`;
-  const pool = new Pool({ connectionString: url.toString(), max: 2 });
-  pools.push(pool);
-  return pool;
+  if (!own) {
+    const name = `metis_migration_check_${process.pid}_${Date.now()}`;
+    await admin.query(`CREATE DATABASE ${name}`);
+    const url = new URL(DATABASE_URL);
+    url.pathname = `/${name}`;
+    own = { name, pool: new Pool({ connectionString: url.toString(), max: 2 }) };
+  }
+  await own.pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+  return own.pool;
 }
 
 /** Columns, constraints, indexes and triggers, in a form two databases can be compared by. */
@@ -84,9 +95,9 @@ if (!reachable) {
 } else {
   describe('the ledger migration on an empty database', () => {
     afterAll(async () => {
-      await Promise.all(pools.map((p) => p.end()));
-      for (const name of created) {
-        await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+      if (own) {
+        await own.pool.end();
+        await admin.query(`DROP DATABASE IF EXISTS ${own.name} WITH (FORCE)`);
       }
       await admin.end();
     }, 60_000);

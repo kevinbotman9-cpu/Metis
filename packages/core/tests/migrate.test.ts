@@ -110,18 +110,29 @@ try {
   reachable = false;
 }
 
-const created: string[] = [];
-const pools: Pool[] = [];
+/**
+ * A database of this file's own, emptied before each case.
+ *
+ * One per case was the first design, and it made cleanup the slowest thing
+ * here: every `CREATE DATABASE` copies the template into shared buffers, and
+ * the first `DROP DATABASE` forces a checkpoint that writes them all — 54
+ * seconds for ten databases on a development machine, past the hook's limit,
+ * failing this file with every assertion passed (G-078). Dropping and
+ * recreating the `public` schema gives each case the same empty start — no
+ * tables, functions, triggers or version table — for one copy instead of ten.
+ */
+let own: { name: string; url: string; pool: Pool } | undefined;
 
 async function emptyDatabase(): Promise<{ pool: Pool; url: string }> {
-  const name = `metis_migrate_check_${process.pid}_${Date.now()}_${created.length}`;
-  await admin.query(`CREATE DATABASE ${name}`);
-  created.push(name);
-  const url = new URL(DATABASE_URL);
-  url.pathname = `/${name}`;
-  const pool = new Pool({ connectionString: url.toString(), max: 2 });
-  pools.push(pool);
-  return { pool, url: url.toString() };
+  if (!own) {
+    const name = `metis_migrate_check_${process.pid}_${Date.now()}`;
+    await admin.query(`CREATE DATABASE ${name}`);
+    const url = new URL(DATABASE_URL);
+    url.pathname = `/${name}`;
+    own = { name, url: url.toString(), pool: new Pool({ connectionString: url.toString(), max: 2 }) };
+  }
+  await own.pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+  return { pool: own.pool, url: own.url };
 }
 
 const options = (dir: string, to?: number) => ({ component: 'widget', dir, lockKey: 0x77696467, to });
@@ -156,11 +167,13 @@ if (!reachable) {
   it.skip(`postgres at ${DATABASE_URL.replace(/:[^:@]*@/, ':***@')} is not reachable`, () => {});
 } else {
   describe('the runner, against a real database', () => {
-    // A dozen databases, dropped one at a time: longer than the default hook
-    // timeout, and a cleanup that times out leaves them behind.
+    // One database to drop now, so one forced checkpoint; the limit stays
+    // generous because that checkpoint is still a disk sync on a busy machine.
     afterAll(async () => {
-      await Promise.all(pools.map((p) => p.end()));
-      for (const name of created) await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+      if (own) {
+        await own.pool.end();
+        await admin.query(`DROP DATABASE IF EXISTS ${own.name} WITH (FORCE)`);
+      }
       await admin.end();
     }, 60_000);
 
@@ -279,12 +292,15 @@ if (!reachable) {
       // second finds the record the first wrote.
       const { pool, url } = await emptyDatabase();
       const second = new Pool({ connectionString: url, max: 2 });
-      pools.push(second);
       const dir = dirWith(SEQUENCE);
 
-      const results = await Promise.all([migrate(pool, options(dir)), migrate(second, options(dir))]);
-      expect(results.map((r) => r.applied.length).sort()).toEqual([0, 3]);
-      expect((await stateOf(pool)).versions).toHaveLength(3);
+      try {
+        const results = await Promise.all([migrate(pool, options(dir)), migrate(second, options(dir))]);
+        expect(results.map((r) => r.applied.length).sort()).toEqual([0, 3]);
+        expect((await stateOf(pool)).versions).toHaveLength(3);
+      } finally {
+        await second.end();
+      }
     });
   });
 }
