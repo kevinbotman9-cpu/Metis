@@ -34,7 +34,9 @@
     "export": "node --import tsx packages/portability/src/cli.ts",
     "bench:s1": "npm --prefix bench/harness run bench:s1",
     "test:catalogue": "npm --prefix packages/catalogue run test",
-    "test:ui-metadata": "npm --prefix packages/ui-metadata run test"
+    "test:ui-metadata": "npm --prefix packages/ui-metadata run test",
+    "gates": "node scripts/gates.mjs",
+    "conformance": "node --import tsx scripts/conformance.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

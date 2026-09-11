@@ -693,6 +693,73 @@ have produced.
 
 ---
 
+### G-060 — The local gate and the CI gate were different gates, and nothing said so
+
+**Registered:** 2026-09-10 · **Resolved:** 2026-09-10 · **Status:** Resolved · **Work item:** [W-068](BACKLOG.md)
+
+Running the obvious commands in a terminal and seeing green meant having
+checked *some* subset of what CI checks. Which subset was knowable only by
+reading `.github/workflows/console.yml` line by line, and three things had
+drifted out of it entirely.
+
+**The root lint ran nowhere on a pull request.** `verify` sets
+`working-directory: apps/console` as a job default. Its `Lint` step — written
+to be the root lint, and commented as such — therefore ran `npm run lint`
+*inside the console*, which is the console's own lint. The step immediately
+after it, `Lint (console)`, ran the console's lint again. So
+`eslint packages bench tests scripts` had never run in CI, and the two steps
+that looked like belt and braces were the same brace twice.
+
+**Three workspaces ran nowhere in CI.** `test:core`, `test:catalogue` and
+`test:portability` are in the root `npm test` chain and appeared in no workflow
+step: canonical serialisation, the catalogue model and the export/import round
+trip were verified on developer machines and nowhere else.
+
+**`npm run conformance` was not a script.** CLAUDE.md names it twice — every
+session is told to open and close by running it — and `package.json` had no
+such entry. Every session has been invoking
+`node --import tsx scripts/conformance.mjs` by hand, and the documented command
+would have failed. The UX contract therefore ran in CI not at all.
+
+The three met in one place on 2026-09-10. A two-character mistake — an unused
+`useMemo` import — reached a pull request behind three consecutive session
+reports that lint was clean. Each report was made after running the root lint,
+which does not cover the console; CI caught it with the console lint, which is
+the one CI runs twice.
+
+That is the shape of the defect: **not that a check was missing, but that two
+different sets of checks both called themselves "the gates"**, and every claim
+made from a terminal was about the smaller one without saying so.
+
+**Resolved by:** `npm run gates` runs the list in `scripts/gates.mjs`, which is
+exactly what CI runs, in each job's order, stopping where CI stops.
+`tests/gates-parity.test.ts` reads that list and the workflow and fails when
+either gains or loses a step the other does not have — verified to bite in both
+directions, by adding a step to the workflow and by removing a gate from the
+script. A workflow step that is genuinely setup goes in `NOT_A_GATE` with a
+reason, and a job outside the local run is declared with one.
+
+The three holes were closed in the same change: the root lint gained
+`working-directory: .`, the three workspaces gained steps, and `conformance`
+gained a script and a CI step.
+
+**One gate needed a different shape.** `npm run conformance` exits non-zero on
+a healthy tree — 26 standing failures, most of them `layout-manifests`, a rule
+that fires once per route with no implementation behind it. Wired in raw it
+would have reddened every pull request and taught everyone to ignore the one
+check that reads the UI contract. `scripts/check-conformance.mjs` enforces what
+CLAUDE.md actually says — the count may not rise — against
+`docs/ux-conformance-baseline.json`, and fails equally when the count falls and
+the baseline was not lowered in the same commit, because unrecorded slack is
+where the next regression hides. Verified in all three directions: rise exits 1,
+unrecorded fall exits 1, at the baseline exits 0.
+
+**What it does not cover:** `kotlin-conformance` stays out of the local run, so
+a change that breaks the JVM engine is caught on the pull request rather than
+before it. Running Gradle before every console commit is the wrong trade; the
+declaration in `OUT_OF_SCOPE` says so out loud rather than leaving it to be
+discovered.
+
 ### G-059 — Every `next-best-action` decision considers the same 22 offers, out of 251
 
 **Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-067](BACKLOG.md)
@@ -906,9 +973,15 @@ creative, or `status` is decided by what the renderer will actually draw rather
 than by what exists in the slate — and a test covers a slate whose first entry
 has no creative.
 
-### G-052 — A generated fixture records a measured duration, so it never regenerates identically
+### G-052 — Two tracked generated files never regenerate identically, and `npm run gates` rewrites both
 
-**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-001](BACKLOG.md)
+**Registered:** 2026-09-10 · **Extended:** 2026-09-11 · **Status:** Open · **Work item:** [W-001](BACKLOG.md)
+
+Two halves. The first, `decision-index.json`, was registered on 2026-09-10. The
+second, `next-env.d.ts`, was found the same day by the first full run of
+`npm run gates`, and is registered here rather than separately because it is
+the same defect: a tracked file whose content depends on which command last
+wrote it.
 
 `apps/console/mocks/fixtures/decision-index.json` is generated by `npm run
 generate` and committed. Its `totalMs` column holds the wall-clock time each
@@ -933,9 +1006,65 @@ unexplained corpus diff gets waved through as "just the timings".
 `totalMs` is measurement, not fact about a decision, and it is not what this
 index is for: the console reads it to list and filter decisions.
 
-**Done when:** the index no longer carries a measured duration — dropped, or
-replaced with something derived from the seed — and regenerating it twice
-produces identical bytes, asserted by a check.
+**The second file: `apps/console/next-env.d.ts`.** Next.js writes this file
+itself, and two Next commands disagree about what it should say. The committed
+copy is the dev-server form, importing `./.next/dev/types/routes.d.ts` and
+`./.next/dev/types/root-params.d.ts`. `next build` rewrites both imports to
+`./.next/types/…`, and `next dev` writes them back. **No content the file could
+be committed with survives both commands**, so whichever ran last decides
+whether the tree is dirty.
+
+**Why it is worse now than when it was registered.** `npm run gates` rewrites
+both files on every run. The index is rewritten by the `client` gate, which runs
+the whole of `npm run generate` but diffs only
+`packages/client/src/generated.ts`. `next-env.d.ts` is rewritten by `bundle`,
+whose `playwright.bundle.config.ts` runs `npm run build` after `e2e` has run
+against the dev server, so the run ends with the build form on disk. Session
+Discipline now tells every session to report gates by running exactly that
+command. **The step that proves a tree is clean is the step that makes it
+dirty**, and the obvious next move, `git commit -a`, commits 2.2 MB of timings
+and a flipped type path under whatever the slice was about. That is what
+happened the first time it ran: both files landed in the commit that introduced
+`npm run gates` and had to be amended out.
+
+None of this shows in CI, where every job starts from a fresh checkout and
+throws the tree away afterwards.
+
+**Options — named, not chosen.** The two halves need not take the same answer.
+
+1. **Stop tracking them.** Ignore the file and generate it before anything
+   needs it.
+   - `next-env.d.ts`: create-next-app's own template `.gitignore` lists it.
+     The cost is ordering. In `verify`, `Typecheck (console)` runs before any
+     `next` command, and without the file the console loses
+     `/// <reference types="next" />`. So something has to write it first,
+     which means a new step before typecheck, in `scripts/gates.mjs` and the
+     workflow together.
+   - `decision-index.json`: the MSW handlers read it, so a fresh clone serves
+     no decision list until `npm run generate` has run. That becomes a setup
+     step for every clone, every CI job that starts the console, and Storybook.
+2. **The gate stops regenerating them.**
+   - `decision-index.json`: this entry's original fix. With no measured
+     duration in the index, regeneration is byte-identical, and the `client`
+     gate's `npm run generate` rewrites the file with the same bytes. The
+     alternative, having `client` run only the client half of `generate`,
+     leaves the index checked by no gate at all.
+   - `next-env.d.ts`: the bundle gate would have to build without touching the
+     working copy. Whether Next can be told not to write the file has not been
+     checked.
+3. **The run cleans up after itself.** `scripts/gates.mjs` notes which of the
+   two files were clean when the run started and restores those at the end.
+   This is the cheapest option, and it hides the churn rather than removing
+   it. An interrupted run still leaves the tree dirty. The restore must not
+   touch a file the developer had already changed on purpose. It turns the gate
+   runner into something that writes to the working tree, which today it does
+   not. And it does nothing for anyone running `npm run build` or
+   `npm run generate` directly.
+
+**Done when:** `npm run gates` on a clean tree leaves `git status` empty, and
+something fails when it does not. If the index stays tracked, the original
+condition also stands: regenerating it twice produces identical bytes, asserted
+by a check.
 
 ### G-051 — `/integrations/traffic` rendered customer data in the clear to anyone signed in
 

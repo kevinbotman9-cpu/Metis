@@ -192,6 +192,7 @@ otherwise.
 | W-065 | 14 | The trace reader on Cascade — the elimination funnel as the navigation | DONE | 1 |
 | W-066 | 14 | A refusal names its pack, its freshness and what the customer was told | OPEN | 1 |
 | W-067 | 14 | The seeded candidate set is authored, not selected | OPEN | 2 |
+| W-068 | 14 | One gate: `npm run gates` is what CI runs | DONE | 1 |
 
 ---
 
@@ -1493,6 +1494,26 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-068 — One gate: `npm run gates` is what CI runs
+
+**Registered:** 2026-09-10 · **Stage:** 14 · **Status:** DONE
+**Check:** `tests/gates-parity.test.ts`
+
+Gate 1 · Gap [G-060](gaps.md)
+
+There was no command that ran what CI runs. Reporting "gates green" from a
+terminal meant reporting on an unknown subset, and the subset was missing the
+root lint, three unit workspaces and the UX conformance script — the last of
+which did not exist despite CLAUDE.md naming it twice.
+
+`scripts/gates.mjs` holds the list; `npm run gates` executes it in CI's order
+and stops where CI stops; `npm run gates -- <id>` re-runs one. The parity check
+holds the list and the workflow to each other, so neither can move alone.
+
+**Done when:** adding a step to `console.yml` fails a test until it is declared,
+removing a gate from the script does the same, and CLAUDE.md tells sessions to
+report gates by running the one command — all four verified.
+
 ### W-067 — The seeded candidate set is authored, not selected
 
 **Registered:** 2026-09-10 · **Stage:** 14 · **Status:** OPEN
