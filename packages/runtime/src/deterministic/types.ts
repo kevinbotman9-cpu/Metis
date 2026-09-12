@@ -161,8 +161,24 @@ export interface DecisionRequest {
   occurredAt: string;
   /** Customer and context attributes the policies are evaluated against. */
   input: Record<string, unknown>;
-  /** Prior contact counts, for frequency-policy enforcement. */
-  contactHistory?: { channel: string; withinPeriod: Record<string, number> };
+  /**
+   * Prior contact, for frequency-policy enforcement.
+   *
+   * Supplied by the caller rather than read from the interaction log, because
+   * the engine opens no sockets. `withinPeriod` counts contacts per period;
+   * `rejects` is the most recent decline per offer key, ISO-8601, and drives
+   * `cooldownDaysAfterReject`.
+   *
+   * A decline is not an outcome. `OutcomeType` is a monotone funnel —
+   * conversion ⊆ acceptance ⊆ click ⊆ impression — with no negative event in
+   * it, so a rejection has no home in the interaction log and arrives here
+   * instead, exactly as the contact counts do (G-086).
+   */
+  contactHistory?: {
+    channel: string;
+    withinPeriod: Record<string, number>;
+    rejects?: Record<string, string>;
+  };
   consent?: { marketing: boolean; profiling: boolean; thirdParty: boolean };
   /**
    * A caller-chosen token that makes a retry safe.
@@ -223,8 +239,22 @@ export const REASON_CODES = [
   'SUITABILITY_FAILED',
   /** Marketing consent withheld, and the offer is not service-exempt. */
   'CONSENT_WITHHELD',
-  /** A frequency cap or cooldown was already spent. */
+  /**
+   * A frequency cap was already spent: we have contacted them too much.
+   *
+   * Until 2026-09-11 this comment said "a cap or cooldown", and the cooldown
+   * half was enforced by neither engine (G-086). A code that claims a rule
+   * nobody runs is worse than a missing code, because it reads as coverage.
+   */
   'FREQUENCY_CAP_BREACHED',
+  /**
+   * They declined this recently and the policy's rest period has not elapsed.
+   *
+   * Distinct from a cap on purpose: "they said no" and "we have said too much"
+   * are different facts about a customer, and a trace that conflates them
+   * cannot answer either question.
+   */
+  'COOLDOWN_ACTIVE',
   /** Survived every gate but did not win arbitration. */
   'NOT_RANKED',
 ] as const;

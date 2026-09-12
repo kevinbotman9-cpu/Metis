@@ -30,6 +30,23 @@ object Engine {
      */
     private const val SERVICE_EXEMPT_THRESHOLD = 50.0
 
+    private const val DAY_MS = 86_400_000L
+
+    /**
+     * An ISO-8601 instant with an explicit offset, which is the only form this
+     * engine and the TypeScript one read identically.
+     */
+    private val ISO_INSTANT =
+        Regex("""^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$""")
+
+    /** Epoch milliseconds, refusing anything the other engine would read differently. */
+    private fun instantOf(text: String, what: String): Long {
+        if (!ISO_INSTANT.matches(text)) {
+            error("$what must be an ISO-8601 instant with an explicit offset or Z, got \"$text\"")
+        }
+        return java.time.OffsetDateTime.parse(text).toInstant().toEpochMilli()
+    }
+
     private val KIND_LABEL = mapOf(
         "eligibility" to "Eligibility",
         "relevance" to "Relevance",
@@ -357,6 +374,21 @@ object Engine {
 
                     if (node.type == "constraint") {
                         val used = request.contactHistory?.withinPeriod ?: emptyMap()
+                        val rejects = request.contactHistory?.rejects ?: emptyMap()
+                        val decidedAt = instantOf(request.occurredAt, "request.occurredAt")
+
+                        /**
+                         * How long ago this offer was declined, or null.
+                         *
+                         * Parsed strictly, and strictly the same way the
+                         * TypeScript engine parses it: a timestamp with no zone
+                         * is local time to `Date.parse` and a refusal here, so
+                         * two engines required to agree would not. Both refuse.
+                         */
+                        fun declinedMsAgo(key: String): Long? {
+                            val at = rejects[key] ?: return null
+                            return decidedAt - instantOf(at, "contactHistory.rejects[$key]")
+                        }
 
                         // Frequency policies bind to a scope exactly like
                         // targeting policies. Applying them all to every
@@ -380,17 +412,33 @@ object Engine {
                             }
                         } else {
                             candidates.filter { p ->
+                                val relevant = relevantTo(p)
                                 // The first breached cap, in catalogue order.
                                 // Naming which one is the difference between
                                 // "contacted too much" and a policy someone can
                                 // go and look at.
-                                val breached = relevantTo(p).firstOrNull {
+                                val breached = relevant.firstOrNull {
                                     (used[it.period] ?: 0.0) >= it.maxContacts
                                 }
                                 if (breached != null) {
                                     denials.add(Denial(p.key, "FREQUENCY_CAP_BREACHED", breached.id))
+                                    return@filter false
                                 }
-                                breached == null
+
+                                // A cooldown is about the offer that was
+                                // declined, not everything its policy governs:
+                                // the scope says which offers carry the rest
+                                // period, not that one "no" silences the rest.
+                                val ago = declinedMsAgo(p.key)
+                                val cooling = if (ago == null) null else relevant.firstOrNull {
+                                    it.cooldownDaysAfterReject > 0 &&
+                                        ago < it.cooldownDaysAfterReject.toLong() * DAY_MS
+                                }
+                                if (cooling != null) {
+                                    denials.add(Denial(p.key, "COOLDOWN_ACTIVE", cooling.id))
+                                    return@filter false
+                                }
+                                true
                             }
                         }
                     }

@@ -322,6 +322,72 @@ describe('decision logic', () => {
     expect(trace.decision.winner).toBeNull();
   });
 
+  // G-086. `cooldownDaysAfterReject` was on this very fixture, set to 14, and
+  // neither engine read it: a customer who declined an offer was shown it again
+  // on the next request while the screen said otherwise.
+  describe('the rest period after a decline', () => {
+    /** `weeklyCap` rests for 14 days; the request is decided on 2026-09-04. */
+    const declinedAt = (iso: string): DecisionRequest => ({
+      ...request,
+      contactHistory: { channel: 'web', withinPeriod: { week: 0 }, rejects: { upsell_5g: iso } },
+    });
+
+    it('suppresses the declined offer inside the window, naming the rule', () => {
+      const trace = execute(artifact, catalogue, declinedAt('2026-08-30T08:00:00.000Z'));
+
+      const denial = trace.decision.eliminations
+        .flatMap((s) => s.denials)
+        .find((d) => d.key === 'upsell_5g');
+      expect(denial).toEqual({ key: 'upsell_5g', code: 'COOLDOWN_ACTIVE', ruleId: 'cpol_week' });
+      expect(trace.decision.winner).not.toBe('upsell_5g');
+    });
+
+    it('rests only the offer that was declined', () => {
+      const trace = execute(artifact, catalogue, declinedAt('2026-08-30T08:00:00.000Z'));
+
+      // The cap is tenant-scoped, so reading the scope as "one no silences
+      // everything this rule covers" would empty the catalogue here.
+      const cooled = trace.decision.eliminations
+        .flatMap((s) => s.denials)
+        .filter((d) => d.code === 'COOLDOWN_ACTIVE')
+        .map((d) => d.key);
+      expect(cooled).toEqual(['upsell_5g']);
+      expect(trace.decision.winner).not.toBeNull();
+    });
+
+    it('lets the offer back once the window has closed', () => {
+      // 15 days before the decision, against a 14-day rest period.
+      const trace = execute(artifact, catalogue, declinedAt('2026-08-20T08:00:00.000Z'));
+
+      const cooled = trace.decision.eliminations
+        .flatMap((s) => s.denials)
+        .filter((d) => d.code === 'COOLDOWN_ACTIVE');
+      expect(cooled).toEqual([]);
+    });
+
+    it('refuses a timestamp with no zone rather than guessing at it', () => {
+      // `Date.parse` reads this as local time and Kotlin's parser refuses it,
+      // so accepting it would mean two engines disagreeing about whether a
+      // customer may be contacted. Both refuse.
+      expect(() => execute(artifact, catalogue, declinedAt('2026-08-30T08:00:00'))).toThrow(
+        /ISO-8601 instant with an explicit offset/
+      );
+    });
+
+    it('is identical to a request that carries no rejects at all', () => {
+      // The field is optional, and an absent one has to hash and decide exactly
+      // as it did before it existed - which is why no chain hash in the corpus
+      // moved when this shipped.
+      const without = execute(artifact, catalogue, request);
+      const withEmpty = execute(artifact, catalogue, {
+        ...request,
+        contactHistory: { channel: 'web', withinPeriod: {} },
+      });
+      expect(withEmpty.chainHash).toBeTruthy();
+      expect(withEmpty.chainHash).toBe(without.chainHash);
+    });
+  });
+
   it('ranks by the arbitration formula and records the runner-up', () => {
     const trace = execute(artifact, catalogue, request);
     const { winner, runnerUp } = trace.decision.arbitration;

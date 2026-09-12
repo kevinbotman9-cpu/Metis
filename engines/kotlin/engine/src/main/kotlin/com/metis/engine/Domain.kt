@@ -60,6 +60,14 @@ data class FrequencyPolicy(
     val period: String,
     val scope: PolicyScope,
     val active: Boolean,
+    /**
+     * Days of rest after the customer declines an offer this policy governs.
+     *
+     * Absent from this model entirely until 2026-09-11, which is half of why
+     * the cooldown went unenforced for as long as it did: the reference engine
+     * ignored the field and the second engine could not see it (G-086).
+     */
+    val cooldownDaysAfterReject: Double = 0.0,
 )
 
 data class ArbitrationWeights(
@@ -163,7 +171,19 @@ data class SchemaPin(
 
 // --- Request -----------------------------------------------------------------
 
-data class ContactHistory(val channel: String, val withinPeriod: Map<String, Double>)
+/**
+ * Prior contact, supplied by the caller because the engine opens no sockets.
+ *
+ * [withinPeriod] counts contacts per period; [rejects] is the most recent
+ * decline per offer key, ISO-8601 with an explicit offset, and drives
+ * `cooldownDaysAfterReject`. A decline is not an outcome — the outcome funnel
+ * is monotone and has no negative event — so it arrives here (G-086).
+ */
+data class ContactHistory(
+    val channel: String,
+    val withinPeriod: Map<String, Double>,
+    val rejects: Map<String, String>? = null,
+)
 
 data class Consent(val marketing: Boolean, val profiling: Boolean, val thirdParty: Boolean)
 

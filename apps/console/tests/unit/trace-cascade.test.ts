@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { REASON_CODES } from '@metis/runtime';
 import { stagesFor, groupDenials, labelFor, CODE_MEANING } from '@/components/trace-cascade';
 import type { TraceDto, DenialDto } from '@/lib/api-client';
 
@@ -233,20 +234,17 @@ describe('removals group by the rule that made them', () => {
     expect(groups).toHaveLength(2);
   });
 
-  it('explains every code the spec declares', () => {
+  it('explains every code the engine can emit', () => {
     // The enum is closed and the screen renders the meaning beside the code.
     // A code with no entry would render blank at exactly the moment somebody
     // is asking why an offer was refused.
-    for (const code of [
-      'ELIGIBILITY_FAILED',
-      'RELEVANCE_FAILED',
-      'SUITABILITY_FAILED',
-      'FREQUENCY_CAP_BREACHED',
-      'CONSENT_WITHHELD',
-      'OUT_OF_VALIDITY_WINDOW',
-      'NOT_ACTIVE',
-      'NOT_RANKED',
-    ]) {
+    //
+    // Read from the engine rather than hand-listed. The hand-written list that
+    // stood here could only ever assert the codes whoever wrote it already knew
+    // about, so it would have passed unchanged on the day a ninth code shipped
+    // with no meaning beside it (G-086).
+    expect(REASON_CODES.length).toBeGreaterThan(0);
+    for (const code of REASON_CODES) {
       expect(CODE_MEANING[code], `${code} has no meaning on screen`).toBeTruthy();
     }
   });

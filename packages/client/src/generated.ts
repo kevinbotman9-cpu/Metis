@@ -616,7 +616,7 @@ export interface Denial {
   key: string;
   /** A closed set, never renamed. NOT_RANKED is not a fault: the candidate passed every gate and was beaten.
  */
-  code: "ELIGIBILITY_FAILED" | "RELEVANCE_FAILED" | "SUITABILITY_FAILED" | "FREQUENCY_CAP_BREACHED" | "CONSENT_WITHHELD" | "OUT_OF_VALIDITY_WINDOW" | "NOT_ACTIVE" | "NOT_RANKED";
+  code: "ELIGIBILITY_FAILED" | "RELEVANCE_FAILED" | "SUITABILITY_FAILED" | "FREQUENCY_CAP_BREACHED" | "COOLDOWN_ACTIVE" | "CONSENT_WITHHELD" | "OUT_OF_VALIDITY_WINDOW" | "NOT_ACTIVE" | "NOT_RANKED";
   /** The targeting or frequency policy that did it, where one is identifiable. Null for codes that are properties of the candidate rather than of a rule. Always present, never omitted — an optional key would mean two engines each deciding when to drop it, and the canonical form differs if they disagree.
  */
   ruleId: string | null;
@@ -1118,6 +1118,30 @@ in the profile schema.
   } | null;
   updatedAt: string;
   updatedBy: string;
+}
+
+/** What has already been sent to this customer, and what they declined.
+
+Supplied by the caller, not read from the interaction log: the engine
+opens no sockets, so everything a decision depends on arrives with the
+request. `withinPeriod` drives the caps; `rejects` drives
+`cooldownDaysAfterReject`.
+
+**A decline is not an outcome.** `OutcomeType` is a monotone funnel —
+conversion ⊆ acceptance ⊆ click ⊆ impression — with no negative event in
+it, so a rejection has nowhere to live in the interaction log and is
+stated here instead. Until 2026-09-11 there was no way to state one at
+all, and the cooldown every catalogue carried was enforced by neither
+engine (G-086).
+ */
+export interface ContactHistory {
+  channel: "email" | "sms" | "web" | "push" | "outbound_call";
+  /** Contacts already made, keyed by period — `day`, `week`, `month`. Compared against `maxContacts` on every frequency policy whose scope covers the candidate.
+ */
+  withinPeriod: Record<string, number>;
+  /** The most recent decline per offer key, ISO-8601 with an explicit offset or Z. Any other form is refused rather than guessed at: a timestamp with no zone is local time to one engine and an error to the other, and the two are required to agree.
+ */
+  rejects?: Record<string, string>;
 }
 
 /** What the platform did about getting one decision to a customer.
@@ -1824,7 +1848,7 @@ than a silent preference for one of them.
     /** An input, never the clock. */
     occurredAt: string;
     input: Record<string, unknown>;
-    contactHistory?: Record<string, unknown>;
+    contactHistory?: ContactHistory;
     consent?: Record<string, unknown>;
     idempotencyKey?: string;
     correlationId?: string;
@@ -1850,7 +1874,7 @@ export type ExecuteDecisionRequest = {
     occurredAt: string;
     /** Customer and context attributes, already resolved. */
     input: Record<string, unknown>;
-    contactHistory?: Record<string, unknown>;
+    contactHistory?: ContactHistory;
     consent?: Record<string, unknown>;
     /** Makes a retry safe. The same key with the same request returns the original decision without re-executing; the same key with a *different* request is a 409, because the caller reused a token for a different question and answering quietly would hand them a decision about someone else's customer.
 Excluded from the request hash — it identifies the attempt, not the question. Scoped per tenant.
@@ -2077,7 +2101,7 @@ export type ReplayDecisionResponse = ReplayResult;
 export type ReplayDecisionRequest = {
   /** The decision's original input, exactly as it was. */
   input?: Record<string, unknown>;
-  contactHistory?: Record<string, unknown>;
+  contactHistory?: ContactHistory;
 };
 
 /** Return an environment to the version it ran before */

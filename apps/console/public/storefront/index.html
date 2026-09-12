@@ -314,6 +314,12 @@
   .step .reason { color: #c3cae0; margin: 3px 0; }
   .denial { font-size: 12.5px; color: #ff9d9d; }
   .denial code { color: #ffc4c4; }
+  .decline {
+    display: block; font: inherit; font-size: 0.8125rem; margin-top: 8px; padding: 0;
+    background: none; border: 0; color: #6b7280; text-decoration: underline;
+    cursor: pointer; align-self: flex-start;
+  }
+  .decline:hover { color: #111827; }
   .survived { font-size: 12px; color: #7ee2a8; }
 
   table.scores { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 8px; }
@@ -457,6 +463,12 @@
         <label for="h-month">This month</label>
         <input type="number" id="h-month" min="0" max="40" value="0">
       </div>
+    </div>
+
+    <h3>Declined offers</h3>
+    <p class="preset-note" id="declines-note">Nothing declined. Decline an offer below to start its rest period.</p>
+    <div class="actions">
+      <button id="clear-declines" class="secondary">Clear declines</button>
     </div>
 
     <div class="actions">
@@ -620,6 +632,8 @@ let view = 'home';
 const results = new Map();
 /** offerId -> { offer, creatives }, so one offer is fetched once per page. */
 const offerCache = new Map();
+/** offer key -> when the customer declined it, ISO-8601. Sent as `rejects`. */
+const declines = new Map();
 
 const $ = (sel) => document.querySelector(sel);
 const el = (html) => {
@@ -653,6 +667,16 @@ async function decide(placement) {
           week: Number($('#h-week').value || 0),
           month: Number($('#h-month').value || 0),
         },
+        // What the customer has already turned down, and when, which is what
+        // `cooldownDaysAfterReject` rests against.
+        //
+        // The site holds this, not the platform: a decline is not an outcome.
+        // The outcome funnel runs impression, click, acceptance, conversion,
+        // and has no negative event in it, so there is nowhere to report a
+        // "no" to and nothing to read it back from. Omitted entirely when
+        // empty, so a page that has declined nothing asks exactly the question
+        // it asked before this control existed.
+        ...(declines.size ? { rejects: Object.fromEntries(declines) } : {}),
       },
     },
   };
@@ -713,7 +737,18 @@ async function reportOutcome(decisionId, type) {
   }
 }
 
-/** The decision behind a slate. Live decisions resolve from the ledger. */
+/**
+ * The decision behind a slate. Live decisions resolve from the ledger.
+ *
+ * Returns `undefined` today, and has since 2026-09-07: `getDecisionTrace`
+ * serves the trace at the top level with no `decision` wrapper, and the panel
+ * below was written against the engine's `DeterministicDecision` rather than
+ * the DTO the route actually returns. Left exactly as it was rather than
+ * half-corrected — unwrapping it only moves the failure, because the fields the
+ * panel reads next (`candidateKeys`, `catalogueSnapshotHash`) are not in the
+ * DTO either. Registered as G-087; it needs a decision about which of the two
+ * shapes is wrong, not a patch from inside this slice.
+ */
 async function loadTrace(decisionId) {
   const res = await fetch(`${API}/decisions/${decisionId}/trace`);
   if (!res.ok) throw new Error(`Trace ${decisionId}: HTTP ${res.status}`);
@@ -758,6 +793,7 @@ function renderHero(slot, r) {
         <h3>${esc(c.headline)}</h3>
         <p>${esc(c.subheadline)}</p>
         <button class="cta">${esc(c.ctaLabel)}</button>
+        <button type="button" class="decline" data-offer-key="${esc(first.entry.action)}">Not interested</button>
       </div>
       <div class="art">${esc(c.imageUrl)}</div>
     </div>
@@ -788,11 +824,16 @@ function renderCards(slot, r) {
       continue;
     }
     const c = creative.content;
+    // "Not interested" is the customer saying no, and it is the only input a
+    // rest period can run from: the platform records no rejections of its own.
+    // It names the offer key because that is what `rejects` is keyed by and
+    // what the engine matches a candidate on.
     grid.append(el(`
       <article class="card">
         <h3>${esc(c.headline)}</h3>
         <p>${esc(c.subheadline)}</p>
         <button class="cta">${esc(c.ctaLabel)}</button>
+        <button type="button" class="decline" data-offer-key="${esc(entry.action)}">Not interested</button>
       </article>
     `));
   }
@@ -1089,6 +1130,35 @@ document.addEventListener('click', (e) => {
   const slot = cta.closest('[data-decision-id]');
   if (!slot) return;
   reportOutcome(slot.dataset.decisionId, 'click');
+});
+
+/*
+ * Declining an offer, and what that is and is not.
+ *
+ * It records the decline on this page and asks again. Nothing is reported to
+ * the platform, because there is nothing to report it to — see the note beside
+ * `rejects` in `decide`. The next decision then refuses that offer for as long
+ * as the frequency policy's rest period, and says so by name in the panel.
+ */
+function renderDeclines() {
+  const note = $('#declines-note');
+  note.textContent = declines.size
+    ? `${[...declines.keys()].join(', ')} — declined just now, so the rest period on any frequency policy covering ${declines.size === 1 ? 'it' : 'them'} is running.`
+    : 'Nothing declined. Decline an offer below to start its rest period.';
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest?.('.decline');
+  if (!btn) return;
+  declines.set(btn.dataset.offerKey, new Date().toISOString());
+  renderDeclines();
+  decideAll();
+});
+
+$('#clear-declines').addEventListener('click', () => {
+  declines.clear();
+  renderDeclines();
+  decideAll();
 });
 
 $('#openPanel').addEventListener('click', () => $('#panel').classList.add('open'));
