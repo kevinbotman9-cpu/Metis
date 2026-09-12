@@ -4,7 +4,7 @@ import { decisions } from './fixtures/decisions';
 /**
  * Whether the numbers in a response came from a customer or from a seed.
  *
- * On 2026-09-09 the seeded `demo-telco-uk` tenant crossed from obviously-fake
+ * On 2026-09-09 the seeded `demo-telco-us` tenant crossed from obviously-fake
  * to indistinguishable. 10,400 decisions, 416 measured outcomes, click rates
  * between 16% and 35%, realised value in pounds that differs plausibly from
  * expected, and a genuine-looking underperformer — every figure derived from
@@ -32,7 +32,7 @@ export function isSeededDecision(decisionId: string): boolean {
 
 const SYNTHETIC_NOTE =
   'Synthetic. Every figure here is generated from a fixed seed for the demo tenant ' +
-  'demo-telco-uk and describes no real customer, decision or outcome. Reproducible, ' +
+  'demo-telco-us and describes no real customer, decision or outcome. Reproducible, ' +
   'and not evidence of anything.';
 
 const RECORDED_NOTE =
@@ -77,7 +77,7 @@ export function provenanceOver(decisionIds: Iterable<string>): Provenance {
     note:
       `Mixed. ${synthetic.toLocaleString('en-GB')} of ` +
       `${(synthetic + recorded).toLocaleString('en-GB')} records here are generated from a ` +
-      'fixed seed for the demo tenant demo-telco-uk and describe no real customer; the rest ' +
+      'fixed seed for the demo tenant demo-telco-us and describe no real customer; the rest ' +
       'derive from decisions this platform actually made. Not evidence of anything.',
   };
 }

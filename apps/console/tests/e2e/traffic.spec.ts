@@ -19,7 +19,7 @@ import { login, ACCOUNTS } from './helpers';
 
 const DECISION_BODY = {
   request: {
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     customerId: 'cust_0001',
     channel: 'web',
     occurredAt: '2026-09-07T12:00:00.000Z',
@@ -41,7 +41,7 @@ const DECISION_BODY = {
 
 /** Drive one decision the way the storefront does, referer included. */
 async function callAsStorefront(page: import('@playwright/test').Page) {
-  const res = await page.request.post('/api/placements/telco-uk/homepage_hero/decisions', {
+  const res = await page.request.post('/api/placements/telco-us/homepage_hero/decisions', {
     data: DECISION_BODY,
     headers: { referer: 'http://localhost:3000/storefront/index.html' },
   });
@@ -66,7 +66,7 @@ test.describe('inbound traffic', () => {
     await page.goto('/integrations/traffic');
 
     const row = page.getByRole('button', {
-      name: /POST \/api\/placements\/telco-uk\/homepage_hero\/decisions — 200/,
+      name: /POST \/api\/placements\/telco-us\/homepage_hero\/decisions — 200/,
     });
     await expect(row).toBeVisible();
 
@@ -113,8 +113,8 @@ test.describe('inbound traffic', () => {
   test('records a refusal with its reason', async ({ page }) => {
     // The calls worth having. A 400 that never reaches the log leaves the
     // integrator with a broken site and an empty page.
-    const res = await page.request.post('/api/placements/telco-uk/homepage_hero/decisions', {
-      data: { request: { tenantId: 'telco-uk', customerId: 'c', channel: 'web' } },
+    const res = await page.request.post('/api/placements/telco-us/homepage_hero/decisions', {
+      data: { request: { tenantId: 'telco-us', customerId: 'c', channel: 'web' } },
       headers: { referer: 'http://localhost:3000/storefront/index.html' },
     });
     expect(res.status()).toBe(400);

@@ -82,7 +82,7 @@ const offers = [
 
 const arbitration = {
   id: 'arb',
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   weights: { propensity: 1, value: 1, boost: 1, context: 0.5 },
   utility: { id: 'multiplicative', version: '1.0.0' },
   formula: 'Priority = P^1 x V^1 x L^1 x C^0.5',
@@ -97,7 +97,7 @@ const compileContext: CompileContext = {
   arbitration,
   availablePackages: { '@metis/nodes-core': ['1.1.0', '1.4.0'] },
   knownScopeTargets: { objectives: ['iss_growth'], categories: ['grp_mobile'] },
-  tenant: { id: 'telco-uk', latencyBudgetMs: 50, maxNodes: 100 },
+  tenant: { id: 'telco-us', latencyBudgetMs: 50, maxNodes: 100 },
 };
 
 const catalogue: CatalogueSnapshot = {
@@ -112,7 +112,7 @@ const catalogue: CatalogueSnapshot = {
 const source: DecisionFlowSource = {
   id: 'next-best-action',
   version: '1.0.0',
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   candidateKeys: ['upsell_5g', 'upsell_data'],
   packageRanges: { '@metis/nodes-core': '^1.2.0' },
   nodes: [
@@ -138,7 +138,7 @@ const source: DecisionFlowSource = {
 };
 
 const request: DecisionRequest = {
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   customerId: 'cust_integration',
   channel: 'email',
   placement: 'weekly_offers_send',

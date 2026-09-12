@@ -22,7 +22,7 @@ import type { Experiment } from '@metis/core/experiment';
 export const experiments: Experiment[] = [
   {
     id: 'exp_fibre_holdout',
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     key: 'fibre_holdout',
     name: 'Full Fibre holdout',
     description:
@@ -44,7 +44,7 @@ export const experiments: Experiment[] = [
   },
   {
     id: 'exp_hero_copy',
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     key: 'hero_copy',
     name: 'Homepage hero wording',
     description:

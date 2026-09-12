@@ -42,9 +42,9 @@ describe('the traffic recorder', () => {
       return Response.json({ ok: true });
     });
 
-    const res = await handler(req({ tenantId: 'telco-uk' }), ctx);
+    const res = await handler(req({ tenantId: 'telco-us' }), ctx);
 
-    expect(seen).toEqual({ tenantId: 'telco-uk' });
+    expect(seen).toEqual({ tenantId: 'telco-us' });
     expect(res.status).toBe(200);
   });
 
@@ -170,8 +170,8 @@ describe('the log does not observe itself', () => {
   });
 
   it('records everything else', () => {
-    expect(shouldRecord('GET', '/api/offers/telco-uk')).toBe(true);
-    expect(shouldRecord('POST', '/api/placements/telco-uk/homepage_hero/decisions')).toBe(true);
+    expect(shouldRecord('GET', '/api/offers/telco-us')).toBe(true);
+    expect(shouldRecord('POST', '/api/placements/telco-us/homepage_hero/decisions')).toBe(true);
     expect(shouldRecord('GET', '/api/inbound-calls')).toBe(false);
   });
 });

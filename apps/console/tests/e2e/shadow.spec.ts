@@ -25,7 +25,7 @@ async function tokenFor(api: APIRequestContext, email: string): Promise<string> 
 
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
-const TENANT = 'telco-uk';
+const TENANT = 'telco-us';
 const FLOW = 'next-best-action';
 /**
  * A shadow is another *version of the same flow*, not another flow.

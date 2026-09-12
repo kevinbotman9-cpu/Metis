@@ -56,7 +56,7 @@ import type { ProfileSchema } from '@metis/core/profile-schema';
  */
 export const profileSchema: ProfileSchema = {
   id: 'schema_telco_uk',
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   version: '2.0.0',
   roots: {
     profile: { alias: 'customer', entity: 'Customer' },
@@ -91,6 +91,15 @@ export const profileSchema: ProfileSchema = {
             'Outcome of the internal credit check. Superseded for eligibility by the bureau band, which a connector supplies; kept because it is what the tenant records against the account.',
           required: true,
           sensitivity: 'special_category',
+        },
+        {
+          origin: 'profile',
+          class: 'attribute',
+          name: 'moving_within_days',
+          type: 'integer',
+          description:
+            'Days until a known house move, or a large number when none is known. A line sold into an address they are leaving is a line that will be cancelled.',
+          required: true,
         },
         {
           origin: 'profile',
@@ -209,6 +218,11 @@ export const profileSchema: ProfileSchema = {
       ],
       relationships: [
         { name: 'address', entity: 'Address', cardinality: 'one', description: 'Their service address.' },
+        { name: 'broadband', entity: 'Broadband', cardinality: 'one', description: 'The internet service on the account.' },
+        { name: 'orders', entity: 'Orders', cardinality: 'one', description: 'Work already in flight.' },
+        { name: 'ott', entity: 'Ott', cardinality: 'one', description: 'Partner streaming held and sellable.' },
+        { name: 'affinity', entity: 'Affinity', cardinality: 'one', description: 'Category interest.' },
+        { name: 'engagement', entity: 'Engagement', cardinality: 'one', description: 'Recent behaviour, reduced to what a policy asks.' },
         { name: 'usage', entity: 'Usage', cardinality: 'one', description: 'Recent consumption.' },
         { name: 'contract', entity: 'Contract', cardinality: 'one', description: 'The current agreement.' },
         { name: 'events', entity: 'Events', cardinality: 'one', description: 'Recent signals worth deciding on.' },
@@ -285,11 +299,136 @@ export const profileSchema: ProfileSchema = {
       description: 'The service address, and what the network can deliver there.',
       fields: [
         {
+          origin: 'connector:conn_serviceability',
+          class: 'attribute',
+          name: 'fios_serviceable',
+          type: 'boolean',
+          description: 'Whether full-fibre FIOS can be installed at this address.',
+          required: true,
+        },
+        {
+          origin: 'connector:conn_serviceability',
+          class: 'attribute',
+          name: 'fiveg_coverage',
+          type: 'string',
+          description:
+            'Measured 5G Home coverage at the address: strong, marginal or none. Fixed wireless needs strong, not merely a signal.',
+          required: true,
+        },
+      ],
+    },
+    {
+      name: 'Broadband',
+      description: 'The internet service on the account, if there is one.',
+      fields: [
+        {
           origin: 'profile',
           class: 'attribute',
-          name: 'fibre_available',
+          name: 'status',
+          type: 'string',
+          description: 'active, ordered or none. "active" is what an add-on attaches to.',
+          required: true,
+        },
+        {
+          origin: 'profile',
+          class: 'attribute',
+          name: 'product',
+          type: 'string',
+          description:
+            'Which internet product they hold: fios, 5g_home, dsl or none. This is what stops an accepted offer being offered again.',
+          required: true,
+        },
+      ],
+    },
+
+    {
+      name: 'Orders',
+      description: 'Work already in flight, so a line being provisioned is not sold twice.',
+      fields: [
+        {
+          origin: 'connector:conn_order_book',
+          class: 'attribute',
+          name: 'open_broadband',
           type: 'boolean',
-          description: 'Whether full fibre can be installed.',
+          description: 'Whether a broadband order is already open on this account.',
+          required: true,
+        },
+      ],
+    },
+
+    {
+      name: 'Ott',
+      description: 'Partner streaming: what they hold, and what may be sold to them here.',
+      fields: [
+        {
+          origin: 'profile',
+          class: 'attribute',
+          name: 'disney',
+          type: 'boolean',
+          description: 'Already subscribed to the Disney+ bundle.',
+          required: true,
+        },
+        {
+          origin: 'profile',
+          class: 'attribute',
+          name: 'netflix',
+          type: 'boolean',
+          description: 'Already subscribed to the Netflix bundle.',
+          required: true,
+        },
+        {
+          origin: 'connector:conn_engagement',
+          class: 'attribute',
+          name: 'disney_available',
+          type: 'boolean',
+          description: 'Whether the Disney+ partner agreement covers this region.',
+          required: true,
+        },
+        {
+          origin: 'connector:conn_engagement',
+          class: 'attribute',
+          name: 'netflix_available',
+          type: 'boolean',
+          description: 'Whether the Netflix partner agreement covers this region.',
+          required: true,
+        },
+      ],
+    },
+
+    {
+      name: 'Affinity',
+      description: 'How interested this household looks, per category.',
+      fields: [
+        {
+          origin: 'connector:conn_engagement',
+          class: 'attribute',
+          name: 'gaming',
+          type: 'decimal',
+          description: 'Gaming affinity, 0 to 1. Gaming Plus asks 0.5 or better.',
+          required: true,
+        },
+        {
+          origin: 'connector:conn_engagement',
+          class: 'attribute',
+          name: 'entertainment',
+          type: 'decimal',
+          description: 'Entertainment affinity, 0 to 1. The category gate asks 0.5 or better.',
+          required: true,
+        },
+      ],
+    },
+
+    {
+      name: 'Engagement',
+      description: 'What they have been doing, reduced to the questions a policy asks.',
+      fields: [
+        {
+          origin: 'aggregation',
+          class: 'attribute',
+          name: 'digital_or_broadband_intent',
+          type: 'boolean',
+          description:
+            'True when there is digital engagement OR a broadband intent signal. One field because a policy ANDs its conditions and the brief asks for a disjunction — the OR is computed here, where it can be named, rather than approximated by two rules that would both have to pass.',
           required: true,
         },
       ],

@@ -89,13 +89,13 @@ const ctx: CompileContext = {
     updatedBy: 'test',
   },
   availablePackages: { '@metis/nodes-core': ['1.1.0', '1.4.0', '2.0.0'] },
-  tenant: { id: 'telco-uk', latencyBudgetMs: 50, maxNodes: 100 },
+  tenant: { id: 'telco-us', latencyBudgetMs: 50, maxNodes: 100 },
 };
 
 const valid: DecisionFlowSource = {
   id: 'nba',
   version: '1.0.0',
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   candidateKeys: ['upsell_5g', 'upsell_data'],
   packageRanges: { '@metis/nodes-core': '^1.2.0' },
   nodes: [

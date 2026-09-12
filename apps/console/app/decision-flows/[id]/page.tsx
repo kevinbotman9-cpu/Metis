@@ -145,7 +145,7 @@ function FlowDetail({ artifactId }: { artifactId: string }) {
                           source: 'synthetic' as const,
                           note:
                             'Synthetic. This flow belongs to the seeded demo tenant ' +
-                            'demo-telco-uk and was authored by nobody.',
+                            'demo-telco-us and was authored by nobody.',
                         },
                         // Only what the compiled artifact does not carry. The
                         // spread below has always won at runtime for id,

@@ -76,7 +76,7 @@ test.describe('writes persist', () => {
     await login(page, ACCOUNTS.priya);
 
     // cr_0042 lowers the heavy-user threshold from 0.8 to 0.7.
-    const before = await page.request.get('/api/targeting-policies/telco-uk');
+    const before = await page.request.get('/api/targeting-policies/telco-us');
     const policyBefore = (await before.json()).policies.find(
       (p: { id: string }) => p.id === 'pol_heavy_user'
     );
@@ -86,7 +86,7 @@ test.describe('writes persist', () => {
     await page.getByRole('button', { name: 'Approve' }).click();
     await expect(page.getByText(/Approved\. The change will publish/)).toBeVisible();
 
-    const after = await page.request.get('/api/targeting-policies/telco-uk');
+    const after = await page.request.get('/api/targeting-policies/telco-us');
     const policyAfter = (await after.json()).policies.find(
       (p: { id: string }) => p.id === 'pol_heavy_user'
     );
@@ -162,7 +162,7 @@ test.describe('creating an offer', () => {
   test('an author creates one, and it is in the catalogue and the audit log', async ({ page }) => {
     const auth = await token(page, ACCOUNTS.sarah);
 
-    const created = await page.request.post('/api/offers/telco-uk', {
+    const created = await page.request.post('/api/offers/telco-us', {
       headers: { Authorization: `Bearer ${auth}` },
       data: body(),
     });
@@ -174,7 +174,7 @@ test.describe('creating an offer', () => {
     expect(offer.status).toBe('draft');
     expect(offer.updatedBy).toBe(ACCOUNTS.sarah);
 
-    const list = await (await page.request.get('/api/offers/telco-uk')).json();
+    const list = await (await page.request.get('/api/offers/telco-us')).json();
     expect(list.offers.map((p: { key: string }) => p.key)).toContain('upsell_speed_boost');
 
     const audit = await (await page.request.get('/api/audit')).json();
@@ -187,7 +187,7 @@ test.describe('creating an offer', () => {
 
   test('and the console shows it', async ({ page }) => {
     const auth = await token(page, ACCOUNTS.sarah);
-    await page.request.post('/api/offers/telco-uk', {
+    await page.request.post('/api/offers/telco-us', {
       headers: { Authorization: `Bearer ${auth}` },
       data: body(),
     });
@@ -206,14 +206,14 @@ test.describe('creating an offer', () => {
     const auth = await token(page, ACCOUNTS.sarah);
     const headers = { Authorization: `Bearer ${auth}` };
 
-    await page.request.post('/api/offers/telco-uk', { headers, data: body() });
-    const again = await page.request.post('/api/offers/telco-uk', { headers, data: body() });
+    await page.request.post('/api/offers/telco-us', { headers, data: body() });
+    const again = await page.request.post('/api/offers/telco-us', { headers, data: body() });
     expect(again.status()).toBe(409);
   });
 
   test('refuses an offer that names no key', async ({ page }) => {
     const auth = await token(page, ACCOUNTS.sarah);
-    const res = await page.request.post('/api/offers/telco-uk', {
+    const res = await page.request.post('/api/offers/telco-us', {
       headers: { Authorization: `Bearer ${auth}` },
       data: { name: 'Nameless', categoryId: 'grp_data_upsell', objectiveId: 'iss_growth' },
     });
@@ -230,17 +230,17 @@ test.describe('creating an offer', () => {
     const auth = await token(page, ACCOUNTS.sarah);
     const headers = { Authorization: `Bearer ${auth}` };
 
-    const before = await (await page.request.get('/api/offers/telco-uk/prop_data_boost_10gb')).json();
+    const before = await (await page.request.get('/api/offers/telco-us/prop_data_boost_10gb')).json();
     expect(before.offer.boost).not.toBe(1.75);
 
-    const res = await page.request.put('/api/offers/telco-uk/prop_data_boost_10gb', {
+    const res = await page.request.put('/api/offers/telco-us/prop_data_boost_10gb', {
       headers,
       data: { boost: 1.75 },
     });
     expect(res.status()).toBe(200);
     expect((await res.json()).boost).toBe(1.75);
 
-    const after = await (await page.request.get('/api/offers/telco-uk/prop_data_boost_10gb')).json();
+    const after = await (await page.request.get('/api/offers/telco-us/prop_data_boost_10gb')).json();
     expect(after.offer.boost).toBe(1.75);
     expect(after.offer.updatedBy).toBe(ACCOUNTS.sarah);
 
@@ -260,17 +260,17 @@ test.describe('creating an offer', () => {
     const auth = await token(page, ACCOUNTS.sarah);
     const headers = { Authorization: `Bearer ${auth}` };
 
-    const born = await page.request.post('/api/offers/telco-uk', { headers, data: body() });
+    const born = await page.request.post('/api/offers/telco-us', { headers, data: body() });
     const offer = await born.json();
     expect(offer.status).toBe('draft');
 
-    const tooSoon = await page.request.put(`/api/offers/telco-uk/${offer.id}`, {
+    const tooSoon = await page.request.put(`/api/offers/telco-us/${offer.id}`, {
       headers,
       data: { status: 'active' },
     });
     expect(tooSoon.status()).toBe(409);
 
-    const creative = await page.request.post(`/api/creatives/telco-uk/${offer.id}`, {
+    const creative = await page.request.post(`/api/creatives/telco-us/${offer.id}`, {
       headers,
       data: {
         name: 'Speed Boost — Web',
@@ -292,14 +292,14 @@ test.describe('creating an offer', () => {
     expect(creative.status()).toBe(201);
     expect((await creative.json()).offerId).toBe(offer.id);
 
-    const now = await page.request.put(`/api/offers/telco-uk/${offer.id}`, {
+    const now = await page.request.put(`/api/offers/telco-us/${offer.id}`, {
       headers,
       data: { status: 'active' },
     });
     expect(now.status()).toBe(200);
 
     // And the console's list counts it as covered rather than undeliverable.
-    const listed = await (await page.request.get('/api/offers/telco-uk')).json();
+    const listed = await (await page.request.get('/api/offers/telco-us')).json();
     const found = listed.offers.find((p: { id: string }) => p.id === offer.id);
     expect(found.creativeIds).toHaveLength(1);
   });
@@ -307,9 +307,9 @@ test.describe('creating an offer', () => {
   test('refuses a creative its channel cannot deliver, naming every problem', async ({ page }) => {
     const auth = await token(page, ACCOUNTS.sarah);
     const headers = { Authorization: `Bearer ${auth}` };
-    const offer = await (await page.request.post('/api/offers/telco-uk', { headers, data: body() })).json();
+    const offer = await (await page.request.post('/api/offers/telco-us', { headers, data: body() })).json();
 
-    const res = await page.request.post(`/api/creatives/telco-uk/${offer.id}`, {
+    const res = await page.request.post(`/api/creatives/telco-us/${offer.id}`, {
       headers,
       data: {
         name: 'Too long',
@@ -331,12 +331,12 @@ test.describe('creating an offer', () => {
 
     // 5G Unlimited is active in the fixtures with several creatives; switch all
     // but one off, then attempt the last.
-    const list = await (await page.request.get('/api/creatives/telco-uk/prop_5g_unlimited_24')).json();
+    const list = await (await page.request.get('/api/creatives/telco-us/prop_5g_unlimited_24')).json();
     const active = (list.creatives as { id: string; active: boolean }[]).filter((c) => c.active);
     expect(active.length).toBeGreaterThan(1);
 
     for (const c of active.slice(1)) {
-      const off = await page.request.put(`/api/creatives/telco-uk/prop_5g_unlimited_24/${c.id}`, {
+      const off = await page.request.put(`/api/creatives/telco-us/prop_5g_unlimited_24/${c.id}`, {
         headers,
         data: { active: false },
       });
@@ -344,7 +344,7 @@ test.describe('creating an offer', () => {
     }
 
     const last = await page.request.put(
-      `/api/creatives/telco-uk/prop_5g_unlimited_24/${active[0].id}`,
+      `/api/creatives/telco-us/prop_5g_unlimited_24/${active[0].id}`,
       { headers, data: { active: false } }
     );
     expect(last.status()).toBe(409);
@@ -354,7 +354,7 @@ test.describe('creating an offer', () => {
   test('edits a creative, and the change is audited', async ({ page }) => {
     const auth = await token(page, ACCOUNTS.sarah);
     const res = await page.request.put(
-      '/api/creatives/telco-uk/prop_5g_unlimited_24/trt_5g_sms',
+      '/api/creatives/telco-us/prop_5g_unlimited_24/trt_5g_sms',
       {
         headers: { Authorization: `Bearer ${auth}` },
         data: { content: { channel: 'sms', text: 'Unlimited 5G, £35/mo. Reply STOP to opt out.', senderId: 'Meridian' } },
@@ -373,7 +373,7 @@ test.describe('creating an offer', () => {
     // Priya approves changes and cannot author offers. The server has to say so
     // itself; there is no UI control to hide.
     const auth = await token(page, ACCOUNTS.priya);
-    const res = await page.request.post('/api/offers/telco-uk', {
+    const res = await page.request.post('/api/offers/telco-us', {
       headers: { Authorization: `Bearer ${auth}` },
       data: body({ key: 'upsell_speed_boost_2' }),
     });

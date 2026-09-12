@@ -51,7 +51,7 @@ const call = (
 const FLOW = 'inbound-web-offers';
 
 const saveDraft = (patch: Record<string, unknown>, headers = MARCUS()) =>
-  call(['artifacts', 'telco-uk', FLOW, 'draft'], patch, 'PUT', headers);
+  call(['artifacts', 'telco-us', FLOW, 'draft'], patch, 'PUT', headers);
 
 const INPUT = {
   customer: {
@@ -72,9 +72,9 @@ const INPUT = {
 };
 
 async function decide(customerId = 'cust_flow') {
-  const res = await call(['placements', 'telco-uk', 'homepage_hero', 'decisions'], {
+  const res = await call(['placements', 'telco-us', 'homepage_hero', 'decisions'], {
     request: {
-      tenantId: 'telco-uk',
+      tenantId: 'telco-us',
       customerId,
       channel: 'web',
       occurredAt: '2026-06-01T12:00:00.000Z',
@@ -98,7 +98,7 @@ async function shipIt(version: string) {
   const source = toSource({ ...flow, activeVersion: version });
 
   const published = await call(
-    ['registry', 'telco-uk', FLOW],
+    ['registry', 'telco-us', FLOW],
     { version, source },
     'POST',
     SARAH()
@@ -106,7 +106,7 @@ async function shipIt(version: string) {
   expect(published.status, await published.clone().text()).toBeLessThan(300);
 
   const promoted = await call(
-    ['registry', 'telco-uk', FLOW, 'promote'],
+    ['registry', 'telco-us', FLOW, 'promote'],
     { version, environment: 'production' },
     'POST',
     MARCUS()
@@ -196,7 +196,7 @@ describe('the two gaps close', () => {
     // Held as a gap since 2026-09-07: createOffer worked, the offer reached the
     // catalogue, and no flow could select it.
     const created = await call(
-      ['offers', 'telco-uk'],
+      ['offers', 'telco-us'],
       {
         key: 'upsell_speed_boost',
         name: 'Speed boost',
@@ -226,7 +226,7 @@ describe('the two gaps close', () => {
     // rather than routing around it.
     const offer = store.offers.find((o) => o.key === 'upsell_speed_boost')!;
     const creative = await call(
-      ['creatives', 'telco-uk', offer.id],
+      ['creatives', 'telco-us', offer.id],
       {
         channel: 'web',
         name: 'Speed boost hero',
@@ -262,7 +262,7 @@ describe('the two gaps close', () => {
     // The other half, held by `aggregation-decision.test.ts` until now: the
     // engine evaluates only what a node names in `policyIds`.
     const created = await call(
-      ['targeting-policies', 'telco-uk'],
+      ['targeting-policies', 'telco-us'],
       {
         name: 'Refuse everyone',
         kind: 'eligibility',

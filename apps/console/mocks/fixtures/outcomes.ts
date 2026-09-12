@@ -86,7 +86,7 @@ import type { DecisionRecord } from './decisions';
  * has nothing in it to find.
  */
 
-const r = (...parts: (string | number)[]) => seededUnitInterval('demo-telco-uk', 'outcome', ...parts);
+const r = (...parts: (string | number)[]) => seededUnitInterval('demo-telco-us', 'outcome', ...parts);
 
 /**
  * How much of each channel reports back at all.
@@ -202,7 +202,7 @@ export function seededOutcomesFor(d: DecisionRecord): OutcomeEvent[] {
   const events: OutcomeEvent[] = [];
   const push = (type: OutcomeType, ms: number, valueMinor: number | null = null) =>
     events.push({
-      tenantId: d.tenantId ?? 'telco-uk',
+      tenantId: d.tenantId ?? 'telco-us',
       decisionId: d.id,
       type,
       // Lagged from the decision's own timestamp, never the clock — the same

@@ -27,7 +27,7 @@ const call = (path: string[], body?: unknown, method: 'GET' | 'POST' = 'POST') =
 
 const request = (over: Record<string, unknown> = {}) => ({
   request: {
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     customerId: 'cust_slate_demo',
     channel: 'web',
     occurredAt: '2026-06-01T12:00:00.000Z',
@@ -57,13 +57,13 @@ const request = (over: Record<string, unknown> = {}) => ({
 });
 
 const decide = async (key: string, over: Record<string, unknown> = {}) => {
-  const res = await call(['placements', 'telco-uk', key, 'decisions'], request(over));
+  const res = await call(['placements', 'telco-us', key, 'decisions'], request(over));
   return { status: res.status, body: (await res.json()) as Record<string, never> };
 };
 
 describe('GET /api/placements/{tenantId}', () => {
   it('serves the configured slots', async () => {
-    const res = await call(['placements', 'telco-uk'], undefined, 'GET');
+    const res = await call(['placements', 'telco-us'], undefined, 'GET');
     const body = (await res.json()) as { placements: { key: string; slotCount: number }[] };
     expect(res.status).toBe(200);
     expect(body.placements.map((p) => p.key)).toEqual(placements.map((p) => p.key));
@@ -192,7 +192,7 @@ describe('POST /api/placements/{tenantId}/{key}/decisions', () => {
   });
 
   it('will not default occurredAt to now', async () => {
-    const res = await call(['placements', 'telco-uk', 'homepage_grid', 'decisions'], {
+    const res = await call(['placements', 'telco-us', 'homepage_grid', 'decisions'], {
       request: { ...request().request, occurredAt: undefined },
     });
     expect(res.status).toBe(400);

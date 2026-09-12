@@ -146,11 +146,11 @@ if (!reachable) {
       await runMigration(db);
       const store = new PostgresLedgerStore(db);
 
-      await expect(store.get('telco-uk', 'no-such-decision')).resolves.toBeUndefined();
-      await expect(store.query({ tenantId: 'telco-uk' })).resolves.toEqual([]);
-      await expect(store.outcomesFor('telco-uk', 'no-such-decision')).resolves.toEqual([]);
-      await expect(store.deliveriesFor('telco-uk', 'no-such-decision')).resolves.toEqual([]);
-      await expect(store.idempotency.get('telco-uk', 'no-such-key')).resolves.toBeUndefined();
+      await expect(store.get('telco-us', 'no-such-decision')).resolves.toBeUndefined();
+      await expect(store.query({ tenantId: 'telco-us' })).resolves.toEqual([]);
+      await expect(store.outcomesFor('telco-us', 'no-such-decision')).resolves.toEqual([]);
+      await expect(store.deliveriesFor('telco-us', 'no-such-decision')).resolves.toEqual([]);
+      await expect(store.idempotency.get('telco-us', 'no-such-key')).resolves.toBeUndefined();
     });
   });
 }

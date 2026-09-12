@@ -50,7 +50,7 @@ const call = (
  */
 async function startHoldout() {
   const draft = store.experiments.find((e) => e.key === 'fibre_holdout')!;
-  const res = await call(['experiments', 'telco-uk', draft.id], { status: 'running' }, 'PUT');
+  const res = await call(['experiments', 'telco-us', draft.id], { status: 'running' }, 'PUT');
   expect(res.status, await res.clone().text()).toBe(200);
   return store.experiments.find((e) => e.key === 'fibre_holdout')!;
 }
@@ -75,10 +75,10 @@ const INPUT = {
 
 async function decide(customerId: string) {
   const res = await call(
-    ['placements', 'telco-uk', 'homepage_hero', 'decisions'],
+    ['placements', 'telco-us', 'homepage_hero', 'decisions'],
     {
       request: {
-        tenantId: 'telco-uk',
+        tenantId: 'telco-us',
         customerId,
         channel: 'web',
         occurredAt: '2026-06-01T12:00:00.000Z',
@@ -118,8 +118,8 @@ describe('an arm is part of what was decided', () => {
     const first = await decide(a!);
     const second = await decide(b!);
 
-    const t1 = await store.ledger.get('telco-uk', first.id);
-    const t2 = await store.ledger.get('telco-uk', second.id);
+    const t1 = await store.ledger.get('telco-us', first.id);
+    const t2 = await store.ledger.get('telco-us', second.id);
     expect(t1!.record.decision.inputSnapshotHash).not.toBe(
       t2!.record.decision.inputSnapshotHash
     );
@@ -130,7 +130,7 @@ describe('an arm is part of what was decided', () => {
     // arm is still recoverable.
     const running = await startHoldout();
     const { id } = await decide('cust_recompute');
-    const entry = await store.ledger.get('telco-uk', id);
+    const entry = await store.ledger.get('telco-us', id);
 
     const recomputed = assignArm(running, entry!.record.decision.customerRef!);
     expect(recomputed).not.toBeNull();
@@ -141,7 +141,7 @@ describe('an arm is part of what was decided', () => {
     const draft = store.experiments.find((e) => e.key === 'fibre_holdout')!;
     expect(draft.status).toBe('draft');
     const { id } = await decide('cust_draft');
-    const entry = await store.ledger.get('telco-uk', id);
+    const entry = await store.ledger.get('telco-us', id);
     const input = entry!.record.decision as unknown as { inputSnapshotHash: string };
     expect(input.inputSnapshotHash).toBeTruthy();
     expect(assignArm(draft, 'cust_draft')).toBeNull();
@@ -158,7 +158,7 @@ describe('the arm is offered as an ordinary field', () => {
     // A holdout is an eligibility rule that refuses when the arm is the
     // untreated one — written in the same editor as every other rule, not in a
     // parallel experiment-only concept.
-    const res = await call(['profile-schema', 'telco-uk']);
+    const res = await call(['profile-schema', 'telco-us']);
     const body = (await res.json()) as {
       experimentPaths: { path: string; members: string[]; type: string }[];
     };
@@ -170,7 +170,7 @@ describe('the arm is offered as an ordinary field', () => {
 
   it("does not offer a draft experiment's arms", async () => {
     // Seeded as a draft, so it must not appear until somebody starts it.
-    const res = await call(['profile-schema', 'telco-uk']);
+    const res = await call(['profile-schema', 'telco-us']);
     const body = (await res.json()) as { experimentPaths: { path: string }[] };
     expect(body.experimentPaths.map((p) => p.path)).not.toContain('experiments.fibre_holdout');
   });
@@ -184,7 +184,7 @@ describe('a running experiment is frozen', () => {
   it('refuses to reweight it, and says why', async () => {
     const running = await startHoldout();
     const res = await call(
-      ['experiments', 'telco-uk', running.id],
+      ['experiments', 'telco-us', running.id],
       { arms: [{ key: 'holdout', name: 'Held', weight: 50 }, { key: 'treated', name: 'Offered', weight: 50 }] },
       'PUT'
     );
@@ -197,14 +197,14 @@ describe('a running experiment is frozen', () => {
 
   it('allows renaming it', async () => {
     const running = await startHoldout();
-    const res = await call(['experiments', 'telco-uk', running.id], { name: 'Clearer' }, 'PUT');
+    const res = await call(['experiments', 'telco-us', running.id], { name: 'Clearer' }, 'PUT');
     expect(res.status).toBe(200);
     expect(((await res.json()) as { name: string }).name).toBe('Clearer');
   });
 
   it('allows reweighting a draft', async () => {
     const created = await call(
-      ['experiments', 'telco-uk'],
+      ['experiments', 'telco-us'],
       {
         key: 'new_test',
         name: 'New test',
@@ -219,7 +219,7 @@ describe('a running experiment is frozen', () => {
     const id = ((await created.json()) as { id: string }).id;
 
     const res = await call(
-      ['experiments', 'telco-uk', id],
+      ['experiments', 'telco-us', id],
       {
         arms: [
           { key: 'a', name: 'A', weight: 9 },
@@ -235,7 +235,7 @@ describe('a running experiment is frozen', () => {
     // Created running would start splitting live traffic before anybody
     // approved the split.
     const res = await call(
-      ['experiments', 'telco-uk'],
+      ['experiments', 'telco-us'],
       {
         key: 'sneaky',
         name: 'Sneaky',
@@ -252,7 +252,7 @@ describe('a running experiment is frozen', () => {
 
   it('refuses a key that would collide at the same field path', async () => {
     const res = await call(
-      ['experiments', 'telco-uk'],
+      ['experiments', 'telco-us'],
       {
         key: 'fibre_holdout',
         name: 'Another',
@@ -269,7 +269,7 @@ describe('a running experiment is frozen', () => {
 
   it('refuses an ill-formed experiment', async () => {
     const res = await call(
-      ['experiments', 'telco-uk'],
+      ['experiments', 'telco-us'],
       { key: 'one_arm', name: 'One arm', arms: [{ key: 'only', name: 'Only', weight: 1 }] },
       'POST'
     );
@@ -280,7 +280,7 @@ describe('a running experiment is frozen', () => {
   });
 
   it('refuses an account that cannot author', async () => {
-    const res = await call(['experiments', 'telco-uk'], { key: 'x', name: 'X' }, 'POST', PRIYA());
+    const res = await call(['experiments', 'telco-us'], { key: 'x', name: 'X' }, 'POST', PRIYA());
     expect(res.status).toBe(403);
   });
 });
@@ -292,7 +292,7 @@ describe('performance by arm', () => {
 
   it('splits the corpus across the arms it declares', async () => {
     await startHoldout();
-    const res = await call(['performance', 'telco-uk']);
+    const res = await call(['performance', 'telco-us']);
     const body = (await res.json()) as {
       arms: { experimentKey: string; arm: string; offered: number; acceptanceRate: number | null }[];
     };
@@ -312,7 +312,7 @@ describe('performance by arm', () => {
     // corpus reports outcomes now (ADR-008 phase two), so an arm that has been
     // measured is expected to carry a rate and an arm that has not is expected
     // not to. Both halves matter; before phase two only the first was testable.
-    const res = await call(['performance', 'telco-uk']);
+    const res = await call(['performance', 'telco-us']);
     const body = (await res.json()) as {
       arms: { measured: number; acceptanceRate: number | null }[];
     };

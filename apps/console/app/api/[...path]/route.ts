@@ -847,7 +847,7 @@ async function handleGet(req: Request, { params }: Ctx) {
         // The development store is single-tenant, and the trace route
         // carries no tenant segment. A multi-tenant deployment resolves this
         // from the caller's session rather than a constant.
-        const entry = await store.ledger.get('telco-uk', rest[0]);
+        const entry = await store.ledger.get('telco-us', rest[0]);
         // Projected, not returned raw. `entry.record` is the *runtime*
         // `DecisionRecord` — `{ id, decision: {...} }` — and the spec declares
         // the flat API one. Returning the runtime shape here answered 200 with
@@ -1758,7 +1758,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         input = body?.input ?? seeded.request.input;
         contactHistory = body?.contactHistory ?? seeded.request.contactHistory;
       } else {
-        const entry = await store.ledger.get('telco-uk', rest[0]);
+        const entry = await store.ledger.get('telco-us', rest[0]);
         if (!entry) return notFound(`No decision with id ${rest[0]}`);
 
         const published = await store.registry.version(

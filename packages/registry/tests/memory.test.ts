@@ -20,13 +20,13 @@ describeRegistry('registry over memory', {
       const registry = getRegistry();
       const out = await registry.publish(
         {
-          tenantId: 'telco-uk',
+          tenantId: 'telco-us',
           flowName: 'frozen-check',
           version: '1.0.0',
           source: {
             id: 'frozen-check',
             version: '1.0.0',
-            tenantId: 'telco-uk',
+            tenantId: 'telco-us',
             nodes: [
               { id: 'n1', type: 'source', label: 'Source', estimatedMs: 1 },
               { id: 'n2', type: 'arbitrate', label: 'Arbitrate', estimatedMs: 1 },
@@ -46,7 +46,7 @@ describeRegistry('registry over memory', {
         (out.artifact as { version: string }).version = 'tampered';
       }).toThrow();
 
-      const stored = await registry.version('telco-uk', 'frozen-check', '1.0.0');
+      const stored = await registry.version('telco-us', 'frozen-check', '1.0.0');
       expect(stored?.artifact.version).toBe('1.0.0');
     });
   },

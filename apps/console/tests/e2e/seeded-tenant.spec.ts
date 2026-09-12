@@ -4,7 +4,7 @@ import { login, ACCOUNTS } from './helpers';
 /**
  * @screen-only
  *
- * Every built screen is populated from the seeded `demo-telco-uk` tenant.
+ * Every built screen is populated from the seeded `demo-telco-us` tenant.
  *
  * Part 6 of the console spec asks for this in as many words, and it is the
  * difference between a product and a prototype: "'Test Offer 1' against three

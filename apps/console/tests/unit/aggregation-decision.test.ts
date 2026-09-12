@@ -47,9 +47,9 @@ const BASE = {
 };
 
 const decide = async (input: unknown) => {
-  const res = await call(['placements', 'telco-uk', 'homepage_hero', 'decisions'], {
+  const res = await call(['placements', 'telco-us', 'homepage_hero', 'decisions'], {
     request: {
-      tenantId: 'telco-uk', customerId: 'cust_agg', channel: 'web',
+      tenantId: 'telco-us', customerId: 'cust_agg', channel: 'web',
       occurredAt: '2026-06-01T12:00:00.000Z',
       input,
       consent: { marketing: true, profiling: true, thirdParty: false },
@@ -72,7 +72,7 @@ describe('a rollup decides', () => {
     // creating one attaches it to nothing and it never runs. Same shape as
     // `candidateKeys` for offers, and it needs flow authoring to close. See
     // the test below, which holds the gap so it cannot close silently.
-    const res = await call(['targeting-policies', 'telco-uk', 'pol_fibre_available'], {
+    const res = await call(['targeting-policies', 'telco-us', 'pol_fibre_available'], {
       conditions: [{ field: 'customer.worst_arrears_days', operator: 'lt', value: 30 }],
     }, PRIYA(), 'PUT');
     expect(res.status).toBe(200);
@@ -129,7 +129,7 @@ describe('a policy nobody attached', () => {
     // and nothing wires a new one in. The write path is real and the effect is
     // not, which is exactly the shape of defect this codebase keeps finding —
     // so it is asserted rather than left for somebody to discover in a demo.
-    const created = await call(['targeting-policies', 'telco-uk'], {
+    const created = await call(['targeting-policies', 'telco-us'], {
       name: 'Refuse everyone',
       kind: 'eligibility',
       description: 'A gate that would suppress every candidate, if it ran.',

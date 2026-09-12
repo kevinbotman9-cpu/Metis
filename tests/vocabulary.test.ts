@@ -101,11 +101,6 @@ function inScope(file: string): boolean {
 const ALLOWED = new Map<string, string>([
   ['tests/vocabulary.test.ts', 'holds the list of renamed words'],
   [
-    'apps/console/mocks/fixtures/catalogue.ts',
-    'creative ids are `trt_*`, dating from before the rename; changing them ' +
-      'would move every chain hash in the service corpus for a cosmetic gain',
-  ],
-  [
     'CLAUDE.md',
     'holds the §3 catalogue, which names each old word beside the one that ' +
       'replaced it — the document the rest of this check enforces',

@@ -63,7 +63,7 @@ if (!reachable) {
         const registry = getRegistry();
         await registry.publish(
           {
-            tenantId: 'telco-uk',
+            tenantId: 'telco-us',
             flowName: 'inbound-web-offers',
             version: '1.0.0',
             source: source(),
@@ -84,7 +84,7 @@ if (!reachable) {
         const registry = getRegistry();
         await registry.publish(
           {
-            tenantId: 'telco-uk',
+            tenantId: 'telco-us',
             flowName: 'inbound-web-offers',
             version: '1.0.0',
             source: source(),
@@ -106,7 +106,7 @@ if (!reachable) {
           pool.query(
             `INSERT INTO registry_environments
                (tenant_id, flow_name, environment, active_version)
-             VALUES ('telco-uk', 'inbound-web-offers', 'production', '404.0.0')`
+             VALUES ('telco-us', 'inbound-web-offers', 'production', '404.0.0')`
           )
         ).rejects.toThrow();
       });
@@ -116,7 +116,7 @@ if (!reachable) {
         for (const version of ['1.0.0', '2.0.0']) {
           await registry.publish(
             {
-              tenantId: 'telco-uk',
+              tenantId: 'telco-us',
               flowName: 'inbound-web-offers',
               version,
               source: source({
@@ -132,7 +132,7 @@ if (!reachable) {
           );
         }
 
-        const events = await registry.events({ tenantId: 'telco-uk' });
+        const events = await registry.events({ tenantId: 'telco-us' });
         expect(events).toHaveLength(2);
         expect(events[0].seq).toBeGreaterThan(events[1].seq);
       });

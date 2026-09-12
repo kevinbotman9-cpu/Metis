@@ -64,7 +64,7 @@ function toExecArtifact(a: ArtifactSummary): ExecArtifact {
   return {
     id: a.id,
     version: a.activeVersion,
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     candidateKeys: a.candidateKeys,
     packageVersions: {
       '@metis/nodes-core': '1.4.0',
@@ -214,20 +214,27 @@ export function connectorPayload(index: number): Record<string, unknown> {
   const creditBand = band > 0.86 ? 'E' : band > 0.72 ? 'D' : band > 0.45 ? 'C' : band > 0.2 ? 'B' : 'A';
 
   return {
-    // conn_billing_ledger
-    'customer.monthly_spend': 1200 + Math.floor(r('spend') * 9000),
-    'customer.arrears_days': arrears,
-    'customer.in_good_standing': arrears === 0,
+    // conn_serviceability — the two fields the brief's scenarios turn on.
+    // Deliberately *not* in the base input above: they arrive from a named
+    // system, so a fibre refusal in the trace can say who said so.
+    'customer.address.fios_serviceable': r('fios2') > 0.45,
+    'customer.address.fiveg_coverage':
+      r('cover2') > 0.7 ? 'strong' : r('cover2') > 0.3 ? 'marginal' : 'none',
+    // conn_order_book
+    'customer.orders.open_broadband': r('order') > 0.91,
+    // conn_engagement
+    'customer.affinity.gaming': Number(r('gaming').toFixed(4)),
+    'customer.affinity.entertainment': Number(r('ent').toFixed(4)),
+    'customer.ott.disney_available': r('dispart') > 0.12,
+    'customer.ott.netflix_available': r('netpart') > 0.08,
     // conn_network_usage
     'customer.usage.data_usage_gb': Number((r('data') * 120).toFixed(2)),
-    'customer.usage.roaming_days': Math.floor(r('roam') * 14),
     'customer.tenure_months': Math.floor(r('tenure') * 72),
-    // conn_consent_registry
+    // conn_consent_registry — the record of the same withdrawal the request
+    // carries. If these disagreed, the trace would show a provenance line
+    // contradicting the consent it acted on.
     'customer.marketing_consent': churning ? r('mkt') > 0.72 : r('mkt') > 0.08,
     'customer.profiling_consent': churning ? r('prof') > 0.68 : r('prof') > 0.12,
-    // conn_credit_bureau
-    'customer.credit_score': 380 + Math.floor(r('score') * 440),
-    'customer.credit_band': creditBand,
   };
 }
 
@@ -255,6 +262,15 @@ function inputFor(index: number, base: Record<string, unknown>): Record<string, 
   for (const [path, value] of Object.entries(connectorPayload(index))) {
     writePath(input, path, value);
   }
+  // The one disjunction the brief asks for, computed rather than fetched:
+  // digital engagement OR a broadband intent signal. Its origin in the schema
+  // is `aggregation`, and this is the aggregation.
+  const r = (salt: string) => seededUnitInterval('engagement', index, salt);
+  writePath(
+    input,
+    'customer.engagement.digital_or_broadband_intent',
+    r('digital') > 0.35 || r('intent') > 0.8
+  );
   return input;
 }
 
@@ -270,16 +286,18 @@ function buildRequest(index: number): DecisionRequest {
   // candidates have no active creative on the channel (G-071, G-044) — and a
   // corpus that kept deciding for it would be seeding history the platform
   // would now refuse to make. `fixtures.test.ts` fails when these disagree.
-  const channels = ['web', 'email', 'sms', 'push'];
+  // Three channels, because three have content. Push is absent: the brief's
+  // app card is not a push notification and there is no channel to author one
+  // on (G-090), so a seeded decision for push would be history the platform
+  // would now refuse to make. `fixtures.test.ts` fails when these disagree.
+  const channels = ['web', 'email', 'sms'];
   const channel = channels[Math.floor(r('channel') * channels.length)];
   const placements: Record<string, string> = {
     web: 'account_dashboard_hero',
     email: 'weekly_offers_send',
     sms: 'triggered_outbound',
-    push: 'app_inbox',
   };
 
-  const age = 16 + Math.floor(r('age') * 60);
   /**
    * Most customers are nowhere near their caps; a minority are at or over one,
    * which is what makes the suppressed cases in the console real.
@@ -299,7 +317,7 @@ function buildRequest(index: number): DecisionRequest {
   const churning = inChurnCohort(index);
 
   return {
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     customerId: `cust_${(880000 + index * 137).toString(36)}`,
     channel,
     placement: placements[channel],
@@ -319,28 +337,35 @@ function buildRequest(index: number): DecisionRequest {
     // `decision-resolution.test.ts` fails if that wiring is removed.
     input: inputFor(index, {
       customer: {
-        age,
-        credit_status: r('credit') > 0.15 ? 'pass' : 'refer',
-        account_status: 'active',
-        current_plan: r('plan') > 0.75 ? '5g_unlimited' : 'standard',
-        bill_to_income_ratio: Number((0.01 + r('bti') * 0.06).toFixed(4)),
-        arrears_count_12mo: r('arrears') > 0.85 ? 1 : 0,
-        address: { fibre_available: r('fibre') > 0.4 },
+        account_status: r('account') > 0.03 ? 'active' : 'suspended',
+        // A known move, or a number large enough to mean "none known". The
+        // brief's rule is "not moving within 30 days", so this is the field
+        // that fires it.
+        moving_within_days: r('move') > 0.93 ? Math.floor(r('movedays') * 30) : 999,
+        address: {
+          // Fibre is built out unevenly, which is the whole premise of the
+          // brief: the same visitor at two addresses gets two answers.
+          fios_serviceable: r('fios') > 0.45,
+          fiveg_coverage:
+            r('cover') > 0.7 ? 'strong' : r('cover') > 0.3 ? 'marginal' : 'none',
+        },
+        broadband: {
+          // Most of this base already buys internet here, on something older
+          // than fibre. That is what makes Gaming Plus eligible and fibre a
+          // genuine upgrade rather than a first sale.
+          status: r('bbstatus') > 0.18 ? 'active' : 'none',
+          product: r('bbprod') > 0.82 ? 'fios' : r('bbprod') > 0.68 ? '5g_home' : 'dsl',
+        },
+        ott: {
+          disney: r('hasdisney') > 0.79,
+          netflix: r('hasnetflix') > 0.63,
+        },
         usage: {
-          pct_of_allowance_3mo_avg: Number((churning ? r('usage') * 0.3 : r('usage')).toFixed(4)),
+          pct_of_allowance_3mo_avg: Number(r('usage').toFixed(4)),
           months_of_history: Math.floor(r('history') * 18),
         },
-        contract: {
-          days_to_end: churning ? Math.floor(r('contract') * 21) : Math.floor(r('contract') * 200),
-        },
-        events: {
-          pac_requested_within_days: churning ? Math.floor(r('pac') * 9) : Math.floor(r('pac') * 40),
-        },
-        device: { residual_value: Math.floor(r('device') * 40000) },
       },
-      context: {
-        offer: { monthly_delta: r('delta') > 0.5 ? -500 : 300 },
-      },
+      context: {},
     }),
     contactHistory: {
       channel,

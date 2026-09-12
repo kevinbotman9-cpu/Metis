@@ -29,7 +29,7 @@ const call = (path: string[], body?: unknown, method: 'GET' | 'POST' = 'GET') =>
 };
 
 const report = async (query = '') => {
-  const res = await call(['performance', `telco-uk${query}`]);
+  const res = await call(['performance', `telco-us${query}`]);
   expect(res.status).toBe(200);
   return (await res.json()) as {
     rows: {
@@ -117,7 +117,7 @@ describe('the report reaches real outcomes', () => {
     const before = await report();
 
     const recorded = await call(
-      ['outcomes', 'telco-uk', decision.decisionId],
+      ['outcomes', 'telco-us', decision.decisionId],
       { type: 'acceptance', occurredAt: '2026-09-05T10:00:00.000Z', valueMinor: 4500 },
       'POST'
     );
@@ -153,7 +153,7 @@ describe('the report reaches real outcomes', () => {
     const before = await report();
     for (const at of ['2026-09-05T10:00:00.000Z', '2026-09-05T10:00:01.000Z']) {
       await call(
-        ['outcomes', 'telco-uk', decision.decisionId],
+        ['outcomes', 'telco-us', decision.decisionId],
         { type: 'acceptance', occurredAt: at },
         'POST'
       );

@@ -121,7 +121,7 @@ export const compileContext: CompileContext = {
   // against its type and enum members — rather than only the root segment,
   // which is all a connector can supply and all the previous check could see.
   profileSchema,
-  tenant: { id: 'telco-uk', latencyBudgetMs: 50, maxNodes: 100 },
+  tenant: { id: 'telco-us', latencyBudgetMs: 50, maxNodes: 100 },
   // ADR-012 §B2. Without these the check falls back to "has an id in
   // `creativeIds`", which an offer whose only creative is switched off, or is
   // written for a channel nobody delivers on, satisfies.
@@ -140,7 +140,7 @@ export function toSource(a: ArtifactSummary): DecisionFlowSource {
   return {
     id: a.id,
     version: a.activeVersion,
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     candidateKeys: a.candidateKeys,
     packageRanges: { '@metis/nodes-core': '^1.2.0', '@metis/core': '^2.0.0' },
     nodes: a.nodes.map((n) => ({

@@ -232,7 +232,7 @@ async function seedRegistry(registry: ArtifactRegistry): Promise<void> {
       const source = toSource(artifact);
       const outcome = await registry.publish(
         {
-          tenantId: 'telco-uk',
+          tenantId: 'telco-us',
           flowName: artifact.id,
           version,
           source: {
@@ -258,7 +258,7 @@ async function seedRegistry(registry: ArtifactRegistry): Promise<void> {
     // silent lie before that, since a flow the compiler refuses cannot be in
     // production. A rejected flow simply has no active version.
     if (artifact.status === 'active' && accepted.has(artifact.activeVersion)) {
-      await registry.promote('telco-uk', artifact.id, artifact.activeVersion, 'production', artifact.updatedBy, at);
+      await registry.promote('telco-us', artifact.id, artifact.activeVersion, 'production', artifact.updatedBy, at);
     }
   }
 }

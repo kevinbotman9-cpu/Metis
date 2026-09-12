@@ -71,7 +71,7 @@ function Home() {
     <PageBody>
       <PageHeader
         title={`Good to see you, ${user?.name.split(' ')[0] ?? 'there'}`}
-        description="Everything the platform decided, offered and changed for telco-uk."
+        description="Everything the platform decided, offered and changed for telco-us."
       />
 
       <div className="mb-stack grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">

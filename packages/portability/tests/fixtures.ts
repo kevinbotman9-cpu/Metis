@@ -18,7 +18,7 @@ import type { CompileContext, DecisionFlowSource } from '@metis/compiler/decisio
  * whether an export describes a tenant.
  */
 
-export const TENANT = 'telco-uk';
+export const TENANT = 'telco-us';
 export const FLOW = 'inbound-web-offers';
 const AT = '2026-06-01T12:00:00.000Z';
 

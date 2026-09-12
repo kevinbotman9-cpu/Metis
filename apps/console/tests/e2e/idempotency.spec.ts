@@ -14,7 +14,7 @@ const ARTIFACT = 'next-best-action';
 const body = (over: Record<string, unknown> = {}) => ({
   artifactId: ARTIFACT,
   request: {
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     customerId: 'cust_idem',
     channel: 'email',
     placement: 'weekly_offers_send',

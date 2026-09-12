@@ -79,7 +79,7 @@ test.describe('the outcome loop @screen-only', () => {
     // The impression is fired on render, so it is already in flight. The click
     // is the customer's.
     const clicked = page.waitForResponse(
-      (r) => r.url().includes(`/outcomes/telco-uk/${decisionId}`) && r.request().method() === 'POST'
+      (r) => r.url().includes(`/outcomes/telco-us/${decisionId}`) && r.request().method() === 'POST'
     );
     await cta.click();
     const response = await clicked;

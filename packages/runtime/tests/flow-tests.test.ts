@@ -58,7 +58,7 @@ const catalogue: CatalogueSnapshot = {
   frequencyPolicies: [],
   arbitration: {
     id: 'arb',
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     weights: { propensity: 1, value: 1, boost: 1, context: 1 },
     utility: { id: 'multiplicative', version: '1.0.0' },
     formula: 'P x V x B x C',
@@ -72,7 +72,7 @@ const catalogue: CatalogueSnapshot = {
 const artifact: ExecArtifact = {
   id: 'flow',
   version: '1.0.0',
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   candidateKeys: ['offer_adult', 'offer_open'],
   packageVersions: { '@metis/nodes-core': '1.2.0' },
   nodes: [

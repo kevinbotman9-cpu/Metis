@@ -83,7 +83,7 @@ left empty and counted, never padded. There is no content store
 placeholder. A decision made here can be traced through the API but not replayed;
 see `gaps.md`.
 
-**The catalogue is the demo tenant's.** `telco-uk` — UK products, sterling. The
+**The catalogue is the demo tenant's.** `telco-us` — UK products, sterling. The
 storefront renders whatever the catalogue says, so a demo for a different market
 means a different tenant's catalogue, which regenerates the conformance corpora
 and is a deliberate change rather than a switch to flip.

@@ -230,7 +230,7 @@ export const decisions: DecisionRecord[] = (index.rows as unknown[][]).map((row)
   id: row[1] as string,
   artifactId: row[2] as string,
   artifactVersion: row[3] as string,
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   customerId: row[4] as string,
   timestamp: row[5] as string,
   channel: row[6] as string,

@@ -196,7 +196,7 @@ the ADR names the condition that forces the move rather than leaving it to
 drift.** It must move to `planes/execution` before **either** of:
 
 - the first outcome producer that is not the demo storefront, or
-- the first tenant that is not `demo-telco-uk`.
+- the first tenant that is not `demo-telco-us`.
 
 Until then the route carries a comment saying so and pointing here. A temporary
 host that names its own expiry condition is a different thing from one that does
@@ -205,7 +205,7 @@ not.
 ### 6. What the demo tenant must generate
 
 `/performance` is populated by seeding outcomes for the existing 10,400
-decisions, deterministically from the same `seededUnitInterval('demo-telco-uk',
+decisions, deterministically from the same `seededUnitInterval('demo-telco-us',
 …)`. The requirements are shape requirements, not volume ones:
 
 - **Only decisions that offered something.** 3,426 of 10,401 have a winner. A

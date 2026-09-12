@@ -65,7 +65,7 @@ const MAPPINGS = [
 const PARTIAL = [MAPPINGS[0], MAPPINGS[1]];
 
 async function newSource() {
-  const res = await call(['data-sources', 'telco-uk'], {
+  const res = await call(['data-sources', 'telco-us'], {
     name: 'CRM nightly',
     description: 'Overnight export.',
     kind: 'file',
@@ -75,11 +75,11 @@ async function newSource() {
 }
 
 const land = (id: string, rows: unknown[], replace = true) =>
-  call(['data-sources', 'telco-uk', id, 'rows'], { rows, replace });
+  call(['data-sources', 'telco-us', id, 'rows'], { rows, replace });
 const map = (id: string, mappings: unknown[]) =>
-  call(['data-sources', 'telco-uk', id], { mappings }, 'PUT');
-const validate = (id: string) => call(['data-sources', 'telco-uk', id, 'validation'], {});
-const activate = (id: string) => call(['data-sources', 'telco-uk', id, 'activation'], {});
+  call(['data-sources', 'telco-us', id], { mappings }, 'PUT');
+const validate = (id: string) => call(['data-sources', 'telco-us', id, 'validation'], {});
+const activate = (id: string) => call(['data-sources', 'telco-us', id, 'activation'], {});
 
 describe('landing', () => {
   beforeEach(async () => {
@@ -110,7 +110,7 @@ describe('landing', () => {
     const { id } = await newSource();
     await land(id, ROWS);
     await land(id, [{ cust_id: 'c3', dob: '2000-01-01', band: 'A' }], false);
-    const res = await call(['data-sources', 'telco-uk'], undefined, 'GET');
+    const res = await call(['data-sources', 'telco-us'], undefined, 'GET');
     const { sources } = (await res.json()) as { sources: { landedRows: number }[] };
     expect(sources[0].landedRows).toBe(3);
   });
@@ -118,7 +118,7 @@ describe('landing', () => {
   it('refuses an account without edit:integrations', async () => {
     const { id } = await newSource();
     const res = await call(
-      ['data-sources', 'telco-uk', id, 'rows'],
+      ['data-sources', 'telco-us', id, 'rows'],
       { rows: ROWS },
       'POST',
       SARAH()
@@ -262,7 +262,7 @@ describe('activation', () => {
 
   it('refuses an account without edit:integrations', async () => {
     const { id } = await newSource();
-    const res = await call(['data-sources', 'telco-uk', id, 'activation'], {}, 'POST', SARAH());
+    const res = await call(['data-sources', 'telco-us', id, 'activation'], {}, 'POST', SARAH());
     expect(res.status).toBe(403);
   });
 

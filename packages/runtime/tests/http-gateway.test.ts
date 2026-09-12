@@ -40,7 +40,7 @@ const connector = (over: Partial<Connector> & { id: string }): Connector => ({
 });
 
 const context = {
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   customerId: 'cust_9001',
   channel: 'web',
   occurredAt: '2026-09-07T10:00:00.000Z',
@@ -94,7 +94,7 @@ describe('HttpIntegrationGateway', () => {
     // In the body, never the query string: a customer reference in a URL is in
     // every proxy log between here and the endpoint.
     expect(seen).toEqual({
-      tenantId: 'telco-uk',
+      tenantId: 'telco-us',
       customerId: 'cust_9001',
       channel: 'web',
       occurredAt: '2026-09-07T10:00:00.000Z',
@@ -110,7 +110,7 @@ describe('HttpIntegrationGateway', () => {
     const artifact = {
       id: 'flow_1',
       version: '1.0.0',
-      tenantId: 'telco-uk',
+      tenantId: 'telco-us',
       candidateKeys: [],
       packageVersions: {},
       nodes: [{ id: 'n_source', type: 'source', label: 'Source', connectorIds: ['conn_bureau'] }],
@@ -179,7 +179,7 @@ describe('HttpIntegrationGateway', () => {
   it('refuses a target that is not an http(s) URL', async () => {
     const gateway = new HttpIntegrationGateway();
     await expect(
-      gateway.fetch(connector({ id: 'conn_x', target: 'featurestore://telco-uk/billing' }), context)
+      gateway.fetch(connector({ id: 'conn_x', target: 'featurestore://telco-us/billing' }), context)
     ).rejects.toThrow(/not an http\(s\) URL/);
   });
 
@@ -271,7 +271,7 @@ describe('MemoryIntegrationCache', () => {
     const artifact = {
       id: 'flow_1',
       version: '1.0.0',
-      tenantId: 'telco-uk',
+      tenantId: 'telco-us',
       candidateKeys: [],
       packageVersions: {},
       nodes: [{ id: 'n_source', type: 'source', label: 'Source', connectorIds: ['conn_bureau'] }],

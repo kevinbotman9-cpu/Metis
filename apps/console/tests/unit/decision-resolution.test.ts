@@ -38,7 +38,7 @@ function decide(body: unknown): Promise<Response> {
 const request = (over: Record<string, unknown> = {}) => ({
   artifactId: ARTIFACT,
   request: {
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     customerId: 'cust_resolution',
     channel: 'web',
     placement: 'account_dashboard_hero',
@@ -101,7 +101,7 @@ describe('the recorded gateway serves every field the live flows need', () => {
         artifact,
         catalogueSnapshot.connectors ?? [],
         {
-          tenantId: 'telco-uk',
+          tenantId: 'telco-us',
           customerId: 'cust_coverage',
           channel: 'web',
           occurredAt: '2026-06-01T12:00:00.000Z',

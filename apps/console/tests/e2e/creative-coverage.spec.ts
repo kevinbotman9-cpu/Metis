@@ -105,7 +105,7 @@ test.describe('content coverage @screen-only', () => {
     // not. This read `active` until 2026-09-10 and counted content against four
     // channels with nothing that sends, reporting 38 offers with nothing to
     // send where the number that can reach a customer is 127. ADR-013 §2.
-    const placements = (await (await page.request.get('/api/placements/telco-uk')).json())
+    const placements = (await (await page.request.get('/api/placements/telco-us')).json())
       .placements as { decidable: boolean; delivery: unknown; channel: string }[];
     const deliverable = new Set(placements.filter((p) => p.delivery).map((p) => p.channel));
     const decidable = new Set(placements.filter((p) => p.decidable).map((p) => p.channel));

@@ -216,7 +216,7 @@ Transforms a DIR into a `CompiledArtifact`:
 4. **Sign** — Cryptographic signature for integrity
 
 ```bash
-metis compile flow.json --tenant telco-uk --output compiled.json
+metis compile flow.json --tenant telco-us --output compiled.json
 ```
 
 ### Execution
@@ -225,7 +225,7 @@ Runs a compiled artifact deterministically:
 
 ```typescript
 const response = await execute(artifact, {
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   customerId: 'cust_123',
   context: { segment: 'premium' }
 });
@@ -386,7 +386,7 @@ If you're building on METIS, start here:
 
 These don't block Phase 0 but shape Phase 1:
 
-1. **Segment**: Confirm telco-uk as the seed segment (or pivot to banking-uk)?
+1. **Segment**: Confirm telco-us as the seed segment (or pivot to banking-uk)?
 2. **Scenario C**: Is "layer above incumbent Pega" an entry flow?
 3. **Adaptive Models**: Build in-house (recommended) or integrate third-party?
 4. **Open Core**: Publish the DIR schema + SDK publicly?

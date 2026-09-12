@@ -96,15 +96,15 @@ async function resolveParams(api: APIRequestContext, token: string) {
   const headers = { Authorization: `Bearer ${token}` };
   const json = async (url: string) => (await api.get(url, { headers })).json();
 
-  const taxonomy = await json('/api/taxonomy/telco-uk');
+  const taxonomy = await json('/api/taxonomy/telco-us');
   const decisions = await json('/api/decisions/search?limit=1');
   const changeSets = await json('/api/change-sets');
-  const artifacts = await json('/api/artifacts/telco-uk');
-  const connectors = await json('/api/connectors/telco-uk');
-  const placements = await json('/api/placements/telco-uk');
+  const artifacts = await json('/api/artifacts/telco-us');
+  const connectors = await json('/api/connectors/telco-us');
+  const placements = await json('/api/placements/telco-us');
 
   return {
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     connectorId: connectors.connectors[0].id,
     // A decidable one: `decidePlacement` refuses a slot that is not, and a
     // fixture-ordering change should not turn that into a mystery 404 here.
@@ -147,7 +147,7 @@ const SAFE_TO_CALL: Record<string, unknown | undefined> = {
   executeDecision: {
     artifactId: 'PLACEHOLDER',
     request: {
-      tenantId: 'telco-uk',
+      tenantId: 'telco-us',
       customerId: 'cust_contract_test',
       channel: 'web',
       placement: 'account_dashboard_hero',
@@ -161,7 +161,7 @@ const SAFE_TO_CALL: Record<string, unknown | undefined> = {
   // the contract a website integrates against.
   decidePlacement: {
     request: {
-      tenantId: 'telco-uk',
+      tenantId: 'telco-us',
       customerId: 'cust_contract_slate',
       channel: 'web',
       occurredAt: '2026-06-01T12:00:00.000Z',
@@ -488,7 +488,7 @@ const REQUIRED_TRACE_FIELDS = [
 
 function liveRequest() {
   return {
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     customerId: 'cust_contract_probe',
     channel: 'web',
     // Required on `DecisionRequest`. Omitting it produced a trace with no

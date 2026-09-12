@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
  */
 class IdempotencyTest {
     private val base = DecisionRequest(
-        tenantId = "telco-uk",
+        tenantId = "telco-us",
         customerId = "cust_1",
         channel = "email",
         placement = "weekly_offers",
@@ -72,7 +72,7 @@ class IdempotencyTest {
 
     @Test
     fun `classify separates a retry from a reused key`() {
-        val stored = IdempotencyRecord("telco-uk", "k1", "aaaa", "dec_1", "2026-06-01T12:00:00Z")
+        val stored = IdempotencyRecord("telco-us", "k1", "aaaa", "dec_1", "2026-06-01T12:00:00Z")
         assertTrue(Idempotency.classify(null, "aaaa") is IdempotencyOutcome.Fresh)
         assertTrue(Idempotency.classify(stored, "aaaa") is IdempotencyOutcome.Replay)
         assertTrue(Idempotency.classify(stored, "bbbb") is IdempotencyOutcome.Conflict)

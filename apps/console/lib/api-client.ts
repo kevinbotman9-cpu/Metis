@@ -202,7 +202,7 @@ async function apiCall<T>(
   return response.json() as Promise<T>;
 }
 
-const TENANT = 'telco-uk';
+const TENANT = 'telco-us';
 
 export const apiClient = {
   // --- Auth ---------------------------------------------------------------

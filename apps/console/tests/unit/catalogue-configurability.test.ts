@@ -57,9 +57,9 @@ const call = (path: string[], body: unknown, method: 'POST' | 'PUT' = 'POST', he
 
 /** One decision through the placement endpoint, with its catalogue hash. */
 async function decide(customerId = 'cust_cfg') {
-  const res = await call(['placements', 'telco-uk', 'homepage_hero', 'decisions'], {
+  const res = await call(['placements', 'telco-us', 'homepage_hero', 'decisions'], {
     request: {
-      tenantId: 'telco-uk',
+      tenantId: 'telco-us',
       customerId,
       channel: 'web',
       occurredAt: '2026-06-01T12:00:00.000Z',
@@ -75,7 +75,7 @@ async function decide(customerId = 'cust_cfg') {
   };
   expect(res.status).toBe(200);
 
-  const trace = await store.ledger.get('telco-uk', body.decisionId);
+  const trace = await store.ledger.get('telco-us', body.decisionId);
   return {
     id: body.decisionId,
     chainHash: body.chainHash,
@@ -85,7 +85,7 @@ async function decide(customerId = 'cust_cfg') {
 }
 
 const setWeights = (weights: Record<string, number>) =>
-  call(['arbitration', 'telco-uk'], { weights }, 'PUT');
+  call(['arbitration', 'telco-us'], { weights }, 'PUT');
 
 describe('configuration reaches the engine', () => {
   beforeEach(async () => {
@@ -128,9 +128,9 @@ describe('configuration reaches the engine', () => {
       customer: { ...INPUT.customer, address: { fibre_available: false } },
     };
     const ask = async () => {
-      const res = await call(['placements', 'telco-uk', 'homepage_hero', 'decisions'], {
+      const res = await call(['placements', 'telco-us', 'homepage_hero', 'decisions'], {
         request: {
-          tenantId: 'telco-uk',
+          tenantId: 'telco-us',
           customerId: 'cust_pol',
           channel: 'web',
           occurredAt: '2026-06-01T12:00:00.000Z',
@@ -204,7 +204,7 @@ describe('history survives configuration', () => {
     // verdict about a question nobody asked — and would return it as either
     // "identical" or a difference that is really somebody's edit.
     const made = await decide();
-    const entry = await store.ledger.get('telco-uk', made.id);
+    const entry = await store.ledger.get('telco-us', made.id);
     entry!.record.decision.catalogueSnapshotHash = 'f'.repeat(64);
 
     const res = await call(['decisions', made.id, 'replay'], {

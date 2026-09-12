@@ -1,6 +1,5 @@
 /** Compiled flow artifacts, including their DIR graph. Deterministic. */
 
-import { seededCandidateKeys } from './seed';
 
 const T0 = Date.parse('2026-09-01T09:00:00Z');
 const iso = (h: number) => new Date(T0 + h * 3600_000).toISOString();
@@ -76,6 +75,18 @@ export interface ArtifactSummary {
   status: 'active' | 'draft' | 'retired';
   /** Offer keys this flow can select from. */
   candidateKeys: string[];
+  /**
+   * The approved stand-in for a model output nobody produced.
+   *
+   * This tenant runs no scoring node, so every candidate falls back. Declaring
+   * the default means the trace records an approval rather than an assumption.
+   */
+  missingScoreDefault?: {
+    propensity: number;
+    context: number;
+    approvedBy: string;
+    approvedAt: string;
+  };
   nodes: FlowNode[];
   edges: FlowEdge[];
   updatedAt: string;
@@ -90,31 +101,52 @@ export const artifacts: ArtifactSummary[] = [
     id: 'next-best-action',
     name: 'Next Best Action',
     description:
-      'The main arbitration flow. Runs on every inbound and outbound touchpoint.',
-    activeVersion: '2.4.0',
-    versions: ['2.4.0', '2.3.1', '2.3.0', '2.2.0'],
-    nodeCount: 7,
-    // Critical path: source 4.2 + eligibility 1.1 + score 3.1 + suitability 1.2
-    // + arbitrate 2.3. The parallel branches do not add to the path.
-    estimatedP95LatencyMs: 11.9,
+      'The one flow this tenant runs. Inbound web: the brief calls it the real-time NBA API behind the logged-in site.',
+    activeVersion: '1.0.0',
+    versions: ['1.0.0'],
+    nodeCount: 5,
+    // source 4.2 + eligibility 1.1 + constraint 0.6 + arbitrate 2.3. The
+    // relevance branch runs beside eligibility and does not add to the path.
+    estimatedP95LatencyMs: 8.2,
     status: 'active',
+    // All five. A tenant with five offers has no candidate subset to choose:
+    // the flow considers the catalogue, because the catalogue is five things.
     candidateKeys: [
-      'upsell_5g', 'upsell_data', 'retention_offer', 'addon_roaming',
-      // The rest of the growth catalogue. Authored keys stay first, so the
-      // offers a demo walks through are the ones it keeps meeting.
-      ...seededCandidateKeys('iss_growth'),
+      'fios_gigabit',
+      '5g_home_ultimate',
+      'gaming_plus_bundle',
+      'disney_plus',
+      'netflix',
     ],
-    // Roaming joined the flow in 2.4.0, so 2.3.1 could not select it. This is
-    // the difference shadow mode compares against.
-    priorCandidateKeys: { '2.3.1': ['upsell_5g', 'upsell_data', 'retention_offer'] },
+    /**
+     * What ranking does about candidates nothing scored — which here is all of
+     * them, because this flow has no scoring node.
+     *
+     * Declared rather than left to the engine's neutral 1.0. Both produce the
+     * same arithmetic; only one of them is a number somebody chose. The trace
+     * records the approval, so "why did an unscored offer outrank a scored
+     * one" has an answer that is not "the engine assumed".
+     */
+    missingScoreDefault: {
+      propensity: 1,
+      context: 1,
+      approvedBy: 'marcus.webb@telco.example',
+      approvedAt: '2026-09-12',
+    },
     nodes: [
       {
         id: 'source_customer',
         type: 'source',
-        connectorIds: ['conn_billing_ledger', 'conn_network_usage', 'conn_consent_registry'],
-        label: 'Customer profile',
+        connectorIds: [
+          'conn_serviceability',
+          'conn_order_book',
+          'conn_engagement',
+          'conn_network_usage',
+          'conn_consent_registry',
+        ],
+        label: 'Customer and address',
         description:
-          'Loads the customer record, plan, consent state and 90 days of interaction history from the online feature store.',
+          'Loads the account, what they already hold, and what the network can deliver at the service address. Serviceability and coverage arrive from conn_serviceability, which is what makes the fibre refusal nameable.',
         estimatedMs: 4.2,
         position: { x: COL[0], y: 120 },
       },
@@ -123,9 +155,17 @@ export const artifacts: ArtifactSummary[] = [
         type: 'filter',
         label: 'Eligibility',
         description:
-          'Hard gates: age, credit status, account standing and network availability. Failing one removes the candidate outright.',
+          'Hard gates: an active account, serviceability at the address, 5G coverage, no open broadband order, a line for the add-on to attach to, and a partner agreement covering the region. Failing one removes the candidate outright.',
         estimatedMs: 1.1,
-        policyIds: ['pol_age_18', 'pol_credit_pass', 'pol_fibre_available'],
+        policyIds: [
+          'pol_account_active',
+          'pol_fios_serviceable',
+          'pol_5g_coverage',
+          'pol_no_open_broadband_order',
+          'pol_has_broadband',
+          'pol_disney_available',
+          'pol_netflix_available',
+        ],
         position: { x: COL[1], y: 40 },
       },
       {
@@ -133,290 +173,53 @@ export const artifacts: ArtifactSummary[] = [
         type: 'filter',
         label: 'Relevance',
         description:
-          'Situational relevance: already held, trigger not fired, or the wrong moment in the lifecycle.',
+          'Situational: already held, moving house, no bandwidth need, no affinity, or the broadband need not yet met. This is also where an accepted offer stops being offered — from what the customer now holds, not from the interaction log.',
         estimatedMs: 0.9,
-        policyIds: ['pol_not_on_5g', 'pol_heavy_user', 'pol_contract_ending'],
+        policyIds: [
+          'pol_not_moving',
+          'pol_not_on_fios',
+          'pol_not_on_5g_home',
+          'pol_broadband_need_met',
+          'pol_fios_interest',
+          'pol_5g_bandwidth_need',
+          'pol_entertainment_affinity',
+          'pol_gaming_affinity',
+          'pol_not_on_disney',
+          'pol_not_on_netflix',
+        ],
         position: { x: COL[1], y: 200 },
-      },
-      {
-        id: 'score_propensity',
-        type: 'score-model',
-        label: 'Acceptance propensity',
-        description:
-          'Predicts acceptance. Pinned at compile time so the decision replays identically — and deterministic, because no model gateway is bound yet (W-029).',
-        estimatedMs: 3.1,
-        model: { id: 'propensity_accept_v4', version: '4.2.0' },
-        position: { x: COL[2], y: 120 },
-      },
-      {
-        id: 'filter_suitability',
-        type: 'constraint',
-        label: 'Suitability',
-        description:
-          'Affordability and fair-value checks. This is the FCA-facing tier: it can suppress a commercially attractive offer.',
-        estimatedMs: 1.2,
-        policyIds: ['pol_afford_5g', 'pol_afford_retention'],
-        position: { x: COL[3], y: 40 },
       },
       {
         id: 'constraint_contact',
         type: 'constraint',
-        label: 'Frequency policy',
+        label: 'Frequency and suppression',
         description:
-          'Frequency caps and cooldowns. Suppression here still records the full ranking, so you can answer what would have been offered.',
+          'Caps per channel, and a 30-day rest on anything the customer has declined. Suppression here still records the full ranking, so what would have been offered is answerable.',
         estimatedMs: 0.6,
-        position: { x: COL[3], y: 200 },
+        // No ids listed: a constraint node applies every active frequency
+        // policy whose scope covers the candidate, which for this tenant is
+        // both of them. The channel on each policy decides where it bites.
+        position: { x: COL[2], y: 200 },
       },
       {
         id: 'arbitrate_priority',
         type: 'arbitrate',
         label: 'Arbitrate',
         description:
-          'Ranks surviving candidates and selects a winner. The terms and weights are recorded in every trace.',
+          'Ranks what survived. No model ran, so propensity and context are the approved defaults above and priority is value times boost — which is why both boosts carry a reason.',
         estimatedMs: 2.3,
-        formula: 'Priority = P^1.0 × V^1.0 × B^1.0 × C^0.5',
-        position: { x: COL[4], y: 120 },
+        formula: 'Priority = P^1.0 × C^1.0 × V^1.0 × B^1.0',
+        position: { x: COL[3], y: 120 },
       },
     ],
     edges: [
       { id: 'e1', source: 'source_customer', target: 'filter_eligibility' },
       { id: 'e2', source: 'source_customer', target: 'filter_relevance' },
-      { id: 'e3', source: 'filter_eligibility', target: 'score_propensity' },
-      { id: 'e4', source: 'filter_relevance', target: 'score_propensity' },
-      { id: 'e5', source: 'score_propensity', target: 'filter_suitability' },
-      { id: 'e6', source: 'score_propensity', target: 'constraint_contact' },
-      { id: 'e7', source: 'filter_suitability', target: 'arbitrate_priority' },
-      { id: 'e8', source: 'constraint_contact', target: 'arbitrate_priority' },
+      { id: 'e3', source: 'filter_eligibility', target: 'constraint_contact' },
+      { id: 'e4', source: 'filter_relevance', target: 'constraint_contact' },
+      { id: 'e5', source: 'constraint_contact', target: 'arbitrate_priority' },
     ],
-    updatedAt: iso(-12),
+    updatedAt: iso(-6),
     updatedBy: 'marcus.webb@telco.example',
-  },
-  {
-    id: 'inbound-web-offers',
-    name: 'Inbound Web Offers',
-    description:
-      'Lighter decision flow for anonymous and logged-in web placements. Lighter in scoring, not in governance: consent and frequency are enforced here exactly as they are outbound.',
-    // 1.9.0, not 1.8.3: adding a gate changes what the flow decides, and a
-    // patch bump would say it did not.
-    activeVersion: '1.9.0',
-    versions: ['1.9.0', '1.8.2', '1.8.1', '1.7.0'],
-    nodeCount: 5,
-    estimatedP95LatencyMs: 8.7,
-    status: 'active',
-    // Curated, and deliberately not widened with the seeded catalogue.
-    //
-    // This flow answers `homepage_hero`, which has one slot. A hero is the most
-    // tightly picked surface a telco has — you do not put twenty offers in it —
-    // and the whole seeded acquisition catalogue competing for one slot would
-    // mean the slate is whichever offer happened to rank highest, which is not
-    // what a hero is for. The other flows carry the seeded catalogue.
-    candidateKeys: ['acq_sim_30', 'acq_fibre_900', 'upsell_data'],
-    nodes: [
-      {
-        id: 'source_session',
-        type: 'source',
-        connectorIds: ['conn_consent_registry'],
-        label: 'Session context',
-        description:
-          'Anonymous session signals plus the customer record when the visitor is signed in.',
-        estimatedMs: 2.8,
-        position: { x: COL[0], y: 100 },
-      },
-      {
-        id: 'switch_known',
-        type: 'switch',
-        label: 'Known visitor?',
-        description:
-          'Branches on whether the session resolves to a customer. Anonymous visitors only see acquisition offers.',
-        estimatedMs: 0.3,
-        position: { x: COL[1], y: 100 },
-      },
-      {
-        id: 'filter_web_eligibility',
-        type: 'filter',
-        label: 'Eligibility',
-        description: 'Availability at the address and basic contractual gates.',
-        estimatedMs: 1.0,
-        policyIds: ['pol_fibre_available'],
-        position: { x: COL[2], y: 100 },
-      },
-      {
-        // The node the flow was missing, and the reason a website could tick
-        // "marketing: off" and still be shown a marketing offer. Consent and
-        // frequency are enforced at constraint nodes only — a flow of filters
-        // reads the input and ignores both — so the storefront's consent
-        // checkboxes and contact-history counters reached the engine and had
-        // nothing to act on them.
-        //
-        // Consent is not a property of the channel. A visitor who has withheld
-        // it has withheld it on the website too, and "lighter flow for web"
-        // was never a reason to skip asking.
-        id: 'constraint_web_contact',
-        type: 'constraint',
-        label: 'Consent & contact',
-        description:
-          'Marketing consent, and the frequency caps whose scope covers these offers.',
-        estimatedMs: 0.6,
-        position: { x: COL[3], y: 100 },
-      },
-      {
-        id: 'arbitrate_web',
-        type: 'arbitrate',
-        label: 'Arbitrate',
-        description: 'Ranks by value and boost only; no propensity model on anonymous traffic.',
-        estimatedMs: 1.6,
-        formula: 'Priority = V^1.0 × B^1.0',
-        position: { x: COL[4], y: 100 },
-      },
-    ],
-    edges: [
-      { id: 'w1', source: 'source_session', target: 'switch_known' },
-      { id: 'w2', source: 'switch_known', target: 'filter_web_eligibility', label: 'either' },
-      { id: 'w3', source: 'filter_web_eligibility', target: 'constraint_web_contact' },
-      { id: 'w4', source: 'constraint_web_contact', target: 'arbitrate_web' },
-    ],
-    updatedAt: iso(-96),
-    updatedBy: 'sarah.chen@telco.example',
-  },
-  {
-    id: 'retention-outbound',
-    name: 'Retention Outbound Queue',
-    description:
-      'Builds the agent call queue for customers near contract end or with a PAC request.',
-    activeVersion: '3.1.0',
-    versions: ['3.1.0', '3.0.4'],
-    nodeCount: 6,
-    estimatedP95LatencyMs: 19.7,
-    /**
-     * Retired, because it cannot be published. G-071.
-     *
-     * This flow serves one channel, `outbound_call`, and 18 of its 20
-     * candidates have no active creative on it — they have live web and push
-     * content, which this flow never speaks through. ADR-012 §B2's check says
-     * so, and once the registry compiles against the same context the console
-     * does, the publish is refused and there is nothing to promote.
-     *
-     * It was `active` while two compile contexts disagreed, and it made 3,466
-     * seeded decisions. **Every one of the 807 offers it made was
-     * undeliverable.** The alternative — authoring 18 outbound-call creatives
-     * into the fixture — would have turned a red check green by inventing the
-     * content whose absence is the finding: the tenant has two active
-     * outbound-call creatives against 78 email, 79 sms, 75 web and 69 push,
-     * which is [G-044](../../../../docs/gaps.md).
-     */
-    status: 'retired',
-    candidateKeys: ['retention_offer', 'winback_credit', ...seededCandidateKeys('iss_retention')],
-    nodes: [
-      {
-        id: 'source_contracts',
-        type: 'source',
-        connectorIds: ['conn_billing_ledger', 'conn_network_usage'],
-        label: 'Contract and churn signals',
-        description: 'Contract end dates, PAC requests and churn model output.',
-        estimatedMs: 6.4,
-        position: { x: COL[0], y: 100 },
-      },
-      {
-        id: 'filter_retention_trigger',
-        type: 'filter',
-        label: 'Retention trigger',
-        description: 'Contract ending within 90 days, or a PAC code requested in the last 14.',
-        estimatedMs: 1.4,
-        policyIds: ['pol_contract_ending', 'pol_pac_requested'],
-        position: { x: COL[1], y: 100 },
-      },
-      {
-        id: 'score_churn',
-        type: 'score-model',
-        label: 'Churn risk',
-        description: 'Pinned gradient-boosted churn model. Drives queue ordering, not eligibility.',
-        estimatedMs: 5.2,
-        model: { id: 'churn_gbm', version: '7.1.0' },
-        position: { x: COL[2], y: 100 },
-      },
-      {
-        id: 'constraint_fair_value',
-        type: 'constraint',
-        label: 'Fair value',
-        description:
-          'A retention offer must reduce the customer bill. Blocks anything that increases it.',
-        estimatedMs: 1.1,
-        policyIds: ['pol_afford_retention'],
-        position: { x: COL[3], y: 20 },
-      },
-      {
-        id: 'constraint_winback_cooldown',
-        type: 'constraint',
-        label: 'Winback cooldown',
-        description: 'Suppresses contact for 30 days after a declined winback offer.',
-        estimatedMs: 0.8,
-        position: { x: COL[3], y: 180 },
-      },
-      {
-        id: 'arbitrate_queue',
-        type: 'arbitrate',
-        label: 'Queue ordering',
-        description: 'Orders the agent call queue by churn risk weighted against offer cost.',
-        estimatedMs: 3.2,
-        formula: 'Priority = Churn^1.5 × V^0.8 × B^1.0',
-        position: { x: COL[4], y: 100 },
-      },
-    ],
-    edges: [
-      { id: 'r1', source: 'source_contracts', target: 'filter_retention_trigger' },
-      { id: 'r2', source: 'filter_retention_trigger', target: 'score_churn' },
-      { id: 'r3', source: 'score_churn', target: 'constraint_fair_value' },
-      { id: 'r4', source: 'score_churn', target: 'constraint_winback_cooldown' },
-      { id: 'r5', source: 'constraint_fair_value', target: 'arbitrate_queue' },
-      { id: 'r6', source: 'constraint_winback_cooldown', target: 'arbitrate_queue' },
-    ],
-    updatedAt: iso(-26),
-    updatedBy: 'marcus.webb@telco.example',
-  },
-  {
-    id: 'plan-fit-nudges',
-    name: 'Plan Fit Nudges',
-    description:
-      'Service-led flow that suggests a cheaper plan when usage is consistently low.',
-    activeVersion: '0.4.0',
-    versions: ['0.4.0'],
-    nodeCount: 3,
-    estimatedP95LatencyMs: 5.2,
-    status: 'draft',
-    candidateKeys: ['svc_plan_fit', 'svc_bill_shock', ...seededCandidateKeys('iss_service', 10)],
-    nodes: [
-      {
-        id: 'source_usage',
-        type: 'source',
-        label: 'Usage history',
-        description: 'Twelve months of usage, needed to project a reliable trend.',
-        estimatedMs: 3.1,
-        position: { x: COL[0], y: 100 },
-      },
-      {
-        id: 'filter_history',
-        type: 'filter',
-        label: 'Enough history',
-        description: 'At least three months of usage before any projection is trusted.',
-        estimatedMs: 0.7,
-        policyIds: ['pol_usage_projection'],
-        position: { x: COL[1], y: 100 },
-      },
-      {
-        id: 'explain_nudge',
-        type: 'explain-annotate',
-        label: 'Explain the nudge',
-        description:
-          'Emits the plain-language reason shown to the customer, so the message can state why it was sent.',
-        estimatedMs: 1.4,
-        position: { x: COL[2], y: 100 },
-      },
-    ],
-    edges: [
-      { id: 'p1', source: 'source_usage', target: 'filter_history' },
-      { id: 'p2', source: 'filter_history', target: 'explain_nudge' },
-    ],
-    updatedAt: iso(-2),
-    updatedBy: 'priya.natarajan@telco.example',
   },
 ];

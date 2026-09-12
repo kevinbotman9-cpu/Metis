@@ -658,7 +658,7 @@ emptiness and fabricated content, not craft.
 
 ### The seeded tenant
 
-One tenant, `demo-telco-uk`, seeded and reproducible from a fixed seed. Every
+One tenant, `demo-telco-us`, seeded and reproducible from a fixed seed. Every
 screen in Part 3 that is built must be populated from it.
 
 - **Names are real-shaped.** "Unlimited 5G upgrade — existing handset", not

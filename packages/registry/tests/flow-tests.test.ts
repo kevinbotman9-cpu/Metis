@@ -20,7 +20,7 @@ import { source, context } from './suite';
  * engine — `packages/runtime` owns whether a case is evaluated correctly.
  */
 
-const T = 'telco-uk';
+const T = 'telco-us';
 const AT = '2026-06-01T12:00:00.000Z';
 
 const withTests = (cases: { name: string }[]) =>

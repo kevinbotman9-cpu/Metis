@@ -26,7 +26,7 @@ describe('a live flow compiles under the context it was published with', () => {
     await store.registryReady;
     const live: string[] = [];
     for (const a of artifacts) {
-      const env = await store.registry.environment('telco-uk', a.id, 'production');
+      const env = await store.registry.environment('telco-us', a.id, 'production');
       if (env?.activeVersion) live.push(`${a.id}@${env.activeVersion}`);
     }
     expect(live.length, 'nothing is in production; the assertion below would pass over nothing')
@@ -38,7 +38,7 @@ describe('a live flow compiles under the context it was published with', () => {
 
     const broken: string[] = [];
     for (const a of artifacts) {
-      const env = await store.registry.environment('telco-uk', a.id, 'production');
+      const env = await store.registry.environment('telco-us', a.id, 'production');
       if (!env?.activeVersion) continue;
 
       const result = compileDecisionFlow(toSource(a), compileContextFor(a.id));
@@ -79,7 +79,7 @@ describe('a live flow compiles under the context it was published with', () => {
     // "everything in production compiles" would also pass if somebody put it
     // back and authored the eighteen creatives to silence the check.
     await store.registryReady;
-    const env = await store.registry.environment('telco-uk', 'retention-outbound', 'production');
+    const env = await store.registry.environment('telco-us', 'retention-outbound', 'production');
     expect(env?.activeVersion, 'retention-outbound is in production again').toBeUndefined();
 
     // Judged against the channel its slot used to deliver on, which is why it

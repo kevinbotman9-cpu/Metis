@@ -8,7 +8,7 @@ import { test, expect, type APIRequestContext } from '@playwright/test';
  * Stage 4 left open are now closed.
  */
 
-const TENANT = 'telco-uk';
+const TENANT = 'telco-us';
 
 const body = (over: Record<string, unknown> = {}) => ({
   artifactId: 'next-best-action',

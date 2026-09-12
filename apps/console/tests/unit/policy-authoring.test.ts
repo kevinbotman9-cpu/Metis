@@ -60,7 +60,7 @@ describe('the data model is served', () => {
   });
 
   it('returns entities, paths and no structural problems', async () => {
-    const res = await call(['profile-schema', 'telco-uk'], undefined, 'GET');
+    const res = await call(['profile-schema', 'telco-us'], undefined, 'GET');
     const body = (await res.json()) as {
       schema: { entities: unknown[]; root: string };
       paths: { path: string; type: string; operators: string[] }[];
@@ -77,7 +77,7 @@ describe('the data model is served', () => {
     // The reason this is on the wire rather than derived in the client. Two
     // implementations of "which operators does an integer admit" would drift,
     // and the drift would show up as a policy that saves and will not compile.
-    const res = await call(['profile-schema', 'telco-uk'], undefined, 'GET');
+    const res = await call(['profile-schema', 'telco-us'], undefined, 'GET');
     const { paths } = (await res.json()) as {
       paths: { path: string; type: string; operators: string[] }[];
     };
@@ -92,7 +92,7 @@ describe('the data model is served', () => {
   });
 
   it('offers rollups and never a path through a one-to-many', async () => {
-    const res = await call(['profile-schema', 'telco-uk'], undefined, 'GET');
+    const res = await call(['profile-schema', 'telco-us'], undefined, 'GET');
     const { paths } = (await res.json()) as { paths: { path: string; kind: string }[] };
 
     expect(paths.some((p) => p.path === 'customer.worst_arrears_days' && p.kind === 'aggregation')).toBe(true);
@@ -108,7 +108,7 @@ describe('creating a policy', () => {
 
   it('stores one the model accepts, and the engine sees it', async () => {
     const before = currentCatalogue().targetingPolicies.length;
-    const res = await call(['targeting-policies', 'telco-uk'], policy());
+    const res = await call(['targeting-policies', 'telco-us'], policy());
     const created = (await res.json()) as { id: string; name: string };
 
     expect(res.status).toBe(201);
@@ -123,7 +123,7 @@ describe('creating a policy', () => {
   it('refuses one character wrong in a leaf, and says which condition', async () => {
     // The demonstrated defect, at the write path.
     const res = await call(
-      ['targeting-policies', 'telco-uk'],
+      ['targeting-policies', 'telco-us'],
       policy({ conditions: [{ field: 'address.fibre_availabl', operator: 'eq', value: true }] })
     );
     const body = (await res.json()) as {
@@ -140,7 +140,7 @@ describe('creating a policy', () => {
 
   it('refuses a comparison the type cannot satisfy', async () => {
     const res = await call(
-      ['targeting-policies', 'telco-uk'],
+      ['targeting-policies', 'telco-us'],
       policy({ conditions: [{ field: 'customer.age', operator: 'contains', value: 'x' }] })
     );
     expect(res.status).toBe(400);
@@ -151,7 +151,7 @@ describe('creating a policy', () => {
     // `passed` for `pass` reads correctly, matches nothing, and would suppress
     // every candidate while looking like a working rule.
     const res = await call(
-      ['targeting-policies', 'telco-uk'],
+      ['targeting-policies', 'telco-us'],
       policy({ conditions: [{ field: 'customer.credit_status', operator: 'eq', value: 'passed' }] })
     );
     expect(res.status).toBe(400);
@@ -164,7 +164,7 @@ describe('creating a policy', () => {
     // The dialog puts each message against the row that produced it. A single
     // sentence at the top of the form makes the person hunt for the field.
     const res = await call(
-      ['targeting-policies', 'telco-uk'],
+      ['targeting-policies', 'telco-us'],
       policy({
         conditions: [
           { field: 'customer.age', operator: 'gte', value: 18 },
@@ -179,7 +179,7 @@ describe('creating a policy', () => {
   it('refuses a policy with no conditions', async () => {
     // Which would match every candidate — never what was meant, and a
     // spectacular way to break an eligibility gate.
-    const res = await call(['targeting-policies', 'telco-uk'], policy({ conditions: [] }));
+    const res = await call(['targeting-policies', 'telco-us'], policy({ conditions: [] }));
     expect(res.status).toBe(400);
     expect((await res.json()).problems[0].code).toBe('EMPTY');
   });
@@ -187,7 +187,7 @@ describe('creating a policy', () => {
   it('stores nothing when it refuses', async () => {
     const before = store.targetingPolicies.length;
     await call(
-      ['targeting-policies', 'telco-uk'],
+      ['targeting-policies', 'telco-us'],
       policy({ conditions: [{ field: 'customer.nope', operator: 'eq', value: 1 }] })
     );
     expect(store.targetingPolicies.length).toBe(before);
@@ -196,14 +196,14 @@ describe('creating a policy', () => {
   it('refuses an account that cannot author policies', async () => {
     // Sarah authors offers and flows; policies are Priya's. The segregation is
     // in the fixture and the route enforces it rather than the screen.
-    const res = await call(['targeting-policies', 'telco-uk'], policy(), 'POST', SARAH());
+    const res = await call(['targeting-policies', 'telco-us'], policy(), 'POST', SARAH());
     expect(res.status).toBe(403);
     expect((await res.json()).message).toContain('edit:policies');
   });
 
   it('records who wrote it', async () => {
     const before = store.auditEvents.length;
-    await call(['targeting-policies', 'telco-uk'], policy());
+    await call(['targeting-policies', 'telco-us'], policy());
     // Newest first: `recordAudit` unshifts, so the entry just written is at
     // the head rather than the tail.
     const event = store.auditEvents[0];
@@ -222,7 +222,7 @@ describe('editing a policy', () => {
   it('applies the change to what the engine reads', async () => {
     const target = store.targetingPolicies[0];
     const res = await call(
-      ['targeting-policies', 'telco-uk', target.id],
+      ['targeting-policies', 'telco-us', target.id],
       { ...target, name: 'Renamed', active: !target.active },
       'PUT'
     );
@@ -237,7 +237,7 @@ describe('editing a policy', () => {
     // the kind of asymmetry nobody finds until it matters.
     const target = store.targetingPolicies[0];
     const res = await call(
-      ['targeting-policies', 'telco-uk', target.id],
+      ['targeting-policies', 'telco-us', target.id],
       { conditions: [{ field: 'address.fibre_availabl', operator: 'eq', value: true }] },
       'PUT'
     );
@@ -250,7 +250,7 @@ describe('editing a policy', () => {
     const original = JSON.stringify(target.conditions);
 
     await call(
-      ['targeting-policies', 'telco-uk', target.id],
+      ['targeting-policies', 'telco-us', target.id],
       { conditions: [{ field: 'customer.nope', operator: 'eq', value: 1 }] },
       'PUT'
     );
@@ -259,14 +259,14 @@ describe('editing a policy', () => {
   });
 
   it('404s for a policy that does not exist', async () => {
-    const res = await call(['targeting-policies', 'telco-uk', 'pol_nope'], policy(), 'PUT');
+    const res = await call(['targeting-policies', 'telco-us', 'pol_nope'], policy(), 'PUT');
     expect(res.status).toBe(404);
   });
 
   it('refuses an account that cannot author policies', async () => {
     const target = store.targetingPolicies[0];
     const res = await call(
-      ['targeting-policies', 'telco-uk', target.id],
+      ['targeting-policies', 'telco-us', target.id],
       { name: 'x' },
       'PUT',
       SARAH()

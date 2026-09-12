@@ -44,6 +44,120 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-091 — A frequency cap counts contacts and cannot ask what the customer did with them
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — a modelling decision about what a cap may read
+
+The brief's suppression slide names an **over-exposure cap**: *"Impressions ≥ 5
+in 7 days with no click → pause the action 14 days, per channel."* It cannot be
+expressed.
+
+`FrequencyPolicy` is `{ channel, maxContacts, period, cooldownDaysAfterReject,
+scope }`. The engine compares `withinPeriod[period]` — a count the caller
+supplies — against `maxContacts`. Three things are missing at once:
+
+- **A count per offer.** `withinPeriod` is a total per period across everything
+  the policy's scope covers, so "this action was shown five times" cannot be
+  distinguished from "five actions were each shown once".
+- **A condition on the outcome.** *With no click* is the whole point of the
+  rule: five impressions that were clicked is engagement, and five that were
+  ignored is fatigue. Nothing in a frequency policy can read an outcome, and the
+  request has no field carrying one.
+- **A pause length distinct from the cap's period.** `cooldownDaysAfterReject`
+  is the rest after a *decline*, which is a different event; there is no second
+  window for a rest after indifference.
+
+**This is the same boundary [G-086](gaps.md) found and did not cross.** A
+decline reaches the engine because the caller states it on the request, and a
+rest period runs from it. An *impression without a click* is not a statement
+the caller makes — it is an absence, computed over the interaction log, which
+is exactly the thing decisions here never read.
+
+So the honest options are a field on the request that states the fatigue the
+caller has already computed, matching how caps and declines already work, or
+outcome-conditioned suppression inside the platform, which is a much larger
+change and the neighbourhood [G-044](gaps.md) describes. Either is a decision
+about what a cap is allowed to know.
+
+**Done when:** a rule of the form "shown N times, never acted on, therefore
+rest" can be authored and shown to fire, or the brief's row is agreed as out of
+scope and the contact-policy screen says which of the customer's six rules this
+platform implements.
+
+### G-090 — Two of the five channels the customer asked for do not exist, so a third of their content cannot be authored
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — a channel is a platform capability, not a fixture
+
+The brief names **fifteen pieces of per-channel content across five channels**:
+web tile, app card, agent script, email and SMS. `Channel` is
+`email | sms | web | push | outbound_call`.
+
+| The brief's channel | Ours | Creatives authored |
+|---|---|---|
+| Web tile | `web` | 5 of 5 |
+| Email | `email` | 4 of 4 |
+| SMS | `sms` | 1 of 1 |
+| **App card** | — | **0 of 3** |
+| **Agent script** | — | **0 of 2** |
+
+**Push is not an app card.** A push notification is something the platform sends
+to a device; an app card is an inbound slot the customer is looking at inside
+the app, decided when they open it. Authoring three app cards as push creatives
+would put content in a channel that delivers it differently, counts it
+differently and is refused differently — and the creative-coverage screen would
+then report full coverage of a channel the tenant does not serve.
+
+**Agent script is the larger absence**, because it is not only a channel. The
+brief's inbound list is *"Web (MVO site), Mobile App, Agent Desktop, IVR /
+Chatbot"*, and its channel logic row reads *"agent-assisted actions restricted
+to trained queues"* — an agent desktop needs a channel, a creative shape for
+talking points, and a notion of queue eligibility. `OutboundCallContent` has
+`script` and `objectionHandling`, which is the closest shape in the domain, but
+it is an *outbound* channel: the call is something this platform initiates, not
+a conversation it joins. [G-044](gaps.md) is the neighbouring gap on
+outbound-call content.
+
+Five of the brief's fifteen are therefore absent from the catalogue
+rather than approximated. The demo runs on inbound web, so nothing in the three
+scenarios needs them — but a customer reading the creative list will count
+ten where their own deck says fifteen, and this is the answer.
+
+**Done when:** `app` and `agent_desktop` are channels with creative shapes and
+delivery semantics of their own, or the brief's matrix is agreed down to the
+three channels that exist.
+
+### G-089 — Five offers carry no price, because the brief carries none
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — waiting on figures from the customer
+
+Every offer in the `telco-us` catalogue has `price: usd(0)` and `cost: usd(0)`.
+**Every screen that renders money shows $0.00 for all five**, and that is a
+blank rather than a defect.
+
+The customer's brief names five offers, two categories, a business value per
+offer and a per-offer multiplier. **It names no prices at all.** So there were three
+ways to fill `financials`, and two of them were worse:
+
+- **Invent plausible figures.** A US carrier's gigabit fibre is "about ninety
+  dollars a month" to anyone who has seen an advertisement, and a number sourced
+  that way is presented on screen as a financial fact about a real product. It
+  would survive into a pitch deck and nobody would know which figures came from
+  the customer and which came from here.
+- **Use the previous tenant's.** Sterling prices for UK mobile plans, attached
+  to US broadband products. Worse, because it looks deliberate.
+- **Leave them blank.** Visibly unset, wrong to nobody, and answerable in one
+  sentence when somebody asks.
+
+**`expectedMargin` is not blank**, because arbitration reads it: `V =
+expectedMargin / 60000`. It carries the brief's own **business value** — 100,
+100, 100, 80, 70 — in cents. Ranking depends on the ratio between those
+numbers, so the order the demo produces is the order the brief describes, and
+every value traces to a row in the deck. It is the brief's number in the brief's
+own units, which is why it can be shown without inventing anything.
+
+**Done when:** the customer supplies pricing, or the demo is shown without the
+money columns and somebody decides that is permanent.
+
 ### G-088 — Two services answer the same operation with different envelopes, and only one of them can be checked
 
 **Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — an architecture decision, not a defect
@@ -1584,7 +1698,7 @@ The other fifteen import no fixture values and were not individually checked.
 |---|---|---|---|
 | 2026-09-03 20:36 (`27b325a`) | 2026-09-04 08:17 (`e500ddd`) | Absent until 21:55 (`4a5147d`), then unable to boot: `@storybook/nextjs` 7.6 needs `next/config`, which Next 16 removed — per `e500ddd`, *"so the stories actually run"*. Not rebuilt here | Yes |
 | 2026-09-04 08:17 | 2026-09-09 05:04 | Worked. Built here at `9af3938` (2026-09-08 19:54), the commit before the break | Yes |
-| 2026-09-09 05:04 (`7af77ff`, *"demo-telco-uk is a tenant with a history"*) | this fix | `build-storybook` failed. Built here at `7af77ff` and seen to fail with the error above | Yes |
+| 2026-09-09 05:04 (`7af77ff`, *"demo-telco-us is a tenant with a history"*) | this fix | `build-storybook` failed. Built here at `7af77ff` and seen to fail with the error above | Yes |
 
 About **71 hours of the 188** the requirement had existed when this was
 written (2026-09-11 16:45) — the first 12 with no Storybook that ran, the
