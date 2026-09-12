@@ -269,6 +269,7 @@ function currentCompileContext(artifactId?: string) {
  * accessibility tests in ten minutes where a fresh one ran forty-nine in under
  * three.
  */
+
 const STARTED_AT = new Date().toISOString();
 
 const json = (body: unknown, status = 200, headers?: Record<string, string>) =>
@@ -279,6 +280,24 @@ const forbidden = (permission: string) =>
     { error: 'forbidden', message: `This action requires the ${permission} permission.` },
     403
   );
+
+/**
+ * The tenant's currency and content locale, read from what it already has.
+ *
+ * Both were hardcoded — `GBP` and `en-GB` — which is invisible in a UK tenant
+ * and wrong in every other one: an offer created in `telco-us` was written with
+ * sterling financials and a creative with British English. Derived from the
+ * catalogue rather than defaulted, because the catalogue is the only thing that
+ * knows, and a fixed default is the bug rather than a safe fallback.
+ */
+function tenantCurrency(): 'GBP' | 'USD' | 'EUR' {
+  const c = store.offers[0]?.financials.price.currency;
+  return c === 'GBP' || c === 'EUR' ? c : 'USD';
+}
+
+function tenantLocale(): string {
+  return store.creatives[0]?.locale ?? 'en-US';
+}
 
 function actor(req: Request) {
   const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
@@ -927,6 +946,15 @@ async function handleGet(req: Request, { params }: Ctx) {
       return json({
         startedAt: STARTED_AT,
         uptimeMs: Date.now() - new Date(STARTED_AT).getTime(),
+        // What this process actually seeded, hashed per part.
+        //
+        // Computed from the modules *this server* has loaded, which is the
+        // whole point: the suite computes the same function over the files on
+        // disk, and a difference is proof that a fixture was edited after the
+        // server started. Without it a reused server answers from a seed
+        // nobody is looking at, and a Rule 9 bite-proof against it proves
+        // nothing (G-002).
+        seed: store.seededFingerprint,
       });
     }
 
@@ -1545,10 +1573,13 @@ async function handlePost(req: Request, { params }: Ctx) {
         // Draft unless the caller says otherwise. An offer that went live the
         // moment it was created would skip every review the platform has.
         status: 'draft' as const,
+        // The tenant's own currency, from what it already sells. Hardcoded to
+        // GBP until 2026-09-12, so an offer created in a US tenant was written
+        // with sterling financials and every screen rendered it that way.
         financials: {
-          price: { amount: 0, currency: 'GBP' as const },
-          cost: { amount: 0, currency: 'GBP' as const },
-          expectedMargin: { amount: 0, currency: 'GBP' as const },
+          price: { amount: 0, currency: tenantCurrency() },
+          cost: { amount: 0, currency: tenantCurrency() },
+          expectedMargin: { amount: 0, currency: tenantCurrency() },
           termMonths: 0,
           oneOff: false,
         },
@@ -1625,7 +1656,9 @@ async function handlePost(req: Request, { params }: Ctx) {
       // adding a field to a creative a descriptor edit and nothing else.
       const creative: Creative = {
         active: false,
-        locale: 'en-GB',
+        // Whatever this tenant's content is already written in, rather than
+        // en-GB for a tenant whose every other creative is en-US.
+        locale: tenantLocale(),
         ...body,
         id,
         offerId: offer.id,

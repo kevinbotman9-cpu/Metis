@@ -7,9 +7,9 @@ import { currentCatalogue } from '@/mocks/catalogue-state';
  * Authoring a targeting policy against the data model.
  *
  * The defect these close, demonstrated against the running engine before any of
- * this existed: `address.fibre_availabl` moved the winner from `acq_fibre_900`
+ * this existed: `address.fios_serviceabl` moved the winner from `fios_gigabit`
  * to `acq_sim_30`, and the trace reported `ELIGIBILITY_FAILED
- * (pol_fibre_available)`. The typo did not error. It decided, and the audit
+ * (pol_fios_serviceable)`. The typo did not error. It decided, and the audit
  * trail defended the wrong answer.
  *
  * Policies were also editable only by changing a fixture, so this is the first
@@ -124,7 +124,7 @@ describe('creating a policy', () => {
     // The demonstrated defect, at the write path.
     const res = await call(
       ['targeting-policies', 'telco-us'],
-      policy({ conditions: [{ field: 'address.fibre_availabl', operator: 'eq', value: true }] })
+      policy({ conditions: [{ field: 'address.fios_serviceabl', operator: 'eq', value: true }] })
     );
     const body = (await res.json()) as {
       error: string;
@@ -135,7 +135,7 @@ describe('creating a policy', () => {
     expect(body.error).toBe('invalid_policy');
     expect(body.problems[0].field).toBe('conditions.0');
     expect(body.problems[0].code).toBe('UNKNOWN_FIELD');
-    expect(body.problems[0].message).toContain("Did you mean 'customer.address.fibre_available'?");
+    expect(body.problems[0].message).toContain("Did you mean 'customer.address.fios_serviceable'?");
   });
 
   it('refuses a comparison the type cannot satisfy', async () => {
@@ -238,7 +238,7 @@ describe('editing a policy', () => {
     const target = store.targetingPolicies[0];
     const res = await call(
       ['targeting-policies', 'telco-us', target.id],
-      { conditions: [{ field: 'address.fibre_availabl', operator: 'eq', value: true }] },
+      { conditions: [{ field: 'address.fios_serviceabl', operator: 'eq', value: true }] },
       'PUT'
     );
     expect(res.status).toBe(400);

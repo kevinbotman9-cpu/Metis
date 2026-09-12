@@ -48,27 +48,25 @@ const call = (
   return method === 'PUT' ? PUT(req, ctx) : POST(req, ctx);
 };
 
-const FLOW = 'inbound-web-offers';
+const FLOW = 'next-best-action';
 
 const saveDraft = (patch: Record<string, unknown>, headers = MARCUS()) =>
   call(['artifacts', 'telco-us', FLOW, 'draft'], patch, 'PUT', headers);
 
+/** The brief's fibre-available customer: every gate passes. */
 const INPUT = {
   customer: {
-    age: 41,
-    credit_status: 'pass',
     account_status: 'active',
-    current_plan: 'standard',
-    bill_to_income_ratio: 0.018,
-    arrears_count_12mo: 0,
-    credit_band: 'A',
-    address: { fibre_available: true },
+    moving_within_days: 999,
+    address: { fios_serviceable: true, fiveg_coverage: 'strong' },
+    broadband: { status: 'active', product: 'dsl' },
+    orders: { open_broadband: false },
+    ott: { disney: false, netflix: false, disney_available: true, netflix_available: true },
+    affinity: { gaming: 0.8, entertainment: 0.8 },
+    engagement: { digital_or_broadband_intent: true },
     usage: { pct_of_allowance_3mo_avg: 0.94, months_of_history: 14 },
-    contract: { days_to_end: 210 },
-    events: { pac_requested_within_days: 999 },
-    device: { residual_value: 32000 },
   },
-  context: { offer: { monthly_delta: 300 } },
+  context: {},
 };
 
 async function decide(customerId = 'cust_flow') {
@@ -150,13 +148,13 @@ describe('saving a graph', () => {
   });
 
   it('refuses an account that cannot author flows', async () => {
-    const res = await saveDraft({ candidateKeys: ['acq_sim_30'] }, PRIYA());
+    const res = await saveDraft({ candidateKeys: ['netflix'] }, PRIYA());
     expect(res.status).toBe(403);
     expect((await res.json()).message).toContain('edit:flows');
   });
 
   it('records who edited it', async () => {
-    await saveDraft({ candidateKeys: ['acq_sim_30'] });
+    await saveDraft({ candidateKeys: ['netflix'] });
     expect(store.auditEvents[0].eventType).toBe('DecisionFlowDraftSaved');
   });
 });
@@ -170,20 +168,20 @@ describe('an edit reaches decisions only through publish and promote', () => {
     // The governance property. If this ever fails, the console has become a
     // deploy button that does not say so.
     const before = await decide();
-    await saveDraft({ candidateKeys: ['acq_sim_30'] });
+    await saveDraft({ candidateKeys: ['netflix'] });
     expect(await decide()).toEqual(before);
   });
 
   it('publishing and promoting applies it', async () => {
     const before = await decide();
-    expect(before).toContain('acq_fibre_900');
+    expect(before).toContain('fios_gigabit');
 
-    await saveDraft({ candidateKeys: ['acq_sim_30'] });
+    await saveDraft({ candidateKeys: ['netflix'] });
     await shipIt('2.0.0');
 
     const after = await decide();
-    expect(after).not.toContain('acq_fibre_900');
-    expect(after).toContain('acq_sim_30');
+    expect(after).not.toContain('fios_gigabit');
+    expect(after).toContain('netflix');
   });
 });
 
@@ -202,7 +200,7 @@ describe('the two gaps close', () => {
         name: 'Speed boost',
         description: 'A faster line for a small increase.',
         objectiveId: 'iss_growth',
-        categoryId: 'grp_new_broadband',
+        categoryId: 'grp_broadband',
         financials: {
           price: { amount: 500, currency: 'GBP' },
           cost: { amount: 100, currency: 'GBP' },
@@ -267,7 +265,14 @@ describe('the two gaps close', () => {
         name: 'Refuse everyone',
         kind: 'eligibility',
         description: 'A gate that suppresses every candidate.',
-        conditions: [{ field: 'customer.age', operator: 'gt', value: 200 }],
+        // Impossible, and on a field this tenant's schema actually declares:
+        // usage share is 0 to 1. `customer.age` stood here, and once the
+        // schema stopped declaring it the flow naming this policy no longer
+        // compiled, so it was never promoted and the test was asserting
+        // against the previous version rather than the new rule.
+        conditions: [
+          { field: 'customer.usage.pct_of_allowance_3mo_avg', operator: 'gt', value: 200 },
+        ],
         scope: { level: 'tenant', targetId: null },
         active: true,
       },
@@ -282,7 +287,7 @@ describe('the two gaps close', () => {
     const flow = store.artifacts.find((a) => a.id === FLOW)!;
     await saveDraft({
       nodes: flow.nodes.map((n) =>
-        n.id === 'filter_web_eligibility'
+        n.id === 'filter_eligibility'
           ? { ...n, policyIds: [...(n.policyIds ?? []), policyId] }
           : n
       ),

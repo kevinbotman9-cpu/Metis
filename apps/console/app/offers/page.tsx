@@ -33,6 +33,28 @@ function money(m: { amount: number; currency: string }) {
 }
 
 /**
+ * Whether this offer has any pricing at all.
+ *
+ * A tenant can be authored from a brief that names what to sell and not what
+ * it costs — `telco-us` is, and G-089 says why none was invented. Price and
+ * cost are then both zero, and rendering that as "$0.00" states a price
+ * nobody gave. Worse, `expectedMargin` is still read by arbitration, so the
+ * row showed a product with no price beside a hundred-dollar margin: a
+ * financial claim this platform is not making.
+ */
+const unpriced = (f: { price: { amount: number }; cost: { amount: number } }) =>
+  f.price.amount === 0 && f.cost.amount === 0;
+
+/**
+ * The value term, as the ranking function reads it.
+ *
+ * `V = expectedMargin / 60000` in `engine.ts`. Shown instead of a currency
+ * where there is no pricing, because that is what the number does here — it
+ * weights the ranking — and a unitless weight cannot be misread as dollars.
+ */
+const valueTerm = (m: { amount: number }) => (m.amount / 60000).toFixed(3);
+
+/**
  * The summary blocks and what each one filters to.
  *
  * Kept beside the predicates rather than expressed as a status string, because
@@ -164,12 +186,18 @@ function OffersView() {
       width: 'w-24',
       sortValue: (p) => p.financials.price.amount,
       cell: (p) => (
-        <span>
-          {money(p.financials.price)}
-          {!p.financials.oneOff && p.financials.price.amount > 0 ? (
-            <span className="text-content-subtle">/mo</span>
-          ) : null}
-        </span>
+        unpriced(p.financials) ? (
+          <span className="text-content-subtle" title="No price supplied for this offer">
+            —
+          </span>
+        ) : (
+          <span>
+            {money(p.financials.price)}
+            {!p.financials.oneOff && p.financials.price.amount > 0 ? (
+              <span className="text-content-subtle">/mo</span>
+            ) : null}
+          </span>
+        )
       ),
     },
     {
@@ -180,13 +208,22 @@ function OffersView() {
       secondary: true,
       sortValue: (p) => p.financials.expectedMargin.amount,
       cell: (p) => (
-        <span
-          className={cn(
-            p.financials.expectedMargin.amount < 0 ? 'text-block' : 'text-content-muted'
-          )}
-        >
-          {money(p.financials.expectedMargin)}
-        </span>
+        unpriced(p.financials) ? (
+          <span
+            className="tnum text-content-subtle"
+            title="No pricing supplied, so this is shown as the value term the ranking function reads (V = expected margin / 60000), not as an amount of money."
+          >
+            V {valueTerm(p.financials.expectedMargin)}
+          </span>
+        ) : (
+          <span
+            className={cn(
+              p.financials.expectedMargin.amount < 0 ? 'text-block' : 'text-content-muted'
+            )}
+          >
+            {money(p.financials.expectedMargin)}
+          </span>
+        )
       ),
     },
     {

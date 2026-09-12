@@ -37,7 +37,7 @@ const KINDS = [
     key: 'suitability',
     title: 'Suitability',
     question: 'Is it right for this customer?',
-    blurb: 'Affordability, fair value and ethical checks. The FCA-facing tier.',
+    blurb: 'Affordability, fair value and ethical checks. The tier a regulator reads.',
     tone: 'hold' as const,
   },
 ];
@@ -192,6 +192,18 @@ function PoliciesView() {
               </div>
               <p className="mt-2 text-body font-medium text-content">{k.question}</p>
               <p className="mt-1 text-label text-content-muted">{k.blurb}</p>
+              {/* A zero here is ambiguous: it reads as an omission, and on the
+                  tier a regulator reads that is the worst thing for it to read
+                  as. This tenant genuinely declares no suitability policy —
+                  its brief names no affordability rule — so the screen states
+                  that rather than leaving a reader to guess whether the rules
+                  are missing or were never written. */}
+              {count === 0 ? (
+                <p className="mt-2 text-label text-content-subtle">
+                  This tenant declares none. An empty tier is a stated fact here, not a gap:
+                  nothing has been authored on it, and nothing is being skipped.
+                </p>
+              ) : null}
             </button>
           );
         })}

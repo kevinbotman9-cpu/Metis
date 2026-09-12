@@ -44,6 +44,139 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-095 — The check that decides whether other checks are trustworthy is itself unchecked
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — a harness, and it is its own piece of work
+
+`global-setup.ts` refuses the suite when the dev server's seed differs from the
+fixtures on disk ([G-002](gaps.md)). That refusal is the control on Rule 9:
+without it, a bite-proof can be taken against a server that never saw the edit.
+
+**Nothing automated exercises the refusal.** `seed-fingerprint.test.ts` covers
+the comparison — `fingerprintDiff` against hand-built inputs, the part list, and
+that the fingerprint is captured rather than recomputed — but the path that
+*acts* on a mismatch has no test. It runs before the suite, in Playwright's
+setup process, so a spec cannot assert it: asserting it from inside the suite
+would need the very dev server whose trustworthiness is the question.
+
+**It was proved by hand on 2026-09-12**, and that proof is worth reading because
+the fix was wrong twice in ways that looked right:
+
+1. The endpoint computed the fingerprint per request from the fixture modules.
+   Next re-evaluates an edited `catalogue.ts`, so the endpoint reported the new
+   hash while decisions still used the old boost — disk compared to disk, and
+   the guard could never fire.
+2. A module-scope constant in `store.ts`. The store is stashed on `globalThis`
+   and survives hot reload, so the module re-ran, kept the old store, and
+   recomputed the constant from the new fixtures. Measured: decisions on a boost
+   of 1.07 while the file said 1.05 and the fingerprint agreed with the file.
+
+Only a field on the stashed store object goes stale with the thing it
+describes. **Neither wrong version would have failed visibly** — both would have
+reported "server matches disk" for ever.
+
+**A hand-proof is not a check.** It was done once, by someone who already
+suspected the answer, and it leaves nothing that will notice if a later change
+quietly reintroduces either mistake — a refactor moving the fingerprint back to
+module scope, say, or an endpoint recomputing it for convenience. That is the
+same class of hole the thing it guards exists to close.
+
+**What it would take.** A harness that boots a dev server on a spare port,
+records its fingerprint, edits a fixture file on disk, invokes `globalSetup`
+against that server and asserts it throws with the changed part named — then
+restores the file and asserts it stops throwing. That is a test with a server
+lifecycle, a file mutation and a cleanup path that has to survive a failure
+mid-way, which is why it is named here rather than bolted onto the slice that
+found it.
+
+**Done when:** a check fails if the refusal stops refusing.
+
+### G-093 — A class of contract gap: three responses that cannot be interpreted without reading another endpoint
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — a contract principle to adopt, then three instances to close against it
+
+Three separate findings in two days turned out to be one fault. Naming the
+class, because fixing them one at a time has already produced one fix that
+needed a second reach into a different endpoint to work.
+
+| Instance | The response says | To interpret it you must |
+|---|---|---|
+| [G-087](gaps.md) | a `chainHash`, and the input snapshot it covers | fetch the artifact, or the stored runtime record, for the catalogue snapshot the same hash covers — two of three served, so the hash could not be checked |
+| [G-088](gaps.md) | a trace, in one of two envelopes | know **which service answered**, because the console serves a flat projection and the JVM service serves the canonical bytes at the same path |
+| [G-092](gaps.md) | `valueMinor`, an integer | fetch `/taxonomy` and read an offer's currency, because the performance response carries no currency at all |
+
+**The principle each one breaks.** A response should be interpretable from
+itself. A number without its unit, a hash without its inputs, and a body whose
+shape depends on which implementation answered are all the same defect: the
+caller is handed something it cannot read without a second, undeclared request
+to somewhere else. The second request is undeclared because nothing in the
+contract says it is needed — which is why all three survived review and were
+each found by someone rendering a screen.
+
+**Why it reads as a UI problem and is not.** Every one of the three surfaced as
+a rendering bug. An empty panel, a pound sign on a US tenant, a blank
+`candidates` row. So each was fixed in the component that noticed — and the
+`/performance` currency fix is the proof of how far that gets you: it now
+reaches into the tenant's catalogue to learn what unit its own numbers are in.
+That is a workaround wearing the clothes of a fix. The next consumer of that
+endpoint — the Kotlin service, a customer's own dashboard, an export — has to
+invent the same reach independently, and nothing makes them agree.
+
+**What the class predicts.** Anywhere the platform returns a bare scalar that
+needs a unit, a digest that needs its inputs, or a body assembled differently
+by two implementations. Three worth checking against it rather than waiting to
+trip over: `Money` is declared in the spec with a required `currency` and the
+performance report returns minor units outside it; `POST /decisions` and the
+JVM service's `POST /api/decisions` return different envelopes for the same
+operation, which is [G-088](gaps.md) a second time on a second route; and every
+`*Hash` the API serves should be checkable from the same response or say what
+else is needed.
+
+**Done when:** the contract states that a response carries what is needed to
+interpret it — units beside amounts, inputs beside digests, one envelope per
+operation — `validate-spec.mjs` can check the mechanical half of that, and the
+three instances above are closed against the rule rather than one at a time.
+
+### G-092 — The console formats every date and number as British, in 77 places, whatever the tenant is
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — needs one decision about where locale comes from, then a mechanical change
+
+`toLocaleString('en-GB')` and `toLocaleDateString('en-GB')` appear **77 times
+across 36 files**, hardcoded at every call site. `/performance` alone has 22.
+
+For a UK tenant this is invisible, which is why it survived. For `telco-us` it
+means **every date on every screen is in day-month order** — `05/09` is the
+fifth of September to this console and the ninth of May to the customer reading
+it — and every grouped number is formatted to British convention. A date a
+compliance officer reads out of a trace is the one place an ambiguous format
+costs something real.
+
+**Three hardcodings were data rather than formatting, and those are fixed**
+(2026-09-12):
+
+- `POST /offers` wrote `currency: 'GBP'` into every offer created in the
+  console, so a new offer in a US tenant was authored in sterling.
+- `POST /creatives` wrote `locale: 'en-GB'` into every creative created.
+- `/performance` rendered realised value with `currency: 'GBP'` against amounts
+  the API returns as bare minor units, so a US tenant's revenue appeared in
+  pounds. It now takes the currency from the tenant's own catalogue, which is
+  the only thing that knows — the performance response carries no currency at
+  all, which is worth its own look.
+
+**What is left is the formatting, and it needs a decision before a change.**
+There is no tenant locale anywhere: not on the tenant, not in the spec, not in
+a setting. So the options are a locale on the tenant that every formatter
+reads, the viewer's own locale via `toLocaleString(undefined, …)`, or an
+explicit choice per surface — a trace timestamp arguably wants ISO-8601
+regardless of who is reading it, which is a different answer from the one a
+marketing chart wants.
+
+Replacing 77 string literals with a different 77 string literals would be the
+wrong fix, so nothing here was touched.
+
+**Done when:** a formatter reads the locale from one place, and adding a tenant
+in another market does not mean finding 77 call sites.
+
 ### G-091 — A frequency cap counts contacts and cannot ask what the customer did with them
 
 **Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — a modelling decision about what a cap may read
@@ -320,12 +453,6 @@ wait, and the wait is written down.
 **Registered:** 2026-09-04 · **Status:** Open · **Work item:** [W-001](BACKLOG.md)
 
 The original cause is gone: `packages/compiler/src/compile.ts` was deleted with the rest of the Phase 0 tree. `tsc --build` still fails, on two causes that were hidden underneath it — the per-package tsconfigs have no `@metis/core/domain` path mapping (only `packages/registry`'s does), and `bench/harness` declares a `rootDir` of `bench/harness/src` that its own `@metis/runtime` imports fall outside. Until this is fixed the per-package tsconfigs cannot be used for typechecking, and `bench/*` is checked by nothing.
-
-### G-002 — A reused dev server serves pre-edit fixture data
-
-**Registered:** 2026-09-05 · **Status:** Open · **Work item:** none
-
-Playwright's `webServer` has `reuseExistingServer: true`, and `apps/console/mocks/store.ts` seeds itself from the fixtures **at module load**. A dev server already running when a fixture changes therefore keeps the old seed, and `POST /api/_test/reset` does not help — it re-clones the same captured seed. Observed as a `getArbitrationConfig` contract failure that passed immediately against a fresh server. Turning reuse off would add a cold start to every local run, so the workaround is to restart the server after editing a fixture; CI is unaffected because it always starts one.
 
 ### G-035 — A long-lived dev server degrades until the suite is unusable
 
@@ -1560,6 +1687,118 @@ payload, and a descriptor no longer needs a screen-supplied default to avoid
 sending zero.
 
 ## Resolved
+
+### G-002 — A reused dev server made Rule 9 unreliable, not just its fixtures stale
+
+**Registered:** 2026-09-05 · **Resolved:** 2026-09-12 · **Status:** Resolved · **Work item:** none — the remaining half is [G-095](gaps.md)
+
+**How it was filed, and why that was too small.** *"A reused dev server serves
+pre-edit fixture data."* Playwright's `webServer` sets
+`reuseExistingServer: true`, `store.ts` seeds itself at module load, and a
+server already running when a fixture changes keeps the old seed — so the entry
+said the workaround is to restart it. Filed as an inconvenience about demo data
+for seven days.
+
+**What it actually is.** A mechanism that makes Rule 9 unreliable. A bite-proof
+is *edit the guarded thing, watch the check go red.* If the edit never reaches
+the server the check stays green, and the inference drawn is **"this check does
+not bite"** when the truth is **"the check was never shown the change"** — a
+false negative on the one control this project uses to decide whether a test is
+worth anything.
+
+It happened on 2026-09-12. A declared boost was set to 1.0 to prove an e2e
+assertion depended on it; the suite passed; the reasonable conclusion — the
+assertion is worthless — was wrong. Restarted, the same proof failed in one
+line. **Nothing in the suite said so.** It was caught by distrusting a
+convenient result, which is not a control. Every bite-proof in this project's
+history was taken against whatever the dev server had loaded at startup.
+
+**Fixed by refusal, not by reloading.** The store now carries
+`seededFingerprint` — a hash per part of everything it seeded — and
+`/api/_test/uptime` reports it. `global-setup.ts` computes the same function
+over the files on disk and refuses the suite on a difference, naming the part:
+
+```
+  server seeded  a7c060c8ae60
+  disk is        33b851ec550d
+  differing in:
+    boosts               server a47745ad62cc   disk 8ec46b5bbf1f
+```
+
+Reload was rejected deliberately. It fails open — a reload that misses a module
+leaves the suite running against stale data and says nothing, which is the
+failure being fixed — and a mid-suite re-seed would discard published versions
+and ledger rows, trading one unreliable check for many flaky ones. Refusal
+fails closed.
+
+A timestamp was rejected too: *"older than the newest fixture file"* needs a
+list of directories to watch, so it refuses a good server because an unrelated
+file was touched and trusts a stale one whose staleness came from a directory
+nobody listed. The fingerprint compares the thing itself.
+
+**Where it had to live, which took two attempts.** Computing it from the fixture
+modules compares disk to disk — Next re-evaluates an edited `catalogue.ts`
+without re-seeding the store. A module-scope constant in `store.ts` fails the
+same way, because the store is stashed on `globalThis` and survives hot reload
+while the module does not. Only a field on the stashed object goes stale
+together with the seed it describes. Both wrong versions reported "server
+matches disk" for ever; see [G-095](gaps.md).
+
+**And the guard's own silent hole is closed.** It read
+`if (!res.ok) return` — so a server answering the port but not the endpoint was
+treated as no server at all, and the staler a server is the likelier it has lost
+that endpoint. On 2026-09-11 a `next dev` with a broken module graph answered
+`/` with 200 and every API with 404; the suite reused it and produced 341
+failures in 65 minutes against a commit that was fine, printing nothing. It now
+refuses and says what answered. An entry describing that hole was written on
+2026-09-11 but sits on the unmerged branch of
+[PR #33](https://github.com/kevinbotman9-cpu/Metis/pull/33) and will need
+reconciling with this one when that lands.
+
+**Not covered.** The refusal path has no automated test — [G-095](gaps.md).
+
+### G-094 — The storefront's headline contrast showed the same refusal twice, because its presets were one level too flat
+
+**Registered:** 2026-09-12 · **Resolved:** 2026-09-12 · **Status:** Resolved · **Work item:** none — a defect, fixed in the slice that found it
+
+`STOREFRONT_DEMO.md` describes the two presets a demo opens with:
+
+> **Anonymous — fibre at the address** · Full Fibre wins the hero.
+> **Anonymous — no fibre** · The same visitor, one field different.
+> `acq_fibre_900 — ELIGIBILITY_FAILED · pol_fibre_available`, and SIM Only takes
+> the slot. This is the cheapest way to show the cascade doing real work.
+
+**Both presets produced the second answer.** Fibre was refused either way, and
+SIM Only took the hero in both, so the cheapest way to show the cascade doing
+real work was showing it do the same thing twice.
+
+Each preset's input was shaped like this:
+
+```js
+input: {
+  customer: { age: 34, credit_status: 'pass', … },
+  address: { fibre_available: true },   // a sibling of `customer`
+  usage:   { … },
+}
+```
+
+`address` sat beside `customer`, not inside it. Every policy reads
+`customer.address.fibre_available`, which resolved to `undefined`, and a
+missing value fails a comparison closed — correctly. So the eligibility gate
+refused fibre for the visitor whose address had it, and the demo's one
+side-by-side contrast was two identical cascades.
+
+**Why nothing caught it.** The refusal it produced is the refusal the demo
+wanted to show, in the preset where it was wanted. Nobody comparing the two
+screens would see a bug; they would see the no-fibre story working and assume
+the fibre one did too. No test opened the panel (that was
+[G-087](gaps.md)), and no test asserted the two presets differ.
+
+**Fixed with the three scenarios that replaced them.** One customer id across
+all three, every field under `customer`, and
+`brief-scenarios.spec.ts` asserts the fibre and no-fibre slates are *not* equal
+and that the second lacks what the first led with. `applyPreset` read the same
+flat paths for its account widgets and was corrected with them.
 
 ### G-087 — The storefront's explanation panel rendered nothing, because the trace endpoint under-served and the panel read the wrong envelope
 

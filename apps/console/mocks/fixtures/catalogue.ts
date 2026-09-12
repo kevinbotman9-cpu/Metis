@@ -669,8 +669,8 @@ export const autonomySettings: AutonomySetting[] = [
     updatedBy: 'marcus.webb@telco.example',
   },
   {
-    id: 'aut_retention_restricted',
-    scope: { level: 'objective', targetId: 'iss_retention' },
+    id: 'aut_crosssell_restricted',
+    scope: { level: 'objective', targetId: 'iss_crosssell' },
     level: 'L1',
     guardrails: {
       ...baseGuardrails,
@@ -685,8 +685,8 @@ export const autonomySettings: AutonomySetting[] = [
     updatedBy: 'priya.natarajan@telco.example',
   },
   {
-    id: 'aut_accessories_bounded',
-    scope: { level: 'category', targetId: 'grp_accessories' },
+    id: 'aut_entertainment_bounded',
+    scope: { level: 'category', targetId: 'grp_entertainment' },
     level: 'L3',
     guardrails: {
       ...baseGuardrails,
@@ -701,8 +701,8 @@ export const autonomySettings: AutonomySetting[] = [
     updatedBy: 'sarah.chen@telco.example',
   },
   {
-    id: 'aut_bill_shock_observe',
-    scope: { level: 'offer', targetId: 'prop_bill_shock_alert' },
+    id: 'aut_partner_content_observe',
+    scope: { level: 'offer', targetId: 'off_disney_plus' },
     level: 'L0',
     guardrails: {
       ...baseGuardrails,
@@ -712,7 +712,7 @@ export const autonomySettings: AutonomySetting[] = [
       maxBudgetDelta: usd(0),
     },
     rationale:
-      'Regulatory duty-of-care message. Wording is legally reviewed; agents may explain but never modify.',
+      'Partner content. The wording belongs to the partner and is contractually fixed, so an agent may explain this offer and never modify it.',
     updatedAt: iso(-96),
     updatedBy: 'priya.natarajan@telco.example',
   },
@@ -722,122 +722,18 @@ export const autonomySettings: AutonomySetting[] = [
 // Agent activity feed
 // ---------------------------------------------------------------------------
 
-export const agentActivity: AgentActivity[] = [
-  {
-    id: 'act_0009',
-    timestamp: iso(-2),
-    agentId: 'agent-copywriter-01',
-    level: 'L3',
-    scope: { level: 'category', targetId: 'grp_accessories' },
-    changeType: 'creative_copy',
-    summary:
-      'Rewrote the Europe Roaming Pass push title after CTR fell 18% week-on-week. Simulation showed +4.2% projected CTR.',
-    outcome: 'auto_applied',
-    guardrailBreached: null,
-    changeSetId: null,
-  },
-  {
-    id: 'act_0008',
-    timestamp: iso(-5),
-    agentId: 'agent-optimiser-01',
-    level: 'L3',
-    scope: { level: 'offer', targetId: 'prop_roaming_pass' },
-    changeType: 'boost_adjust',
-    summary: 'Raised the roaming boost from 1.00 to 1.12 ahead of the October half-term travel peak.',
-    outcome: 'auto_applied',
-    guardrailBreached: null,
-    changeSetId: null,
-  },
-  {
-    id: 'act_0007',
-    timestamp: iso(-9),
-    agentId: 'agent-optimiser-01',
-    level: 'L3',
-    scope: { level: 'category', targetId: 'grp_accessories' },
-    changeType: 'boost_adjust',
-    summary: 'Attempted to raise the Device Insurance boost from 1.00 to 1.35 (+35%).',
-    outcome: 'blocked',
-    guardrailBreached: 'maxBoostDelta (0.15) exceeded: requested 0.35',
-    changeSetId: null,
-  },
-  {
-    id: 'act_0006',
-    timestamp: iso(-14),
-    agentId: 'agent-strategist-01',
-    level: 'L2',
-    scope: { level: 'offer', targetId: 'prop_5g_unlimited_24' },
-    changeType: 'policy_edit',
-    summary:
-      'Proposed relaxing the heavy-user threshold on Data Boost from 80% to 70% of allowance. Simulation projects +11k eligible customers, +£43k monthly margin.',
-    outcome: 'proposed',
-    guardrailBreached: null,
-    changeSetId: 'cr_0042',
-  },
-  {
-    id: 'act_0005',
-    timestamp: iso(-26),
-    agentId: 'agent-copywriter-01',
-    level: 'L1',
-    scope: { level: 'objective', targetId: 'iss_retention' },
-    changeType: 'creative_copy',
-    summary:
-      'Drafted three alternative subject lines for the Loyalty Discount email. Delivered as suggestions for human review.',
-    outcome: 'suggested',
-    guardrailBreached: null,
-    changeSetId: null,
-  },
-  {
-    id: 'act_0004',
-    timestamp: iso(-31),
-    agentId: 'agent-optimiser-01',
-    level: 'L3',
-    scope: { level: 'category', targetId: 'grp_accessories' },
-    changeType: 'creative_copy',
-    summary:
-      'Auto-applied a shorter roaming SMS, then reverted 40 minutes later when the bias gate flagged a 1.31 disparity ratio across age cohorts.',
-    outcome: 'reverted',
-    guardrailBreached: 'biasGateThreshold (1.2) exceeded: observed 1.31',
-    changeSetId: null,
-  },
-  {
-    id: 'act_0003',
-    timestamp: iso(-52),
-    agentId: 'agent-strategist-01',
-    level: 'L2',
-    scope: { level: 'tenant', targetId: null },
-    changeType: 'arbitration_weights',
-    summary:
-      'Proposed lowering the context weight from 0.5 to 0.35 after trace analysis showed context contributed under 3% of ranking variance.',
-    outcome: 'proposed',
-    guardrailBreached: null,
-    changeSetId: 'cr_0041',
-  },
-  {
-    id: 'act_0002',
-    timestamp: iso(-70),
-    agentId: 'agent-strategist-01',
-    level: 'L2',
-    scope: { level: 'objective', targetId: 'iss_retention' },
-    changeType: 'boost_adjust',
-    summary: 'Attempted to open a change set to raise the retention boost to 1.55.',
-    outcome: 'blocked',
-    guardrailBreached: 'Scope autonomy is L1 (Assist); L2 proposals are not permitted on iss_retention',
-    changeSetId: null,
-  },
-  {
-    id: 'act_0001',
-    timestamp: iso(-96),
-    agentId: 'agent-copywriter-01',
-    level: 'L0',
-    scope: { level: 'offer', targetId: 'prop_bill_shock_alert' },
-    changeType: 'creative_copy',
-    summary:
-      'Answered "why did customer c_88213 receive the bill shock alert before the upsell?" — service boost 2.0 outranked the commercial candidate.',
-    outcome: 'suggested',
-    guardrailBreached: null,
-    changeSetId: null,
-  },
-];
+/**
+ * None.
+ *
+ * The entries this replaced were agent proposals about a roaming pass, a bill
+ * shock alert and a 4G bundle — products this tenant does not sell. Repointing
+ * their ids at the new catalogue would have left the prose describing
+ * proposals nobody made about offers nobody has.
+ *
+ * A tenant whose catalogue was authored today has no agent history, and the
+ * autonomy screen showing none is the true answer rather than a gap.
+ */
+export const agentActivity: AgentActivity[] = [];
 
 // ---------------------------------------------------------------------------
 // Users
@@ -871,8 +767,15 @@ export const connectors: Connector[] = [
     description:
       'What the network can deliver at a service address: whether fibre can be installed, and how strong 5G Home coverage is. The customer brief turns on this answer — a fibre address and a non-fibre address are the same visitor with one field different, and this is the field.',
     target: 'https://serviceability.telco.example/v1/address',
-    declaredP95Ms: 45,
-    timeoutMs: 150,
+    // Declared, not measured, and not supplied by the customer — the same
+    // blank as the prices (G-089), in a field that has to hold a number.
+    // At 45 the compiler refused the flow outright: LATENCY_BUDGET_EXCEEDED,
+    // 53.2ms against this tenant's 50ms, because one dependency at 45 leaves
+    // five for everything else. It was right to. This is in line with the
+    // other REST connectors here, and the real figure has to come from
+    // whoever owns the serviceability API.
+    declaredP95Ms: 20,
+    timeoutMs: 90,
     onFailure: 'fail',
     cacheTtlSeconds: 86400,
     provides: [

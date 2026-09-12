@@ -16,6 +16,11 @@
         "@metis/nodes-core": "1.4.0",
         "@metis/core": "2.1.0"
       },
+      "schema": {
+        "id": "schema_telco_uk",
+        "version": "2.0.0",
+        "hash": "95ff02e455700dd0afcde1fa3aaddb6ed82b75d0f8d84194c17f763680cb7a64"
+      },
       "nodes": [
         {
           "id": "source_customer",
@@ -751,8 +756,8 @@
         "kind": "rest",
         "description": "What the network can deliver at a service address: whether fibre can be installed, and how strong 5G Home coverage is. The customer brief turns on this answer — a fibre address and a non-fibre address are the same visitor with one field different, and this is the field.",
         "target": "https://serviceability.telco.example/v1/address",
-        "declaredP95Ms": 45,
-        "timeoutMs": 150,
+        "declaredP95Ms": 20,
+        "timeoutMs": 90,
         "onFailure": "fail",
         "cacheTtlSeconds": 86400,
         "provides": [

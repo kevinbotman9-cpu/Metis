@@ -60,8 +60,13 @@ describe('POST /api/decisions resolves its connectors', () => {
     // The caller sent none of these. They are in the decision because the
     // endpoint fetched them.
     const byField = new Map(body.decision.sourceBindings.map((b) => [b.field, b.connectorId]));
-    expect(byField.get('customer.monthly_spend')).toBe('conn_billing_ledger');
-    expect(byField.get('customer.arrears_days')).toBe('conn_billing_ledger');
+    // The two the brief's scenarios turn on, and which named system said so:
+    // a fibre refusal that can point at the serviceability lookup is the whole
+    // reason this path is worth having.
+    expect(byField.get('customer.address.fios_serviceable')).toBe('conn_serviceability');
+    expect(byField.get('customer.address.fiveg_coverage')).toBe('conn_serviceability');
+    expect(byField.get('customer.orders.open_broadband')).toBe('conn_order_book');
+    expect(byField.get('customer.affinity.gaming')).toBe('conn_engagement');
     expect(byField.get('customer.tenure_months')).toBe('conn_network_usage');
     expect(byField.get('customer.marketing_consent')).toBe('conn_consent_registry');
   });

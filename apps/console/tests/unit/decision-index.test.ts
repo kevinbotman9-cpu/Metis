@@ -113,8 +113,12 @@ describe('the seeded tenant has the shape the console spec asks for', () => {
     expect(trough).toBeLessThan(7);
   });
 
-  it('uses more than one flow and more than one channel', () => {
-    expect(new Set(decisions.map((d) => d.artifactId)).size).toBeGreaterThan(1);
-    expect(new Set(decisions.map((d) => d.channel)).size).toBeGreaterThan(3);
+  it('uses the one flow this tenant runs, across every channel it serves', () => {
+    // More than one flow and more than three channels, until 2026-09-12. This
+    // tenant runs a single inbound-web flow over the three channels it has
+    // content for; the four-flow, five-channel shape belonged to a catalogue of
+    // 251 offers. Push and outbound call are absent on purpose (G-090).
+    expect([...new Set(decisions.map((d) => d.artifactId))]).toEqual(['next-best-action']);
+    expect([...new Set(decisions.map((d) => d.channel))].sort()).toEqual(['email', 'sms', 'web']);
   });
 });

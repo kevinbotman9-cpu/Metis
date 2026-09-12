@@ -34,16 +34,17 @@ const call = (
 
 const BASE = {
   customer: {
-    age: 41, credit_status: 'pass', account_status: 'active', current_plan: 'standard',
-    bill_to_income_ratio: 0.018, arrears_count_12mo: 0,
-    credit_band: 'A',
-    address: { fibre_available: true },
+    account_status: 'active',
+    moving_within_days: 999,
+    address: { fios_serviceable: true, fiveg_coverage: 'strong' },
+    broadband: { status: 'active', product: 'dsl' },
+    orders: { open_broadband: false },
+    ott: { disney: false, netflix: false, disney_available: true, netflix_available: true },
+    affinity: { gaming: 0.8, entertainment: 0.8 },
+    engagement: { digital_or_broadband_intent: true },
     usage: { pct_of_allowance_3mo_avg: 0.94, months_of_history: 14 },
-    contract: { days_to_end: 210 },
-    events: { pac_requested_within_days: 999 },
-    device: { residual_value: 32000 },
   },
-  context: { offer: { monthly_delta: 300 } },
+  context: {},
 };
 
 const decide = async (input: unknown) => {
@@ -72,7 +73,7 @@ describe('a rollup decides', () => {
     // creating one attaches it to nothing and it never runs. Same shape as
     // `candidateKeys` for offers, and it needs flow authoring to close. See
     // the test below, which holds the gap so it cannot close silently.
-    const res = await call(['targeting-policies', 'telco-us', 'pol_fibre_available'], {
+    const res = await call(['targeting-policies', 'telco-us', 'pol_fios_serviceable'], {
       conditions: [{ field: 'customer.worst_arrears_days', operator: 'lt', value: 30 }],
     }, PRIYA(), 'PUT');
     expect(res.status).toBe(200);
@@ -86,7 +87,7 @@ describe('a rollup decides', () => {
       ...BASE,
       customer: { ...BASE.customer, accounts: [{ arrears_days: 0 }, { arrears_days: 12 }] },
     });
-    expect(offered).toContain('acq_fibre_900');
+    expect(offered).toContain('fios_gigabit');
   });
 
   it('suppresses when one child breaches it', async () => {
@@ -96,14 +97,14 @@ describe('a rollup decides', () => {
       ...BASE,
       customer: { ...BASE.customer, accounts: [{ arrears_days: 0 }, { arrears_days: 34 }] },
     });
-    expect(offered).not.toContain('acq_fibre_900');
+    expect(offered).not.toContain('fios_gigabit');
   });
 
   it('suppresses when the children were never loaded', async () => {
     // The fail-closed case, and the reason absent must not roll up to zero:
     // otherwise this offers to a customer whose accounts nobody checked.
     const offered = await decide(BASE);
-    expect(offered).not.toContain('acq_fibre_900');
+    expect(offered).not.toContain('fios_gigabit');
   });
 
   it('offers again for a customer with no accounts at all', async () => {
@@ -114,7 +115,7 @@ describe('a rollup decides', () => {
       ...BASE,
       customer: { ...BASE.customer, accounts: [] },
     });
-    expect(offered).not.toContain('acq_fibre_900');
+    expect(offered).not.toContain('fios_gigabit');
   });
 });
 

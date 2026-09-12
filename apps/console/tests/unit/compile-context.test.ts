@@ -71,32 +71,39 @@ describe('a live flow compiles under the context it was published with', () => {
     }
   });
 
-  it('keeps the flow that cannot be delivered out of production', async () => {
-    // Named rather than left to the loop above, because this is the case that
-    // was wrong: `retention-outbound` serves only `outbound_call`, and 18 of
-    // its 20 candidates have no active creative on that channel — G-044. It is
-    // `retired` in the fixture for that reason, and a test that only asserted
-    // "everything in production compiles" would also pass if somebody put it
-    // back and authored the eighteen creatives to silence the check.
+  it('refuses a flow whose candidates cannot be delivered on the channel it serves', async () => {
+    // The case this names was `retention-outbound`: it served only
+    // `outbound_call`, 18 of its 20 candidates had no active creative on that
+    // channel, and it was live anyway — promoted by the registry while
+    // `/decision-flows` rendered it red. G-071.
+    //
+    // That flow is gone with the tenant it belonged to, so the case is built
+    // here instead of borrowed from the fixtures. That is the better shape: the
+    // guard is a fact about the compiler, and resting it on one tenant
+    // happening to carry a broken flow is how it stopped applying the moment
+    // that flow was deleted.
+    //
+    // This tenant's five offers have web, email and SMS content and none at all
+    // on push — the brief's app card is not a push notification and there is no
+    // channel to author one on (G-090). So judging the live flow against push
+    // is a genuine "nothing to deliver" case, with no fixture invented for it.
     await store.registryReady;
-    const env = await store.registry.environment('telco-us', 'retention-outbound', 'production');
-    expect(env?.activeVersion, 'retention-outbound is in production again').toBeUndefined();
+    const source = toSource(artifacts.find((a) => a.id === 'next-best-action')!);
 
-    // Judged against the channel its slot used to deliver on, which is why it
-    // was retired. Its placement is no longer decidable, so the flow's own
-    // served-channel set is empty and the channel clause no longer applies —
-    // the refusal is a fact about outbound_call, not about the flow in the
-    // abstract, and this states it that way rather than relying on a check
-    // that stopped firing when the slot was switched off.
-    const source = toSource(artifacts.find((a) => a.id === 'retention-outbound')!);
-    const asDelivered = compileDecisionFlow(source, {
-      ...compileContextFor('retention-outbound'),
-      servedChannels: ['outbound_call'],
+    const asPush = compileDecisionFlow(source, {
+      ...compileContextFor('next-best-action'),
+      servedChannels: ['push'],
     });
-    const refused = asDelivered.diagnostics.filter((d) => d.code === 'NO_DELIVERABLE_CREATIVE');
+    const refused = asPush.diagnostics.filter((d) => d.code === 'NO_DELIVERABLE_CREATIVE');
     expect(
       refused.length,
-      'its candidates can be delivered on outbound_call now; if creatives were authored, say so here'
+      'every candidate has push content now; if it was authored, this case needs another channel'
     ).toBeGreaterThan(0);
+    expect(asPush.ok, 'a flow that can deliver nothing must not compile').toBe(false);
+
+    // And the flow as actually served does compile, so the refusal above is
+    // about the channel and not about the flow being broken in general.
+    const asServed = compileDecisionFlow(source, compileContextFor('next-best-action'));
+    expect(asServed.ok, 'the live flow must compile under its own served channels').toBe(true);
   });
 });

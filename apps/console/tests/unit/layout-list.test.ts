@@ -86,7 +86,6 @@ describe('filtering', () => {
     const { rows: kept } = applyFilter(rows, NO_FILTER, manifest, placementDescriptor, {});
     expect(keys(kept)).toEqual([
       'weekly_offers_send',
-      'retention_queue',
       'app_inbox',
       'triggered_outbound',
       'homepage_hero',
@@ -102,12 +101,12 @@ describe('filtering', () => {
     expect(by('grid')).toEqual(['homepage_grid']);
     expect(by('TRIGGERED_out')).toEqual(['triggered_outbound']);
     // "Nothing" is the delivered-by column as a row shows it.
-    expect(by('nothing')).toEqual(['weekly_offers_send', 'retention_queue', 'app_inbox', 'triggered_outbound']);
+    expect(by('nothing')).toEqual(['weekly_offers_send', 'app_inbox', 'triggered_outbound']);
   });
 
   it('keeps only the chosen value of a facet, including the empty one', () => {
     const kept = applyFilter(rows, { query: '', facets: { 'delivery.mode': '' } }, manifest, placementDescriptor, {});
-    expect(keys(kept.rows)).toEqual(['weekly_offers_send', 'retention_queue', 'app_inbox', 'triggered_outbound']);
+    expect(keys(kept.rows)).toEqual(['weekly_offers_send', 'app_inbox', 'triggered_outbound']);
   });
 
   it('counts each facet value over everything else chosen, never over its own choice', () => {
@@ -118,12 +117,17 @@ describe('filtering', () => {
       placementDescriptor,
       {}
     );
-    expect(kept).toHaveLength(7);
+    // Six decidable, not seven: `app_inbox` stopped being decidable when this
+    // tenant turned out to have no push content at all (G-090), and
+    // `retention_queue` went with the outbound-call flow it answered.
+    expect(kept).toHaveLength(6);
     // Its own facet still shows both answers, or choosing one would hide the other.
-    expect(counts.decidable).toEqual({ true: 7, false: 2 });
-    // The other facets count only what deciding leaves.
-    expect(counts.channel).toEqual({ web: 4, email: 1, sms: 1, push: 1, outbound_call: 0 });
-    expect(counts['delivery.mode']).toEqual({ '': 3, caller: 4, adapter: 0 });
+    expect(counts.decidable).toEqual({ true: 6, false: 2 });
+    // The other facets count only what deciding leaves. Push is zero here and
+    // not absent: a facet value nothing has still has to be offered, or the
+    // reader cannot tell "none" from "not a thing".
+    expect(counts.channel).toEqual({ web: 4, email: 1, sms: 1, push: 0, outbound_call: 0 });
+    expect(counts['delivery.mode']).toEqual({ '': 2, caller: 4, adapter: 0 });
   });
 
   it('offers every value the descriptor declares, with a zero where nothing has it', () => {

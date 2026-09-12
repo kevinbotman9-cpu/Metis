@@ -29,6 +29,7 @@ import {
   users as seedUsers,
 } from './fixtures/catalogue';
 import { profileSchema as seedProfileSchema } from './fixtures/profile-schema';
+import { seedFingerprint, type SeedFingerprint } from './fixtures/fingerprint';
 import type { ProfileSchema } from '@metis/core/profile-schema';
 import type { DataSourceDefinition, ValidationReport } from '@metis/core/intake';
 import type { Experiment } from '@metis/core/experiment';
@@ -126,6 +127,20 @@ type Store = {
    * an empty one.
    */
   registryReady: Promise<void>;
+  /**
+   * What this store seeded, hashed, set when the store was built.
+   *
+   * On the store rather than at module scope, because the store is stashed on
+   * `globalThis` and survives hot reload while this module does not: Next
+   * re-runs `store.ts` when a fixture changes, finds the stash already set and
+   * keeps the old store — so a module-scope constant would be recomputed from
+   * the new fixtures and match disk while the store it claims to describe was
+   * still answering from the old ones. Measured on 2026-09-12: decisions on a
+   * boost of 1.07 while the file said 1.05 and the fingerprint agreed with the
+   * file. Held here it goes stale together with the thing it describes, which
+   * is the only way the comparison means anything (G-002).
+   */
+  seededFingerprint: SeedFingerprint;
 };
 
 function seed(): Store {
@@ -179,6 +194,20 @@ function seed(): Store {
     registryStore,
     registry,
     registryReady,
+    seededFingerprint: seedFingerprint({
+      objectives: seedObjectives,
+      categories: seedCategories,
+      offers: seedOffers,
+      creatives: seedCreatives,
+      targetingPolicies: seedTargetingPolicies,
+      frequencyPolicies: seedFrequencyPolicies,
+      arbitration: seedArbitration,
+      boosts: seedBoosts,
+      connectors: seedConnectors,
+      placements: seedPlacements,
+      artifacts: seedArtifacts,
+      profileSchema: seedProfileSchema,
+    }),
   };
 
   // Chosen asynchronously, because reaching a database is. The default is
@@ -270,6 +299,8 @@ const g = globalThis as GlobalWithStore;
 if (!g[GLOBAL_KEY]) g[GLOBAL_KEY] = seed();
 
 export const store: Store = g[GLOBAL_KEY]!;
+
+
 
 /** Restore the seed state. Used by the E2E suite between specs. */
 export async function resetStore(): Promise<void> {

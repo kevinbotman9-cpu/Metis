@@ -99,7 +99,7 @@ export const profileSchema: ProfileSchema = {
           type: 'integer',
           description:
             'Days until a known house move, or a large number when none is known. A line sold into an address they are leaving is a line that will be cancelled.',
-          required: true,
+          required: false,
         },
         {
           origin: 'profile',
@@ -304,7 +304,7 @@ export const profileSchema: ProfileSchema = {
           name: 'fios_serviceable',
           type: 'boolean',
           description: 'Whether full-fibre FIOS can be installed at this address.',
-          required: true,
+          required: false,
         },
         {
           origin: 'connector:conn_serviceability',
@@ -313,10 +313,20 @@ export const profileSchema: ProfileSchema = {
           type: 'string',
           description:
             'Measured 5G Home coverage at the address: strong, marginal or none. Fixed wireless needs strong, not merely a signal.',
-          required: true,
+          required: false,
         },
       ],
     },
+    // `required` means the profile store must carry it, and nothing below is
+    // required for that reason. A field the platform fetches at decision time
+    // from a named connector, or derives as an aggregation, is not something an
+    // intake file has to supply — `validateRows` refuses to activate a source
+    // that cannot fill a required path, so marking a fetched value required
+    // would make every CRM export unactivatable. The fields with a sentinel for
+    // "unknown" are optional for the same reason: `moving_within_days` is 999
+    // when no move is known, and a policy that reads a missing value fails
+    // closed, which is the behaviour the three-tier model wants anyway.
+
     {
       name: 'Broadband',
       description: 'The internet service on the account, if there is one.',
@@ -327,7 +337,7 @@ export const profileSchema: ProfileSchema = {
           name: 'status',
           type: 'string',
           description: 'active, ordered or none. "active" is what an add-on attaches to.',
-          required: true,
+          required: false,
         },
         {
           origin: 'profile',
@@ -336,7 +346,7 @@ export const profileSchema: ProfileSchema = {
           type: 'string',
           description:
             'Which internet product they hold: fios, 5g_home, dsl or none. This is what stops an accepted offer being offered again.',
-          required: true,
+          required: false,
         },
       ],
     },
@@ -351,7 +361,7 @@ export const profileSchema: ProfileSchema = {
           name: 'open_broadband',
           type: 'boolean',
           description: 'Whether a broadband order is already open on this account.',
-          required: true,
+          required: false,
         },
       ],
     },
@@ -366,7 +376,7 @@ export const profileSchema: ProfileSchema = {
           name: 'disney',
           type: 'boolean',
           description: 'Already subscribed to the Disney+ bundle.',
-          required: true,
+          required: false,
         },
         {
           origin: 'profile',
@@ -374,7 +384,7 @@ export const profileSchema: ProfileSchema = {
           name: 'netflix',
           type: 'boolean',
           description: 'Already subscribed to the Netflix bundle.',
-          required: true,
+          required: false,
         },
         {
           origin: 'connector:conn_engagement',
@@ -382,7 +392,7 @@ export const profileSchema: ProfileSchema = {
           name: 'disney_available',
           type: 'boolean',
           description: 'Whether the Disney+ partner agreement covers this region.',
-          required: true,
+          required: false,
         },
         {
           origin: 'connector:conn_engagement',
@@ -390,7 +400,7 @@ export const profileSchema: ProfileSchema = {
           name: 'netflix_available',
           type: 'boolean',
           description: 'Whether the Netflix partner agreement covers this region.',
-          required: true,
+          required: false,
         },
       ],
     },
@@ -405,7 +415,7 @@ export const profileSchema: ProfileSchema = {
           name: 'gaming',
           type: 'decimal',
           description: 'Gaming affinity, 0 to 1. Gaming Plus asks 0.5 or better.',
-          required: true,
+          required: false,
         },
         {
           origin: 'connector:conn_engagement',
@@ -413,7 +423,7 @@ export const profileSchema: ProfileSchema = {
           name: 'entertainment',
           type: 'decimal',
           description: 'Entertainment affinity, 0 to 1. The category gate asks 0.5 or better.',
-          required: true,
+          required: false,
         },
       ],
     },
@@ -429,7 +439,7 @@ export const profileSchema: ProfileSchema = {
           type: 'boolean',
           description:
             'True when there is digital engagement OR a broadband intent signal. One field because a policy ANDs its conditions and the brief asks for a disjunction — the OR is computed here, where it can be named, rather than approximated by two rules that would both have to pass.',
-          required: true,
+          required: false,
         },
       ],
     },

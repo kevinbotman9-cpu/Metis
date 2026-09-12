@@ -200,18 +200,10 @@ const LIVE = execArtifacts.filter((a) =>
  */
 export function connectorPayload(index: number): Record<string, unknown> {
   const r = (salt: string) => seededUnitInterval('conn', index, salt);
-  const arrears = r('arrears') > 0.88 ? Math.floor(r('days') * 60) : 0;
   // The consent registry is the record of the same withdrawal the request
   // carries. If these disagreed, the trace would show a provenance line
   // contradicting the consent it acted on.
   const churning = inChurnCohort(index);
-
-  // The bureau's band, A best. Bands D and E fail `pol_credit_pass`, which is
-  // what makes an integration part of a decision here rather than a
-  // declaration beside one: about one customer in seven is refused on a value
-  // no part of this tenant's own record holds.
-  const band = r('band');
-  const creditBand = band > 0.86 ? 'E' : band > 0.72 ? 'D' : band > 0.45 ? 'C' : band > 0.2 ? 'B' : 'A';
 
   return {
     // conn_serviceability — the two fields the brief's scenarios turn on.
