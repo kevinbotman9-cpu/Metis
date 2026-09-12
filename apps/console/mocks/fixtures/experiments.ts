@@ -21,12 +21,12 @@ import type { Experiment } from '@metis/core/experiment';
  */
 export const experiments: Experiment[] = [
   {
-    id: 'exp_fibre_holdout',
+    id: 'exp_fiber_holdout',
     tenantId: 'telco-us',
-    key: 'fibre_holdout',
-    name: 'Full Fibre holdout',
+    key: 'fiber_holdout',
+    name: 'FIOS Gigabit holdout',
     description:
-      'One in ten customers is held back from every fibre offer, so the uplift can be measured against people who were eligible and never asked.',
+      'One in ten customers is held back from FIOS Gigabit, so the uplift can be measured against people who were eligible and never asked.',
     arms: [
       {
         key: 'holdout',

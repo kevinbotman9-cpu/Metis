@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  seedFingerprint,
-  fingerprintDiff,
-  type SeedFingerprint,
-} from '@/mocks/fixtures/fingerprint';
+import { fingerprintDiff, type SeedFingerprint } from '@/mocks/fixtures/fingerprint';
 import { store } from '@/mocks/store';
 
 /**
@@ -40,18 +36,24 @@ describe('the seed fingerprint', () => {
     // guard would say nothing. Adding one here is deliberate; losing one is
     // not.
     expect(Object.keys(store.seededFingerprint.parts).sort()).toEqual([
+      'agentActivity',
       'arbitration',
       'artifacts',
+      'auditEvents',
+      'autonomySettings',
       'boosts',
       'categories',
+      'changeSets',
       'connectors',
       'creatives',
+      'experiments',
       'frequencyPolicies',
       'objectives',
       'offers',
       'placements',
       'profileSchema',
       'targetingPolicies',
+      'users',
     ]);
   });
 

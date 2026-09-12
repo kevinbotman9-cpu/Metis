@@ -33,7 +33,7 @@ const request = (over: Record<string, unknown> = {}) => ({
     occurredAt: '2026-06-01T12:00:00.000Z',
     // Complete, because the relevance policies fail closed on a missing field
     // — correctly — and a thin request would test the empty slate rather than
-    // the slate. This is the fibre-available customer from the brief's first
+    // the slate. This is the fiber-available customer from the brief's first
     // scenario: every gate passes, so all five offers reach ranking.
     input: {
       customer: {

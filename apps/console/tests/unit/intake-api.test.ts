@@ -38,8 +38,8 @@ const call = (
 };
 
 const ROWS = [
-  { cust_id: 'c1', dob: '1990-01-15', band: 'A', standing: 'active', plan: 'standard', fibre: 'Y' },
-  { cust_id: 'c2', dob: '1985-06-01', band: 'A', standing: 'active', plan: 'standard', fibre: 'N' },
+  { cust_id: 'c1', dob: '1990-01-15', band: 'A', standing: 'active', plan: 'standard', fiber: 'Y' },
+  { cust_id: 'c2', dob: '1985-06-01', band: 'A', standing: 'active', plan: 'standard', fiber: 'N' },
 ];
 
 /**
@@ -58,7 +58,7 @@ const MAPPINGS = [
   },
   { column: 'standing', path: 'customer.account_status' },
   { column: 'plan', path: 'customer.current_plan' },
-  { column: 'fibre', path: 'customer.address.fios_serviceable', transform: { kind: 'to_boolean' } },
+  { column: 'fiber', path: 'customer.address.fios_serviceable', transform: { kind: 'to_boolean' } },
 ];
 
 /** Fills two of the five, so activation must refuse it. */
@@ -99,7 +99,7 @@ describe('landing', () => {
       'band',
       'cust_id',
       'dob',
-      'fibre',
+      'fiber',
       'plan',
       'standing',
     ]);

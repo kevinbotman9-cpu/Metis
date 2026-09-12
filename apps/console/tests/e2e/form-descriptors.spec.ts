@@ -27,8 +27,8 @@ async function createOffer(page: import('@playwright/test').Page, name: string) 
   await openNewOffer(page);
   const d = dialog(page);
   await d.getByLabel('Name').fill(name);
-  await d.getByLabel('Objective').selectOption('iss_growth');
-  await d.getByLabel('Category').selectOption('grp_data_upsell');
+  await d.getByLabel('Objective').selectOption('iss_crosssell');
+  await d.getByLabel('Category').selectOption('grp_entertainment');
   await d.getByLabel('Price / month').fill('8.00');
   await d.getByRole('button', { name: 'Create offer' }).click();
   await expect(page.getByRole('heading', { level: 1, name: new RegExp(name) })).toBeVisible();
@@ -68,14 +68,14 @@ test.describe('declared forms @screen-only', () => {
 
     await expect(category).toBeDisabled();
 
-    await d.getByLabel('Objective').selectOption({ label: 'Retention' });
+    await d.getByLabel('Objective').selectOption({ label: 'Cross-Sell' });
     await expect(category).toBeEnabled();
 
-    const retention = await category.locator('option').allInnerTexts();
+    const crossSell = await category.locator('option').allInnerTexts();
     await d.getByLabel('Objective').selectOption({ label: 'Acquisition' });
     const acquisition = await category.locator('option').allInnerTexts();
 
-    expect(retention).not.toEqual(acquisition);
+    expect(crossSell).not.toEqual(acquisition);
     // The stale id is cleared rather than carried into a category that no
     // longer belongs to the chosen objective.
     await expect(category).toHaveValue('');
@@ -99,8 +99,8 @@ test.describe('declared forms @screen-only', () => {
     const d = dialog(page);
     await d.getByLabel('Name').fill('Second Claim');
     await d.getByLabel('Key').fill('first_claim');
-    await d.getByLabel('Objective').selectOption('iss_growth');
-    await d.getByLabel('Category').selectOption('grp_data_upsell');
+    await d.getByLabel('Objective').selectOption('iss_crosssell');
+    await d.getByLabel('Category').selectOption('grp_entertainment');
     await d.getByRole('button', { name: 'Create offer' }).click();
 
     // A duplicate key is a conflict about the whole write, so it belongs in the
@@ -129,8 +129,8 @@ test.describe('declared forms @screen-only', () => {
     await expect(d.getByText('Governance', { exact: true })).toBeVisible();
 
     await d.getByLabel('Name').fill('Descriptor proof offer');
-    await d.getByLabel('Objective').selectOption('iss_growth');
-    await d.getByLabel('Category').selectOption('grp_data_upsell');
+    await d.getByLabel('Objective').selectOption('iss_crosssell');
+    await d.getByLabel('Category').selectOption('grp_entertainment');
     await d.getByLabel('Price / month').fill('12.50');
     await contract.fill('https://terms.telco.example/proof');
     await d.getByRole('button', { name: 'Create offer' }).click();
@@ -208,7 +208,7 @@ test.describe('the declared creative form @screen-only', () => {
 
     await d.getByLabel('Name').fill('Hero — declared');
     await d.getByLabel('Channel').selectOption('web');
-    await d.getByLabel('Headline', { exact: true }).fill('Unlimited 5G, £35 a month');
+    await d.getByLabel('Headline', { exact: true }).fill('Unlimited 5G, $35 a month');
     await d.getByLabel('Delivery').selectOption({ label: 'Active' });
     await d.getByRole('button', { name: 'Add creative' }).click();
 

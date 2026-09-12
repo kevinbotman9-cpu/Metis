@@ -194,6 +194,10 @@ body{background:#232528;font-family:"Inter Tight",system-ui,sans-serif}
 <div class="chooser">
   <span class="brand">METIS · Overview — hero visual</span>
   <span class="sep"></span>
+  <span style="color:#f0b429;font-weight:600">Figures illustrative</span>
+  <span style="color:#9aa0a6">— the layout is the reference, not the numbers. Placement and offer
+  names are checked against the fixtures; every volume here is invented.</span>
+  <span class="sep"></span>
   <button id="themeBtn">Switch to dark</button>
 </div>
 
@@ -260,7 +264,7 @@ const LOOP=[
 {k:'dec',label:'Decisions made',n:'10,401',em:'in 30 days',rgb:C.grey,
  title:'10,401 decisions in the last 30 days',
  sub:'Every request that reached a decision flow and returned a ranked slate. p95 38.4 ms, no model call in the path, all replayable.',
- rows:[['web','2,146','homepage_hero, plans_tile','ok'],['sms','2,055','app_inbox','ok'],['push','2,061','retention_queue','ok'],['email','2,042','weekly_offers_send','ok'],['outbound_call','2,097','triggered_outbound','ok']],
+ rows:[['web','2,146','homepage_hero, homepage_grid','ok'],['sms','2,055','triggered_outbound','ok'],['push','2,061','app_inbox — not decidable, no push content','ok'],['email','2,042','weekly_offers_send','ok'],['outbound_call','2,097','no slot configured','ok']],
  side:{h:'All decisions',p:'10,401 across 5 channels',
   f:[['Flows','inbound-web-offers v12 · 3 others'],['p95 latency','38.4 ms of 50 ms budget'],['Replayable','10,401 of 10,401']],
   q:['Reading','Every one produced a decision record, a chain hash and a trace. That part of the platform works.'],

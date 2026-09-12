@@ -49,10 +49,10 @@ const call = (
  * Starting it here is the same deliberate act the page makes somebody take.
  */
 async function startHoldout() {
-  const draft = store.experiments.find((e) => e.key === 'fibre_holdout')!;
+  const draft = store.experiments.find((e) => e.key === 'fiber_holdout')!;
   const res = await call(['experiments', 'telco-us', draft.id], { status: 'running' }, 'PUT');
   expect(res.status, await res.clone().text()).toBe(200);
-  return store.experiments.find((e) => e.key === 'fibre_holdout')!;
+  return store.experiments.find((e) => e.key === 'fiber_holdout')!;
 }
 
 const INPUT = {
@@ -64,7 +64,7 @@ const INPUT = {
     bill_to_income_ratio: 0.018,
     arrears_count_12mo: 0,
     credit_band: 'A',
-    address: { fibre_available: true },
+    address: { fiber_available: true },
     usage: { pct_of_allowance_3mo_avg: 0.94, months_of_history: 14 },
     contract: { days_to_end: 210 },
     events: { pac_requested_within_days: 999 },
@@ -138,7 +138,7 @@ describe('an arm is part of what was decided', () => {
   });
 
   it('assigns nobody from a draft experiment', async () => {
-    const draft = store.experiments.find((e) => e.key === 'fibre_holdout')!;
+    const draft = store.experiments.find((e) => e.key === 'fiber_holdout')!;
     expect(draft.status).toBe('draft');
     const { id } = await decide('cust_draft');
     const entry = await store.ledger.get('telco-us', id);
@@ -163,7 +163,7 @@ describe('the arm is offered as an ordinary field', () => {
       experimentPaths: { path: string; members: string[]; type: string }[];
     };
 
-    const holdout = body.experimentPaths.find((p) => p.path === 'experiments.fibre_holdout')!;
+    const holdout = body.experimentPaths.find((p) => p.path === 'experiments.fiber_holdout')!;
     expect(holdout.type).toBe('enum');
     expect(holdout.members).toEqual(['holdout', 'treated']);
   });
@@ -172,7 +172,7 @@ describe('the arm is offered as an ordinary field', () => {
     // Seeded as a draft, so it must not appear until somebody starts it.
     const res = await call(['profile-schema', 'telco-us']);
     const body = (await res.json()) as { experimentPaths: { path: string }[] };
-    expect(body.experimentPaths.map((p) => p.path)).not.toContain('experiments.fibre_holdout');
+    expect(body.experimentPaths.map((p) => p.path)).not.toContain('experiments.fiber_holdout');
   });
 });
 
@@ -254,7 +254,7 @@ describe('a running experiment is frozen', () => {
     const res = await call(
       ['experiments', 'telco-us'],
       {
-        key: 'fibre_holdout',
+        key: 'fiber_holdout',
         name: 'Another',
         arms: [
           { key: 'a', name: 'A', weight: 1 },
@@ -264,7 +264,7 @@ describe('a running experiment is frozen', () => {
       'POST'
     );
     expect(res.status).toBe(409);
-    expect(((await res.json()) as { message: string }).message).toContain('experiments.fibre_holdout');
+    expect(((await res.json()) as { message: string }).message).toContain('experiments.fiber_holdout');
   });
 
   it('refuses an ill-formed experiment', async () => {
@@ -297,7 +297,7 @@ describe('performance by arm', () => {
       arms: { experimentKey: string; arm: string; offered: number; acceptanceRate: number | null }[];
     };
 
-    const holdout = body.arms.filter((a) => a.experimentKey === 'fibre_holdout');
+    const holdout = body.arms.filter((a) => a.experimentKey === 'fiber_holdout');
     expect(holdout).toHaveLength(2);
     // Every offered decision lands in exactly one arm.
     const total = holdout.reduce((n, a) => n + a.offered, 0);

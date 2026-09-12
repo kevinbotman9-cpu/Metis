@@ -24,8 +24,8 @@ async function newOffer(page: Page, name: string) {
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await dialog.getByLabel('Name').fill(name);
-  await dialog.getByLabel('Objective').selectOption('iss_growth');
-  await dialog.getByLabel('Category').selectOption('grp_data_upsell');
+  await dialog.getByLabel('Objective').selectOption('iss_crosssell');
+  await dialog.getByLabel('Category').selectOption('grp_entertainment');
   await dialog.getByLabel('Price / month').fill('8.00');
   await dialog.getByLabel('Expected margin').fill('210.00');
   await dialog.getByRole('button', { name: 'Create offer' }).click();
@@ -61,7 +61,7 @@ test.describe('authoring an offer', () => {
     await expect(dialog.getByLabel('Key')).toHaveValue('speed_boost_100mb');
 
     await dialog.getByRole('button', { name: 'Cancel' }).click();
-    await page.goto('/offers/prop_5g_unlimited_24');
+    await page.goto('/offers/off_5g_home_ultimate');
     await page.getByRole('button', { name: 'Edit' }).first().click();
     await expect(page.getByRole('dialog').getByLabel('Key')).toBeDisabled();
   });
@@ -113,11 +113,19 @@ test.describe('authoring an offer', () => {
   });
 
   test('edits a creative through the console', async ({ page }) => {
-    await page.goto('/offers/prop_5g_unlimited_24');
+    await page.goto('/offers/off_fios_gigabit');
     // The creative's own Edit, addressed by what it edits rather than by its
     // position among the page's Edit buttons — which is what made this depend
     // on how many creatives the offer happened to have. G-003.
-    await page.getByRole('button', { name: /^Edit creative / }).first().click();
+    //
+    // The *email* one specifically, because the field filled below is a
+    // subject line and only an email creative has one. The content section is
+    // per channel and opens on Web, so the channel is chosen first: taking the
+    // first Edit button on the page worked while this offer's default channel
+    // happened to hold the email creative, and this tenant's holds a web tile
+    // whose content is a headline.
+    await page.getByRole('button', { name: 'Email', exact: true }).click();
+    await page.getByRole('button', { name: /^Edit creative .*email/i }).first().click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
@@ -125,7 +133,7 @@ test.describe('authoring an offer', () => {
     // channel's, and changing it would leave fields belonging to neither.
     await expect(dialog.getByLabel('Channel')).toBeDisabled();
 
-    await dialog.getByLabel('Subject').fill('Your network, unlimited — one week left');
+    await dialog.getByLabel('Subject').fill('Fibre is ready — one week left');
     await dialog.getByRole('button', { name: 'Save creative' }).click();
     await expect(dialog).toBeHidden();
     await expect(page.getByText('one week left')).toBeVisible();
@@ -143,7 +151,7 @@ test.describe('authoring an offer', () => {
     await page.goto('/offers');
     await expect(page.getByRole('button', { name: 'New offer' })).toHaveCount(0);
 
-    await page.goto('/offers/prop_5g_unlimited_24');
+    await page.goto('/offers/off_5g_home_ultimate');
     await expect(page.getByRole('button', { name: 'Add creative' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Activate' })).toHaveCount(0);
   });
@@ -156,7 +164,7 @@ test.describe('authoring an offer', () => {
     await expect(page.getByRole('dialog')).toBeVisible();
     expect((await new AxeBuilder({ page }).withTags(TAGS).analyze()).violations).toEqual([]);
 
-    await page.goto('/offers/prop_5g_unlimited_24');
+    await page.goto('/offers/off_5g_home_ultimate');
     await page.getByRole('button', { name: 'Add creative' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     expect((await new AxeBuilder({ page }).withTags(TAGS).analyze()).violations).toEqual([]);

@@ -14,10 +14,10 @@ import { test, expect, type Page } from '@playwright/test';
  * outside the console.
  *
  * Every position in these three lists is a declared decision. Value alone ties
- * FIOS, 5G Home and Gaming Plus at business value 100, so `lev_fibre_first`
+ * FIOS, 5G Home and Gaming Plus at business value 100, so `lev_fiber_first`
  * and `lev_line_before_addon` break both ties with an owner and a reason. Until
  * the second boost existed the engine settled 5G against Gaming by sorting
- * keys, and in the no-fibre scenario that alphabetical accident chose the
+ * keys, and in the no-fiber scenario that alphabetical accident chose the
  * headline slot.
  */
 
@@ -97,9 +97,9 @@ async function choose(page: Page, label: string) {
 }
 
 test.describe('@screen-only the brief’s three scenarios', () => {
-  test('fibre at her address: FIOS, 5G Home, Gaming Plus', async ({ page }) => {
+  test('fiber at her address: FIOS, 5G Home, Gaming Plus', async ({ page }) => {
     await page.goto(STOREFRONT);
-    await choose(page, 'Eva — fibre available at her address');
+    await choose(page, 'Eva — fiber available at her address');
 
     expect(await ranked(page)).toEqual([
       'fios_gigabit',
@@ -117,9 +117,9 @@ test.describe('@screen-only the brief’s three scenarios', () => {
     expect(p[1]).toBeGreaterThan(p[2]);
   });
 
-  test('no fibre at the new address: FIOS is refused by name, 5G Home leads', async ({ page }) => {
+  test('no fiber at the new address: FIOS is refused by name, 5G Home leads', async ({ page }) => {
     await page.goto(STOREFRONT);
-    await choose(page, 'Eva — moved, no fibre at the new address');
+    await choose(page, 'Eva — moved, no fiber at the new address');
 
     expect(await ranked(page)).toEqual([
       '5g_home_ultimate',
@@ -128,7 +128,7 @@ test.describe('@screen-only the brief’s three scenarios', () => {
     ]);
 
     // The sharp part of the scenario, and the reason a connector supplies the
-    // field: the refusal names the rule, so "why was I not offered fibre" is
+    // field: the refusal names the rule, so "why was I not offered fiber" is
     // answerable from the record rather than from somebody's memory.
     const panel = page.locator('#decisions details.decision', { hasText: 'homepage_grid' }).first();
     await expect(panel.locator('.denial', { hasText: 'fios_gigabit' })).toContainText(
@@ -164,16 +164,16 @@ test.describe('@screen-only the brief’s three scenarios', () => {
     // read at all (G-094).
     await page.goto(STOREFRONT);
 
-    await choose(page, 'Eva — fibre available at her address');
-    const withFibre = await ranked(page);
+    await choose(page, 'Eva — fiber available at her address');
+    const withFiber = await ranked(page);
 
-    await choose(page, 'Eva — moved, no fibre at the new address');
-    const withoutFibre = await ranked(page);
+    await choose(page, 'Eva — moved, no fiber at the new address');
+    const withoutFiber = await ranked(page);
 
-    expect(withFibre).not.toEqual(withoutFibre);
-    expect(withFibre[0]).toBe('fios_gigabit');
-    expect(withoutFibre).not.toContain('fios_gigabit');
+    expect(withFiber).not.toEqual(withoutFiber);
+    expect(withFiber[0]).toBe('fios_gigabit');
+    expect(withoutFiber).not.toContain('fios_gigabit');
     // And everything else she qualifies for is still there, in the same order.
-    expect(withoutFibre.slice(0, 2)).toEqual(withFibre.slice(1, 3));
+    expect(withoutFiber.slice(0, 2)).toEqual(withFiber.slice(1, 3));
   });
 });

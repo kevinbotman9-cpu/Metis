@@ -91,7 +91,7 @@ describe('the storefront demo names things that exist', () => {
   it('sends every input the tenant policies read, in every preset', () => {
     // A preset missing a field does not error — the condition simply never
     // matches, and the offer silently stops appearing. That is exactly how the
-    // fibre contrast came to show the same refusal twice (G-094), so it is
+    // fiber contrast came to show the same refusal twice (G-094), so it is
     // worth catching here rather than on a screen.
     //
     // The field list is read from the policies rather than written out. The

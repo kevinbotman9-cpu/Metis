@@ -116,14 +116,14 @@ test.describe('command palette', () => {
 
   test('finds an offer by name and opens its detail page', async ({ page }) => {
     await page.keyboard.press('ControlOrMeta+k');
-    await page.getByRole('combobox').fill('5G Unlimited');
+    await page.getByRole('combobox').fill('5G Home Ultimate');
 
-    const option = page.getByRole('option', { name: /5G Unlimited/ }).first();
+    const option = page.getByRole('option', { name: /5G Home Ultimate/ }).first();
     await expect(option).toBeVisible();
     await option.click();
 
-    await expect(page).toHaveURL(/\/offers\/prop_/);
-    await expect(page.getByRole('heading', { level: 1, name: /5G Unlimited/ })).toBeVisible();
+    await expect(page).toHaveURL(/\/offers\/off_/);
+    await expect(page.getByRole('heading', { level: 1, name: /5G Home Ultimate/ })).toBeVisible();
   });
 
   test('reaches a decision by id, which is otherwise URL-only', async ({ page }) => {

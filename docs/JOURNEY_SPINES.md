@@ -300,6 +300,54 @@ one decision, that is the item.
 
 ---
 
+## Scheduled: the warning-state fixture — after the Verizon demo lands
+
+**Status:** queued by the product owner, 2026-09-12 · **Gap:** [G-096](gaps.md)
+
+The console has four screens that exist to say something is wrong, and **nothing
+proves any of them renders** — and as of the end of the Verizon slice two e2e
+checks are skipped rather than rewritten, each naming G-096 in its skip reason,
+because there was nothing true left for them to assert. Un-skipping both is part
+of this slice:
+
+- `seeded-tenant.spec.ts` → an offer held for bias review is findable and says why
+- `creative-coverage.spec.ts` → an offer with nothing on any served channel says so in every column
+
+The four screens: an active offer with no content, a creative
+written but switched off, an offer that cannot reach a customer on any channel
+it serves, and the "cannot be delivered" summary block that filters to them.
+
+They were exercised by accident until 2026-09-12. The `telco-uk` tenant carried
+240 generated offers, about one in nine with no creative and some switched off,
+so the populated view of every warning had a subject without anybody arranging
+one. `telco-us` carries the five offers the customer's brief names; all five are
+active, have content and are deliverable, which is the honest state of that
+tenant and the one the brief asked for. Four checks lost their subject in the
+same afternoon and each was rewritten to assert what is true and to name what it
+no longer covers — locally right, and it leaves the same hole four times.
+
+**Why this is worth a slice on this product in particular.** The design north
+star is the compliance officer and the claim is that a refusal is legible after
+the fact. The screens that say *something is wrong* are therefore the ones that
+most need proving, and they are exactly the ones now resting on no fixture. A
+healthy tenant should not be able to remove the evidence that the console can
+describe an unhealthy one.
+
+**The shape, which is settled.** Not a broken offer added to this tenant — that
+is inventing catalogue content in a catalogue whose whole point is that it holds
+exactly what the customer named. A fixture whose *subject* is the warning
+states: a small catalogue built in the test, one offer of each broken kind,
+mounted where the component and e2e tests can render against it. The G-071 guard
+was rebuilt this way on the same day — it had rested on `retention-outbound`
+happening to be broken and now constructs its own case — and that is the
+precedent to follow.
+
+**After the demo.** The Verizon slice is mid-flight and the corpora move with
+it; this needs the tenant settled before it can be built against anything
+stable.
+
+---
+
 ## Next: Spine 1, slice 1 — taxonomy authoring
 
 **The marketer's first click is the one thing they cannot do.** Steps 2, 3, 4, 8,

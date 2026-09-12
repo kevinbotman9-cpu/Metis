@@ -79,7 +79,7 @@ describe('a rollup decides', () => {
     expect(res.status).toBe(200);
   });
 
-  // The repointed policy is scoped to the fibre offer, so it gates that one
+  // The repointed policy is scoped to the fiber offer, so it gates that one
   // and leaves the rest. Asserting the whole slate is empty would be asserting
   // the scope model rather than the rollup.
   it('offers when the children roll up under the threshold', async () => {

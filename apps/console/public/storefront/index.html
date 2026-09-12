@@ -554,21 +554,21 @@ const PLACEMENTS = [
  * Every field sits under `customer`, which is where the schema's profile root
  * puts it. The presets this replaced had `address`, `usage` and four more as
  * siblings of `customer`, one level too flat, so `customer.address.*` resolved
- * to nothing and the fibre policy refused both the fibre and the no-fibre
+ * to nothing and the fiber policy refused both the fiber and the no-fiber
  * visitor. The demo's headline contrast — same visitor, one field different —
  * was showing the same refusal twice (G-094).
  *
  * Serviceability and coverage are deliberately absent here: they arrive from
  * `conn_serviceability` at decision time, which is what lets a refusal name the
  * system that supplied the evidence. The connector reads them from the id, so
- * the fibre and no-fibre presets use ids the fixture answers differently for.
+ * the fiber and no-fiber presets use ids the fixture answers differently for.
  */
 const PRESETS = [
   {
-    id: 'eva_fibre',
-    label: 'Eva — fibre available at her address',
-    note: 'Her primary residence, where fibre can be installed. All five offers qualify and the ranking decides.',
-    customerId: 'cust_eva_fibre',
+    id: 'eva_fiber',
+    label: 'Eva — fiber available at her address',
+    note: 'Her primary residence, where fiber can be installed. All five offers qualify and the ranking decides.',
+    customerId: 'cust_eva_fiber',
     signedIn: true,
     name: 'Eva Ramirez',
     planName: 'Broadband 300 · DSL',
@@ -588,10 +588,10 @@ const PRESETS = [
     },
   },
   {
-    id: 'eva_no_fibre',
-    label: 'Eva — moved, no fibre at the new address',
+    id: 'eva_no_fiber',
+    label: 'Eva — moved, no fiber at the new address',
     note: 'The same customer, one field different. FIOS is refused at the eligibility gate and 5G Home takes the top slot.',
-    customerId: 'cust_eva_no_fibre',
+    customerId: 'cust_eva_no_fiber',
     signedIn: true,
     name: 'Eva Ramirez',
     planName: 'Broadband 300 · DSL',

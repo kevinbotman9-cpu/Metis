@@ -180,9 +180,42 @@ test.describe('summary strip', () => {
 
   test('gives every status glyph an accessible name', async ({ page }) => {
     await page.goto('/decision-flows');
-    // Colour alone must not carry the meaning.
-    await expect(page.getByText('Compiles cleanly').first()).toBeAttached();
-    await expect(page.getByText(/of the 50ms budget/).first()).toBeAttached();
+    await expect(page.locator('main table')).toBeVisible();
+
+    // Colour alone must not carry the meaning — that is the property, and it
+    // holds whatever state the flows are in. This waited for the literal
+    // string "Compiles cleanly", which is the label of exactly one of four
+    // compile states: `telco-us` has one flow that compiles with a warning
+    // (arbitration weights propensity and no scoring node runs, which is the
+    // declared design) and one draft that refuses to compile, so no flow in
+    // the tenant is clean and a check on that string asserts the tenant rather
+    // than the accessibility rule.
+    const glyphs = await page.locator('main table span').evaluateAll((spans) =>
+      spans
+        .filter((s) =>
+          [...s.children].some(
+            (c) =>
+              c.getAttribute('aria-hidden') !== null &&
+              /^[✓!✕?]$/.test((c.textContent ?? '').trim())
+          )
+        )
+        .map((s) => ({
+          title: (s.getAttribute('title') ?? '').trim(),
+          screenReader: (s.querySelector('.sr-only')?.textContent ?? '').trim(),
+          html: s.outerHTML.slice(0, 120),
+        }))
+    );
+
+    // Not vacuous: two columns carry a glyph on every row, so a page that
+    // stopped rendering them fails here rather than passing with an empty set.
+    expect(glyphs.length).toBeGreaterThanOrEqual(2);
+    expect(glyphs.filter((g) => !g.title || !g.screenReader).map((g) => g.html)).toEqual([]);
+
+    // And the names say what they are about, rather than being present and
+    // useless. Both columns, whichever state each flow is in.
+    const names = glyphs.map((g) => g.screenReader);
+    expect(names.some((n) => /compile/i.test(n))).toBe(true);
+    expect(names.some((n) => /of the 50ms budget/.test(n))).toBe(true);
   });
 
   test('labels the activity sparkline for screen readers', async ({ page }) => {

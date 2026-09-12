@@ -10,8 +10,8 @@ import { login, resetStore, ACCOUNTS } from './helpers';
  *
  * The point of the picker is not convenience. `PolicyCondition.field` was a
  * free-text dotted path with no model behind it, and one character wrong in a
- * leaf did not error — it decided, moving a winner from `acq_fibre_900` to
- * `acq_sim_30` while the trace reported `ELIGIBILITY_FAILED` against a real
+ * leaf did not error — it decided, moving a winner from `fios_gigabit` to
+ * `netflix` while the trace reported `ELIGIBILITY_FAILED` against a real
  * policy id.
  *
  * So these assert that the wrong thing cannot be *expressed*, not merely that

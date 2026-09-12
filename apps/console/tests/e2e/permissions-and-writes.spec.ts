@@ -78,7 +78,7 @@ test.describe('writes persist', () => {
     // cr_0042 lowers the heavy-user threshold from 0.8 to 0.7.
     const before = await page.request.get('/api/targeting-policies/telco-us');
     const policyBefore = (await before.json()).policies.find(
-      (p: { id: string }) => p.id === 'pol_heavy_user'
+      (p: { id: string }) => p.id === 'pol_5g_bandwidth_need'
     );
     expect(policyBefore.conditions[0].value).toBe(0.8);
 
@@ -88,7 +88,7 @@ test.describe('writes persist', () => {
 
     const after = await page.request.get('/api/targeting-policies/telco-us');
     const policyAfter = (await after.json()).policies.find(
-      (p: { id: string }) => p.id === 'pol_heavy_user'
+      (p: { id: string }) => p.id === 'pol_5g_bandwidth_need'
     );
     expect(policyAfter.conditions[0].value).toBe(0.7);
 
@@ -146,8 +146,8 @@ test.describe('creating an offer', () => {
     key: 'upsell_speed_boost',
     name: 'Speed Boost 100Mb',
     description: 'Doubles the line speed for six months.',
-    categoryId: 'grp_data_upsell',
-    objectiveId: 'iss_growth',
+    categoryId: 'grp_entertainment',
+    objectiveId: 'iss_crosssell',
     ...over,
   });
 
@@ -215,7 +215,7 @@ test.describe('creating an offer', () => {
     const auth = await token(page, ACCOUNTS.sarah);
     const res = await page.request.post('/api/offers/telco-us', {
       headers: { Authorization: `Bearer ${auth}` },
-      data: { name: 'Nameless', categoryId: 'grp_data_upsell', objectiveId: 'iss_growth' },
+      data: { name: 'Nameless', categoryId: 'grp_entertainment', objectiveId: 'iss_crosssell' },
     });
     expect(res.status()).toBe(400);
   });
@@ -230,17 +230,17 @@ test.describe('creating an offer', () => {
     const auth = await token(page, ACCOUNTS.sarah);
     const headers = { Authorization: `Bearer ${auth}` };
 
-    const before = await (await page.request.get('/api/offers/telco-us/prop_data_boost_10gb')).json();
+    const before = await (await page.request.get('/api/offers/telco-us/off_gaming_plus_bundle')).json();
     expect(before.offer.boost).not.toBe(1.75);
 
-    const res = await page.request.put('/api/offers/telco-us/prop_data_boost_10gb', {
+    const res = await page.request.put('/api/offers/telco-us/off_gaming_plus_bundle', {
       headers,
       data: { boost: 1.75 },
     });
     expect(res.status()).toBe(200);
     expect((await res.json()).boost).toBe(1.75);
 
-    const after = await (await page.request.get('/api/offers/telco-us/prop_data_boost_10gb')).json();
+    const after = await (await page.request.get('/api/offers/telco-us/off_gaming_plus_bundle')).json();
     expect(after.offer.boost).toBe(1.75);
     expect(after.offer.updatedBy).toBe(ACCOUNTS.sarah);
 
@@ -329,14 +329,14 @@ test.describe('creating an offer', () => {
     const auth = await token(page, ACCOUNTS.sarah);
     const headers = { Authorization: `Bearer ${auth}` };
 
-    // 5G Unlimited is active in the fixtures with several creatives; switch all
+    // 5G Home Ultimate is active in the fixtures with several creatives; switch all
     // but one off, then attempt the last.
-    const list = await (await page.request.get('/api/creatives/telco-us/prop_5g_unlimited_24')).json();
+    const list = await (await page.request.get('/api/creatives/telco-us/off_5g_home_ultimate')).json();
     const active = (list.creatives as { id: string; active: boolean }[]).filter((c) => c.active);
     expect(active.length).toBeGreaterThan(1);
 
     for (const c of active.slice(1)) {
-      const off = await page.request.put(`/api/creatives/telco-us/prop_5g_unlimited_24/${c.id}`, {
+      const off = await page.request.put(`/api/creatives/telco-us/off_5g_home_ultimate/${c.id}`, {
         headers,
         data: { active: false },
       });
@@ -344,7 +344,7 @@ test.describe('creating an offer', () => {
     }
 
     const last = await page.request.put(
-      `/api/creatives/telco-us/prop_5g_unlimited_24/${active[0].id}`,
+      `/api/creatives/telco-us/off_5g_home_ultimate/${active[0].id}`,
       { headers, data: { active: false } }
     );
     expect(last.status()).toBe(409);
@@ -354,10 +354,16 @@ test.describe('creating an offer', () => {
   test('edits a creative, and the change is audited', async ({ page }) => {
     const auth = await token(page, ACCOUNTS.sarah);
     const res = await page.request.put(
-      '/api/creatives/telco-us/prop_5g_unlimited_24/trt_5g_sms',
+      '/api/creatives/telco-us/off_5g_home_ultimate/crt_5g_sms',
       {
         headers: { Authorization: `Bearer ${auth}` },
-        data: { content: { channel: 'sms', text: 'Unlimited 5G, £35/mo. Reply STOP to opt out.', senderId: 'Meridian' } },
+        data: {
+          content: {
+            channel: 'sms',
+            text: '5G Home Ultimate, no annual contract. Reply STOP to opt out.',
+            senderId: 'Meridian',
+          },
+        },
       }
     );
     expect(res.status()).toBe(200);

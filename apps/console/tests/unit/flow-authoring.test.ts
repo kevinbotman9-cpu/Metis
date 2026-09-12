@@ -53,7 +53,7 @@ const FLOW = 'next-best-action';
 const saveDraft = (patch: Record<string, unknown>, headers = MARCUS()) =>
   call(['artifacts', 'telco-us', FLOW, 'draft'], patch, 'PUT', headers);
 
-/** The brief's fibre-available customer: every gate passes. */
+/** The brief's fiber-available customer: every gate passes. */
 const INPUT = {
   customer: {
     account_status: 'active',

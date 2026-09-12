@@ -15,7 +15,12 @@ import {
   boosts,
   connectors,
   placements,
+  autonomySettings,
+  agentActivity,
+  users,
 } from '../mocks/fixtures/catalogue';
+import { experiments } from '../mocks/fixtures/experiments';
+import { changeSets, auditEvents } from '../mocks/fixtures/governance';
 import { artifacts } from '../mocks/fixtures/artifacts';
 import { profileSchema } from '../mocks/fixtures/profile-schema';
 
@@ -131,6 +136,12 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
     placements,
     artifacts,
     profileSchema,
+    experiments,
+    autonomySettings,
+    agentActivity,
+    users,
+    changeSets,
+    auditEvents,
   });
   const served = body?.seed;
   if (served && served.overall !== disk.overall) {

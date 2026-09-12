@@ -207,6 +207,12 @@ function seed(): Store {
       placements: seedPlacements,
       artifacts: seedArtifacts,
       profileSchema: seedProfileSchema,
+      experiments: seedExperiments,
+      autonomySettings: seedAutonomy,
+      agentActivity: seedActivity,
+      users: seedUsers,
+      changeSets: seedChangeSets,
+      auditEvents: seedAuditEvents,
     }),
   };
 

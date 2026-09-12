@@ -41,7 +41,14 @@ async function measuredCount(page: import('@playwright/test').Page): Promise<num
     .getByRole('button', { name: /^Seen: / });
   await expect(button).toBeVisible({ timeout: 20_000 });
   const label = (await button.getAttribute('aria-label')) ?? '';
-  return Number(label.split(':')[1].split(',')[0].replace(/[^0-9]/g, ''));
+  // "Seen: 1,265, 75.0% of deliverable". The count carries a thousands
+  // separator, so splitting on the comma takes "1" out of "1,265" — which is
+  // what this did, and it read correctly for as long as the corpus measured
+  // three digits. `telco-us` measures 1,265, so both tests that use this
+  // helper failed claiming the screen reported one decision.
+  const match = /^[^:]+:\s*([\d,]+)/.exec(label);
+  expect(match, `no count in the rail label "${label}"`).not.toBeNull();
+  return Number(match![1].replace(/,/g, ''));
 }
 
 /** The rates live behind the `Acted on` stage; the overview is the shape. */
@@ -234,11 +241,11 @@ test.describe('the seeded corpus reports back @screen-only', () => {
   });
 
   test('an offer with reach and no takers is findable', async ({ page }) => {
-    // The finding the demo exists to make available: acq_sim_30 wins 619
+    // The finding the demo exists to make available: netflix wins 619
     // decisions and is accepted by almost nobody.
     await login(page, ACCOUNTS.sarah);
     await page.goto('/performance');
     await openActed(page);
-    await expect(page.getByText('acq_sim_30').first()).toBeVisible();
+    await expect(page.getByText('netflix').first()).toBeVisible();
   });
 });

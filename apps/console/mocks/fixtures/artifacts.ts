@@ -146,7 +146,7 @@ export const artifacts: ArtifactSummary[] = [
         ],
         label: 'Customer and address',
         description:
-          'Loads the account, what they already hold, and what the network can deliver at the service address. Serviceability and coverage arrive from conn_serviceability, which is what makes the fibre refusal nameable.',
+          'Loads the account, what they already hold, and what the network can deliver at the service address. Serviceability and coverage arrive from conn_serviceability, which is what makes the fiber refusal nameable.',
         estimatedMs: 4.2,
         position: { x: COL[0], y: 120 },
       },
@@ -221,5 +221,55 @@ export const artifacts: ArtifactSummary[] = [
     ],
     updatedAt: iso(-6),
     updatedBy: 'marcus.webb@telco.example',
+  },
+  {
+    /**
+     * A draft somebody started and has not finished, and the compiler refuses it.
+     *
+     * Here because two suites need a flow the registry does not hold —
+     * `registry.spec.ts` for the compilation gate and `shadow.spec.ts` for
+     * "no panel at all for a flow the registry never accepted" — and with one
+     * cleanly-published flow that state cannot exist. It used to be supplied by
+     * `plan-fit-nudges` in a tenant that had four flows.
+     *
+     * Not filler. An unfinished flow is a real thing for a tenant to have, it
+     * is `draft` and selects nothing, and the console has to be able to show
+     * one. What makes it useful to a test is *why* it fails: there is no
+     * `arbitrate` node, so nothing ever picks a winner, which the compiler
+     * refuses rather than shipping a flow that would decide nothing at runtime.
+     */
+    id: 'entertainment-cross-sell',
+    name: 'Entertainment cross-sell (draft)',
+    description:
+      'Started for the gaming and streaming attach, and not finished: it ranks nothing yet.',
+    activeVersion: '0.1.0',
+    versions: ['0.1.0'],
+    nodeCount: 2,
+    estimatedP95LatencyMs: 5.3,
+    status: 'draft',
+    candidateKeys: ['gaming_plus_bundle', 'disney_plus', 'netflix'],
+    nodes: [
+      {
+        id: 'source_customer',
+        type: 'source',
+        connectorIds: ['conn_engagement'],
+        label: 'Customer and affinity',
+        description: 'Loads what the household already watches and plays.',
+        estimatedMs: 4.2,
+        position: { x: COL[0], y: 120 },
+      },
+      {
+        id: 'filter_relevance',
+        type: 'filter',
+        label: 'Relevance',
+        description: 'Entertainment affinity, and whether the line is already provisioned.',
+        estimatedMs: 1.1,
+        policyIds: ['pol_broadband_need_met', 'pol_entertainment_affinity'],
+        position: { x: COL[1], y: 120 },
+      },
+    ],
+    edges: [{ id: 'd1', source: 'source_customer', target: 'filter_relevance' }],
+    updatedAt: iso(-30),
+    updatedBy: 'sarah.chen@telco.example',
   },
 ];

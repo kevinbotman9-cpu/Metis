@@ -117,10 +117,10 @@ describe('configuration reaches the engine', () => {
     // Weights are one field. This is a different shape of edit — a row in a
     // list going inactive — and it has to reach the engine too, or "reaches
     // the engine" was a statement about one endpoint.
-    const fibre = store.targetingPolicies.find((p) => p.id === 'pol_fios_serviceable');
-    expect(fibre, 'fixture has no fibre policy to test with').toBeDefined();
+    const fiber = store.targetingPolicies.find((p) => p.id === 'pol_fios_serviceable');
+    expect(fiber, 'fixture has no fiber policy to test with').toBeDefined();
 
-    const withFibreOff = {
+    const withFiberOff = {
       ...INPUT,
       customer: { ...INPUT.customer, address: { fios_serviceable: false, fiveg_coverage: 'strong' } },
     };
@@ -131,7 +131,7 @@ describe('configuration reaches the engine', () => {
           customerId: 'cust_pol',
           channel: 'web',
           occurredAt: '2026-06-01T12:00:00.000Z',
-          input: withFibreOff,
+          input: withFiberOff,
           consent: { marketing: true, profiling: true, thirdParty: false },
           contactHistory: CONTACT,
         },
@@ -142,7 +142,7 @@ describe('configuration reaches the engine', () => {
 
     expect(await ask()).not.toContain('fios_gigabit');
 
-    fibre!.active = false;
+    fiber!.active = false;
     expect(await ask()).toContain('fios_gigabit');
   });
 });

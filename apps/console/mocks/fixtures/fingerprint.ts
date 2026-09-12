@@ -39,9 +39,19 @@
  *
  * ## What it covers
  *
- * Everything a decision is made from, and everything the console renders as
- * catalogue. Not the seeded decision corpus — that is a pure function of these
- * plus the engine, so a change to it already shows up here.
+ * Everything the store seeds from a fixture, which is the test for whether a
+ * part belongs here: if a reused server can serve it stale, the guard has to be
+ * able to see it.
+ *
+ * It held twelve parts for about an hour on 2026-09-12 and missed six —
+ * experiments, autonomy, agent activity, users, change sets and audit events.
+ * Renaming a seeded experiment produced a failure the guard could not explain
+ * and a rerun that passed, which is precisely the confusion it exists to
+ * remove. The part list is asserted by name in `seed-fingerprint.test.ts` so
+ * that losing one again is a failing test rather than a puzzling afternoon.
+ *
+ * Not the seeded decision corpus: that is a pure function of the catalogue plus
+ * the engine, so a change to it already shows up in one of these.
  */
 
 import { hash } from '@metis/runtime';
@@ -60,6 +70,12 @@ export interface SeedSource {
   placements: unknown;
   artifacts: unknown;
   profileSchema: unknown;
+  experiments: unknown;
+  autonomySettings: unknown;
+  agentActivity: unknown;
+  users: unknown;
+  changeSets: unknown;
+  auditEvents: unknown;
 }
 
 export interface SeedFingerprint {
@@ -98,6 +114,12 @@ export function seedFingerprint(source: SeedSource): SeedFingerprint {
     placements: hash(source.placements),
     artifacts: hash(source.artifacts),
     profileSchema: hash(source.profileSchema),
+    experiments: hash(source.experiments),
+    autonomySettings: hash(source.autonomySettings),
+    agentActivity: hash(source.agentActivity),
+    users: hash(source.users),
+    changeSets: hash(source.changeSets),
+    auditEvents: hash(source.auditEvents),
   };
   return { overall: hash(parts), parts };
 }

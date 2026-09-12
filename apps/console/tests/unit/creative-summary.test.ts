@@ -15,8 +15,8 @@ describe('summariseCreative', () => {
     expect(summariseCreative({ content: { channel: 'email', subject: 'Your network, unlimited' } as never })).toBe(
       'Your network, unlimited'
     );
-    expect(summariseCreative({ content: { channel: 'web', headline: '900Mb full fibre' } as never })).toBe(
-      '900Mb full fibre'
+    expect(summariseCreative({ content: { channel: 'web', headline: '900Mb full fiber' } as never })).toBe(
+      '900Mb full fiber'
     );
     expect(summariseCreative({ content: { channel: 'push', title: 'Data nearly gone' } as never })).toBe(
       'Data nearly gone'

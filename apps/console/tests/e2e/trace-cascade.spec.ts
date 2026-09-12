@@ -177,50 +177,21 @@ test.describe('the trace reads as a cascade @screen-only', () => {
     await expect(evidence.getByText('Field it evaluated')).toBeVisible();
   });
 
-  test('a rule from a pack names the pack that supplied it', async ({ page }) => {
-    // Walked from the list rather than opened by id: decision ids are
-    // generated, and a test that hardcoded one would be asserting a fixture
-    // constant. Affordability rules are this tenant's most common refusal, so
-    // a few rows always reach one; failing after eight says so out loud rather
-    // than passing quietly on a decision that had none.
-    let found = false;
-    for (let row = 0; row < 8 && !found; row++) {
-      await page.goto('/decisions');
-      await page.locator('tr[data-row]').nth(row).click();
-      await expect(rail(page)).toBeVisible({ timeout: 20_000 });
-
-      for (const name of await stageNames(page)) {
-        if (!/ removed here/.test(name)) continue;
-        await rail(page).getByRole('button', { name }).click();
-        // Wait for the pane to name *this* stage before reading it. `count()`
-        // does not auto-wait, and waiting for "a rule button" is not enough:
-        // the previous stage's rules are still on screen for a moment, so an
-        // early read walks past a stage that does have the rule. The first
-        // version of this test reported no affordability rule in eight
-        // decisions while the fourth had one, twenty candidates deep.
-        const label = name.split(':')[0];
-        await expect(page.getByText(new RegExp(`^${label} removed \\d+$`))).toBeVisible();
-        const group = page.getByRole('button', { name: /^pol_afford\w*: \d+ removed$/ });
-        if ((await group.count()) === 0) continue;
-        await group.first().click();
-        found = true;
-        break;
-      }
-    }
-    expect(found, 'no affordability rule in the first eight decisions').toBe(true);
-
-    const evidence = page.getByRole('region', { name: 'Evidence' });
-    await expect(evidence.getByText('UK Consumer Duty')).toBeVisible();
-    await expect(evidence.getByText('1.4.0')).toBeVisible();
-    await expect(evidence.getByText('pack_uk_consumer_duty')).toBeVisible();
-
-    // Under a rule, the connector row is an absence for a reason that is not
-    // G-056: this tenant's policies name dotted paths and its connectors
-    // provide flat fields, so no rule's field resolves to a call at all
-    // (G-069). The pane says which absence it is rather than implying the
-    // platform cannot date a value.
-    await expect(evidence.getByText(/no connector call supplied a field this rule reads/)).toBeVisible();
-  });
+  /**
+   * `a rule from a pack names the pack that supplied it` stood here until
+   * 2026-09-12 and is now
+   * `tests/unit/trace-evidence.test.tsx` — rebuilt on its own fixture rather
+   * than deleted.
+   *
+   * It walked `/decisions` until it found an affordability refusal and asserted
+   * the evidence pane named "UK Consumer Duty 1.4.0 / pack_uk_consumer_duty".
+   * That only ever worked because `telco-uk` happened to install two
+   * regulatory packs. `telco-us` installs none, and no `@screen-only` test can
+   * reach the state by clicking: packs are seeded and there is no pack-install
+   * screen (G-006). So the guard now hands the component a pack and asks what
+   * it says, which is what it should have rested on from the start, and it
+   * covers the two absences the pane distinguishes as well as the named case.
+   */
 
   test('the decision names when each value it used was computed', async ({ page }) => {
     // G-056. The times belong to the decision's inputs, so they are on the

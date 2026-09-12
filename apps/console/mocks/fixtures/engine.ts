@@ -208,7 +208,7 @@ export function connectorPayload(index: number): Record<string, unknown> {
   return {
     // conn_serviceability — the two fields the brief's scenarios turn on.
     // Deliberately *not* in the base input above: they arrive from a named
-    // system, so a fibre refusal in the trace can say who said so.
+    // system, so a fiber refusal in the trace can say who said so.
     'customer.address.fios_serviceable': r('fios2') > 0.45,
     'customer.address.fiveg_coverage':
       r('cover2') > 0.7 ? 'strong' : r('cover2') > 0.3 ? 'marginal' : 'none',
@@ -335,7 +335,7 @@ function buildRequest(index: number): DecisionRequest {
         // that fires it.
         moving_within_days: r('move') > 0.93 ? Math.floor(r('movedays') * 30) : 999,
         address: {
-          // Fibre is built out unevenly, which is the whole premise of the
+          // Fiber is built out unevenly, which is the whole premise of the
           // brief: the same visitor at two addresses gets two answers.
           fios_serviceable: r('fios') > 0.45,
           fiveg_coverage:
@@ -343,7 +343,7 @@ function buildRequest(index: number): DecisionRequest {
         },
         broadband: {
           // Most of this base already buys internet here, on something older
-          // than fibre. That is what makes Gaming Plus eligible and fibre a
+          // than fiber. That is what makes Gaming Plus eligible and fiber a
           // genuine upgrade rather than a first sale.
           status: r('bbstatus') > 0.18 ? 'active' : 'none',
           product: r('bbprod') > 0.82 ? 'fios' : r('bbprod') > 0.68 ? '5g_home' : 'dsl',

@@ -181,7 +181,7 @@ export const categories: Category[] = [
     objectiveId: 'iss_acquisition',
     name: 'Broadband',
     key: 'broadband',
-    description: 'Fibre and fixed-wireless internet at a service address.',
+    description: 'Fiber and fixed-wireless internet at a service address.',
     sortOrder: 1,
     createdAt: iso(-700),
     updatedAt: iso(-48),
@@ -235,14 +235,14 @@ const authoredOffers: Offer[] = [
     objectiveId: 'iss_acquisition',
     name: 'FIOS Gigabit',
     key: 'fios_gigabit',
-    description: 'Full-fibre gigabit internet, where the address can take it.',
+    description: 'Full-fiber gigabit internet, where the address can take it.',
     status: 'active',
     financials: { price: usd(0), cost: usd(0), expectedMargin: usd(10000), termMonths: 0, oneOff: false },
     validity: { startsAt: '2024-01-01', endsAt: null },
     boost: 1.0,
     policyIds: ['pol_fios_serviceable', 'pol_not_on_fios', 'pol_fios_interest'],
     creativeIds: ['crt_fios_web', 'crt_fios_email'],
-    tags: ['broadband', 'fibre'],
+    tags: ['broadband', 'fiber'],
     createdAt: iso(-600),
     updatedAt: iso(-6),
     updatedBy: 'sarah.chen@telco.example',
@@ -340,13 +340,13 @@ export const offers: Offer[] = [...authoredOffers];
  */
 const authoredCreatives: Creative[] = [
   web('crt_fios_web', 'off_fios_gigabit', 'FIOS Gigabit',
-    'Gigabit fibre is available at your address',
+    'Gigabit fiber is available at your address',
     'Install in as little as one visit. Your line, your speed.',
     'fios-gigabit', 'Check install dates', '/broadband/fios/install'),
   email('crt_fios_email', 'off_fios_gigabit', 'FIOS Gigabit',
-    'Fibre is ready at your address',
+    'Fiber is ready at your address',
     'Gigabit speeds, installed in one visit.',
-    'Your address can take full-fibre gigabit internet. Pick an install date online.'),
+    'Your address can take full-fiber gigabit internet. Pick an install date online.'),
 
   web('crt_5g_web', 'off_5g_home_ultimate', '5G Home Ultimate',
     '5G Home Ultimate, no line install',
@@ -424,8 +424,8 @@ export const targetingPolicies: TargetingPolicy[] = [
     [{ field: 'customer.account_status', operator: 'eq', value: 'active' }],
     { level: 'tenant', targetId: null }),
 
-  el('pol_fios_serviceable', 'Fibre serviceable at the address',
-    'Do not offer fibre where it cannot be installed. The value arrives from conn_serviceability, so a refusal can name the system that supplied the evidence.',
+  el('pol_fios_serviceable', 'Fiber serviceable at the address',
+    'Do not offer fiber where it cannot be installed. The value arrives from conn_serviceability, so a refusal can name the system that supplied the evidence.',
     [{ field: 'customer.address.fios_serviceable', operator: 'eq', value: true }],
     { level: 'offer', targetId: 'off_fios_gigabit' }),
 
@@ -603,11 +603,11 @@ export const arbitrationConfig: ArbitrationConfig = {
  * back to sorting by key, which means nothing at all.
  *
  * So every position is carried by a boost with a name, an owner and a date, and
- * the demo can say why each offer sits where it sits. `lev_fibre_first` puts
- * fibre top where the address supports it; `lev_line_before_addon` puts the
+ * the demo can say why each offer sits where it sits. `lev_fiber_first` puts
+ * fiber top where the address supports it; `lev_line_before_addon` puts the
  * broadband line above the add-on that attaches to it. Without the second one
  * the engine settled 5G Home against Gaming Plus by sorting keys, and in the
- * no-fibre scenario that alphabetical accident chose the headline slot.
+ * no-fiber scenario that alphabetical accident chose the headline slot.
  *
  * The difference from the brief is worth pointing at rather than hiding: an
  * order no model explains has to be explained by a business decision somebody
@@ -615,12 +615,12 @@ export const arbitrationConfig: ArbitrationConfig = {
  */
 export const boosts: Boost[] = [
   {
-    id: 'lev_fibre_first',
-    name: 'Fibre first where the address supports it',
+    id: 'lev_fiber_first',
+    name: 'Fiber first where the address supports it',
     scope: { level: 'offer', targetId: 'off_fios_gigabit' },
     value: 1.1,
     reason:
-      'Fibre leads where the address can take it. Authored for this demo by the product owner to break the three-way tie at business value 100: the customer has supplied no business-value ranking of their own, and the brief carries that order on an adaptive model this platform does not have.',
+      'Fiber leads where the address can take it. Authored for this demo by the product owner to break the three-way tie at business value 100: the customer has supplied no business-value ranking of their own, and the brief carries that order on an adaptive model this platform does not have.',
     validity: null,
     updatedAt: iso(-12),
     updatedBy: 'marcus.webb@telco.example',
@@ -631,7 +631,7 @@ export const boosts: Boost[] = [
     scope: { level: 'offer', targetId: 'off_5g_home_ultimate' },
     value: 1.05,
     reason:
-      'A broadband line outranks an add-on that attaches to one: selling the line is what makes the add-on possible, and a household with no internet cannot use a gaming bundle. Authored for this demo by the product owner to break the second tie at business value 100 — 5G Home Ultimate and Gaming Plus Bundle were level, and the engine was settling it by sorting keys alphabetically, which is an accident rather than a decision. In the no-fibre scenario that accident decided the headline slot.',
+      'A broadband line outranks an add-on that attaches to one: selling the line is what makes the add-on possible, and a household with no internet cannot use a gaming bundle. Authored for this demo by the product owner to break the second tie at business value 100 — 5G Home Ultimate and Gaming Plus Bundle were level, and the engine was settling it by sorting keys alphabetically, which is an accident rather than a decision. In the no-fiber scenario that accident decided the headline slot.',
     validity: null,
     updatedAt: iso(-12),
     updatedBy: 'marcus.webb@telco.example',
@@ -651,7 +651,7 @@ const baseGuardrails = {
     'customer.ethnicity',
     'customer.religion',
     'customer.health_status',
-    'customer.postcode_deprivation_decile',
+    'customer.zip_income_decile',
   ],
   requireSimulationPass: true,
   biasGateThreshold: 1.2,
@@ -680,7 +680,7 @@ export const autonomySettings: AutonomySetting[] = [
       maxBudgetDelta: usd(0),
     },
     rationale:
-      'Retention offers carry FCA fair-value obligations. Agents may draft copy for review but may not open or apply changes.',
+      'Cross-sell onto an existing line carries fair-value obligations: the household is already paying us. Agents may draft copy for review but may not open or apply changes.',
     updatedAt: iso(-120),
     updatedBy: 'priya.natarajan@telco.example',
   },
@@ -765,7 +765,7 @@ export const connectors: Connector[] = [
     name: 'Address serviceability',
     kind: 'rest',
     description:
-      'What the network can deliver at a service address: whether fibre can be installed, and how strong 5G Home coverage is. The customer brief turns on this answer — a fibre address and a non-fibre address are the same visitor with one field different, and this is the field.',
+      'What the network can deliver at a service address: whether fiber can be installed, and how strong 5G Home coverage is. The customer brief turns on this answer — a fiber address and a non-fiber address are the same visitor with one field different, and this is the field.',
     target: 'https://serviceability.telco.example/v1/address',
     // Declared, not measured, and not supplied by the customer — the same
     // blank as the prices (G-089), in a field that has to hold a number.
@@ -849,15 +849,24 @@ export const connectors: Connector[] = [
     id: 'conn_network_usage',
     name: 'Network usage',
     kind: 'feature-store',
-    description: 'Rolling 30-day data, voice and roaming usage from the mediation platform.',
+    description: 'Rolling 30-day data usage and account tenure from the mediation platform.',
     target: 'featurestore://telco-us/usage',
     declaredP95Ms: 4,
     timeoutMs: 25,
     onFailure: 'omit',
     cacheTtlSeconds: 900,
+    // `customer.usage.roaming_days` was here until 2026-09-12, and dropping it
+    // is not tidying. This connector is one of five the live flow's source
+    // node calls, so the route fetched the field on every decision; no
+    // targeting policy reads it, this tenant sells no mobile plan, and the
+    // generated corpus requests do not carry it. That last one is what made it
+    // visible: a field the route resolves and the corpus omits enters the
+    // hashed input on one side only, so all 60 service cases diverged on chain
+    // hash while agreeing on every winner. See G-098 — the corpus agrees with
+    // the console's own endpoint only while every connector field the flow
+    // calls is already in the request, and nothing checks that.
     provides: [
       { field: 'customer.usage.data_usage_gb', path: 'usage.dataGb', type: 'number' },
-      { field: 'customer.usage.roaming_days', path: 'usage.roamingDays', type: 'number' },
       { field: 'customer.tenure_months', path: 'account.tenureMonths', type: 'number' },
     ],
     active: true,

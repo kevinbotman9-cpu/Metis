@@ -19,7 +19,7 @@
       "schema": {
         "id": "schema_telco_uk",
         "version": "2.0.0",
-        "hash": "95ff02e455700dd0afcde1fa3aaddb6ed82b75d0f8d84194c17f763680cb7a64"
+        "hash": "326ba0b18a7ad24f45fb4ccc3014f34c16bdeeb1035cf58ebcdceb7a2abe2dd1"
       },
       "nodes": [
         {
@@ -98,6 +98,50 @@
           "to": "arbitrate_priority"
         }
       ]
+    },
+    {
+      "id": "entertainment-cross-sell",
+      "version": "0.1.0",
+      "tenantId": "telco-us",
+      "candidateKeys": [
+        "gaming_plus_bundle",
+        "disney_plus",
+        "netflix"
+      ],
+      "packageVersions": {
+        "@metis/nodes-core": "1.4.0",
+        "@metis/core": "2.1.0"
+      },
+      "schema": {
+        "id": "schema_telco_uk",
+        "version": "2.0.0",
+        "hash": "326ba0b18a7ad24f45fb4ccc3014f34c16bdeeb1035cf58ebcdceb7a2abe2dd1"
+      },
+      "nodes": [
+        {
+          "id": "source_customer",
+          "type": "source",
+          "label": "Customer and affinity",
+          "connectorIds": [
+            "conn_engagement"
+          ]
+        },
+        {
+          "id": "filter_relevance",
+          "type": "filter",
+          "label": "Relevance",
+          "policyIds": [
+            "pol_broadband_need_met",
+            "pol_entertainment_affinity"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "source_customer",
+          "to": "filter_relevance"
+        }
+      ]
     }
   ],
   "catalogue": {
@@ -108,7 +152,7 @@
         "objectiveId": "iss_acquisition",
         "name": "FIOS Gigabit",
         "key": "fios_gigabit",
-        "description": "Full-fibre gigabit internet, where the address can take it.",
+        "description": "Full-fiber gigabit internet, where the address can take it.",
         "status": "active",
         "financials": {
           "price": {
@@ -142,7 +186,7 @@
         ],
         "tags": [
           "broadband",
-          "fibre"
+          "fiber"
         ],
         "createdAt": "2026-08-07T09:00:00.000Z",
         "updatedAt": "2026-09-01T03:00:00.000Z",
@@ -355,9 +399,9 @@
       },
       {
         "id": "pol_fios_serviceable",
-        "name": "Fibre serviceable at the address",
+        "name": "Fiber serviceable at the address",
         "kind": "eligibility",
-        "description": "Do not offer fibre where it cannot be installed. The value arrives from conn_serviceability, so a refusal can name the system that supplied the evidence.",
+        "description": "Do not offer fiber where it cannot be installed. The value arrives from conn_serviceability, so a refusal can name the system that supplied the evidence.",
         "conditions": [
           {
             "field": "customer.address.fios_serviceable",
@@ -723,14 +767,14 @@
     },
     "boosts": [
       {
-        "id": "lev_fibre_first",
-        "name": "Fibre first where the address supports it",
+        "id": "lev_fiber_first",
+        "name": "Fiber first where the address supports it",
         "scope": {
           "level": "offer",
           "targetId": "off_fios_gigabit"
         },
         "value": 1.1,
-        "reason": "Fibre leads where the address can take it. Authored for this demo by the product owner to break the three-way tie at business value 100: the customer has supplied no business-value ranking of their own, and the brief carries that order on an adaptive model this platform does not have.",
+        "reason": "Fiber leads where the address can take it. Authored for this demo by the product owner to break the three-way tie at business value 100: the customer has supplied no business-value ranking of their own, and the brief carries that order on an adaptive model this platform does not have.",
         "validity": null,
         "updatedAt": "2026-08-31T21:00:00.000Z",
         "updatedBy": "marcus.webb@telco.example"
@@ -743,7 +787,7 @@
           "targetId": "off_5g_home_ultimate"
         },
         "value": 1.05,
-        "reason": "A broadband line outranks an add-on that attaches to one: selling the line is what makes the add-on possible, and a household with no internet cannot use a gaming bundle. Authored for this demo by the product owner to break the second tie at business value 100 — 5G Home Ultimate and Gaming Plus Bundle were level, and the engine was settling it by sorting keys alphabetically, which is an accident rather than a decision. In the no-fibre scenario that accident decided the headline slot.",
+        "reason": "A broadband line outranks an add-on that attaches to one: selling the line is what makes the add-on possible, and a household with no internet cannot use a gaming bundle. Authored for this demo by the product owner to break the second tie at business value 100 — 5G Home Ultimate and Gaming Plus Bundle were level, and the engine was settling it by sorting keys alphabetically, which is an accident rather than a decision. In the no-fiber scenario that accident decided the headline slot.",
         "validity": null,
         "updatedAt": "2026-08-31T21:00:00.000Z",
         "updatedBy": "marcus.webb@telco.example"
@@ -754,7 +798,7 @@
         "id": "conn_serviceability",
         "name": "Address serviceability",
         "kind": "rest",
-        "description": "What the network can deliver at a service address: whether fibre can be installed, and how strong 5G Home coverage is. The customer brief turns on this answer — a fibre address and a non-fibre address are the same visitor with one field different, and this is the field.",
+        "description": "What the network can deliver at a service address: whether fiber can be installed, and how strong 5G Home coverage is. The customer brief turns on this answer — a fiber address and a non-fiber address are the same visitor with one field different, and this is the field.",
         "target": "https://serviceability.telco.example/v1/address",
         "declaredP95Ms": 20,
         "timeoutMs": 90,
@@ -868,7 +912,7 @@
         "id": "conn_network_usage",
         "name": "Network usage",
         "kind": "feature-store",
-        "description": "Rolling 30-day data, voice and roaming usage from the mediation platform.",
+        "description": "Rolling 30-day data usage and account tenure from the mediation platform.",
         "target": "featurestore://telco-us/usage",
         "declaredP95Ms": 4,
         "timeoutMs": 25,
@@ -878,11 +922,6 @@
           {
             "field": "customer.usage.data_usage_gb",
             "path": "usage.dataGb",
-            "type": "number"
-          },
-          {
-            "field": "customer.usage.roaming_days",
-            "path": "usage.roamingDays",
             "type": "number"
           },
           {

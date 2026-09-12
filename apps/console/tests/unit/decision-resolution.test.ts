@@ -61,7 +61,7 @@ describe('POST /api/decisions resolves its connectors', () => {
     // endpoint fetched them.
     const byField = new Map(body.decision.sourceBindings.map((b) => [b.field, b.connectorId]));
     // The two the brief's scenarios turn on, and which named system said so:
-    // a fibre refusal that can point at the serviceability lookup is the whole
+    // a fiber refusal that can point at the serviceability lookup is the whole
     // reason this path is worth having.
     expect(byField.get('customer.address.fios_serviceable')).toBe('conn_serviceability');
     expect(byField.get('customer.address.fiveg_coverage')).toBe('conn_serviceability');

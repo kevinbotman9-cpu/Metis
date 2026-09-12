@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { login, ACCOUNTS } from './helpers';
+import { offers, creatives } from '@/mocks/fixtures/catalogue';
 
 /**
  * @screen-only
@@ -33,19 +34,27 @@ test.describe('the seeded tenant reaches every built screen @screen-only', () =>
     await login(page, ACCOUNTS.marcus);
   });
 
-  test('the catalogue is a catalogue, not a sample', async ({ page }) => {
+  test('the catalogue on screen is the catalogue in the fixture', async ({ page }) => {
     await railTo(page, 'Catalogue', 'Offers');
     await expect(page.getByRole('heading', { level: 1, name: 'Offers' })).toBeVisible();
 
-    // A list of eleven does not scroll and its facets have no shape.
+    // Counted from the fixture, not written down. This asserted `> 20` while
+    // the tenant was 240 generated offers; the tenant is now the five the
+    // customer's brief names, and a number in the spec would have had to be
+    // edited to five — which asserts nothing about the seed reaching the
+    // screen. The property that survives both tenants is that every offer the
+    // fixture declares is on the page and nothing else is.
     const rows = page.locator('tr[data-row]');
     await expect(rows.first()).toBeVisible();
-    expect(await rows.count()).toBeGreaterThan(20);
+    expect(await rows.count()).toBe(offers.length);
 
-    // Real-shaped names. Every seeded offer is named from its category, so a
-    // row reads like something a telco sells rather than like a fixture.
-    const names = await rows.locator('td').first().allInnerTexts();
-    expect(names.some((n) => /5G|Fibre|Superfast|GB|Roaming|Unlimited/i.test(n))).toBe(true);
+    // Real-shaped names: the offers are the ones the brief names, and none of
+    // them is a placeholder.
+    // Every row's first cell, not the first cell on the page: `rows` matches
+    // all five rows, so `.locator('td').first()` is one cell and a check over
+    // it can only ever see one offer.
+    const names = await rows.locator('td:first-child').allInnerTexts();
+    for (const offer of offers) expect(names.some((n) => n.includes(offer.name))).toBe(true);
     expect(names.every((n) => !/test offer|sample|foo|lorem/i.test(n))).toBe(true);
   });
 
@@ -54,7 +63,14 @@ test.describe('the seeded tenant reaches every built screen @screen-only', () =>
     await expect(page.getByRole('heading', { level: 1, name: 'Creatives' })).toBeVisible();
     const rows = page.locator('tr[data-row]');
     await expect(rows.first()).toBeVisible();
-    expect(await rows.count()).toBeGreaterThan(20);
+    expect(await rows.count()).toBe(creatives.length);
+
+    // Content for *those* offers, which is what the title claims: every offer
+    // in the catalogue is reachable on at least one channel. An offer with no
+    // creative is a real state the console has a screen for, and this tenant
+    // declares none — see G-096.
+    const covered = new Set(creatives.map((c) => c.offerId));
+    expect([...offers].every((o) => covered.has(o.id))).toBe(true);
   });
 
   test('the decision history spans two years, not one week', async ({ page }) => {
@@ -114,6 +130,15 @@ test.describe('the seeded tenant reaches every built screen @screen-only', () =>
   });
 
   test('an offer held for bias review is findable and says why', async ({ page }) => {
+    // Skipped, not deleted, and not rewritten to pass. `telco-us` is the five
+    // offers the customer's brief names and none of them is held for bias
+    // review, so the subject of this check does not exist in the tenant — the
+    // screen it exercises is still built and still unproven. Re-enabling it is
+    // part of G-096, the warning-state fixture, scheduled after the demo
+    // lands. Weakening it to assert the search finds nothing would leave a
+    // green check over an unexercised screen, which is worse than a visible
+    // skip.
+    test.skip(true, 'no offer is held for bias review in telco-us — G-096');
     await railTo(page, 'Catalogue', 'Offers');
 
     // The grid's own filter, which searches name, key *and* tag — so the one
