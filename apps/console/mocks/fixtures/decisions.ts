@@ -52,6 +52,15 @@ export interface TraceRecord extends DecisionRecord {
    * (G-052).
    */
   totalMs: number;
+  /**
+   * Every action the flow was allowed to consider.
+   *
+   * On the trace and not on the flat row: the list shows a count per decision
+   * and the set would be 10,400 arrays nobody reads there. On the trace it is
+   * the first thing the cascade has to answer, and serving only the count is
+   * what left the rail saying "12 entered" without naming one (G-087).
+   */
+  candidateKeys: string[];
   eliminations: EliminationStep[];
   scores: Record<
     string,
@@ -75,6 +84,10 @@ export interface TraceRecord extends DecisionRecord {
   /** sha256 over the reproducible half of the decision. */
   chainHash: string;
   inputSnapshotHash: string;
+  /** The catalogue this was decided against. `chainHash` covers it. */
+  catalogueSnapshotHash: string;
+  /** The profile schema pinned into the decision (ADR-014), or null. */
+  schema: { id: string; version: string; hash: string } | null;
 }
 
 /** Pick the creative that would actually have been delivered on this channel. */
@@ -178,6 +191,11 @@ function toTrace({ trace }: GeneratedDecision): TraceRecord {
     placement: d.placement,
     winner: d.winner,
     winnerOfferId: d.winnerOfferId,
+    // The set, and the count derived from it. Until 2026-09-12 only the count
+    // was served: `candidateKeys` was right here and reduced to its length, so
+    // the cascade rail could say "12 candidates entered" and never name one,
+    // and the storefront panel read for a field the DTO did not carry (G-087).
+    candidateKeys: d.candidateKeys,
     candidateCount: d.candidateKeys.length,
     totalMs: trace.measured.totalMs,
     eliminations: d.eliminations,
@@ -191,6 +209,11 @@ function toTrace({ trace }: GeneratedDecision): TraceRecord {
     sourceCalls: sourceCallsFor(d.sourceBindings, trace.id, d.occurredAt),
     chainHash: trace.chainHash,
     inputSnapshotHash: d.inputSnapshotHash,
+    // `chainHash` covers all three of these. Serving two of them handed a
+    // caller a hash they could not check, and left "which catalogue decided
+    // this" unanswerable from the endpoint whose whole job is to answer it.
+    catalogueSnapshotHash: d.catalogueSnapshotHash,
+    schema: d.schema ?? null,
   };
 }
 

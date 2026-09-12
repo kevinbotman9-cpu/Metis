@@ -740,19 +740,24 @@ async function reportOutcome(decisionId, type) {
 /**
  * The decision behind a slate. Live decisions resolve from the ledger.
  *
- * Returns `undefined` today, and has since 2026-09-07: `getDecisionTrace`
- * serves the trace at the top level with no `decision` wrapper, and the panel
- * below was written against the engine's `DeterministicDecision` rather than
- * the DTO the route actually returns. Left exactly as it was rather than
- * half-corrected — unwrapping it only moves the failure, because the fields the
- * panel reads next (`candidateKeys`, `catalogueSnapshotHash`) are not in the
- * DTO either. Registered as G-087; it needs a decision about which of the two
- * shapes is wrong, not a patch from inside this slice.
+ * `getDecisionRecord` serves the flat shape the spec declares, at the top
+ * level. This read `.decision` off it from 2026-09-07 to 2026-09-12 — the
+ * engine's runtime envelope, which the JVM service serves at this same path
+ * and this API does not — so it was `undefined` every time and the panel's
+ * whole explanation rendered as an empty div (G-087).
+ *
+ * The guard is the point. The previous version could not tell "the platform
+ * answered something I cannot read" from "there was nothing to show", and
+ * chose the second every time, for four days, in silence.
  */
 async function loadTrace(decisionId) {
   const res = await fetch(`${API}/decisions/${decisionId}/trace`);
   if (!res.ok) throw new Error(`Trace ${decisionId}: HTTP ${res.status}`);
-  return (await res.json()).decision;
+  const trace = await res.json();
+  if (!trace || !Array.isArray(trace.eliminations) || !Array.isArray(trace.candidateKeys)) {
+    throw new Error(`Trace ${decisionId}: not a decision record`);
+  }
+  return trace;
 }
 
 async function loadOffer(offerId) {

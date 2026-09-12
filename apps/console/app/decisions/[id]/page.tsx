@@ -624,6 +624,11 @@ function TraceView({ decisionId }: { decisionId: string }) {
                   ['Artifact', `${trace.artifactId} ${trace.artifactVersion}`, true],
                   ['Placement', trace.placement, true],
                   ['Input snapshot', `${trace.inputSnapshotHash.slice(0, 16)}...`, true],
+                  // The third thing the chain hash covers. Shown beside the
+                  // other two because a hash whose inputs are half-hidden is a
+                  // number to be trusted rather than checked, and this screen
+                  // exists for the reader who will not trust it (G-087).
+                  ['Catalogue', `${trace.catalogueSnapshotHash.slice(0, 16)}...`, true],
                 ].map(([label, value, mono]) => (
                   <div key={String(label)} className="flex justify-between gap-3">
                     <dt className="shrink-0 text-content-subtle">{label}</dt>
@@ -644,7 +649,8 @@ function TraceView({ decisionId }: { decisionId: string }) {
                 <p className="mt-1 text-label text-content-subtle">
                   sha256 over the reproducible part of this decision. Timings are excluded, so
                   the hash is stable across executions. The decision ID is its first 16
-                  characters.
+                  characters. It covers the input snapshot and the catalogue above, both of
+                  which are named here so the hash can be checked rather than taken on trust.
                 </p>
               </div>
             </CardBody>

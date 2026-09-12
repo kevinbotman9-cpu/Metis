@@ -1371,9 +1371,9 @@ components:
         judgement call.
       required:
         [id, artifactId, artifactVersion, tenantId, customerId, timestamp, channel,
-         placement, winner, winnerOfferId, candidateCount, totalMs,
+         placement, winner, winnerOfferId, candidateKeys, candidateCount, totalMs,
          eliminations, scores, arbitration, timings, constraintsApplied,
-         consentState, chainHash, inputSnapshotHash]
+         consentState, chainHash, inputSnapshotHash, catalogueSnapshotHash]
       properties:
         id:
           type: string
@@ -1398,8 +1398,23 @@ components:
           type: [string, 'null']
         winnerOfferId:
           type: [string, 'null']
+        candidateKeys:
+          type: array
+          description: >
+            Every action the flow was allowed to consider, from the artifact's
+            candidate set. Served as the set and not only as a count: "what did
+            we consider" is the first question the cascade answers, and a count
+            cannot answer it. It is derivable by unioning every denial key with
+            the winner, which is exactly the re-derivation that produces two
+            consumers disagreeing about one decision.
+          items:
+            type: string
         candidateCount:
           type: integer
+          description: >
+            `candidateKeys.length`. Kept because the decision list and the
+            cascade rail both read it, and derived from the set rather than
+            stored beside it.
         totalMs:
           type: number
         eliminations:
@@ -1490,6 +1505,27 @@ components:
         chainHash:
           type: string
           description: sha256 over the reproducible half of the decision
+        catalogueSnapshotHash:
+          type: string
+          description: >
+            The catalogue this decision was made against.
+
+            `chainHash` covers the input snapshot, the catalogue snapshot and
+            the decision itself. Serving two of those three left a caller
+            holding a hash they could not check and unable to say which
+            catalogue produced the answer - while the console's own replay route
+            reached past this DTO into the stored runtime record to get it.
+        schema:
+          type: [object, 'null']
+          description: >
+            The profile schema pinned into the decision (ADR-014 2), or null
+            for a decision made before the artifact carried one. Served for the
+            same reason as the two hashes above: a decision has to identify
+            every version that produced it.
+          properties:
+            id: { type: string }
+            version: { type: string }
+            hash: { type: string }
         inputSnapshotHash:
           type: string
 
