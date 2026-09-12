@@ -44,42 +44,46 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
-### G-087 — The storefront's explanation panel has rendered nothing since the day it was written
+### G-088 — Two services answer the same operation with different envelopes, and only one of them can be checked
 
-**Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — one of two shapes is wrong and somebody has to say which
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — an architecture decision, not a defect
 
-`STOREFRONT_DEMO.md` says of the demo panel: *"Every figure in the panel comes
-from the decision the platform returned."* **No figure in it has ever come from
-anywhere.** The detail body of every decision card renders as an empty `<div>`:
-no eliminations, no scores, no chain hash, no connector provenance, no slate.
+`GET /decisions/{id}/trace` has two implementations, and they do not agree about
+what a trace is.
 
-```js
-return (await res.json()).decision;   // getDecisionTrace has no `decision` key
-```
+| | Envelope | Verifiable against its own `chainHash` |
+|---|---|---|
+| Console API | the flat `DecisionRecord` the spec declares | **no** |
+| JVM service | `{ id, decision, chainHash }`, where `decision` is the canonical bytes | **yes** |
 
-`GET /decisions/{id}/trace` serves the trace at the **top level**. Reading
-`.decision` off it yields `undefined`, the card's whole detail block is a
-template literal guarded by `const d = r.decision`, and an undefined `d` makes
-it the empty string. No error, no console warning, a page that looks perfect
-above the fold.
+`DecisionService.traceJson` writes the decision as
+`Canonical.canonicalise(Canon.decision(...))` — literally the bytes that were
+hashed — and `ServiceConformanceTest` has a case named *"the response body is
+the bytes that were hashed"*. A caller can recompute sha256 over that object and
+confirm the `chainHash` beside it. **That is not a stylistic difference; it is
+the difference between a trace you can verify and a trace you must trust.**
 
-**Unwrapping it is not the fix**, which is why this is registered rather than
-patched. Corrected to read the response itself, the next line throws:
-`d.candidateKeys.map` — the DTO carries `candidateCount`, a number, and no
-`candidateKeys` at all. Nor does it carry `catalogueSnapshotHash`. The panel was
-written against the engine's `DeterministicDecision`; the route serves a
-different, narrower shape. Either the trace DTO is missing fields a caller
-needs, or the panel reads for fields it was never going to get, and choosing
-between those is a contract decision, not a patch from inside another slice.
+The console's flat record is a projection. It is easier for screens — every
+console page reads it, and returning the runtime shape there once broke every
+live decision until 2026-09-09 — but no amount of adding fields to it makes it
+re-hashable, because the hash is over a differently shaped object.
 
-**Since 2026-09-07**, in `3d55f1a` — the commit that built the slate and the
-panel together. Four days, and every demo given from this page in them.
+So the platform currently tells a caller two different things depending on which
+implementation answers, and the spec declares only one of them. Whichever way
+this resolves, one of the two is out of contract today.
 
-**Why nothing caught it.** `storefront-reporting.spec.ts` and
-`outcome-loop.spec.ts` both drive this page hard, and both assert only on what
-the *site* renders and what it reports back. Neither opens the panel. The panel
-is the artefact this project points at when it says the trace is the hero, and
-it is the one part of the page no test looks at.
+**The decision this needs.** Does the platform's trace endpoint serve something
+a third party can verify, or something a screen can render easily? The product's
+central claim is that the trace is the hero and a decision can be proved after
+the fact, which argues for the verifiable envelope — perhaps both, as
+`{ decision, chainHash }` alongside the flat projection, so screens keep their
+convenience and auditors keep their arithmetic. That is a contract change with
+an ADR behind it, not a patch.
+
+**Found while fixing [G-087](gaps.md)**, which is the shallower half of the same
+confusion: the storefront panel was reading the JVM service's envelope from the
+console's API. It was not wrong about the shape existing — only about which
+service it was talking to.
 
 ### G-080 — The capability map's "configurable without code" answers a proxy, and the question it names is answered no
 
@@ -1442,6 +1446,71 @@ payload, and a descriptor no longer needs a screen-supplied default to avoid
 sending zero.
 
 ## Resolved
+
+### G-087 — The storefront's explanation panel rendered nothing, because the trace endpoint under-served and the panel read the wrong envelope
+
+**Registered:** 2026-09-11 · **Resolved:** 2026-09-12 · **Status:** Resolved · **Work item:** none — two faults, both fixed; the third is [G-088](gaps.md)
+
+`STOREFRONT_DEMO.md` says of the demo panel: *"Every figure in the panel comes
+from the decision the platform returned."* **No figure in it ever had.** The
+detail body of every decision card rendered as an empty `<div>` — no
+eliminations, no scores, no chain hash, no connector provenance — from
+`3d55f1a` on 2026-09-07, the commit that built the slate and the panel together,
+until 2026-09-12. Four days, and every demo given from this page in them.
+
+**Two separate faults, and the interesting one is not the obvious one.**
+
+**1. The panel read the wrong envelope.** `return (await res.json()).decision`
+against a route that serves the record at the top level. `undefined`, and the
+card's whole detail block is a template literal guarded by `const d =
+r.decision`, so it collapsed to the empty string. No error, no console warning,
+a page that looked perfect above the fold.
+
+That read is not arbitrary, which is why it survived: **the JVM service serves
+`{ id, decision, chainHash }` at this same path** — the engine's runtime
+envelope — while the console API serves the flat `DecisionRecord` the spec
+declares. The panel was right about one of the two implementations. That
+divergence is [G-088](gaps.md); it is not this entry.
+
+**2. The DTO under-served, and unwrapping alone would only have moved the
+failure.** Corrected to read the response itself, the next line throws on
+`d.candidateKeys` — which the DTO did not carry. Nor `catalogueSnapshotHash`.
+
+The projection had both and dropped them:
+
+```ts
+candidateCount: d.candidateKeys.length,   // the set, reduced to its length
+// d.catalogueSnapshotHash — never carried at all
+```
+
+**`catalogueSnapshotHash` is the sharper omission.** `chainHash` covers the
+input snapshot, the catalogue snapshot and the decision. The endpoint served
+two of those three, so a caller held a hash it could not check and could not
+say which catalogue produced the answer — from the endpoint whose entire job is
+to answer that. The console's own replay route already reached *past* this DTO
+into the stored runtime record to get the field, and the JVM service reports it
+on `/health`. Everything needed it; only the contract lacked it.
+
+**`candidateKeys` is a lossy projection of a fact the engine already has.** The
+cascade rail's entry stage reads *"Every action the flow was allowed to
+consider"* and could only print a number. The set is derivable — union every
+denial key with the winner — which is exactly the re-derivation that produces
+two consumers disagreeing about one decision.
+
+**Decided: the DTO was wrong.** `DecisionRecord` now carries `candidateKeys`,
+`catalogueSnapshotHash` and `schema`, all required; `candidateCount` stays and
+is `candidateKeys.length`, derived rather than stored beside it. Serving them
+moves no hash — the chain hash is over the engine's decision, not over this
+projection — so the change is purely additive.
+
+**The check that was missing.** `storefront-reporting.spec.ts` and
+`outcome-loop.spec.ts` both drive this page hard and assert only on what the
+*site* renders and what it reports back. Neither opened the panel.
+`storefront-panel.spec.ts` now opens it and asserts both hashes are sha256, the
+candidate set is named, the cascade lists refusals and the provenance names a
+connector. Proven to bite by restoring the exact `.decision` read: it fails on
+`not.toBeEmpty()` with *"unexpected value: empty"*, which is the original
+symptom stated precisely.
 
 ### G-086 — The reject cooldown was authored, displayed, hashed, and enforced by neither engine
 

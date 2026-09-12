@@ -707,6 +707,11 @@ export interface DecisionRecord {
   placement: string;
   winner: string | null;
   winnerOfferId: string | null;
+  /** Every action the flow was allowed to consider, from the artifact's candidate set. Served as the set and not only as a count: "what did we consider" is the first question the cascade answers, and a count cannot answer it. It is derivable by unioning every denial key with the winner, which is exactly the re-derivation that produces two consumers disagreeing about one decision.
+ */
+  candidateKeys: string[];
+  /** `candidateKeys.length`. Kept because the decision list and the cascade rail both read it, and derived from the set rather than stored beside it.
+ */
   candidateCount: number;
   totalMs: number;
   eliminations: Elimination[];
@@ -751,6 +756,17 @@ replayed trace - replay calls no connectors.
   sourceCalls?: SourceCall[];
   /** sha256 over the reproducible half of the decision */
   chainHash: string;
+  /** The catalogue this decision was made against.
+`chainHash` covers the input snapshot, the catalogue snapshot and the decision itself. Serving two of those three left a caller holding a hash they could not check and unable to say which catalogue produced the answer - while the console's own replay route reached past this DTO into the stored runtime record to get it.
+ */
+  catalogueSnapshotHash: string;
+  /** The profile schema pinned into the decision (ADR-014 2), or null for a decision made before the artifact carried one. Served for the same reason as the two hashes above: a decision has to identify every version that produced it.
+ */
+  schema?: {
+    id?: string;
+    version?: string;
+    hash?: string;
+  } | null;
   inputSnapshotHash: string;
 }
 
