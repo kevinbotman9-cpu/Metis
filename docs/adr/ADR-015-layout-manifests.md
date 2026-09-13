@@ -254,6 +254,16 @@ the seven, and names the one review to hold.
    then need manifests. That adds **three** `[layout-manifests]` failures, and it
    should land in the same slice as enough conversions to keep the count from
    rising (§ *Build first*).
+
+   **Amended 2026-09-13, by the product owner.** The narrowing landed on its own,
+   ahead of the third build step and with no conversions, and the count rose
+   from 23 to **27** rather than 26: `/offers/[id]` is a fourth dynamic route no
+   manifest names. The reason: a check that cannot see `/decisions/[id]` — the
+   trace reader, the screen the specification calls the most important in the
+   product — is not a ratchet on it, and a count held flat by exempting it was
+   flat for the wrong reason. The rise is the check starting to see screens it
+   could not, recorded in `docs/ux-conformance-baseline.json` in the same
+   commit. It is not a precedent for raising the baseline over a regression.
 4. **No `PENDING` list for routes.** Unlike descriptors, this rule already has a
    ledger: the conformance count, ratcheted against the baseline. A pending list
    would turn 21 failures into 21 excuses without converting a screen, which is
@@ -348,10 +358,10 @@ is at two screens, not ten. Failures go from 21 to 19, honestly.
 
 **Second: Workbench,** six screens, the same way.
 
-**Third: the `[id]` exemption narrowed,** with the Evidence reader and Canvas +
-inspector as patterns and `/decisions/[id]` and `/decision-flows/[id]` converted
-in the same slice. The hero screen comes under the check, and the count does not
-rise.
+**Third: the Evidence reader and Canvas + inspector as patterns,** with
+`/decisions/[id]` and `/decision-flows/[id]` converted. The `[id]` exemption was
+narrowed ahead of this step on 2026-09-13 (§5.3, amended), so the hero screen is
+already under the check; converting it is what brings the count back down.
 
 **Then** the remaining list–detail screens. `/offers` folds its drawer and its
 `[id]` page into the split canvas; `/creatives`, `/arbitration` and
