@@ -1,11 +1,11 @@
 {
-  "failures": 24,
+  "failures": 23,
   "warnings": 2,
-  "recorded": "2026-09-11",
+  "recorded": "2026-09-13",
   "why": "The count npm run conformance reports today. It is a ratchet, not a target: this number may fall and may not rise, per CLAUDE.md Session Discipline, and there is no exception. layout-manifests has an implementation since ADR-015, so a new screen is a manifest, not a new failure.",
   "standing": {
     "layout-manifests": "one per route whose page does not render through a layout manifest. The format and the list–detail renderer exist (ADR-015); the check reads each page.tsx, so a route clears only by being converted",
-    "mock-banner": "three screens read from fixtures without saying so",
+    "mock-banner": "two screens read from fixtures without saying so. Three until 2026-09-13, when /settings began reading the tenant's locale and currency through the generated client (G-092)",
     "generated-client-only": "api-client.ts is the hand-written transport the rule is about",
     "tokens-only": "raw values that predate the token layer"
   }
