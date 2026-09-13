@@ -4,6 +4,7 @@ import { creativeDescriptor } from './creative';
 import { objectiveDescriptor } from './objective';
 import { categoryDescriptor } from './category';
 import { placementDescriptor } from './placement';
+import { tenantSettingsDescriptor } from './tenant-settings';
 
 /**
  * The metadata registry.
@@ -19,6 +20,7 @@ import { placementDescriptor } from './placement';
 export const REGISTRY: Record<string, EntityDescriptor> = {
   Objective: objectiveDescriptor,
   Placement: placementDescriptor,
+  TenantSettings: tenantSettingsDescriptor,
   Category: categoryDescriptor,
   Offer: offerDescriptor,
   Creative: creativeDescriptor,
@@ -54,6 +56,9 @@ export const USER_EDITABLE_ENTITIES = [
   'Theme',
   'Layout',
   'Persona',
+  // Confirmed 2026-09-13: the product owner asked for the tenant locale to be
+  // switchable from the screen. G-092.
+  'TenantSettings',
 ] as const;
 
 /**

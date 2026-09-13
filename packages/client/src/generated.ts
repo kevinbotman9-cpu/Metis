@@ -1068,6 +1068,26 @@ rather than failing in production.
   updatedBy: string;
 }
 
+/** How a tenant presents itself: the locale every date, count and amount in
+the console is formatted in, and the currency of an amount that carries
+none of its own.
+
+Neither existed before 2026-09-13. `en-GB` was written at 77 call sites,
+and the currency was inferred from whichever offer was first in the
+catalogue — so a US tenant read British dates, and a tenant whose first
+offer happened to be priced in euros would have reported its revenue in
+euros. G-092.
+ */
+export interface TenantSettings {
+  tenantId: string;
+  /** A BCP 47 language tag, stored in canonical form. Refused unless the runtime can format dates and numbers in it. */
+  locale: string;
+  /** ISO 4217. Limited to the currencies `Money` can hold, because an amount written in a currency the domain cannot represent is not an amount. */
+  currency: "GBP" | "USD" | "EUR";
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
 /** A content slot in a customer journey, configured rather than assumed.
 
 `placement` has been a string on a decision request since the beginning
@@ -1479,6 +1499,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200'],
   },
+  getTenantSettings: {
+    method: 'GET',
+    path: '/tenants/{tenantId}/settings',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['200', '404'],
+  },
   landRows: {
     method: 'POST',
     path: '/data-sources/{tenantId}/{sourceId}/rows',
@@ -1773,6 +1800,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '400', '403', '404'],
   },
+  updateTenantSettings: {
+    method: 'PUT',
+    path: '/tenants/{tenantId}/settings',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['200', '400', '403', '404'],
+  },
   validateDataSource: {
     method: 'POST',
     path: '/data-sources/{tenantId}/{sourceId}/validation',
@@ -1784,6 +1818,8 @@ export const OPERATIONS = {
 
 export type OperationId = keyof typeof OPERATIONS;
 
+/** The OpenAPI version the spec declares. */
+export const OPENAPI_VERSION = '3.1.0';
 // --- Request and response bodies --------------------------------------------
 
 /** Activate a validated source */
@@ -1962,6 +1998,9 @@ export type GetShadowReportResponse = ShadowReport;
 
 /** The whole offer taxonomy in one call */
 export type GetTaxonomyResponse = Taxonomy;
+
+/** The tenant's locale and currency */
+export type GetTenantSettingsResponse = TenantSettings;
 
 /** Land rows against a source */
 export type LandRowsResponse = DataSource;
@@ -2215,6 +2254,10 @@ export type UpdatePlacementRequest = Placement;
 export type UpdateTargetingPolicyResponse = TargetingPolicy;
 export type UpdateTargetingPolicyRequest = TargetingPolicyWrite;
 
+/** Change the tenant's locale or currency */
+export type UpdateTenantSettingsResponse = TenantSettings;
+export type UpdateTenantSettingsRequest = TenantSettings;
+
 /** Check the landed rows against the data model */
 export type ValidateDataSourceResponse = {
   source: DataSource;
@@ -2249,6 +2292,7 @@ export interface ResponseOf {
   getSession: GetSessionResponse;
   getShadowReport: GetShadowReportResponse;
   getTaxonomy: GetTaxonomyResponse;
+  getTenantSettings: GetTenantSettingsResponse;
   landRows: LandRowsResponse;
   listAgentActivity: ListAgentActivityResponse;
   listAllCreatives: ListAllCreativesResponse;
@@ -2291,5 +2335,6 @@ export interface ResponseOf {
   updateOffer: UpdateOfferResponse;
   updatePlacement: UpdatePlacementResponse;
   updateTargetingPolicy: UpdateTargetingPolicyResponse;
+  updateTenantSettings: UpdateTenantSettingsResponse;
   validateDataSource: ValidateDataSourceResponse;
 }

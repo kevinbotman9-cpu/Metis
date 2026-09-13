@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { useAuth } from '@/components/auth-provider';
 import { apiClient, ApiError, type ExperimentDto } from '@/lib/api-client';
+import { useFormat } from '@/components/tenant-format';
 
 /**
  * Experiments and holdouts.
@@ -83,6 +84,7 @@ function Split({ experiment }: { experiment: ExperimentDto }) {
 }
 
 function ExperimentsView() {
+  const format = useFormat();
   const queryClient = useQueryClient();
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('edit:flows');
@@ -243,10 +245,10 @@ function ExperimentsView() {
                       <span className="font-mono text-label text-content">{row.arm}</span>
                       {row.holdout ? <Badge tone="hold">holdout</Badge> : null}
                       <span className="text-label text-content-muted">
-                        {row.offered.toLocaleString('en-GB')} offered
+                        {format.number(row.offered)} offered
                       </span>
                       <span className="text-label text-content-muted">
-                        {row.measured.toLocaleString('en-GB')} reported
+                        {format.number(row.measured)} reported
                       </span>
                       <span className="ml-auto text-label">
                         {row.acceptanceRate === null ? (

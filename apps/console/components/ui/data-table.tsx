@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { cn } from '@/lib/cn';
 import { LoadingState, EmptyState } from './primitives';
+import { useFormat } from '@/components/tenant-format';
 
 export interface Column<T> {
   /** Stable key, also used as the sort key. */
@@ -67,6 +68,7 @@ export function DataTable<T>({
   caption,
   maxHeight = 560,
 }: DataTableProps<T>) {
+  const format = useFormat();
   const [sort, setSort] = useState(defaultSort ?? null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
@@ -251,7 +253,7 @@ export function DataTable<T>({
           className="border-t border-border px-cell py-1.5 text-label text-content-subtle"
           aria-live="polite"
         >
-          Showing rows {startIndex + 1}&ndash;{endIndex} of {sorted.length.toLocaleString('en-GB')}.
+          Showing rows {startIndex + 1}&ndash;{endIndex} of {format.number(sorted.length)}.
           Only the visible rows are rendered.
         </p>
       )}

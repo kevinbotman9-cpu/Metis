@@ -6,6 +6,7 @@ import { useAuth } from '@/components/auth-provider';
 import { Card, CardHeader, CardBody, Badge, EmptyState } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
 import { apiClient, ApiError } from '@/lib/api-client';
+import { useFormat } from '@/components/tenant-format';
 
 /**
  * A flow's registry entry: what has been published, and what each
@@ -225,6 +226,7 @@ function RegistryLog({
 }: {
   events: { seq: number; type: string; summary: string; actor: string; at: string }[];
 }) {
+  const format = useFormat();
   if (events.length === 0) return null;
 
   const tone: Record<string, string> = {
@@ -247,7 +249,7 @@ function RegistryLog({
             </span>
             <p className="text-label text-content-muted">{e.summary}</p>
             <p className="text-[0.6875rem] text-content-subtle">
-              {e.actor} · {new Date(e.at).toLocaleString('en-GB')}
+              {e.actor} · {format.dateTime(e.at)}
             </p>
           </li>
         ))}

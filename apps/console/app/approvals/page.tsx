@@ -16,6 +16,7 @@ import {
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { apiClient, type ChangeSetDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
+import { useFormat } from '@/components/tenant-format';
 
 const STATUS_TONE: Record<string, 'pass' | 'block' | 'hold' | 'neutral'> = {
   approved: 'pass',
@@ -25,6 +26,7 @@ const STATUS_TONE: Record<string, 'pass' | 'block' | 'hold' | 'neutral'> = {
 };
 
 function ApprovalsView() {
+  const format = useFormat();
   const router = useRouter();
   const [status, setStatus] = useState('');
 
@@ -93,7 +95,7 @@ function ApprovalsView() {
       sortValue: (c) => c.requestedAt,
       cell: (c) => (
         <span className="tnum text-label text-content-muted">
-          {new Date(c.requestedAt).toLocaleDateString('en-GB', {
+          {format.date(c.requestedAt, {
             day: '2-digit',
             month: 'short',
           })}

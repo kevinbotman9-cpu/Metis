@@ -68,6 +68,7 @@ export interface SeedSource {
   boosts: unknown;
   connectors: unknown;
   placements: unknown;
+  tenantSettings: unknown;
   artifacts: unknown;
   profileSchema: unknown;
   experiments: unknown;
@@ -112,6 +113,7 @@ export function seedFingerprint(source: SeedSource): SeedFingerprint {
     boosts: hash(source.boosts),
     connectors: hash(source.connectors),
     placements: hash(source.placements),
+    tenantSettings: hash(source.tenantSettings),
     artifacts: hash(source.artifacts),
     profileSchema: hash(source.profileSchema),
     experiments: hash(source.experiments),

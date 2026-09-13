@@ -39,6 +39,7 @@ import type { Row } from '@/lib/layouts/sources';
 import { cn } from '@/lib/cn';
 import { panelFor } from './panels';
 import type { PanelContext, SourceState } from './panel';
+import { useFormat } from '@/components/tenant-format';
 
 /**
  * The list–detail pattern. `docs/METIS_CONSOLE_SPEC.md` §4.1; ADR-015.
@@ -143,6 +144,7 @@ export function ListDetail({
   onEdit,
   context,
 }: ListDetailProps) {
+  const format = useFormat();
   const base = useId().replace(/:/g, '');
   const { noun } = descriptor;
   const columns = useMemo(() => columnsOf(manifest, descriptor), [manifest, descriptor]);
@@ -151,8 +153,8 @@ export function ListDetail({
     [manifest, descriptor]
   );
   const filtered = useMemo(
-    () => applyFilter(list.rows, filter, manifest, descriptor, context.optionSources),
-    [list.rows, filter, manifest, descriptor, context.optionSources]
+    () => applyFilter(list.rows, filter, manifest, descriptor, context.optionSources, format),
+    [list.rows, filter, manifest, descriptor, context.optionSources, format]
   );
   const ids = useMemo(() => filtered.rows.map(identity), [filtered.rows, identity]);
   const open = openRow(filtered.rows, identity, selected);
@@ -442,7 +444,7 @@ export function ListDetail({
                                 {columns.map((c) => (
                                   <span key={c.field}>
                                     <span className="sr-only">{c.label}: </span>
-                                    <Badge tone="outline">{cell(row, c, context.optionSources).text}</Badge>
+                                    <Badge tone="outline">{cell(row, c, context.optionSources, format).text}</Badge>
                                   </span>
                                 ))}
                               </p>
@@ -618,6 +620,7 @@ function FooterStrip({
   record: Row;
   footer: ListDetailManifest['params']['detail']['footer'];
 }) {
+  const format = useFormat();
   const value = (field?: string) => (field ? getPath(record, field) : undefined);
   const parts: string[] = [];
   const version = value(footer.version);
@@ -627,7 +630,7 @@ function FooterStrip({
   if (version !== undefined && version !== null) parts.push(`v${String(version)}`);
   if (state) parts.push(String(state));
   if (at) {
-    const when = new Date(String(at)).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const when = format.date(String(at), { day: '2-digit', month: 'short', year: 'numeric' });
     parts.push(by ? `edited ${when} by ${String(by)}` : `edited ${when}`);
   } else if (by) {
     parts.push(`edited by ${String(by)}`);

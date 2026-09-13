@@ -26,9 +26,11 @@ import { ShadowPanel } from '@/components/shadow-panel';
 import { apiClient, ApiError } from '@/lib/api-client';
 import { downloadJson, evidenceFilename } from '@/lib/download';
 import type { FlowNode, FlowEdge } from '@/mocks/fixtures/artifacts';
+import { useFormat } from '@/components/tenant-format';
 
 
 function FlowDetail({ artifactId }: { artifactId: string }) {
+  const format = useFormat();
   const { hasPermission } = useAuth();
   const canEditFlows = hasPermission('edit:flows');
 
@@ -206,7 +208,7 @@ function FlowDetail({ artifactId }: { artifactId: string }) {
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-content-subtle">Updated</dt>
-                  <dd>{new Date(artifact.updatedAt).toLocaleDateString('en-GB')}</dd>
+                  <dd>{format.date(artifact.updatedAt)}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="shrink-0 text-content-subtle">By</dt>

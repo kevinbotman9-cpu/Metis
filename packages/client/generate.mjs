@@ -195,6 +195,11 @@ parts.push('} as const;\n');
 
 parts.push(`export type OperationId = keyof typeof OPERATIONS;\n`);
 
+// The spec's own version, so a screen that states which contract it speaks
+// reads it from here rather than writing a number that goes stale.
+parts.push('/** The OpenAPI version the spec declares. */');
+parts.push(`export const OPENAPI_VERSION = '${spec.openapi}';`);
+
 parts.push('// --- Request and response bodies --------------------------------------------\n');
 for (const op of ops) {
   const req = op.requestSchema ? tsType(op.requestSchema, 0) : 'never';

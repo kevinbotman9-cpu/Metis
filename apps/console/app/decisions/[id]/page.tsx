@@ -26,6 +26,7 @@ import { CascadeRail, type CascadeStage } from '@/components/cascade-rail';
 import { TraceEvidence } from '@/components/trace-evidence';
 import { CODE_MEANING, groupDenials, stagesFor } from '@/components/trace-cascade';
 import { cn } from '@/lib/cn';
+import { useFormat } from '@/components/tenant-format';
 
 const AUDIENCES = [
   { key: 'customer', label: 'Customer', blurb: 'Plain language, no internal identifiers.' },
@@ -38,6 +39,7 @@ const AUDIENCES = [
 type AudienceKey = (typeof AUDIENCES)[number]['key'];
 
 function TraceView({ decisionId }: { decisionId: string }) {
+  const format = useFormat();
   const [audience, setAudience] = useState<AudienceKey>('analyst');
   const router = useRouter();
   const pathname = usePathname();
@@ -619,7 +621,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
                 {[
                   ['Decision ID', trace.id, true],
                   ['Customer', trace.customerId, true],
-                  ['Timestamp', new Date(trace.timestamp).toLocaleString('en-GB'), false],
+                  ['Timestamp', format.dateTime(trace.timestamp), false],
                   ['Tenant', trace.tenantId, false],
                   ['Artifact', `${trace.artifactId} ${trace.artifactVersion}`, true],
                   ['Placement', trace.placement, true],

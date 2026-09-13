@@ -47,6 +47,25 @@ export interface Money {
   currency: 'GBP' | 'USD' | 'EUR';
 }
 
+/**
+ * How a tenant presents itself. G-092.
+ *
+ * Every date, count and amount the console shows is formatted in `locale`, and
+ * an amount that carries no currency of its own — a performance total, a new
+ * offer's blank price — is in `currency`. Held on the tenant because nothing
+ * else knows: until 2026-09-13 the locale was `en-GB` at 77 call sites and the
+ * currency was read off whichever offer was first in the catalogue.
+ */
+export interface TenantSettings {
+  tenantId: string;
+  /** BCP 47, canonical, e.g. `en-US`. */
+  locale: string;
+  /** The currency of an amount with none of its own. */
+  currency: Money['currency'];
+  updatedAt: string;
+  updatedBy: string;
+}
+
 export interface OfferFinancials {
   /** What the customer pays, recurring per month unless oneOff. */
   price: Money;

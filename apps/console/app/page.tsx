@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/primitives';
 import { HealthSummary, BigStat } from '@/components/ui/health-summary';
 import { apiClient } from '@/lib/api-client';
+import { useFormat } from '@/components/tenant-format';
 
 const OUTCOME_TONE: Record<string, 'pass' | 'block' | 'hold' | 'info' | 'neutral'> = {
   auto_applied: 'pass',
@@ -26,6 +27,7 @@ const OUTCOME_TONE: Record<string, 'pass' | 'block' | 'hold' | 'info' | 'neutral
 };
 
 function Home() {
+  const format = useFormat();
   const { user } = useAuth();
 
   const decisions = useQuery({
@@ -77,7 +79,7 @@ function Home() {
       <div className="mb-stack grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
         <BigStat
           label="Decisions"
-          value={(decisions.data?.total ?? 0).toLocaleString('en-GB')}
+          value={format.number(decisions.data?.total ?? 0)}
           sub="last 7 days"
         />
         <HealthSummary

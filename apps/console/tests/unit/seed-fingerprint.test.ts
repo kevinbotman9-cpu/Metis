@@ -53,6 +53,7 @@ describe('the seed fingerprint', () => {
       'placements',
       'profileSchema',
       'targetingPolicies',
+      'tenantSettings',
       'users',
     ]);
   });

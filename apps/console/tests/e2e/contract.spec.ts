@@ -203,6 +203,8 @@ const COVERED_BY_WRITE_SUITES: Record<string, string> = {
   // whether anybody can reach it.
   createPlacement: 'placement-authoring.spec.ts',
   updatePlacement: 'placement-authoring.spec.ts',
+  // G-092. Switched through the TenantSettings form, then read on two other screens.
+  updateTenantSettings: 'tenant-locale.spec.ts',
   createObjective: 'taxonomy-authoring.spec.ts',
   updateObjective: 'taxonomy-authoring.spec.ts',
   createCategory: 'taxonomy-authoring.spec.ts',

@@ -1,5 +1,6 @@
 import type { Provenance } from '@metis/client';
 import { cn } from '@/lib/cn';
+import { useFormat } from '@/components/tenant-format';
 
 /**
  * Says whether the numbers below it describe anybody.
@@ -26,6 +27,7 @@ export function ProvenanceBanner({
   provenance: Provenance | null | undefined;
   className?: string;
 }) {
+  const format = useFormat();
   // Absent rather than assumed. A response with no provenance is a response
   // this component cannot vouch for, and inventing "recorded" would be the
   // exact false reassurance the banner exists to prevent.
@@ -59,8 +61,8 @@ export function ProvenanceBanner({
         typeof provenance.recordedCount === 'number' &&
         provenance.source === 'mixed' ? (
           <span className="ml-1 text-content-muted">
-            {provenance.syntheticCount.toLocaleString('en-GB')} generated,{' '}
-            {provenance.recordedCount.toLocaleString('en-GB')} recorded.
+            {format.number(provenance.syntheticCount)} generated,{' '}
+            {format.number(provenance.recordedCount)} recorded.
           </span>
         ) : null}
       </p>

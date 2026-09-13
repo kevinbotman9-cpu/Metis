@@ -6,6 +6,7 @@ import { useAuth } from './auth-provider';
 import { AppShell } from './app-shell';
 import { LoadingState, PageBody, PageHeader, PermissionDenied } from './ui/primitives';
 import { requirementFor } from '@/lib/nav/route-permissions';
+import { TenantFormatProvider } from './tenant-format';
 
 /**
  * Wraps every authenticated route. Redirects to /login when there is no
@@ -68,5 +69,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     );
   }
 
-  return <AppShell>{children}</AppShell>;
+  // Inside the auth check, so the settings are fetched for a session, and
+  // around the shell, so nothing on any screen formats before they arrive.
+  return (
+    <TenantFormatProvider>
+      <AppShell>{children}</AppShell>
+    </TenantFormatProvider>
+  );
 }

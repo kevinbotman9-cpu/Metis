@@ -23,6 +23,7 @@ import type {
   Connector,
   PackManifest,
   Placement,
+  TenantSettings,
 } from '@metis/core/domain';
 
 /** Fixed clock so timestamps are stable across runs. */
@@ -1046,6 +1047,21 @@ export const users: FixtureUser[] = [
  * decision, and adding it to what the engine hashes would move every chain
  * hash to configure something the engine does not read.
  */
+/**
+ * How this tenant presents dates, numbers and money. G-092.
+ *
+ * American, because the tenant is: the brief is a US carrier's, and every
+ * offer is priced in dollars. A reviewer reading “05/09” in a trace should
+ * read the ninth of May, not the fifth of September.
+ */
+export const tenantSettings: TenantSettings = {
+  tenantId: 'telco-us',
+  locale: 'en-US',
+  currency: 'USD',
+  updatedAt: iso(-600),
+  updatedBy: 'marcus.webb@telco.example',
+};
+
 export const placements: Placement[] = [
   {
     id: 'plc_homepage_hero',

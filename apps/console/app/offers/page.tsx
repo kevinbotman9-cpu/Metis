@@ -23,14 +23,10 @@ import { OfferDrawer } from '@/components/offer-drawer';
 import { OfferFormDialog } from '@/components/offer-form-dialog';
 import { apiClient, type OfferDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
+import { useFormat } from '@/components/tenant-format';
 
 /** email, sms, web, push, outbound_call — the channels a creative can target. */
 const CHANNEL_COUNT = 5;
-
-function money(m: { amount: number; currency: string }) {
-  const symbol = m.currency === 'GBP' ? '£' : m.currency === 'USD' ? '$' : '€';
-  return `${symbol}${(m.amount / 100).toFixed(2)}`;
-}
 
 /**
  * Whether this offer has any pricing at all.
@@ -80,6 +76,7 @@ const LENSES: { id: string; label: string; sub?: string; tone?: FilterBlock['ton
 ];
 
 function OffersView() {
+  const format = useFormat();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -192,7 +189,7 @@ function OffersView() {
           </span>
         ) : (
           <span>
-            {money(p.financials.price)}
+            {format.money(p.financials.price)}
             {!p.financials.oneOff && p.financials.price.amount > 0 ? (
               <span className="text-content-subtle">/mo</span>
             ) : null}
@@ -221,7 +218,7 @@ function OffersView() {
               p.financials.expectedMargin.amount < 0 ? 'text-block' : 'text-content-muted'
             )}
           >
-            {money(p.financials.expectedMargin)}
+            {format.money(p.financials.expectedMargin)}
           </span>
         )
       ),

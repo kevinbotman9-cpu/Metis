@@ -26,6 +26,7 @@ import {
   agentActivity as seedActivity,
   connectors as seedConnectors,
   placements as seedPlacements,
+  tenantSettings as seedTenantSettings,
   users as seedUsers,
 } from './fixtures/catalogue';
 import { profileSchema as seedProfileSchema } from './fixtures/profile-schema';
@@ -105,6 +106,8 @@ type Store = {
   activity: typeof seedActivity;
   connectors: typeof seedConnectors;
   placements: typeof seedPlacements;
+  /** How this tenant presents dates, numbers and money. G-092. */
+  tenantSettings: typeof seedTenantSettings;
   users: typeof seedUsers;
   artifacts: ArtifactSummary[];
   changeSets: ChangeSetRecord[];
@@ -187,6 +190,7 @@ function seed(): Store {
     activity: clone(seedActivity),
     connectors: clone(seedConnectors),
     placements: clone(seedPlacements),
+    tenantSettings: clone(seedTenantSettings),
     users: clone(seedUsers),
     artifacts: clone(seedArtifacts),
     changeSets: clone(seedChangeSets),
@@ -205,6 +209,7 @@ function seed(): Store {
       boosts: seedBoosts,
       connectors: seedConnectors,
       placements: seedPlacements,
+      tenantSettings: seedTenantSettings,
       artifacts: seedArtifacts,
       profileSchema: seedProfileSchema,
       experiments: seedExperiments,

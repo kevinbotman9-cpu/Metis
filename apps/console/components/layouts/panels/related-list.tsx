@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cell, columnsFrom, countLabel } from '@/lib/layouts/list';
 import type { Row } from '@/lib/layouts/sources';
 import type { PanelProps } from '../panel';
+import { useFormat } from '@/components/tenant-format';
 
 /**
  * `core.related-list` — the records filed under the open one.
@@ -37,6 +38,7 @@ const fill = (template: string, row: Row) =>
   template.replace(/\{([\w.]+)\}/g, (_, field: string) => encodeURIComponent(String(getPath(row, field) ?? '')));
 
 export function RelatedList({ occupant, recordId, context }: PanelProps) {
+  const format = useFormat();
   const p = occupant.params as unknown as Params;
   const child = descriptorFor(p.entity);
   const source = context.sources[p.source];
@@ -93,7 +95,7 @@ export function RelatedList({ occupant, recordId, context }: PanelProps) {
                 {columns.map((c) => (
                   <span key={c.field}>
                     <span className="sr-only">{c.label}: </span>
-                    <Badge tone="outline">{cell(row, c, context.optionSources).text}</Badge>
+                    <Badge tone="outline">{cell(row, c, context.optionSources, format).text}</Badge>
                   </span>
                 ))}
                 {p.link ? (

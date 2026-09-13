@@ -44,6 +44,27 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-100 — A date reads in the viewer's time zone, and the tenant has none
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** none — one decision about whose clock a timestamp is on
+
+G-092 gave the tenant a locale, which settles *how* a date is written. It does not
+settle *which* date: every formatter still converts an instant to the time zone of
+the machine the browser runs on. A decision made at 23:30 in New York is the next
+day to a compliance officer reading its trace in London, and the same screen
+shows the two of them different dates for one record.
+
+On most screens that is a presentation choice. On a trace it is evidence: "the
+customer was contacted on the 5th" should not depend on who is reading.
+
+The options are a time zone on the tenant that every formatter reads, UTC with
+the zone stated on every evidence surface, or the viewer's zone stated beside the
+value. Which one a trace wants is plausibly different from what a marketing chart
+wants, so this needs a decision before a change.
+
+**Done when:** a timestamp names the zone it is in, and the zone is a decision
+rather than the reader's machine.
+
 ### G-099 — The rename pass reads code, and a tenant lives in prose
 
 **Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — one check to write
@@ -302,46 +323,6 @@ else is needed.
 interpret it — units beside amounts, inputs beside digests, one envelope per
 operation — `validate-spec.mjs` can check the mechanical half of that, and the
 three instances above are closed against the rule rather than one at a time.
-
-### G-092 — The console formats every date and number as British, in 77 places, whatever the tenant is
-
-**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — needs one decision about where locale comes from, then a mechanical change
-
-`toLocaleString('en-GB')` and `toLocaleDateString('en-GB')` appear **77 times
-across 36 files**, hardcoded at every call site. `/performance` alone has 22.
-
-For a UK tenant this is invisible, which is why it survived. For `telco-us` it
-means **every date on every screen is in day-month order** — `05/09` is the
-fifth of September to this console and the ninth of May to the customer reading
-it — and every grouped number is formatted to British convention. A date a
-compliance officer reads out of a trace is the one place an ambiguous format
-costs something real.
-
-**Three hardcodings were data rather than formatting, and those are fixed**
-(2026-09-12):
-
-- `POST /offers` wrote `currency: 'GBP'` into every offer created in the
-  console, so a new offer in a US tenant was authored in sterling.
-- `POST /creatives` wrote `locale: 'en-GB'` into every creative created.
-- `/performance` rendered realised value with `currency: 'GBP'` against amounts
-  the API returns as bare minor units, so a US tenant's revenue appeared in
-  pounds. It now takes the currency from the tenant's own catalogue, which is
-  the only thing that knows — the performance response carries no currency at
-  all, which is worth its own look.
-
-**What is left is the formatting, and it needs a decision before a change.**
-There is no tenant locale anywhere: not on the tenant, not in the spec, not in
-a setting. So the options are a locale on the tenant that every formatter
-reads, the viewer's own locale via `toLocaleString(undefined, …)`, or an
-explicit choice per surface — a trace timestamp arguably wants ISO-8601
-regardless of who is reading it, which is a different answer from the one a
-marketing chart wants.
-
-Replacing 77 string literals with a different 77 string literals would be the
-wrong fix, so nothing here was touched.
-
-**Done when:** a formatter reads the locale from one place, and adding a tenant
-in another market does not mean finding 77 call sites.
 
 ### G-091 — A frequency cap counts contacts and cannot ask what the customer did with them
 
@@ -1794,6 +1775,97 @@ payload, and a descriptor no longer needs a screen-supplied default to avoid
 sending zero.
 
 ## Resolved
+
+### G-092 — The console formatted every date and number as British, and there was no tenant locale to read instead
+
+**Registered:** 2026-09-12 · **Resolved:** 2026-09-13 · **Status:** Resolved · **Work item:** none
+
+`toLocaleString('en-GB')` and `toLocaleDateString('en-GB')` were written at every
+call site that showed a date or a number — 77 of them across 36 files, 22 on
+`/performance` alone — and four files each carried a copy of
+`currency === 'GBP' ? '£' : currency === 'USD' ? '$' : '€'`. For a UK tenant this
+was invisible. For `telco-us` it meant every date on every screen was day-first:
+`05/09` was the fifth of September to the console and the ninth of May to a
+Verizon reviewer, beside a catalogue, copy and tenant that were American.
+
+**It stopped being a formatting nit when the tenant became American**, and the
+product owner said so: a reviewer sees British dates and `en-GB` currency on
+every screen of a US demo.
+
+**The earlier fix was a workaround wearing a fix's clothes.** On 2026-09-12 three
+hardcodings were "fixed" by deriving the answer from the catalogue: new offers
+took the currency of `store.offers[0]`, new creatives the locale of
+`store.creatives[0]`, and `/performance` read the currency off the first offer in
+the taxonomy. Nothing held the answer, so the first record was asked to guess.
+A tenant whose first offer happened to be priced in euros would have authored
+every new offer in euros and reported its revenue in euros.
+
+**Resolved by giving the tenant a locale and having the formatting read it — not
+by writing a different literal at 77 sites.**
+
+- **A tenant setting.** `TenantSettings { tenantId, locale, currency }` in the
+  contract, with `getTenantSettings` and `updateTenantSettings` on
+  `/tenants/{tenantId}/settings`. A locale is accepted only if the runtime can
+  format in it — an unknown tag would not fail, it would silently fall back to a
+  default, which is the bug — and is stored canonical. Currency is limited to
+  what `Money` can hold. Writing needs `admin:settings` and is audited as
+  `TenantSettingsChanged`.
+- **One formatter.** `apps/console/lib/format.ts` is the only file that calls the
+  platform formatters. A call site says *what* it shows — a date, a count, an
+  amount — and keeps its own choice of shape; the locale is never its to choose.
+  `useFormat()` reads the tenant's formatter from `TenantFormatProvider`, which
+  `RequireAuth` mounts around every signed-in screen and which renders nothing
+  formatted until the settings arrive, rather than formatting in a default first.
+- **The guesses are gone.** The server's new-offer currency and new-creative
+  locale read the tenant's settings; `/performance` renders its minor-unit totals
+  in the tenant's currency; the descriptor codec takes the currency from the host
+  and throws rather than guessing when nothing supplies one — `moneyCurrencyDefault:
+  'GBP'` is removed from the Offer descriptor.
+- **Settable from the screen.** A Tenant card on `/settings` shows the locale, the
+  currency, and a date and an amount as this tenant reads them, and opens the
+  `TenantSettings` descriptor form (Rule 8). The page itself stays hand-built:
+  ADR-015 holds the Form pattern for design review and keeps `/settings` as it is
+  until then, and this slice does not pre-empt that review. The conformance count
+  does not move.
+
+**Checks:**
+
+- `apps/console/tests/e2e/tenant-locale.spec.ts` (`@screen-only`) — signs in,
+  confirms `/audit` timestamps and `/performance` totals read the American way,
+  switches the tenant to `de-DE` / EUR through the form, and asserts the same two
+  screens now read German dates and euro amounts. A second test: an account
+  without `admin:settings` is told why rather than shown a control.
+- `apps/console/tests/unit/locale-formatting.test.ts` — no file under `app/`,
+  `components/` or `lib/` calls a platform formatter except `lib/format.ts`, names
+  a locale, or draws a currency symbol by hand. This is what stops the
+  seventy-eighth call site.
+- `apps/console/tests/unit/format.test.ts` — the same instant and amount read
+  differently per locale, with the zone pinned.
+- `apps/console/tests/unit/tenant-settings-api.test.ts` — permission, refusal of
+  an unformattable locale and an unholdable currency, canonical storage, audit.
+- `packages/ui-metadata/tests/descriptors.test.ts` — the descriptor matches the
+  schema, and the codec refuses to guess a currency.
+
+**Proved to bite** (Rule 9), each on a server the harness started for the run:
+
+- The formatter made to ignore the tenant locale: the e2e went red at the first
+  post-switch assertion — `/settings` never showed `5.9.2026` — while the
+  permission test beside it stayed green; all six formatter unit tests failed.
+- A component made to format for itself in `'en-GB'`: the guard failed on both
+  the platform-formatter rule and the locale-literal rule.
+- The `admin:settings` check removed: exactly the refusal test failed, with a 200
+  where a 403 was expected.
+
+Sites converted: every `'en-GB'` formatting call in `app/`, `components/` and
+`lib/`, by a script that kept each site's own shape options and changed only
+where the locale comes from; the four currency-symbol maps were deleted rather
+than converted.
+
+**What this does not do.** Dates render in the *viewer's* time zone, not the
+tenant's — see G-100. `formatMoney` in `@metis/core/domain` still carries its own
+symbol map; nothing in the console calls it. The performance API still answers
+minor units with no currency (G-093): the screen now knows the currency from the
+tenant, but the response still cannot describe itself.
 
 ### G-035 — A reused dev server corrupted results, and the harness now owns the server it measures
 

@@ -72,6 +72,7 @@ import type {
   Taxonomy as TaxonomyDto,
   Creative as CreativeDto,
   Placement as PlacementDto,
+  TenantSettings as TenantSettingsDto,
   DeliveryAttempt as DeliveryAttemptDto,
 } from '@metis/client';
 
@@ -285,6 +286,14 @@ export const apiClient = {
       params: { tenantId, offerId },
       body: changes,
     }),
+
+  // --- Tenant -------------------------------------------------------------
+  // The locale and currency every formatter reads. G-092.
+  getTenantSettings: (tenantId: string = TENANT) =>
+    apiCall<TenantSettingsDto>('getTenantSettings', { params: { tenantId } }),
+
+  updateTenantSettings: (changes: Partial<TenantSettingsDto>, tenantId: string = TENANT) =>
+    apiCall<TenantSettingsDto>('updateTenantSettings', { params: { tenantId }, body: changes }),
 
   listPlacements: (tenantId: string = TENANT) =>
     apiCall<{ placements: PlacementDto[] }>('listPlacements', { params: { tenantId } }),
@@ -640,6 +649,7 @@ export type {
   TaxonomyDto,
   CreativeDto,
   PlacementDto,
+  TenantSettingsDto,
   DeliveryAttemptDto,
   ConnectorDto,
   PublishedVersionDto,

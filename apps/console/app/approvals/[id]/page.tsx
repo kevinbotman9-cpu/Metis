@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { apiClient, ApiError } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
+import { useFormat } from '@/components/tenant-format';
 
 const STATUS_TONE: Record<string, 'pass' | 'block' | 'hold' | 'neutral'> = {
   approved: 'pass',
@@ -30,6 +31,7 @@ const STATUS_TONE: Record<string, 'pass' | 'block' | 'hold' | 'neutral'> = {
 };
 
 function ChangeSetDetail({ id }: { id: string }) {
+  const format = useFormat();
   const { hasPermission } = useAuth();
   const canApprove = hasPermission('approve:changes');
   const queryClient = useQueryClient();
@@ -220,7 +222,7 @@ function ChangeSetDetail({ id }: { id: string }) {
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
                   <Metric
                     label="Population"
-                    value={cr.simulation.populationSize.toLocaleString('en-GB')}
+                    value={format.number(cr.simulation.populationSize)}
                     sub="customers replayed"
                   />
                   <Metric
@@ -273,7 +275,7 @@ function ChangeSetDetail({ id }: { id: string }) {
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-content-subtle">Raised at</dt>
-                  <dd>{new Date(cr.requestedAt).toLocaleString('en-GB')}</dd>
+                  <dd>{format.dateTime(cr.requestedAt)}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-content-subtle">Autonomy tier</dt>
@@ -305,7 +307,7 @@ function ChangeSetDetail({ id }: { id: string }) {
                 <p className="text-body text-content-muted">{cr.decisionReason}</p>
                 <p className="mt-2 text-label text-content-subtle">
                   {cr.decidedBy} ·{' '}
-                  {cr.decidedAt ? new Date(cr.decidedAt).toLocaleString('en-GB') : ''}
+                  {cr.decidedAt ? format.dateTime(cr.decidedAt) : ''}
                 </p>
               </CardBody>
             </Card>

@@ -16,8 +16,10 @@ import {
 } from '@/components/ui/primitives';
 import { apiClient } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
+import { useFormat } from '@/components/tenant-format';
 
 function SimulationsView() {
+  const format = useFormat();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['change-sets'],
     queryFn: () => apiClient.listChangeSets(),
@@ -120,7 +122,7 @@ function SimulationsView() {
                           Population
                         </p>
                         <p className="tnum text-body font-medium">
-                          {sim.populationSize.toLocaleString('en-GB')}
+                          {format.number(sim.populationSize)}
                         </p>
                       </div>
                       <div>

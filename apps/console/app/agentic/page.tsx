@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { apiClient, type AutonomySettingDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
+import { useFormat } from '@/components/tenant-format';
 
 const LADDER = [
   {
@@ -67,12 +68,8 @@ const OUTCOME_TONE: Record<string, 'pass' | 'block' | 'hold' | 'info' | 'neutral
   reverted: 'hold',
 };
 
-function money(m: { amount: number; currency: string }) {
-  const s = m.currency === 'GBP' ? '£' : m.currency === 'USD' ? '$' : '€';
-  return `${s}${(m.amount / 100).toLocaleString('en-GB')}`;
-}
-
 function ScopeCard({ setting, canEdit }: { setting: AutonomySettingDto; canEdit: boolean }) {
+  const format = useFormat();
   const g = setting.guardrails;
   const [editing, setEditing] = useState(false);
   const queryClient = useQueryClient();
@@ -154,7 +151,7 @@ function ScopeCard({ setting, canEdit }: { setting: AutonomySettingDto; canEdit:
         </div>
         <div className="flex justify-between">
           <dt className="text-content-subtle">Budget delta</dt>
-          <dd className="tnum font-medium">{money(g.maxBudgetDelta)}</dd>
+          <dd className="tnum font-medium">{format.money(g.maxBudgetDelta)}</dd>
         </div>
         <div className="flex justify-between">
           <dt className="text-content-subtle">Bias gate</dt>
@@ -205,6 +202,7 @@ function ScopeCard({ setting, canEdit }: { setting: AutonomySettingDto; canEdit:
 }
 
 function AgenticView() {
+  const format = useFormat();
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('edit:autonomy');
   const [outcomeFilter, setOutcomeFilter] = useState('');
@@ -397,7 +395,7 @@ function AgenticView() {
 
                       <div className="mt-1.5 flex items-center gap-3 text-label text-content-subtle">
                         <span className="tnum">
-                          {new Date(a.timestamp).toLocaleString('en-GB', {
+                          {format.dateTime(a.timestamp, {
                             day: '2-digit',
                             month: 'short',
                             hour: '2-digit',
