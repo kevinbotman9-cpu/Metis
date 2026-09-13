@@ -44,6 +44,402 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-099 — The rename pass reads code, and a tenant lives in prose
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — one check to write
+
+Renaming `telco-uk` to `telco-us` moved every hashed chain and every id the
+type system covers, and `tests/vocabulary.test.ts` scans source for the words
+the platform was renamed away from. Neither touches the two places a tenant
+actually shows itself to a customer: **fixture strings that are not ids, and
+prose.** What survived the rename, all of it found by hand on 2026-09-12, after
+the tenant had been declared done:
+
+- **Thirteen dead catalogue ids in `apps/console/mocks/fixtures/governance.ts`**
+  — four change sets and nine audit events naming `prop_data_boost_10gb`,
+  `pol_heavy_user`, `iss_retention`, `trt_roam_push`, `grp_accessories` and
+  more. The approvals screen renders `targetScope.targetId` verbatim, so a
+  reviewer opening `cr_0042` read a mono-spaced id belonging to a catalogue
+  that no longer existed. `prop_` and `trt_` are also the *pre-2026-09-05*
+  vocabulary, which the vocabulary check does not catch inside a string.
+- **A UK regulator on a US tenant, twice more** — "fails the FCA fair-value
+  test" in a change set's rejection reason, and "Retention offers carry FCA
+  fair-value obligations" in an autonomy rationale. Both render on screen.
+- **Ninety instances of the British spelling `fibre`**, including the boost id
+  `lev_fibre_first`, the experiment id `exp_fibre_holdout`, and customer-facing
+  creative copy: *"Full fibre is available at your address"*, shown in the
+  storefront to a US household by a company that writes Fios and fiber.
+- **`unit: 'pence'` on four money fields** in the profile schema, and four
+  `projectedMarginDelta` figures denominated in `£`.
+- **`customer.postcode_deprivation_decile`** in the agent guardrails'
+  protected-attribute list — a UK census measure standing in for the bias proxy
+  a US tenant would name.
+- **Two policy ids in schema prose** (`pol_credit_pass`, `pol_afford_retention`)
+  claiming a rule reads a field, where no such rule exists any more.
+
+None of this broke a test, with one exception: the change-set approval e2e
+failed because `cr_0042`'s diff named a policy that was gone. Everything else
+was invisible to every check in the repository and visible to anyone reading
+the screen.
+
+**The class:** a check that verifies ids against the catalogue would have found
+the first and last groups in a second, and it is about fifteen lines — every
+`'(off|pol|cpol|lev|grp|iss|crt|conn|plc)_[a-z0-9_]+'` literal in
+`apps/console/mocks/fixtures/*.ts` must be an id the catalogue declares, with an
+allow-list for the deliberate historical ones (`off_legacy_dsl`, an offer
+retired before this catalogue existed). That check is worth writing. The prose
+groups — a regulator's name, a spelling, a currency word — are not mechanically
+checkable against anything, and pretending otherwise would produce a
+word-blacklist that goes stale the way the mockups' note did (G-097).
+
+[G-092](gaps.md) is the same fault one layer down — `en-GB` and `GBP`
+hardcoded in 77 formatting sites — and it was found the same way, by reading a
+screen rather than by a check. Together they are the honest answer to "is this
+tenant American": the ids are, the hashes are, and the words were not.
+
+**Done when:** the id check exists and runs in `npm run gates`; and the register
+says plainly that the prose half is a reading problem, not a tooling one.
+
+### G-098 — The service corpus agrees with the console's own endpoint only by coincidence
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none
+
+`docs/conformance/service-cases.json` holds 60 requests and the chain hash each
+must produce, and `contract.spec.ts` replays every one of them through
+`POST /api/decisions` — the console's own endpoint — to prove the two engines
+agree on the product's own data. The corpus is built by running the engine
+directly (`scripts/build-service-bundle.mjs`), and the endpoint does something
+the builder does not: it **resolves the flow's connectors first**, and any field
+the caller did not supply enters the hashed input from the connector.
+
+So the two agree if and only if every field the flow's connectors provide is
+already in the corpus request. Nothing states that condition and nothing checks
+it. On 2026-09-12 one field fell out of the generated requests —
+`customer.usage.roaming_days`, which no policy reads — and **all 60 cases
+diverged on chain hash while agreeing on all 60 winners**. The failure names the
+winner on both sides, so it reads as "everything is broken" when the cause is
+one unread field, and the winner agreeing is the clue that it is an input
+difference rather than a logic one.
+
+It was fixed by dropping the field from `conn_network_usage`: the tenant sells
+no mobile plan and no rule read it. That closes the instance and not the
+mechanism. The next connector field somebody adds without adding it to
+`buildRequest` reproduces this exactly.
+
+**Two ways out, either acceptable:** the corpus builder could resolve connectors
+the way the route does, so the cases are what a caller would actually send; or a
+check could assert the condition directly — every field the flow's source node's
+connectors provide appears in every corpus request. The second is smaller and
+says the thing out loud.
+
+**Done when:** the coupling is either removed or asserted, and the failure
+message distinguishes "the input differed" from "the engines disagree".
+
+### G-096 — No fixture exercises the console's "something is wrong" states any more
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — **queued in [JOURNEY_SPINES.md](JOURNEY_SPINES.md) for after the Verizon demo lands**, by the product owner on 2026-09-12
+
+The console has a set of warning states, each with a screen built for it: an
+active offer with no content at all, a creative written but switched off, an
+offer that cannot reach a customer on any channel it serves. Until 2026-09-12
+the `telco-uk` tenant carried examples of every one, deliberately — 240
+generated offers, roughly one in nine with no creative, some paused, some
+switched off — so the populated view of each warning was exercised by the suite
+without anybody arranging it.
+
+`telco-us` carries the five offers the customer's brief names. **Every one is
+active, every one has content, and every one is deliverable**, which is the
+honest state of that tenant and is the state the product owner asked for. The
+consequence is that four checks lost their subject at once:
+
+| Check | Asserted | Now |
+|---|---|---|
+| `fixtures.test.ts` → an active offer with no deliverable creative | at least one exists | inverted: none does |
+| `creatives.spec.ts` → separates written from delivering | some row shows "off" | the switched-off lens is empty |
+| `offers-drawer.spec.ts` → the summary is the filter | "Cannot be delivered" counts more than zero | zero |
+| `offers-drawer.spec.ts` → an undeliverable offer says what will happen | the drawer explains `NO_DELIVERABLE_CREATIVE` | no such offer to open |
+
+Each was rewritten to assert what is true and to say what it no longer covers,
+which is the honest local move and leaves the same hole four times over. **The
+screens still have the code; nothing now proves it renders.**
+
+Three more lost their subject in the e2e suite on the same day, and these are
+**skipped rather than rewritten**, because there was nothing true left to assert
+— a green check over an unexercised screen is worse than a visible skip. Each
+names this entry in its skip reason:
+
+| Check | Needs |
+|---|---|
+| `seeded-tenant.spec.ts` → an offer held for bias review is findable and says why | an offer tagged `bias-review`, paused, with a stated reason |
+| `creative-coverage.spec.ts` → an offer with nothing on any served channel says so in every column | an active offer with no creative at all |
+| `creative-coverage.spec.ts` → (the counting check beside it) | kept, rewritten to assert the count-to-rows contract on whichever lens is non-empty |
+
+So this slice owns un-skipping three tests as well as restoring four.
+
+**Why the obvious fix is wrong.** Adding a broken offer to this tenant would be
+inventing catalogue content — a product nobody sells, with no creative nobody
+wrote — in a catalogue whose whole point is that it contains exactly what the
+customer named. That is the filler rule, and it applies to data that exists to
+make a test pass as much as to data that exists to make a screen look full.
+
+**What it wants instead.** A fixture whose subject is the warning states rather
+than a tenant: a small catalogue, built in the test, carrying one offer of each
+broken kind, mounted where the component tests can render against it. The
+G-071 guard was rebuilt this way on 2026-09-12 — it had rested on
+`retention-outbound` happening to be broken, and now constructs its own case —
+and that is the shape this needs.
+
+**Done when:** each warning state is exercised by a fixture that exists for it,
+and a tenant being healthy no longer removes the proof that the console can
+describe an unhealthy one.
+
+### G-095 — The check that decides whether other checks are trustworthy is itself unchecked
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — a harness, and it is its own piece of work
+
+`global-setup.ts` refuses the suite when the dev server's seed differs from the
+fixtures on disk ([G-002](gaps.md)). That refusal is the control on Rule 9:
+without it, a bite-proof can be taken against a server that never saw the edit.
+
+**Nothing automated exercises the refusal.** `seed-fingerprint.test.ts` covers
+the comparison — `fingerprintDiff` against hand-built inputs, the part list, and
+that the fingerprint is captured rather than recomputed — but the path that
+*acts* on a mismatch has no test. It runs before the suite, in Playwright's
+setup process, so a spec cannot assert it: asserting it from inside the suite
+would need the very dev server whose trustworthiness is the question.
+
+**It was proved by hand on 2026-09-12**, and that proof is worth reading because
+the fix was wrong twice in ways that looked right:
+
+1. The endpoint computed the fingerprint per request from the fixture modules.
+   Next re-evaluates an edited `catalogue.ts`, so the endpoint reported the new
+   hash while decisions still used the old boost — disk compared to disk, and
+   the guard could never fire.
+2. A module-scope constant in `store.ts`. The store is stashed on `globalThis`
+   and survives hot reload, so the module re-ran, kept the old store, and
+   recomputed the constant from the new fixtures. Measured: decisions on a boost
+   of 1.07 while the file said 1.05 and the fingerprint agreed with the file.
+
+Only a field on the stashed store object goes stale with the thing it
+describes. **Neither wrong version would have failed visibly** — both would have
+reported "server matches disk" for ever.
+
+**A hand-proof is not a check.** It was done once, by someone who already
+suspected the answer, and it leaves nothing that will notice if a later change
+quietly reintroduces either mistake — a refactor moving the fingerprint back to
+module scope, say, or an endpoint recomputing it for convenience. That is the
+same class of hole the thing it guards exists to close.
+
+**What it would take.** A harness that boots a dev server on a spare port,
+records its fingerprint, edits a fixture file on disk, invokes `globalSetup`
+against that server and asserts it throws with the changed part named — then
+restores the file and asserts it stops throwing. That is a test with a server
+lifecycle, a file mutation and a cleanup path that has to survive a failure
+mid-way, which is why it is named here rather than bolted onto the slice that
+found it.
+
+**Done when:** a check fails if the refusal stops refusing.
+
+### G-093 — A class of contract gap: three responses that cannot be interpreted without reading another endpoint
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — a contract principle to adopt, then three instances to close against it
+
+Three separate findings in two days turned out to be one fault. Naming the
+class, because fixing them one at a time has already produced one fix that
+needed a second reach into a different endpoint to work.
+
+| Instance | The response says | To interpret it you must |
+|---|---|---|
+| [G-087](gaps.md) | a `chainHash`, and the input snapshot it covers | fetch the artifact, or the stored runtime record, for the catalogue snapshot the same hash covers — two of three served, so the hash could not be checked |
+| [G-088](gaps.md) | a trace, in one of two envelopes | know **which service answered**, because the console serves a flat projection and the JVM service serves the canonical bytes at the same path |
+| [G-092](gaps.md) | `valueMinor`, an integer | fetch `/taxonomy` and read an offer's currency, because the performance response carries no currency at all |
+
+**The principle each one breaks.** A response should be interpretable from
+itself. A number without its unit, a hash without its inputs, and a body whose
+shape depends on which implementation answered are all the same defect: the
+caller is handed something it cannot read without a second, undeclared request
+to somewhere else. The second request is undeclared because nothing in the
+contract says it is needed — which is why all three survived review and were
+each found by someone rendering a screen.
+
+**Why it reads as a UI problem and is not.** Every one of the three surfaced as
+a rendering bug. An empty panel, a pound sign on a US tenant, a blank
+`candidates` row. So each was fixed in the component that noticed — and the
+`/performance` currency fix is the proof of how far that gets you: it now
+reaches into the tenant's catalogue to learn what unit its own numbers are in.
+That is a workaround wearing the clothes of a fix. The next consumer of that
+endpoint — the Kotlin service, a customer's own dashboard, an export — has to
+invent the same reach independently, and nothing makes them agree.
+
+**What the class predicts.** Anywhere the platform returns a bare scalar that
+needs a unit, a digest that needs its inputs, or a body assembled differently
+by two implementations. Three worth checking against it rather than waiting to
+trip over: `Money` is declared in the spec with a required `currency` and the
+performance report returns minor units outside it; `POST /decisions` and the
+JVM service's `POST /api/decisions` return different envelopes for the same
+operation, which is [G-088](gaps.md) a second time on a second route; and every
+`*Hash` the API serves should be checkable from the same response or say what
+else is needed.
+
+**Done when:** the contract states that a response carries what is needed to
+interpret it — units beside amounts, inputs beside digests, one envelope per
+operation — `validate-spec.mjs` can check the mechanical half of that, and the
+three instances above are closed against the rule rather than one at a time.
+
+### G-092 — The console formats every date and number as British, in 77 places, whatever the tenant is
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — needs one decision about where locale comes from, then a mechanical change
+
+`toLocaleString('en-GB')` and `toLocaleDateString('en-GB')` appear **77 times
+across 36 files**, hardcoded at every call site. `/performance` alone has 22.
+
+For a UK tenant this is invisible, which is why it survived. For `telco-us` it
+means **every date on every screen is in day-month order** — `05/09` is the
+fifth of September to this console and the ninth of May to the customer reading
+it — and every grouped number is formatted to British convention. A date a
+compliance officer reads out of a trace is the one place an ambiguous format
+costs something real.
+
+**Three hardcodings were data rather than formatting, and those are fixed**
+(2026-09-12):
+
+- `POST /offers` wrote `currency: 'GBP'` into every offer created in the
+  console, so a new offer in a US tenant was authored in sterling.
+- `POST /creatives` wrote `locale: 'en-GB'` into every creative created.
+- `/performance` rendered realised value with `currency: 'GBP'` against amounts
+  the API returns as bare minor units, so a US tenant's revenue appeared in
+  pounds. It now takes the currency from the tenant's own catalogue, which is
+  the only thing that knows — the performance response carries no currency at
+  all, which is worth its own look.
+
+**What is left is the formatting, and it needs a decision before a change.**
+There is no tenant locale anywhere: not on the tenant, not in the spec, not in
+a setting. So the options are a locale on the tenant that every formatter
+reads, the viewer's own locale via `toLocaleString(undefined, …)`, or an
+explicit choice per surface — a trace timestamp arguably wants ISO-8601
+regardless of who is reading it, which is a different answer from the one a
+marketing chart wants.
+
+Replacing 77 string literals with a different 77 string literals would be the
+wrong fix, so nothing here was touched.
+
+**Done when:** a formatter reads the locale from one place, and adding a tenant
+in another market does not mean finding 77 call sites.
+
+### G-091 — A frequency cap counts contacts and cannot ask what the customer did with them
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — a modelling decision about what a cap may read
+
+The brief's suppression slide names an **over-exposure cap**: *"Impressions ≥ 5
+in 7 days with no click → pause the action 14 days, per channel."* It cannot be
+expressed.
+
+`FrequencyPolicy` is `{ channel, maxContacts, period, cooldownDaysAfterReject,
+scope }`. The engine compares `withinPeriod[period]` — a count the caller
+supplies — against `maxContacts`. Three things are missing at once:
+
+- **A count per offer.** `withinPeriod` is a total per period across everything
+  the policy's scope covers, so "this action was shown five times" cannot be
+  distinguished from "five actions were each shown once".
+- **A condition on the outcome.** *With no click* is the whole point of the
+  rule: five impressions that were clicked is engagement, and five that were
+  ignored is fatigue. Nothing in a frequency policy can read an outcome, and the
+  request has no field carrying one.
+- **A pause length distinct from the cap's period.** `cooldownDaysAfterReject`
+  is the rest after a *decline*, which is a different event; there is no second
+  window for a rest after indifference.
+
+**This is the same boundary [G-086](gaps.md) found and did not cross.** A
+decline reaches the engine because the caller states it on the request, and a
+rest period runs from it. An *impression without a click* is not a statement
+the caller makes — it is an absence, computed over the interaction log, which
+is exactly the thing decisions here never read.
+
+So the honest options are a field on the request that states the fatigue the
+caller has already computed, matching how caps and declines already work, or
+outcome-conditioned suppression inside the platform, which is a much larger
+change and the neighbourhood [G-044](gaps.md) describes. Either is a decision
+about what a cap is allowed to know.
+
+**Done when:** a rule of the form "shown N times, never acted on, therefore
+rest" can be authored and shown to fire, or the brief's row is agreed as out of
+scope and the contact-policy screen says which of the customer's six rules this
+platform implements.
+
+### G-090 — Two of the five channels the customer asked for do not exist, so a third of their content cannot be authored
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — a channel is a platform capability, not a fixture
+
+The brief names **fifteen pieces of per-channel content across five channels**:
+web tile, app card, agent script, email and SMS. `Channel` is
+`email | sms | web | push | outbound_call`.
+
+| The brief's channel | Ours | Creatives authored |
+|---|---|---|
+| Web tile | `web` | 5 of 5 |
+| Email | `email` | 4 of 4 |
+| SMS | `sms` | 1 of 1 |
+| **App card** | — | **0 of 3** |
+| **Agent script** | — | **0 of 2** |
+
+**Push is not an app card.** A push notification is something the platform sends
+to a device; an app card is an inbound slot the customer is looking at inside
+the app, decided when they open it. Authoring three app cards as push creatives
+would put content in a channel that delivers it differently, counts it
+differently and is refused differently — and the creative-coverage screen would
+then report full coverage of a channel the tenant does not serve.
+
+**Agent script is the larger absence**, because it is not only a channel. The
+brief's inbound list is *"Web (MVO site), Mobile App, Agent Desktop, IVR /
+Chatbot"*, and its channel logic row reads *"agent-assisted actions restricted
+to trained queues"* — an agent desktop needs a channel, a creative shape for
+talking points, and a notion of queue eligibility. `OutboundCallContent` has
+`script` and `objectionHandling`, which is the closest shape in the domain, but
+it is an *outbound* channel: the call is something this platform initiates, not
+a conversation it joins. [G-044](gaps.md) is the neighbouring gap on
+outbound-call content.
+
+Five of the brief's fifteen are therefore absent from the catalogue
+rather than approximated. The demo runs on inbound web, so nothing in the three
+scenarios needs them — but a customer reading the creative list will count
+ten where their own deck says fifteen, and this is the answer.
+
+**Done when:** `app` and `agent_desktop` are channels with creative shapes and
+delivery semantics of their own, or the brief's matrix is agreed down to the
+three channels that exist.
+
+### G-089 — Five offers carry no price, because the brief carries none
+
+**Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — waiting on figures from the customer
+
+Every offer in the `telco-us` catalogue has `price: usd(0)` and `cost: usd(0)`.
+**Every screen that renders money shows $0.00 for all five**, and that is a
+blank rather than a defect.
+
+The customer's brief names five offers, two categories, a business value per
+offer and a per-offer multiplier. **It names no prices at all.** So there were three
+ways to fill `financials`, and two of them were worse:
+
+- **Invent plausible figures.** A US carrier's gigabit fibre is "about ninety
+  dollars a month" to anyone who has seen an advertisement, and a number sourced
+  that way is presented on screen as a financial fact about a real product. It
+  would survive into a pitch deck and nobody would know which figures came from
+  the customer and which came from here.
+- **Use the previous tenant's.** Sterling prices for UK mobile plans, attached
+  to US broadband products. Worse, because it looks deliberate.
+- **Leave them blank.** Visibly unset, wrong to nobody, and answerable in one
+  sentence when somebody asks.
+
+**`expectedMargin` is not blank**, because arbitration reads it: `V =
+expectedMargin / 60000`. It carries the brief's own **business value** — 100,
+100, 100, 80, 70 — in cents. Ranking depends on the ratio between those
+numbers, so the order the demo produces is the order the brief describes, and
+every value traces to a row in the deck. It is the brief's number in the brief's
+own units, which is why it can be shown without inventing anything.
+
+**Done when:** the customer supplies pricing, or the demo is shown without the
+money columns and somebody decides that is permanent.
+
 ### G-088 — Two services answer the same operation with different envelopes, and only one of them can be checked
 
 **Registered:** 2026-09-12 · **Status:** Open · **Work item:** none — an architecture decision, not a defect
@@ -206,12 +602,6 @@ wait, and the wait is written down.
 **Registered:** 2026-09-04 · **Status:** Open · **Work item:** [W-001](BACKLOG.md)
 
 The original cause is gone: `packages/compiler/src/compile.ts` was deleted with the rest of the Phase 0 tree. `tsc --build` still fails, on two causes that were hidden underneath it — the per-package tsconfigs have no `@metis/core/domain` path mapping (only `packages/registry`'s does), and `bench/harness` declares a `rootDir` of `bench/harness/src` that its own `@metis/runtime` imports fall outside. Until this is fixed the per-package tsconfigs cannot be used for typechecking, and `bench/*` is checked by nothing.
-
-### G-002 — A reused dev server serves pre-edit fixture data
-
-**Registered:** 2026-09-05 · **Status:** Open · **Work item:** none
-
-Playwright's `webServer` has `reuseExistingServer: true`, and `apps/console/mocks/store.ts` seeds itself from the fixtures **at module load**. A dev server already running when a fixture changes therefore keeps the old seed, and `POST /api/_test/reset` does not help — it re-clones the same captured seed. Observed as a `getArbitrationConfig` contract failure that passed immediately against a fresh server. Turning reuse off would add a cold start to every local run, so the workaround is to restart the server after editing a fixture; CI is unaffected because it always starts one.
 
 ### G-035 — A long-lived dev server degrades until the suite is unusable
 
@@ -1447,6 +1837,179 @@ sending zero.
 
 ## Resolved
 
+### G-097 — The note that exists to stop stale numbers had gone stale twice, for the reason it was written
+
+**Registered:** 2026-09-12 · **Resolved:** 2026-09-12 · **Status:** Resolved · **Work item:** none
+
+`docs/design/` holds four mockups given to this project as reference material
+for building screens. Their volumes were invented. On 2026-09-11 each gained a
+note in its chooser bar, because a wrong number in a design reference becomes a
+wrong number in a screen:
+
+> **Figures illustrative** — layout is the reference, not the numbers. Drawn
+> before 2026-09-11; the seed now runs 2 live flows, 10,400 decisions, 5,200
+> each, 35.0% offered, and no `outbound_call`.
+
+**Eleven days later every figure in it was wrong.** The tenant became
+`telco-us`: one flow, five offers, three channels, 45.1% offered. The note was
+rewritten on 2026-09-12 with the new numbers — the second time the same
+sentence had been corrected for the same reason, and the first correction was
+itself the fix for the mockups being stale.
+
+**A count in two places is a count that will disagree**, which is this
+register's own opening principle and is what the note did: it restated figures
+whose home is the console and the seed. Nothing checked it. No test reads
+`docs/design/`, so it went stale silently and was noticed only when somebody
+happened to read it beside the thing it describes.
+
+**Resolved by dropping the figures and keeping the warning**, on the product
+owner's decision of 2026-09-12. All four notes now read, verbatim:
+
+> **Figures illustrative** — the layout is the reference, not the numbers.
+> Placement and offer names are checked against the fixtures; every volume here
+> is invented.
+
+That sentence cannot go stale, does the whole job the note was added for, and
+points a reader who wants real numbers at the console rather than at a design
+file. The figures that remain in the mockups' own tables are exactly what it
+disclaims.
+
+The counter-argument, for the record: the figures made the gap between the
+mockup and the product concrete, so a reader comparing a 2,146 against a real 5
+saw immediately how far apart they were. That was the reason they were put in.
+It was not worth a sentence that had been wrong more often than it had been
+right.
+
+**What still is not checked:** the placement and offer names the note now
+claims are verified against the fixtures are verified by hand, not by a test.
+No check reads `docs/design/`. The claim is narrower than the old one and
+cannot rot the same way — a renamed placement makes the mockup wrong, not the
+note — but it is a claim. A check that read the four files for placement ids
+and compared them against `catalogue.ts` would be a small one to write.
+Not registered separately; recorded here.
+
+### G-002 — A reused dev server made Rule 9 unreliable, not just its fixtures stale
+
+**Registered:** 2026-09-05 · **Resolved:** 2026-09-12 · **Status:** Resolved · **Work item:** none — the remaining half is [G-095](gaps.md)
+
+**How it was filed, and why that was too small.** *"A reused dev server serves
+pre-edit fixture data."* Playwright's `webServer` sets
+`reuseExistingServer: true`, `store.ts` seeds itself at module load, and a
+server already running when a fixture changes keeps the old seed — so the entry
+said the workaround is to restart it. Filed as an inconvenience about demo data
+for seven days.
+
+**What it actually is.** A mechanism that makes Rule 9 unreliable. A bite-proof
+is *edit the guarded thing, watch the check go red.* If the edit never reaches
+the server the check stays green, and the inference drawn is **"this check does
+not bite"** when the truth is **"the check was never shown the change"** — a
+false negative on the one control this project uses to decide whether a test is
+worth anything.
+
+It happened on 2026-09-12. A declared boost was set to 1.0 to prove an e2e
+assertion depended on it; the suite passed; the reasonable conclusion — the
+assertion is worthless — was wrong. Restarted, the same proof failed in one
+line. **Nothing in the suite said so.** It was caught by distrusting a
+convenient result, which is not a control. Every bite-proof in this project's
+history was taken against whatever the dev server had loaded at startup.
+
+**Fixed by refusal, not by reloading.** The store now carries
+`seededFingerprint` — a hash per part of everything it seeded — and
+`/api/_test/uptime` reports it. `global-setup.ts` computes the same function
+over the files on disk and refuses the suite on a difference, naming the part:
+
+```
+  server seeded  a7c060c8ae60
+  disk is        33b851ec550d
+  differing in:
+    boosts               server a47745ad62cc   disk 8ec46b5bbf1f
+```
+
+Reload was rejected deliberately. It fails open — a reload that misses a module
+leaves the suite running against stale data and says nothing, which is the
+failure being fixed — and a mid-suite re-seed would discard published versions
+and ledger rows, trading one unreliable check for many flaky ones. Refusal
+fails closed.
+
+A timestamp was rejected too: *"older than the newest fixture file"* needs a
+list of directories to watch, so it refuses a good server because an unrelated
+file was touched and trusts a stale one whose staleness came from a directory
+nobody listed. The fingerprint compares the thing itself.
+
+**Where it had to live, which took two attempts.** Computing it from the fixture
+modules compares disk to disk — Next re-evaluates an edited `catalogue.ts`
+without re-seeding the store. A module-scope constant in `store.ts` fails the
+same way, because the store is stashed on `globalThis` and survives hot reload
+while the module does not. Only a field on the stashed object goes stale
+together with the seed it describes. Both wrong versions reported "server
+matches disk" for ever; see [G-095](gaps.md).
+
+**And the guard's own silent hole is closed — this is where G-082 went.**
+
+It read `if (!res.ok) return`, so a server answering the port but not the
+endpoint was treated as no server at all. **The staler a server is, the likelier
+it has lost the endpoint the guard asks about, so the check was least able to
+fire exactly when it mattered most.** On 2026-09-11 a `next dev` with a broken
+module graph answered `/` with 200 and every API with 404; the suite reused it
+and produced 341 failures in 65 minutes against a commit that was fine, and the
+guard printed nothing. It now refuses and names what answered.
+
+That hole was registered as **G-082** on 2026-09-11, on the branch of
+[PR #33](https://github.com/kevinbotman9-cpu/Metis/pull/33), which never merged
+— so the id never reached `main`. The pull request was closed on 2026-09-12
+rather than merged: by then the hole was fixed here, and merging would have
+landed an *Open* entry describing a closed defect. **G-082 is therefore this
+paragraph**, and the id is not reused.
+
+**G-083 and G-084 were never used by anyone.** Not lost, not withdrawn — never
+written. The sequence on `main` runs 081, then 085, and the next person reading
+it should not go looking for two entries that do not exist.
+
+**Not covered.** The refusal path has no automated test — [G-095](gaps.md).
+
+### G-094 — The storefront's headline contrast showed the same refusal twice, because its presets were one level too flat
+
+**Registered:** 2026-09-12 · **Resolved:** 2026-09-12 · **Status:** Resolved · **Work item:** none — a defect, fixed in the slice that found it
+
+`STOREFRONT_DEMO.md` describes the two presets a demo opens with:
+
+> **Anonymous — fibre at the address** · Full Fibre wins the hero.
+> **Anonymous — no fibre** · The same visitor, one field different.
+> `acq_fibre_900 — ELIGIBILITY_FAILED · pol_fibre_available`, and SIM Only takes
+> the slot. This is the cheapest way to show the cascade doing real work.
+
+**Both presets produced the second answer.** Fibre was refused either way, and
+SIM Only took the hero in both, so the cheapest way to show the cascade doing
+real work was showing it do the same thing twice.
+
+Each preset's input was shaped like this:
+
+```js
+input: {
+  customer: { age: 34, credit_status: 'pass', … },
+  address: { fibre_available: true },   // a sibling of `customer`
+  usage:   { … },
+}
+```
+
+`address` sat beside `customer`, not inside it. Every policy reads
+`customer.address.fibre_available`, which resolved to `undefined`, and a
+missing value fails a comparison closed — correctly. So the eligibility gate
+refused fibre for the visitor whose address had it, and the demo's one
+side-by-side contrast was two identical cascades.
+
+**Why nothing caught it.** The refusal it produced is the refusal the demo
+wanted to show, in the preset where it was wanted. Nobody comparing the two
+screens would see a bug; they would see the no-fibre story working and assume
+the fibre one did too. No test opened the panel (that was
+[G-087](gaps.md)), and no test asserted the two presets differ.
+
+**Fixed with the three scenarios that replaced them.** One customer id across
+all three, every field under `customer`, and
+`brief-scenarios.spec.ts` asserts the fibre and no-fibre slates are *not* equal
+and that the second lacks what the first led with. `applyPreset` read the same
+flat paths for its account widgets and was corrected with them.
+
 ### G-087 — The storefront's explanation panel rendered nothing, because the trace endpoint under-served and the panel read the wrong envelope
 
 **Registered:** 2026-09-11 · **Resolved:** 2026-09-12 · **Status:** Resolved · **Work item:** none — two faults, both fixed; the third is [G-088](gaps.md)
@@ -1584,7 +2147,7 @@ The other fifteen import no fixture values and were not individually checked.
 |---|---|---|---|
 | 2026-09-03 20:36 (`27b325a`) | 2026-09-04 08:17 (`e500ddd`) | Absent until 21:55 (`4a5147d`), then unable to boot: `@storybook/nextjs` 7.6 needs `next/config`, which Next 16 removed — per `e500ddd`, *"so the stories actually run"*. Not rebuilt here | Yes |
 | 2026-09-04 08:17 | 2026-09-09 05:04 | Worked. Built here at `9af3938` (2026-09-08 19:54), the commit before the break | Yes |
-| 2026-09-09 05:04 (`7af77ff`, *"demo-telco-uk is a tenant with a history"*) | this fix | `build-storybook` failed. Built here at `7af77ff` and seen to fail with the error above | Yes |
+| 2026-09-09 05:04 (`7af77ff`, *"demo-telco-us is a tenant with a history"*) | this fix | `build-storybook` failed. Built here at `7af77ff` and seen to fail with the error above | Yes |
 
 About **71 hours of the 188** the requirement had existed when this was
 written (2026-09-11 16:45) — the first 12 with no Storybook that ran, the

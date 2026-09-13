@@ -38,8 +38,8 @@ const call = (
 };
 
 const ROWS = [
-  { cust_id: 'c1', dob: '1990-01-15', band: 'A', standing: 'active', plan: 'standard', fibre: 'Y' },
-  { cust_id: 'c2', dob: '1985-06-01', band: 'A', standing: 'active', plan: 'standard', fibre: 'N' },
+  { cust_id: 'c1', dob: '1990-01-15', band: 'A', standing: 'active', plan: 'standard', fiber: 'Y' },
+  { cust_id: 'c2', dob: '1985-06-01', band: 'A', standing: 'active', plan: 'standard', fiber: 'N' },
 ];
 
 /**
@@ -58,14 +58,14 @@ const MAPPINGS = [
   },
   { column: 'standing', path: 'customer.account_status' },
   { column: 'plan', path: 'customer.current_plan' },
-  { column: 'fibre', path: 'customer.address.fibre_available', transform: { kind: 'to_boolean' } },
+  { column: 'fiber', path: 'customer.address.fios_serviceable', transform: { kind: 'to_boolean' } },
 ];
 
 /** Fills two of the five, so activation must refuse it. */
 const PARTIAL = [MAPPINGS[0], MAPPINGS[1]];
 
 async function newSource() {
-  const res = await call(['data-sources', 'telco-uk'], {
+  const res = await call(['data-sources', 'telco-us'], {
     name: 'CRM nightly',
     description: 'Overnight export.',
     kind: 'file',
@@ -75,11 +75,11 @@ async function newSource() {
 }
 
 const land = (id: string, rows: unknown[], replace = true) =>
-  call(['data-sources', 'telco-uk', id, 'rows'], { rows, replace });
+  call(['data-sources', 'telco-us', id, 'rows'], { rows, replace });
 const map = (id: string, mappings: unknown[]) =>
-  call(['data-sources', 'telco-uk', id], { mappings }, 'PUT');
-const validate = (id: string) => call(['data-sources', 'telco-uk', id, 'validation'], {});
-const activate = (id: string) => call(['data-sources', 'telco-uk', id, 'activation'], {});
+  call(['data-sources', 'telco-us', id], { mappings }, 'PUT');
+const validate = (id: string) => call(['data-sources', 'telco-us', id, 'validation'], {});
+const activate = (id: string) => call(['data-sources', 'telco-us', id, 'activation'], {});
 
 describe('landing', () => {
   beforeEach(async () => {
@@ -99,7 +99,7 @@ describe('landing', () => {
       'band',
       'cust_id',
       'dob',
-      'fibre',
+      'fiber',
       'plan',
       'standing',
     ]);
@@ -110,7 +110,7 @@ describe('landing', () => {
     const { id } = await newSource();
     await land(id, ROWS);
     await land(id, [{ cust_id: 'c3', dob: '2000-01-01', band: 'A' }], false);
-    const res = await call(['data-sources', 'telco-uk'], undefined, 'GET');
+    const res = await call(['data-sources', 'telco-us'], undefined, 'GET');
     const { sources } = (await res.json()) as { sources: { landedRows: number }[] };
     expect(sources[0].landedRows).toBe(3);
   });
@@ -118,7 +118,7 @@ describe('landing', () => {
   it('refuses an account without edit:integrations', async () => {
     const { id } = await newSource();
     const res = await call(
-      ['data-sources', 'telco-uk', id, 'rows'],
+      ['data-sources', 'telco-us', id, 'rows'],
       { rows: ROWS },
       'POST',
       SARAH()
@@ -262,7 +262,7 @@ describe('activation', () => {
 
   it('refuses an account without edit:integrations', async () => {
     const { id } = await newSource();
-    const res = await call(['data-sources', 'telco-uk', id, 'activation'], {}, 'POST', SARAH());
+    const res = await call(['data-sources', 'telco-us', id, 'activation'], {}, 'POST', SARAH());
     expect(res.status).toBe(403);
   });
 

@@ -12,7 +12,7 @@ import { LedgerError } from '../src/types';
  * one, rather than the two drifting until someone notices in production.
  */
 
-const T = 'telco-uk';
+const T = 'telco-us';
 const AT = '2026-06-01T12:00:00.000Z';
 
 export function decisionRecord(over: {

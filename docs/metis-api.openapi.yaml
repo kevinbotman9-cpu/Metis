@@ -654,7 +654,7 @@ components:
       description: |
         Where the numbers in this response came from.
 
-        The seeded `demo-telco-uk` tenant became indistinguishable from real
+        The seeded `demo-telco-us` tenant became indistinguishable from real
         reporting on 2026-09-09: 10,400 decisions, 2,101 measured outcomes,
         plausible click rates and realised value in pounds, all derived from
         `seededUnitInterval` and none of it from a customer. The only marker was

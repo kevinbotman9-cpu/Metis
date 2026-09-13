@@ -24,6 +24,18 @@ function money(m: { amount: number; currency: string }) {
 }
 
 /**
+ * Whether this offer has any pricing at all. Same pair as
+ * `app/offers/page.tsx`: a tenant authored from a brief that names products and
+ * not prices has none, and rendering "$0.00" beside a margin states a financial
+ * claim nobody made (G-089).
+ */
+const unpriced = (f: { price: { amount: number }; cost: { amount: number } }) =>
+  f.price.amount === 0 && f.cost.amount === 0;
+
+/** `V = expectedMargin / 60000`, which is what the ranking function reads. */
+const valueTerm = (m: { amount: number }) => (m.amount / 60000).toFixed(3);
+
+/**
  * Offer detail, in a drawer over the catalogue.
  *
  * The list can prove one thing about deliverability — whether an offer has any
@@ -92,11 +104,21 @@ export function OfferDrawer({
       ) : !offer ? null : (
         <div className="divide-y divide-border">
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 px-5 py-4 sm:grid-cols-3">
-            <Fact label="Price" value={money(offer.financials.price)} />
-            <Fact label="Cost" value={money(offer.financials.cost)} />
             <Fact
-              label="Expected margin"
-              value={money(offer.financials.expectedMargin)}
+              label="Price"
+              value={unpriced(offer.financials) ? '— not supplied' : money(offer.financials.price)}
+            />
+            <Fact
+              label="Cost"
+              value={unpriced(offer.financials) ? '— not supplied' : money(offer.financials.cost)}
+            />
+            <Fact
+              label={unpriced(offer.financials) ? 'Value term (V)' : 'Expected margin'}
+              value={
+                unpriced(offer.financials)
+                  ? valueTerm(offer.financials.expectedMargin)
+                  : money(offer.financials.expectedMargin)
+              }
               tone={offer.financials.expectedMargin.amount < 0 ? 'block' : undefined}
             />
             <Fact label="Business boost" value={offer.boost.toFixed(2)} />

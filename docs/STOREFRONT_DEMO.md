@@ -33,10 +33,10 @@ Four placements, configured in the catalogue rather than in this file:
 
 | Placement | Slots | Flow | Why |
 |---|---|---|---|
-| `homepage_hero` | 1 | `inbound-web-offers` | Anonymous acquisition |
-| `homepage_grid` | 3 | `next-best-action` | The slot that needs a slate |
+| `homepage_hero` | 1 | `next-best-action` | The hero slot |
+| `homepage_grid` | 3 | `next-best-action` | The slot that needs a slate — the three scenarios are read here |
 | `account_dashboard_hero` | 1 | `next-best-action` | The customer is known |
-| `usage_page_inline` | 1 | `inbound-web-offers` | A cross-sell slot |
+| `usage_page_inline` | 1 | `next-best-action` | A cross-sell slot |
 
 **The grid is the one to point at.** It asks for three and gets up to three,
 ranked, from a *single* decision — every candidate that reached ranking is
@@ -47,23 +47,32 @@ rule; diversity and mutual exclusion are W-028.
 
 ---
 
-## The five visitors, and what each one shows
+## The three scenarios, and what each one shows
 
 Open the panel (**Decided by METIS**, top right) to switch between them. Every
-figure in the panel comes from the decision the platform returned.
+figure in the panel comes from the decision the platform returned — which was
+untrue from 2026-09-07 to 2026-09-12, when the panel rendered an empty div
+([G-087](gaps.md)).
+
+They are the customer brief's own three, and **one customer** in all three: the
+scenarios are meant to differ by her address and what she holds, nothing else.
 
 | Preset | What to point at |
 |---|---|
-| **Anonymous — fibre at the address** | Full Fibre wins the hero. The trace shows the two consent fields arriving from `conn_consent_registry`, which is the platform fetching what the site did not send |
-| **Anonymous — no fibre** | The same visitor, one field different. `acq_fibre_900 — ELIGIBILITY_FAILED · pol_fibre_available`, and SIM Only takes the slot. This is the cheapest way to show the cascade doing real work |
-| **Signed in — near the data cap** | The data boost passes the relevance gate that refuses it for lighter users, and still loses the ranking to the 5G upgrade. Both scores are in the panel, so "why not the other one" is answerable |
-| **Signed in — contract ends in 40 days** | The 5G upsell is suppressed as irrelevant (they already hold it), retention wins — **and has no web creative**, so the slot says that instead of rendering something. An honest content gap, W-015 |
-| **Signed in — high bill-to-income** | Every growth offer fails suitability. The slot falls back to the site's own content and the panel names the policy. This is the compliance story: a refusal that is legible after the fact |
+| **Eva — fibre available** | All five offers qualify. FIOS leads, 5G Home second, Gaming Plus third — the brief's own order, and every position carries a distinct priority because two declared boosts break what would otherwise be a three-way tie at business value 100 |
+| **Eva — moved, no fibre** | The same customer, one field different. `fios_gigabit — ELIGIBILITY_FAILED · pol_fios_serviceable`, and 5G Home takes the top slot. The refused field arrives from `conn_serviceability`, so the trace names the system that supplied the evidence |
+| **Eva — after accepting 5G Home** | Both broadband offers are gone and the cross-sell opens: Gaming Plus, Disney+, Netflix. The suppression comes from **what she now holds**, not from the interaction log — the platform records no acceptance of its own, and the panel names `pol_not_on_5g_home` doing it |
+
+`brief-scenarios.spec.ts` asserts all three rankings, both refusals, and that
+the first two slates differ — the contrast the demo rests on was showing the
+same refusal twice until 2026-09-12 ([G-094](gaps.md)).
 
 The consent switches and the contact-history counters re-decide every placement
-on the page, so suppression by consent or by frequency cap is one click away.
-**Show placements** outlines the decisioned slots and reveals the asset path each
-creative names.
+on the page, so suppression by consent or by a frequency cap is one click away.
+**Not interested** on any offer starts its 30-day rest period, which is the
+brief's reject rule and became real on 2026-09-11 ([G-086](gaps.md)).
+**Show placements** outlines the decisioned slots and reveals the asset path
+each creative names.
 
 ---
 
@@ -83,7 +92,7 @@ left empty and counted, never padded. There is no content store
 placeholder. A decision made here can be traced through the API but not replayed;
 see `gaps.md`.
 
-**The catalogue is the demo tenant's.** `telco-uk` — UK products, sterling. The
+**The catalogue is the demo tenant's.** `telco-us` — the five offers the customer's brief names. No prices: the brief supplies none and none was invented ([G-089](gaps.md)). The
 storefront renders whatever the catalogue says, so a demo for a different market
 means a different tenant's catalogue, which regenerates the conformance corpora
 and is a deliberate change rather than a switch to flip.

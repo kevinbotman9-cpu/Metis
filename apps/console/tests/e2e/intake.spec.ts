@@ -17,8 +17,8 @@ import { login, resetStore, ACCOUNTS } from './helpers';
  */
 
 const ROWS = JSON.stringify([
-  { cust_id: 'c1', dob: '1990-01-15', band: 'A', standing: 'active', plan: 'standard', fibre: 'Y' },
-  { cust_id: 'c2', dob: '1985-06-01', band: 'Z', standing: 'active', plan: 'standard', fibre: 'N' },
+  { cust_id: 'c1', dob: '1990-01-15', band: 'A', standing: 'active', plan: 'standard', fiber: 'Y' },
+  { cust_id: 'c2', dob: '1985-06-01', band: 'Z', standing: 'active', plan: 'standard', fiber: 'N' },
 ]);
 
 async function newSource(page: import('@playwright/test').Page, name: string) {

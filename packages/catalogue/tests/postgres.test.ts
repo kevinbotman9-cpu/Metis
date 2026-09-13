@@ -32,7 +32,7 @@ try {
   reachable = false;
 }
 
-const T = 'telco-uk';
+const T = 'telco-us';
 const AT = '2026-06-01T12:00:00.000Z';
 
 if (!reachable) {

@@ -38,7 +38,7 @@ function decide(body: unknown): Promise<Response> {
 const request = (over: Record<string, unknown> = {}) => ({
   artifactId: ARTIFACT,
   request: {
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     customerId: 'cust_resolution',
     channel: 'web',
     placement: 'account_dashboard_hero',
@@ -60,8 +60,13 @@ describe('POST /api/decisions resolves its connectors', () => {
     // The caller sent none of these. They are in the decision because the
     // endpoint fetched them.
     const byField = new Map(body.decision.sourceBindings.map((b) => [b.field, b.connectorId]));
-    expect(byField.get('customer.monthly_spend')).toBe('conn_billing_ledger');
-    expect(byField.get('customer.arrears_days')).toBe('conn_billing_ledger');
+    // The two the brief's scenarios turn on, and which named system said so:
+    // a fiber refusal that can point at the serviceability lookup is the whole
+    // reason this path is worth having.
+    expect(byField.get('customer.address.fios_serviceable')).toBe('conn_serviceability');
+    expect(byField.get('customer.address.fiveg_coverage')).toBe('conn_serviceability');
+    expect(byField.get('customer.orders.open_broadband')).toBe('conn_order_book');
+    expect(byField.get('customer.affinity.gaming')).toBe('conn_engagement');
     expect(byField.get('customer.tenure_months')).toBe('conn_network_usage');
     expect(byField.get('customer.marketing_consent')).toBe('conn_consent_registry');
   });
@@ -101,7 +106,7 @@ describe('the recorded gateway serves every field the live flows need', () => {
         artifact,
         catalogueSnapshot.connectors ?? [],
         {
-          tenantId: 'telco-uk',
+          tenantId: 'telco-us',
           customerId: 'cust_coverage',
           channel: 'web',
           occurredAt: '2026-06-01T12:00:00.000Z',

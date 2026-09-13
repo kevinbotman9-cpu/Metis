@@ -121,7 +121,7 @@ const CASES = [
 
   // --- A shape the engine actually hashes ----------------------------------
   ok('a decision-shaped object', {
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     artifactId: 'art_bench',
     artifactVersion: '1.0.0',
     occurredAt: '2026-06-01T12:00:00.000Z',

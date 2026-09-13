@@ -14,12 +14,16 @@ test.describe('compiler output in the console', () => {
   test('flags a flow that fails to compile in the list', async ({ page }) => {
     await page.goto('/decision-flows');
 
-    const row = page.getByRole('row').filter({ hasText: 'plan-fit-nudges' });
+    const row = page.getByRole('row').filter({ hasText: 'entertainment-cross-sell' });
 
     // The visible summary, and the glyph's accessible name for anyone who
     // cannot see the colour.
-    await expect(row.getByText('2 errors', { exact: true })).toBeVisible();
-    await expect(row.getByText('2 compile errors')).toBeAttached();
+    // One error, not two. The flow that used to sit here failed on both a
+    // missing arbitrate node and an undeliverable candidate; this one fails on
+    // the first alone, which is the clearer subject for a test about the list
+    // reporting a count.
+    await expect(row.getByText('1 error', { exact: true })).toBeVisible();
+    await expect(row.getByText('1 compile error')).toBeAttached();
 
     // The health ring reports the same thing at the top of the page.
     await expect(page.getByText('Compilation')).toBeVisible();
@@ -27,7 +31,7 @@ test.describe('compiler output in the console', () => {
   });
 
   test('shows why it fails, and what to do about it', async ({ page }) => {
-    await page.goto('/decision-flows/plan-fit-nudges');
+    await page.goto('/decision-flows/entertainment-cross-sell');
 
     await expect(page.getByText('Blocked.')).toBeVisible();
 
@@ -42,8 +46,12 @@ test.describe('compiler output in the console', () => {
     // A remedy, phrased for someone who is not the compiler author.
     await expect(page.getByText('Add an arbitrate node as the final step.')).toBeVisible();
 
-    // The undeliverable-offer check, which the offers page also surfaces.
-    await expect(page.getByText('NO_DELIVERABLE_CREATIVE', { exact: true })).toBeVisible();
+    // `NO_DELIVERABLE_CREATIVE` used to be asserted here too, because the flow
+    // that used to fail failed on both. This one has a deliverable candidate
+    // set and fails only on arbitration. That check is exercised against its
+    // own constructed case in `tests/unit/compile-context.test.ts`, which
+    // judges the live flow against a channel this tenant has no content for —
+    // a stronger place for it than a fixture that happened to be broken.
   });
 
   test('shows a passing flow with its pinned versions and cost', async ({ page }) => {
@@ -55,19 +63,24 @@ test.describe('compiler output in the console', () => {
     // Pinning is the reason replay works, so it has to be visible.
     await expect(page.getByText('Pinned at compile time')).toBeVisible();
     await expect(page.getByText(/@metis\/nodes-core@1\.4\.0/)).toBeVisible();
-    await expect(page.getByText(/propensity_accept_v4@4\.2\.0/)).toBeVisible();
+    await expect(page.getByText(/@metis\/core@2\.1\.0/)).toBeVisible();
+    // No model version, because this tenant's flow runs no scoring node: P and
+    // C are the approved defaults and the trace records that. A model pin
+    // asserted here would be asserting a node the flow does not have.
 
-    // Critical path against budget, not the sum of every node — and it now
-    // includes the connectors the source node waits on, which is why this is
-    // 23.9ms rather than the 11.9ms it was before integrations existed.
+    // Critical path against budget, not the sum of every node — and it
+    // includes the connectors the source node waits on, which is why it is
+    // tens of milliseconds rather than the ~9ms the nodes themselves cost.
+    // 33.2ms here: `conn_serviceability` declares 45ms p95 and dominates,
+    // which is also why this flow carries a LATENCY_NEAR_BUDGET warning.
     await expect(page.getByText('Critical path')).toBeVisible();
-    await expect(page.getByText(/23\.9ms \/ 50ms/)).toBeVisible();
+    await expect(page.getByText(/33\.2ms \/ 50ms/)).toBeVisible();
   });
 
   test('surfaces the missing-score warning that made a flow return nothing', async ({
     page,
   }) => {
-    await page.goto('/decision-flows/inbound-web-offers');
+    await page.goto('/decision-flows/next-best-action');
 
     await expect(page.getByText('ARBITRATION_MISSING_SCORE', { exact: true }).first()).toBeVisible();
     // Once in the compile report, and once for each published version, which
@@ -76,10 +89,17 @@ test.describe('compiler output in the console', () => {
     // later than one that shipped clean, and that is a fact about the version,
     // not about the flow.
     //
-    // Five since 1.9.0 added the consent-and-contact gate. The warning is
-    // unrelated to that change and correctly survives it: the flow still has
-    // no scoring node, so arbitration still has no propensity term. Adding a
-    // constraint gates candidates; it does not score them.
-    await expect(page.getByText(/no scoring node runs before it/)).toHaveCount(5);
+    // Two: the compile report, and the one published version. It was five when
+    // the flow had four of them. The count is deliberately exact rather than
+    // "at least one" — the point is that *every* version says it, and a
+    // `toBeVisible` on the first would pass while later versions silently
+    // dropped the warning they shipped with.
+    //
+    // And the warning is now permanent rather than incidental. This tenant's
+    // flow has no scoring node by design: the customer's brief ranks on an
+    // adaptive model this platform does not have, so propensity and context are
+    // the flow's approved defaults and arbitration says so on every decision.
+    const versions = 1;
+    await expect(page.getByText(/no scoring node runs before it/)).toHaveCount(1 + versions);
   });
 });

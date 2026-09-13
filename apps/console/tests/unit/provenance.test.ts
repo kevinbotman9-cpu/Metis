@@ -9,7 +9,7 @@ import { provenanceFor, provenanceOver, isSeededDecision } from '../../mocks/pro
 /**
  * A synthetic number says so, wherever it goes.
  *
- * The seeded `demo-telco-uk` tenant became indistinguishable from real
+ * The seeded `demo-telco-us` tenant became indistinguishable from real
  * reporting on 2026-09-09. 10,400 decisions, 416 measured outcomes, click
  * rates between 16% and 35%, realised value in pounds that differs plausibly
  * from expected, and a genuine-looking underperformer — every figure derived
@@ -76,7 +76,7 @@ describe('provenance is decided by the seed index, not by a guess', () => {
     expect(p.syntheticCount).toBe(2);
     expect(p.recordedCount).toBe(1);
     // The note has to stand alone in a file somebody opens months later.
-    expect(p.note).toMatch(/demo-telco-uk/);
+    expect(p.note).toMatch(/demo-telco-us/);
     expect(p.note).toMatch(/[Nn]ot evidence/);
   });
 
@@ -105,7 +105,7 @@ describe('every response derived from the seed carries its provenance', () => {
   });
 
   it('marks the performance report, and says it is mixed once somebody clicks', async () => {
-    const before = await GET(['performance', 'telco-uk']);
+    const before = await GET(['performance', 'telco-us']);
     expect(before.provenance.source).toBe('synthetic');
     expect(before.provenance.syntheticCount).toBeGreaterThan(10_000);
 
@@ -118,7 +118,7 @@ describe('every response derived from the seed carries its provenance', () => {
     });
     expect(made.decision?.id ?? made.id, JSON.stringify(made).slice(0, 200)).toBeTruthy();
 
-    const after = await GET(['performance', 'telco-uk']);
+    const after = await GET(['performance', 'telco-us']);
     expect(after.provenance.source).toBe('mixed');
     expect(after.provenance.recordedCount).toBeGreaterThan(0);
     expect(after.provenance.note).toMatch(/Mixed/);
@@ -126,7 +126,7 @@ describe('every response derived from the seed carries its provenance', () => {
 
   it('marks the outcomes of a seeded decision', async () => {
     const withOutcomes = decisions.find((d) => d.winner);
-    const body = await GET(['outcomes', 'telco-uk', withOutcomes!.id]);
+    const body = await GET(['outcomes', 'telco-us', withOutcomes!.id]);
     expect(body.provenance).toBeDefined();
     expect(body.provenance.source).toBe('synthetic');
   });
@@ -189,7 +189,7 @@ describe('the marker cannot be quietly removed', () => {
 
 function liveRequest() {
   return {
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     customerId: 'cust_provenance_probe',
     channel: 'web',
     // Required on `DecisionRequest`. Omitting it produced a trace with no
@@ -206,7 +206,7 @@ function liveRequest() {
         bill_to_income_ratio: 0.02,
         arrears_count_12mo: 0,
         credit_band: 'A',
-        address: { fibre_available: true },
+        address: { fiber_available: true },
         usage: { pct_of_allowance_3mo_avg: 0.5, months_of_history: 12 },
         contract: { days_to_end: 200 },
         events: { pac_requested_within_days: 999 },

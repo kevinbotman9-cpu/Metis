@@ -13,7 +13,7 @@ import { RegistryError } from '../src/types';
  * until somebody notices in production.
  */
 
-const T = 'telco-uk';
+const T = 'telco-us';
 const NAME = 'inbound-web-offers';
 const AT = '2026-06-01T12:00:00.000Z';
 

@@ -17,22 +17,39 @@ import { login, ACCOUNTS } from './helpers';
  * on what ran first.
  */
 
+/**
+ * The call the storefront makes, for a customer something is decided about.
+ *
+ * Every field the flow's rules read is pinned here, because the alternative is
+ * the connectors answering from a per-customer seed and the decision turning
+ * on a coin flip. This carried four fields and `cust_0001` until 2026-09-12,
+ * three of which no rule on this tenant reads; the seeded profile for that
+ * customer has an open broadband order, no 5G coverage and no line, so all
+ * five offers were eliminated and the response had no payload to show. The
+ * suite said so — "nothing was decided, so there is no payload to show" —
+ * rather than failing on the missing text, which is the difference between a
+ * check that reports a cause and one that reports a symptom.
+ *
+ * The same shape as the storefront's own `eva_fiber` preset, and for the same
+ * reason: it is the scenario the customer's brief asks the demo to show.
+ */
 const DECISION_BODY = {
   request: {
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     customerId: 'cust_0001',
     channel: 'web',
     occurredAt: '2026-09-07T12:00:00.000Z',
     input: {
       customer: {
-        age: 29,
-        credit_status: 'pass',
         account_status: 'active',
-        // Eligibility reads the bureau's band. Supplied here so the storefront
-        // call decides the same way every run: a caller's value wins over the
-        // connector's, and the connector's is seeded per customer.
-        credit_band: 'A',
-        address: { fibre_available: true },
+        moving_within_days: 999,
+        address: { fios_serviceable: true, fiveg_coverage: 'strong' },
+        broadband: { status: 'active', product: 'dsl' },
+        orders: { open_broadband: false },
+        ott: { disney: false, netflix: false, disney_available: true, netflix_available: true },
+        affinity: { gaming: 0.8, entertainment: 0.8 },
+        engagement: { digital_or_broadband_intent: true },
+        usage: { pct_of_allowance_3mo_avg: 0.94, months_of_history: 14 },
       },
     },
     consent: { marketing: true, profiling: true, thirdParty: false },
@@ -41,12 +58,15 @@ const DECISION_BODY = {
 
 /** Drive one decision the way the storefront does, referer included. */
 async function callAsStorefront(page: import('@playwright/test').Page) {
-  const res = await page.request.post('/api/placements/telco-uk/homepage_hero/decisions', {
+  const res = await page.request.post('/api/placements/telco-us/homepage_hero/decisions', {
     data: DECISION_BODY,
     headers: { referer: 'http://localhost:3000/storefront/index.html' },
   });
   expect(res.ok()).toBeTruthy();
-  return (await res.json()) as { decisionId: string };
+  return (await res.json()) as {
+    decisionId: string;
+    entries: { action: string }[];
+  };
 }
 
 test.describe('inbound traffic', () => {
@@ -62,11 +82,11 @@ test.describe('inbound traffic', () => {
   });
 
   test('shows a call the storefront made, with both payloads', async ({ page }) => {
-    await callAsStorefront(page);
+    const answered = await callAsStorefront(page);
     await page.goto('/integrations/traffic');
 
     const row = page.getByRole('button', {
-      name: /POST \/api\/placements\/telco-uk\/homepage_hero\/decisions — 200/,
+      name: /POST \/api\/placements\/telco-us\/homepage_hero\/decisions — 200/,
     });
     await expect(row).toBeVisible();
 
@@ -76,9 +96,17 @@ test.describe('inbound traffic', () => {
 
     // The request the site sent — the thing the ledger deliberately does not keep.
     await expect(page.getByText(/"customerId": "cust_0001"/)).toBeVisible();
-    await expect(page.getByText(/"fibre_available": true/)).toBeVisible();
-    // And what went back.
-    await expect(page.getByText(/"action": "acq_fibre_900"/)).toBeVisible();
+    await expect(page.getByText(/"fios_serviceable": true/)).toBeVisible();
+    // And what went back — the action this call actually returned, not a
+    // fixture constant. This asserted `fios_gigabit` literally, which held
+    // while one tenant's seeded profile for `cust_0001` happened to leave FIOS
+    // eligible; it now wins something else and the check was asserting the
+    // catalogue rather than the panel. Read from the response, so the claim is
+    // the one this page exists to make: what is on screen is what went back.
+    expect(answered.entries.length, 'nothing was decided, so there is no payload to show').toBeGreaterThan(0);
+    await expect(
+      page.getByText(new RegExp(`"action": "${answered.entries[0].action}"`))
+    ).toBeVisible();
   });
 
   test('links a call to the decision it produced', async ({ page }) => {
@@ -113,8 +141,8 @@ test.describe('inbound traffic', () => {
   test('records a refusal with its reason', async ({ page }) => {
     // The calls worth having. A 400 that never reaches the log leaves the
     // integrator with a broken site and an empty page.
-    const res = await page.request.post('/api/placements/telco-uk/homepage_hero/decisions', {
-      data: { request: { tenantId: 'telco-uk', customerId: 'c', channel: 'web' } },
+    const res = await page.request.post('/api/placements/telco-us/homepage_hero/decisions', {
+      data: { request: { tenantId: 'telco-us', customerId: 'c', channel: 'web' } },
       headers: { referer: 'http://localhost:3000/storefront/index.html' },
     });
     expect(res.status()).toBe(400);

@@ -73,7 +73,16 @@ function pct(n: number, of: number): string {
   return `${((n / of) * 100).toFixed(of > 1000 ? 0 : 1)}%`;
 }
 
-function money(minor: number | null) {
+/**
+ * An amount, in the tenant's own currency.
+ *
+ * The currency was `GBP`, hardcoded, so a US tenant's realised value rendered
+ * in pounds — a number in the wrong unit reads as a smaller or larger business
+ * than the one being shown. It comes from the catalogue now, which is the only
+ * place that knows: the performance API returns minor units and no currency,
+ * so nothing in this response can say what unit it is in.
+ */
+function money(minor: number | null, currency: string) {
   if (minor === null) {
     return (
       <span className="text-content-muted" title="No outcome carried a value.">
@@ -83,7 +92,7 @@ function money(minor: number | null) {
   }
   return (
     <span className="tnum tabular-nums">
-      {(minor / 100).toLocaleString('en-GB', { style: 'currency', currency: 'GBP' })}
+      {(minor / 100).toLocaleString(undefined, { style: 'currency', currency })}
     </span>
   );
 }
@@ -142,6 +151,8 @@ function PerformanceView() {
 
   const flows = useQuery({ queryKey: ['artifacts'], queryFn: () => apiClient.listArtifacts() });
   const taxonomy = useQuery({ queryKey: ['taxonomy'], queryFn: () => apiClient.getTaxonomy() });
+  /** The tenant's currency, from its own catalogue. USD only until one loads. */
+  const currency = taxonomy.data?.offers?.[0]?.financials?.price?.currency ?? 'USD';
 
   const marginByKey = useMemo(
     () =>
@@ -318,7 +329,7 @@ function PerformanceView() {
       align: 'right',
       secondary: true,
       sortValue: (r) => r.valueMinor ?? -1,
-      cell: (r) => money(r.valueMinor),
+      cell: (r) => money(r.valueMinor, currency),
     },
   ];
 
@@ -550,7 +561,7 @@ function PerformanceView() {
         <Card>
           <CardBody>
             <p className="text-label text-content-subtle">Realised value</p>
-            <p className="tnum mt-1 text-[1.5rem] font-bold text-content">{money(realised)}</p>
+            <p className="tnum mt-1 text-[1.5rem] font-bold text-content">{money(realised, currency)}</p>
             <p className="mt-1 text-label text-content-subtle">
               from {data.acted.toLocaleString('en-GB')} acted on
             </p>
@@ -560,7 +571,7 @@ function PerformanceView() {
           <CardBody>
             <p className="text-label text-content-subtle">Expected, at the ceiling</p>
             <p className="tnum mt-1 text-[1.5rem] font-bold text-content">
-              {money(ceiling(delivered))}
+              {money(ceiling(delivered), currency)}
             </p>
             <p className="mt-1 text-label text-content-subtle">
               if all {(data.deliverable ?? 0).toLocaleString('en-GB')} delivered offers had been
@@ -572,7 +583,7 @@ function PerformanceView() {
           <CardBody>
             <p className="text-label text-content-subtle">Never had the chance</p>
             <p className="tnum mt-1 text-[1.5rem] font-bold text-block">
-              {money(ceiling(undelivered))}
+              {money(ceiling(undelivered), currency)}
             </p>
             <p className="mt-1 text-label text-content-subtle">
               the same ceiling over the {undeliverable.toLocaleString('en-GB')} decisions nothing

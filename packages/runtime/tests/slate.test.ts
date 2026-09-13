@@ -66,7 +66,7 @@ const artifact = (keys: string[]): ExecArtifact =>
   ({
     id: 'flow_slate',
     version: '1.0.0',
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     candidateKeys: keys,
     packageVersions: {},
     nodes: [
@@ -82,7 +82,7 @@ const artifact = (keys: string[]): ExecArtifact =>
 
 const request = (over: Partial<DecisionRequest> = {}): DecisionRequest =>
   ({
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     customerId: 'cust_slate_1',
     channel: 'web',
     placement: 'homepage_grid',

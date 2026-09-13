@@ -2,10 +2,15 @@ import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 
 export default defineConfig({
+  // JSX, for the handful of tests that render a component rather than call a
+  // function. esbuild's automatic runtime rather than `@vitejs/plugin-react`:
+  // the plugin is ESM-only and this config is loaded through `require`, which
+  // fails to even parse it. Nothing here needs Fast Refresh.
+  esbuild: { jsx: 'automatic', jsxImportSource: 'react' },
   test: {
     globals: true,
     environment: 'node',
-    include: ['tests/unit/**/*.test.ts'],
+    include: ['tests/unit/**/*.test.ts', 'tests/unit/**/*.test.tsx'],
   },
   resolve: {
     alias: {

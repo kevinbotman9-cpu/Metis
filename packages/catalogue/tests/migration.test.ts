@@ -146,7 +146,7 @@ if (!reachable) {
       await runMigration(db);
       const store = new PostgresCatalogueStore(db);
 
-      await expect(store.read('telco-uk')).resolves.toEqual({
+      await expect(store.read('telco-us')).resolves.toEqual({
         objectives: [],
         categories: [],
         offers: [],
@@ -156,7 +156,7 @@ if (!reachable) {
         boosts: [],
         arbitration: null,
       });
-      await expect(store.listEvents({ tenantId: 'telco-uk' })).resolves.toEqual([]);
+      await expect(store.listEvents({ tenantId: 'telco-us' })).resolves.toEqual([]);
       await expect(store.listTenants()).resolves.toEqual([]);
     });
   });

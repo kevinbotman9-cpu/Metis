@@ -16,7 +16,7 @@ import { login, resetStore, ACCOUNTS } from './helpers';
  * `flow-authoring.test.ts`, which can drive the whole chain without a browser.
  */
 
-const FLOW = '/decision-flows/inbound-web-offers';
+const FLOW = '/decision-flows/next-best-action';
 
 test.describe('the flow editor', () => {
   test.beforeEach(async ({ page }) => {

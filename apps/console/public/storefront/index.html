@@ -314,6 +314,13 @@
   .step .reason { color: #c3cae0; margin: 3px 0; }
   .denial { font-size: 12.5px; color: #ff9d9d; }
   .denial code { color: #ffc4c4; }
+  /* The priority beside each rank. Without it the panel says what the order is
+     and never why, and two offers level on value look like a decision when the
+     engine is really sorting their keys. */
+  .prio {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11px; color: #7f89a8; margin-left: 4px;
+  }
   .decline {
     display: block; font: inherit; font-size: 0.8125rem; margin-top: 8px; padding: 0;
     background: none; border: 0; color: #6b7280; text-decoration: underline;
@@ -419,7 +426,7 @@
       <article class="card">
         <h3>Your plan</h3>
         <div class="kv" style="margin-top:12px"><span>Current plan</span><strong id="plan-name">—</strong></div>
-        <div class="kv" style="margin-top:6px"><span>Contract ends in</span><strong id="contract-days">—</strong></div>
+        <div class="kv" style="margin-top:6px"><span>Current service</span><strong id="contract-days">—</strong></div>
       </article>
     </div>
 
@@ -494,7 +501,7 @@
  * nothing.
  */
 
-const TENANT = 'telco-uk';
+const TENANT = 'telco-us';
 const API = '/api';
 
 /**
@@ -535,91 +542,100 @@ const PLACEMENTS = [
  * usage, tenure, consent registry - are deliberately absent, because METIS
  * fetches those itself and the trace shows which connector each one came from.
  */
+/**
+ * Eva, three times.
+ *
+ * The customer's brief is one person at two addresses, plus what happens after
+ * she accepts. **The same `customerId` in all three**, because the scenarios
+ * are meant to differ by her address and what she holds — nothing else. A
+ * different id per preset would change the customer as well as the situation,
+ * and the point of the second card is that one field moved.
+ *
+ * Every field sits under `customer`, which is where the schema's profile root
+ * puts it. The presets this replaced had `address`, `usage` and four more as
+ * siblings of `customer`, one level too flat, so `customer.address.*` resolved
+ * to nothing and the fiber policy refused both the fiber and the no-fiber
+ * visitor. The demo's headline contrast — same visitor, one field different —
+ * was showing the same refusal twice (G-094).
+ *
+ * Serviceability and coverage are deliberately absent here: they arrive from
+ * `conn_serviceability` at decision time, which is what lets a refusal name the
+ * system that supplied the evidence. The connector reads them from the id, so
+ * the fiber and no-fiber presets use ids the fixture answers differently for.
+ */
 const PRESETS = [
   {
-    id: 'anon_fibre',
-    label: 'Anonymous visitor — fibre at the address',
-    note: 'Nothing known but the address. The heavier gates have nothing to bite on.',
-    customerId: 'web_anon_4471',
-    signedIn: false,
-    input: {
-      customer: { age: 34, credit_status: 'pass', account_status: 'active', current_plan: 'none', bill_to_income_ratio: 0.021, arrears_count_12mo: 0 },
-      address: { fibre_available: true },
-      usage: { pct_of_allowance_3mo_avg: 0.3, months_of_history: 0 },
-      contract: { days_to_end: 999 },
-      events: { pac_requested_within_days: 999 },
-      device: { residual_value: 0 },
-      offer: { monthly_delta: 300 },
-    },
-  },
-  {
-    id: 'anon_no_fibre',
-    label: 'Anonymous visitor — no fibre at the address',
-    note: 'The same visitor, one field different. Full Fibre is refused at the eligibility gate and something else takes the slot.',
-    customerId: 'web_anon_9902',
-    signedIn: false,
-    input: {
-      customer: { age: 34, credit_status: 'pass', account_status: 'active', current_plan: 'none', bill_to_income_ratio: 0.021, arrears_count_12mo: 0 },
-      address: { fibre_available: false },
-      usage: { pct_of_allowance_3mo_avg: 0.3, months_of_history: 0 },
-      contract: { days_to_end: 999 },
-      events: { pac_requested_within_days: 999 },
-      device: { residual_value: 0 },
-      offer: { monthly_delta: 300 },
-    },
-  },
-  {
-    id: 'heavy_user',
-    label: 'Signed in — always near the data cap',
-    note: 'Three months at 94% of allowance, so the data boost passes the relevance gate that refuses it for lighter users. It still loses the ranking to the 5G upgrade — the trace shows both scores.',
-    customerId: 'cust_dpayne',
+    id: 'eva_fiber',
+    label: 'Eva — fiber available at her address',
+    note: 'Her primary residence, where fiber can be installed. All five offers qualify and the ranking decides.',
+    customerId: 'cust_eva_fiber',
     signedIn: true,
-    name: 'Dana Payne',
-    planName: 'Standard 20GB',
+    name: 'Eva Ramirez',
+    planName: 'Broadband 300 · DSL',
     input: {
-      customer: { age: 41, credit_status: 'pass', account_status: 'active', current_plan: 'standard', bill_to_income_ratio: 0.018, arrears_count_12mo: 0 },
-      address: { fibre_available: true },
-      usage: { pct_of_allowance_3mo_avg: 0.94, months_of_history: 14 },
-      contract: { days_to_end: 210 },
-      events: { pac_requested_within_days: 999 },
-      device: { residual_value: 32000 },
-      offer: { monthly_delta: 300 },
+      customer: {
+        account_status: 'active',
+        moving_within_days: 999,
+        address: { fios_serviceable: true, fiveg_coverage: 'strong' },
+        broadband: { status: 'active', product: 'dsl' },
+        orders: { open_broadband: false },
+        ott: { disney: false, netflix: false, disney_available: true, netflix_available: true },
+        affinity: { gaming: 0.8, entertainment: 0.8 },
+        engagement: { digital_or_broadband_intent: true },
+        usage: { pct_of_allowance_3mo_avg: 0.94, months_of_history: 14 },
+      },
+      context: {},
     },
   },
   {
-    id: 'contract_ending',
-    label: 'Signed in — contract ends in 40 days',
-    note: 'Already on 5G Unlimited, so that upsell is suppressed as irrelevant; usage is moderate, so the data boost is refused too. Retention becomes the live question.',
-    customerId: 'cust_rmohan',
+    id: 'eva_no_fiber',
+    label: 'Eva — moved, no fiber at the new address',
+    note: 'The same customer, one field different. FIOS is refused at the eligibility gate and 5G Home takes the top slot.',
+    customerId: 'cust_eva_no_fiber',
     signedIn: true,
-    name: 'Rae Mohan',
-    planName: '5G Unlimited',
+    name: 'Eva Ramirez',
+    planName: 'Broadband 300 · DSL',
     input: {
-      customer: { age: 52, credit_status: 'pass', account_status: 'active', current_plan: '5g_unlimited', bill_to_income_ratio: 0.024, arrears_count_12mo: 0 },
-      address: { fibre_available: true },
-      usage: { pct_of_allowance_3mo_avg: 0.55, months_of_history: 26 },
-      contract: { days_to_end: 40 },
-      events: { pac_requested_within_days: 999 },
-      device: { residual_value: 41000 },
-      offer: { monthly_delta: -500 },
+      customer: {
+        account_status: 'active',
+        moving_within_days: 999,
+        address: { fios_serviceable: false, fiveg_coverage: 'strong' },
+        broadband: { status: 'active', product: 'dsl' },
+        orders: { open_broadband: false },
+        ott: { disney: false, netflix: false, disney_available: true, netflix_available: true },
+        affinity: { gaming: 0.8, entertainment: 0.8 },
+        engagement: { digital_or_broadband_intent: true },
+        usage: { pct_of_allowance_3mo_avg: 0.94, months_of_history: 14 },
+      },
+      context: {},
     },
   },
   {
-    id: 'affordability',
-    label: 'Signed in — bill is a high share of income',
-    note: 'Every growth offer fails the suitability gate. The slot falls back to the site’s own content, and the trace names the policy that did it.',
-    customerId: 'cust_jokafor',
+    id: 'eva_accepted',
+    label: 'Eva — after accepting 5G Home',
+    note: 'She took the broadband offer. Both broadband offers are now suppressed from what she holds, not from the interaction log, and the cross-sell opens.',
+    customerId: 'cust_eva_accepted',
     signedIn: true,
-    name: 'Jo Okafor',
-    planName: 'Standard 20GB',
+    name: 'Eva Ramirez',
+    planName: '5G Home Ultimate',
     input: {
-      customer: { age: 29, credit_status: 'pass', account_status: 'active', current_plan: 'standard', bill_to_income_ratio: 0.092, arrears_count_12mo: 1 },
-      address: { fibre_available: true },
-      usage: { pct_of_allowance_3mo_avg: 0.88, months_of_history: 9 },
-      contract: { days_to_end: 150 },
-      events: { pac_requested_within_days: 999 },
-      device: { residual_value: 18000 },
-      offer: { monthly_delta: 300 },
+      customer: {
+        account_status: 'active',
+        moving_within_days: 999,
+        address: { fios_serviceable: false, fiveg_coverage: 'strong' },
+        broadband: { status: 'active', product: '5g_home' },
+        // Accepted *and provisioned*: she has the service, so there is no
+        // order still open. With one open, eligibility refuses 5G Home on
+        // `pol_no_open_broadband_order` before relevance is reached, and the
+        // scenario would be telling the story of a provisioning queue rather
+        // than of an offer she already holds.
+        orders: { open_broadband: false },
+        ott: { disney: false, netflix: false, disney_available: true, netflix_available: true },
+        affinity: { gaming: 0.8, entertainment: 0.8 },
+        engagement: { digital_or_broadband_intent: true },
+        usage: { pct_of_allowance_3mo_avg: 0.94, months_of_history: 14 },
+      },
+      context: {},
     },
   },
 ];
@@ -916,7 +932,7 @@ function decisionCard(placement, r) {
       <dt>slots</dt><dd>${filled} filled, ${r.slate.unfilled} unfilled, of ${r.slate.slotCount}${
         filled > shown ? ` — ${filled - shown} with no creative to render` : ''
       }</dd>
-      <dt>slate</dt><dd>${r.slate.entries.map((e) => `${e.rank}. ${esc(e.action)}`).join('  ') || '—'}</dd>
+      <dt>slate</dt><dd>${r.slate.entries.map((e) => `${e.rank}. ${esc(e.action)} <span class="prio">${e.priority}</span>`).join('<br>') || '—'}</dd>
       <dt>decision</dt><dd>${esc(r.slate.decisionId)}</dd>
       <dt>chain hash</dt><dd>${esc(r.slate.chainHash)}</dd>
       <dt>input snapshot</dt><dd>${esc(d.inputSnapshotHash)}</dd>
@@ -1083,12 +1099,22 @@ function applyPreset() {
     ? `${preset.name} · ${preset.planName}`
     : 'Sign in to see your account. This preset is an anonymous visitor, so the signed-in placements ask about someone the site does not know.';
 
-  const pct = Math.round((preset.input.usage.pct_of_allowance_3mo_avg || 0) * 100);
+  // Read from `customer`, which is where the profile root puts these. They
+  // were read one level flatter, matching presets that were themselves one
+  // level too flat (G-094).
+  const c = preset.input.customer;
+  const pct = Math.round((c.usage?.pct_of_allowance_3mo_avg || 0) * 100);
   $('#usage-bar').style.width = `${Math.min(pct, 100)}%`;
   $('#usage-label').textContent = `${pct}% used`;
   $('#plan-name').textContent = preset.planName || '—';
-  const days = preset.input.contract.days_to_end;
-  $('#contract-days').textContent = days > 900 ? 'no contract' : `${days} days`;
+  // What she is on today, rather than a contract countdown: this tenant's
+  // schema has no contract entity, because the brief names no contract rule.
+  $('#contract-days').textContent =
+    c.broadband?.product === '5g_home'
+      ? '5G Home'
+      : c.broadband?.status === 'active'
+        ? 'existing line'
+        : 'no service';
 }
 
 function switchView(next) {

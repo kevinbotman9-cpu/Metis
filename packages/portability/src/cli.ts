@@ -2,7 +2,7 @@
 /**
  * Export a tenant to a directory, or verify a bundle already on disk.
  *
- *   npm run export -- --tenant telco-uk --out ./bundle
+ *   npm run export -- --tenant telco-us --out ./bundle
  *   npm run export -- --verify ./bundle
  *
  * A command line rather than only an HTTP endpoint, deliberately. §9 asks that

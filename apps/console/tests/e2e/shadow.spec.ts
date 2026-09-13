@@ -25,16 +25,10 @@ async function tokenFor(api: APIRequestContext, email: string): Promise<string> 
 
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
-const TENANT = 'telco-uk';
+const TENANT = 'telco-us';
 const FLOW = 'next-best-action';
-/**
- * A shadow is another *version of the same flow*, not another flow.
- *
- * This pointed at `inbound-web-offers` at first and got a 404 — which was the
- * registry being right. 2.3.1 is the version before the active 2.4.0, and it
- * could not select `addon_roaming`, so the two genuinely disagree.
- */
-const OTHER = '2.3.1';
+/** The version this suite publishes to shadow with. See `publishPredecessor`. */
+const OTHER = '1.1.0';
 
 async function decide(api: APIRequestContext, customerId: string) {
   const res = await api.post('/api/decisions', {
@@ -59,11 +53,59 @@ const drain = (api: APIRequestContext) => api.post('/api/_test/drain');
 const report = async (api: APIRequestContext, token: string, flow = FLOW) =>
   (await api.get(`/api/registry/${TENANT}/${flow}/shadow-report`, { headers: auth(token) })).json();
 
+/**
+ * A second version to shadow with, published by the test.
+ *
+ * A shadow is another *version of the same flow*, and it has to genuinely
+ * disagree with the active one or the report is a row of zeroes that proves
+ * nothing. Until 2026-09-12 the fixture supplied one: `next-best-action` had
+ * four versions and `1.1.0` could not select one of the offers `1.0.0` could.
+ *
+ * `telco-us` runs one flow authored once, at `1.0.0`, which is the honest state
+ * of a tenant whose catalogue was written today — and it left every test here
+ * pointing at a version that does not exist. So the precondition is built
+ * rather than borrowed: this publishes `1.1.0` with one candidate removed, so
+ * the two versions decide differently for any customer whose winner was that
+ * candidate.
+ *
+ * The same call the console's own publish path makes, so what is shadowed is a
+ * version the registry accepted rather than a fixture nobody compiled.
+ */
+async function publishPredecessor(api: APIRequestContext, token: string): Promise<string> {
+  const entry = await (
+    await api.get(`/api/registry/${TENANT}/${FLOW}`, { headers: auth(token) })
+  ).json();
+  const artifact = entry.versions[0].artifact;
+
+  const res = await api.post(`/api/registry/${TENANT}/${FLOW}`, {
+    headers: auth(token),
+    data: {
+      version: OTHER,
+      source: {
+        id: artifact.id,
+        version: OTHER,
+        tenantId: artifact.tenantId,
+        nodes: artifact.nodes,
+        edges: artifact.edges,
+        // One fewer candidate, so the two versions can disagree about a winner.
+        candidateKeys: artifact.candidateKeys.filter((k: string) => k !== 'netflix'),
+        packageRanges: { '@metis/nodes-core': '^1.2.0', '@metis/core': '^2.0.0' },
+      },
+    } as never,
+  });
+  const body = await res.json();
+  expect(body.status, `publishing ${OTHER} to shadow with: ${JSON.stringify(body)}`).toBe(
+    'published'
+  );
+  return OTHER;
+}
+
 test.describe('shadow mode', () => {
   let token: string;
 
   test.beforeEach(async ({ request }) => {
     token = await tokenFor(request, ACCOUNTS.marcus);
+    await publishPredecessor(request, token);
   });
 
   test.afterEach(async ({ request }) => {
@@ -192,11 +234,11 @@ test.describe('shadow mode', () => {
   test('a flow that never compiled has no report, rather than a zeroed one', async ({
     request,
   }) => {
-    // plan-fit-nudges is refused by the compiler, so it was never stored. A
+    // entertainment-cross-sell is refused by the compiler, so it was never stored. A
     // report of "0 compared, nothing shadowing" would read as a shadow that is
     // merely idle rather than one that cannot exist, and the panel would offer
     // to start one against nothing.
-    const res = await request.get(`/api/registry/${TENANT}/plan-fit-nudges/shadow-report`, {
+    const res = await request.get(`/api/registry/${TENANT}/entertainment-cross-sell/shadow-report`, {
       headers: auth(token),
     });
     expect(res.status()).toBe(404);
@@ -226,6 +268,15 @@ test.describe('the shadow panel', () => {
 
   // Signed in per test rather than in a beforeEach: one of these is about a
   // different account, and logging in twice in one context does not swap it.
+  //
+  // The version to shadow with is published here, though. The fixture supplied
+  // one while the tenant had a flow with four versions; `telco-us` has one
+  // flow published once, so a panel offering a choice of versions has to be
+  // given something to choose (see `publishPredecessor`).
+  test.beforeEach(async ({ request }) => {
+    await publishPredecessor(request, await tokenFor(request, ACCOUNTS.marcus));
+  });
+
   test.afterEach(async ({ request }) => {
     await request.post('/api/_test/reset');
   });
@@ -244,7 +295,7 @@ test.describe('the shadow panel', () => {
 
     // Configured but never exercised. A percentage here would be read as a
     // measurement, and there is nothing behind it yet.
-    await expect(page.getByText(`${OTHER} is shadowing 2.4.0`)).toBeVisible();
+    await expect(page.getByText(`${OTHER} is shadowing 1.0.0`)).toBeVisible();
     await expect(panel.getByText('no decisions compared')).toBeVisible();
     await expect(panel.getByText('—')).toBeVisible();
 
@@ -253,7 +304,7 @@ test.describe('the shadow panel', () => {
 
   test('no panel at all for a flow the registry never accepted', async ({ page }) => {
     await login(page, ACCOUNTS.marcus);
-    await page.goto('/decision-flows/plan-fit-nudges');
+    await page.goto('/decision-flows/entertainment-cross-sell');
 
     // The registry panel explains why it is not there; a second panel offering
     // to shadow it would contradict that on the same screen.
@@ -283,7 +334,7 @@ test.describe('the shadow panel', () => {
 
     await login(page, ACCOUNTS.marcus);
     await page.goto(FLOW_PAGE);
-    await expect(page.getByText(`${OTHER} is shadowing 2.4.0`)).toBeVisible();
+    await expect(page.getByText(`${OTHER} is shadowing 1.0.0`)).toBeVisible();
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])

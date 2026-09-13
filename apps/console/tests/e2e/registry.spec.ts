@@ -11,7 +11,7 @@ import { login, resetStore, ACCOUNTS } from './helpers';
  */
 
 /** A flow the compiler refuses: no arbitration node, no deliverable creative. */
-const UNCOMPILABLE = 'plan-fit-nudges';
+const UNCOMPILABLE = 'entertainment-cross-sell';
 /** A flow that published cleanly and is running in production. */
 const PUBLISHED = 'next-best-action';
 
@@ -38,7 +38,7 @@ test.describe('the compilation gate', () => {
     // Matched on the log line, because the compile report on the same page
     // lists the codes too — and this test is about the registry recording it.
     await expect(
-      page.getByText(/Refused plan-fit-nudges .* NO_ARBITRATION/)
+      page.getByText(/Refused entertainment-cross-sell .* NO_ARBITRATION/)
     ).toBeVisible();
   });
 
@@ -54,7 +54,7 @@ test.describe('the compilation gate', () => {
     // says this — it is true of each version at the moment it was published —
     // and the one worth asserting is the version actually running.
     await expect(
-      page.getByText(/Published next-best-action 2\.4\.0 .* Not active anywhere until promoted/)
+      page.getByText(/Published next-best-action 1\.0\.0 .* Not active anywhere until promoted/)
     ).toBeVisible();
   });
 });
@@ -96,17 +96,17 @@ test.describe('promotion and rollback', () => {
     const headers = { Authorization: `Bearer ${token}` };
 
     const entry = await (
-      await request.get(`/api/registry/telco-uk/${PUBLISHED}`, { headers })
+      await request.get(`/api/registry/telco-us/${PUBLISHED}`, { headers })
     ).json();
     const artifact = entry.versions[0].artifact;
 
-    const published = await request.post(`/api/registry/telco-uk/${PUBLISHED}`, {
+    const published = await request.post(`/api/registry/telco-us/${PUBLISHED}`, {
       headers,
       data: {
-        version: '2.5.0',
+        version: '1.2.0',
         source: {
           id: artifact.id,
-          version: '2.5.0',
+          version: '1.2.0',
           tenantId: artifact.tenantId,
           nodes: artifact.nodes.map((n: { label: string }, i: number) =>
             i === 0 ? { ...n, label: `${n.label} v2` } : n
@@ -121,7 +121,7 @@ test.describe('promotion and rollback', () => {
 
     await page.reload();
     await page.getByRole('button', { name: 'Promote to production' }).first().click();
-    await expect(page.getByText(/replacing 2\.4\.0/)).toBeVisible();
+    await expect(page.getByText(/replacing 1\.0\.0/)).toBeVisible();
 
     // Now there is somewhere to go back to.
     const rollback = page.getByRole('button', { name: 'Roll back' });
@@ -129,14 +129,14 @@ test.describe('promotion and rollback', () => {
     await rollback.click();
 
     await expect(page.getByText('VersionRolledBack')).toBeVisible();
-    await expect(page.getByText(/back from 2\.5\.0 to 2\.4\.0/)).toBeVisible();
+    await expect(page.getByText(/back from 1\.2\.0 to 1\.0\.0/)).toBeVisible();
   });
 
   test('the environment list states what is running and what preceded it', async ({ page }) => {
     // Environments not yet promoted to say so, rather than showing nothing.
     await expect(page.getByText('nothing promoted').first()).toBeVisible();
     // And the one that is running names its version.
-    await expect(page.getByText('2.4.0').first()).toBeVisible();
+    await expect(page.getByText('1.0.0').first()).toBeVisible();
   });
 });
 
@@ -161,9 +161,9 @@ test.describe('registry permissions', () => {
     });
     const token = (await res.json()).token;
 
-    const promote = await request.post(`/api/registry/telco-uk/${PUBLISHED}/promote`, {
+    const promote = await request.post(`/api/registry/telco-us/${PUBLISHED}/promote`, {
       headers: { Authorization: `Bearer ${token}` },
-      data: { version: '2.4.0', environment: 'staging' },
+      data: { version: '1.0.0', environment: 'staging' },
     });
     expect(promote.status()).toBe(403);
   });
@@ -183,7 +183,7 @@ test.describe('the registry API', () => {
   const auth = () => ({ Authorization: `Bearer ${token}` });
 
   test('refuses a version that was never published', async ({ request }) => {
-    const res = await request.post(`/api/registry/telco-uk/${PUBLISHED}/promote`, {
+    const res = await request.post(`/api/registry/telco-us/${PUBLISHED}/promote`, {
       headers: auth(),
       data: { version: '99.0.0', environment: 'staging' },
     });
@@ -192,16 +192,16 @@ test.describe('the registry API', () => {
   });
 
   test('refuses to promote what is already active', async ({ request }) => {
-    const res = await request.post(`/api/registry/telco-uk/${PUBLISHED}/promote`, {
+    const res = await request.post(`/api/registry/telco-us/${PUBLISHED}/promote`, {
       headers: auth(),
-      data: { version: '2.4.0', environment: 'production' },
+      data: { version: '1.0.0', environment: 'production' },
     });
     expect(res.status()).toBe(409);
     expect((await res.json()).message).toMatch(/already active/);
   });
 
   test('refuses to roll back when there is nothing to go back to', async ({ request }) => {
-    const res = await request.post(`/api/registry/telco-uk/${PUBLISHED}/rollback`, {
+    const res = await request.post(`/api/registry/telco-us/${PUBLISHED}/rollback`, {
       headers: auth(),
       data: { environment: 'production' },
     });
@@ -213,17 +213,17 @@ test.describe('the registry API', () => {
     // What an operator means by "undo that". Walking backwards through history
     // would land them on something nobody remembers.
     const entry = await (
-      await request.get(`/api/registry/telco-uk/${PUBLISHED}`, { headers: auth() })
+      await request.get(`/api/registry/telco-us/${PUBLISHED}`, { headers: auth() })
     ).json();
     const artifact = entry.versions[0].artifact;
 
-    await request.post(`/api/registry/telco-uk/${PUBLISHED}`, {
+    await request.post(`/api/registry/telco-us/${PUBLISHED}`, {
       headers: auth(),
       data: {
-        version: '2.5.0',
+        version: '1.2.0',
         source: {
           id: artifact.id,
-          version: '2.5.0',
+          version: '1.2.0',
           tenantId: artifact.tenantId,
           nodes: artifact.nodes.map((n: { label: string }, i: number) =>
             i === 0 ? { ...n, label: `${n.label} v2` } : n
@@ -238,36 +238,36 @@ test.describe('the registry API', () => {
     const active = async () =>
       (
         await (
-          await request.get(`/api/registry/telco-uk/${PUBLISHED}`, { headers: auth() })
+          await request.get(`/api/registry/telco-us/${PUBLISHED}`, { headers: auth() })
         ).json()
       ).environments.find((e: { environment: string }) => e.environment === 'production')
         .activeVersion;
 
-    await request.post(`/api/registry/telco-uk/${PUBLISHED}/promote`, {
+    await request.post(`/api/registry/telco-us/${PUBLISHED}/promote`, {
       headers: auth(),
-      data: { version: '2.5.0', environment: 'production' },
+      data: { version: '1.2.0', environment: 'production' },
     });
-    expect(await active()).toBe('2.5.0');
+    expect(await active()).toBe('1.2.0');
 
-    await request.post(`/api/registry/telco-uk/${PUBLISHED}/rollback`, {
+    await request.post(`/api/registry/telco-us/${PUBLISHED}/rollback`, {
       headers: auth(),
       data: { environment: 'production' },
     });
-    expect(await active()).toBe('2.4.0');
+    expect(await active()).toBe('1.0.0');
 
-    await request.post(`/api/registry/telco-uk/${PUBLISHED}/rollback`, {
+    await request.post(`/api/registry/telco-us/${PUBLISHED}/rollback`, {
       headers: auth(),
       data: { environment: 'production' },
     });
-    expect(await active()).toBe('2.5.0');
+    expect(await active()).toBe('1.2.0');
   });
 
   test('publishing identical content again is a no-op, not a second publish', async ({ request }) => {
     const entry = await (
-      await request.get(`/api/registry/telco-uk/${PUBLISHED}`, { headers: auth() })
+      await request.get(`/api/registry/telco-us/${PUBLISHED}`, { headers: auth() })
     ).json();
     const before = await (
-      await request.get(`/api/registry/telco-uk/events?flowName=${PUBLISHED}`, {
+      await request.get(`/api/registry/telco-us/events?flowName=${PUBLISHED}`, {
         headers: auth(),
       })
     ).json();
@@ -275,7 +275,7 @@ test.describe('the registry API', () => {
     // Republish exactly what is there. A retried deploy must not look like a
     // second publish in the log.
     const artifact = entry.versions[0].artifact;
-    const republish = await request.post(`/api/registry/telco-uk/${PUBLISHED}`, {
+    const republish = await request.post(`/api/registry/telco-us/${PUBLISHED}`, {
       headers: auth(),
       data: {
         version: entry.versions[0].version,
@@ -295,7 +295,7 @@ test.describe('the registry API', () => {
     expect((await republish.json()).status).toBe('unchanged');
 
     const after = await (
-      await request.get(`/api/registry/telco-uk/events?flowName=${PUBLISHED}`, {
+      await request.get(`/api/registry/telco-us/events?flowName=${PUBLISHED}`, {
         headers: auth(),
       })
     ).json();
@@ -304,11 +304,11 @@ test.describe('the registry API', () => {
 
   test('refuses different content under a published version', async ({ request }) => {
     const entry = await (
-      await request.get(`/api/registry/telco-uk/${PUBLISHED}`, { headers: auth() })
+      await request.get(`/api/registry/telco-us/${PUBLISHED}`, { headers: auth() })
     ).json();
     const artifact = entry.versions[0].artifact;
 
-    const res = await request.post(`/api/registry/telco-uk/${PUBLISHED}`, {
+    const res = await request.post(`/api/registry/telco-us/${PUBLISHED}`, {
       headers: auth(),
       data: {
         version: entry.versions[0].version,
@@ -335,14 +335,14 @@ test.describe('the registry API', () => {
   });
 
   test('refuses to publish a flow that does not compile', async ({ request }) => {
-    const res = await request.post(`/api/registry/telco-uk/${PUBLISHED}`, {
+    const res = await request.post(`/api/registry/telco-us/${PUBLISHED}`, {
       headers: auth(),
       data: {
         version: '9.9.9',
         source: {
           id: PUBLISHED,
           version: '9.9.9',
-          tenantId: 'telco-uk',
+          tenantId: 'telco-us',
           nodes: [{ id: 'n1', type: 'source', label: 'Source', estimatedMs: 1 }],
           edges: [{ from: 'n1', to: 'nowhere' }],
           candidateKeys: [],
@@ -359,7 +359,7 @@ test.describe('the registry API', () => {
 
     // And nothing was stored.
     const entry = await (
-      await request.get(`/api/registry/telco-uk/${PUBLISHED}`, { headers: auth() })
+      await request.get(`/api/registry/telco-us/${PUBLISHED}`, { headers: auth() })
     ).json();
     expect(entry.versions.some((v: { version: string }) => v.version === '9.9.9')).toBe(false);
   });

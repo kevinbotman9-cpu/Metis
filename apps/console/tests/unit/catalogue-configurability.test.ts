@@ -28,20 +28,17 @@ const ADMIN = () => {
 
 const INPUT = {
   customer: {
-    age: 29,
-    credit_status: 'pass',
     account_status: 'active',
-    current_plan: 'standard',
-    bill_to_income_ratio: 0.02,
-    arrears_count_12mo: 0,
-    credit_band: 'A',
-    address: { fibre_available: true },
+    moving_within_days: 999,
+    address: { fios_serviceable: true, fiveg_coverage: 'strong' },
+    broadband: { status: 'active', product: 'dsl' },
+    orders: { open_broadband: false },
+    ott: { disney: false, netflix: false, disney_available: true, netflix_available: true },
+    affinity: { gaming: 0.8, entertainment: 0.8 },
+    engagement: { digital_or_broadband_intent: true },
     usage: { pct_of_allowance_3mo_avg: 0.88, months_of_history: 9 },
-    contract: { days_to_end: 150 },
-    events: { pac_requested_within_days: 999 },
-    device: { residual_value: 18000 },
   },
-  context: { offer: { monthly_delta: 300 } },
+  context: {},
 };
 const CONTACT = { channel: 'web', withinPeriod: { day: 0, week: 0, month: 0 } };
 
@@ -57,9 +54,9 @@ const call = (path: string[], body: unknown, method: 'POST' | 'PUT' = 'POST', he
 
 /** One decision through the placement endpoint, with its catalogue hash. */
 async function decide(customerId = 'cust_cfg') {
-  const res = await call(['placements', 'telco-uk', 'homepage_hero', 'decisions'], {
+  const res = await call(['placements', 'telco-us', 'homepage_hero', 'decisions'], {
     request: {
-      tenantId: 'telco-uk',
+      tenantId: 'telco-us',
       customerId,
       channel: 'web',
       occurredAt: '2026-06-01T12:00:00.000Z',
@@ -75,7 +72,7 @@ async function decide(customerId = 'cust_cfg') {
   };
   expect(res.status).toBe(200);
 
-  const trace = await store.ledger.get('telco-uk', body.decisionId);
+  const trace = await store.ledger.get('telco-us', body.decisionId);
   return {
     id: body.decisionId,
     chainHash: body.chainHash,
@@ -85,7 +82,7 @@ async function decide(customerId = 'cust_cfg') {
 }
 
 const setWeights = (weights: Record<string, number>) =>
-  call(['arbitration', 'telco-uk'], { weights }, 'PUT');
+  call(['arbitration', 'telco-us'], { weights }, 'PUT');
 
 describe('configuration reaches the engine', () => {
   beforeEach(async () => {
@@ -120,21 +117,21 @@ describe('configuration reaches the engine', () => {
     // Weights are one field. This is a different shape of edit — a row in a
     // list going inactive — and it has to reach the engine too, or "reaches
     // the engine" was a statement about one endpoint.
-    const fibre = store.targetingPolicies.find((p) => p.id === 'pol_fibre_available');
-    expect(fibre, 'fixture has no fibre policy to test with').toBeDefined();
+    const fiber = store.targetingPolicies.find((p) => p.id === 'pol_fios_serviceable');
+    expect(fiber, 'fixture has no fiber policy to test with').toBeDefined();
 
-    const withFibreOff = {
+    const withFiberOff = {
       ...INPUT,
-      customer: { ...INPUT.customer, address: { fibre_available: false } },
+      customer: { ...INPUT.customer, address: { fios_serviceable: false, fiveg_coverage: 'strong' } },
     };
     const ask = async () => {
-      const res = await call(['placements', 'telco-uk', 'homepage_hero', 'decisions'], {
+      const res = await call(['placements', 'telco-us', 'homepage_hero', 'decisions'], {
         request: {
-          tenantId: 'telco-uk',
+          tenantId: 'telco-us',
           customerId: 'cust_pol',
           channel: 'web',
           occurredAt: '2026-06-01T12:00:00.000Z',
-          input: withFibreOff,
+          input: withFiberOff,
           consent: { marketing: true, profiling: true, thirdParty: false },
           contactHistory: CONTACT,
         },
@@ -143,10 +140,10 @@ describe('configuration reaches the engine', () => {
       return b.entries.map((e) => e.action);
     };
 
-    expect(await ask()).not.toContain('acq_fibre_900');
+    expect(await ask()).not.toContain('fios_gigabit');
 
-    fibre!.active = false;
-    expect(await ask()).toContain('acq_fibre_900');
+    fiber!.active = false;
+    expect(await ask()).toContain('fios_gigabit');
   });
 });
 
@@ -204,7 +201,7 @@ describe('history survives configuration', () => {
     // verdict about a question nobody asked — and would return it as either
     // "identical" or a difference that is really somebody's edit.
     const made = await decide();
-    const entry = await store.ledger.get('telco-uk', made.id);
+    const entry = await store.ledger.get('telco-us', made.id);
     entry!.record.decision.catalogueSnapshotHash = 'f'.repeat(64);
 
     const res = await call(['decisions', made.id, 'replay'], {

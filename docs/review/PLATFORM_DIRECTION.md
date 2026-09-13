@@ -33,8 +33,8 @@ reason that no amount of screen-building would have fixed.
 **Verified by driving the running API:**
 
 ```
-PUT /api/arbitration/telco-uk   { value: 0.1, boost: 3.0 }   → 200
-GET /api/arbitration/telco-uk   → weights persisted, formula updated to
+PUT /api/arbitration/telco-us   { value: 0.1, boost: 3.0 }   → 200
+GET /api/arbitration/telco-us   → weights persisted, formula updated to
                                    "Priority = P^1.00 × V^0.10 × B^3.00 × C^0.50",
                                    updatedBy: marcus.webb@telco.example
 POST /placements/.../decisions  → acq_fibre_900@0.7935   (before)

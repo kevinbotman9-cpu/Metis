@@ -27,29 +27,27 @@ const call = (path: string[], body?: unknown, method: 'GET' | 'POST' = 'POST') =
 
 const request = (over: Record<string, unknown> = {}) => ({
   request: {
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     customerId: 'cust_slate_demo',
     channel: 'web',
     occurredAt: '2026-06-01T12:00:00.000Z',
-    // Complete, because the suitability policies fail closed on a missing
-    // field — correctly — and a thin request would test the empty slate rather
-    // than the slate.
+    // Complete, because the relevance policies fail closed on a missing field
+    // — correctly — and a thin request would test the empty slate rather than
+    // the slate. This is the fiber-available customer from the brief's first
+    // scenario: every gate passes, so all five offers reach ranking.
     input: {
       customer: {
-        age: 41,
-        credit_status: 'pass',
         account_status: 'active',
-        current_plan: 'standard',
-        bill_to_income_ratio: 0.018,
-        arrears_count_12mo: 0,
-        credit_band: 'A',
-        address: { fibre_available: true },
+        moving_within_days: 999,
+        address: { fios_serviceable: true, fiveg_coverage: 'strong' },
+        broadband: { status: 'active', product: 'dsl' },
+        orders: { open_broadband: false },
+        ott: { disney: false, netflix: false, disney_available: true, netflix_available: true },
+        affinity: { gaming: 0.8, entertainment: 0.8 },
+        engagement: { digital_or_broadband_intent: true },
         usage: { pct_of_allowance_3mo_avg: 0.94, months_of_history: 14 },
-        contract: { days_to_end: 40 },
-        events: { pac_requested_within_days: 999 },
-        device: { residual_value: 32000 },
       },
-      context: { offer: { monthly_delta: -500 } },
+      context: {},
     },
     consent: { marketing: true, profiling: true, thirdParty: false },
     ...over,
@@ -57,13 +55,13 @@ const request = (over: Record<string, unknown> = {}) => ({
 });
 
 const decide = async (key: string, over: Record<string, unknown> = {}) => {
-  const res = await call(['placements', 'telco-uk', key, 'decisions'], request(over));
+  const res = await call(['placements', 'telco-us', key, 'decisions'], request(over));
   return { status: res.status, body: (await res.json()) as Record<string, never> };
 };
 
 describe('GET /api/placements/{tenantId}', () => {
   it('serves the configured slots', async () => {
-    const res = await call(['placements', 'telco-uk'], undefined, 'GET');
+    const res = await call(['placements', 'telco-us'], undefined, 'GET');
     const body = (await res.json()) as { placements: { key: string; slotCount: number }[] };
     expect(res.status).toBe(200);
     expect(body.placements.map((p) => p.key)).toEqual(placements.map((p) => p.key));
@@ -87,7 +85,10 @@ describe('POST /api/placements/{tenantId}/{key}/decisions', () => {
     expect(new Set(entries.map((e) => e.action)).size).toBe(entries.length);
 
     // And every action resolves to an offer, or a site has nothing to render.
-    for (const e of entries) expect(e.offerId).toMatch(/^prop_/);
+    // `off_*` now, where the previous catalogue used a prefix abbreviating the
+    // word this platform renamed away from. The ids changed with the catalogue
+    // and the convention followed the vocabulary.
+    for (const e of entries) expect(e.offerId).toMatch(/^off_/);
   });
 
   it('gives a single-slot placement exactly what POST /decisions would', async () => {
@@ -173,16 +174,21 @@ describe('POST /api/placements/{tenantId}/{key}/decisions', () => {
         expect(body.entries as unknown as unknown[]).toHaveLength(0);
       });
 
-      it(`${key} offers nothing once the weekly cap is spent`, async () => {
-        // Three a week, tenant-wide and channel-agnostic — the cap that covers
-        // these offers. Two is under it, three is not, so the pair proves the
+      it(`${key} offers nothing once the daily cap is spent`, async () => {
+        // Three a day on the web — `cpol_web_daily`, the cap that covers these
+        // offers. Two is under it, three is not, so the pair proves the
         // boundary is being read rather than the request being rejected for
         // some unrelated reason.
+        //
+        // The period is the tenant's, not this test's: this asked about a
+        // weekly cap because the catalogue it was written against had one. The
+        // property is that a spent cap silences every web slot, and which
+        // window it counts is a question for the catalogue.
         const under = await decide(key, {
-          contactHistory: { channel: 'web', withinPeriod: { day: 0, week: 2, month: 0 } },
+          contactHistory: { channel: 'web', withinPeriod: { day: 2, week: 2, month: 2 } },
         });
         const over = await decide(key, {
-          contactHistory: { channel: 'web', withinPeriod: { day: 0, week: 3, month: 0 } },
+          contactHistory: { channel: 'web', withinPeriod: { day: 3, week: 3, month: 3 } },
         });
 
         expect((under.body.entries as unknown as unknown[]).length).toBeGreaterThan(0);
@@ -192,7 +198,7 @@ describe('POST /api/placements/{tenantId}/{key}/decisions', () => {
   });
 
   it('will not default occurredAt to now', async () => {
-    const res = await call(['placements', 'telco-uk', 'homepage_grid', 'decisions'], {
+    const res = await call(['placements', 'telco-us', 'homepage_grid', 'decisions'], {
       request: { ...request().request, occurredAt: undefined },
     });
     expect(res.status).toBe(400);

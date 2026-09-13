@@ -131,8 +131,8 @@ if (!reachable) {
       await runMigration(db);
       const store = new PostgresRegistryStore(db);
 
-      await expect(store.listVersions('telco-uk', 'never-published')).resolves.toEqual([]);
-      await expect(store.getVersion('telco-uk', 'never-published', '1.0.0')).resolves.toBeUndefined();
+      await expect(store.listVersions('telco-us', 'never-published')).resolves.toEqual([]);
+      await expect(store.getVersion('telco-us', 'never-published', '1.0.0')).resolves.toBeUndefined();
     });
 
     it('brings a database at every earlier version to the schema a fresh one has', async () => {

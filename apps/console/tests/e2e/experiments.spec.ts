@@ -24,7 +24,7 @@ test.describe('experiments', () => {
     // as "the field path is missing" — which is what it looked like on
     // 2026-09-09, in one full run out of six, on a machine under load. G-003.
     await expect(page.getByRole('heading', { level: 1, name: 'Experiments' })).toBeVisible();
-    await expect(page.getByText('Full Fibre holdout')).toBeVisible();
+    await expect(page.getByText('FIOS Gigabit holdout')).toBeVisible();
   });
 
   test.afterEach(async ({ page }) => {
@@ -33,7 +33,7 @@ test.describe('experiments', () => {
 
   test('shows the split and which arm is the holdout', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1, name: 'Experiments' })).toBeVisible();
-    await expect(page.getByText('Full Fibre holdout')).toBeVisible();
+    await expect(page.getByText('FIOS Gigabit holdout')).toBeVisible();
 
     // 10/90, declared in the fixture.
     await expect(page.getByRole('img', { name: /Held back 10%/ })).toBeVisible();
@@ -60,7 +60,7 @@ test.describe('experiments', () => {
   test('names the field path an arm reaches policies at', async ({ page }) => {
     // The reason no engine change was needed: an arm is an ordinary field, so a
     // holdout is an ordinary eligibility rule.
-    await expect(page.getByText('experiments.fibre_holdout').first()).toBeVisible();
+    await expect(page.getByText('experiments.fiber_holdout').first()).toBeVisible();
   });
 
   test('explains why a started split cannot be changed', async ({ page }) => {
@@ -109,15 +109,15 @@ test.describe('experiments', () => {
   });
 
   test('refuses a key that would collide at the same field path', async ({ page }) => {
-    // Two experiments at `experiments.fibre_holdout` would overwrite each
+    // Two experiments at `experiments.fiber_holdout` would overwrite each
     // other in the decision input.
     await page.getByRole('button', { name: 'New holdout' }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Name').fill('Duplicate');
-    await dialog.getByLabel('Key').fill('fibre_holdout');
+    await dialog.getByLabel('Key').fill('fiber_holdout');
     await dialog.getByRole('button', { name: 'Create draft' }).click();
 
-    await expect(page.getByText(/experiments.fibre_holdout/).first()).toBeVisible();
+    await expect(page.getByText(/experiments.fiber_holdout/).first()).toBeVisible();
   });
 
   test('offers no controls to an account that cannot author', async ({ page }) => {

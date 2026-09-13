@@ -95,7 +95,7 @@ test.describe('a route refuses what its nav entry declares @screen-only', () => 
     // open to anyone who knew an id — and ids are in the trace, which Oliver
     // can read.
     await login(page, ACCOUNTS.oliver);
-    await page.goto('/offers/prop_5g_unlimited_24');
+    await page.goto('/offers/off_5g_home_ultimate');
     await expect(refusal(page)).toBeVisible();
   });
 

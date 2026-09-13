@@ -9,7 +9,7 @@ import {
 import type { DecisionRequest } from '../src/deterministic/types';
 
 const base: DecisionRequest = {
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   customerId: 'cust_1',
   channel: 'email',
   placement: 'weekly_offers',
@@ -19,7 +19,7 @@ const base: DecisionRequest = {
 };
 
 const record = (over: Partial<IdempotencyRecord> = {}): IdempotencyRecord => ({
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   key: 'k1',
   requestHash: 'aaaa',
   decisionId: 'dec_1',
@@ -134,7 +134,7 @@ describe('the in-memory store', () => {
     const s = new InMemoryIdempotencyStore();
     await s.put(record());
     s.clear();
-    expect(await s.get('telco-uk', 'k1')).toBeUndefined();
+    expect(await s.get('telco-us', 'k1')).toBeUndefined();
   });
 });
 

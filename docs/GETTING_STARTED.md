@@ -68,7 +68,7 @@ choose between, and the package ranges it depends on:
 const source: DecisionFlowSource = {
   id: 'next-best-action',
   version: '1.0.0',
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   candidateKeys: ['upsell_5g', 'upsell_data'],
   packageRanges: { '@metis/nodes-core': '^1.2.0' },
   nodes: [

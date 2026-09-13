@@ -31,7 +31,7 @@ export const Synthetic: Story = {
       recordedCount: 0,
       note:
         'Synthetic. Every figure here is generated from a fixed seed for the demo tenant ' +
-        'demo-telco-uk and describes no real customer, decision or outcome. Reproducible, ' +
+        'demo-telco-us and describes no real customer, decision or outcome. Reproducible, ' +
         'and not evidence of anything.',
     },
   },
@@ -45,7 +45,7 @@ export const Mixed: Story = {
       recordedCount: 4,
       note:
         'Mixed. 10,400 of 10,404 records here are generated from a fixed seed for the demo ' +
-        'tenant demo-telco-uk and describe no real customer; the rest derive from decisions ' +
+        'tenant demo-telco-us and describe no real customer; the rest derive from decisions ' +
         'this platform actually made. Not evidence of anything.',
     },
   },

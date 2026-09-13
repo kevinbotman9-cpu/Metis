@@ -101,13 +101,25 @@ describe('taxonomy integrity', () => {
     expect(unique(targetingPolicies)).toBe(true);
   });
 
-  it('flags an active offer with no deliverable creative', () => {
-    // Not a failure — the console surfaces these. This asserts the console has
-    // something to surface, so the empty state stays exercised.
+  it('has no active offer that is impossible to deliver', () => {
+    // This asserted the opposite until 2026-09-12, because the tenant it was
+    // written for deliberately carried offers with no content at all so the
+    // creative-coverage screen's populated warning state stayed exercised.
+    //
+    // This tenant has five offers and every one has content, so that state is
+    // genuinely absent and asserting it would be asserting a fixture rather
+    // than a property. What the coverage screen shows here instead is the
+    // *per-channel* gap: the brief names fifteen pieces of content across five
+    // channels and only ten can be authored, because app card and agent
+    // desktop are not channels this platform has (G-090).
+    //
+    // The consequence worth knowing: no tenant fixture now exercises the
+    // "active offer, nothing to deliver" warning. If that state matters, it
+    // needs a fixture of its own rather than a product nobody sells.
     const undeliverable = offers.filter(
       (p) => p.status !== 'retired' && p.creativeIds.length === 0
     );
-    expect(undeliverable.length).toBeGreaterThan(0);
+    expect(undeliverable.map((p) => p.key)).toEqual([]);
   });
 });
 
@@ -295,8 +307,17 @@ describe('console decisions come from the real engine', () => {
     expect(suppressed).toBeGreaterThan(0);
   });
 
-  it('draws decisions from more than one flow', () => {
-    expect(new Set(decisions.map((d) => d.artifactId)).size).toBeGreaterThan(1);
+  it('draws every decision from the one flow this tenant runs', () => {
+    // More than one, until 2026-09-12. The tenant this replaced ran four flows
+    // because it had 251 offers across four objectives; this one runs a single
+    // inbound-web flow because that is what the customer's brief describes.
+    //
+    // Still worth asserting: the seeded history must come from a flow that
+    // exists and is published, and a decision naming a flow the registry never
+    // accepted is the defect this catches — it just cannot be caught by
+    // counting to two any more.
+    const flows = [...new Set(decisions.map((d) => d.artifactId))];
+    expect(flows).toEqual(['next-best-action']);
   });
 
   it('records a winner only when arbitration had a survivor', () => {
@@ -389,28 +410,39 @@ describe('provenance the artifact and the calls carry', () => {
     expect(missing, 'a filtering node with no tier makes the rail guess again').toEqual([]);
   });
 
-  it('resolves the tier the id patterns would have got wrong', async () => {
+  /** The one flow this tenant compiles, from the seeded compilations. */
+  const nbaArtifact = async () => {
     const { compilations } = await import('@/mocks/fixtures/compiled');
-    const nba = compilations.find((c) => c.artifactId === 'next-best-action')!.result.artifact!;
-    const tiers = Object.fromEntries(nba.nodes.map((n) => [n.id, n.tier ?? null]));
-    // Both are `constraint`. One is the affordability tier and the other a
-    // contact cap, which is the collision G-058 was about.
-    expect(tiers.filter_suitability).toBe('suitability');
+    const c = compilations.find((x) => x.artifactId === 'next-best-action');
+    if (!c?.result.artifact) throw new Error('next-best-action did not compile');
+    return c.result.artifact;
+  };
+
+  it('names the tier of each node this tenant compiles', async () => {
+    const tiers = Object.fromEntries((await nbaArtifact()).nodes.map((n) => [n.id, n.tier ?? null]));
+    expect(tiers.filter_eligibility).toBe('eligibility');
+    expect(tiers.filter_relevance).toBe('relevance');
     expect(tiers.constraint_contact).toBe('frequency');
     expect(tiers.source_customer).toBeNull();
+    expect(tiers.arbitrate_priority).toBeNull();
   });
 
-  it('attributes a rule to the pack that supplied it, and says nothing about the rest', async () => {
-    const { compilations } = await import('@/mocks/fixtures/compiled');
-    const nba = compilations.find((c) => c.artifactId === 'next-best-action')!.result.artifact!;
-    expect(nba.policySources?.pol_afford_5g).toEqual({
-      packId: 'pack_uk_consumer_duty',
-      name: 'UK Consumer Duty',
-      version: '1.4.0',
-    });
-    // A rule the tenant wrote is absent rather than attributed to nothing,
-    // which is what the evidence pane renders as "the tenant authored it".
-    expect(nba.policySources?.pol_credit_pass).toBeUndefined();
+  it('attributes no rule to a pack, because this tenant declares none', async () => {
+    // Both of these asserted the opposite until 2026-09-12. They needed a
+    // `filter_suitability` node and a UK Consumer Duty pack, and this tenant
+    // has neither: the brief names no affordability rule and no regulatory
+    // pack, so there is no suitability node to give a tier and nothing for a
+    // pack to supply.
+    //
+    // No coverage is lost. Both are compile-time capabilities and both are
+    // tested against their own fixtures in
+    // `packages/compiler/tests/compile.test.ts` — "names the tier from the
+    // policies a node declares, not from its id", which exercises
+    // `suitability` and `frequency` on two `constraint` nodes (the G-058
+    // collision), and the three `policySources` cases either side of it. What
+    // stood here was a second copy of those, resting on one tenant's fixtures.
+    const sources = (await nbaArtifact()).policySources;
+    expect(sources === undefined || Object.keys(sources).length === 0).toBe(true);
   });
 
   it('dates every source call, and never after the decision asked', () => {

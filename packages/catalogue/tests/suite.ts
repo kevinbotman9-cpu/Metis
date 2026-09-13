@@ -23,7 +23,7 @@ import { CatalogueError, type CatalogueStore } from '../src/types';
  * somebody notices in production.
  */
 
-const T = 'telco-uk';
+const T = 'telco-us';
 const AT = '2026-06-01T12:00:00.000Z';
 
 export const objective = (over: Partial<Objective> = {}): Objective =>

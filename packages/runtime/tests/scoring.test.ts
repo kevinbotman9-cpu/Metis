@@ -38,7 +38,7 @@ const CAT: CatalogueSnapshot = {
   connectors: [],
   arbitration: {
     id: 'arb',
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     weights: { propensity: 1, value: 1, boost: 1, context: 0.5 },
     utility: { id: 'multiplicative', version: '1.0.0' },
     formula: 'Priority = P^1 x V^1 x B^1 x C^0.5',
@@ -48,7 +48,7 @@ const CAT: CatalogueSnapshot = {
 } as unknown as CatalogueSnapshot;
 
 const REQ: DecisionRequest = {
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   customerId: 'cust_88213',
   channel: 'web',
   placement: 'account_dashboard_hero',
@@ -80,7 +80,7 @@ function offer(key: string, margin: number, cost: number) {
 const SCORED: ExecArtifact = {
   id: 'next-best-action',
   version: '2.4.0',
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   candidateKeys: ['upsell_5g', 'upsell_data', 'retention_offer'],
   packageVersions: { '@metis/nodes-core': '1.2.0' },
   nodes: [

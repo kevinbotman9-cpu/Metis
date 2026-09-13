@@ -86,7 +86,7 @@ import type { DecisionRecord } from './decisions';
  * has nothing in it to find.
  */
 
-const r = (...parts: (string | number)[]) => seededUnitInterval('demo-telco-uk', 'outcome', ...parts);
+const r = (...parts: (string | number)[]) => seededUnitInterval('demo-telco-us', 'outcome', ...parts);
 
 /**
  * How much of each channel reports back at all.
@@ -116,12 +116,18 @@ const CHURN_PENALTY = 0.42;
  *
  * Chosen rather than emergent, because "somewhere in 240 offers there is
  * probably a bad one" is not a demo — a person has to be able to find it in
- * under a minute. `acq_sim_30` wins 619 decisions, the third most in the
- * corpus, and is taken by almost nobody: high reach and no value is the finding
- * a marketer is supposed to make, and it is only a finding if the offer is
+ * under a minute. So the offer that performs badly has to be one with enough
+ * reach to be worth looking at: high reach and no value is the finding a
+ * marketer is supposed to make, and it is only a finding if the offer is
  * prominent enough to be looked at.
+ *
+ * `netflix` in this tenant, which wins 208 decisions. It is the lowest business
+ * value of the five and the one most households already buy directly, so an
+ * offer that is shown and declined is the plausible shape rather than an
+ * arbitrary pick. `acq_sim_30` stood here until 2026-09-12, from a catalogue
+ * this tenant no longer has.
  */
-export const POOR_PERFORMER = 'acq_sim_30';
+export const POOR_PERFORMER = 'netflix';
 const POOR_PERFORMER_ACCEPT = 0.012;
 
 /** Minutes, hours and days, as milliseconds. */
@@ -202,7 +208,7 @@ export function seededOutcomesFor(d: DecisionRecord): OutcomeEvent[] {
   const events: OutcomeEvent[] = [];
   const push = (type: OutcomeType, ms: number, valueMinor: number | null = null) =>
     events.push({
-      tenantId: d.tenantId ?? 'telco-uk',
+      tenantId: d.tenantId ?? 'telco-us',
       decisionId: d.id,
       type,
       // Lagged from the decision's own timestamp, never the clock — the same

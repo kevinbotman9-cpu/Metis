@@ -68,7 +68,7 @@ const catalogue: CatalogueSnapshot = {
   frequencyPolicies: [],
   arbitration: {
     id: 'arb',
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     weights: { propensity: 1, value: 1, boost: 1, context: 1 },
     utility: { id: 'multiplicative', version: '1.0.0' },
     formula: 'P x V x B x C',
@@ -84,7 +84,7 @@ const unscored = (missingScoreDefault?: MissingScoreDefault): ExecArtifact =>
   ({
     id: 'flow',
     version: '1.0.0',
-    tenantId: 'telco-uk',
+    tenantId: 'telco-us',
     candidateKeys: ['offer_a', 'offer_b'],
     packageVersions: { '@metis/nodes-core': '1.2.0' },
     nodes: [
@@ -96,7 +96,7 @@ const unscored = (missingScoreDefault?: MissingScoreDefault): ExecArtifact =>
   }) as unknown as ExecArtifact;
 
 const request: DecisionRequest = {
-  tenantId: 'telco-uk',
+  tenantId: 'telco-us',
   customerId: 'cust_1',
   channel: 'email',
   placement: 'weekly_offers',

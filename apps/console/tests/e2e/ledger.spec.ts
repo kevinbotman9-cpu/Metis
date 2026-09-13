@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
+import { connectors } from '@/mocks/fixtures/catalogue';
 
 /**
  * The decision ledger, through the console's API.
@@ -8,7 +9,7 @@ import { test, expect, type APIRequestContext } from '@playwright/test';
  * Stage 4 left open are now closed.
  */
 
-const TENANT = 'telco-uk';
+const TENANT = 'telco-us';
 
 const body = (over: Record<string, unknown> = {}) => ({
   artifactId: 'next-best-action',
@@ -44,28 +45,41 @@ test.describe('the decision ledger', () => {
   });
 
   /**
-   * Every field the flow's connectors would otherwise supply.
+   * Every field the flow's connectors would otherwise supply, read from the
+   * connectors rather than written down.
    *
    * Resolution runs before the engine and the caller's fields win, so a request
    * carrying all of them is resolved to itself — which makes the recorded
    * `inputSnapshotHash` reconstructible by the caller. That is the whole
-   * condition under which a live decision can be replayed today, and it is why
-   * these are written out rather than left to the platform.
+   * condition under which a live decision can be replayed today.
+   *
+   * This was a hand-written object of nine fields, and it was the wrong nine
+   * from the moment the tenant changed: `telco-us` added serviceability,
+   * order-book and affinity connectors and dropped a roaming field, so
+   * resolution fetched five fields the caller had not supplied, hashed them
+   * into the snapshot, and replay reported a difference the caller could not
+   * have produced. The list is a fact about the catalogue, so it is derived
+   * from the catalogue; the values are arbitrary — replay identity does not
+   * depend on them, only on the caller handing back what it sent.
    */
-  const RESOLVED = {
-    customer: {
-      monthly_spend: 4200,
-      arrears_days: 0,
-      in_good_standing: true,
-      tenure_months: 26,
-      marketing_consent: true,
-      profiling_consent: true,
-      credit_score: 700,
-      credit_band: 'A',
-      usage: { data_usage_gb: 42.5, roaming_days: 3 },
-    },
-    context: { device_in_stock: true },
-  };
+  const RESOLVED = (() => {
+    const sample = (type: string): unknown =>
+      type === 'number' ? 1 : type === 'boolean' ? true : 'a';
+    const root: Record<string, unknown> = {};
+    for (const connector of connectors) {
+      if (!connector.active) continue;
+      for (const binding of connector.provides) {
+        const parts = binding.field.split('.');
+        let node = root;
+        for (const part of parts.slice(0, -1)) {
+          node[part] ??= {};
+          node = node[part] as Record<string, unknown>;
+        }
+        node[parts[parts.length - 1]] = sample(binding.type);
+      }
+    }
+    return root as { customer: Record<string, unknown> };
+  })();
 
   test('a decision made now can be replayed, given the inputs back', async ({ request }) => {
     // Replay was seeded-decisions-only: the route looked in the fixture corpus

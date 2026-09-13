@@ -34,7 +34,8 @@ These are non-negotiable. Every PR must enforce them.
    vendor ticket?*
 
 9. **Never trust a check you have not seen fail.** Write the assertion, break the
-   thing it guards, watch it go red, restore. A check verified only by passing is a
+   thing it guards, watch it go red, restore — against a server that has your
+   change in it, which is not automatic; see Rule 10. A check verified only by passing is a
    check whose subject you have assumed. Three tests here were found passing for
    the wrong reason — a substring locator matching the page's own heading, a
    `toHaveCount(0)` that beat the fetch, and a `toContain("2")` satisfied by any
@@ -60,6 +61,22 @@ These are non-negotiable. Every PR must enforce them.
     patched YAML or shell block changes meaning rather than failing. All three
     happened in one session on 2026-09-10, in the storefront, a workflow's gate
     step and three test files.
+
+
+    **A bite-proof taken against a reused dev server proves nothing.** Same
+    class, different environment: the result is an artefact of where the check
+    ran rather than of what it guards. Playwright sets
+    `reuseExistingServer: true` and the mock store seeds at module load, so a
+    fixture edited after the server started is invisible — the suite answers
+    from a seed nobody is looking at. A proof run against it comes back green
+    and reads as *"this check does not bite"* when the truth is *"the check was
+    never shown the change"*: a false negative on the one control Rule 9
+    depends on. It happened on 2026-09-12 — a boost was set to 1.0 to prove an
+    e2e assertion needed it, the suite passed, and the conclusion was wrong.
+    `global-setup.ts` now refuses a server whose seed differs from the files on
+    disk and names the part that moved (G-002), but that refusal has no
+    automated test of its own (G-095), so a proof that matters is still worth
+    restarting for.
 
     Normalise to `\n`, patch with plain `\n` patterns, restore the endings the
     file had. `scripts/patch-file.mjs` does exactly that and asserts every match,

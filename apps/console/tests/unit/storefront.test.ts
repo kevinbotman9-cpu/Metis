@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { artifacts } from '@/mocks/fixtures/artifacts';
-import { creatives, placements } from '@/mocks/fixtures/catalogue';
+import { creatives, placements, targetingPolicies } from '@/mocks/fixtures/catalogue';
 
 /**
  * The storefront demo names flows and placements. This asserts they exist.
@@ -57,15 +57,25 @@ describe('the storefront demo names things that exist', () => {
     }
   });
 
-  it('uses slots the catalogue has web creatives for', () => {
-    const written = new Set(
-      creatives
-        .filter((c) => c.channel === 'web' && c.active)
-        .map((c) => (c.content as { placement?: string }).placement)
-        .filter(Boolean)
-    );
+  it('can fill every slot it renders with a web creative', () => {
+    // This asserted that some web creative *names* each slot, which was true
+    // of a catalogue whose creatives were written per slot and is not the
+    // property that matters. The storefront resolves content the way
+    // `creativeFor` does: a creative naming this slot, else one naming no slot
+    // at all, else the first active web creative. A slot-agnostic creative
+    // fills any slot by design — that is what `placement: ''` means — so the
+    // old assertion failed on a catalogue that renders perfectly well.
+    //
+    // What must hold is that nothing the page renders comes up empty, which is
+    // this. It holds for both shapes of catalogue, so it is the stronger test.
+    const web = creatives.filter((c) => c.channel === 'web' && c.active);
+    const resolves = (slot: string) =>
+      web.find((c) => (c.content as { placement?: string }).placement === slot) ??
+      web.find((c) => !(c.content as { placement?: string }).placement) ??
+      web[0];
+
     for (const { placement } of declared) {
-      expect(written, `no web creative is written for ${placement}`).toContain(placement);
+      expect(resolves(placement), `nothing would render in ${placement}`).toBeTruthy();
     }
   });
 
@@ -78,19 +88,51 @@ describe('the storefront demo names things that exist', () => {
     }
   });
 
-  it('sends every input the tenant policies read', () => {
+  it('sends every input the tenant policies read, in every preset', () => {
     // A preset missing a field does not error — the condition simply never
-    // matches, and the offer silently stops appearing. Cheaper to catch here.
-    const fields = ['bill_to_income_ratio', 'arrears_count_12mo', 'fibre_available',
-      'pct_of_allowance_3mo_avg', 'months_of_history', 'days_to_end',
-      'pac_requested_within_days', 'residual_value', 'monthly_delta'];
-    const presets = html.slice(html.indexOf('const PRESETS'), html.indexOf('// ---------------------------------------------------------------- state'));
-    const count = (needle: string) => presets.split(needle).length - 1;
+    // matches, and the offer silently stops appearing. That is exactly how the
+    // fiber contrast came to show the same refusal twice (G-094), so it is
+    // worth catching here rather than on a screen.
+    //
+    // The field list is read from the policies rather than written out. The
+    // nine names that stood here were hand-listed, so the check could only ever
+    // see the fields whoever wrote it already knew about: it would have passed
+    // unchanged on the day a policy started reading a tenth.
+    const leaves = [
+      ...new Set(
+        targetingPolicies.flatMap((p) =>
+          p.conditions.map((c) => c.field.split('.').slice(-1)[0])
+        )
+      ),
+    ].sort();
+    expect(leaves.length, 'no policy fields found; the parse is wrong').toBeGreaterThan(5);
 
-    // Five presets, every field in each.
-    expect(count('customerId:')).toBe(5);
-    for (const f of fields) {
-      expect(count(f), `${f} is not in all five presets`).toBe(5);
+    const presets = html.slice(
+      html.indexOf('const PRESETS'),
+      html.indexOf('// ---------------------------------------------------------------- state')
+    );
+    const count = (needle: string) => presets.split(needle).length - 1;
+    /**
+     * How many presets declare this leaf as a key of its own.
+     *
+     * Boundaried, because two leaf names are suffixes of others here:
+     * `disney` sits inside `disney_available`, and `status` inside
+     * `account_status`. A plain substring found each of those six times in
+     * three presets and read it as a preset carrying the field twice.
+     */
+    const declaring = (leaf: string) =>
+      (presets.match(new RegExp(`(?<![A-Za-z0-9_])${leaf}:`, 'g')) ?? []).length;
+
+    const presetCount = count('customerId:');
+    expect(presetCount, 'the brief has three scenarios').toBe(3);
+
+    for (const f of leaves) {
+      // Counted as a key, `disney:`, not as a substring: `disney` also occurs
+      // inside `disney_available` and was found six times in three presets.
+      expect(
+        declaring(f),
+        `${f} is read by a policy and is not in all ${presetCount} presets`
+      ).toBe(presetCount);
     }
   });
 });

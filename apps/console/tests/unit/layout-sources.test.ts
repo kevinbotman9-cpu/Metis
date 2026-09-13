@@ -56,22 +56,23 @@ describe('the taxonomy sources count what is filed under each level', () => {
   it('counts an objective’s categories, and the offers under those categories', () => {
     const rows = LIST_SOURCES['taxonomy.objectives'].select(taxonomy);
     const counts = Object.fromEntries(rows.map((r) => [r.id, [r.categoryCount, r.offerCount]]));
+    // One category and two offers under each objective. The tenant this was
+    // written for had four objectives, seven categories and 251 offers, 240 of
+    // them generated; this one has exactly what the customer's brief names.
     expect(counts).toEqual({
-      iss_acquisition: [2, 72],
-      iss_retention: [2, 70],
-      iss_growth: [2, 73],
-      iss_service: [1, 36],
+      iss_acquisition: [1, 2],
+      iss_crosssell: [1, 3],
     });
   });
 
   it('counts the offers under each category', () => {
     const rows = LIST_SOURCES['taxonomy.categories'].select(taxonomy);
     const counts = Object.fromEntries(rows.map((r) => [r.id, r.offerCount]));
-    expect(counts).toMatchObject({ grp_new_mobile: 36, grp_winback: 35, grp_data_upsell: 37, grp_account_health: 36 });
+    expect(counts).toEqual({ grp_broadband: 2, grp_entertainment: 3 });
   });
 
   it('keys an objective by id and a placement by key, which is what their update operations take', () => {
-    expect(ENTITY_BINDINGS.Objective.identity({ id: 'iss_growth', key: 'growth' })).toBe('iss_growth');
+    expect(ENTITY_BINDINGS.Objective.identity({ id: 'iss_crosssell', key: 'cross-sell' })).toBe('iss_crosssell');
     expect(ENTITY_BINDINGS.Placement.identity({ id: 'plc_app_inbox', key: 'app_inbox' })).toBe('app_inbox');
   });
 
