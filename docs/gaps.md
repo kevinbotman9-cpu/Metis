@@ -44,6 +44,61 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-115 — ADR-016 draws deployable boundaries without saying who may cross them
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-043](BACKLOG.md) covers people signing in to the console; nothing covers a machine calling the platform
+
+[ADR-016](adr/ADR-016-deployment-operations-and-scale.md) splits the platform
+into three deployable units: the decision service, the console, and the
+migration job. It names who calls across those boundaries:
+- a channel, meaning a website, an email platform or a contact centre, calling
+  the decision service;
+- the console calling the decision service;
+- an operator running the migration job and `metis tenant create`.
+
+It does not say how any of them proves who it is, or which tenant it may act
+for. The first decision service deployed on it would serve anyone who can reach
+its port.
+
+What exists today:
+
+- **The contract claims more than anything implements.** Every operation
+  declares `bearerAuth`, an HTTP bearer token formatted as a JWT
+  (`docs/metis-api.openapi.yaml`, `securitySchemes` and the root `security`).
+  Nothing issues a JWT, and nothing verifies one.
+- **The console's development API authenticates by assertion.**
+  - `POST /api/auth/login` compares the password in clear against the seeded
+    user store, then returns the token `metis.<userId>`
+    (`apps/console/app/api/[...path]/route.ts`, the `auth` case).
+  - `actor()` accepts any bearer starting `metis.` whose suffix is a seeded
+    user id.
+  - The token is unsigned and never expires. Knowing a user's id is being that
+    user.
+- **The JVM decision service has no authentication at all.** Its README says
+  so, and that it is not deployable as-is.
+- **Nothing identifies a machine.** ADR-007 covers the credentials the platform
+  presents *outward* to connectors, not credentials a caller presents to the
+  platform. W-043 covers people: SSO, SCIM, ABAC. `docs/CAPABILITIES.md` records
+  single sign-on as `ABSENT`. Nothing anywhere covers:
+  - per-tenant API keys, service tokens or mutual TLS;
+  - how a credential is issued, rotated or revoked;
+  - tenant scoping. A decision request names its tenant in the path, and a
+    caller for one tenant naming another is refused by nothing.
+
+This is not a gap in the first unit. ADR-016's build order builds that unit
+refusable: a request without the configured credential gets a 401, and that is
+all. Deciding identity inside it would decide it for every boundary the platform
+has, in a pull request about something else.
+
+**Done when:**
+- An accepted ADR decides:
+  - how a person authenticates to the console;
+  - how a machine authenticates to the decision service, and which tenant that
+    credential may act for;
+  - how credentials are issued, rotated and revoked.
+- The decision service refuses a request that lacks a valid credential for the
+  tenant it names, and a test proves it.
+
 ### G-113 — A targeting policy's scope is in the model and cannot be set by a person
 
 **Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-082](BACKLOG.md)
