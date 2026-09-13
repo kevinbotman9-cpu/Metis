@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execute, replay } from '../src/deterministic/engine';
+import { CONSENT_STEP_ID, execute, replay } from '../src/deterministic/engine';
 import { assertionOf, consentStateOf, permits } from '../src/deterministic/consent';
 import type { CatalogueSnapshot, DecisionRequest, ExecArtifact } from '../src/deterministic/types';
 
@@ -93,5 +93,91 @@ describe('the recorded state', () => {
     const original = decide(undefined);
     const result = replay(scenario.artifact, scenario.catalogue, original, scenario.request.input, scenario.request.contactHistory);
     expect(result.identical).toBe(true);
+  });
+});
+
+/**
+ * Consent is applied to every decision, not only to flows that have a
+ * constraint node. G-015.
+ *
+ * Until 2026-09-13 consent was read only inside a constraint node, so a flow
+ * without one decided as though every customer had agreed, and the trace said
+ * so only by leaving a step out. Of the 25 corpus flows that rank before any
+ * constraint node, 20 would have lost their winner had their requests been
+ * decided on the consent they did not send.
+ */
+describe('a flow with no constraint node', () => {
+  const byName = (name: string) => {
+    const c = corpus.cases.find((x) => x.name === name);
+    if (!c) throw new Error(`the decision corpus has no case named '${name}'`);
+    return c;
+  };
+  const consentSteps = (trace: ReturnType<typeof execute>) =>
+    trace.decision.eliminations.filter((s) => s.nodeId === CONSENT_STEP_ID);
+
+  it('has consent applied by the platform, before ranking', () => {
+    const c = byName('consent is applied to a flow with no constraint node');
+    expect(c.artifact.nodes.some((n) => n.type === 'constraint')).toBe(false);
+    const trace = execute(c.artifact, c.catalogue, c.request);
+    const steps = trace.decision.eliminations.map((s) => s.nodeId);
+
+    expect(consentSteps(trace)).toHaveLength(1);
+    expect(consentSteps(trace)[0].nodeType).toBe('consent');
+    expect(denialCodes(trace).filter((d) => d.endsWith(':CONSENT_WITHHELD'))).toEqual([
+      'offer_b:CONSENT_WITHHELD',
+      'offer_c:CONSENT_WITHHELD',
+    ]);
+    // Before arbitration, so what ranks is what consent left.
+    const arbitrate = c.artifact.nodes.find((n) => n.type === 'arbitrate')!.id;
+    expect(steps.indexOf(CONSENT_STEP_ID)).toBeLessThan(steps.indexOf(arbitrate));
+    expect(trace.decision.winner).toBe('offer_a');
+  });
+
+  it('is decided on absent consent as on withheld', () => {
+    const absent = execute(
+      byName('absent consent is applied to a flow with no constraint node').artifact,
+      byName('absent consent is applied to a flow with no constraint node').catalogue,
+      byName('absent consent is applied to a flow with no constraint node').request,
+    );
+    expect(absent.decision.consentState.marketing).toBe('absent');
+    expect(denialCodes(absent).filter((d) => d.endsWith(':CONSENT_WITHHELD'))).toEqual([
+      'offer_b:CONSENT_WITHHELD',
+      'offer_c:CONSENT_WITHHELD',
+    ]);
+  });
+
+  it('is not let off by a constraint node that runs after ranking', () => {
+    const c = byName('a constraint node after ranking does not stand in for consent');
+    const trace = execute(c.artifact, c.catalogue, c.request);
+    const steps = trace.decision.eliminations.map((s) => s.nodeId);
+    const arbitrate = c.artifact.nodes.find((n) => n.type === 'arbitrate')!.id;
+    const constraint = c.artifact.nodes.find((n) => n.type === 'constraint')!.id;
+
+    expect(steps.indexOf(constraint)).toBeGreaterThan(steps.indexOf(arbitrate));
+    expect(consentSteps(trace)).toHaveLength(1);
+    expect(steps.indexOf(CONSENT_STEP_ID)).toBeLessThan(steps.indexOf(arbitrate));
+    expect(consentSteps(trace)[0].denials.map((d) => d.key)).toEqual(['offer_b', 'offer_c']);
+  });
+
+  it('records no platform step where a constraint node applies consent first', () => {
+    // The flows that were right already decide exactly as they did: no extra step, no moved hash.
+    const trace = decide({ marketing: false, profiling: false, thirdParty: false });
+    expect(scenario.artifact.nodes.some((n) => n.type === 'constraint')).toBe(true);
+    expect(consentSteps(trace)).toEqual([]);
+    expect(denialCodes(trace)).toContain('offer_b:CONSENT_WITHHELD');
+  });
+
+  it('applies consent before ranking in every corpus decision', () => {
+    // Structural, across all of them: whatever the flow declares, the first
+    // step that applies consent comes before the first ranking step.
+    for (const c of corpus.cases) {
+      const trace = execute(c.artifact, c.catalogue, c.request);
+      const types = new Map(c.artifact.nodes.map((n) => [n.id, n.type]));
+      const steps = trace.decision.eliminations.map((s) => (s.nodeId === CONSENT_STEP_ID ? 'consent' : types.get(s.nodeId)));
+      const applied = steps.findIndex((t) => t === 'consent' || t === 'constraint');
+      const ranked = steps.indexOf('arbitrate');
+      expect(applied, `${c.name}: consent never applied`).toBeGreaterThanOrEqual(0);
+      if (ranked >= 0) expect(applied, `${c.name}: ranked before consent`).toBeLessThan(ranked);
+    }
   });
 });

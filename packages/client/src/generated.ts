@@ -693,7 +693,13 @@ export interface Denial {
   ruleId: string | null;
 }
 
-/** One node's verdict on the candidate set, in execution order. */
+/** One step's verdict on the candidate set, in execution order. Consent is
+applied exactly once per decision, whatever nodes the flow declares:
+at the flow's first constraint node when one runs before arbitration,
+and otherwise by the platform immediately before arbitration (or after
+the last node), recorded as its own step with `nodeId: "__consent"` and
+`nodeType: "consent"`. Every other step is a node of the flow (G-015).
+ */
 export interface Elimination {
   nodeId: string;
   nodeType: string;

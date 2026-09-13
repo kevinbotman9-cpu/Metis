@@ -87,10 +87,11 @@ export interface FlowNode {
  * node declares, and written into the artifact so a reader can look it up.
  *
  * **It names the node's declared policies, not everything the node enforces.**
- * The engine applies frequency caps and consent at *every* constraint node
- * regardless of tier, so a `CONSENT_WITHHELD` denial can be recorded against a
- * node whose tier is `suitability`. A denial's reason code is what says why a
- * candidate went; this says what the node was built to ask.
+ * The engine applies frequency caps at *every* constraint node regardless of
+ * tier, so a `FREQUENCY_CAP_BREACHED` denial can be recorded against a node
+ * whose tier is `suitability`. A denial's reason code is what says why a
+ * candidate went; this says what the node was built to ask. Consent is not a
+ * node's to enforce: the platform applies it to every decision (G-015).
  */
 export type NodeTier = PolicyKind | 'frequency';
 
@@ -293,9 +294,9 @@ export function tierOf(
   if (kinds.size === 1) return [...kinds][0];
   if (kinds.size > 1) return undefined;
 
-  // No targeting policies. A constraint node still enforces frequency caps and
-  // consent — that is what the engine does at every constraint node — so its
-  // question is the frequency one. Any other node type asks nothing tiered.
+  // No targeting policies. A constraint node still enforces frequency caps —
+  // that is what the engine does at every constraint node — so its question is
+  // the frequency one. Any other node type asks nothing tiered.
   return node.type === 'constraint' ? 'frequency' : undefined;
 }
 
@@ -654,6 +655,24 @@ export function compileDecisionFlow(
             'ARBITRATION_MISSING_SCORE',
             `Arbitration at '${node.id}' weights propensity at ${ctx.arbitration.weights.propensity}, but no scoring node runs before it.`,
             'Add a score node upstream, or set the propensity weight to 0 so the formula matches what the flow actually computes. Propensity will be treated as neutral.',
+            node.id
+          )
+        );
+      }
+
+      // G-015's sibling. Consent no longer depends on a constraint node — the
+      // platform applies it to every decision — but frequency caps and
+      // cooldowns still do, and a flow that ranks with none upstream offers
+      // candidates that passed no cap. A warning rather than a refusal: a flow
+      // with no frequency policy may be deliberate, and the absent gate is
+      // exactly what an author cannot see from the graph.
+      const constrainedUpstream = [...upstream].some((id) => g.byId.get(id)?.type === 'constraint');
+      if (!constrainedUpstream) {
+        d.push(
+          warning(
+            'ARBITRATION_WITHOUT_CONSTRAINT',
+            `Arbitration at '${node.id}' has no constraint node before it, so no frequency cap or cooldown is applied to what it ranks.`,
+            'Add a constraint node upstream of arbitration if contact frequency should limit this flow. Consent is applied to every decision regardless.',
             node.id
           )
         );

@@ -82,6 +82,31 @@ describe('the rail is the flow that ran', () => {
     expect(labelFor('constraint_contact', 'constraint')).toBe('Frequency & suppression');
   });
 
+  it('shows the platform’s consent step as a stage, though no node declared it', () => {
+    // G-015. A flow with no constraint node before ranking has consent applied
+    // by the platform, recorded as `__consent`. It is a real removal and has to
+    // sit on the rail where it happened, named for what it did — not dropped
+    // for having no node in the artifact, and not shown as a bare id.
+    const stages = stagesFor(
+      trace({
+        candidateCount: 3,
+        eliminations: [
+          { nodeId: 'n1_source', nodeType: 'source', reason: '', denials: [], survived: ['a', 'b', 'c'] },
+          {
+            nodeId: '__consent',
+            nodeType: 'consent',
+            reason: '',
+            denials: [denial('b', 'CONSENT_WITHHELD', null), denial('c', 'CONSENT_WITHHELD', null)],
+            survived: ['a'],
+          },
+          { nodeId: 'n3_arbitrate', nodeType: 'arbitrate', reason: '', denials: [], survived: ['a'] },
+        ],
+      } as Partial<TraceDto>)
+    );
+    expect(stages.map((s) => s.label)).toEqual(['Candidates entered', 'Customer data loaded', 'Consent', 'Ranked']);
+    expect(stages[2].removed).toBe(2);
+  });
+
   it('takes a stage tier from the compiled nodes', () => {
     const stages = stagesFor(
       trace({

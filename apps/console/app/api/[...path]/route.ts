@@ -1221,17 +1221,16 @@ async function handleGet(req: Request, { params }: Ctx) {
       // Which questions the flows in range ask, from their compiled nodes. A
       // targeting tier is the one the node's declared policies share. The source
       // node is where a retired or out-of-window candidate is removed, every
-      // constraint node enforces consent and frequency whatever its tier, and
-      // the arbitrate node is where a candidate loses on priority.
+      // constraint node enforces frequency whatever its tier, and the arbitrate
+      // node is where a candidate loses on priority. Consent is asked of every
+      // decision by the platform, whatever the flow's nodes (G-015).
       const asked = new Set<FunnelStageId>();
       for (const id of new Set([...corpus.map((d) => d.flowId), ...live.map((e) => e.flowId)])) {
+        asked.add('consent');
         for (const node of findCompilation(id)?.result.artifact?.nodes ?? []) {
           if (node.tier === 'eligibility' || node.tier === 'relevance' || node.tier === 'suitability') asked.add(node.tier);
           if (node.type === 'source') asked.add('not_live');
-          if (node.type === 'constraint') {
-            asked.add('consent');
-            asked.add('frequency');
-          }
+          if (node.type === 'constraint') asked.add('frequency');
           if (node.type === 'arbitrate') asked.add('not_ranked');
         }
       }

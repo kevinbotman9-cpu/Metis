@@ -149,8 +149,8 @@ describe('POST /api/placements/{tenantId}/{key}/decisions', () => {
   describe('every web slot honours consent and frequency', () => {
     /**
      * The gap this closes: `inbound-web-offers` was four filter nodes and no
-     * constraint, and consent and frequency are enforced at constraint nodes
-     * only. So a website could post `marketing: false` and a full week of
+     * constraint, and consent and frequency were enforced at constraint nodes
+     * only (consent no longer is — G-015). So a website could post `marketing: false` and a full week of
      * contacts, the engine would read both, and offer anyway.
      *
      * Asserted per placement rather than once, because the failure was per

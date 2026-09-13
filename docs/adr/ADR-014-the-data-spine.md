@@ -433,9 +433,19 @@ like the one already configured.
    it, and is forwarded to the partner as the record holder; the partner's later
    echo is idempotent by `asOf`.
 
-Not decided here: whether consent is applied by the platform on every path
-rather than at a constraint node a flow may omit (G-015, taxonomy 2.3). Same
-subject, different mechanism; it belongs to W-013's slice.
+**Decided 2026-09-13, G-015: consent is applied by the platform on every path.**
+This paragraph first left it open for W-013's slice; it landed on its own. The
+engine applies consent exactly once per decision. A constraint node that runs
+before ranking applies it as it always did; if ranking or the end of the flow is
+reached without one, the engine applies it itself and records a `__consent` step.
+
+Not the compiler refusing a flow with no constraint node. Artifacts reach both
+engines without passing the compiler — the Kotlin service loads bundles, the
+corpus hands artifacts over directly — and a constraint node placed after ranking
+satisfies a shape check while protecting nothing. A compile check guards one
+path; a guarantee about every decision has to sit where every path ends. The
+compiler still warns, `ARBITRATION_WITHOUT_CONSTRAINT`, because frequency caps
+remain a node's to apply.
 
 **The mistake this prevents** is keeping the default because every caller sends
 consent. The corpus shows they do not — 26 cases of 27. Fail-closed exists for

@@ -17,6 +17,8 @@
  * A node's compiled tier is not the answer either. The engine applies consent
  * and frequency at *every* constraint node, so a node tiered `suitability` can
  * record `CONSENT_WITHHELD` (`packages/compiler/src/decision-flow/compile.ts`).
+ * And a flow with no constraint node before ranking has consent applied by the
+ * platform, as a `__consent` step that is no node at all (G-015).
  *
  * Every removal carries exactly one reason code from a closed set that is never
  * renamed. So the stages here are those codes, in the order a decision meets

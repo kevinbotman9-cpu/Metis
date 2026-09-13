@@ -1307,61 +1307,6 @@ platform capability by accident, which is what this entry is for.
 
 ---
 
-### G-015 — A flow can ignore consent and nothing says so
-
-**Registered:** 2026-09-07 · **Status:** Open · **Work item:** [W-013](BACKLOG.md)
-
-`inbound-web-offers` ran for as long as it has existed with four filter nodes
-and no constraint node. Consent and frequency are enforced at constraint nodes
-only, so a website could post `marketing: false` and a full week of contacts,
-the engine would read both off the request, and offer anyway. Fixed in 1.9.0 by
-adding `constraint_web_contact`.
-
-The fix is not the interesting part. **Nothing detected it**, and nothing would
-detect the next one.
-
-The compiler already emits `ARBITRATION_MISSING_SCORE` when a flow arbitrates
-with no scoring node in front of it — the same shape of defect, caught. The
-missing sibling is a diagnostic for a flow that reaches arbitration with no
-constraint node: its candidates have passed no consent check and no frequency
-cap, and the trace says so only by omission, which is the hardest thing to
-notice in an audit.
-
-Worth noting why it hid for so long: the flow's own description called it
-"lighter", the arbitration formula honestly said `V^1.0 × B^1.0`, and every
-decision it made was correct *given its nodes*. Every artefact was truthful.
-The absent gate was the only evidence, and absence is what a diagnostic is for.
-
-One smaller finding from the same investigation:
-
-- **`ExecNode.frequencyPolicyIds` is declared and never populated or read.**
-  `toExecArtifact` does not map it, and the engine draws frequency policies
-  from `catalogue.frequencyPolicies` by scope instead. So a flow author who
-  set it would get no error and no effect. Either wire it or delete it.
-
-#### Not a finding: the empty account hero
-
-This entry previously registered a second one, claiming the storefront's
-signed-in preset was suppressed at suitability and left "the account page
-showing nothing with the reason two screens away". That was wrong, and it is
-recorded rather than deleted because the mistake is the instructive part: it
-generalised from a single preset to the demo, and it was written without
-opening the page it described.
-
-There are five presets, three of them signed in. Four fill the account hero.
-The fifth — `affordability`, Jo Okafor — is empty *on purpose*, and its own
-note says so: every growth offer fails `pol_afford_5g`, the slot falls back to
-the site's own content, and the panel names the rule. Verified end to end: the
-page renders "Nothing offered here…" inline, the trace carries
-`ruleId: pol_afford_5g` on each denial, and the panel prints it.
-
-So the suppression is not a rough edge to smooth. It is the FCA-facing tier
-doing the thing the tier exists for, on the surface where a buyer can see it.
-Anyone tempted to make this preset "work" should change what the demo
-demonstrates deliberately, not quietly.
-
----
-
 ### G-016 — Intake holds customer records
 
 **Registered:** 2026-09-07 · **Status:** Open · **Work item:** [W-006](BACKLOG.md) · **Decision:** [ADR-004](adr/ADR-004-retention-and-erasure.md), Accepted 2026-09-09 — this entry was written while it was Proposed
@@ -1620,6 +1565,13 @@ on each node ([G-058](gaps.md)) makes that visible; it did not cause it.
 or the denial records which enforcement produced it, so attribution does not
 depend on graph order. Either changes the hashed decision, so it moves chain
 hashes and has to be done deliberately.
+
+**Narrowed, 2026-09-13 — [G-015](gaps.md).** A flow with no constraint node before
+ranking now has consent applied by the platform, as a `__consent` step that
+belongs to no node, so its consent denials are attributed to exactly what
+produced them. Flows with a constraint node are unchanged, and so is this entry
+for them.
+
 ### G-068 — The ledger stores the raw customer reference beside the hash that was meant to replace it
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-006](BACKLOG.md) · **Decision:** [ADR-004](adr/ADR-004-retention-and-erasure.md), Accepted 2026-09-09 on a premise this entry contradicts; the correction is its *Amendment, 2026-09-11*
@@ -1808,6 +1760,12 @@ value is not yet absent, and the trace does not name where consent came from.
 And consent is still checked only at constraint nodes — of the 31 corpus cases
 that had sent no consent, only 4 would have changed winner under the new rule,
 because the others have no constraint node (G-015).
+
+**No longer, since the same day — [G-015](gaps.md).** Consent is applied to every
+decision, whatever nodes the flow declares. Sent absent again, those 31 cases
+change winner in 24 places rather than 4: the same 4, and 20 of the 25 flows that
+rank before any constraint node. The other 5 of those 25 had nothing commercial
+left to remove.
 
 ---
 
@@ -2147,7 +2105,142 @@ nothing" without consulting `touched`.
 payload, and a descriptor no longer needs a screen-supplied default to avoid
 sending zero.
 
+### G-114 — `ExecNode.frequencyPolicyIds` is declared and never populated or read
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** none — found in G-015's investigation, 2026-09-07, and carried out when G-015 closed
+
+`toExecArtifact` does not map it, and the engine draws frequency policies from
+`catalogue.frequencyPolicies` by scope instead. So a flow author who set it
+would get no error and no effect — the same kind of silence G-015 was about,
+one field over.
+
+**Done when:** it is wired, so a constraint node applies only the policies it
+names, or deleted. Wiring it changes which caps apply at a node, and so what
+decisions do; that makes it a decision rather than a cleanup.
+
 ## Resolved
+
+### G-015 — A flow can ignore consent and nothing says so
+
+**Registered:** 2026-09-07 · **Resolved:** 2026-09-13 · **Status:** Resolved · **Work item:** [W-013](BACKLOG.md)
+
+**Resolved: consent is applied to every decision, by the engine, whatever nodes
+the flow declares.** Until now it was read only inside a constraint node, so a
+flow without one decided as though every customer had agreed, and a constraint
+node placed after arbitration applied consent to a winner already chosen.
+
+**Where it belongs: the engine, not the compiler.** A compiler that refused a
+flow with no constraint node would guard one path. The Kotlin service loads
+bundle artifacts directly, the corpus hands artifacts to both engines, and the
+engine's own comments say an artifact can arrive having skipped compilation. It
+would also accept the wrong shape: a constraint node after ranking satisfies
+"has a constraint node" and protects nothing. Fail closed on compliance has to
+hold on every path, so it lives where every path ends (ADR-014 §7, taxonomy 2.3).
+
+**How.** Consent is applied exactly once per decision. A constraint node that
+runs before ranking applies it as it always has, so those traces are
+byte-identical. If ranking, or the end of the flow, is reached without one, the
+engine applies it itself — same exemption, same `CONSENT_WITHHELD` code — and
+records a step with `nodeId` `__consent` and `nodeType` `consent`, a name no
+flow can declare. It is not recorded on every decision: that would move all
+10,400 seeded chain hashes for no change in what any decision does, and add a
+second place for consent denials to land to G-070's attribution problem. Both
+engines, identically.
+
+The diagnostic this entry first asked for exists too, reframed:
+`ARBITRATION_WITHOUT_CONSTRAINT`, a warning, now about the frequency caps and
+cooldowns that remain a constraint node's to apply.
+
+**The size — predicted before regenerating, diffed after.**
+
+- *As committed:* 25 of the decision corpus's 34 chain hashes and ids moved —
+  exactly the 25 flows that rank before any constraint node — each by one
+  inserted `__consent` step that removed nothing. **No winner moved**, and no
+  other decision field. The 60 service cases, the service bundle and the 10,400
+  seeded decisions did not change at all: every live flow is
+  `next-best-action`, whose constraint node comes before ranking. The zero is
+  because #50 (G-065) had just made those 25 requests state the grant they had
+  been assuming.
+- *Where the defect was live:* sent as they were before #50, with no consent,
+  **20 of the 25 flows lose their winner** — all to no offer — where the engine
+  as it was changed none. The other 5 keep it: nothing commercial is left to
+  remove, or there was no winner anyway. G-065 put it as 27 cases kept their
+  winner "because the others have no constraint node"; 25 of those have none
+  before ranking, and 20 kept their winner only because nothing checked.
+- *Outside the corpora:* `packages/runtime/tests/slate.test.ts` ranked with no
+  constraint node and stated no consent, and its slates came back empty —
+  correctly. It now states the grant. No other unit suite, and nothing in the
+  Kotlin service, moved.
+
+Three corpus cases pin it in both engines: *consent is applied to a flow with no
+constraint node*, *absent consent is applied to a flow with no constraint node*,
+and *a constraint node after ranking does not stand in for consent*.
+
+**Checks, each seen red.** Removing the engine's two calls turns red 4 named
+tests in `packages/runtime/tests/consent.test.ts` (*a flow with no constraint
+node …*) and 28 decision conformance cases; applying consent only after the flow
+ends, rather than before ranking, turns the same 32 red. In Kotlin the same
+removal turns red `DecisionConformanceTest` › *a flow with no constraint node
+has consent applied by the platform, before ranking*, and the corpus test.
+Removing the compiler warning turns 3 tests red in
+`packages/compiler/tests/compile.test.ts`. The trace rail's test *shows the
+platform's consent step as a stage* did **not** bite when only the new type
+label was removed — the rail's id pattern already names `__consent` — and bites
+with both removed.
+
+**Not covered:** consent is still what the request asserts (G-065, ADR-014
+§7.2–§7.5). Consent and frequency denials across several constraint nodes still
+attach to whichever ran first (G-070). The dead `frequencyPolicyIds` field this
+entry also found is now [G-114](gaps.md).
+
+#### As registered, 2026-09-07
+
+`inbound-web-offers` ran for as long as it has existed with four filter nodes
+and no constraint node. Consent and frequency are enforced at constraint nodes
+only, so a website could post `marketing: false` and a full week of contacts,
+the engine would read both off the request, and offer anyway. Fixed in 1.9.0 by
+adding `constraint_web_contact`.
+
+The fix is not the interesting part. **Nothing detected it**, and nothing would
+detect the next one.
+
+The compiler already emits `ARBITRATION_MISSING_SCORE` when a flow arbitrates
+with no scoring node in front of it — the same shape of defect, caught. The
+missing sibling is a diagnostic for a flow that reaches arbitration with no
+constraint node: its candidates have passed no consent check and no frequency
+cap, and the trace says so only by omission, which is the hardest thing to
+notice in an audit.
+
+Worth noting why it hid for so long: the flow's own description called it
+"lighter", the arbitration formula honestly said `V^1.0 × B^1.0`, and every
+decision it made was correct *given its nodes*. Every artefact was truthful.
+The absent gate was the only evidence, and absence is what a diagnostic is for.
+
+One smaller finding from the same investigation:
+
+- **`ExecNode.frequencyPolicyIds` is declared and never populated or read.**
+  Now its own entry, [G-114](gaps.md).
+
+##### Not a finding: the empty account hero
+
+This entry previously registered a second one, claiming the storefront's
+signed-in preset was suppressed at suitability and left "the account page
+showing nothing with the reason two screens away". That was wrong, and it is
+recorded rather than deleted because the mistake is the instructive part: it
+generalised from a single preset to the demo, and it was written without
+opening the page it described.
+
+There are five presets, three of them signed in. Four fill the account hero.
+The fifth — `affordability`, Jo Okafor — is empty *on purpose*, and its own
+note says so: every growth offer fails `pol_afford_5g`, the slot falls back to
+the site's own content, and the panel names the rule. Verified end to end: the
+page renders "Nothing offered here…" inline, the trace carries
+`ruleId: pol_afford_5g` on each denial, and the panel prints it.
+
+So the suppression is not a rough edge to smooth. It is the FCA-facing tier
+doing the thing the tier exists for, on the surface where a buyer can see it.
+Anyone tempted to make this preset "work" should change what the demo
+demonstrates deliberately, not quietly.
 
 ### G-106 — A size class that named nothing rendered at whatever it inherited, and no check noticed
 
