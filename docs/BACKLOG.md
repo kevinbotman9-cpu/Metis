@@ -204,6 +204,8 @@ otherwise.
 | W-077 | 14 | The generated client carries the spec's nullability | OPEN | 2 |
 | W-078 | 14 | Report the latest result of each conformance check | OPEN | 2 |
 | W-079 | 14 | Serve deleting a policy, a placement and a creative from a plane | OPEN | 2 |
+| W-080 | 14 | Descriptors, manifests and panels load per route, not whole | OPEN | 1 |
+| W-081 | 14 | Route budgets measure what a route renders, not what it links to | OPEN | 1 |
 
 ---
 
@@ -1505,6 +1507,46 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-081 — Route budgets measure what a route renders, not what it links to
+
+**Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet. `apps/console/scripts/measure-route-payload.mjs --prefetch both` reports the difference
+
+Gate 1 · Gap [G-112](gaps.md)
+
+`bundle-size.spec.ts` counts what Next prefetches for visible links, so a route's
+budget includes the screens it links to and a link can fail an unrelated route.
+Measured on 2026-09-13: prefetch adds 95 to 250 kB per route.
+
+**Done when:** the budget check measures a route with router prefetch excluded,
+the budgets are reset against that measurement, and a test proves that making a
+linked screen heavier does not fail the route that links to it.
+
+### W-080 — Descriptors, manifests and panels load per route, not whole
+
+**Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet. `apps/console/scripts/measure-route-payload.mjs` measures it per commit
+
+Gate 1 · Gap [G-111](gaps.md)
+
+Proposed as its own slice, not folded into the batch that found it: it changes
+how `@metis/ui-metadata` is imported across the console. Today one import brings
+every descriptor and manifest (40 kB), and `PANEL_COMPONENTS` brings every panel
+with the list–detail host (54 kB), to every route that touches either.
+
+- **Descriptors and manifests importable one at a time,** by entity and by
+  screen, with the registry maps built from them for the checks that need all
+  of them (the drift test, `validateLayout`, conformance) rather than for
+  screens.
+- **Panels loaded per manifest,** so a screen ships the panels its manifest
+  places and no others.
+- **The budgets lowered in the same change,** to what the split measures, so
+  the saving is held rather than spent by the next screen.
+
+**Done when:** a route that uses one descriptor ships no other descriptor's
+code, a list–detail screen ships only the panels its manifest places, both are
+measured by the script before and after, and the budgets are lowered to match.
+
 ### W-079 — Serve deleting a policy, a placement and a creative from a plane
 
 **Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN
