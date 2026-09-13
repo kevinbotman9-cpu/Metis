@@ -42,6 +42,23 @@ const KIND_TONE: Record<string, 'accent' | 'info' | 'hold'> = {
   suitability: 'hold',
 };
 
+const ACRONYMS = new Set(['cta', 'id', 'sms', 'url']);
+
+/**
+ * A content key as a sentence-case label: `imageUrl` reads "Image URL".
+ *
+ * The keys used to be split on capitals and then shouted by an all-caps class,
+ * which hid that "image Url" is not how anyone writes a label.
+ */
+function fieldLabel(key: string): string {
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .toLowerCase()
+    .split(' ')
+    .map((w, i) => (ACRONYMS.has(w) ? w.toUpperCase() : i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}
+
 /** Renders a creative's channel-specific fields without leaking the shape. */
 function CreativeBody({ creative }: { creative: CreativeDto }) {
   const c = creative.content;
@@ -53,8 +70,8 @@ function CreativeBody({ creative }: { creative: CreativeDto }) {
     <dl className="space-y-2">
       {rows.map(([k, v]) => (
         <div key={k}>
-          <dt className="text-label uppercase tracking-wide text-content-subtle">
-            {k.replace(/([A-Z])/g, ' $1')}
+          <dt className="text-label text-content-subtle">
+            {fieldLabel(k)}
           </dt>
           <dd className="mt-0.5 whitespace-pre-wrap text-body text-content">{v}</dd>
         </div>
@@ -481,7 +498,7 @@ function OfferDetail({ offerId }: { offerId: string }) {
 
               {p.tags.length > 0 && (
                 <div className="mt-3 border-t border-border pt-3">
-                  <p className="mb-1.5 text-label uppercase tracking-wide text-content-subtle">
+                  <p className="mb-1.5 text-label text-content-subtle">
                     Tags
                   </p>
                   <div className="flex flex-wrap gap-1">

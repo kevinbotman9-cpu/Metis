@@ -21,8 +21,8 @@ import path from 'node:path';
  * can also be pointed at an older checkout to prove it would have caught the
  * sites it was written for.
  *
- * All-caps and letter-spacing are deliberately not here: the spec forbids them
- * too, but whether to follow that is a design decision registered as G-102.
+ * All-caps and letter-spacing are not here: they are `tests/letter-case.ts`,
+ * written once the product owner decided G-102 for sentence case everywhere.
  */
 
 export interface TypeOffender {

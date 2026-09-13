@@ -30,7 +30,7 @@ export function EntityOverview({ record, descriptor, manifest, context }: PanelP
       {groups.map(({ group, fields }) => (
         <section key={group.key} aria-label={group.label}>
           {group.label ? (
-            <h3 className="mb-2 text-label font-semibold uppercase tracking-wide text-content-subtle">
+            <h3 className="mb-2 text-label font-semibold text-content-subtle">
               {group.label}
             </h3>
           ) : null}

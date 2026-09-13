@@ -162,7 +162,7 @@ export function DataTable<T>({
                   key={col.key}
                   scope="col"
                   className={cn(
-                    'sticky top-0 z-10 bg-surface px-cell py-2 text-label font-semibold uppercase tracking-wide text-content-subtle',
+                    'sticky top-0 z-10 bg-surface px-cell py-2 text-label font-semibold text-content-subtle',
                     col.align === 'right' ? 'text-right' : 'text-left',
                     col.width,
                     col.secondary && 'hidden lg:table-cell'

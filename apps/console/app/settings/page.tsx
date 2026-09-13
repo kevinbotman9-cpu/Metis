@@ -133,7 +133,7 @@ function SettingsView() {
             </dl>
 
             <div className="mt-4 border-t border-border pt-3">
-              <p className="mb-1.5 text-label uppercase tracking-wide text-content-subtle">
+              <p className="mb-1.5 text-label text-content-subtle">
                 Roles
               </p>
               <div className="flex flex-wrap gap-1">
@@ -146,7 +146,7 @@ function SettingsView() {
             </div>
 
             <div className="mt-4 border-t border-border pt-3">
-              <p className="mb-1.5 text-label uppercase tracking-wide text-content-subtle">
+              <p className="mb-1.5 text-label text-content-subtle">
                 Permissions
               </p>
               <div className="flex flex-wrap gap-1">
@@ -170,7 +170,7 @@ function SettingsView() {
           />
           <CardBody className="space-y-4">
             <div>
-              <p className="mb-1.5 text-label uppercase tracking-wide text-content-subtle">
+              <p className="mb-1.5 text-label text-content-subtle">
                 Colour scheme
               </p>
               <div className="flex gap-2">
@@ -193,7 +193,7 @@ function SettingsView() {
             </div>
 
             <div>
-              <p className="mb-1.5 text-label uppercase tracking-wide text-content-subtle">
+              <p className="mb-1.5 text-label text-content-subtle">
                 Density
               </p>
               <div className="flex gap-2">
@@ -262,7 +262,7 @@ function SettingsView() {
                 },
               ].map((entry) => (
                 <li key={entry.term} className="rounded border border-border px-3 py-2">
-                  <p className="text-label uppercase tracking-wide text-content-subtle">
+                  <p className="text-label text-content-subtle">
                     {entry.term}
                   </p>
                   <p className="mt-0.5 text-body font-medium">{entry.value}</p>

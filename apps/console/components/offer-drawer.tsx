@@ -129,7 +129,7 @@ export function OfferDrawer({
           {/* Deliverability. Stated before the channel table, because the
               table is the evidence for it. */}
           <div className="px-5 py-4">
-            <h3 className="text-label font-semibold uppercase tracking-wide text-content-subtle">
+            <h3 className="text-label font-semibold text-content-subtle">
               Deliverability
             </h3>
             <div className="mt-2">
@@ -165,7 +165,7 @@ export function OfferDrawer({
           </div>
 
           <div className="px-5 py-4">
-            <h3 className="text-label font-semibold uppercase tracking-wide text-content-subtle">
+            <h3 className="text-label font-semibold text-content-subtle">
               Channels
             </h3>
             <ul className="mt-2 divide-y divide-border">

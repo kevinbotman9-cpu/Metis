@@ -84,7 +84,7 @@ export function ShadowSummary({ report }: { report: ShadowReport }) {
       </div>
 
       <div>
-        <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.08em] text-content-subtle">
+        <p className="mb-1.5 text-label font-semibold text-content-subtle">
           Top divergences
         </p>
         {report.topDivergences.length === 0 ? (

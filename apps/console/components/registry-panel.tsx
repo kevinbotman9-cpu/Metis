@@ -105,7 +105,7 @@ export function RegistryPanel({ flowName }: { flowName: string }) {
         )}
 
         <div>
-          <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.08em] text-content-subtle">
+          <p className="mb-1.5 text-label font-semibold text-content-subtle">
             Environments
           </p>
           <ul className="space-y-1.5">
@@ -146,7 +146,7 @@ export function RegistryPanel({ flowName }: { flowName: string }) {
         </div>
 
         <div>
-          <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.08em] text-content-subtle">
+          <p className="mb-1.5 text-label font-semibold text-content-subtle">
             Published versions
           </p>
           {versions.length === 0 ? (
@@ -238,7 +238,7 @@ function RegistryLog({
 
   return (
     <div>
-      <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.08em] text-content-subtle">
+      <p className="mb-1.5 text-label font-semibold text-content-subtle">
         Registry log
       </p>
       <ul className="space-y-1.5">

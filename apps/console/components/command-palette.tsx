@@ -261,7 +261,7 @@ export function CommandPalette({
           ) : (
             grouped.map((category) => (
               <li key={category.kind}>
-                <p className="px-2 pb-1 pt-2 text-label font-semibold uppercase tracking-[0.08em] text-content-subtle">
+                <p className="px-2 pb-1 pt-2 text-label font-semibold text-content-subtle">
                   {KIND_LABEL[category.kind]}
                 </p>
                 <ul>

@@ -51,7 +51,7 @@ export function ProvenanceBanner({
     >
       <span
         aria-hidden="true"
-        className="mt-0.5 shrink-0 rounded border border-hold/50 px-1.5 py-0.5 text-label font-semibold uppercase tracking-wide text-hold"
+        className="mt-0.5 shrink-0 rounded border border-hold/50 px-1.5 py-0.5 text-label font-semibold text-hold"
       >
         {synthetic ? 'Synthetic' : 'Mixed'}
       </span>

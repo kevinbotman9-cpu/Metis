@@ -30,7 +30,7 @@ export const Badges: Story = {
   render: () => (
     <div className="space-y-4">
       <div>
-        <p className="mb-2 text-label uppercase tracking-wide text-content-subtle">Tones</p>
+        <p className="mb-2 text-label text-content-subtle">Tones</p>
         <div className="flex flex-wrap gap-2">
           {(['neutral', 'accent', 'pass', 'block', 'hold', 'info', 'outline'] as const).map(
             (tone) => (
@@ -43,7 +43,7 @@ export const Badges: Story = {
       </div>
 
       <div>
-        <p className="mb-2 text-label uppercase tracking-wide text-content-subtle">
+        <p className="mb-2 text-label text-content-subtle">
           Offer status
         </p>
         <div className="flex flex-wrap gap-2">
@@ -54,7 +54,7 @@ export const Badges: Story = {
       </div>
 
       <div>
-        <p className="mb-2 text-label uppercase tracking-wide text-content-subtle">
+        <p className="mb-2 text-label text-content-subtle">
           Autonomy ladder
         </p>
         <div className="flex flex-wrap gap-2">

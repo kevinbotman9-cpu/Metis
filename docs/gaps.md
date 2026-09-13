@@ -108,7 +108,7 @@ corpora and bundle are regenerated in the same commit, and conformance is green.
 
 ### G-102 — The console uses the all-caps and tracked labels the visual spec forbids
 
-**Registered:** 2026-09-13 · **Status:** Open · **Work item:** slice three of the 2026-09-13 design pass, by the product owner
+**Registered:** 2026-09-13 · **Resolved:** 2026-09-13 · **Status:** Resolved · **Work item:** slice three of the 2026-09-13 design pass, by the product owner
 
 `docs/METIS_CONSOLE_SPEC.md` Part 5 lists, under *Type*, "No all-caps labels. No
 tracked-out eyebrows above headings", and repeats "All-caps tracked eyebrow
@@ -127,6 +127,23 @@ product owner put it in slice three, the design pass on the non-Cascade screens.
 **Done when:** each `uppercase` and `tracking-*` either goes, or the spec's
 forbidden list is amended to say where they are allowed, and a check holds
 whichever answer is chosen.
+
+**Decided: sentence case everywhere.** The product owner chose the spec over an
+amendment, table headers and nav group labels included. The recount on the day
+found **49** all-caps classes and **49** widened letter-spacing classes in 26
+files, stories included — the first count missed the three in
+`primitives.stories.tsx`. Two shared components carried most of what a reader
+sees: `Metric`'s label and `DataTable`'s column header, on every metric and every
+table in the console.
+
+**Resolved by:** every one removed. Tight and negative tracking on titles and
+figures stays, because the spec forbids tracked-*out* labels, not tracking. One
+label was relying on the capitals to hide its casing: a creative's content keys
+on `/offers/[id]` were split on capitals into "image Url", and now read "Image
+URL". `apps/console/tests/letter-case.ts` fails on an all-caps class, widened
+tracking, or either as an inline style or CSS declaration, and its test proves
+each rule fires and that a `value="uppercase"` option is not a class. Bite-proven
+on the unchanged tree: 49 and 49.
 
 ### G-101 — The agent activity feed and the audit log disagree about what agents did
 

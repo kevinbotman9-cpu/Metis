@@ -122,7 +122,7 @@ export function CompileReport({ compilation }: { compilation: CompileResultDto |
 
         {compilation.artifact ? (
           <div className="border-t border-border pt-3">
-            <p className="mb-1 text-label uppercase tracking-wide text-content-subtle">
+            <p className="mb-1 text-label text-content-subtle">
               Pinned at compile time
             </p>
             <div className="flex flex-wrap gap-1">

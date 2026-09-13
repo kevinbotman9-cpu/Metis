@@ -175,7 +175,7 @@ function ChangeSetDetail({ id }: { id: string }) {
               <div className="overflow-x-auto">
                 <table className="w-full text-body">
                   <thead>
-                    <tr className="border-b border-border text-label uppercase tracking-wide text-content-subtle">
+                    <tr className="border-b border-border text-label text-content-subtle">
                       <th className="px-cell py-2 text-left font-semibold">Field</th>
                       <th className="px-cell py-2 text-left font-semibold">Before</th>
                       <th className="px-cell py-2 text-left font-semibold">After</th>
