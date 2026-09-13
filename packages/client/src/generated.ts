@@ -730,10 +730,26 @@ export interface OutcomeEvent {
   detail?: Record<string, unknown>;
 }
 
+/** Consent as a decision recorded it, per purpose. `absent` means the
+request did not state that purpose: enforced exactly as `withheld`, and
+recorded as itself so a trace never claims consent nobody gave
+(ADR-014 §7.1, G-065). Until 2026-09-13 each purpose was a boolean, and
+an unstated one was recorded as `true`.
+ */
 export interface ConsentState {
-  marketing: boolean;
-  profiling: boolean;
-  thirdParty: boolean;
+  marketing: "granted" | "withheld" | "absent";
+  profiling: "granted" | "withheld" | "absent";
+  thirdParty: "granted" | "withheld" | "absent";
+}
+
+/** What a caller states about consent, per purpose. A purpose left out, or
+null, is not stated: the decision records it as `absent` and enforces it
+as withheld. There is no default that grants.
+ */
+export interface ConsentAssertion {
+  marketing?: boolean | null;
+  profiling?: boolean | null;
+  thirdParty?: boolean | null;
 }
 
 /** A decision as it appears in search results, without the trace.
@@ -2007,7 +2023,7 @@ than a silent preference for one of them.
     occurredAt: string;
     input: Record<string, unknown>;
     contactHistory?: ContactHistory;
-    consent?: Record<string, unknown>;
+    consent?: ConsentAssertion;
     idempotencyKey?: string;
     correlationId?: string;
   };
@@ -2042,7 +2058,7 @@ export type ExecuteDecisionRequest = {
     /** Customer and context attributes, already resolved. */
     input: Record<string, unknown>;
     contactHistory?: ContactHistory;
-    consent?: Record<string, unknown>;
+    consent?: ConsentAssertion;
     /** Makes a retry safe. The same key with the same request returns the original decision without re-executing; the same key with a *different* request is a 409, because the caller reused a token for a different question and answering quietly would hand them a decision about someone else's customer.
 Excluded from the request hash — it identifies the attempt, not the question. Scoped per tenant.
  */

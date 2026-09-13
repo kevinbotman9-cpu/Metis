@@ -48,7 +48,7 @@ export function decisionRecord(over: {
         runnerUp: null,
       },
       constraintsApplied: [],
-      consentState: { marketing: true, profiling: true, thirdParty: false },
+      consentState: { marketing: 'granted', profiling: 'granted', thirdParty: 'withheld' },
       winner: 'offer_a',
       winnerOfferId: 'p_a',
     },

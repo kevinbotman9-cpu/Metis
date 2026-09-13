@@ -179,7 +179,11 @@ export interface DecisionRequest {
     withinPeriod: Record<string, number>;
     rejects?: Record<string, string>;
   };
-  consent?: { marketing: boolean; profiling: boolean; thirdParty: boolean };
+  /**
+   * What the caller asserts, per purpose. A purpose left out, or null, was not
+   * stated: it is recorded as absent and enforced as withheld (ADR-014 §7.1).
+   */
+  consent?: import('./consent').ConsentAssertion;
   /**
    * A caller-chosen token that makes a retry safe.
    *
@@ -377,7 +381,8 @@ export interface DeterministicDecision {
     runnerUp: string | null;
   };
   constraintsApplied: string[];
-  consentState: { marketing: boolean; profiling: boolean; thirdParty: boolean };
+  /** Per purpose: granted, withheld, or absent — never a substitute for what was not stated. */
+  consentState: import('./consent').ConsentState;
   winner: string | null;
   winnerOfferId: string | null;
 }

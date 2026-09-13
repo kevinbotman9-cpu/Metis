@@ -185,7 +185,11 @@ data class ContactHistory(
     val rejects: Map<String, String>? = null,
 )
 
-data class Consent(val marketing: Boolean, val profiling: Boolean, val thirdParty: Boolean)
+/**
+ * What a caller asserts, per purpose. Null is not stated: recorded as absent and
+ * enforced as withheld (ADR-014 §7.1). See `ConsentState` for what a decision records.
+ */
+data class Consent(val marketing: Boolean? = null, val profiling: Boolean? = null, val thirdParty: Boolean? = null)
 
 data class DecisionRequest(
     val tenantId: String,
@@ -276,7 +280,7 @@ data class DeterministicDecision(
     val scores: Map<String, CandidateScore>,
     val arbitration: Arbitration,
     val constraintsApplied: List<String>,
-    val consentState: Consent,
+    val consentState: ConsentState,
     val winner: String?,
     val winnerOfferId: String?,
 )

@@ -70,12 +70,14 @@ object Idempotency {
             )
         } ?: Value.Null
 
+        // Only the purposes stated. The TypeScript canonicaliser drops an
+        // undefined key, so a purpose left out must be left out here too.
         val consent: Value = r.consent?.let {
             Value.Obj(
-                listOf(
-                    "marketing" to Value.Bool(it.marketing),
-                    "profiling" to Value.Bool(it.profiling),
-                    "thirdParty" to Value.Bool(it.thirdParty),
+                listOfNotNull(
+                    it.marketing?.let { v -> "marketing" to (Value.Bool(v) as Value) },
+                    it.profiling?.let { v -> "profiling" to (Value.Bool(v) as Value) },
+                    it.thirdParty?.let { v -> "thirdParty" to (Value.Bool(v) as Value) },
                 )
             )
         } ?: Value.Null

@@ -71,7 +71,7 @@ export interface TraceRecord extends DecisionRecord {
   arbitration: { formula: string; winner: string | null; runnerUp: string | null };
   timings: Record<string, number>;
   constraintsApplied: string[];
-  consentState: { marketing: boolean; profiling: boolean; thirdParty: boolean };
+  consentState: import('@metis/runtime').ConsentState;
   creativeId: string | null;
   /** Which connector supplied which field. Reproducible. */
   sourceBindings: SourceBinding[];

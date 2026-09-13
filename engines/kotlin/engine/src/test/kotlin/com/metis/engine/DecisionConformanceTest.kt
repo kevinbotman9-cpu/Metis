@@ -193,11 +193,12 @@ class DecisionConformanceTest {
                     ?.properties()?.associate { (k, v) -> k to v.asText() },
             )
         },
-        consent = n["consent"]?.let {
+        // A purpose missing from the case is unstated, exactly as a caller's would be.
+        consent = n["consent"]?.takeIf { !it.isNull }?.let {
             Consent(
-                it["marketing"].asBoolean(),
-                it["profiling"].asBoolean(),
-                it["thirdParty"].asBoolean(),
+                it["marketing"]?.takeIf { v -> !v.isNull }?.asBoolean(),
+                it["profiling"]?.takeIf { v -> !v.isNull }?.asBoolean(),
+                it["thirdParty"]?.takeIf { v -> !v.isNull }?.asBoolean(),
             )
         },
     )

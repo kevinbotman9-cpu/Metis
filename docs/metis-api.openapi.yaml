@@ -1443,14 +1443,37 @@ components:
 
     ConsentState:
       type: object
+      description: |
+        Consent as a decision recorded it, per purpose. `absent` means the
+        request did not state that purpose: enforced exactly as `withheld`, and
+        recorded as itself so a trace never claims consent nobody gave
+        (ADR-014 §7.1, G-065). Until 2026-09-13 each purpose was a boolean, and
+        an unstated one was recorded as `true`.
       required: [marketing, profiling, thirdParty]
       properties:
         marketing:
-          type: boolean
+          type: string
+          enum: [granted, withheld, absent]
         profiling:
-          type: boolean
+          type: string
+          enum: [granted, withheld, absent]
         thirdParty:
-          type: boolean
+          type: string
+          enum: [granted, withheld, absent]
+
+    ConsentAssertion:
+      type: object
+      description: |
+        What a caller states about consent, per purpose. A purpose left out, or
+        null, is not stated: the decision records it as `absent` and enforces it
+        as withheld. There is no default that grants.
+      properties:
+        marketing:
+          type: [boolean, 'null']
+        profiling:
+          type: [boolean, 'null']
+        thirdParty:
+          type: [boolean, 'null']
 
     Decision:
       type: object
@@ -3904,7 +3927,7 @@ paths:
                     contactHistory:
                       $ref: '#/components/schemas/ContactHistory'
                     consent:
-                      type: object
+                      $ref: '#/components/schemas/ConsentAssertion'
                     idempotencyKey:
                       type: string
                       description: >
@@ -4540,7 +4563,7 @@ paths:
                     contactHistory:
                       $ref: '#/components/schemas/ContactHistory'
                     consent:
-                      type: object
+                      $ref: '#/components/schemas/ConsentAssertion'
                     idempotencyKey:
                       type: string
                     correlationId:
