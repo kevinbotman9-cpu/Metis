@@ -85,11 +85,17 @@ These are non-negotiable. Every PR must enforce them.
     a script run against port 3000 — so a proof taken that way is still worth
     a restart.
 
-    Normalise to `\n`, patch with plain `\n` patterns, restore the endings the
-    file had. `scripts/patch-file.mjs` does exactly that and asserts every match,
-    because the failure being guarded against is a patch that quietly does
-    nothing. Use it, or do the same three steps by hand — but never hand-escape a
-    pattern to match what you think is on disk.
+    **Write prose and patches through a file, first.** Put the text in a file
+    and apply it with `scripts/patch-file.mjs`, or with a script file that does
+    the same three steps: normalise to `\n`, patch with plain `\n` patterns,
+    restore the endings the file had, asserting every match — because the
+    failure being guarded against is a patch that quietly does nothing. Never
+    put prose or a patch inline in a shell heredoc or a quoted command, and never
+    hand-escape a pattern to match what you think is on disk. This is the
+    default, not the fallback after the shell mangles something: backticks,
+    apostrophes, `\n` and CRLF have each broken a heredoc this month, and the
+    recovery was the same every time — write it to a file. Decided by the
+    product owner on 2026-09-13.
 
 ---
 
