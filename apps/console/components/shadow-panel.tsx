@@ -84,7 +84,7 @@ export function ShadowSummary({ report }: { report: ShadowReport }) {
       </div>
 
       <div>
-        <p className="mb-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-content-subtle">
+        <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.08em] text-content-subtle">
           Top divergences
         </p>
         {report.topDivergences.length === 0 ? (
@@ -102,7 +102,7 @@ export function ShadowSummary({ report }: { report: ShadowReport }) {
               >
                 <div className="min-w-0">
                   <Badge tone={d.kind === 'winner' ? 'block' : 'hold'}>{KIND_LABEL[d.kind]}</Badge>
-                  <p className="mt-1 break-words font-mono text-[0.6875rem] text-content-muted">
+                  <p className="mt-1 break-words font-mono text-label text-content-muted">
                     {d.summary}
                   </p>
                 </div>

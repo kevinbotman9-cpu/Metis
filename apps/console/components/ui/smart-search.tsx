@@ -158,7 +158,7 @@ export function SmartSearch({ facets, chips, onChange, placeholder }: SmartSearc
                 e.stopPropagation();
                 onChange(chips.filter((c) => c !== chip));
               }}
-              className="rounded-sm px-0.5 leading-none hover:bg-accent hover:text-on-accent"
+              className="rounded-sm px-0.5 hover:bg-accent hover:text-on-accent"
             >
               ×
             </button>

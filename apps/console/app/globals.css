@@ -179,6 +179,11 @@
   --stack: 1.25rem;
   --text-body: 0.875rem;
   --text-label: 0.75rem;
+  /* The screen title and the one number on a panel. Proposed in the console
+     spec's Part 5 and built on 2026-09-13, when a sweep found 126 sites setting
+     type outside the scale, most of them standing in for these two. */
+  --text-title: 1.125rem;
+  --text-figure: 1.5rem;
   /* The rail's open width. 240px comfortable, 200px compact, per the console
      spec; collapsed it is the 48px icon rail, which is w-12 and needs no token. */
   --rail-w: 15rem;
@@ -210,6 +215,8 @@
   --stack: 0.75rem;
   --text-body: 0.8125rem;
   --text-label: 0.6875rem;
+  --text-title: 1rem;
+  --text-figure: 1.25rem;
   --rail-w: 12.5rem;
 }
 

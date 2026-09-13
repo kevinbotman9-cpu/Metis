@@ -189,7 +189,7 @@ function ScopeCard({ setting, canEdit }: { setting: AutonomySettingDto; canEdit:
             {g.protectedAttributes.map((a) => (
               <code
                 key={a}
-                className="rounded-sm bg-block-subtle px-1.5 py-0.5 font-mono text-[0.6875rem] text-block"
+                className="rounded-sm bg-block-subtle px-1.5 py-0.5 font-mono text-label text-block"
               >
                 {a}
               </code>
@@ -388,7 +388,7 @@ function AgenticView() {
                       <p className="mt-1.5 text-body text-content-muted">{a.summary}</p>
 
                       {a.guardrailBreached && (
-                        <p className="mt-1.5 rounded border border-block/30 bg-block-subtle px-2 py-1 font-mono text-[0.6875rem] text-block">
+                        <p className="mt-1.5 rounded border border-block/30 bg-block-subtle px-2 py-1 font-mono text-label text-block">
                           {a.guardrailBreached}
                         </p>
                       )}

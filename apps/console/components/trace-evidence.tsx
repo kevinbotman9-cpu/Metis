@@ -136,7 +136,7 @@ export function TraceEvidence({
               <ul className="flex flex-col gap-0.5">
                 {calls.map((call) => (
                   <li key={call.connectorId}>
-                    <span className="font-mono text-[0.6875rem]">{call.connectorId}</span>{' '}
+                    <span className="font-mono text-label">{call.connectorId}</span>{' '}
                     {whenComputed(call)}
                   </li>
                 ))}
@@ -149,7 +149,7 @@ export function TraceEvidence({
             {packageVersions && Object.keys(packageVersions).length > 0 ? (
               <ul className="flex flex-col gap-0.5">
                 {Object.entries(packageVersions).map(([name, version]) => (
-                  <li key={name} className="font-mono text-[0.6875rem]">
+                  <li key={name} className="font-mono text-label">
                     {name}@{version}
                   </li>
                 ))}
@@ -159,7 +159,7 @@ export function TraceEvidence({
             )}
           </Row>
         </dl>
-        <p className="mt-3 text-label leading-relaxed text-content-subtle">
+        <p className="mt-3 text-label text-content-subtle">
           Select a stage to see what it removed, then a rule to see the evidence behind it.
         </p>
       </>
@@ -187,7 +187,7 @@ export function TraceEvidence({
                   </Badge>
                 ))}
               </div>
-              <p className="mt-1 leading-snug text-content-muted">
+              <p className="mt-1 text-content-muted">
                 {group.codes.map((c) => CODE_MEANING[c]).filter(Boolean).join(' ')}
               </p>
             </Row>
@@ -217,7 +217,7 @@ export function TraceEvidence({
               {fields.length > 0 ? (
                 <ul className="flex flex-col gap-0.5">
                   {(policy?.conditions ?? []).map((c, i) => (
-                    <li key={`${c.field}-${i}`} className="font-mono text-[0.6875rem]">
+                    <li key={`${c.field}-${i}`} className="font-mono text-label">
                       {c.field} {c.operator} {String(c.value)}
                     </li>
                   ))}
@@ -232,7 +232,7 @@ export function TraceEvidence({
                 <>
                   <span className="font-semibold text-content">{pack.name}</span>{' '}
                   <Badge tone="outline">{pack.version}</Badge>
-                  <p className="mt-0.5 font-mono text-[0.6875rem] text-content-muted">
+                  <p className="mt-0.5 font-mono text-label text-content-muted">
                     {pack.packId}
                   </p>
                 </>
@@ -252,7 +252,7 @@ export function TraceEvidence({
                     const call = calls.find((c) => c.connectorId === b.connectorId);
                     return (
                       <li key={`${b.field}-${b.connectorId}`}>
-                        <span className="font-mono text-[0.6875rem]">{b.field}</span> from{' '}
+                        <span className="font-mono text-label">{b.field}</span> from{' '}
                         <Link
                           href={`/integrations?connector=${encodeURIComponent(b.connectorId)}`}
                           className="text-accent underline-offset-2 hover:underline"
@@ -279,7 +279,7 @@ export function TraceEvidence({
                 <ul className="flex flex-col gap-0.5">
                   {readCalls.map((call) => (
                     <li key={call.connectorId}>
-                      <span className="font-mono text-[0.6875rem]">{call.connectorId}</span>{' '}
+                      <span className="font-mono text-label">{call.connectorId}</span>{' '}
                       {whenComputed(call)}
                     </li>
                   ))}
@@ -302,11 +302,11 @@ export function TraceEvidence({
               : `${stage.survived} carried on`}
           </p>
           {stage.reason ? (
-            <p className="mt-2 text-label leading-relaxed text-content-muted">{stage.reason}</p>
+            <p className="mt-2 text-label text-content-muted">{stage.reason}</p>
           ) : null}
           <dl className="mt-2 flex flex-col">
             <Row label="Node">
-              <span className="font-mono text-[0.6875rem]">{stage.nodeId}</span>{' '}
+              <span className="font-mono text-label">{stage.nodeId}</span>{' '}
               <Badge tone="outline">{stage.nodeType}</Badge>
             </Row>
             <Row label="Time in this node">
@@ -317,7 +317,7 @@ export function TraceEvidence({
               )}
             </Row>
           </dl>
-          <p className="mt-3 text-label leading-relaxed text-content-subtle">
+          <p className="mt-3 text-label text-content-subtle">
             {stage.removed > 0
               ? 'Select a rule in the middle pane to see the evidence behind it.'
               : 'This node removed nothing.'}

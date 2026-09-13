@@ -88,7 +88,7 @@ export function Field({
 // --- Badge -----------------------------------------------------------------
 
 const badge = cva(
-  'inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-label font-medium leading-tight',
+  'inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-label font-medium ',
   {
     variants: {
       tone: {
@@ -199,7 +199,7 @@ export function CardHeader({
   return (
     <header className="flex items-start justify-between gap-4 border-b border-border px-card py-3.5">
       <div className="min-w-0">
-        <h2 className="text-[0.9375rem] font-semibold tracking-tight text-content">{title}</h2>
+        <h2 className="text-body font-semibold tracking-tight text-content">{title}</h2>
         {description ? (
           <p className="mt-0.5 text-label text-content-muted">{description}</p>
         ) : null}
@@ -236,7 +236,7 @@ export function PageHeader({
     <header className="mb-stack flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
         {breadcrumb ? <div className="mb-1">{breadcrumb}</div> : null}
-        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-content">{title}</h1>
+        <h1 className="text-title font-semibold tracking-[-0.01em] text-content">{title}</h1>
         {description ? (
           <p className="mt-1 max-w-3xl text-body text-content-muted">{description}</p>
         ) : null}
@@ -274,7 +274,7 @@ export function Metric({
   return (
     <div className="rounded-lg border border-border bg-surface px-card py-3">
       <p className="text-label uppercase tracking-wide text-content-subtle">{label}</p>
-      <p className={cn('tnum mt-1 text-xl font-semibold tabular-nums', toneCls[tone])}>
+      <p className={cn('tnum mt-1 text-figure font-semibold tabular-nums', toneCls[tone])}>
         {value}
       </p>
       {sub ? <p className="mt-0.5 text-label text-content-muted">{sub}</p> : null}

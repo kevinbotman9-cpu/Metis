@@ -103,6 +103,8 @@ module.exports = {
       fontSize: {
         body: 'var(--text-body)',
         label: 'var(--text-label)',
+        title: 'var(--text-title)',
+        figure: 'var(--text-figure)',
       },
       fontFamily: {
         sans: 'var(--font-sans)',

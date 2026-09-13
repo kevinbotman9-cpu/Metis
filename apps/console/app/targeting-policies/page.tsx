@@ -88,7 +88,7 @@ function PoliciesView() {
         <div>
           <Badge tone="outline">{p.scope.level}</Badge>
           {p.scope.targetId && (
-            <div className="mt-0.5 font-mono text-[0.6875rem] text-content-subtle">
+            <div className="mt-0.5 font-mono text-label text-content-subtle">
               {p.scope.targetId}
             </div>
           )}
@@ -104,7 +104,7 @@ function PoliciesView() {
           {p.conditions.map((c, i) => (
             <code
               key={i}
-              className="rounded-sm bg-surface-sunken px-1.5 py-0.5 font-mono text-[0.6875rem] text-content-muted"
+              className="rounded-sm bg-surface-sunken px-1.5 py-0.5 font-mono text-label text-content-muted"
             >
               {c.field} {c.operator} {JSON.stringify(c.value)}
             </code>
@@ -188,7 +188,7 @@ function PoliciesView() {
             >
               <div className="flex items-center justify-between">
                 <Badge tone={k.tone}>{k.title}</Badge>
-                <span className="tnum text-base font-semibold text-content">{count}</span>
+                <span className="tnum text-body font-semibold text-content">{count}</span>
               </div>
               <p className="mt-2 text-body font-medium text-content">{k.question}</p>
               <p className="mt-1 text-label text-content-muted">{k.blurb}</p>

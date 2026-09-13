@@ -290,7 +290,7 @@ function ChangeSetDetail({ id }: { id: string }) {
                   <dd className="text-right">
                     <Badge tone="outline">{cr.targetScope.level}</Badge>
                     {cr.targetScope.targetId && (
-                      <div className="mt-0.5 font-mono text-[0.6875rem] text-content-subtle">
+                      <div className="mt-0.5 font-mono text-label text-content-subtle">
                         {cr.targetScope.targetId}
                       </div>
                     )}

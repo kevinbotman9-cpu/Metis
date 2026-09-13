@@ -82,7 +82,7 @@ function FrequencyPolicyView() {
         <div>
           <Badge tone="outline">{p.scope.level}</Badge>
           {p.scope.targetId && (
-            <div className="mt-0.5 font-mono text-[0.6875rem] text-content-subtle">
+            <div className="mt-0.5 font-mono text-label text-content-subtle">
               {p.scope.targetId}
             </div>
           )}

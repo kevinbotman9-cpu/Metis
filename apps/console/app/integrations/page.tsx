@@ -66,7 +66,7 @@ function IntegrationsView() {
         <div>
           <div className="font-medium text-content">{c.name}</div>
           <div className="text-label text-content-muted">{c.description}</div>
-          <div className="mt-0.5 font-mono text-[0.6875rem] text-content-subtle">{c.target}</div>
+          <div className="mt-0.5 font-mono text-label text-content-subtle">{c.target}</div>
         </div>
       ),
     },
@@ -88,7 +88,7 @@ function IntegrationsView() {
             <span
               key={b.field}
               title={`${b.path} → ${b.field} (${b.type})`}
-              className="rounded-sm bg-surface-sunken px-1.5 py-0.5 font-mono text-[0.6875rem] text-content-muted"
+              className="rounded-sm bg-surface-sunken px-1.5 py-0.5 font-mono text-label text-content-muted"
             >
               {b.field}
             </span>
@@ -109,7 +109,7 @@ function IntegrationsView() {
             <span className={`tnum ${over ? 'font-semibold text-block' : 'text-content'}`}>
               {c.declaredP95Ms}ms
             </span>
-            <div className="text-[0.6875rem] text-content-subtle">
+            <div className="text-label text-content-subtle">
               {over
                 ? `over the ${LATENCY_BUDGET_MS}ms budget`
                 : `${Math.round((c.declaredP95Ms / LATENCY_BUDGET_MS) * 100)}% of budget`}
@@ -127,7 +127,7 @@ function IntegrationsView() {
       cell: (c) => (
         <div title={FAILURE_COPY[c.onFailure].help}>
           <Badge tone={FAILURE_COPY[c.onFailure].tone}>{FAILURE_COPY[c.onFailure].label}</Badge>
-          <div className="mt-0.5 text-[0.6875rem] text-content-subtle">
+          <div className="mt-0.5 text-label text-content-subtle">
             {c.cacheTtlSeconds > 0 ? `caches ${c.cacheTtlSeconds}s` : 'no cache'}
           </div>
         </div>

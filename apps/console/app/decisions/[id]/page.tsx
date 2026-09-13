@@ -183,7 +183,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
         }
         title={
           <span className="flex items-center gap-2">
-            <span className="font-mono text-base">{trace.id}</span>
+            <span className="font-mono text-title">{trace.id}</span>
             {trace.winner ? (
               <Badge tone="pass">{trace.winner}</Badge>
             ) : (
@@ -583,7 +583,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
                     replayed winner{' '}
                     <span className="font-mono">{replay.data.replayedWinner ?? 'none'}</span>.
                   </p>
-                  <dl className="mt-2 space-y-1 text-[0.6875rem]">
+                  <dl className="mt-2 space-y-1 text-label">
                     <div>
                       <dt className="text-content-subtle">Stored hash</dt>
                       <dd className="break-all font-mono">{replay.data.originalChainHash}</dd>
@@ -599,7 +599,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
                       <p className="mb-1 text-label font-medium text-block">What changed</p>
                       <ul className="space-y-1">
                         {replay.data.diff.slice(0, 8).map((d) => (
-                          <li key={d.path} className="font-mono text-[0.6875rem]">
+                          <li key={d.path} className="font-mono text-label">
                             <span className="text-content-subtle">{d.path}</span>{' '}
                             <span className="text-block">{JSON.stringify(d.original)}</span>
                             {' -> '}
@@ -645,7 +645,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
                 <p className="mb-1 text-label uppercase tracking-wide text-content-subtle">
                   Chain hash
                 </p>
-                <code className="block break-all rounded border border-border bg-surface-sunken px-2 py-1.5 font-mono text-[0.6875rem] text-content-muted">
+                <code className="block break-all rounded border border-border bg-surface-sunken px-2 py-1.5 font-mono text-label text-content-muted">
                   {trace.chainHash}
                 </code>
                 <p className="mt-1 text-label text-content-subtle">
@@ -678,7 +678,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
                           <span className="ml-2 text-label text-content-muted">
                             via {b.connectorId}
                           </span>
-                          <div className="font-mono text-[0.6875rem] text-content-subtle">
+                          <div className="font-mono text-label text-content-subtle">
                             at node {b.nodeId}
                           </div>
                         </div>
@@ -687,7 +687,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
                             <Badge tone={call.outcome === 'ok' ? 'pass' : 'block'}>
                               {call.outcome}
                             </Badge>
-                            <div className="tnum text-[0.6875rem] text-content-subtle">
+                            <div className="tnum text-label text-content-subtle">
                               {call.ms}ms {call.cacheHit ? 'cached' : 'live'}
                             </div>
                           </div>

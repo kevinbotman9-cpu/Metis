@@ -547,7 +547,7 @@ function DetailPane({
             id={headingId}
             ref={headingRef}
             tabIndex={-1}
-            className="text-lg font-semibold tracking-tight text-content outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="text-title font-semibold tracking-tight text-content outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             {title}
           </h2>

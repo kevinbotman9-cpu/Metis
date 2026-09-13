@@ -110,7 +110,7 @@ function LoginForm() {
                 <path d="M12 12 20 7.5M12 12v9M12 12 4 7.5" strokeLinejoin="round" />
               </svg>
             </span>
-            <h1 className="text-xl font-semibold tracking-tight text-content">METIS Console</h1>
+            <h1 className="text-title font-semibold tracking-tight text-content">METIS Console</h1>
             <p className="mt-1 text-body text-content-muted">
               Sign in to the decision platform
             </p>
@@ -211,10 +211,10 @@ function LoginForm() {
         />
 
         <div className="relative mx-auto w-full max-w-2xl text-on-brand">
-          <h2 className="text-3xl font-semibold leading-tight tracking-tight">
+          <h2 className="text-figure font-semibold tracking-tight">
             Decisions you can prove, months later
           </h2>
-          <p className="mt-3 max-w-xl text-base leading-relaxed text-on-brand/80">
+          <p className="mt-3 max-w-xl text-body text-on-brand/80">
             METIS separates authoring from execution. Agents propose, a compiler validates, and the
             runtime executes deterministically, so every decision can be replayed and defended.
           </p>
@@ -236,7 +236,7 @@ function LoginForm() {
                   {pillar.icon}
                 </svg>
                 <h3 className="mt-3 text-body font-semibold">{pillar.title}</h3>
-                <p className="mt-1 text-label leading-relaxed text-on-brand/75">{pillar.body}</p>
+                <p className="mt-1 text-label text-on-brand/75">{pillar.body}</p>
               </li>
             ))}
           </ul>
@@ -255,7 +255,7 @@ function LoginForm() {
               <div key={stat.label}>
                 <dt className="sr-only">{stat.label}</dt>
                 <dd>
-                  <span className="tnum block text-xl font-semibold">{stat.value}</span>
+                  <span className="tnum block text-figure font-semibold">{stat.value}</span>
                   <span className="mt-0.5 block text-label text-on-brand/70">{stat.label}</span>
                 </dd>
               </div>

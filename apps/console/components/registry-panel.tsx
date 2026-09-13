@@ -105,7 +105,7 @@ export function RegistryPanel({ flowName }: { flowName: string }) {
         )}
 
         <div>
-          <p className="mb-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-content-subtle">
+          <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.08em] text-content-subtle">
             Environments
           </p>
           <ul className="space-y-1.5">
@@ -118,7 +118,7 @@ export function RegistryPanel({ flowName }: { flowName: string }) {
                 >
                   <div className="min-w-0">
                     <span className="text-body text-content">{env}</span>
-                    <div className="font-mono text-[0.6875rem] text-content-subtle">
+                    <div className="font-mono text-label text-content-subtle">
                       {state?.activeVersion ? (
                         <>
                           {state.activeVersion}
@@ -146,7 +146,7 @@ export function RegistryPanel({ flowName }: { flowName: string }) {
         </div>
 
         <div>
-          <p className="mb-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-content-subtle">
+          <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.08em] text-content-subtle">
             Published versions
           </p>
           {versions.length === 0 ? (
@@ -161,7 +161,7 @@ export function RegistryPanel({ flowName }: { flowName: string }) {
                   <li key={v.version} className="rounded border border-border px-3 py-2">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="font-mono text-body text-content">{v.version}</span>
-                      <span className="font-mono text-[0.6875rem] text-content-subtle">
+                      <span className="font-mono text-label text-content-subtle">
                         {v.artifact.artifactHash.slice(0, 12)}
                       </span>
                     </div>
@@ -176,7 +176,7 @@ export function RegistryPanel({ flowName }: { flowName: string }) {
                           {v.warnings.length} warning{v.warnings.length === 1 ? '' : 's'}
                         </Badge>
                       )}
-                      <span className="text-[0.6875rem] text-content-subtle">
+                      <span className="text-label text-content-subtle">
                         {v.publishedBy}
                       </span>
                     </div>
@@ -185,7 +185,7 @@ export function RegistryPanel({ flowName }: { flowName: string }) {
                     {v.warnings.length > 0 && (
                       <ul className="mt-1 space-y-0.5">
                         {v.warnings.map((w, i) => (
-                          <li key={i} className="text-[0.6875rem] text-hold">
+                          <li key={i} className="text-label text-hold">
                             {w.code}: {w.message}
                           </li>
                         ))}
@@ -238,7 +238,7 @@ function RegistryLog({
 
   return (
     <div>
-      <p className="mb-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-content-subtle">
+      <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.08em] text-content-subtle">
         Registry log
       </p>
       <ul className="space-y-1.5">
@@ -248,7 +248,7 @@ function RegistryLog({
               {e.type}
             </span>
             <p className="text-label text-content-muted">{e.summary}</p>
-            <p className="text-[0.6875rem] text-content-subtle">
+            <p className="text-label text-content-subtle">
               {e.actor} · {format.dateTime(e.at)}
             </p>
           </li>

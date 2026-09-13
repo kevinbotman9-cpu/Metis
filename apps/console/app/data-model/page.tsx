@@ -71,7 +71,7 @@ function FieldRow({ field }: { field: SchemaFieldDto }) {
         {field.description}
       </span>
       {field.members?.length ? (
-        <span className="shrink-0 font-mono text-[0.6875rem] text-content-subtle">
+        <span className="shrink-0 font-mono text-label text-content-subtle">
           {field.members.join(' · ')}
         </span>
       ) : null}
@@ -238,7 +238,7 @@ function DataModelView() {
                   <span className="min-w-0 flex-1 truncate text-label text-content-muted">
                     {p.description}
                   </span>
-                  <span className="shrink-0 font-mono text-[0.6875rem] text-content-subtle">
+                  <span className="shrink-0 font-mono text-label text-content-subtle">
                     {p.operators.slice(0, 4).join(' ')}
                     {p.operators.length > 4 ? ' …' : ''}
                   </span>
