@@ -2,15 +2,25 @@
 
 import { Suspense, useCallback, useMemo, useState } from 'react';
 import NextLink from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQueries } from '@tanstack/react-query';
 import { descriptorFor, layoutFor, type LayoutManifest, type ListDetailManifest } from '@metis/ui-metadata';
 import { RequireAuth } from '@/components/require-auth';
 import { useAuth } from '@/components/auth-provider';
 import { EntityFormDialog } from '@/components/entity-form-dialog';
+import { DeleteDialog } from '@/components/delete-dialog';
 import { LoadingState, PageBody } from '@/components/ui/primitives';
 import { useOptionSources } from '@/lib/option-sources';
-import { bindingFor, sourceFor, type Row } from '@/lib/layouts/sources';
+import {
+  bindingFor,
+  invalidationsFor,
+  isRecordSource,
+  sourceFor,
+  type ListSource,
+  type Parent,
+  type RecordSource,
+  type Row,
+} from '@/lib/layouts/sources';
 import type { ListFilter } from '@/lib/layouts/list';
 import { ListDetail } from './list-detail';
 import type { LinkProps, PanelContext, SourceState } from './panel';
@@ -78,10 +88,38 @@ const Link = ({ href, className, children }: LinkProps) => (
 
 const NO_ROWS: Row[] = [];
 
+const keyOf = (queryKey: readonly unknown[]) => JSON.stringify(queryKey);
+const unique = (keys: string[]) => [...new Set(keys)];
+
+/**
+ * A source's rows from an answer, computed once per answer.
+ *
+ * The answer object is TanStack's cached reference, so it only changes when the
+ * data does; keying the rows on it keeps each source's array stable between
+ * renders, which the filters and the open-record effect depend on.
+ */
+const selections = new WeakMap<(data: unknown) => Row[], WeakMap<object, Row[]>>();
+function selectOnce(select: (data: unknown) => Row[], data: unknown): Row[] {
+  if (data === null || typeof data !== 'object') return NO_ROWS;
+  let byAnswer = selections.get(select);
+  if (!byAnswer) {
+    byAnswer = new WeakMap();
+    selections.set(select, byAnswer);
+  }
+  let rows = byAnswer.get(data);
+  if (!rows) {
+    rows = select(data);
+    byAnswer.set(data, rows);
+  }
+  return rows;
+}
+
 interface Dialog {
   entity: string;
   record: Row | null;
   defaults?: Record<string, unknown>;
+  /** The open record, when the form writes a record filed under it. */
+  parent: Parent | null;
   onSaved?: (saved: Row) => void;
 }
 
@@ -95,28 +133,73 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
   const descriptor = descriptorFor(entity);
   const binding = bindingFor(entity);
 
-  // --- data: every named source, resolved here and handed down.
+  // --- data: every named source, resolved here and handed down. A source
+  // scoped to a record is resolved for the open one only, once the renderer
+  // says which that is.
   const names = useMemo(() => sourcesOf(manifest), [manifest]);
+  const tenantWide = useMemo(() => names.filter((n) => !isRecordSource(sourceFor(n))), [names]);
+  const perRecord = useMemo(() => names.filter((n) => isRecordSource(sourceFor(n))), [names]);
+  const [openId, setOpenId] = useState<string | null>(null);
+  // One query per distinct key. Sources over the same operation — both levels
+  // of the taxonomy, or everything one offer is made of — share a key on
+  // purpose, so one write refreshes all of them; asked for twice in one
+  // useQueries, a key is a duplicate TanStack warns may misbehave. So the
+  // answer is fetched once, and each source selects its own rows from it.
+  const tenantSources = tenantWide.map((name) => sourceFor(name) as ListSource);
+  const tenantKeys = unique(tenantSources.map((s) => keyOf(s.queryKey)));
   const results = useQueries({
-    queries: names.map((name) => {
-      const source = sourceFor(name);
-      return { queryKey: source.queryKey, queryFn: source.queryFn, select: source.select };
+    queries: tenantKeys.map((key) => {
+      const source = tenantSources.find((s) => keyOf(s.queryKey) === key) as ListSource;
+      return { queryKey: source.queryKey, queryFn: source.queryFn };
     }),
   });
-  // Row arrays are stable between renders — TanStack memoises `select` — so
-  // nothing below needs this object itself to be.
-  const sources: Record<string, SourceState> = Object.fromEntries(
-    names.map((name, i): [string, SourceState] => {
-      const r = results[i];
-      return [name, { rows: r.data ?? NO_ROWS, status: r.isError ? 'error' : r.isPending ? 'loading' : 'ready' }];
-    })
-  );
+  const recordSources = perRecord.map((name) => sourceFor(name) as RecordSource);
+  const recordKeyOf = (s: RecordSource) => keyOf(s.queryKey(openId ?? ''));
+  const recordKeys = unique(recordSources.map(recordKeyOf));
+  const recordResults = useQueries({
+    queries: recordKeys.map((key) => {
+      const source = recordSources.find((s) => recordKeyOf(s) === key) as RecordSource;
+      return {
+        queryKey: source.queryKey(openId ?? ''),
+        queryFn: () => source.queryFn(openId ?? ''),
+        enabled: openId !== null,
+      };
+    }),
+  });
+  const stateOf = (
+    r: { data?: unknown; isError: boolean; isPending: boolean },
+    select: (data: unknown) => Row[]
+  ): SourceState => ({
+    rows: selectOnce(select, r.data),
+    status: r.isError ? 'error' : r.isPending ? 'loading' : 'ready',
+  });
+  // Row arrays are stable between renders — `selectOnce` keeps one per answer —
+  // so nothing below needs this object itself to be.
+  const sources: Record<string, SourceState> = Object.fromEntries([
+    ...tenantWide.map((name, i): [string, SourceState] => [
+      name,
+      stateOf(results[tenantKeys.indexOf(keyOf(tenantSources[i].queryKey))], tenantSources[i].select),
+    ]),
+    ...perRecord.map((name, i): [string, SourceState] => [
+      name,
+      stateOf(recordResults[recordKeys.indexOf(recordKeyOf(recordSources[i]))], recordSources[i].select),
+    ]),
+  ]);
   const list = sources[manifest.params.list.source];
+  const listResult = results[tenantKeys.indexOf(keyOf((sourceFor(manifest.params.list.source) as ListSource).queryKey))];
+  // A record's own source failing is its panel's to say. The screen fails only
+  // when what it lists does.
   const failed = results.find((r) => r.isError);
   const optionSources = useOptionSources(true);
 
-  // --- navigation state, in the URL.
+  // --- navigation state, in the URL. A screen with a detail route keeps the
+  // selection in the path, so the link to one record is that record's address;
+  // any other keeps it in the query string.
+  const routeParams = useParams();
+  const pathParam = manifest.params.detailRoute?.match(/\[(\w+)\]$/)?.[1];
   const selectionParam = entity.charAt(0).toLowerCase() + entity.slice(1);
+  const fromPath = pathParam ? routeParams?.[pathParam] : undefined;
+  const selected = pathParam ? ((Array.isArray(fromPath) ? fromPath[0] : fromPath) ?? null) : params.get(selectionParam);
   const replace = useCallback(
     (change: (next: URLSearchParams) => void) => {
       const next = new URLSearchParams(params.toString());
@@ -127,9 +210,18 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
     [params, pathname, router]
   );
   const onSelect = useCallback(
-    (id: string) => replace((next) => next.set(selectionParam, id)),
-    [replace, selectionParam]
+    (id: string) => {
+      if (!pathParam) return replace((next) => next.set(selectionParam, id));
+      const qs = params.toString();
+      router.replace(`${manifest.route}/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`, { scroll: false });
+    },
+    [replace, selectionParam, pathParam, params, router, manifest.route]
   );
+  const clearSelection = () => {
+    if (!pathParam) return replace((next) => next.delete(selectionParam));
+    const qs = params.toString();
+    router.replace(`${manifest.route}${qs ? `?${qs}` : ''}`, { scroll: false });
+  };
   const filter = useMemo<ListFilter>(
     () => ({
       query: params.get('q') ?? '',
@@ -149,7 +241,18 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
 
   // --- writes: the descriptor's form, saved through the entity's binding.
   const [dialog, setDialog] = useState<Dialog | null>(null);
-  const canEdit = useCallback((e: string) => hasPermission(bindingFor(e).permission), [hasPermission]);
+  const canEdit = useCallback(
+    (e: string) => Boolean(bindingFor(e).save) && hasPermission(bindingFor(e).permission),
+    [hasPermission]
+  );
+  const canDelete = useCallback(
+    (e: string) =>
+      Boolean(bindingFor(e).remove && descriptorFor(e).remove) && hasPermission(bindingFor(e).permission),
+    [hasPermission]
+  );
+  const [deleting, setDeleting] = useState<{ entity: string; record: Row; parent: Parent | null } | null>(null);
+  // A panel names the open record by its identity; the entity is this screen's.
+  const parentOf = (id?: string | null): Parent | null => (id ? { entity, id } : null);
   const context: PanelContext = {
     sources,
     optionSources,
@@ -160,8 +263,11 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
         entity: e,
         record: null,
         defaults: { ...bindingFor(e).defaults?.(seed?.siblings ?? []), ...seed?.defaults },
+        parent: parentOf(seed?.parent),
       }),
-    edit: (e, record) => setDialog({ entity: e, record }),
+    edit: (e, record, parent) => setDialog({ entity: e, record, parent: parentOf(parent) }),
+    canDelete,
+    remove: (e, record, parent) => setDeleting({ entity: e, record, parent: parentOf(parent) }),
     Link,
   };
   const editable = canEdit(entity);
@@ -175,8 +281,10 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
         list={list}
         error={failed?.error instanceof Error ? failed.error.message : undefined}
         onRetry={() => results.forEach((r) => r.isError && void r.refetch())}
-        selected={params.get(selectionParam)}
+        selected={selected}
         onSelect={onSelect}
+        onOpen={setOpenId}
+        refreshing={listResult?.isFetching ?? false}
         tab={params.get('tab')}
         onTab={(tab) => replace((next) => next.set('tab', tab))}
         filter={filter}
@@ -188,12 +296,14 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
                   entity,
                   record: null,
                   defaults: binding.defaults?.(list.rows),
+                  parent: null,
                   // The detail pane opens on what was just made.
                   onSaved: (saved) => onSelect(binding.identity(saved)),
                 })
             : undefined
         }
-        onEdit={editable ? (record) => setDialog({ entity, record }) : undefined}
+        onEdit={editable ? (record) => setDialog({ entity, record, parent: null }) : undefined}
+        onDelete={canDelete(entity) ? (record) => setDeleting({ entity, record, parent: null }) : undefined}
         context={context}
       />
       {dialog ? (
@@ -203,9 +313,26 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
           entity={dialog.entity}
           record={dialog.record}
           defaults={dialog.defaults}
-          save={bindingFor(dialog.entity).save}
-          invalidate={bindingFor(dialog.entity).invalidate}
+          // Only reachable through `canEdit`, which requires the binding to have a write.
+          save={(body, record) => bindingFor(dialog.entity).save!(body, record, dialog.parent)}
+          invalidate={invalidationsFor(bindingFor(dialog.entity), dialog.parent)}
           onSaved={dialog.onSaved}
+        />
+      ) : null}
+      {deleting ? (
+        <DeleteDialog<Row>
+          open
+          onOpenChange={(open) => !open && setDeleting(null)}
+          entity={deleting.entity}
+          record={deleting.record}
+          name={String(deleting.record.name ?? deleting.record.key ?? deleting.record.id ?? '')}
+          // Only reachable through `canDelete`, which requires the binding to have a delete.
+          remove={(record) => bindingFor(deleting.entity).remove!(record, deleting.parent)}
+          invalidate={invalidationsFor(bindingFor(deleting.entity), deleting.parent)}
+          onDeleted={(record) => {
+            // The open record is gone, so the address that named it names nothing.
+            if (deleting.entity === entity && binding.identity(record) === openId) clearSelection();
+          }}
         />
       ) : null}
     </>

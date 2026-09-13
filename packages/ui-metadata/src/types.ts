@@ -28,7 +28,23 @@ export type FieldType =
   /** A free list, entered comma-separated. */
   | 'tags'
   | 'boolean'
-  | 'date';
+  | 'date'
+  /**
+   * A list of field, operator and value — a targeting policy's rule. Added
+   * 2026-09-13, the first type since the registry began, because the server
+   * refuses a policy with no conditions and so a form without them could not
+   * create one (ADR-006, amended). Carried through form state as JSON; its
+   * options are the data model's selectable paths, from a named source.
+   */
+  | 'conditions';
+
+/** One condition of a `conditions` field, as the API holds it. */
+export interface RuleCondition {
+  /** A dotted path into the customer data model. */
+  field: string;
+  operator: string;
+  value: unknown;
+}
 
 /**
  * Constraints, declared once and rendered as native HTML attributes.
@@ -191,4 +207,10 @@ export interface EntityDescriptor {
   moneyCurrencyDefault?: string;
   create: { title: string; description: string; submitLabel: string };
   edit: { description: string; submitLabel: string };
+  /**
+   * What deleting one says, for an entity that can be deleted. Absent, and no
+   * screen offers a delete. The copy lives here with the rest of the entity's
+   * words: what a delete costs is a fact about the entity, not about a screen.
+   */
+  remove?: { title: string; description: string; confirmLabel: string };
 }

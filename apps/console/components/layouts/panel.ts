@@ -26,14 +26,23 @@ export interface PanelContext {
   /** The descriptors' option sources, so a chosen value can be named. */
   optionSources: Readonly<Record<string, readonly Option[]>>;
   permissions: readonly string[];
-  /** Whether the session may create or edit this entity. */
+  /** Whether the session may create or edit this entity: it holds the permission, and the entity has a write. */
   canEdit: (entity: string) => boolean;
   /**
    * Opens the entity's descriptor form. The host owns the dialog, and fills in
    * the entity's own defaults given the records the new one lands beside.
+   * `parent` is the open record's identity, when the new one is filed under it
+   * and the write needs to know which.
    */
-  create: (entity: string, seed?: { defaults?: Record<string, unknown>; siblings?: readonly Row[] }) => void;
-  edit: (entity: string, record: Row) => void;
+  create: (
+    entity: string,
+    seed?: { defaults?: Record<string, unknown>; siblings?: readonly Row[]; parent?: string | null }
+  ) => void;
+  edit: (entity: string, record: Row, parent?: string | null) => void;
+  /** Whether the session may delete this entity: the permission, a declared delete, and a write for it. */
+  canDelete: (entity: string) => boolean;
+  /** Asks to delete a record. The host confirms it in the entity's own words, and says a refusal. */
+  remove: (entity: string, record: Row, parent?: string | null) => void;
   /** next/link in the console; an anchor in Storybook, which has no router. */
   Link: ComponentType<LinkProps>;
 }

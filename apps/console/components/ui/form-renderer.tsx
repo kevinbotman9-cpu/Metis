@@ -12,6 +12,7 @@ import {
   type Option,
 } from '@metis/ui-metadata';
 import { Field, Input, Select } from '@/components/ui/primitives';
+import { ConditionsField } from '@/components/ui/conditions-field';
 import { cn } from '@/lib/cn';
 
 /**
@@ -122,6 +123,7 @@ export function FormRenderer({
                 enabled={isEnabled(field, form, editing)}
                 options={resolveOptions(field, form, optionSources)}
                 problem={problems[field.field]}
+                rowProblems={rowsOf(problems, field.field)}
                 id={`${idPrefix}-${field.field.replace(/\./g, '-')}`}
                 onChange={(v) => {
                   onTouch(field.field);
@@ -136,12 +138,23 @@ export function FormRenderer({
   );
 }
 
+/** Refusals of single rows of a list field — `conditions.2` — by row index. */
+function rowsOf(problems: Record<string, string>, field: string): Record<number, string> {
+  const rows: Record<number, string> = {};
+  for (const [key, message] of Object.entries(problems)) {
+    const rest = key.startsWith(`${field}.`) ? key.slice(field.length + 1) : '';
+    if (/^\d+$/.test(rest)) rows[Number(rest)] = message;
+  }
+  return rows;
+}
+
 function FormField({
   field,
   value,
   enabled,
   options,
   problem,
+  rowProblems,
   id,
   onChange,
 }: {
@@ -150,9 +163,28 @@ function FormField({
   enabled: boolean;
   options: readonly Option[];
   problem?: string;
+  rowProblems: Record<number, string>;
   id: string;
   onChange: (value: string) => void;
 }) {
+  if (field.type === 'conditions') {
+    return (
+      <div className="sm:col-span-3">
+        <ConditionsField
+          id={id}
+          label={field.label}
+          help={field.help}
+          value={value}
+          onChange={onChange}
+          options={options}
+          enabled={enabled}
+          problem={problem}
+          rowProblems={rowProblems}
+        />
+      </div>
+    );
+  }
+
   const v = field.validation;
   const described = problem ? `${id}-error` : undefined;
   const shared = {

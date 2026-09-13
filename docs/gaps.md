@@ -44,6 +44,121 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-112 — A route's bundle budget counts the screens it links to, so a link can fail an unrelated route
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-081](BACKLOG.md)
+
+`tests/bundle/bundle-size.spec.ts` sums every JavaScript chunk a route loads
+before the network goes idle. That includes what Next's router prefetches for
+the links visible on the page, so a route's number is its own code plus the
+screens it links to.
+
+Measured on 2026-09-13 at `f371c7f` with
+`apps/console/scripts/measure-route-payload.mjs --prefetch both`, aborting router
+prefetch requests in the second run:
+
+| Route | Prefetch on | Prefetch off | Prefetch adds |
+|---|---|---|---|
+| `/` | 811.5 kB | 664.7 kB | 146.8 kB |
+| `/offers` | 871.5 kB | 712.7 kB | 158.8 kB |
+| `/creatives` | 847.5 kB | 671.9 kB | 175.6 kB |
+| `/decisions` | 682.7 kB | 581.1 kB | 101.6 kB |
+| `/decision-flows` | 833.3 kB | 582.8 kB | 250.5 kB |
+| `/decision-flows/next-best-action` | 1018.4 kB | 790.2 kB | 228.2 kB |
+| `/audit` | 682.7 kB | 576.2 kB | 106.5 kB |
+| `/settings` | 756.6 kB | 661.6 kB | 95.0 kB |
+
+Every signed-in route pays a flat 95 kB for change sets it links to from the
+header — the `/approvals/cr_…` links present on every page — which the budget
+file had described as the shell. `/decision-flows` itself is 13 kB of route
+code; 155 kB of its number is `/arbitration` and `/placements`, prefetched from
+its links, and it failed its budget on 2026-09-13 because slice three made
+those two screens heavier. Nothing on `/decision-flows` changed.
+
+So a budget does not say what a route costs. Adding a link to a heavy screen,
+or making a linked screen heavier, fails routes that did not change — and the
+failure message tells whoever reads it to trim a page they did not touch.
+
+**A second effect: the number was not repeatable.** Which links have
+prefetched by the time the network goes idle varies between runs, so one
+build gives different numbers. On 2026-09-13 the same commit measured
+`/offers` at 871.5 kB locally and 885.2 kB on CI, and failed CI's run against
+a budget the local run passed. Every other route matched to the decimal. A
+budget that cannot measure one build twice the same way is not a budget: it
+fails at random, and the failure names a route that may not have changed.
+
+**What landed on 2026-09-13.** `bundle-size.spec.ts` aborts router prefetch
+requests and reports how many it did not count. Two runs of one build then
+measured every route to the same byte, although the prefetch requests aborted
+differed between them — 3 against 11 on `/decisions` — which is the variance
+this entry describes, now outside the number. The budgets were reset from
+that measurement in the same change.
+
+What is still missing is the check that would have caught this: a test that
+makes a linked screen heavier and proves the route linking to it does not
+fail.
+
+### G-111 — The descriptor registry and the panel registry load whole on every route that touches either
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-080](BACKLOG.md)
+
+The route budgets tripped on 2026-09-13, in the batch that declared targeting
+policies and arbitration and made offers and approvals list–detail screens. The
+first reading was that the shared shell had grown. It had not: across the batch
+the shell grew 0.8 kB, and every kilobyte of the overrun was route-side.
+Measured per commit with `apps/console/scripts/measure-route-payload.mjs`.
+
+The growth is two chunks, each loaded as a unit:
+
+- **The descriptor and layout registry, 40 kB.** `@metis/ui-metadata` exports
+  every descriptor and every manifest from one module, so a route that imports
+  one descriptor — `/creatives` for the creative form, `/settings` for tenant
+  settings — ships every descriptor's copy, every manifest, the `conditions`
+  editor's strings and the arbitration weights.
+- **The list–detail host and every panel, 54 kB.** `PANEL_COMPONENTS` imports
+  each panel so the map is complete, which means a screen rendering placements
+  ships the offer panels and the change-set diff too.
+
+Per-commit growth in route-side JavaScript, prefetch on, as the budget measures:
+slice one (the renderer) +1.8 kB; slice three (the declared policy and
+arbitration forms, the `conditions` type, the deletes) +14 kB on `/offers` and
+`/creatives` and +48 kB on `/decision-flows`; slice two (offers and approvals as
+list–detail screens) +45 kB on `/offers`, +21 kB on `/creatives`, and +136 kB on
+`/`, which is G-112.
+
+The budgets were first raised on 2026-09-13 to let that batch land, with this as
+the recorded reason, and then reset the same day from a measurement without
+prefetch (G-112). Those two chunks are still in every figure for a route that
+touches either. The cost is structural: every descriptor or panel added for one
+screen is paid by every screen that uses any descriptor, and it grows with the
+registry, not with the screen.
+
+What is missing is a registry a route can import per entity and per manifest,
+and panels loaded per manifest.
+
+### G-110 — A targeting policy, a placement and a creative can be deleted only through proposed operations
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-079](BACKLOG.md)
+
+The console could create and edit all three and delete none: the spec had no
+delete operation for any of them, so a policy written by mistake stayed in the
+list and a slot configured by mistake stayed in the registry. Asked for on
+2026-09-13, in the batch that gave targeting policies and arbitration their
+descriptors.
+
+`deleteTargetingPolicy`, `deletePlacement` and `deleteCreative` are added to
+`docs/metis-api.openapi.yaml` as `x-metis-status: proposed`, and the console's
+development API serves them. Each refuses rather than cascades while something
+still depends on the record — an offer bound to the policy, a creative naming
+the slot, an active offer whose last deliverable content this is — because a
+delete that quietly changed what decisions do would be a decision nobody made.
+
+`ArbitrationConfig` has no delete, deliberately. It is one record per tenant, and
+a tenant without one has no ranking function, which publishing already refuses
+(`UNKNOWN_UTILITY_FUNCTION`).
+
+What is missing is a plane serving the three operations, with the same refusals.
+
 ### G-109 — What the engines are held to is a proposed operation, and it can name the checks but not their results
 
 **Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-078](BACKLOG.md)

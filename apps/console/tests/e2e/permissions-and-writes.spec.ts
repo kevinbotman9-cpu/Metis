@@ -59,15 +59,17 @@ test.describe('writes persist', () => {
     await login(page, ACCOUNTS.marcus);
     await page.goto('/arbitration');
 
-    const context = page.getByRole('slider', { name: 'Context weight', exact: true });
+    // A number, drawn by the generic renderer from the ArbitrationConfig
+    // descriptor; it was a range slider until the weights were declared.
+    const context = page.getByRole('spinbutton', { name: 'Context weight', exact: true });
     await context.fill('0.35');
     await page.getByRole('button', { name: /Publish weights/ }).click();
     await expect(page.getByText('Published. Recorded in the audit log.', { exact: true })).toBeVisible();
 
     await page.reload();
     // The saved weight itself. The formula draws it as a symbol beside a superscript,
-    // so no element's whole text is "C0.35"; the slider carries the value that persisted.
-    await expect(page.getByRole('slider', { name: 'Context weight', exact: true })).toHaveValue('0.35');
+    // so no element's whole text is "C0.35"; the field carries the value that persisted.
+    await expect(page.getByRole('spinbutton', { name: 'Context weight', exact: true })).toHaveValue('0.35');
 
     await page.goto('/audit');
     await expect(page.getByText('ArbitrationWeightsChanged', { exact: true }).first()).toBeVisible();
@@ -198,7 +200,7 @@ test.describe('creating an offer', () => {
     await page.goto('/offers');
     // Found by filtering rather than by scrolling: the seeded tenant holds 251
     // offers, so a newly created one is not on the first page.
-    await page.getByLabel('Search offers', { exact: true }).fill('Speed Boost 100Mb');
+    await page.getByLabel('Filter offers', { exact: true }).fill('Speed Boost 100Mb');
     await expect(page.getByText('Speed Boost 100Mb', { exact: true }).first()).toBeVisible();
   });
 

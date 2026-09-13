@@ -226,6 +226,28 @@ screen with manifest `targeting-policies` — and nothing else.
 | **Split result** (4.6) | `setup`, `summary.figures` (three), `result.tabs` | Yes. The winners / losers / unchanged tabs, and the rule that a result is always segmented, belong to the renderer |
 | **Cascade** (4.7) | `stage.detail`, `evidence` | Yes, with the tightest type: stages declared in order, each a subset of the one above, and a declared break where one exists. A manifest over a list with no spine does not validate, which is §4.7's own warning made mechanical |
 
+**Amended 2026-09-13, when list–detail took its first detail routes.** Three
+things the table above left open are now decided, each forced by `/offers/[id]`
+and `/approvals/[id]` becoming panes:
+
+- **A screen with a `detailRoute` keeps its selection in the path.** The detail
+  route is the screen's route and one dynamic segment, its page renders the same
+  manifest, and selecting a row replaces `/offers/a` with `/offers/b`. Every link
+  already written to a record keeps working, and a link to a record the list does
+  not hold shows a not-found pane rather than quietly opening the first row.
+  `validateLayout` refuses any other shape.
+- **A facet may be derived.** A bare string is still a field with a closed set of
+  values — which now includes options from a named source, so a tenant's
+  categories are filterable without listing them. The object form
+  `{ field, label, options }` is for a value the source computes, such as an
+  offer that cannot be delivered. Two screens use it (offers and change sets),
+  which is what §1 asks of a pattern parameter.
+- **A source may be scoped to the open record**, resolved for the record in the
+  detail pane only, and a binding's write receives that record as its parent —
+  a creative is created under an offer, and the operation's path names it. Both
+  live in the console (`lib/layouts/sources.ts`); the manifest still only names
+  sources.
+
 ### 4. The patterns Part 3 names that are not among the seven
 
 This ADR does not grow the catalogue by itself. It proposes which names fold into

@@ -22,8 +22,11 @@ import { useFormat } from '@/components/tenant-format';
 interface Params {
   source: string;
   entity: string;
-  /** The child's field holding the open record's identity. */
-  by: string;
+  /**
+   * The child's field holding the open record's identity. Absent when the
+   * source is already scoped to the open record, and every row it holds is one.
+   */
+  by?: string;
   title: string;
   subtitle?: string;
   description?: string;
@@ -48,14 +51,16 @@ export function RelatedList({ occupant, recordId, context }: PanelProps) {
   if (!source || source.status === 'loading') return <LoadingState label={`Loading ${child.noun.plural}`} />;
   if (source.status === 'error') return <ErrorState title={`Could not load ${child.noun.plural}`} />;
 
-  const children = source.rows
-    .filter((r) => String(getPath(r, p.by) ?? '') === recordId)
-    .sort((a, b) => Number(getPath(a, p.sort ?? '') ?? 0) - Number(getPath(b, p.sort ?? '') ?? 0));
+  const { by, sort } = p;
+  const children = by ? source.rows.filter((r) => String(getPath(r, by) ?? '') === recordId) : [...source.rows];
+  if (sort) children.sort((a, b) => Number(getPath(a, sort) ?? 0) - Number(getPath(b, sort) ?? 0));
   const create = context.canEdit(p.entity) ? (
     <Button
       variant="primary"
       size="sm"
-      onClick={() => context.create(p.entity, { defaults: { [p.by]: recordId }, siblings: children })}
+      onClick={() =>
+        context.create(p.entity, { defaults: by ? { [by]: recordId } : {}, siblings: children, parent: recordId })
+      }
     >
       {child.create.title}
     </Button>
@@ -107,10 +112,20 @@ export function RelatedList({ occupant, recordId, context }: PanelProps) {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => context.edit(p.entity, row)}
+                    onClick={() => context.edit(p.entity, row, recordId)}
                     aria-label={`Edit ${child.noun.singular} ${title}`}
                   >
                     Edit
+                  </Button>
+                ) : null}
+                {context.canDelete(p.entity) ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => context.remove(p.entity, row, recordId)}
+                    aria-label={`Delete ${child.noun.singular} ${title}`}
+                  >
+                    Delete
                   </Button>
                 ) : null}
               </div>

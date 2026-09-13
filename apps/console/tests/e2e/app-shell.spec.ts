@@ -123,7 +123,8 @@ test.describe('command palette', () => {
     await option.click();
 
     await expect(page).toHaveURL(/\/offers\/off_/);
-    await expect(page.getByRole('heading', { level: 1, name: /5G Home Ultimate/ })).toBeVisible();
+    // The offer opens in the catalogue's detail pane, whose heading is the offer's.
+    await expect(page.getByRole('heading', { level: 2, name: '5G Home Ultimate', exact: true })).toBeVisible();
   });
 
   test('reaches a decision by id, which is otherwise URL-only', async ({ page }) => {

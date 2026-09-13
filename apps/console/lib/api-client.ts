@@ -206,6 +206,8 @@ async function apiCall<T>(
     throw new ApiError(response.status, code, message, problems);
   }
 
+  // A delete answers 204 with no body, and reading one would throw.
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 
@@ -317,6 +319,10 @@ export const apiClient = {
       body: changes,
     }),
 
+  /** Proposed (G-110). Refused while a creative names the slot. */
+  deletePlacement: (placementKey: string, tenantId: string = TENANT) =>
+    apiCall<void>('deletePlacement', { params: { tenantId, placementKey } }),
+
   /**
    * What the platform did about delivering one decision — ADR-013 §1.
    *
@@ -348,6 +354,10 @@ export const apiClient = {
       params: { tenantId, offerId, creativeId },
       body: changes,
     }),
+
+  /** Proposed (G-110). Refused when it would leave an active offer nothing to deliver. */
+  deleteCreative: (offerId: string, creativeId: string, tenantId: string = TENANT) =>
+    apiCall<void>('deleteCreative', { params: { tenantId, offerId, creativeId } }),
 
   // --- Policies and arbitration -------------------------------------------
   listTargetingPolicies: (kind?: string, tenantId: string = TENANT) =>
@@ -564,6 +574,10 @@ export const apiClient = {
       params: { tenantId, policyId: policy.id },
       body: policy,
     }),
+
+  /** Proposed (G-110). Refused while an offer is bound to the policy. */
+  deleteTargetingPolicy: (policyId: string, tenantId: string = TENANT) =>
+    apiCall<void>('deleteTargetingPolicy', { params: { tenantId, policyId } }),
 
   /** Traffic served by the API — the inbound half of integration. */
   listInboundCalls: (limit = 100) =>

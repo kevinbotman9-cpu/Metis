@@ -31,7 +31,8 @@ async function createOffer(page: import('@playwright/test').Page, name: string) 
   await d.getByLabel('Category').selectOption('grp_entertainment');
   await d.getByLabel('Price / month').fill('8.00');
   await d.getByRole('button', { name: 'Create offer' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: new RegExp(name) })).toBeVisible();
+  // It opens beside the catalogue, and the detail pane's heading is the offer's.
+  await expect(page.getByRole('heading', { level: 2, name, exact: true })).toBeVisible();
 }
 
 test.describe('declared forms @screen-only', () => {
@@ -135,7 +136,7 @@ test.describe('declared forms @screen-only', () => {
     await contract.fill('https://terms.telco.example/proof');
     await d.getByRole('button', { name: 'Create offer' }).click();
 
-    await expect(page.getByRole('heading', { level: 1, name: /Descriptor proof offer/ })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Descriptor proof offer', exact: true })).toBeVisible();
 
     // Reopen it: the value came back from the server, so it was stored rather
     // than merely accepted by the form.
@@ -164,6 +165,8 @@ test.describe('the declared creative form @screen-only', () => {
 
   async function addCreativeTo(page: import('@playwright/test').Page, name: string) {
     await createOffer(page, name);
+    // Creatives are a tab of the offer's pane.
+    await page.getByRole('tab', { name: 'Creatives', exact: true }).click();
     await page.getByRole('button', { name: 'Add creative', exact: true }).first().click();
     await expect(dialog(page).getByRole('heading', { name: 'Add creative' })).toBeVisible();
   }

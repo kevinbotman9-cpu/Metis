@@ -32,9 +32,16 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { apiClient, type TargetingPolicyDto } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth-provider';
-import { PolicyFormDialog } from '@/components/policy-form-dialog';
+import { EntityFormDialog } from '@/components/entity-form-dialog';
+import { DeleteDialog } from '@/components/delete-dialog';
+import { bindingFor, invalidationsFor, type Row } from '@/lib/layouts/sources';
 import { cn } from '@/lib/cn';
 import { InfoTip } from '@/components/ui/tooltip';
+
+/** How a policy is written. Shared with any screen that writes one. */
+const POLICY = bindingFor('TargetingPolicy');
+/** Stable, because the form resets whenever its defaults change identity. */
+const POLICY_DEFAULTS = POLICY.defaults?.([]);
 
 const KINDS = [
   {
@@ -186,6 +193,7 @@ function PoliciesView() {
   const canEdit = hasPermission('edit:policies');
   const [editing, setEditing] = useState<TargetingPolicyDto | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState<TargetingPolicyDto | null>(null);
 
   const columns: Column<TargetingPolicyDto>[] = [
     {
@@ -257,11 +265,16 @@ function PoliciesView() {
           {
             key: 'edit',
             header: '',
-            width: 'w-20',
+            width: 'w-40',
             cell: (p: TargetingPolicyDto) => (
-              <Button variant="secondary" onClick={() => setEditing(p)}>
-                Edit
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setEditing(p)}>
+                  Edit
+                </Button>
+                <Button variant="secondary" onClick={() => setDeleting(p)} aria-label={`Delete policy ${p.name}`}>
+                  Delete
+                </Button>
+              </div>
             ),
           } as Column<TargetingPolicyDto>,
         ]
@@ -319,13 +332,31 @@ function PoliciesView() {
       ) : (
       <>
 
-      <PolicyFormDialog open={creating} onOpenChange={setCreating} />
-      <PolicyFormDialog
-        open={editing !== null}
+      {/* The declared form: `packages/ui-metadata/src/registry/targeting-policy.ts`,
+          written through the entity's binding, which is where the scope a new
+          policy takes is decided. */}
+      <EntityFormDialog<Row>
+        open={creating || editing !== null}
         onOpenChange={(o) => {
-          if (!o) setEditing(null);
+          if (!o) {
+            setCreating(false);
+            setEditing(null);
+          }
         }}
-        policy={editing ?? undefined}
+        entity="TargetingPolicy"
+        record={(editing as unknown as Row) ?? null}
+        defaults={POLICY_DEFAULTS}
+        save={(body, record) => POLICY.save!(body, record, null)}
+        invalidate={invalidationsFor(POLICY, null)}
+      />
+      <DeleteDialog<TargetingPolicyDto>
+        open={deleting !== null}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        entity="TargetingPolicy"
+        record={deleting}
+        name={deleting?.name ?? ''}
+        remove={(record) => POLICY.remove!(record as unknown as Row, null)}
+        invalidate={invalidationsFor(POLICY, null)}
       />
 
       <div className="mb-stack grid gap-3 lg:grid-cols-3">

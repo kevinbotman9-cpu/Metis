@@ -66,6 +66,21 @@ test.describe('route bundle budgets', () => {
         await page.context().clearCookies({ name: '__never' }).catch(() => {});
       }
 
+      // What the route loads to render, not what Next prefetches for the links
+      // on it. Counting prefetch made a route's number include every screen it
+      // links to, and made it differ between runs of one build: /offers measured
+      // 871.5 kB and 885.2 kB from the same code on 2026-09-13, depending on
+      // which links had prefetched when the network went idle (G-112). Aborted
+      // requests are counted, so a measurement that stopped seeing prefetch at
+      // all would be visible rather than silently cheaper.
+      let prefetchesAborted = 0;
+      await page.route('**/*', (r) => {
+        const prefetch = Object.keys(r.request().headers()).some((k) => k.toLowerCase().includes('prefetch'));
+        if (!prefetch) return r.continue();
+        prefetchesAborted += 1;
+        return r.abort();
+      });
+
       jsBytes = 0;
       pending.length = 0;
       await page.goto(route, { waitUntil: 'networkidle' });
@@ -82,7 +97,7 @@ test.describe('route bundle budgets', () => {
       // Reported on every run, pass or fail: a budget nobody sees the headroom
       // on is a budget that gets raised in a hurry the first time it trips.
       // eslint-disable-next-line no-console
-      console.log(`${route}: ${actual} kB of ${budget} kB`);
+      console.log(`${route}: ${actual} kB of ${budget} kB (${prefetchesAborted} prefetch requests not counted)`);
 
       expect(
         actual,

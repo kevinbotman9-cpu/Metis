@@ -80,7 +80,12 @@ test.describe('authoring an offer', () => {
 
   test('adds a creative, puts each refusal on its own field, then activates', async ({ page }) => {
     await newOffer(page, 'Speed Boost 100Mb');
-    await page.getByRole('button', { name: 'Add the first creative', exact: true }).click();
+    // The offer opens beside the catalogue; its creatives are a tab of the pane.
+    // Waited for first: a tab chosen while the address is still moving to the
+    // new offer would be chosen on the page being left.
+    await expect(page.getByRole('heading', { level: 2, name: 'Speed Boost 100Mb', exact: true })).toBeVisible();
+    await page.getByRole('tab', { name: 'Creatives', exact: true }).click();
+    await page.getByRole('button', { name: 'Add creative', exact: true }).click();
 
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Name').fill('Speed Boost — SMS');
@@ -116,16 +121,14 @@ test.describe('authoring an offer', () => {
   test('edits a creative through the console', async ({ page }) => {
     await page.goto('/offers/off_fios_gigabit');
     // The creative's own Edit, addressed by what it edits rather than by its
-    // position among the page's Edit buttons — which is what made this depend
+    // position among the pane's Edit buttons — which is what made this depend
     // on how many creatives the offer happened to have. G-003.
     //
     // The *email* one specifically, because the field filled below is a
-    // subject line and only an email creative has one. The content section is
-    // per channel and opens on Web, so the channel is chosen first: taking the
-    // first Edit button on the page worked while this offer's default channel
-    // happened to hold the email creative, and this tenant's holds a web tile
-    // whose content is a headline.
-    await page.getByRole('button', { name: 'Email', exact: true }).click();
+    // subject line and only an email creative has one. Every creative is listed
+    // in the Creatives tab, so it is found by name rather than by first opening
+    // its channel.
+    await page.getByRole('tab', { name: 'Creatives', exact: true }).click();
     await page.getByRole('button', { name: /^Edit creative .*email/i }).first().click();
 
     const dialog = page.getByRole('dialog');
@@ -137,7 +140,11 @@ test.describe('authoring an offer', () => {
     await dialog.getByLabel('Subject').fill('Fibre is ready — one week left');
     await dialog.getByRole('button', { name: 'Save creative' }).click();
     await expect(dialog).toBeHidden();
-    await expect(page.getByText('Fibre is ready — one week left', { exact: true })).toBeVisible();
+
+    // The pane lists creatives by name, not by content, so the stored subject
+    // is read back where it lives: the creative's own form, reopened.
+    await page.getByRole('button', { name: /^Edit creative .*email/i }).first().click();
+    await expect(page.getByRole('dialog').getByLabel('Subject')).toHaveValue('Fibre is ready — one week left');
   });
 
   test('offers nothing to write with to an account that cannot author', async ({ page }) => {
@@ -153,6 +160,7 @@ test.describe('authoring an offer', () => {
     await expect(page.getByRole('button', { name: 'New offer', exact: true })).toHaveCount(0);
 
     await page.goto('/offers/off_5g_home_ultimate');
+    await page.getByRole('tab', { name: 'Creatives', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Add creative', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Activate', exact: true })).toHaveCount(0);
   });
@@ -166,6 +174,7 @@ test.describe('authoring an offer', () => {
     expect((await new AxeBuilder({ page }).withTags(TAGS).analyze()).violations).toEqual([]);
 
     await page.goto('/offers/off_5g_home_ultimate');
+    await page.getByRole('tab', { name: 'Creatives', exact: true }).click();
     await page.getByRole('button', { name: 'Add creative', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     expect((await new AxeBuilder({ page }).withTags(TAGS).analyze()).violations).toEqual([]);

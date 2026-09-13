@@ -149,7 +149,9 @@ test.describe('content coverage @screen-only', () => {
     const first = coverage(page).locator('tbody tr').first().getByRole('link').first();
     const name = await first.innerText();
     await first.click();
-    await expect(page.getByRole('heading', { level: 1 })).toContainText(name.slice(0, 20));
+    // The offer opens in the catalogue's detail pane, whose heading is the offer's.
+    await expect(page).toHaveURL(/\/offers\/[^/?]+/);
+    await expect(page.getByRole('heading', { level: 2, name, exact: true })).toBeVisible();
   });
 
   test('explains its three states without needing a mouse', async ({ page }) => {

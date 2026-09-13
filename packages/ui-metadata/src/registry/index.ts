@@ -5,6 +5,9 @@ import { objectiveDescriptor } from './objective';
 import { categoryDescriptor } from './category';
 import { placementDescriptor } from './placement';
 import { tenantSettingsDescriptor } from './tenant-settings';
+import { targetingPolicyDescriptor } from './targeting-policy';
+import { arbitrationConfigDescriptor } from './arbitration-config';
+import { changeSetDescriptor } from './change-set';
 
 /**
  * The metadata registry.
@@ -16,6 +19,11 @@ import { tenantSettingsDescriptor } from './tenant-settings';
  *
  * `packages/ui-metadata/tests/descriptors.test.ts` diffs each descriptor
  * against its OpenAPI schema in both directions.
+ *
+ * One entry is read, never written: `ChangeSet`, which `/approvals` shows
+ * through the list–detail renderer, and which the renderer names in its
+ * descriptor's words. It has no binding write, so no screen offers a form for
+ * it, and it is not in `USER_EDITABLE_ENTITIES`.
  */
 export const REGISTRY: Record<string, EntityDescriptor> = {
   Objective: objectiveDescriptor,
@@ -24,6 +32,9 @@ export const REGISTRY: Record<string, EntityDescriptor> = {
   Category: categoryDescriptor,
   Offer: offerDescriptor,
   Creative: creativeDescriptor,
+  TargetingPolicy: targetingPolicyDescriptor,
+  ArbitrationConfig: arbitrationConfigDescriptor,
+  ChangeSet: changeSetDescriptor,
 };
 
 /**
@@ -70,9 +81,7 @@ export const USER_EDITABLE_ENTITIES = [
  */
 export const PENDING: Record<string, string> = {
   DecisionFlow: 'Authored on the canvas, not in a form. Needs a descriptor for its metadata only.',
-  TargetingPolicy: 'Hand-built in components/policy-form-dialog.tsx.',
   FrequencyPolicy: 'Read-only screen today; no write endpoint is served.',
-  ArbitrationConfig: 'Edited as weights on /arbitration, not as an entity form.',
   Audience: 'No schema in the spec and no screen. Declared in the console spec only.',
   Model: 'Gate 2. No schema, no screen.',
   Channel: 'Supplied by a channel package rather than authored in the console.',
@@ -98,4 +107,7 @@ export {
   placementDescriptor,
   offerDescriptor,
   creativeDescriptor,
+  targetingPolicyDescriptor,
+  arbitrationConfigDescriptor,
+  changeSetDescriptor,
 };

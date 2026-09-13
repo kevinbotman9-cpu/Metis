@@ -58,6 +58,12 @@ export const creativeDescriptor: EntityDescriptor = {
     description: 'Changes are delivered immediately and are written to the audit log.',
     submitLabel: 'Save creative',
   },
+  remove: {
+    title: 'Delete this creative?',
+    description:
+      'It is not delivered again and cannot be restored. The last active content of an active offer is refused: pause or retire the offer first.',
+    confirmLabel: 'Delete creative',
+  },
 
   groups: [
     { key: 'identity', order: 10, columns: 2 },

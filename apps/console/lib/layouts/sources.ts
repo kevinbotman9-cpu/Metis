@@ -1,8 +1,13 @@
 import {
   apiClient,
   type CategoryDto,
+  type ChangeSetDto,
+  type OfferDetailDto,
+  type CreativeDto,
   type ObjectiveDto,
+  type OfferDto,
   type PlacementDto,
+  type TargetingPolicyDto,
   type TaxonomyDto,
 } from '@/lib/api-client';
 
@@ -27,11 +32,30 @@ export interface ListSource {
   select: (data: unknown) => Row[];
 }
 
+/**
+ * A source scoped to the open record: what one offer is made of, read by the
+ * operation that answers for one offer. The host resolves it for the record in
+ * the detail pane, and again when the selection moves — never for every row,
+ * which is the difference between one request and one per row.
+ */
+export interface RecordSource {
+  scope: 'record';
+  /** Keyed by the record, and shared with whatever else reads it, so one write refreshes both. */
+  queryKey: (id: string) => readonly unknown[];
+  queryFn: (id: string) => Promise<unknown>;
+  select: (data: unknown) => Row[];
+}
+
+export type Source = ListSource | RecordSource;
+
+export const isRecordSource = (source: Source): source is RecordSource =>
+  'scope' in source && source.scope === 'record';
+
 /** The taxonomy answers in one snapshot; both levels read it, and count what is filed under them. */
 const offersUnder = (t: TaxonomyDto, categoryIds: ReadonlySet<string>) =>
   t.offers.filter((o) => categoryIds.has(o.categoryId)).length;
 
-export const LIST_SOURCES: Record<string, ListSource> = {
+export const LIST_SOURCES: Record<string, Source> = {
   placements: {
     queryKey: ['placements'],
     queryFn: () => apiClient.listPlacements(),
@@ -58,7 +82,66 @@ export const LIST_SOURCES: Record<string, ListSource> = {
       return t.categories.map((c) => ({ ...c, offerCount: offersUnder(t, new Set([c.id])) }) as unknown as Row);
     },
   },
+  // The catalogue, with the two facts its summary blocks used to count derived
+  // onto each row so they filter like any other facet.
+  offers: {
+    queryKey: ['offers'],
+    queryFn: () => apiClient.listOffers(),
+    select: (data) => (data as { offers: OfferDto[] }).offers.map((o) => offerRow(o)),
+  },
+  // What one offer is made of. One operation answers all three, under one key,
+  // so a write that invalidates the offer refreshes every pane reading it.
+  'offer.creatives': {
+    scope: 'record',
+    queryKey: (id) => ['offer', id],
+    queryFn: (id) => apiClient.getOffer(id),
+    select: (data) => (data as OfferDetailDto).creatives as unknown as Row[],
+  },
+  'offer.policies': {
+    scope: 'record',
+    queryKey: (id) => ['offer', id],
+    queryFn: (id) => apiClient.getOffer(id),
+    select: (data) => (data as OfferDetailDto).policies as unknown as Row[],
+  },
+  'offer.autonomy': {
+    scope: 'record',
+    queryKey: (id) => ['offer', id],
+    queryFn: (id) => apiClient.getOffer(id),
+    select: (data) => {
+      const autonomy = (data as OfferDetailDto).autonomy;
+      return autonomy ? [autonomy as unknown as Row] : [];
+    },
+  },
+  'change-sets': {
+    queryKey: ['change-sets'],
+    queryFn: () => apiClient.listChangeSets(),
+    select: (data) => (data as { changeSets: ChangeSetDto[] }).changeSets.map((c) => changeSetRow(c)),
+  },
 };
+
+/**
+ * An offer as the catalogue lists it.
+ *
+ * `reach` is what the list can prove about delivery: an offer with no creative
+ * cannot be delivered unless it is retired, when it is not meant to be. Whether
+ * an active creative covers a channel needs the creatives, which the Reach tab
+ * reads.
+ */
+export function offerRow(o: OfferDto): Row {
+  const reach =
+    o.creativeIds.length === 0 && o.status !== 'retired' ? 'undeliverable' : o.status === 'active' ? 'selectable' : 'not-live';
+  return { ...o, reach, boosted: o.boost > 1 } as unknown as Row;
+}
+
+/** A change set as the approvals list shows it: who raised it, and whether its simulation passed. */
+export function changeSetRow(c: ChangeSetDto): Row {
+  const simulationResult = !c.simulation ? 'not-run' : c.simulation.passed ? 'passed' : 'failed';
+  return {
+    ...c,
+    raisedBy: c.requestedBy.startsWith('agent-') ? 'agent' : 'person',
+    simulationResult,
+  } as unknown as Row;
+}
 
 /**
  * How each entity a screen shows is identified and written.
@@ -68,6 +151,16 @@ export const LIST_SOURCES: Record<string, ListSource> = {
  * convention to make them look derivable would be a hand-rolled client by
  * another route (the same reason `EntityFormDialog` takes `save` as a prop).
  */
+/** The record a child is written under, when a screen writes one from inside another. */
+export interface Parent {
+  /** The screen's entity. */
+  entity: string;
+  /** Its identity, as the binding for that entity gives it. */
+  id: string;
+}
+
+export type Invalidations = readonly (readonly unknown[])[];
+
 export interface EntityBinding {
   /** What the URL carries and the update operation takes. */
   identity: (row: Row) => string;
@@ -75,10 +168,27 @@ export interface EntityBinding {
   permission: string;
   /** Field values a new record starts with, given the records beside it. */
   defaults?: (siblings: readonly Row[]) => Record<string, unknown>;
-  save: (body: Record<string, unknown>, existing: Row | null) => Promise<Row>;
-  /** Query keys a write changes. */
-  invalidate: readonly (readonly unknown[])[];
+  /**
+   * The write. Absent for an entity nobody writes through a form here: the
+   * screen then offers no create and no edit, rather than a button that fails.
+   *
+   * `parent` is the open record when the write happens inside it. A creative is
+   * created under an offer, and the operation's path names the offer — a fact
+   * the form does not hold, because the click already answered it.
+   */
+  save?: (body: Record<string, unknown>, existing: Row | null, parent: Parent | null) => Promise<Row>;
+  /**
+   * The delete, for an entity whose descriptor says what deleting one costs.
+   * Absent, and no screen offers one. A refusal comes back as the platform's own
+   * sentence, which says what still depends on the record.
+   */
+  remove?: (existing: Row, parent: Parent | null) => Promise<void>;
+  /** Query keys a write changes, given the parent when what changes is what one record is made of. */
+  invalidate: Invalidations | ((parent: Parent | null) => Invalidations);
 }
+
+export const invalidationsFor = (binding: EntityBinding, parent: Parent | null): Invalidations =>
+  typeof binding.invalidate === 'function' ? binding.invalidate(parent) : binding.invalidate;
 
 /** Either level of the taxonomy going stale takes the offers with it: an offer is filed under both. */
 const TAXONOMY_WRITES = [['taxonomy'], ['offers']] as const;
@@ -110,9 +220,73 @@ export const ENTITY_BINDINGS: Record<string, EntityBinding> = {
       (existing
         ? await apiClient.updatePlacement(String(existing.key), body as Partial<PlacementDto>)
         : await apiClient.createPlacement(body as Partial<PlacementDto>)) as unknown as Row,
+    // Refused while a creative names the slot (G-110).
+    remove: (existing) => apiClient.deletePlacement(String(existing.key)),
     // The coverage screen's denominator is the set of channels with a delivery
     // mode, so changing one here changes what that screen measures.
     invalidate: [['placements'], ['creatives'], ['offers']],
+  },
+  Offer: {
+    identity: (row) => String(row.id),
+    permission: 'edit:offers',
+    save: async (body, existing) =>
+      (existing
+        ? await apiClient.updateOffer(String(existing.id), body as Partial<OfferDto>)
+        : await apiClient.createOffer(body as Partial<OfferDto>)) as unknown as Row,
+    invalidate: [['offers'], ['offer'], ['taxonomy']],
+  },
+  Creative: {
+    identity: (row) => String(row.id),
+    permission: 'edit:offers',
+    // The offer is where a creative is authored from rather than a field of its
+    // form, and the operations' paths name it: a new creative takes the open
+    // offer, an existing one keeps its own.
+    save: async (body, existing, parent) => {
+      if (existing) {
+        return (await apiClient.updateCreative(
+          String(existing.offerId),
+          String(existing.id),
+          body as Partial<CreativeDto>
+        )) as unknown as Row;
+      }
+      if (!parent) throw new Error('A creative is created under an offer, and this write was given none.');
+      return (await apiClient.createCreative(parent.id, body as Partial<CreativeDto>)) as unknown as Row;
+    },
+    // Refused when it would leave an active offer nothing to deliver (G-110).
+    remove: (existing) => apiClient.deleteCreative(String(existing.offerId), String(existing.id)),
+    // What one offer is made of changes, so that offer's own query goes stale.
+    invalidate: (parent) => [parent ? ['offer', parent.id] : ['offer'], ['offers'], ['creatives']],
+  },
+  // Read, never written as a form: approving or rejecting is the change-set
+  // decision panel's, and nothing here offers create or edit.
+  ChangeSet: {
+    identity: (row) => String(row.id),
+    permission: 'approve:changes',
+    invalidate: [['change-sets']],
+  },
+  TargetingPolicy: {
+    identity: (row) => String(row.id),
+    permission: 'edit:policies',
+    // A tier has to be chosen for a policy to exist, and the first question —
+    // can we offer this at all — is where the hand-built form started. A new
+    // policy is also stored, not applied, until somebody says otherwise.
+    defaults: () => ({ kind: 'eligibility', active: false }),
+    save: async (body, existing) =>
+      (existing
+        ? await apiClient.updateTargetingPolicy({
+            ...(existing as unknown as TargetingPolicyDto),
+            ...(body as Partial<TargetingPolicyDto>),
+          })
+        : await apiClient.createTargetingPolicy({
+            ...(body as Omit<TargetingPolicyDto, 'id' | 'createdAt' | 'updatedAt'>),
+            // No screen scopes a policy yet, so a new one is tenant-wide, as
+            // every policy authored here has been. The descriptor says why.
+            scope: { level: 'tenant', targetId: null },
+          })) as unknown as Row,
+    // Refused while an offer is bound to the policy (G-110).
+    remove: (existing) => apiClient.deleteTargetingPolicy(String(existing.id)),
+    // The funnel counts what the policies remove, so it goes stale with them.
+    invalidate: [['targeting-policies'], ['policy-funnel']],
   },
   Objective: {
     identity: (row) => String(row.id),
@@ -146,7 +320,7 @@ export function bindingFor(entity: string): EntityBinding {
   return found;
 }
 
-export function sourceFor(name: string): ListSource {
+export function sourceFor(name: string): Source {
   const found = LIST_SOURCES[name];
   if (!found) {
     throw new Error(

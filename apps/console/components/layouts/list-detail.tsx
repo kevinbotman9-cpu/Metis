@@ -31,7 +31,9 @@ import {
   columnsOf,
   countLabel,
   facetOptions,
+  facetsOf,
   openRow,
+  selectionMissing,
   step,
   type ListFilter,
 } from '@/lib/layouts/list';
@@ -75,6 +77,14 @@ export interface ListDetailProps {
   onRetry?: () => void;
   selected: string | null;
   onSelect: (id: string) => void;
+  /**
+   * Which record the detail pane is showing, whenever that changes — the one
+   * the URL names, or the first in view when it names none. The host resolves
+   * record-scoped sources for it.
+   */
+  onOpen?: (id: string | null) => void;
+  /** The list is refetching after a write, so a record it does not yet hold may be one just made. */
+  refreshing?: boolean;
   tab: string | null;
   onTab: (id: string) => void;
   filter: ListFilter;
@@ -83,6 +93,8 @@ export interface ListDetailProps {
   onCreate?: () => void;
   /** Present only when the session may edit one. */
   onEdit?: (row: Row) => void;
+  /** Present only when the session may delete one and the entity declares a delete. */
+  onDelete?: (row: Row) => void;
   context: PanelContext;
 }
 
@@ -136,29 +148,35 @@ export function ListDetail({
   onRetry,
   selected,
   onSelect,
+  onOpen,
+  refreshing = false,
   tab,
   onTab,
   filter,
   onFilter,
   onCreate,
   onEdit,
+  onDelete,
   context,
 }: ListDetailProps) {
   const format = useFormat();
   const base = useId().replace(/:/g, '');
   const { noun } = descriptor;
   const columns = useMemo(() => columnsOf(manifest, descriptor), [manifest, descriptor]);
-  const facets = useMemo(
-    () => manifest.params.list.facets.flatMap((f) => descriptor.fields.find((d) => d.field === f) ?? []),
-    [manifest, descriptor]
-  );
+  const facets = useMemo(() => facetsOf(manifest, descriptor), [manifest, descriptor]);
   const filtered = useMemo(
     () => applyFilter(list.rows, filter, manifest, descriptor, context.optionSources, format),
     [list.rows, filter, manifest, descriptor, context.optionSources, format]
   );
   const ids = useMemo(() => filtered.rows.map(identity), [filtered.rows, identity]);
-  const open = openRow(filtered.rows, identity, selected);
+  // A link to a record the list does not hold says so, rather than quietly
+  // opening a different record under an address that names this one.
+  const missing = list.status === 'ready' && !refreshing && selectionMissing(list.rows, identity, selected);
+  const open = missing ? null : openRow(filtered.rows, identity, selected);
   const openId = open ? identity(open) : null;
+  useEffect(() => {
+    onOpen?.(openId);
+  }, [onOpen, openId]);
 
   const listRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -366,7 +384,7 @@ export function ListDetail({
                           }}
                         >
                           <option value="">All ({all})</option>
-                          {facetOptions(field).map((o) => (
+                          {facetOptions(field, context.optionSources).map((o) => (
                             // Prefixed so the empty value of an option ("delivered by
                             // nothing") is not confused with "all".
                             <option key={o.value} value={`=${o.value}`}>
@@ -481,6 +499,23 @@ export function ListDetail({
           />
         ) : null}
 
+        {missing ? (
+          <section
+            aria-label={`No such ${noun.singular}`}
+            className="min-w-0 flex-1 rounded-xl border border-border bg-surface shadow"
+          >
+            <EmptyState
+              title={`No ${noun.singular} with ID ${selected}`}
+              description="It may have been deleted, or the link may be stale."
+              action={
+                <context.Link href={manifest.route} className="text-body text-accent underline-offset-2 hover:underline">
+                  All {noun.plural}
+                </context.Link>
+              }
+            />
+          </section>
+        ) : null}
+
         {open ? (
           <DetailPane
             key={openId}
@@ -491,6 +526,7 @@ export function ListDetail({
             tab={tab}
             onTab={onTab}
             onEdit={onEdit}
+            onDelete={onDelete}
             onKeyDown={onDetailKey}
             headingRef={headingRef}
             render={render}
@@ -509,6 +545,7 @@ interface DetailPaneProps {
   tab: string | null;
   onTab: (id: string) => void;
   onEdit?: (row: Row) => void;
+  onDelete?: (row: Row) => void;
   onKeyDown: (e: KeyboardEvent<HTMLElement>) => void;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   render: (o: Occupant, record: Row | null) => React.ReactNode;
@@ -522,6 +559,7 @@ function DetailPane({
   tab,
   onTab,
   onEdit,
+  onDelete,
   onKeyDown,
   headingRef,
   render,
@@ -565,6 +603,16 @@ function DetailPane({
               aria-label={`Edit ${descriptor.noun.singular} ${title}`}
             >
               Edit
+            </Button>
+          ) : null}
+          {onDelete ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onDelete(record)}
+              aria-label={`Delete ${descriptor.noun.singular} ${title}`}
+            >
+              Delete
             </Button>
           ) : null}
         </div>

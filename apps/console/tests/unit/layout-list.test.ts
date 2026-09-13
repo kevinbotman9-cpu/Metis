@@ -8,7 +8,9 @@ import {
   countLabel,
   display,
   facetOptions,
+  facetsOf,
   openRow,
+  selectionMissing,
   sortRows,
   step,
   NO_FILTER,
@@ -141,6 +143,42 @@ describe('filtering', () => {
     expect(facetOptions(field('decidable')).map((o) => o.label)).toEqual(['Decides', 'Refuses requests']);
   });
 
+  it('filters by the options a named source holds, counting each', () => {
+    const byFlow = { ...manifest, params: { ...manifest.params, list: { ...manifest.params.list, facets: ['artifactId'] } } };
+    const sources = {
+      flows: [
+        { value: 'next-best-action', label: 'Next best action' },
+        { value: 'retention-save', label: 'Retention save' },
+      ],
+    };
+    const [facet] = facetsOf(byFlow, placementDescriptor);
+    expect(facet.label).toBe(field('artifactId').label);
+    expect(facetOptions(facet, sources).map((o) => o.label)).toEqual(['Next best action', 'Retention save']);
+    const { rows: kept, counts } = applyFilter(rows, { query: '', facets: { artifactId: 'retention-save' } }, byFlow, placementDescriptor, sources, F);
+    // Every seeded slot is answered by the one flow; a flow answering none is
+    // still offered, with its zero.
+    expect(counts.artifactId).toEqual({ 'next-best-action': 8, 'retention-save': 0 });
+    expect(kept).toEqual([]);
+  });
+
+  it('filters by a value the source derives, in the manifest’s words', () => {
+    const reach = {
+      field: 'reach',
+      label: 'Reach',
+      options: [
+        { value: 'delivered', label: 'Delivered' },
+        { value: 'undelivered', label: 'Decides, nothing delivers' },
+      ],
+    };
+    const derived = { ...manifest, params: { ...manifest.params, list: { ...manifest.params.list, facets: [reach] } } };
+    const withReach = rows.map((r) => ({ ...r, reach: r.delivery ? 'delivered' : 'undelivered' }));
+    const [facet] = facetsOf(derived, placementDescriptor);
+    expect(facet).toMatchObject({ field: 'reach', label: 'Reach' });
+    const { rows: kept, counts } = applyFilter(withReach, { query: '', facets: { reach: 'undelivered' } }, derived, placementDescriptor, {}, F);
+    expect(keys(kept)).toEqual(['weekly_offers_send', 'app_inbox', 'triggered_outbound']);
+    expect(counts.reach).toEqual({ delivered: 5, undelivered: 3 });
+  });
+
   it('says how many of how many', () => {
     expect(countLabel(9, 9, placementDescriptor.noun)).toBe('9 placements');
     expect(countLabel(2, 9, placementDescriptor.noun)).toBe('2 of 9 placements');
@@ -171,5 +209,13 @@ describe('selection', () => {
     expect(openRow(sorted, identity, 'app_inbox')?.key).toBe('app_inbox');
     expect(openRow(sorted, identity, 'gone')?.key).toBe('weekly_offers_send');
     expect(openRow([], identity, 'app_inbox')).toBeNull();
+  });
+
+  it('knows a link to a record the list does not hold from one a filter is holding back', () => {
+    const identity = (r: Row) => String(r.key);
+    expect(selectionMissing(rows, identity, 'retired_slot')).toBe(true);
+    // Held back by a filter is not missing: it exists, and the list holds it.
+    expect(selectionMissing(rows, identity, 'app_inbox')).toBe(false);
+    expect(selectionMissing(rows, identity, null)).toBe(false);
   });
 });

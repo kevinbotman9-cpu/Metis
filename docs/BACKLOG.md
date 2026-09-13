@@ -203,6 +203,9 @@ otherwise.
 | W-076 | 14 | Serve where candidates fall out of decisions from a plane | OPEN | 2 |
 | W-077 | 14 | The generated client carries the spec's nullability | OPEN | 2 |
 | W-078 | 14 | Report the latest result of each conformance check | OPEN | 2 |
+| W-079 | 14 | Serve deleting a policy, a placement and a creative from a plane | OPEN | 2 |
+| W-080 | 14 | Descriptors, manifests and panels load per route, not whole | OPEN | 1 |
+| W-081 | 14 | Route budgets measure what a route renders, not what it links to | PARTIAL | 1 |
 
 ---
 
@@ -1504,6 +1507,66 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-081 — Route budgets measure what a route renders, not what it links to
+
+**Registered:** 2026-09-13 · **Stage:** 14 · **Status:** PARTIAL
+**Check:** `apps/console/tests/bundle/bundle-size.spec.ts` (prefetch not counted, and how much is reported); `apps/console/scripts/measure-route-payload.mjs --prefetch both` reports the difference
+
+Gate 1 · Gap [G-112](gaps.md)
+
+`bundle-size.spec.ts` counted what Next prefetches for visible links, so a
+route's budget included the screens it links to, a link could fail an unrelated
+route, and one build measured differently on two runs. Measured on 2026-09-13:
+prefetch added 95 to 250 kB per route, and `/offers` measured 871.5 and 885.2 kB
+from the same commit.
+
+**Landed 2026-09-13:** the check aborts router prefetch requests, two runs of one
+build measure every route identically, and the budgets were reset from that
+measurement. **Not yet:** the test in *Done when* that proves a heavier linked
+screen does not fail the route linking to it.
+
+**Done when:** the budget check measures a route with router prefetch excluded,
+the budgets are reset against that measurement, and a test proves that making a
+linked screen heavier does not fail the route that links to it.
+
+### W-080 — Descriptors, manifests and panels load per route, not whole
+
+**Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet. `apps/console/scripts/measure-route-payload.mjs` measures it per commit
+
+Gate 1 · Gap [G-111](gaps.md)
+
+Proposed as its own slice, not folded into the batch that found it: it changes
+how `@metis/ui-metadata` is imported across the console. Today one import brings
+every descriptor and manifest (40 kB), and `PANEL_COMPONENTS` brings every panel
+with the list–detail host (54 kB), to every route that touches either.
+
+- **Descriptors and manifests importable one at a time,** by entity and by
+  screen, with the registry maps built from them for the checks that need all
+  of them (the drift test, `validateLayout`, conformance) rather than for
+  screens.
+- **Panels loaded per manifest,** so a screen ships the panels its manifest
+  places and no others.
+- **The budgets lowered in the same change,** to what the split measures, so
+  the saving is held rather than spent by the next screen.
+
+**Done when:** a route that uses one descriptor ships no other descriptor's
+code, a list–detail screen ships only the panels its manifest places, both are
+measured by the script before and after, and the budgets are lowered to match.
+
+### W-079 — Serve deleting a policy, a placement and a creative from a plane
+
+**Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN
+**Check:** `apps/console/tests/e2e/policy-authoring.spec.ts`, `placement-authoring.spec.ts` (each deletes one by clicking, and is refused where something depends on it)
+
+Gate 2 · Gap [G-110](gaps.md)
+
+`deleteTargetingPolicy`, `deletePlacement` and `deleteCreative` are proposed and
+served only by the console's development API, with the refusals G-110 describes.
+
+**Done when:** a plane serves all three with the same refusals, and none is
+marked proposed.
+
 ### W-078 — Report the latest result of each conformance check
 
 **Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN

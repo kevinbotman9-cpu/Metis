@@ -10,6 +10,8 @@ import {
 } from './types';
 import { placementsLayout } from './placements';
 import { objectivesLayout } from './objectives';
+import { offersLayout } from './offers';
+import { approvalsLayout } from './approvals';
 
 export * from './types';
 export { declaredScreen } from './page';
@@ -47,7 +49,8 @@ export const PANELS = {
     params: {
       source: 'source',
       entity: 'entity',
-      by: 'field',
+      // Absent when the source is already scoped to the open record.
+      by: 'field?',
       title: 'field',
       subtitle: 'field?',
       description: 'field?',
@@ -63,6 +66,41 @@ export const PANELS = {
     description:
       'Names the slots that decide and have nothing delivering what they decide (ADR-013). Absent when there are none.',
   },
+  'offers.status': {
+    slots: ['list-detail.detail.actions'],
+    entities: ['Offer'],
+    description:
+      "The offer's status, and activating or pausing it — beside the creatives whose absence is the reason activation can be refused.",
+  },
+  'offers.figures': {
+    slots: ['list-detail.detail.aside'],
+    entities: ['Offer'],
+    description: 'Price, cost, margin or value term, boost and term, a negative-margin warning, and where the offer is used.',
+  },
+  'offers.reach': {
+    slots: ['list-detail.detail.tabs', 'list-detail.detail.aside'],
+    entities: ['Offer'],
+    description:
+      'Which channels the offer can reach a customer on, from its creatives, and the warning when it can reach none.',
+    params: { source: 'source' },
+  },
+  'offers.autonomy': {
+    slots: ['list-detail.detail.aside'],
+    entities: ['Offer'],
+    description: 'The autonomy level that resolves for the offer, the scope it is inherited from, and its guardrails.',
+    params: { source: 'source' },
+  },
+  'change-sets.diff': {
+    slots: ['list-detail.detail.tabs'],
+    entities: ['ChangeSet'],
+    description: 'What approving the change set changes, before and after, with the scope and the simulation behind it.',
+  },
+  'change-sets.decision': {
+    slots: ['list-detail.detail.actions'],
+    entities: ['ChangeSet'],
+    description:
+      'Approve or reject, offered only to somebody holding approve:changes; anybody else is told which permission it needs.',
+  },
 } as const satisfies Record<string, PanelDeclaration>;
 
 export type PanelId = keyof typeof PANELS;
@@ -71,6 +109,8 @@ export type PanelId = keyof typeof PANELS;
 export const LAYOUTS: Record<string, LayoutManifest> = {
   [placementsLayout.id]: placementsLayout,
   [objectivesLayout.id]: objectivesLayout,
+  [offersLayout.id]: offersLayout,
+  [approvalsLayout.id]: approvalsLayout,
 };
 
 export function layoutFor(id: string): LayoutManifest {
@@ -183,6 +223,17 @@ export function validateLayout(
     return problems;
   }
 
+  // The detail route is where this screen keeps its selection, so it is this
+  // screen's route and one segment more — not a route somewhere else that
+  // happens to be dynamic, and not a sub-page beneath the record.
+  const { detailRoute } = manifest.params;
+  if (
+    detailRoute !== null &&
+    !(detailRoute.startsWith(`${manifest.route}/`) && /^\[[A-Za-z]\w*\]$/.test(detailRoute.slice(manifest.route.length + 1)))
+  ) {
+    problems.push(`${at}: detailRoute '${detailRoute}' is not ${manifest.route} and one dynamic segment`);
+  }
+
   // Slots and occupants.
   const ids = new Set<string>();
   const { entity } = manifest.params.detail;
@@ -256,17 +307,23 @@ export function validateLayout(
     }
   }
   for (const facet of list.facets) {
+    if (typeof facet !== 'string') {
+      // Derived by the source, so the manifest is the only thing that can say
+      // what it is called and what its values are.
+      const labelled = isText(facet.label) && facet.options.length > 0 && facet.options.every((o) => isText(o.label));
+      if (!isText(facet.field) || !labelled) {
+        problems.push(`${at}: facet '${facet.field}' is derived, so it needs a label and at least one labelled value`);
+      }
+      continue;
+    }
     const field = described.get(facet);
-    const closed =
-      field && (field.type === 'boolean' || (field.options !== undefined && 'static' in field.options));
+    // Options from a named source are a closed set too: what the source holds.
+    const closed = field && (field.type === 'boolean' || field.options !== undefined);
     if (!closed) {
       problems.push(`${at}: facet '${facet}' is not a ${entity} field with a closed set of values to count`);
     }
   }
-  if (manifest.params.detailRoute !== null && !/\[[^\]]+\]/.test(manifest.params.detailRoute)) {
-    problems.push(`${at}: detailRoute '${manifest.params.detailRoute}' is not a dynamic route`);
-  }
   return problems;
 }
 
-export { placementsLayout, objectivesLayout };
+export { placementsLayout, objectivesLayout, offersLayout, approvalsLayout };

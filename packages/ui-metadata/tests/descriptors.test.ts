@@ -16,6 +16,8 @@ import {
   visibleFields,
   getPath,
   setPath,
+  readConditions,
+  writeConditions,
 } from '../src/codec';
 import type { EntityDescriptor, FormState } from '../src';
 
@@ -371,6 +373,87 @@ describe('the Creative descriptor, exercised', () => {
 
   it('never renders the derived discriminant', () => {
     expect(shown('web')).not.toContain('content.channel');
+  });
+});
+
+describe('the TargetingPolicy descriptor, exercised', () => {
+  const policy = descriptorFor('TargetingPolicy');
+  const all: string[] = [];
+  const record = {
+    id: 'pol_x',
+    name: 'Adults only',
+    kind: 'eligibility',
+    description: 'Regulatory minimum age',
+    conditions: [
+      { field: 'customer.age', operator: 'gte', value: 18 },
+      { field: 'customer.credit_status', operator: 'in', value: ['pass', 'refer'] },
+    ],
+    scope: { level: 'tenant', targetId: null },
+    active: true,
+  };
+
+  it('carries its conditions through the form as they are, values and types intact', () => {
+    const form = toFormState(policy, record);
+    expect(readConditions(form.conditions)).toEqual(record.conditions);
+    const body = toPayload(policy, form, { editing: true, permissions: all, entity: record });
+    // A number stays a number and a list stays a list: a condition comparing
+    // age to "18" fails against every customer.
+    expect(body.conditions).toEqual(record.conditions);
+    expect(body).toMatchObject({ name: 'Adults only', kind: 'eligibility', active: true });
+  });
+
+  it('sends an empty list for a blank form, and lets the server refuse it by name', () => {
+    const body = toPayload(policy, toFormState(policy), { editing: false, permissions: all });
+    expect(body.conditions).toEqual([]);
+  });
+
+  it('reads anything that is not a list of conditions as none, rather than throwing mid-edit', () => {
+    expect(readConditions('')).toEqual([]);
+    expect(readConditions('{"field":"x"}')).toEqual([]);
+    expect(readConditions('[{"field":')).toEqual([]);
+    expect(writeConditions([])).toBe('');
+  });
+
+  it('never sends a scope, which the write supplies', () => {
+    const body = toPayload(policy, toFormState(policy, record), { editing: true, permissions: all, entity: record });
+    expect(body).not.toHaveProperty('scope');
+  });
+
+  it('offers the data model’s paths, from the source the host resolves', () => {
+    const conditions = policy.fields.find((f) => f.field === 'conditions')!;
+    expect(conditions.type).toBe('conditions');
+    expect(conditions.options).toEqual({ source: 'profile.paths' });
+  });
+
+  it('says what deleting one costs', () => {
+    expect(policy.remove?.confirmLabel).toBe('Delete policy');
+  });
+});
+
+describe('the ArbitrationConfig descriptor, exercised', () => {
+  const arbitration = descriptorFor('ArbitrationConfig');
+  const all: string[] = [];
+  const config = {
+    id: 'arb_1',
+    tenantId: 'telco-us',
+    utility: { id: 'multiplicative', version: '1.0.0' },
+    weights: { propensity: 1, value: 0.8, boost: 1.25, context: 0.35 },
+    formula: 'P^1 × V^0.8 × L^1.25 × C^0.35',
+  };
+
+  it('round-trips the four weights as numbers', () => {
+    const form = toFormState(arbitration, config);
+    expect(form['weights.context']).toBe('0.35');
+    const body = toPayload(arbitration, form, { editing: true, permissions: all, entity: config });
+    expect(body).toEqual({ weights: config.weights });
+  });
+
+  it('holds each weight to the range the ranking function reads', () => {
+    for (const f of arbitration.fields) expect(f.validation).toMatchObject({ min: 0, max: 2, step: 0.05 });
+  });
+
+  it('cannot be deleted: a tenant without one has no ranking function', () => {
+    expect(arbitration.remove).toBeUndefined();
   });
 });
 

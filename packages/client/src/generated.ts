@@ -1479,6 +1479,27 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '400', '404', '409', '503'],
   },
+  deleteCreative: {
+    method: 'DELETE',
+    path: '/creatives/{tenantId}/{offerId}/{creativeId}',
+    pathParams: ['tenantId', 'offerId', 'creativeId'],
+    queryParams: [],
+    statuses: ['204', '403', '404', '409'],
+  },
+  deletePlacement: {
+    method: 'DELETE',
+    path: '/placements/{tenantId}/{placementKey}',
+    pathParams: ['tenantId', 'placementKey'],
+    queryParams: [],
+    statuses: ['204', '403', '404', '409'],
+  },
+  deleteTargetingPolicy: {
+    method: 'DELETE',
+    path: '/targeting-policies/{tenantId}/{policyId}',
+    pathParams: ['tenantId', 'policyId'],
+    queryParams: [],
+    statuses: ['204', '403', '404', '409'],
+  },
   executeDecision: {
     method: 'POST',
     path: '/decisions',
@@ -1992,6 +2013,15 @@ than a silent preference for one of them.
   };
 };
 
+/** Delete a creative */
+export type DeleteCreativeResponse = void;
+
+/** Delete a placement */
+export type DeletePlacementResponse = void;
+
+/** Delete a targeting policy */
+export type DeleteTargetingPolicyResponse = void;
+
 /** Make a decision */
 export type ExecuteDecisionResponse = {
   /** Content-addressed. The first 16 characters of the chain hash. */
@@ -2370,6 +2400,9 @@ export interface ResponseOf {
   createPlacement: CreatePlacementResponse;
   createTargetingPolicy: CreateTargetingPolicyResponse;
   decidePlacement: DecidePlacementResponse;
+  deleteCreative: DeleteCreativeResponse;
+  deletePlacement: DeletePlacementResponse;
+  deleteTargetingPolicy: DeleteTargetingPolicyResponse;
   executeDecision: ExecuteDecisionResponse;
   getArbitrationConfig: GetArbitrationConfigResponse;
   getArtifactSummary: GetArtifactSummaryResponse;
