@@ -172,9 +172,10 @@ test.describe('summary strip', () => {
   });
 
   test('reports the real decision total, not the page size', async ({ page }) => {
-    await page.goto('/');
-    // Regression guard: this once showed the query limit of 200. The Overview's
-    // total is the loop's first stage since 2026-09-13, and the same figure is
+    await page.goto('/performance');
+    // Regression guard: this once showed the query limit of 200. The total is
+    // the loop's first stage — on /performance, which every persona reaches,
+    // since an architect's Overview has no loop — and the same figure is
     // drawn again as a label on the flow diagram beside it — so the check reads
     // the rail's own stage rather than any matching text on the page. At least
     // the corpus, not exactly it: the ledger adds live decisions as specs run.

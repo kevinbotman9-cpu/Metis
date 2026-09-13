@@ -24,7 +24,8 @@ import { login, openAccountPanel, ACCOUNTS } from './helpers';
  */
 const NAV_ITEMS: { group: string; label: string; heading: string | RegExp; linkName?: RegExp }[] = [
   // The loop since 2026-09-13; it was a greeting over four doughnuts.
-  { group: 'Overview', label: 'Home', heading: 'The loop' },
+  // Signed in as Marcus, an architect, whose Overview is the change pipeline.
+  { group: 'Overview', label: 'Home', heading: 'The change pipeline' },
   { group: 'Catalogue', label: 'Offers', heading: 'Offers' },
   { group: 'Catalogue', label: 'Creatives', heading: 'Creatives' },
   { group: 'Policy', label: 'Targeting policies', heading: 'Targeting policies' },

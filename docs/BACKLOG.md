@@ -202,6 +202,7 @@ otherwise.
 | W-075 | 14 | A live flow compiles, and every input branch is declared | PARTIAL | 1 |
 | W-076 | 14 | Serve where candidates fall out of decisions from a plane | OPEN | 2 |
 | W-077 | 14 | The generated client carries the spec's nullability | OPEN | 2 |
+| W-078 | 14 | Report the latest result of each conformance check | OPEN | 2 |
 
 ---
 
@@ -1503,6 +1504,20 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-078 — Report the latest result of each conformance check
+
+**Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN
+**Check:** `apps/console/tests/e2e/overview.spec.ts` (the panel names the checks and claims no result)
+
+Gate 2 · Gap [G-109](gaps.md)
+
+`getConformance` is proposed and served only by the console's development API,
+which can name the checks that hold each engine to the corpora but cannot run
+them. What is missing is somewhere their results are recorded and served.
+
+**Done when:** a plane serves `getConformance` with each check's latest result —
+when, against which commit, and whether it passed.
+
 ### W-077 — The generated client carries the spec's nullability
 
 **Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN

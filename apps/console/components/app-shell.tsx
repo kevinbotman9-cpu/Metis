@@ -7,6 +7,7 @@ import { cn } from '@/lib/cn';
 import { useAuth } from './auth-provider';
 import { useTheme } from './theme-provider';
 import { Notifications } from './notifications';
+import { PersonaSwitch } from './persona-switch';
 import { CommandPalette, useCommandPalette } from './command-palette';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
@@ -205,10 +206,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Search takes the centre: it is the shortest path to anything. */}
         <button
           onClick={() => palette.setOpen(true)}
-          className="mx-auto hidden w-full max-w-md items-center gap-2 rounded-md border border-on-header/25 bg-on-header/10 px-3 py-1.5 text-label transition-colors hover:border-on-header/50 hover:bg-on-header/20 md:flex"
+          className="mx-auto hidden w-full min-w-0 max-w-md items-center gap-2 rounded-md border border-on-header/25 bg-on-header/10 px-3 py-1.5 text-label transition-colors hover:border-on-header/50 hover:bg-on-header/20 md:flex"
         >
           <span aria-hidden>⌕</span>
-          <span>Search offers, decision flows, decisions…</span>
+          {/* One line, truncated: the persona switch beside it can leave the search narrow. */}
+          <span className="truncate">Search offers, decision flows, decisions…</span>
           <kbd className="ml-auto rounded border border-on-header/30 px-1.5 py-0.5 font-mono text-label">
             ⌘K
           </kbd>
@@ -222,6 +224,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <span aria-hidden>⌕</span>
           </button>
+
+          <PersonaSwitch />
 
           {/*
             Tenant switcher. Multi-tenancy runs through the domain model and

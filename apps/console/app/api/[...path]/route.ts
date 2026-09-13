@@ -14,6 +14,9 @@
  */
 
 import { NextResponse } from 'next/server';
+import { readFileSync } from 'node:fs';
+// Not `path`: the handlers name the request's segments that.
+import * as nodePath from 'node:path';
 import { store, resetStore, recordAudit } from '@/mocks/store';
 import type { TenantSettings } from '@metis/core/domain';
 import {
@@ -1236,6 +1239,54 @@ async function handleGet(req: Request, { params }: Ctx) {
       return json({
         ...buildPolicyFunnel(inRange, asked),
         provenance: provenanceOver(inRange.map((d) => d.decisionId)),
+      });
+    }
+
+    // What the engines are held to, and by which check. Proposed (G-109).
+    //
+    // Counted from the committed corpus files, so a figure here is the file's
+    // own and cannot drift from it. Whether the engines agree is not reported:
+    // that is what the named checks assert where they run, and this server can
+    // run neither, so it says what is checked and by what — never that it passed.
+    case 'conformance': {
+      const dir = nodePath.resolve(process.cwd(), '..', '..', 'docs', 'conformance');
+      const casesIn = (file: string): number | null => {
+        try {
+          const parsed = JSON.parse(readFileSync(nodePath.join(dir, file), 'utf8')) as { cases?: unknown };
+          return Array.isArray(parsed.cases) ? parsed.cases.length : null;
+        } catch {
+          return null;
+        }
+      };
+      const corpora = [
+        {
+          id: 'values',
+          file: 'docs/conformance/canonical-corpus.json',
+          // Rendered on the Overview, so the reason in words and no ADR number (tests/ticket-ids.ts).
+          covers: 'How a value serialises and hashes',
+          cases: casesIn('canonical-corpus.json'),
+        },
+        {
+          id: 'decisions',
+          file: 'docs/conformance/decision-corpus.json',
+          covers: 'What a decision is: its winner, what each node removed, and its chain hash',
+          cases: casesIn('decision-corpus.json'),
+        },
+        {
+          id: 'service',
+          file: 'docs/conformance/service-cases.json',
+          covers: 'Real decisions sent through the HTTP service, compared by chain hash',
+          cases: casesIn('service-cases.json'),
+        },
+      ];
+      // A corpus this server cannot read is not reported as empty.
+      if (corpora.some((c) => c.cases === null)) return notFound();
+      return json({
+        corpora,
+        engines: [
+          { engine: 'typescript', checkedBy: 'The conformance corpus matches the reference', runsIn: 'gates' },
+          { engine: 'kotlin', checkedBy: 'kotlin-conformance', runsIn: 'ci' },
+        ],
       });
     }
 

@@ -481,6 +481,29 @@ export interface PolicyFunnelRule {
   sampleDecisionId: string;
 }
 
+export interface ConformanceReport {
+  corpora: ConformanceCorpus[];
+  engines: ConformanceEngine[];
+}
+
+export interface ConformanceCorpus {
+  id: "values" | "decisions" | "service";
+  /** The committed file, relative to the repository root. */
+  file: string;
+  /** Counted from the file as served, not written down. */
+  cases: number;
+  /** What a case in this corpus pins, in words. */
+  covers: string;
+}
+
+export interface ConformanceEngine {
+  engine: "typescript" | "kotlin";
+  /** The named check that fails when this engine disagrees with the corpora. */
+  checkedBy: string;
+  /** Where that check runs. `gates` is `npm run gates` and every pull request; `ci` is a job in the console workflow only. */
+  runsIn: "gates" | "ci";
+}
+
 /** The tenant's customer data model. A contract about what fields exist and how entities relate; it says nothing about where values come from, which is already two separate answers (the caller sends them, or a connector resolves them). */
 export interface ProfileSchema {
   id: string;
@@ -1484,6 +1507,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '404'],
   },
+  getConformance: {
+    method: 'GET',
+    path: '/conformance',
+    pathParams: [],
+    queryParams: [],
+    statuses: ['200'],
+  },
   getCounterfactual: {
     method: 'POST',
     path: '/counterfactuals',
@@ -2005,6 +2035,9 @@ export type GetArtifactSummaryResponse = ArtifactSummary;
 /** A change set with its diff and simulation */
 export type GetChangeSetResponse = ChangeSet;
 
+/** What the engines are held to, and by which check */
+export type GetConformanceResponse = ConformanceReport;
+
 /** Find the smallest input change that flips a decision */
 export type GetCounterfactualResponse = {
   found: boolean;
@@ -2341,6 +2374,7 @@ export interface ResponseOf {
   getArbitrationConfig: GetArbitrationConfigResponse;
   getArtifactSummary: GetArtifactSummaryResponse;
   getChangeSet: GetChangeSetResponse;
+  getConformance: GetConformanceResponse;
   getCounterfactual: GetCounterfactualResponse;
   getDecisionRecord: GetDecisionRecordResponse;
   getOffer: GetOfferResponse;

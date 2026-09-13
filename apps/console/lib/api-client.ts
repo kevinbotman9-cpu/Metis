@@ -65,6 +65,9 @@ import type {
   PolicyFunnelReport as PolicyFunnelReportDto,
   PolicyFunnelStage as PolicyFunnelStageDto,
   PolicyFunnelRule as PolicyFunnelRuleDto,
+  ConformanceReport as ConformanceReportDto,
+  ConformanceCorpus as ConformanceCorpusDto,
+  ConformanceEngine as ConformanceEngineDto,
   LoopDay as LoopDayDto,
   Experiment as ExperimentDto,
   ExperimentArm as ExperimentArmDto,
@@ -527,6 +530,13 @@ export const apiClient = {
     tenantId: string = TENANT
   ) => apiCall<PolicyFunnelReportDto>('getPolicyFunnel', { params: { tenantId }, query: filters }),
 
+  /**
+   * The corpora the engines are held to, and the check that holds each. Not
+   * whether they agree now — that is asserted where those checks run. Proposed:
+   * the development API serves it (G-109).
+   */
+  getConformance: () => apiCall<ConformanceReportDto>('getConformance'),
+
   // --- Data model ---------------------------------------------------------
   /**
    * The tenant's data model, and the paths a policy may reference.
@@ -684,6 +694,9 @@ export type {
   PolicyFunnelReportDto,
   PolicyFunnelStageDto,
   PolicyFunnelRuleDto,
+  ConformanceReportDto,
+  ConformanceCorpusDto,
+  ConformanceEngineDto,
   LoopDayDto,
   ExperimentDto,
   ExperimentArmDto,

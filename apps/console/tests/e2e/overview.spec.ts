@@ -4,19 +4,25 @@ import { login, ACCOUNTS } from './helpers';
 /**
  * @screen-only
  *
- * The Overview is the loop, read as a Cascade, under the product's thesis.
- * `docs/METIS_CONSOLE_SPEC.md` §4.7.
+ * The Overview is a landing page per persona. `lib/persona.ts`.
  *
- * It was a greeting over four doughnuts with the agent panels beneath them.
- * What this asserts is the arrangement that replaced it, and the rules the
- * pattern imposes: the proposals come before the loop; first paint selects no
- * stage and shows the loop whole; every stage is a subset of the one above;
- * selecting a stage changes the middle and right panes and never the rail.
+ * - The marketer's is the loop, read as a Cascade, under the product's thesis
+ *   (`METIS_CONSOLE_SPEC.md` §4.7). Sarah is a marketer as well as an architect,
+ *   so she lands there.
+ * - The decision architect's is the change pipeline, as panels (§4.5). Marcus is
+ *   an administrator and an architect, so he lands there.
+ * - An account that can see both chooses with the switch in the chrome, and the
+ *   choice survives a reload. An account with neither persona gets the loop and
+ *   no switch.
  *
  * Setup is a sign-in. Everything else is reached by clicking.
  */
 
 const rail = (page: Page) => page.getByRole('navigation', { name: 'The loop' });
+const personaSwitch = (page: Page) => page.getByRole('group', { name: 'Overview persona' });
+/** A panel of the architect's Overview: the card holding a heading of that name. */
+const panel = (page: Page, title: string) =>
+  page.locator('section').filter({ has: page.getByRole('heading', { name: title, exact: true }) });
 
 /** The five stage figures, read from the rail's own accessible names. */
 async function stageFigures(page: Page): Promise<number[]> {
@@ -30,9 +36,9 @@ async function stageFigures(page: Page): Promise<number[]> {
   });
 }
 
-test.describe('the Overview is the loop @screen-only', () => {
+test.describe("the marketer's Overview is the loop @screen-only", () => {
   test.beforeEach(async ({ page }) => {
-    await login(page, ACCOUNTS.marcus);
+    await login(page, ACCOUNTS.sarah);
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1, name: 'The loop' })).toBeVisible();
   });
@@ -81,11 +87,89 @@ test.describe('the Overview is the loop @screen-only', () => {
     expect(await stageFigures(page)).toEqual(before);
   });
 
-  test('a proposal opens onto the change set a person approves', async ({ page }) => {
+  test('a proposal opens onto its change set', async ({ page }) => {
     const first = page.locator('a[href^="/approvals/cr_"]').first();
     await expect(first).toBeVisible();
     await first.click();
     await expect(page).toHaveURL(/\/approvals\/cr_/);
+    // Sarah cannot approve — that is `approve:changes`, which Marcus holds and she
+    // does not — so this asserts the change set opened, not a control she is not given.
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  });
+});
+
+test.describe("the architect's Overview is the change pipeline @screen-only", () => {
+  const PANELS = ['Proposed', 'Simulated', 'Released', 'Flows', 'What the engines are held to'];
+
+  test.beforeEach(async ({ page }) => {
+    await login(page, ACCOUNTS.marcus);
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1, name: 'The change pipeline' })).toBeVisible();
+  });
+
+  test('is panels, not a rail: its counts are of different things', async ({ page }) => {
+    for (const title of PANELS) await expect(panel(page, title)).toBeVisible();
+    await expect(rail(page)).toHaveCount(0);
+  });
+
+  test('every panel says the window it covers and links to the screen that owns it', async ({ page }) => {
+    for (const title of PANELS) {
+      const card = panel(page, title);
+      // The window sits under the title, in the card's header.
+      await expect(card.locator('header p').first(), `${title}: a window`).not.toBeEmpty();
+      const owner = card.locator('header a').first();
+      await expect(owner, `${title}: a link`).toBeVisible();
+      expect(await owner.getAttribute('href'), `${title}: to a screen`).toMatch(/^\/[a-z-]+$/);
+    }
+  });
+
+  test('a proposal opens onto the change set a person approves', async ({ page }) => {
+    const first = panel(page, 'Proposed').locator('a[href^="/approvals/cr_"]').first();
+    await expect(first).toBeVisible();
+    await first.click();
+    await expect(page).toHaveURL(/\/approvals\/cr_/);
     await expect(page.getByRole('button', { name: 'Approve' })).toBeVisible();
+  });
+
+  test('says which flows compile, and opens each one', async ({ page }) => {
+    const flows = panel(page, 'Flows').locator('a[href^="/decision-flows/"]');
+    await expect(flows.first()).toBeVisible();
+    for (const row of await flows.all()) {
+      await expect(row).toContainText(/compiles|does not compile|not compiled/);
+    }
+  });
+
+  test('names what holds each engine to the corpora, and never claims the checks passed', async ({ page }) => {
+    const card = panel(page, 'What the engines are held to');
+    await expect(card.getByText('kotlin-conformance', { exact: true })).toBeVisible();
+    await expect(card.getByText('The conformance corpus matches the reference', { exact: true })).toBeVisible();
+    // This screen cannot run either check, so a claim that they passed would be invented.
+    await expect(card.getByText(/\b(passed|agree[sd]?|byte-identical)\b/i)).toHaveCount(0);
+  });
+});
+
+test.describe('choosing a persona @screen-only', () => {
+  test('an account that is both switches, and the choice survives a reload', async ({ page }) => {
+    await login(page, ACCOUNTS.sarah);
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1, name: 'The loop' })).toBeVisible();
+    await expect(personaSwitch(page).getByRole('button', { name: 'Marketer' })).toHaveAttribute('aria-pressed', 'true');
+
+    await personaSwitch(page).getByRole('button', { name: 'Architect' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'The change pipeline' })).toBeVisible();
+    await expect(personaSwitch(page).getByRole('button', { name: 'Architect' })).toHaveAttribute('aria-pressed', 'true');
+
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: 'The change pipeline' })).toBeVisible();
+
+    await personaSwitch(page).getByRole('button', { name: 'Marketer' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'The loop' })).toBeVisible();
+  });
+
+  test('an account with neither persona lands on the loop and is offered no switch', async ({ page }) => {
+    await login(page, ACCOUNTS.priya);
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1, name: 'The loop' })).toBeVisible();
+    await expect(personaSwitch(page)).toHaveCount(0);
   });
 });
