@@ -57,6 +57,7 @@ const STAGE: TraceStage = {
   reason: 'Affordability on a new line removed 1 candidate.',
   removed: 1,
   survived: 2,
+  ms: 0,
   denials: [
     { key: 'fios_gigabit', code: 'SUITABILITY_FAILED', ruleId: 'pol_afford_line' } as never,
   ],
