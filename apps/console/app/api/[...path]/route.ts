@@ -946,6 +946,11 @@ async function handleGet(req: Request, { params }: Ctx) {
       return json({
         startedAt: STARTED_AT,
         uptimeMs: Date.now() - new Date(STARTED_AT).getTime(),
+        // The token the e2e harness started this process with, so the suite
+        // can refuse a server it did not start. Null for a server a person
+        // started, which is exactly the server the suite must not measure.
+        // G-035.
+        run: process.env.METIS_E2E_RUN ?? null,
         // What this process actually seeded, hashed per part.
         //
         // Computed from the modules *this server* has loaded, which is the

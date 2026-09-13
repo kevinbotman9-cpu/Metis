@@ -230,6 +230,21 @@ quietly reintroduces either mistake — a refactor moving the fingerprint back t
 module scope, say, or an endpoint recomputing it for convenience. That is the
 same class of hole the thing it guards exists to close.
 
+**Half of it closed on 2026-09-13, by [G-035](gaps.md).** The decision —
+whether to refuse, and what the refusal names — is now `serverRefusal` in
+`apps/console/tests/server-trust.ts`, a pure function asserted by
+`apps/console/tests/unit/server-trust.test.ts`: a missing or foreign run token,
+a server that does not report its seed, and a stale seed each refuse, and the
+stale-seed message names the part that moved. A refactor that stops any of them
+refusing now fails that file.
+
+**What remains is the wiring, which is where both wrong versions above were.**
+Nothing checks that `global-setup.ts` still calls the function and throws what
+it returns, or that the store's fingerprint still goes stale with the seed
+instead of being recomputed from the modules. The harness now starts a fresh
+server every run, so a stale seed cannot arise from reuse; it can still arise
+from a fixture edited while that server is starting.
+
 **What it would take.** A harness that boots a dev server on a spare port,
 records its fingerprint, edits a fixture file on disk, invokes `globalSetup`
 against that server and asserts it throws with the changed part named — then
@@ -238,7 +253,9 @@ lifecycle, a file mutation and a cleanup path that has to survive a failure
 mid-way, which is why it is named here rather than bolted onto the slice that
 found it.
 
-**Done when:** a check fails if the refusal stops refusing.
+**Done when:** a check fails if the refusal stops refusing — true of the
+decision since 2026-09-13, still not of the wiring or of the fingerprint's
+staleness.
 
 ### G-093 — A class of contract gap: three responses that cannot be interpreted without reading another endpoint
 
@@ -602,65 +619,6 @@ wait, and the wait is written down.
 **Registered:** 2026-09-04 · **Status:** Open · **Work item:** [W-001](BACKLOG.md)
 
 The original cause is gone: `packages/compiler/src/compile.ts` was deleted with the rest of the Phase 0 tree. `tsc --build` still fails, on two causes that were hidden underneath it — the per-package tsconfigs have no `@metis/core/domain` path mapping (only `packages/registry`'s does), and `bench/harness` declares a `rootDir` of `bench/harness/src` that its own `@metis/runtime` imports fall outside. Until this is fixed the per-package tsconfigs cannot be used for typechecking, and `bench/*` is checked by nothing.
-
-### G-035 — A long-lived dev server degrades until the suite is unusable
-
-**Registered:** 2026-09-09 · **Status:** Open · **Work item:** none
-
-Playwright reuses whatever is on port 3000 (`reuseExistingServer: true`), and a
-`next dev` process that has been up long enough stops being a valid thing to
-measure against.
-
-Observed 2026-09-09. The process had been running seventeen hours at 2.2 GB
-resident. Against it, `npm run test:a11y` managed **2 tests in 10 minutes**;
-against a freshly started server, the same command ran **49 in 2.7 minutes**.
-Every timing-shaped failure recorded in this register before that point should
-be re-read with it in mind.
-
-**Decided 2026-09-09: refuse a reused server older than two hours.**
-
-`apps/console/tests/global-setup.ts` reads `GET /api/_test/uptime` before the
-suite runs and throws if the server has been up longer, naming the age and
-telling the reader to restart it. Verified to bite by lowering the threshold to
-one millisecond: the run stops with the message rather than producing numbers
-nobody should trust.
-
-**Why two hours, since it is a judgement and not a measurement.** It sits
-between the two numbers there is evidence for. A cold start costs about thirty
-seconds, so refusing at two hours costs at most one cold start per two hours of
-work — inside the noise of a suite that takes fourteen minutes. The only
-degradation actually observed was at seventeen hours. Two hours is comfortably
-inside that and comfortably longer than any single sitting of edit-and-rerun, so
-a developer iterating should never see it and a server left up overnight always
-will.
-
-**What is still unknown, and how to settle it.** Nobody has measured where the
-degradation begins; there is one observation at seventeen hours and one
-non-observation at zero. Recording the server's age alongside the suite duration
-for a few weeks would turn this into a number. Until then it is a guess with a
-reason attached, which is better than reuse with neither.
-
-**Not chosen: dropping the reuse.** It would cost a cold start on every local
-invocation for a problem that appears once a day at most, and the people who pay
-that are the ones running the suite most often.
-
-**One test was passing for the wrong reason, and the fix exposed it.**
-`seeds nothing running` asserted `getByText('running')` had count 0.
-`getByText` is a case-insensitive substring match, so it also matched the page's
-own **"Running"** metric label — the assertion could only pass by running before
-the list rendered and finding nothing at all. Adding a wait for the seed to
-`beforeEach` turned that false pass into the failure it had always been. It now
-reads the badge with `{ exact: true }` and separately asserts the page's own
-counter says 0: the same claim, addressed precisely, checked twice.
-
-Under `--repeat-each=12` on a fresh server: **16 failed / 1 passed** before the
-G-003 fixes, **12 failed / 85 passed** after them, **1 failed / 96 passed** after
-the addressing fix. The remaining one is `ECONNRESET` on the teardown's reset
-POST — the dev server dropping a connection, which is a transport fault rather
-than an ordering one.
-
-**Done when:** `--repeat-each=12` passes ten times in a row without an
-`ECONNRESET`. Six consecutive full runs are clean; this narrower probe is not.
 
 ### G-038 — The catalogue's rules are written twice
 
@@ -1837,6 +1795,103 @@ sending zero.
 
 ## Resolved
 
+### G-035 — A reused dev server corrupted results, and the harness now owns the server it measures
+
+**Registered:** 2026-09-09 · **Resolved:** 2026-09-13 · **Status:** Resolved · **Work item:** none
+
+**How it was filed.** *"A long-lived dev server degrades until the suite is
+unusable."* Playwright reused whatever was on port 3000
+(`reuseExistingServer: true`). On 2026-09-09 a `next dev` process up seventeen
+hours at 2.2 GB ran `npm run test:a11y` at **2 tests in 10 minutes** where a
+fresh one ran **49 in 2.7 minutes**. The decision then was to refuse a reused
+server older than two hours — stated at the time as a guess with a reason, one
+observation rather than a curve.
+
+**What it actually is: the same class as [G-002](gaps.md).** A reused server
+is a result that depends on where the suite ran rather than on the code. G-002
+hid changes — a fixture edited after the server started never reached it, so a
+bite-proof read as "this check does not bite". This one corrupts results — a
+worn server does not fail, it slows, so every timing-sensitive assertion
+becomes a coin flip and a slow suite reads as a flaky one. Neither announces
+itself. Both were found by somebody distrusting a convenient result.
+
+**The measurement that retired the threshold.** On 2026-09-12 a full run went
+from about twenty tests a minute to about **one**, partway through, on a server
+roughly forty minutes old. The two-hour guard could not have caught it, for two
+separate reasons:
+
+1. **Age was the wrong variable.** That server had served a full run and part
+   of another, and other suites were running on the machine beside it. The
+   damage tracked work served and load around it, not wall-clock time. Any age
+   threshold either refuses healthy servers or admits worn ones.
+2. **It ran once, before the suite.** A server that degrades *during* a run
+   passes a check made at its start.
+
+On a server the harness had just started, with nothing else running, the same
+suite ran **384 passed in 16.8 minutes** with no slowdown from first test to
+last.
+
+**Three answers were weighed.**
+
+- **A shorter threshold.** Rejected: it tunes the wrong variable, and would
+  still have passed the forty-minute server at thirty-nine.
+- **A throughput probe.** Measures the right symptom and would also catch
+  contention. Rejected as the control: the baseline differs between a laptop and
+  a CI runner, so the number is a guess again, and a probe before the suite has
+  the same blind spot as the age check.
+- **The harness owns the server's lifecycle.** Chosen. Every observed case —
+  seventeen hours, forty minutes, and G-002's stale seed — was a *reused*
+  server. Never reusing one removes the cause rather than estimating it.
+
+**What was built.**
+
+- `apps/console/playwright.config.ts` starts `next dev` on its **own port
+  (3200)**, with its **own dist directory (`.next/e2e`)**, hands it a **run
+  token**, and sets `reuseExistingServer: false`. With reuse off, Playwright
+  refuses a busy port before any test runs.
+- **The dist directory is what makes that livable.** Next 16 takes a lock at
+  `<distDir>/lock` and refuses a second `next dev` on the same directory, so a
+  suite on the default directory would fail whenever a person had the console
+  open. On its own directory it runs beside theirs. Inside `.next`, so git and
+  eslint already ignore it. `next.config.js` reads `NEXT_DIST_DIR`; everybody
+  else gets `.next`.
+- **`next dev` rewrote `tsconfig.json` on the harness's first run**, adding
+  `.next/e2e/types` and `.next/e2e/dev/types` to `include` — the same thing it
+  does for `.next/dev`. Committed rather than reverted, since a revert is
+  recreated by every run, and `e2e-harness.test.ts` asserts the globs stay so a
+  run leaves the tree clean.
+- `GET /api/_test/uptime` echoes the run token. `global-setup.ts` refuses a
+  server that does not echo *this* run's token, before the seed check.
+- **The refusal logic is a pure function**, `apps/console/tests/server-trust.ts`,
+  so each refusal is a unit test — `tests/unit/server-trust.test.ts`. That
+  closes the half of [G-095](gaps.md) that was about the decision; see there
+  for what remains.
+- `tests/unit/e2e-harness.test.ts` pins the invariant: no reuse, a port nobody
+  starts a console on, a dist directory of its own inside `.next`, the token
+  handed over, and `next.config.js` honouring the directory. The first time a
+  cold start feels slow, turning reuse back on is the convenient move; this
+  fails before anyone believes a result from it.
+
+**The cost, stated.** Every local invocation pays a cold start and the warmup
+project's route compile — about half a minute on a warm cache. A bite-proof
+loop that reran one spec against a live server now pays that each time. That
+is the price of a proof meaning something, and Rule 10 already said a proof
+against a reused server proves nothing.
+
+**What this does not fix.** A machine doing other work while the suite runs.
+The 2026-09-12 run was disturbed by suites started beside it, and no harness
+setting prevents that. CLAUDE.md's rule stands: a run you disturbed is
+discarded, not reported.
+
+The two-hour age refusal is removed — with the server always minutes old it
+could not fire — and its reasoning is kept here rather than deleted, because
+the reason it was wrong is the useful part.
+
+**`ECONNRESET` on teardown**, the one failure left under `--repeat-each=12`
+when this was filed, has not been reproduced since and was not re-measured
+here. It is a transport fault on a reused server's teardown POST; whether it
+survives a harness-owned server is unknown, and it is not claimed fixed.
+
 ### G-097 — The note that exists to stop stale numbers had gone stale twice, for the reason it was written
 
 **Registered:** 2026-09-12 · **Resolved:** 2026-09-12 · **Status:** Resolved · **Work item:** none
@@ -1898,6 +1953,11 @@ pre-edit fixture data."* Playwright's `webServer` sets
 server already running when a fixture changes keeps the old seed — so the entry
 said the workaround is to restart it. Filed as an inconvenience about demo data
 for seven days.
+
+*Since 2026-09-13 ([G-035](gaps.md)) the harness starts its own server every run
+and never reuses one, so the reuse this entry describes no longer happens in an
+ordinary run. The fingerprint refusal stays, as the check that names what
+differs when it does.*
 
 **What it actually is.** A mechanism that makes Rule 9 unreliable. A bite-proof
 is *edit the guarded thing, watch the check go red.* If the edit never reaches

@@ -1,7 +1,21 @@
 import { defineConfig, devices } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 
-const PORT = Number(process.env.PORT || 3000);
+/**
+ * The suite starts the server it measures, and never reuses one. G-035.
+ *
+ * Its own port, because 3000 is where a person runs the console and a shared
+ * port is how a person's long-lived server became the thing under test. 3100 is
+ * the bundle-budget server. `E2E_PORT` rather than `PORT`, which `next dev`
+ * also reads and a person may have exported.
+ *
+ * A run token, set once in the runner process and inherited by everything it
+ * spawns, so `global-setup.ts` can refuse any server that is not the one this
+ * invocation started.
+ */
+const PORT = Number(process.env.E2E_PORT || 3200);
 const baseURL = `http://localhost:${PORT}`;
+process.env.METIS_E2E_RUN ||= randomUUID();
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -35,8 +49,8 @@ export default defineConfig({
         ['json', { outputFile: process.env.PLAYWRIGHT_JSON_OUTPUT_NAME || 'playwright-results.json' }],
       ]
     : [['list']],
-  // Refuses a reused dev server that has been up too long. See the file, and
-  // G-035 in docs/gaps.md.
+  // Refuses a server this run did not start, or one serving other fixtures.
+  // See tests/server-trust.ts, and G-002 and G-035 in docs/gaps.md.
   globalSetup: './tests/global-setup.ts',
   // Measured on this machine with ten busy loops on twelve cores, which is
   // roughly what a CI runner under contention looks like: page visits go from
@@ -65,9 +79,21 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    command: `npx next dev --port ${PORT}`,
     url: baseURL,
-    reuseExistingServer: true,
+    // Never. A reused server produced results that described the server
+    // rather than the code, twice: stale fixtures (G-002) and a server that
+    // slowed twentyfold partway through a suite (G-035). With this false,
+    // Playwright refuses a busy port before a single test runs.
+    reuseExistingServer: false,
+    env: {
+      // Inside `.next`, so git and eslint already ignore it. tsc does not, on
+      // purpose: `next dev` adds this directory's generated route types to
+      // tsconfig.json's include, as it did for `.next/dev`, and those globs are
+      // committed so a run does not dirty the tree.
+      NEXT_DIST_DIR: '.next/e2e',
+      METIS_E2E_RUN: process.env.METIS_E2E_RUN!,
+    },
     timeout: 120_000,
   },
 });

@@ -65,18 +65,25 @@ These are non-negotiable. Every PR must enforce them.
 
     **A bite-proof taken against a reused dev server proves nothing.** Same
     class, different environment: the result is an artefact of where the check
-    ran rather than of what it guards. Playwright sets
-    `reuseExistingServer: true` and the mock store seeds at module load, so a
-    fixture edited after the server started is invisible — the suite answers
+    ran rather than of what it guards. The mock store seeds at module load, so
+    a fixture edited after a server started is invisible — the suite answers
     from a seed nobody is looking at. A proof run against it comes back green
     and reads as *"this check does not bite"* when the truth is *"the check was
     never shown the change"*: a false negative on the one control Rule 9
     depends on. It happened on 2026-09-12 — a boost was set to 1.0 to prove an
     e2e assertion needed it, the suite passed, and the conclusion was wrong.
-    `global-setup.ts` now refuses a server whose seed differs from the files on
-    disk and names the part that moved (G-002), but that refusal has no
-    automated test of its own (G-095), so a proof that matters is still worth
-    restarting for.
+    A server that has been up a while fails the other way, and the same day
+    showed that too: one slowed from twenty tests a minute to one partway
+    through a suite, which turns every timing-sensitive assertion into a coin
+    flip and makes a slow suite read as a flaky one.
+
+    So the e2e harness starts its own server every run, on its own port and
+    dist directory, and never reuses one (G-035), and `global-setup.ts` refuses
+    a server that is not the one the run started or whose seed differs from
+    disk (G-002). The refusal *decision* is unit-tested; its wiring is not
+    (G-095). None of this covers a server started by hand — a preview, a curl,
+    a script run against port 3000 — so a proof taken that way is still worth
+    a restart.
 
     Normalise to `\n`, patch with plain `\n` patterns, restore the endings the
     file had. `scripts/patch-file.mjs` does exactly that and asserts every match,
