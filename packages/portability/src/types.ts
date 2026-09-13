@@ -13,6 +13,8 @@ import type {
   Placement,
   TargetingPolicy,
 } from '@metis/core/domain';
+import type { ProfileSchema } from '@metis/core/profile-schema';
+import type { Experiment } from '@metis/core/experiment';
 import type { EntityName } from './entities';
 
 /**
@@ -23,7 +25,7 @@ import type { EntityName } from './entities';
  * import the parts it recognises: a half-imported tenant is a worse outcome
  * than a refused one, because the refusal is visible and the half is not.
  */
-export const FORMAT_VERSION = '2.0.0';
+export const FORMAT_VERSION = '3.0.0';
 
 export interface BundleFile {
   entity: EntityName;
@@ -80,6 +82,10 @@ export interface TenantBundle {
   catalogue_connectors: Connector[];
   /** Since format 2.0.0. */
   catalogue_placements: Placement[];
+  /** Since format 3.0.0. Zero or one, an array for the same reason arbitration is. */
+  catalogue_profile_schemas: ProfileSchema[];
+  /** Since format 3.0.0. */
+  catalogue_experiments: Experiment[];
   /** Zero or one. An array so every file in the bundle has the same shape. */
   catalogue_arbitration: ArbitrationConfig[];
   catalogue_events: CatalogueEvent[];

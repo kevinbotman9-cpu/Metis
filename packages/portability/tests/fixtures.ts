@@ -230,6 +230,26 @@ export async function populatedInstance(): Promise<Instance> {
     'marcus',
     AT
   );
+  await inst.catalogue.putProfileSchema(
+    TENANT,
+    {
+      id: 'schema_telco', tenantId: TENANT, version: '1.0.0',
+      roots: { customer: 'Customer', context: 'Context' }, entities: [], aggregations: [],
+      updatedAt: AT, updatedBy: 'marcus',
+    } as never,
+    'marcus',
+    AT
+  );
+  await inst.catalogue.putExperiment(
+    TENANT,
+    {
+      id: 'exp_holdout', tenantId: TENANT, key: 'fiber_holdout', name: 'Fiber holdout',
+      description: '', arms: [{ key: 'holdout', name: 'Held out', weight: 10, holdout: true }],
+      status: 'draft', startedAt: null, stoppedAt: null, updatedAt: AT, updatedBy: 'marcus',
+    } as never,
+    'marcus',
+    AT
+  );
 
   await inst.registry.publish(
     { tenantId: TENANT, flowName: FLOW, version: '1.0.0', source: source(), actor: 'sarah', occurredAt: AT },

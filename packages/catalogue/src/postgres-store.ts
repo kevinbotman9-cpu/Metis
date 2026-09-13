@@ -10,6 +10,8 @@ import type {
   Placement,
   TargetingPolicy,
 } from '@metis/core/domain';
+import type { ProfileSchema } from '@metis/core/profile-schema';
+import type { Experiment } from '@metis/core/experiment';
 import type {
   CatalogueEntity,
   CatalogueEvent,
@@ -37,7 +39,7 @@ export class PostgresCatalogueStore implements CatalogueStore {
   /**
    * The whole catalogue in one round trip.
    *
-   * Ten queries rather than ten round trips would still be ten moments;
+   * Twelve queries rather than twelve round trips would still be twelve moments;
    * this is deliberately a single statement so the snapshot is consistent.
    * The engine hashes what it reads, and a hash over a mixture of two moments
    * is a hash of something that never existed.
@@ -53,6 +55,8 @@ export class PostgresCatalogueStore implements CatalogueStore {
        UNION ALL SELECT 'boost', body FROM catalogue_boosts WHERE tenant_id = $1
        UNION ALL SELECT 'connector', body FROM catalogue_connectors WHERE tenant_id = $1
        UNION ALL SELECT 'placement', body FROM catalogue_placements WHERE tenant_id = $1
+       UNION ALL SELECT 'profile_schema', body FROM catalogue_profile_schemas WHERE tenant_id = $1
+       UNION ALL SELECT 'experiment', body FROM catalogue_experiments WHERE tenant_id = $1
        UNION ALL SELECT 'arbitration', body FROM catalogue_arbitration WHERE tenant_id = $1`,
       [tenantId]
     );
@@ -67,6 +71,8 @@ export class PostgresCatalogueStore implements CatalogueStore {
       boosts: [],
       connectors: [],
       placements: [],
+      profileSchema: null,
+      experiments: [],
       arbitration: null,
     };
 
@@ -99,6 +105,12 @@ export class PostgresCatalogueStore implements CatalogueStore {
         case 'placement':
           snapshot.placements.push(row.body as Placement);
           break;
+        case 'profile_schema':
+          snapshot.profileSchema = row.body as ProfileSchema;
+          break;
+        case 'experiment':
+          snapshot.experiments.push(row.body as Experiment);
+          break;
         case 'arbitration':
           snapshot.arbitration = row.body as ArbitrationConfig;
           break;
@@ -118,6 +130,7 @@ export class PostgresCatalogueStore implements CatalogueStore {
     byId(snapshot.boosts);
     byId(snapshot.connectors);
     byId(snapshot.placements);
+    byId(snapshot.experiments);
 
     return snapshot;
   }
@@ -225,11 +238,48 @@ export class PostgresCatalogueStore implements CatalogueStore {
     );
   }
 
-  async deleteOffer(tenantId: string, offerId: string): Promise<boolean> {
-    const { rowCount } = await this.db.query(
-      'DELETE FROM catalogue_offers WHERE tenant_id = $1 AND id = $2',
-      [tenantId, offerId]
+  async putProfileSchema(tenantId: string, s: ProfileSchema): Promise<void> {
+    await this.db.query(
+      `INSERT INTO catalogue_profile_schemas (tenant_id, body, updated_at)
+       VALUES ($1, $2, now())
+       ON CONFLICT (tenant_id) DO UPDATE
+         SET body = EXCLUDED.body, updated_at = now()`,
+      [tenantId, JSON.stringify(s)]
     );
+  }
+
+  async putExperiment(tenantId: string, e: Experiment): Promise<void> {
+    await this.db.query(
+      `INSERT INTO catalogue_experiments (tenant_id, id, key, body, updated_at)
+       VALUES ($1, $2, $3, $4, now())
+       ON CONFLICT (tenant_id, id) DO UPDATE
+         SET key = EXCLUDED.key, body = EXCLUDED.body, updated_at = now()`,
+      [tenantId, e.id, e.key, JSON.stringify(e)]
+    );
+  }
+
+  async deleteOffer(tenantId: string, offerId: string): Promise<boolean> {
+    return this.deleteFrom('catalogue_offers', tenantId, offerId);
+  }
+
+  async deleteCreative(tenantId: string, creativeId: string): Promise<boolean> {
+    return this.deleteFrom('catalogue_creatives', tenantId, creativeId);
+  }
+
+  async deleteTargetingPolicy(tenantId: string, policyId: string): Promise<boolean> {
+    return this.deleteFrom('catalogue_targeting_policies', tenantId, policyId);
+  }
+
+  async deletePlacement(tenantId: string, placementId: string): Promise<boolean> {
+    return this.deleteFrom('catalogue_placements', tenantId, placementId);
+  }
+
+  /** The table name is one of four literals above, never input. */
+  private async deleteFrom(table: string, tenantId: string, id: string): Promise<boolean> {
+    const { rowCount } = await this.db.query(`DELETE FROM ${table} WHERE tenant_id = $1 AND id = $2`, [
+      tenantId,
+      id,
+    ]);
     return (rowCount ?? 0) > 0;
   }
 

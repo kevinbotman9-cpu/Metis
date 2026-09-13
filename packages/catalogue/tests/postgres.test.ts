@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 import { PostgresCatalogueStore } from '../src/postgres-store';
 import { runMigration } from '../src/create-store';
 import { Catalogue } from '../src/catalogue';
-import { describeCatalogue, objective, category, offer, placement } from './suite';
+import { describeCatalogue, objective, category, offer, placement, experiment } from './suite';
 
 /**
  * The same behaviour suite, against a real PostgreSQL.
@@ -44,6 +44,7 @@ if (!reachable) {
     pool.query(
       `TRUNCATE catalogue_events, catalogue_arbitration, catalogue_boosts,
                 catalogue_connectors, catalogue_placements,
+                catalogue_profile_schemas, catalogue_experiments,
                 catalogue_frequency_policies, catalogue_targeting_policies,
                 catalogue_creatives, catalogue_offers, catalogue_categories,
                 catalogue_objectives
@@ -95,6 +96,15 @@ if (!reachable) {
     const store = new PostgresCatalogueStore(pool);
     await store.putPlacement(T, placement());
     await expect(store.putPlacement(T, placement({ id: 'plc_second' }))).rejects.toThrow(
+      /duplicate key value|unique constraint/i
+    );
+  });
+
+  it('the database refuses two experiments sharing a key, whatever the caller checked', async () => {
+    await truncate();
+    const store = new PostgresCatalogueStore(pool);
+    await store.putExperiment(T, experiment());
+    await expect(store.putExperiment(T, experiment({ id: 'exp_second' }))).rejects.toThrow(
       /duplicate key value|unique constraint/i
     );
   });

@@ -113,6 +113,8 @@ export async function exportTenant(
     catalogue_boosts: cat.boosts,
     catalogue_connectors: cat.connectors,
     catalogue_placements: cat.placements,
+    catalogue_profile_schemas: cat.profileSchema ? [cat.profileSchema] : [],
+    catalogue_experiments: cat.experiments,
     catalogue_arbitration: cat.arbitration ? [cat.arbitration] : [],
     catalogue_events: catEvents,
     registry_versions: versions,

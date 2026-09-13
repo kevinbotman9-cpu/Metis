@@ -24,6 +24,8 @@ export type EntityName =
   | 'catalogue_boosts'
   | 'catalogue_connectors'
   | 'catalogue_placements'
+  | 'catalogue_profile_schemas'
+  | 'catalogue_experiments'
   | 'catalogue_arbitration'
   | 'catalogue_events'
   | 'registry_versions'
@@ -61,6 +63,12 @@ export const ENTITIES: EntityDeclaration[] = [
   // Not hashed, and a slate is reproducible only with the placement that
   // composed it (G-010), so a placement travels with the decisions it shaped.
   { table: 'catalogue_placements', included: true },
+  // Zero or one row, like arbitration. The data model a tenant's policies are
+  // written against: a restore without it would hold rules that name fields
+  // nothing defines.
+  { table: 'catalogue_profile_schemas', included: true },
+  // In every state. A stopped experiment still explains the decisions it split.
+  { table: 'catalogue_experiments', included: true },
   // Zero or one row. An array either way, so every file in the bundle has the
   // same shape and nothing downstream special-cases it.
   { table: 'catalogue_arbitration', included: true },
