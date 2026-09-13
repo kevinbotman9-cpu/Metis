@@ -2,10 +2,12 @@ import type {
   ArbitrationConfig,
   Boost,
   Category,
+  Connector,
   Creative,
   FrequencyPolicy,
   Objective,
   Offer,
+  Placement,
   TargetingPolicy,
 } from '@metis/core/domain';
 import {
@@ -136,6 +138,40 @@ export class Catalogue {
     await this.store.putArbitration(tenantId, config);
     await this.log(tenantId, actor, at, 'arbitration', config.id, existed, 'Ranking function');
     return config;
+  }
+
+  /**
+   * A connector is part of the snapshot the engine hashes, which is why it is
+   * stored with the catalogue rather than beside the gateway: changing its field
+   * mapping changes what a decision sees, and has to change the hash with it.
+   */
+  async putConnector(tenantId: string, connector: Connector, actor: string, at: string) {
+    const existed = (await this.store.read(tenantId)).connectors.some((c) => c.id === connector.id);
+    await this.store.putConnector(tenantId, connector);
+    await this.log(tenantId, actor, at, 'connector', connector.id, existed, connector.name);
+    return connector;
+  }
+
+  /**
+   * A placement is read with the catalogue and not hashed with it: it governs
+   * delivery, not what is decided. Its key is what a request names, so two
+   * placements cannot share one — a request naming it would have two flows to
+   * ask.
+   */
+  async putPlacement(tenantId: string, placement: Placement, actor: string, at: string) {
+    const snapshot = await this.store.read(tenantId);
+    const clash = snapshot.placements.find((p) => p.key === placement.key && p.id !== placement.id);
+    if (clash) {
+      throw new CatalogueError(
+        'DUPLICATE_KEY',
+        `Placement key "${placement.key}" is already used by ${clash.id}. A request names a ` +
+          'placement by its key, so two placements cannot share one.'
+      );
+    }
+    const existed = snapshot.placements.some((p) => p.id === placement.id);
+    await this.store.putPlacement(tenantId, placement);
+    await this.log(tenantId, actor, at, 'placement', placement.id, existed, placement.name);
+    return placement;
   }
 
   /**

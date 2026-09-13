@@ -122,10 +122,10 @@ if (!reachable) {
     });
 
     it('brings a database at every earlier version to the schema a fresh one has', async () => {
-      // One migration today, so there is no earlier version to build and this
-      // loop has nothing to iterate — said here rather than hidden. It has
-      // teeth from the first 002_*.sql without anybody remembering to add a
-      // case, and the runner's version of it is proved in core with three.
+      // Iterates from the first 002_*.sql, which arrived on 2026-09-13 with
+      // connectors and placements: a database left at version 1 must reach the
+      // schema a fresh one has. Nobody had to remember to add the case — until
+      // then this loop had nothing to iterate, and said so here.
       const files = readMigrations(MIGRATIONS_DIR);
       const fresh = await emptyDatabase();
       await runMigration(fresh);
@@ -154,6 +154,8 @@ if (!reachable) {
         targetingPolicies: [],
         frequencyPolicies: [],
         boosts: [],
+        connectors: [],
+        placements: [],
         arbitration: null,
       });
       await expect(store.listEvents({ tenantId: 'telco-us' })).resolves.toEqual([]);

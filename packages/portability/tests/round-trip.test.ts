@@ -203,7 +203,10 @@ describe('a bundle that cannot be trusted is refused', () => {
   it('refuses a bundle from a future format version, rather than importing part of it', async () => {
     const source = await populatedInstance();
     const bundle = await exportTenant(source, { tenantId: TENANT, exportedAt: AT });
-    bundle.manifest.formatVersion = '2.0.0';
+    // The next major, derived: this was the literal '2.0.0', which stopped
+    // being the future the day connectors and placements made 2.0.0 current.
+    const [major] = FORMAT_VERSION.split('.');
+    bundle.manifest.formatVersion = `${Number(major) + 1}.0.0`;
 
     const problems = verifyBundle(bundle);
     expect(problems.map((p) => p.kind)).toEqual(['format-version']);

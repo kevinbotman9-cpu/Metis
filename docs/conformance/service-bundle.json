@@ -147,52 +147,6 @@
   "catalogue": {
     "offers": [
       {
-        "id": "off_fios_gigabit",
-        "categoryId": "grp_broadband",
-        "objectiveId": "iss_acquisition",
-        "name": "FIOS Gigabit",
-        "key": "fios_gigabit",
-        "description": "Full-fiber gigabit internet, where the address can take it.",
-        "status": "active",
-        "financials": {
-          "price": {
-            "amount": 0,
-            "currency": "USD"
-          },
-          "cost": {
-            "amount": 0,
-            "currency": "USD"
-          },
-          "expectedMargin": {
-            "amount": 10000,
-            "currency": "USD"
-          },
-          "termMonths": 0,
-          "oneOff": false
-        },
-        "validity": {
-          "startsAt": "2024-01-01",
-          "endsAt": null
-        },
-        "boost": 1,
-        "policyIds": [
-          "pol_fios_serviceable",
-          "pol_not_on_fios",
-          "pol_fios_interest"
-        ],
-        "creativeIds": [
-          "crt_fios_web",
-          "crt_fios_email"
-        ],
-        "tags": [
-          "broadband",
-          "fiber"
-        ],
-        "createdAt": "2026-08-07T09:00:00.000Z",
-        "updatedAt": "2026-09-01T03:00:00.000Z",
-        "updatedBy": "sarah.chen@telco.example"
-      },
-      {
         "id": "off_5g_home_ultimate",
         "categoryId": "grp_broadband",
         "objectiveId": "iss_acquisition",
@@ -239,51 +193,6 @@
         "updatedBy": "sarah.chen@telco.example"
       },
       {
-        "id": "off_gaming_plus_bundle",
-        "categoryId": "grp_entertainment",
-        "objectiveId": "iss_crosssell",
-        "name": "Gaming Plus Bundle",
-        "key": "gaming_plus_bundle",
-        "description": "Low-latency router and gaming add-on for an existing line.",
-        "status": "active",
-        "financials": {
-          "price": {
-            "amount": 0,
-            "currency": "USD"
-          },
-          "cost": {
-            "amount": 0,
-            "currency": "USD"
-          },
-          "expectedMargin": {
-            "amount": 10000,
-            "currency": "USD"
-          },
-          "termMonths": 0,
-          "oneOff": false
-        },
-        "validity": {
-          "startsAt": "2024-01-01",
-          "endsAt": null
-        },
-        "boost": 1,
-        "policyIds": [
-          "pol_has_broadband",
-          "pol_gaming_affinity"
-        ],
-        "creativeIds": [
-          "crt_gaming_web",
-          "crt_gaming_email"
-        ],
-        "tags": [
-          "entertainment",
-          "gaming"
-        ],
-        "createdAt": "2026-08-07T09:00:00.000Z",
-        "updatedAt": "2026-09-01T03:00:00.000Z",
-        "updatedBy": "sarah.chen@telco.example"
-      },
-      {
         "id": "off_disney_plus",
         "categoryId": "grp_entertainment",
         "objectiveId": "iss_crosssell",
@@ -324,6 +233,97 @@
           "entertainment",
           "ott",
           "partner"
+        ],
+        "createdAt": "2026-08-07T09:00:00.000Z",
+        "updatedAt": "2026-09-01T03:00:00.000Z",
+        "updatedBy": "sarah.chen@telco.example"
+      },
+      {
+        "id": "off_fios_gigabit",
+        "categoryId": "grp_broadband",
+        "objectiveId": "iss_acquisition",
+        "name": "FIOS Gigabit",
+        "key": "fios_gigabit",
+        "description": "Full-fiber gigabit internet, where the address can take it.",
+        "status": "active",
+        "financials": {
+          "price": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "cost": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "expectedMargin": {
+            "amount": 10000,
+            "currency": "USD"
+          },
+          "termMonths": 0,
+          "oneOff": false
+        },
+        "validity": {
+          "startsAt": "2024-01-01",
+          "endsAt": null
+        },
+        "boost": 1,
+        "policyIds": [
+          "pol_fios_serviceable",
+          "pol_not_on_fios",
+          "pol_fios_interest"
+        ],
+        "creativeIds": [
+          "crt_fios_web",
+          "crt_fios_email"
+        ],
+        "tags": [
+          "broadband",
+          "fiber"
+        ],
+        "createdAt": "2026-08-07T09:00:00.000Z",
+        "updatedAt": "2026-09-01T03:00:00.000Z",
+        "updatedBy": "sarah.chen@telco.example"
+      },
+      {
+        "id": "off_gaming_plus_bundle",
+        "categoryId": "grp_entertainment",
+        "objectiveId": "iss_crosssell",
+        "name": "Gaming Plus Bundle",
+        "key": "gaming_plus_bundle",
+        "description": "Low-latency router and gaming add-on for an existing line.",
+        "status": "active",
+        "financials": {
+          "price": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "cost": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "expectedMargin": {
+            "amount": 10000,
+            "currency": "USD"
+          },
+          "termMonths": 0,
+          "oneOff": false
+        },
+        "validity": {
+          "startsAt": "2024-01-01",
+          "endsAt": null
+        },
+        "boost": 1,
+        "policyIds": [
+          "pol_has_broadband",
+          "pol_gaming_affinity"
+        ],
+        "creativeIds": [
+          "crt_gaming_web",
+          "crt_gaming_email"
+        ],
+        "tags": [
+          "entertainment",
+          "gaming"
         ],
         "createdAt": "2026-08-07T09:00:00.000Z",
         "updatedAt": "2026-09-01T03:00:00.000Z",
@@ -378,40 +378,20 @@
     ],
     "targetingPolicies": [
       {
-        "id": "pol_account_active",
-        "name": "Active account",
-        "kind": "eligibility",
-        "description": "Every offer in the brief requires an active consumer account.",
+        "id": "pol_5g_bandwidth_need",
+        "name": "Bandwidth need in the usage profile",
+        "kind": "relevance",
+        "description": "Offer the bigger pipe to the households using the one they have.",
         "conditions": [
           {
-            "field": "customer.account_status",
-            "operator": "eq",
-            "value": "active"
-          }
-        ],
-        "scope": {
-          "level": "tenant",
-          "targetId": null
-        },
-        "active": true,
-        "createdAt": "2026-08-07T09:00:00.000Z",
-        "updatedAt": "2026-08-07T09:00:00.000Z"
-      },
-      {
-        "id": "pol_fios_serviceable",
-        "name": "Fiber serviceable at the address",
-        "kind": "eligibility",
-        "description": "Do not offer fiber where it cannot be installed. The value arrives from conn_serviceability, so a refusal can name the system that supplied the evidence.",
-        "conditions": [
-          {
-            "field": "customer.address.fios_serviceable",
-            "operator": "eq",
-            "value": true
+            "field": "customer.usage.pct_of_allowance_3mo_avg",
+            "operator": "gte",
+            "value": 0.8
           }
         ],
         "scope": {
           "level": "offer",
-          "targetId": "off_fios_gigabit"
+          "targetId": "off_5g_home_ultimate"
         },
         "active": true,
         "createdAt": "2026-08-07T09:00:00.000Z",
@@ -438,30 +418,30 @@
         "updatedAt": "2026-08-07T09:00:00.000Z"
       },
       {
-        "id": "pol_no_open_broadband_order",
-        "name": "No open broadband order",
+        "id": "pol_account_active",
+        "name": "Active account",
         "kind": "eligibility",
-        "description": "A line already being provisioned is not a line to sell again.",
+        "description": "Every offer in the brief requires an active consumer account.",
         "conditions": [
           {
-            "field": "customer.orders.open_broadband",
+            "field": "customer.account_status",
             "operator": "eq",
-            "value": false
+            "value": "active"
           }
         ],
         "scope": {
-          "level": "category",
-          "targetId": "grp_broadband"
+          "level": "tenant",
+          "targetId": null
         },
         "active": true,
         "createdAt": "2026-08-07T09:00:00.000Z",
         "updatedAt": "2026-08-07T09:00:00.000Z"
       },
       {
-        "id": "pol_has_broadband",
-        "name": "Broadband service on the account",
-        "kind": "eligibility",
-        "description": "Gaming Plus is an add-on to a line. Without the line there is nothing to add it to.",
+        "id": "pol_broadband_need_met",
+        "name": "Broadband need already met",
+        "kind": "relevance",
+        "description": "Entertainment is a cross-sell onto a working line. This rule opens the category once broadband is provisioned, and it is why the follow-up interaction shows gaming and streaming rather than another broadband offer.",
         "conditions": [
           {
             "field": "customer.broadband.status",
@@ -470,8 +450,8 @@
           }
         ],
         "scope": {
-          "level": "offer",
-          "targetId": "off_gaming_plus_bundle"
+          "level": "category",
+          "targetId": "grp_entertainment"
         },
         "active": true,
         "createdAt": "2026-08-07T09:00:00.000Z",
@@ -498,95 +478,15 @@
         "updatedAt": "2026-08-07T09:00:00.000Z"
       },
       {
-        "id": "pol_netflix_available",
-        "name": "Netflix partner bundle available in region",
-        "kind": "eligibility",
-        "description": "A partner bundle can only be sold where the agreement covers the region.",
-        "conditions": [
-          {
-            "field": "customer.ott.netflix_available",
-            "operator": "eq",
-            "value": true
-          }
-        ],
-        "scope": {
-          "level": "offer",
-          "targetId": "off_netflix"
-        },
-        "active": true,
-        "createdAt": "2026-08-07T09:00:00.000Z",
-        "updatedAt": "2026-08-07T09:00:00.000Z"
-      },
-      {
-        "id": "pol_not_moving",
-        "name": "Not moving within 30 days",
+        "id": "pol_entertainment_affinity",
+        "name": "Entertainment affinity above threshold",
         "kind": "relevance",
-        "description": "A line sold into an address they are leaving is a line that will be cancelled.",
+        "description": "The category gate: do not push streaming at a household that shows no interest in it.",
         "conditions": [
           {
-            "field": "customer.moving_within_days",
-            "operator": "gt",
-            "value": 30
-          }
-        ],
-        "scope": {
-          "level": "category",
-          "targetId": "grp_broadband"
-        },
-        "active": true,
-        "createdAt": "2026-08-07T09:00:00.000Z",
-        "updatedAt": "2026-08-07T09:00:00.000Z"
-      },
-      {
-        "id": "pol_not_on_fios",
-        "name": "Not already on FIOS",
-        "kind": "relevance",
-        "description": "They already hold it. This is also what suppresses it after acceptance.",
-        "conditions": [
-          {
-            "field": "customer.broadband.product",
-            "operator": "ne",
-            "value": "fios"
-          }
-        ],
-        "scope": {
-          "level": "offer",
-          "targetId": "off_fios_gigabit"
-        },
-        "active": true,
-        "createdAt": "2026-08-07T09:00:00.000Z",
-        "updatedAt": "2026-08-07T09:00:00.000Z"
-      },
-      {
-        "id": "pol_not_on_5g_home",
-        "name": "No existing 5G Home subscription",
-        "kind": "relevance",
-        "description": "They already hold it. This is also what suppresses it after acceptance.",
-        "conditions": [
-          {
-            "field": "customer.broadband.product",
-            "operator": "ne",
-            "value": "5g_home"
-          }
-        ],
-        "scope": {
-          "level": "offer",
-          "targetId": "off_5g_home_ultimate"
-        },
-        "active": true,
-        "createdAt": "2026-08-07T09:00:00.000Z",
-        "updatedAt": "2026-08-07T09:00:00.000Z"
-      },
-      {
-        "id": "pol_broadband_need_met",
-        "name": "Broadband need already met",
-        "kind": "relevance",
-        "description": "Entertainment is a cross-sell onto a working line. This rule opens the category once broadband is provisioned, and it is why the follow-up interaction shows gaming and streaming rather than another broadband offer.",
-        "conditions": [
-          {
-            "field": "customer.broadband.status",
-            "operator": "eq",
-            "value": "active"
+            "field": "customer.affinity.entertainment",
+            "operator": "gte",
+            "value": 0.5
           }
         ],
         "scope": {
@@ -618,40 +518,20 @@
         "updatedAt": "2026-08-07T09:00:00.000Z"
       },
       {
-        "id": "pol_5g_bandwidth_need",
-        "name": "Bandwidth need in the usage profile",
-        "kind": "relevance",
-        "description": "Offer the bigger pipe to the households using the one they have.",
+        "id": "pol_fios_serviceable",
+        "name": "Fiber serviceable at the address",
+        "kind": "eligibility",
+        "description": "Do not offer fiber where it cannot be installed. The value arrives from conn_serviceability, so a refusal can name the system that supplied the evidence.",
         "conditions": [
           {
-            "field": "customer.usage.pct_of_allowance_3mo_avg",
-            "operator": "gte",
-            "value": 0.8
+            "field": "customer.address.fios_serviceable",
+            "operator": "eq",
+            "value": true
           }
         ],
         "scope": {
           "level": "offer",
-          "targetId": "off_5g_home_ultimate"
-        },
-        "active": true,
-        "createdAt": "2026-08-07T09:00:00.000Z",
-        "updatedAt": "2026-08-07T09:00:00.000Z"
-      },
-      {
-        "id": "pol_entertainment_affinity",
-        "name": "Entertainment affinity above threshold",
-        "kind": "relevance",
-        "description": "The category gate: do not push streaming at a household that shows no interest in it.",
-        "conditions": [
-          {
-            "field": "customer.affinity.entertainment",
-            "operator": "gte",
-            "value": 0.5
-          }
-        ],
-        "scope": {
-          "level": "category",
-          "targetId": "grp_entertainment"
+          "targetId": "off_fios_gigabit"
         },
         "active": true,
         "createdAt": "2026-08-07T09:00:00.000Z",
@@ -678,6 +558,106 @@
         "updatedAt": "2026-08-07T09:00:00.000Z"
       },
       {
+        "id": "pol_has_broadband",
+        "name": "Broadband service on the account",
+        "kind": "eligibility",
+        "description": "Gaming Plus is an add-on to a line. Without the line there is nothing to add it to.",
+        "conditions": [
+          {
+            "field": "customer.broadband.status",
+            "operator": "eq",
+            "value": "active"
+          }
+        ],
+        "scope": {
+          "level": "offer",
+          "targetId": "off_gaming_plus_bundle"
+        },
+        "active": true,
+        "createdAt": "2026-08-07T09:00:00.000Z",
+        "updatedAt": "2026-08-07T09:00:00.000Z"
+      },
+      {
+        "id": "pol_netflix_available",
+        "name": "Netflix partner bundle available in region",
+        "kind": "eligibility",
+        "description": "A partner bundle can only be sold where the agreement covers the region.",
+        "conditions": [
+          {
+            "field": "customer.ott.netflix_available",
+            "operator": "eq",
+            "value": true
+          }
+        ],
+        "scope": {
+          "level": "offer",
+          "targetId": "off_netflix"
+        },
+        "active": true,
+        "createdAt": "2026-08-07T09:00:00.000Z",
+        "updatedAt": "2026-08-07T09:00:00.000Z"
+      },
+      {
+        "id": "pol_no_open_broadband_order",
+        "name": "No open broadband order",
+        "kind": "eligibility",
+        "description": "A line already being provisioned is not a line to sell again.",
+        "conditions": [
+          {
+            "field": "customer.orders.open_broadband",
+            "operator": "eq",
+            "value": false
+          }
+        ],
+        "scope": {
+          "level": "category",
+          "targetId": "grp_broadband"
+        },
+        "active": true,
+        "createdAt": "2026-08-07T09:00:00.000Z",
+        "updatedAt": "2026-08-07T09:00:00.000Z"
+      },
+      {
+        "id": "pol_not_moving",
+        "name": "Not moving within 30 days",
+        "kind": "relevance",
+        "description": "A line sold into an address they are leaving is a line that will be cancelled.",
+        "conditions": [
+          {
+            "field": "customer.moving_within_days",
+            "operator": "gt",
+            "value": 30
+          }
+        ],
+        "scope": {
+          "level": "category",
+          "targetId": "grp_broadband"
+        },
+        "active": true,
+        "createdAt": "2026-08-07T09:00:00.000Z",
+        "updatedAt": "2026-08-07T09:00:00.000Z"
+      },
+      {
+        "id": "pol_not_on_5g_home",
+        "name": "No existing 5G Home subscription",
+        "kind": "relevance",
+        "description": "They already hold it. This is also what suppresses it after acceptance.",
+        "conditions": [
+          {
+            "field": "customer.broadband.product",
+            "operator": "ne",
+            "value": "5g_home"
+          }
+        ],
+        "scope": {
+          "level": "offer",
+          "targetId": "off_5g_home_ultimate"
+        },
+        "active": true,
+        "createdAt": "2026-08-07T09:00:00.000Z",
+        "updatedAt": "2026-08-07T09:00:00.000Z"
+      },
+      {
         "id": "pol_not_on_disney",
         "name": "Not already subscribed to Disney+",
         "kind": "relevance",
@@ -692,6 +672,26 @@
         "scope": {
           "level": "offer",
           "targetId": "off_disney_plus"
+        },
+        "active": true,
+        "createdAt": "2026-08-07T09:00:00.000Z",
+        "updatedAt": "2026-08-07T09:00:00.000Z"
+      },
+      {
+        "id": "pol_not_on_fios",
+        "name": "Not already on FIOS",
+        "kind": "relevance",
+        "description": "They already hold it. This is also what suppresses it after acceptance.",
+        "conditions": [
+          {
+            "field": "customer.broadband.product",
+            "operator": "ne",
+            "value": "fios"
+          }
+        ],
+        "scope": {
+          "level": "offer",
+          "targetId": "off_fios_gigabit"
         },
         "active": true,
         "createdAt": "2026-08-07T09:00:00.000Z",
@@ -720,12 +720,12 @@
     ],
     "frequencyPolicies": [
       {
-        "id": "cpol_web_daily",
-        "name": "Web session cap",
-        "description": "At most three decisioned slots a day on the web, and a 30-day rest on any offer the customer declines.",
-        "channel": "web",
-        "maxContacts": 3,
-        "period": "day",
+        "id": "cpol_email_weekly",
+        "name": "Email weekly cap",
+        "description": "At most two marketing emails a week, and a 30-day rest after a decline.",
+        "channel": "email",
+        "maxContacts": 2,
+        "period": "week",
         "cooldownDaysAfterReject": 30,
         "scope": {
           "level": "tenant",
@@ -734,12 +734,12 @@
         "active": true
       },
       {
-        "id": "cpol_email_weekly",
-        "name": "Email weekly cap",
-        "description": "At most two marketing emails a week, and a 30-day rest after a decline.",
-        "channel": "email",
-        "maxContacts": 2,
-        "period": "week",
+        "id": "cpol_web_daily",
+        "name": "Web session cap",
+        "description": "At most three decisioned slots a day on the web, and a 30-day rest on any offer the customer declines.",
+        "channel": "web",
+        "maxContacts": 3,
+        "period": "day",
         "cooldownDaysAfterReject": 30,
         "scope": {
           "level": "tenant",
@@ -795,89 +795,6 @@
     ],
     "connectors": [
       {
-        "id": "conn_serviceability",
-        "name": "Address serviceability",
-        "kind": "rest",
-        "description": "What the network can deliver at a service address: whether fiber can be installed, and how strong 5G Home coverage is. The customer brief turns on this answer — a fiber address and a non-fiber address are the same visitor with one field different, and this is the field.",
-        "target": "https://serviceability.telco.example/v1/address",
-        "declaredP95Ms": 20,
-        "timeoutMs": 90,
-        "onFailure": "fail",
-        "cacheTtlSeconds": 86400,
-        "provides": [
-          {
-            "field": "customer.address.fios_serviceable",
-            "path": "serviceability.fiosServiceable",
-            "type": "boolean"
-          },
-          {
-            "field": "customer.address.fiveg_coverage",
-            "path": "serviceability.fivegCoverage",
-            "type": "string"
-          }
-        ],
-        "active": true,
-        "updatedAt": "2026-09-01T09:00:00.000Z",
-        "updatedBy": "priya.natarajan@telco.example"
-      },
-      {
-        "id": "conn_order_book",
-        "name": "Order book",
-        "kind": "rest",
-        "description": "Whether a broadband order is already open on the account. A line being provisioned is not a line to sell again, and this is what makes the difference visible to a policy.",
-        "target": "https://orders.telco.example/v1/account",
-        "declaredP95Ms": 25,
-        "timeoutMs": 90,
-        "onFailure": "fail",
-        "cacheTtlSeconds": 30,
-        "provides": [
-          {
-            "field": "customer.orders.open_broadband",
-            "path": "orders.openBroadband",
-            "type": "boolean"
-          }
-        ],
-        "active": true,
-        "updatedAt": "2026-09-01T09:00:00.000Z",
-        "updatedBy": "priya.natarajan@telco.example"
-      },
-      {
-        "id": "conn_engagement",
-        "name": "Engagement and partner availability",
-        "kind": "feature-store",
-        "description": "Category affinities, and which partner streaming agreements cover this region. Affinity is a computed score rather than a model output: it is read here, not predicted.",
-        "target": "features://engagement/v1",
-        "declaredP95Ms": 6,
-        "timeoutMs": 30,
-        "onFailure": "fail",
-        "cacheTtlSeconds": 600,
-        "provides": [
-          {
-            "field": "customer.affinity.gaming",
-            "path": "affinity.gaming",
-            "type": "number"
-          },
-          {
-            "field": "customer.affinity.entertainment",
-            "path": "affinity.entertainment",
-            "type": "number"
-          },
-          {
-            "field": "customer.ott.disney_available",
-            "path": "partners.disney",
-            "type": "boolean"
-          },
-          {
-            "field": "customer.ott.netflix_available",
-            "path": "partners.netflix",
-            "type": "boolean"
-          }
-        ],
-        "active": true,
-        "updatedAt": "2026-09-01T09:00:00.000Z",
-        "updatedBy": "priya.natarajan@telco.example"
-      },
-      {
         "id": "conn_billing_ledger",
         "name": "Billing ledger",
         "kind": "feature-store",
@@ -906,32 +823,6 @@
         ],
         "active": true,
         "updatedAt": "2026-07-14T09:20:00.000Z",
-        "updatedBy": "marcus.webb@telco.example"
-      },
-      {
-        "id": "conn_network_usage",
-        "name": "Network usage",
-        "kind": "feature-store",
-        "description": "Rolling 30-day data usage and account tenure from the mediation platform.",
-        "target": "featurestore://telco-us/usage",
-        "declaredP95Ms": 4,
-        "timeoutMs": 25,
-        "onFailure": "omit",
-        "cacheTtlSeconds": 900,
-        "provides": [
-          {
-            "field": "customer.usage.data_usage_gb",
-            "path": "usage.dataGb",
-            "type": "number"
-          },
-          {
-            "field": "customer.tenure_months",
-            "path": "account.tenureMonths",
-            "type": "number"
-          }
-        ],
-        "active": true,
-        "updatedAt": "2026-07-14T09:22:00.000Z",
         "updatedBy": "marcus.webb@telco.example"
       },
       {
@@ -1008,6 +899,115 @@
         "active": false,
         "updatedAt": "2026-08-28T16:10:00.000Z",
         "updatedBy": "sarah.chen@telco.example"
+      },
+      {
+        "id": "conn_engagement",
+        "name": "Engagement and partner availability",
+        "kind": "feature-store",
+        "description": "Category affinities, and which partner streaming agreements cover this region. Affinity is a computed score rather than a model output: it is read here, not predicted.",
+        "target": "features://engagement/v1",
+        "declaredP95Ms": 6,
+        "timeoutMs": 30,
+        "onFailure": "fail",
+        "cacheTtlSeconds": 600,
+        "provides": [
+          {
+            "field": "customer.affinity.gaming",
+            "path": "affinity.gaming",
+            "type": "number"
+          },
+          {
+            "field": "customer.affinity.entertainment",
+            "path": "affinity.entertainment",
+            "type": "number"
+          },
+          {
+            "field": "customer.ott.disney_available",
+            "path": "partners.disney",
+            "type": "boolean"
+          },
+          {
+            "field": "customer.ott.netflix_available",
+            "path": "partners.netflix",
+            "type": "boolean"
+          }
+        ],
+        "active": true,
+        "updatedAt": "2026-09-01T09:00:00.000Z",
+        "updatedBy": "priya.natarajan@telco.example"
+      },
+      {
+        "id": "conn_network_usage",
+        "name": "Network usage",
+        "kind": "feature-store",
+        "description": "Rolling 30-day data usage and account tenure from the mediation platform.",
+        "target": "featurestore://telco-us/usage",
+        "declaredP95Ms": 4,
+        "timeoutMs": 25,
+        "onFailure": "omit",
+        "cacheTtlSeconds": 900,
+        "provides": [
+          {
+            "field": "customer.usage.data_usage_gb",
+            "path": "usage.dataGb",
+            "type": "number"
+          },
+          {
+            "field": "customer.tenure_months",
+            "path": "account.tenureMonths",
+            "type": "number"
+          }
+        ],
+        "active": true,
+        "updatedAt": "2026-07-14T09:22:00.000Z",
+        "updatedBy": "marcus.webb@telco.example"
+      },
+      {
+        "id": "conn_order_book",
+        "name": "Order book",
+        "kind": "rest",
+        "description": "Whether a broadband order is already open on the account. A line being provisioned is not a line to sell again, and this is what makes the difference visible to a policy.",
+        "target": "https://orders.telco.example/v1/account",
+        "declaredP95Ms": 25,
+        "timeoutMs": 90,
+        "onFailure": "fail",
+        "cacheTtlSeconds": 30,
+        "provides": [
+          {
+            "field": "customer.orders.open_broadband",
+            "path": "orders.openBroadband",
+            "type": "boolean"
+          }
+        ],
+        "active": true,
+        "updatedAt": "2026-09-01T09:00:00.000Z",
+        "updatedBy": "priya.natarajan@telco.example"
+      },
+      {
+        "id": "conn_serviceability",
+        "name": "Address serviceability",
+        "kind": "rest",
+        "description": "What the network can deliver at a service address: whether fiber can be installed, and how strong 5G Home coverage is. The customer brief turns on this answer — a fiber address and a non-fiber address are the same visitor with one field different, and this is the field.",
+        "target": "https://serviceability.telco.example/v1/address",
+        "declaredP95Ms": 20,
+        "timeoutMs": 90,
+        "onFailure": "fail",
+        "cacheTtlSeconds": 86400,
+        "provides": [
+          {
+            "field": "customer.address.fios_serviceable",
+            "path": "serviceability.fiosServiceable",
+            "type": "boolean"
+          },
+          {
+            "field": "customer.address.fiveg_coverage",
+            "path": "serviceability.fivegCoverage",
+            "type": "string"
+          }
+        ],
+        "active": true,
+        "updatedAt": "2026-09-01T09:00:00.000Z",
+        "updatedBy": "priya.natarajan@telco.example"
       }
     ]
   }

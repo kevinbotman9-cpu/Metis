@@ -2,10 +2,12 @@ import type {
   ArbitrationConfig,
   Boost,
   Category,
+  Connector,
   Creative,
   FrequencyPolicy,
   Objective,
   Offer,
+  Placement,
   TargetingPolicy,
 } from '@metis/core/domain';
 import type {
@@ -14,6 +16,10 @@ import type {
   CatalogueSnapshotRecord,
   CatalogueStore,
 } from './types';
+
+/** A sorted copy, by id — the order every catalogue store reads in. */
+const byId = <T extends { id: string }>(list: T[]): T[] =>
+  [...list].sort((a, b) => a.id.localeCompare(b.id));
 
 /**
  * In-memory catalogue.
@@ -40,6 +46,8 @@ export class InMemoryCatalogueStore implements CatalogueStore {
         targetingPolicies: [],
         frequencyPolicies: [],
         boosts: [],
+        connectors: [],
+        placements: [],
         arbitration: null,
       };
       this.tenants.set(tenantId, t);
@@ -47,17 +55,26 @@ export class InMemoryCatalogueStore implements CatalogueStore {
     return t;
   }
 
-  /** Cloned on the way out, so a caller mutating a result cannot edit the store. */
+  /**
+   * Cloned on the way out, so a caller mutating a result cannot edit the store.
+   *
+   * Every array in id order, as PostgreSQL returns it. This returned write order
+   * until 2026-09-13, so the two stores could read one catalogue in two orders —
+   * and the engine hashes arrays in the order it is given, so the same catalogue
+   * carried two hashes depending on where it was stored.
+   */
   async read(tenantId: string): Promise<CatalogueSnapshotRecord> {
     const t = this.tenant(tenantId);
     return {
-      objectives: [...t.objectives],
-      categories: [...t.categories],
-      offers: [...t.offers],
-      creatives: [...t.creatives],
-      targetingPolicies: [...t.targetingPolicies],
-      frequencyPolicies: [...t.frequencyPolicies],
-      boosts: [...t.boosts],
+      objectives: byId(t.objectives),
+      categories: byId(t.categories),
+      offers: byId(t.offers),
+      creatives: byId(t.creatives),
+      targetingPolicies: byId(t.targetingPolicies),
+      frequencyPolicies: byId(t.frequencyPolicies),
+      boosts: byId(t.boosts),
+      connectors: byId(t.connectors),
+      placements: byId(t.placements),
       arbitration: t.arbitration,
     };
   }
@@ -91,6 +108,12 @@ export class InMemoryCatalogueStore implements CatalogueStore {
   }
   async putArbitration(tenantId: string, config: ArbitrationConfig) {
     this.tenant(tenantId).arbitration = config;
+  }
+  async putConnector(tenantId: string, connector: Connector) {
+    this.upsert(this.tenant(tenantId).connectors, connector);
+  }
+  async putPlacement(tenantId: string, placement: Placement) {
+    this.upsert(this.tenant(tenantId).placements, placement);
   }
 
   async deleteOffer(tenantId: string, offerId: string): Promise<boolean> {

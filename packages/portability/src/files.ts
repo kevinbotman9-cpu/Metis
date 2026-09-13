@@ -77,6 +77,8 @@ export function readBundle(dir: string): TenantBundle {
       'catalogue_frequency_policies'
     ) as TenantBundle['catalogue_frequency_policies'],
     catalogue_boosts: read('catalogue_boosts') as TenantBundle['catalogue_boosts'],
+    catalogue_connectors: read('catalogue_connectors') as TenantBundle['catalogue_connectors'],
+    catalogue_placements: read('catalogue_placements') as TenantBundle['catalogue_placements'],
     catalogue_arbitration: read('catalogue_arbitration') as TenantBundle['catalogue_arbitration'],
     catalogue_events: read('catalogue_events') as TenantBundle['catalogue_events'],
     registry_versions: read('registry_versions') as TenantBundle['registry_versions'],

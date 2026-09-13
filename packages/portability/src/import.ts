@@ -94,6 +94,8 @@ export async function importTenant(
   for (const b of bundle.catalogue_boosts) await targets.catalogueStore.putBoost(tenantId, b);
   for (const a of bundle.catalogue_arbitration)
     await targets.catalogueStore.putArbitration(tenantId, a);
+  for (const c of bundle.catalogue_connectors) await targets.catalogueStore.putConnector(tenantId, c);
+  for (const p of bundle.catalogue_placements) await targets.catalogueStore.putPlacement(tenantId, p);
 
   for (const event of [...bundle.catalogue_events].sort((a, b) => a.seq - b.seq)) {
     const { seq: _catSeq, ...rest } = event;
@@ -133,6 +135,8 @@ export async function importTenant(
     counts: {
       catalogue_offers: bundle.catalogue_offers.length,
       catalogue_creatives: bundle.catalogue_creatives.length,
+      catalogue_connectors: bundle.catalogue_connectors.length,
+      catalogue_placements: bundle.catalogue_placements.length,
       catalogue_events: bundle.catalogue_events.length,
       registry_versions: bundle.registry_versions.length,
       registry_environments: bundle.registry_environments.length,

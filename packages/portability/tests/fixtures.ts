@@ -209,6 +209,27 @@ export async function populatedInstance(): Promise<Instance> {
     AT
   );
   await inst.catalogue.putArbitration(TENANT, ctx.arbitration as never, 'marcus', AT);
+  await inst.catalogue.putConnector(
+    TENANT,
+    {
+      id: 'conn_bureau', name: 'Credit bureau', kind: 'rest', description: '',
+      target: 'https://bureau.example/score', declaredP95Ms: 40, timeoutMs: 80,
+      onFailure: 'fail', cacheTtlSeconds: 0, provides: [], active: true,
+      updatedAt: AT, updatedBy: 'marcus',
+    } as never,
+    'marcus',
+    AT
+  );
+  await inst.catalogue.putPlacement(
+    TENANT,
+    {
+      id: 'plc_hero', key: 'homepage_hero', name: 'Homepage hero', description: '',
+      channel: 'web', type: 'hero', slotCount: 1, artifactId: FLOW, decidable: true,
+      delivery: { mode: 'caller' }, updatedAt: AT, updatedBy: 'marcus',
+    } as never,
+    'marcus',
+    AT
+  );
 
   await inst.registry.publish(
     { tenantId: TENANT, flowName: FLOW, version: '1.0.0', source: source(), actor: 'sarah', occurredAt: AT },

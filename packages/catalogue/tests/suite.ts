@@ -3,10 +3,12 @@ import type {
   ArbitrationConfig,
   Boost,
   Category,
+  Connector,
   Creative,
   FrequencyPolicy,
   Objective,
   Offer,
+  Placement,
   TargetingPolicy,
 } from '@metis/core/domain';
 import { Catalogue } from '../src/catalogue';
@@ -129,6 +131,41 @@ const arbitration = (over: Partial<ArbitrationConfig> = {}): ArbitrationConfig =
     ...over,
   }) as ArbitrationConfig;
 
+export const connector = (over: Partial<Connector> = {}): Connector =>
+  ({
+    id: 'conn_bureau',
+    name: 'Credit bureau',
+    kind: 'rest',
+    description: '',
+    target: 'https://bureau.example/score',
+    declaredP95Ms: 40,
+    timeoutMs: 80,
+    onFailure: 'fail',
+    cacheTtlSeconds: 0,
+    provides: [{ field: 'customer.credit_band', path: 'band', type: 'string' }],
+    active: true,
+    updatedAt: AT,
+    updatedBy: 'marcus',
+    ...over,
+  }) as Connector;
+
+export const placement = (over: Partial<Placement> = {}): Placement =>
+  ({
+    id: 'plc_hero',
+    key: 'homepage_hero',
+    name: 'Homepage hero',
+    description: '',
+    channel: 'web',
+    type: 'hero',
+    slotCount: 1,
+    artifactId: 'next-best-action',
+    decidable: true,
+    delivery: { mode: 'caller' },
+    updatedAt: AT,
+    updatedBy: 'marcus',
+    ...over,
+  }) as Placement;
+
 export interface StoreUnderTest {
   create(): Promise<CatalogueStore>;
 }
@@ -166,6 +203,8 @@ export function describeCatalogue(name: string, harness: StoreUnderTest): void {
         await catalogue.putFrequencyPolicy(T, frequency(), 'sarah', AT);
         await catalogue.putBoost(T, boost(), 'sarah', AT);
         await catalogue.putArbitration(T, arbitration(), 'marcus', AT);
+        await catalogue.putConnector(T, connector(), 'marcus', AT);
+        await catalogue.putPlacement(T, placement(), 'marcus', AT);
 
         const s = await catalogue.read(T);
         // Deep equality, not a field count: a jsonb round trip that dropped a
@@ -176,6 +215,43 @@ export function describeCatalogue(name: string, harness: StoreUnderTest): void {
         expect(s.frequencyPolicies).toEqual([frequency()]);
         expect(s.boosts).toEqual([boost()]);
         expect(s.arbitration).toEqual(arbitration());
+        expect(s.connectors).toEqual([connector()]);
+        expect(s.placements).toEqual([placement()]);
+      });
+
+      it('reads every array in id order, whatever order it was written in', async () => {
+        // The engine hashes arrays in the order it is given. A store that
+        // returned write order would give one catalogue two hashes — authored
+        // one way on one instance, imported another way on the next — and the
+        // two stores did disagree about this until 2026-09-13. Written in
+        // reverse, so write order and id order cannot coincide.
+        for (const id of ['off_c', 'off_b', 'off_a']) {
+          await catalogue.putOffer(T, offer({ id, key: `k_${id}` }), 'sarah', AT);
+        }
+        for (const id of ['tp_c', 'tp_b', 'tp_a']) {
+          await catalogue.putTargetingPolicy(T, targeting({ id }), 'sarah', AT);
+        }
+        for (const id of ['fp_c', 'fp_b', 'fp_a']) {
+          await catalogue.putFrequencyPolicy(T, frequency({ id }), 'sarah', AT);
+        }
+        for (const id of ['bst_c', 'bst_b', 'bst_a']) {
+          await catalogue.putBoost(T, boost({ id }), 'sarah', AT);
+        }
+        for (const id of ['conn_c', 'conn_b', 'conn_a']) {
+          await catalogue.putConnector(T, connector({ id }), 'marcus', AT);
+        }
+        for (const id of ['plc_c', 'plc_b', 'plc_a']) {
+          await catalogue.putPlacement(T, placement({ id, key: `key_${id}` }), 'marcus', AT);
+        }
+
+        const s = await catalogue.read(T);
+        const ids = (list: { id: string }[]) => list.map((x) => x.id);
+        expect(ids(s.offers)).toEqual(['off_a', 'off_b', 'off_c']);
+        expect(ids(s.targetingPolicies)).toEqual(['tp_a', 'tp_b', 'tp_c']);
+        expect(ids(s.frequencyPolicies)).toEqual(['fp_a', 'fp_b', 'fp_c']);
+        expect(ids(s.boosts)).toEqual(['bst_a', 'bst_b', 'bst_c']);
+        expect(ids(s.connectors)).toEqual(['conn_a', 'conn_b', 'conn_c']);
+        expect(ids(s.placements)).toEqual(['plc_a', 'plc_b', 'plc_c']);
       });
 
       it('is stable across two reads, because the engine hashes it', async () => {
@@ -246,6 +322,24 @@ export function describeCatalogue(name: string, harness: StoreUnderTest): void {
       it('reports deleting something that was never there, rather than throwing', async () => {
         expect(await catalogue.deleteOffer(T, 'off_never', 'sarah', AT)).toBe(false);
       });
+
+      it('refuses two placements sharing a key', async () => {
+        // A request names a placement by key, and the placement names the flow
+        // that answers. Two sharing a key would give one request two flows.
+        await catalogue.putPlacement(T, placement(), 'marcus', AT);
+        await expect(
+          catalogue.putPlacement(T, placement({ id: 'plc_other' }), 'marcus', AT)
+        ).rejects.toThrow(/already used by plc_hero/);
+        expect((await catalogue.read(T)).placements).toHaveLength(1);
+      });
+
+      it('allows a placement to keep its own key when updated', async () => {
+        await catalogue.putPlacement(T, placement(), 'marcus', AT);
+        await catalogue.putPlacement(T, placement({ slotCount: 3 }), 'marcus', AT);
+        const s = await catalogue.read(T);
+        expect(s.placements).toHaveLength(1);
+        expect(s.placements[0].slotCount).toBe(3);
+      });
     });
 
     describe('the edit log', () => {
@@ -257,6 +351,19 @@ export function describeCatalogue(name: string, harness: StoreUnderTest): void {
         expect(events.map((e) => e.action)).toEqual(['updated', 'created']);
         expect(events[0].actor).toBe('marcus');
         expect(events[1].actor).toBe('sarah');
+      });
+
+      it('records connector and placement changes like any other', async () => {
+        // A connector edit changes the catalogue hash, so who made it is the
+        // same audit question as who changed a boost.
+        await catalogue.putConnector(T, connector(), 'marcus', AT);
+        await catalogue.putConnector(T, connector({ timeoutMs: 120 }), 'marcus', AT);
+        await catalogue.putPlacement(T, placement(), 'marcus', AT);
+
+        const connectors = await catalogue.events({ tenantId: T, entity: 'connector' });
+        expect(connectors.map((e) => e.action)).toEqual(['updated', 'created']);
+        const placements = await catalogue.events({ tenantId: T, entity: 'placement' });
+        expect(placements.map((e) => [e.action, e.entityId])).toEqual([['created', 'plc_hero']]);
       });
 
       it('orders by sequence, newest first', async () => {

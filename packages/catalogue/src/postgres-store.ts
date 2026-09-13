@@ -2,10 +2,12 @@ import type {
   ArbitrationConfig,
   Boost,
   Category,
+  Connector,
   Creative,
   FrequencyPolicy,
   Objective,
   Offer,
+  Placement,
   TargetingPolicy,
 } from '@metis/core/domain';
 import type {
@@ -35,7 +37,7 @@ export class PostgresCatalogueStore implements CatalogueStore {
   /**
    * The whole catalogue in one round trip.
    *
-   * Eight queries rather than eight round trips would still be eight moments;
+   * Ten queries rather than ten round trips would still be ten moments;
    * this is deliberately a single statement so the snapshot is consistent.
    * The engine hashes what it reads, and a hash over a mixture of two moments
    * is a hash of something that never existed.
@@ -49,6 +51,8 @@ export class PostgresCatalogueStore implements CatalogueStore {
        UNION ALL SELECT 'targeting', body FROM catalogue_targeting_policies WHERE tenant_id = $1
        UNION ALL SELECT 'frequency', body FROM catalogue_frequency_policies WHERE tenant_id = $1
        UNION ALL SELECT 'boost', body FROM catalogue_boosts WHERE tenant_id = $1
+       UNION ALL SELECT 'connector', body FROM catalogue_connectors WHERE tenant_id = $1
+       UNION ALL SELECT 'placement', body FROM catalogue_placements WHERE tenant_id = $1
        UNION ALL SELECT 'arbitration', body FROM catalogue_arbitration WHERE tenant_id = $1`,
       [tenantId]
     );
@@ -61,6 +65,8 @@ export class PostgresCatalogueStore implements CatalogueStore {
       targetingPolicies: [],
       frequencyPolicies: [],
       boosts: [],
+      connectors: [],
+      placements: [],
       arbitration: null,
     };
 
@@ -87,6 +93,12 @@ export class PostgresCatalogueStore implements CatalogueStore {
         case 'boost':
           snapshot.boosts.push(row.body as Boost);
           break;
+        case 'connector':
+          snapshot.connectors.push(row.body as Connector);
+          break;
+        case 'placement':
+          snapshot.placements.push(row.body as Placement);
+          break;
         case 'arbitration':
           snapshot.arbitration = row.body as ArbitrationConfig;
           break;
@@ -104,6 +116,8 @@ export class PostgresCatalogueStore implements CatalogueStore {
     byId(snapshot.targetingPolicies);
     byId(snapshot.frequencyPolicies);
     byId(snapshot.boosts);
+    byId(snapshot.connectors);
+    byId(snapshot.placements);
 
     return snapshot;
   }
@@ -188,6 +202,26 @@ export class PostgresCatalogueStore implements CatalogueStore {
        ON CONFLICT (tenant_id) DO UPDATE
          SET body = EXCLUDED.body, updated_at = now()`,
       [tenantId, JSON.stringify(a)]
+    );
+  }
+
+  async putConnector(tenantId: string, c: Connector): Promise<void> {
+    await this.db.query(
+      `INSERT INTO catalogue_connectors (tenant_id, id, kind, body, updated_at)
+       VALUES ($1, $2, $3, $4, now())
+       ON CONFLICT (tenant_id, id) DO UPDATE
+         SET kind = EXCLUDED.kind, body = EXCLUDED.body, updated_at = now()`,
+      [tenantId, c.id, c.kind, JSON.stringify(c)]
+    );
+  }
+
+  async putPlacement(tenantId: string, p: Placement): Promise<void> {
+    await this.db.query(
+      `INSERT INTO catalogue_placements (tenant_id, id, key, body, updated_at)
+       VALUES ($1, $2, $3, $4, now())
+       ON CONFLICT (tenant_id, id) DO UPDATE
+         SET key = EXCLUDED.key, body = EXCLUDED.body, updated_at = now()`,
+      [tenantId, p.id, p.key, JSON.stringify(p)]
     );
   }
 

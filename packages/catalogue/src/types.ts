@@ -2,10 +2,12 @@ import type {
   ArbitrationConfig,
   Boost,
   Category,
+  Connector,
   Creative,
   FrequencyPolicy,
   Objective,
   Offer,
+  Placement,
   TargetingPolicy,
 } from '@metis/core/domain';
 
@@ -43,7 +45,9 @@ export type CatalogueEntity =
   | 'targeting_policy'
   | 'frequency_policy'
   | 'boost'
-  | 'arbitration';
+  | 'arbitration'
+  | 'connector'
+  | 'placement';
 
 /** One change to the catalogue. Append-only. */
 export interface CatalogueEvent {
@@ -65,6 +69,11 @@ export interface CatalogueEvent {
  * Read as a unit because that is how the engine consumes it: a decision is
  * made against a catalogue *snapshot*, whose hash is recorded, so fetching the
  * parts separately would risk hashing a mixture of two moments.
+ *
+ * **Every array is in id order, from every store.** The engine hashes arrays in
+ * the order it is given them, so a store that returned write order would give
+ * the same catalogue a different hash depending on how it was authored. Both
+ * stores sort, and the behaviour suite holds them to it.
  */
 export interface CatalogueSnapshotRecord {
   objectives: Objective[];
@@ -74,6 +83,18 @@ export interface CatalogueSnapshotRecord {
   targetingPolicies: TargetingPolicy[];
   frequencyPolicies: FrequencyPolicy[];
   boosts: Boost[];
+  /**
+   * Configured integrations. Part of what the engine hashes: a connector's field
+   * mapping changes what a decision sees (`CatalogueSnapshot.connectors`), so a
+   * decision read against a catalogue without them carries a different hash.
+   */
+  connectors: Connector[];
+  /**
+   * Content slots. Read with the catalogue and **not** hashed with it: a
+   * placement governs how a decision is delivered, not what is decided. Here
+   * because `decidePlacement` cannot run without one.
+   */
+  placements: Placement[];
   /** Null until a tenant has configured one. */
   arbitration: ArbitrationConfig | null;
 }
@@ -89,6 +110,8 @@ export interface CatalogueStore {
   putFrequencyPolicy(tenantId: string, policy: FrequencyPolicy): Promise<void>;
   putBoost(tenantId: string, boost: Boost): Promise<void>;
   putArbitration(tenantId: string, config: ArbitrationConfig): Promise<void>;
+  putConnector(tenantId: string, connector: Connector): Promise<void>;
+  putPlacement(tenantId: string, placement: Placement): Promise<void>;
 
   deleteOffer(tenantId: string, offerId: string): Promise<boolean>;
 

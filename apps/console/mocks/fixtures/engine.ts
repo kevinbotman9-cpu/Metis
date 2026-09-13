@@ -49,14 +49,27 @@ import {
 import { artifacts, type ArtifactSummary } from './artifacts';
 import { schemaPin } from './compiled';
 
-/** The catalogue exactly as the engine sees it. */
+/** A sorted copy, by id — the order every catalogue store reads in. */
+const byId = <T extends { id: string }>(list: T[]): T[] =>
+  [...list].sort((a, b) => a.id.localeCompare(b.id));
+
+/**
+ * The catalogue exactly as the engine sees it.
+ *
+ * Every array in id order, which is how `packages/catalogue` reads a catalogue
+ * back from either store. The engine hashes arrays in the order it is given, so
+ * until 2026-09-13 this snapshot, in authoring order, and the same catalogue
+ * read from a store carried two different hashes — and a service deciding from
+ * the store could not have reproduced one decision made here. Copies, so the
+ * screens that list these modules keep their authoring order.
+ */
 export const catalogueSnapshot: CatalogueSnapshot = {
-  offers,
-  targetingPolicies,
-  frequencyPolicies,
+  offers: byId(offers),
+  targetingPolicies: byId(targetingPolicies),
+  frequencyPolicies: byId(frequencyPolicies),
   arbitration: arbitrationConfig,
-  boosts,
-  connectors,
+  boosts: byId(boosts),
+  connectors: byId(connectors),
 };
 
 /** A flow artifact, in the shape the engine executes. */

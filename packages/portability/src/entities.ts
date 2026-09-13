@@ -22,6 +22,8 @@ export type EntityName =
   | 'catalogue_targeting_policies'
   | 'catalogue_frequency_policies'
   | 'catalogue_boosts'
+  | 'catalogue_connectors'
+  | 'catalogue_placements'
   | 'catalogue_arbitration'
   | 'catalogue_events'
   | 'registry_versions'
@@ -53,6 +55,12 @@ export const ENTITIES: EntityDeclaration[] = [
   { table: 'catalogue_targeting_policies', included: true },
   { table: 'catalogue_frequency_policies', included: true },
   { table: 'catalogue_boosts', included: true },
+  // Hashed with the catalogue: a restore without its connectors would decide
+  // against a different catalogue hash from the one its own records name.
+  { table: 'catalogue_connectors', included: true },
+  // Not hashed, and a slate is reproducible only with the placement that
+  // composed it (G-010), so a placement travels with the decisions it shaped.
+  { table: 'catalogue_placements', included: true },
   // Zero or one row. An array either way, so every file in the bundle has the
   // same shape and nothing downstream special-cases it.
   { table: 'catalogue_arbitration', included: true },
