@@ -26,7 +26,7 @@ import { login, ACCOUNTS } from './helpers';
  * Setup is a sign-in. Nothing is created, seeded or requested over the API.
  */
 
-const refusal = (page: Page) => page.getByText('You do not have access to this view');
+const refusal = (page: Page) => page.getByText('You do not have access to this view', { exact: true });
 
 /** What Oliver holds, and what he does not. Read off the screens, never mocked. */
 const OPEN = ['/integrations', '/integrations/traffic', '/data-model/intake'] as const;
@@ -106,11 +106,11 @@ test.describe('a route refuses what its nav entry declares @screen-only', () => 
     await login(page, ACCOUNTS.oliver);
     await page.goto('/audit');
     await expect(refusal(page)).toBeVisible();
-    await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main', exact: true })).toBeVisible();
 
     // And the rail never offered the link in the first place.
     await expect(
-      page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Audit log' })
+      page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('link', { name: 'Audit log' })
     ).toHaveCount(0);
   });
 
@@ -120,6 +120,6 @@ test.describe('a route refuses what its nav entry declares @screen-only', () => 
     await login(page, ACCOUNTS.priya);
     await page.goto('/audit');
     await expect(refusal(page)).toHaveCount(0);
-    await expect(page.getByRole('heading', { level: 1, name: 'Audit log' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Audit log', exact: true })).toBeVisible();
   });
 });

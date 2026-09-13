@@ -17,7 +17,7 @@ test.describe('integrations', () => {
   });
 
   test('lists the configured connectors and what each supplies', async ({ page }) => {
-    await expect(page.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Integrations', exact: true })).toBeVisible();
 
     const row = page.getByRole('row').filter({ hasText: 'Billing ledger' });
     await expect(row).toBeVisible();
@@ -30,7 +30,7 @@ test.describe('integrations', () => {
     // The bureau declares 180ms against a 50ms budget. Saying so here is the
     // whole point of declaring latency at configuration time.
     await expect(
-      page.getByText('Some connectors cannot be called synchronously')
+      page.getByText('Some connectors cannot be called synchronously', { exact: true })
     ).toBeVisible();
     await expect(page.getByText(/Credit bureau declares 180ms/)).toBeVisible();
   });
@@ -47,7 +47,7 @@ test.describe('integrations', () => {
     ).toBeVisible();
 
     await page.goto('/audit');
-    await expect(page.getByText('ConnectorChanged').first()).toBeVisible();
+    await expect(page.getByText('ConnectorChanged', { exact: true }).first()).toBeVisible();
   });
 
 });
@@ -60,11 +60,11 @@ test.describe('integrations, without the permission', () => {
     await login(page, ACCOUNTS.priya);
     await page.goto('/integrations');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Integrations', exact: true })).toBeVisible();
     // Readable, not editable: compliance has to see what feeds a decision
     // without being able to change what a decision can see.
     await expect(page.getByRole('row').filter({ hasText: 'Billing ledger' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Deactivate' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Deactivate', exact: true })).toHaveCount(0);
   });
 });
 
@@ -79,7 +79,7 @@ test.describe('integration provenance in the trace', () => {
     const id = (await page.locator('tr[data-row] td').first().innerText()).trim();
     await page.goto(`/decisions/${id}`);
 
-    await expect(page.getByRole('heading', { name: 'Where the data came from' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Where the data came from', exact: true })).toBeVisible();
     // Provenance names the connector and the node, not just the field.
     await expect(page.getByText(/via conn_/).first()).toBeVisible();
     await expect(page.getByText(/at node source_/).first()).toBeVisible();

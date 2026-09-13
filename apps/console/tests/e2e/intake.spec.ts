@@ -22,7 +22,7 @@ const ROWS = JSON.stringify([
 ]);
 
 async function newSource(page: import('@playwright/test').Page, name: string) {
-  await page.getByRole('button', { name: 'New source' }).click();
+  await page.getByRole('button', { name: 'New source', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Name').fill(name);
   await dialog.getByRole('button', { name: 'Create source' }).click();
@@ -30,8 +30,8 @@ async function newSource(page: import('@playwright/test').Page, name: string) {
 }
 
 async function landRows(page: import('@playwright/test').Page, json: string) {
-  await page.getByLabel('Records as JSON').fill(json);
-  await page.getByRole('button', { name: 'Land records' }).click();
+  await page.getByLabel('Records as JSON', { exact: true }).fill(json);
+  await page.getByRole('button', { name: 'Land records', exact: true }).click();
   await expect(page.getByText(/Columns seen:/)).toBeVisible();
 }
 
@@ -59,8 +59,8 @@ test.describe('intake', () => {
     await newSource(page, 'CRM nightly');
     await landRows(page, ROWS);
 
-    await page.getByRole('button', { name: 'Add mapping' }).click();
-    const path = page.getByLabel('Model path for mapping 1');
+    await page.getByRole('button', { name: 'Add mapping', exact: true }).click();
+    const path = page.getByLabel('Model path for mapping 1', { exact: true });
     await expect(path.locator('option[value="customer.age"]')).toHaveCount(1);
     // A path the model does not have is unrepresentable, same as in the policy
     // editor — there is nowhere to type one.
@@ -73,22 +73,22 @@ test.describe('intake', () => {
     await newSource(page, 'CRM nightly');
     await landRows(page, ROWS);
 
-    await page.getByRole('button', { name: 'Add mapping' }).click();
-    await page.getByLabel('Column for mapping 1').selectOption('dob');
-    await page.getByLabel('Model path for mapping 1').selectOption('customer.age');
-    await page.getByLabel('Transform for mapping 1').selectOption('years_since');
-    await page.getByRole('button', { name: 'Save mappings' }).click();
+    await page.getByRole('button', { name: 'Add mapping', exact: true }).click();
+    await page.getByLabel('Column for mapping 1', { exact: true }).selectOption('dob');
+    await page.getByLabel('Model path for mapping 1', { exact: true }).selectOption('customer.age');
+    await page.getByLabel('Transform for mapping 1', { exact: true }).selectOption('years_since');
+    await page.getByRole('button', { name: 'Save mappings', exact: true }).click();
 
-    await page.getByRole('button', { name: 'Validate' }).click();
-    await expect(page.getByText('Rows held')).toBeVisible();
-    await expect(page.getByText('2 filled, 0 refused')).toBeVisible();
+    await page.getByRole('button', { name: 'Validate', exact: true }).click();
+    await expect(page.getByText('Rows held', { exact: true })).toBeVisible();
+    await expect(page.getByText('2 filled, 0 refused', { exact: true })).toBeVisible();
   });
 
   test('refuses to activate a source that has not been validated', async ({ page }) => {
     await newSource(page, 'CRM nightly');
     await landRows(page, ROWS);
 
-    await page.getByRole('button', { name: 'Activate' }).click();
+    await page.getByRole('button', { name: 'Activate', exact: true }).click();
     await expect(page.getByText(/cannot go live yet/)).toBeVisible();
   });
 
@@ -99,22 +99,22 @@ test.describe('intake', () => {
     await newSource(page, 'CRM nightly');
     await landRows(page, ROWS);
 
-    await page.getByRole('button', { name: 'Add mapping' }).click();
-    await page.getByLabel('Column for mapping 1').selectOption('dob');
-    await page.getByLabel('Model path for mapping 1').selectOption('customer.age');
-    await page.getByLabel('Transform for mapping 1').selectOption('years_since');
-    await page.getByRole('button', { name: 'Save mappings' }).click();
-    await page.getByRole('button', { name: 'Validate' }).click();
+    await page.getByRole('button', { name: 'Add mapping', exact: true }).click();
+    await page.getByLabel('Column for mapping 1', { exact: true }).selectOption('dob');
+    await page.getByLabel('Model path for mapping 1', { exact: true }).selectOption('customer.age');
+    await page.getByLabel('Transform for mapping 1', { exact: true }).selectOption('years_since');
+    await page.getByRole('button', { name: 'Save mappings', exact: true }).click();
+    await page.getByRole('button', { name: 'Validate', exact: true }).click();
 
     await expect(page.getByText(/Required by the model and filled by nothing/)).toBeVisible();
 
-    await page.getByRole('button', { name: 'Activate' }).click();
+    await page.getByRole('button', { name: 'Activate', exact: true }).click();
     await expect(page.getByText(/cannot go live yet/)).toBeVisible();
   });
 
   test('shows the pipeline stage a source has reached', async ({ page }) => {
     await newSource(page, 'CRM nightly');
-    const progress = page.getByRole('list', { name: 'Progress' }).first();
+    const progress = page.getByRole('list', { name: 'Progress', exact: true }).first();
     await expect(progress).toContainText('Land');
     await expect(progress).toContainText('Activate');
   });
@@ -124,6 +124,6 @@ test.describe('intake', () => {
     await login(page, ACCOUNTS.sarah);
     await page.goto('/data-model/intake');
 
-    await expect(page.getByRole('button', { name: 'New source' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'New source', exact: true })).toHaveCount(0);
   });
 });

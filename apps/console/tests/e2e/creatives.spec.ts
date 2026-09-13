@@ -35,7 +35,7 @@ test.describe('the content library', () => {
     // scope itself to one.
     const rows = page.locator('tbody tr');
     await expect(rows.first()).toBeVisible();
-    await expect(page.getByText(`${ALL} of ${ALL} creatives`)).toBeVisible();
+    await expect(page.getByText(`${ALL} of ${ALL} creatives`, { exact: true })).toBeVisible();
     // More than any single offer holds, which is the thing being checked.
     expect(await rows.count()).toBeGreaterThan(8);
 
@@ -50,27 +50,27 @@ test.describe('the content library', () => {
     // a from-address, which reads as content and is not. Filtered to the offer
     // these lines belong to: with hundreds of creatives they are not on the
     // first page, and this test is about the line, not about pagination.
-    await page.getByLabel('Search content').fill('5G Home Ultimate');
-    await expect(page.getByText('5G Home Ultimate, no line install')).toBeVisible();
+    await page.getByLabel('Search content', { exact: true }).fill('5G Home Ultimate');
+    await expect(page.getByText('5G Home Ultimate, no line install', { exact: true })).toBeVisible();
     await expect(page.getByText(/Activate a router/)).toBeVisible();
   });
 
   test('finds a line of copy without knowing which offer owns it', async ({ page }) => {
     // The compliance question — "show me every piece of content that says X" —
     // which had no answer before this page.
-    await page.getByLabel('Search content').fill('Disney');
+    await page.getByLabel('Search content', { exact: true }).fill('Disney');
     const narrowed = page.locator('tbody tr');
     await expect(narrowed.first()).toBeVisible();
     const hits = await narrowed.count();
     expect(hits).toBeGreaterThan(0);
     expect(hits).toBeLessThan(ALL);
 
-    await page.getByLabel('Search content').fill('');
-    await expect(page.getByText(`${ALL} of ${ALL} creatives`)).toBeVisible();
+    await page.getByLabel('Search content', { exact: true }).fill('');
+    await expect(page.getByText(`${ALL} of ${ALL} creatives`, { exact: true })).toBeVisible();
   });
 
   test('narrows to a channel', async ({ page }) => {
-    await page.getByLabel('Channel').selectOption('web');
+    await page.getByLabel('Channel', { exact: true }).selectOption('web');
     const rows = page.locator('tbody tr');
     await expect(rows.first()).toBeVisible();
     expect(await rows.count()).toBeLessThan(ALL);
@@ -101,12 +101,12 @@ test.describe('the content library', () => {
     // deliverable creative).
     await page.getByRole('radio', { name: /Switched off/ }).click();
     await expect(page.locator('tbody tr')).toHaveCount(0);
-    await expect(page.getByText('No creatives match')).toBeVisible();
+    await expect(page.getByText('No creatives match', { exact: true })).toBeVisible();
   });
 
   test('edits content from here, without going via the offer', async ({ page }) => {
-    await page.getByLabel('Search content').fill('Fiber is ready');
-    await page.getByRole('button', { name: 'Edit' }).first().click();
+    await page.getByLabel('Search content', { exact: true }).fill('Fiber is ready');
+    await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
@@ -114,15 +114,15 @@ test.describe('the content library', () => {
     await dialog.getByRole('button', { name: 'Save creative' }).click();
     await expect(dialog).toBeHidden();
 
-    await expect(page.getByText('Fiber is ready — last week')).toBeVisible();
+    await expect(page.getByText('Fiber is ready — last week', { exact: true })).toBeVisible();
     await resetStore(page);
   });
 
   test('links back to the offer that owns the content', async ({ page }) => {
     // A creative belongs to exactly one offer, and the page says so by making
     // the offer the only navigable thing on the row.
-    await page.getByLabel('Search content').fill('5G Home Ultimate');
-    await page.getByRole('link', { name: '5G Home Ultimate' }).first().click();
+    await page.getByLabel('Search content', { exact: true }).fill('5G Home Ultimate');
+    await page.getByRole('link', { name: '5G Home Ultimate', exact: true }).first().click();
     await expect(page).toHaveURL(/\/offers\/off_5g_home_ultimate$/);
   });
 
@@ -132,6 +132,6 @@ test.describe('the content library', () => {
     await page.goto('/creatives');
 
     await expect(page.locator('tbody tr').first()).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
   });
 });

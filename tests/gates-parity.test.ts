@@ -203,3 +203,39 @@ describe('the run before a pull request', () => {
     expect(selectGates(GATES, []).selected).toHaveLength(GATES.length);
   });
 });
+
+/**
+ * The run before a push, for a change that cannot plausibly break what CI runs
+ * later: typecheck, lint and every unit suite. Decided on 2026-09-13 — the
+ * pre-PR run in front of every push was the old habit wearing the new rule's name.
+ */
+describe('the quick run before a push', () => {
+  const ids = (gates: Gate[]) => gates.map((g) => g.id);
+  const quick = () => {
+    const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>;
+    };
+    const argv = pkg.scripts['gates:quick'].replace(/^node scripts\/gates\.mjs/, '').trim().split(/\s+/);
+    return ids(selectGates(GATES, argv).selected);
+  };
+
+  it('is typecheck, lint and the unit suites, and nothing that builds or drives a browser', () => {
+    const selected = quick();
+    expect(selected.filter((id) => /^(typecheck|lint)-/.test(id))).toEqual(
+      ids((GATES as Gate[]).filter((g) => /^(typecheck|lint)-/.test(g.id)))
+    );
+    for (const heavy of ['storybook', 'e2e', 'bundle', 'test-bench']) expect(selected).not.toContain(heavy);
+  });
+
+  it('runs every unit suite, so a new one is not quietly left out', () => {
+    // Every test-* gate is a unit suite except the performance budget, which
+    // measures rather than asserts behaviour. A new test-* gate lands here or
+    // fails this.
+    const unit = ids((GATES as Gate[]).filter((g) => /^test-/.test(g.id) && g.id !== 'test-bench'));
+    expect(quick().filter((id) => /^test-/.test(id))).toEqual(unit);
+  });
+
+  it('is the script CLAUDE.md names', () => {
+    expect(readFileSync(resolve(root, 'CLAUDE.md'), 'utf8')).toContain('npm run gates:quick');
+  });
+});

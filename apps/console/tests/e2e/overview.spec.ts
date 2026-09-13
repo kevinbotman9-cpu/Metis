@@ -18,8 +18,8 @@ import { login, ACCOUNTS } from './helpers';
  * Setup is a sign-in. Everything else is reached by clicking.
  */
 
-const rail = (page: Page) => page.getByRole('navigation', { name: 'The loop' });
-const personaSwitch = (page: Page) => page.getByRole('group', { name: 'Overview persona' });
+const rail = (page: Page) => page.getByRole('navigation', { name: 'The loop', exact: true });
+const personaSwitch = (page: Page) => page.getByRole('group', { name: 'Overview persona', exact: true });
 /** A panel of the architect's Overview: the card holding a heading of that name. */
 const panel = (page: Page, title: string) =>
   page.locator('section').filter({ has: page.getByRole('heading', { name: title, exact: true }) });
@@ -40,12 +40,12 @@ test.describe("the marketer's Overview is the loop @screen-only", () => {
   test.beforeEach(async ({ page }) => {
     await login(page, ACCOUNTS.sarah);
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1, name: 'The loop' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'The loop', exact: true })).toBeVisible();
   });
 
   test('puts what agents proposed above the loop they would change', async ({ page }) => {
-    const proposals = page.getByRole('heading', { name: 'Proposed changes' });
-    const activity = page.getByRole('heading', { name: 'Agent activity' });
+    const proposals = page.getByRole('heading', { name: 'Proposed changes', exact: true });
+    const activity = page.getByRole('heading', { name: 'Agent activity', exact: true });
     await expect(proposals).toBeVisible();
     await expect(activity).toBeVisible();
     await expect(rail(page)).toBeVisible();
@@ -55,14 +55,14 @@ test.describe("the marketer's Overview is the loop @screen-only", () => {
     expect((await activity.boundingBox())!.y).toBeLessThan(railTop);
 
     // And the four doughnuts it replaced are gone rather than moved.
-    await expect(page.getByText('Flow compilation')).toHaveCount(0);
+    await expect(page.getByText('Flow compilation', { exact: true })).toHaveCount(0);
   });
 
   test('first paint selects nothing and shows the loop whole', async ({ page }) => {
     expect(new URL(page.url()).searchParams.get('stage')).toBeNull();
     await expect(page.getByText('Realised value', { exact: true })).toBeVisible();
     await expect(page.getByText('Expected, at the ceiling', { exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'From decision to outcome' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'From decision to outcome', exact: true })).toBeVisible();
     for (const trend of ['Decisions per day', 'Deliverable share']) {
       await expect(page.getByText(trend, { exact: true })).toBeVisible();
     }
@@ -104,7 +104,7 @@ test.describe("the architect's Overview is the change pipeline @screen-only", ()
   test.beforeEach(async ({ page }) => {
     await login(page, ACCOUNTS.marcus);
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1, name: 'The change pipeline' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'The change pipeline', exact: true })).toBeVisible();
   });
 
   test('is panels, not a rail: its counts are of different things', async ({ page }) => {
@@ -128,7 +128,7 @@ test.describe("the architect's Overview is the change pipeline @screen-only", ()
     await expect(first).toBeVisible();
     await first.click();
     await expect(page).toHaveURL(/\/approvals\/cr_/);
-    await expect(page.getByRole('button', { name: 'Approve' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Approve', exact: true })).toBeVisible();
   });
 
   test('says which flows compile, and opens each one', async ({ page }) => {
@@ -152,24 +152,24 @@ test.describe('choosing a persona @screen-only', () => {
   test('an account that is both switches, and the choice survives a reload', async ({ page }) => {
     await login(page, ACCOUNTS.sarah);
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1, name: 'The loop' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'The loop', exact: true })).toBeVisible();
     await expect(personaSwitch(page).getByRole('button', { name: 'Marketer' })).toHaveAttribute('aria-pressed', 'true');
 
     await personaSwitch(page).getByRole('button', { name: 'Architect' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'The change pipeline' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'The change pipeline', exact: true })).toBeVisible();
     await expect(personaSwitch(page).getByRole('button', { name: 'Architect' })).toHaveAttribute('aria-pressed', 'true');
 
     await page.reload();
-    await expect(page.getByRole('heading', { level: 1, name: 'The change pipeline' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'The change pipeline', exact: true })).toBeVisible();
 
     await personaSwitch(page).getByRole('button', { name: 'Marketer' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'The loop' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'The loop', exact: true })).toBeVisible();
   });
 
   test('an account with neither persona lands on the loop and is offered no switch', async ({ page }) => {
     await login(page, ACCOUNTS.priya);
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1, name: 'The loop' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'The loop', exact: true })).toBeVisible();
     await expect(personaSwitch(page)).toHaveCount(0);
   });
 });

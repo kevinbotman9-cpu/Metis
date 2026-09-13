@@ -37,7 +37,7 @@ import { login, ACCOUNTS, resetStore } from './helpers';
  */
 async function measuredCount(page: import('@playwright/test').Page): Promise<number> {
   const button = page
-    .getByRole('navigation', { name: 'The loop' })
+    .getByRole('navigation', { name: 'The loop', exact: true })
     .getByRole('button', { name: /^Seen: / });
   await expect(button).toBeVisible({ timeout: 20_000 });
   const label = (await button.getAttribute('aria-label')) ?? '';
@@ -54,7 +54,7 @@ async function measuredCount(page: import('@playwright/test').Page): Promise<num
 /** The rates live behind the `Acted on` stage; the overview is the shape. */
 async function openActed(page: import('@playwright/test').Page) {
   await page
-    .getByRole('navigation', { name: 'The loop' })
+    .getByRole('navigation', { name: 'The loop', exact: true })
     .getByRole('button', { name: /^Acted on: / })
     .click();
   await expect(page.locator('main table')).toBeVisible({ timeout: 20_000 });
@@ -246,6 +246,6 @@ test.describe('the seeded corpus reports back @screen-only', () => {
     await login(page, ACCOUNTS.sarah);
     await page.goto('/performance');
     await openActed(page);
-    await expect(page.getByText('netflix').first()).toBeVisible();
+    await expect(page.getByText('netflix', { exact: true }).first()).toBeVisible();
   });
 });

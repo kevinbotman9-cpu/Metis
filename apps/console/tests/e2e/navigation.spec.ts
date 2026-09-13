@@ -47,7 +47,7 @@ const NAV_ITEMS: { group: string; label: string; heading: string | RegExp; linkN
 
 /** Open a group in the rail if it is not already open. */
 async function openGroup(page: import('@playwright/test').Page, group: string) {
-  const nav = page.getByRole('navigation', { name: 'Main' });
+  const nav = page.getByRole('navigation', { name: 'Main', exact: true });
   const button = nav.getByRole('button', { name: group, exact: true });
   if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
   await expect(button).toHaveAttribute('aria-expanded', 'true');
@@ -60,14 +60,14 @@ test.describe('navigation', () => {
 
   for (const item of NAV_ITEMS) {
     test(`${item.group} › ${item.label} resolves to a real page`, async ({ page }) => {
-      const nav = page.getByRole('navigation', { name: 'Main' });
+      const nav = page.getByRole('navigation', { name: 'Main', exact: true });
       await openGroup(page, item.group);
       await nav
         .getByRole('link', item.linkName ? { name: item.linkName } : { name: item.label, exact: true })
         .click();
 
       await expect(page.getByRole('heading', { level: 1, name: item.heading })).toBeVisible();
-      await expect(page.getByText('This page could not be found')).toHaveCount(0);
+      await expect(page.getByText('This page could not be found', { exact: true })).toHaveCount(0);
     });
   }
 
@@ -79,16 +79,16 @@ test.describe('navigation', () => {
     // at, which is why it is gated on nothing and lives beside the appearance
     // controls that are part of it.
     await expect(
-      page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Settings', exact: true })
+      page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('link', { name: 'Settings', exact: true })
     ).toHaveCount(0);
 
     await openAccountPanel(page, /Marcus Webb/);
-    await page.getByRole('link', { name: 'Account settings' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+    await page.getByRole('link', { name: 'Account settings', exact: true }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Settings', exact: true })).toBeVisible();
   });
 
   test('marks the current page in the sidebar', async ({ page }) => {
-    const nav = page.getByRole('navigation', { name: 'Main' });
+    const nav = page.getByRole('navigation', { name: 'Main', exact: true });
     await openGroup(page, 'Evidence');
     await nav.getByRole('link', { name: 'Decisions', exact: true }).click();
     await expect(
@@ -113,19 +113,19 @@ test.describe('authentication', () => {
     await page.goto('/offers');
     await expect(page).toHaveURL(/\/login\?next=%2Foffers/);
 
-    await page.getByLabel('Email').fill(ACCOUNTS.sarah);
-    await page.getByLabel('Password').fill('demo');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByLabel('Email', { exact: true }).fill(ACCOUNTS.sarah);
+    await page.getByLabel('Password', { exact: true }).fill('demo');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
     await expect(page).toHaveURL(/\/offers$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Offers' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Offers', exact: true })).toBeVisible();
   });
 
   test('rejects a wrong password without signing in', async ({ page }) => {
     await page.goto('/login');
-    await page.getByLabel('Email').fill(ACCOUNTS.sarah);
-    await page.getByLabel('Password').fill('wrong');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByLabel('Email', { exact: true }).fill(ACCOUNTS.sarah);
+    await page.getByLabel('Password', { exact: true }).fill('wrong');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
     // Scope to the form: Next.js injects its own role="alert" route announcer.
     await expect(
@@ -137,14 +137,14 @@ test.describe('authentication', () => {
   test('keeps the session across a reload', async ({ page }) => {
     await login(page, ACCOUNTS.sarah);
     await page.reload();
-    await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main', exact: true })).toBeVisible();
     await expect(page).not.toHaveURL(/\/login/);
   });
 
   test('signing out returns to login and protects the app again', async ({ page }) => {
     await login(page, ACCOUNTS.sarah);
     await page.getByRole('button', { name: /Sarah Chen/ }).click();
-    await page.getByRole('button', { name: 'Sign out' }).click();
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
 
     await expect(page).toHaveURL(/\/login/);
     await page.goto('/audit');

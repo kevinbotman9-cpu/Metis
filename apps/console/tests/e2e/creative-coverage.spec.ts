@@ -40,8 +40,8 @@ async function block(page: Page, label: string): Promise<number> {
 
 async function openCoverage(page: Page) {
   await page.goto('/creatives');
-  await page.getByRole('button', { name: 'Coverage' }).click();
-  await expect(page.getByRole('heading', { name: 'Content coverage' })).toBeVisible({
+  await page.getByRole('button', { name: 'Coverage', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Content coverage', exact: true })).toBeVisible({
     timeout: 20_000,
   });
 }
@@ -61,7 +61,7 @@ test.describe('content coverage @screen-only', () => {
     // button returns to the library rather than leaving the screen.
     await expect(page).toHaveURL(/\/creatives\?view=coverage/);
     await page.goBack();
-    await expect(page.getByRole('heading', { name: 'Content coverage' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Content coverage', exact: true })).toHaveCount(0);
   });
 
   test('every block counts exactly the rows it filters to', async ({ page }) => {

@@ -26,25 +26,26 @@ test.describe('compiler output in the console', () => {
     await expect(row.getByText('1 compile error')).toBeAttached();
 
     // The health ring reports the same thing at the top of the page.
-    await expect(page.getByText('Compilation')).toBeVisible();
-    await expect(page.getByText('blocked')).toBeVisible();
+    await expect(page.getByText('Compilation', { exact: true })).toBeVisible();
+    await expect(page.getByText('blocked', { exact: true })).toBeVisible();
   });
 
   test('shows why it fails, and what to do about it', async ({ page }) => {
     await page.goto('/decision-flows/entertainment-cross-sell');
 
-    await expect(page.getByText('Blocked.')).toBeVisible();
+    await expect(page.getByText('Blocked. These errors would produce wrong or undeliverable decisions.', { exact: true })).toBeVisible();
 
     // The specific defect, not a generic failure. Exact, because the registry
     // log on the same page also names the codes in its refusal summary — which
     // is the compilation gate working, not a duplicate.
     await expect(page.getByText('NO_ARBITRATION', { exact: true })).toBeVisible();
     await expect(
-      page.getByText('The flow has no arbitrate node, so it can never select a winner.')
+      page.getByText('The flow has no arbitrate node, so it can never select a winner.', { exact: true })
     ).toBeVisible();
 
     // A remedy, phrased for someone who is not the compiler author.
-    await expect(page.getByText('Add an arbitrate node as the final step.')).toBeVisible();
+    // The remedy's whole line, label included: the report renders it as "Fix: <remedy>".
+    await expect(page.getByText('Fix: Add an arbitrate node as the final step.', { exact: true })).toBeVisible();
 
     // `NO_DELIVERABLE_CREATIVE` used to be asserted here too, because the flow
     // that used to fail failed on both. This one has a deliverable candidate
@@ -57,11 +58,11 @@ test.describe('compiler output in the console', () => {
   test('shows a passing flow with its pinned versions and cost', async ({ page }) => {
     await page.goto('/decision-flows/next-best-action');
 
-    await expect(page.getByText('passing')).toBeVisible();
-    await expect(page.getByText('Validated against the catalogue')).toBeVisible();
+    await expect(page.getByText('passing', { exact: true })).toBeVisible();
+    await expect(page.getByText('Validated against the catalogue. Safe to publish.', { exact: true })).toBeVisible();
 
     // Pinning is the reason replay works, so it has to be visible.
-    await expect(page.getByText('Pinned at compile time')).toBeVisible();
+    await expect(page.getByText('Pinned at compile time', { exact: true })).toBeVisible();
     await expect(page.getByText(/@metis\/nodes-core@1\.4\.0/)).toBeVisible();
     await expect(page.getByText(/@metis\/core@2\.1\.0/)).toBeVisible();
     // No model version, because this tenant's flow runs no scoring node: P and
@@ -73,7 +74,7 @@ test.describe('compiler output in the console', () => {
     // tens of milliseconds rather than the ~9ms the nodes themselves cost.
     // 33.2ms here: `conn_serviceability` declares 45ms p95 and dominates,
     // which is also why this flow carries a LATENCY_NEAR_BUDGET warning.
-    await expect(page.getByText('Critical path')).toBeVisible();
+    await expect(page.getByText('Critical path', { exact: true })).toBeVisible();
     await expect(page.getByText(/33\.2ms \/ 50ms/)).toBeVisible();
   });
 

@@ -22,10 +22,10 @@ export const ACCOUNTS = {
 /** Sign in through the real form, so the login path stays covered. */
 export async function login(page: Page, email: string) {
   await page.goto('/login');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill('demo');
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByLabel('Password', { exact: true }).fill('demo');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.getByRole('navigation', { name: 'Main', exact: true })).toBeVisible();
 }
 
 /**
@@ -37,7 +37,7 @@ export async function login(page: Page, email: string) {
  */
 export async function openAccountPanel(page: Page, name: string | RegExp) {
   await page.getByRole('button', { name }).click();
-  await expect(page.getByRole('group', { name: 'Colour scheme' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Colour scheme', exact: true })).toBeVisible();
 }
 
 /** Restore seed data. The store is process-wide, so writes leak between specs. */

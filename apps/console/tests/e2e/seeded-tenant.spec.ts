@@ -19,7 +19,7 @@ import { offers, creatives } from '@/mocks/fixtures/catalogue';
  */
 
 const railTo = async (page: Page, group: string, screen: string | RegExp) => {
-  const nav = page.getByRole('navigation', { name: 'Main' });
+  const nav = page.getByRole('navigation', { name: 'Main', exact: true });
   const button = nav.getByRole('button', { name: group, exact: true });
   if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
   // A name rather than an exact string where the link carries a badge:
@@ -36,7 +36,7 @@ test.describe('the seeded tenant reaches every built screen @screen-only', () =>
 
   test('the catalogue on screen is the catalogue in the fixture', async ({ page }) => {
     await railTo(page, 'Catalogue', 'Offers');
-    await expect(page.getByRole('heading', { level: 1, name: 'Offers' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Offers', exact: true })).toBeVisible();
 
     // Counted from the fixture, not written down. This asserted `> 20` while
     // the tenant was 240 generated offers; the tenant is now the five the
@@ -60,7 +60,7 @@ test.describe('the seeded tenant reaches every built screen @screen-only', () =>
 
   test('the content library has content for those offers', async ({ page }) => {
     await railTo(page, 'Catalogue', 'Creatives');
-    await expect(page.getByRole('heading', { level: 1, name: 'Creatives' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Creatives', exact: true })).toBeVisible();
     const rows = page.locator('tr[data-row]');
     await expect(rows.first()).toBeVisible();
     expect(await rows.count()).toBe(creatives.length);
@@ -75,7 +75,7 @@ test.describe('the seeded tenant reaches every built screen @screen-only', () =>
 
   test('the decision history spans two years, not one week', async ({ page }) => {
     await railTo(page, 'Evidence', 'Decisions');
-    await expect(page.getByRole('heading', { level: 1, name: 'Decisions' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Decisions', exact: true })).toBeVisible();
 
     const rows = page.locator('tr[data-row]');
     await expect(rows.first()).toBeVisible();
@@ -100,7 +100,7 @@ test.describe('the seeded tenant reaches every built screen @screen-only', () =>
 
   test('performance is computed over the whole corpus', async ({ page }) => {
     await railTo(page, 'Insights', 'Performance');
-    await expect(page.getByRole('heading', { level: 1, name: 'Performance' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Performance', exact: true })).toBeVisible();
 
     // Waited for rather than read immediately: the metrics arrive with the
     // query, and asserting against the empty frame is a race, not a check.
@@ -121,7 +121,7 @@ test.describe('the seeded tenant reaches every built screen @screen-only', () =>
 
   test('the audit log carries the incident from last week', async ({ page }) => {
     await railTo(page, 'Evidence', 'Audit log');
-    await expect(page.getByRole('heading', { level: 1, name: 'Audit log' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Audit log', exact: true })).toBeVisible();
 
     // One of the three things the spec asks to be wrong on purpose. There is
     // no incidents screen, so the incident is what one leaves behind on a
@@ -144,7 +144,7 @@ test.describe('the seeded tenant reaches every built screen @screen-only', () =>
     // The grid's own filter, which searches name, key *and* tag — so the one
     // offer carrying `bias-review` is reachable by typing what is wrong with
     // it, which is how somebody would actually find it.
-    await page.getByLabel('Search offers').fill('bias');
+    await page.getByLabel('Search offers', { exact: true }).fill('bias');
 
     const rows = page.locator('tr[data-row]');
     await expect(rows.first()).toBeVisible();
@@ -164,13 +164,13 @@ test.describe('the seeded tenant reaches every built screen @screen-only', () =>
 
   test('the governance screens have something to govern', async ({ page }) => {
     await railTo(page, 'Releases', /^Approvals(,|$)/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Approvals', exact: true })).toBeVisible();
     await expect(page.locator('main')).not.toContainText('Nothing to show');
   });
 
   test('the flows show the catalogue they actually choose from', async ({ page }) => {
     await railTo(page, 'Decisioning', 'Decision flows');
-    await expect(page.getByRole('heading', { level: 1, name: 'Decision flows' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Decision flows', exact: true })).toBeVisible();
     await expect(page.locator('tr[data-row]').first()).toBeVisible();
   });
 });

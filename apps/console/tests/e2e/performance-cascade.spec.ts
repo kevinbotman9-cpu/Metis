@@ -25,7 +25,7 @@ import { login, ACCOUNTS } from './helpers';
 
 const STAGES = ['Decisions made', 'Offered something', 'Deliverable', 'Seen', 'Acted on'] as const;
 
-const rail = (page: Page) => page.getByRole('navigation', { name: 'The loop' });
+const rail = (page: Page) => page.getByRole('navigation', { name: 'The loop', exact: true });
 
 /**
  * The figure on one rail stage, read from the button's accessible name.
@@ -46,7 +46,7 @@ async function stage(page: Page, label: string): Promise<number> {
 
 async function open(page: Page) {
   await page.goto('/performance');
-  await expect(page.getByRole('heading', { level: 1, name: 'Performance' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Performance', exact: true })).toBeVisible();
   await expect(rail(page)).toBeVisible({ timeout: 20_000 });
 }
 
@@ -123,7 +123,7 @@ test.describe('performance reads as a cascade @screen-only', () => {
     // the browser, and the shape is the thing this screen is for.
     await rail(page).getByRole('button', { name: /^Deliverable: / }).click();
     await expect(page).toHaveURL(/\/performance$/);
-    await expect(page.getByText('From decision to outcome')).toBeVisible();
+    await expect(page.getByText('From decision to outcome', { exact: true })).toBeVisible();
   });
 
   test('the rail is operable from the keyboard alone', async ({ page }) => {
@@ -153,8 +153,8 @@ test.describe('performance reads as a cascade @screen-only', () => {
   }) => {
     await open(page);
 
-    await expect(page.getByText('Realised value')).toBeVisible();
-    await expect(page.getByText('Never had the chance')).toBeVisible();
+    await expect(page.getByText('Realised value', { exact: true })).toBeVisible();
+    await expect(page.getByText('Never had the chance', { exact: true })).toBeVisible();
 
     // Both expectation figures are ceilings — expected margin is what an offer
     // is worth if it is taken, and there is no propensity in a decision record
@@ -185,7 +185,7 @@ test.describe('performance reads as a cascade @screen-only', () => {
     const seen = await stage(page, 'Seen');
     // Middle: what the stage is.
     await expect(
-      page.getByRole('heading', { name: `${seen.toLocaleString('en-GB')} were seen` })
+      page.getByRole('heading', { name: `${seen.toLocaleString('en-GB')} were seen`, exact: true })
     ).toBeVisible();
 
     // Right: the evidence. The per-channel breakdown has to sum to the stage,

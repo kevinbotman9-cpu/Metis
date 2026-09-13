@@ -42,7 +42,7 @@ test.describe('exporting evidence @screen-only', () => {
     const decisionId = page.url().split('/').pop()!;
 
     const download = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Export JSON' }).click();
+    await page.getByRole('button', { name: 'Export JSON', exact: true }).click();
     const file = await download;
 
     const path = await file.path();
@@ -80,7 +80,7 @@ test.describe('exporting evidence @screen-only', () => {
     await expect(page).toHaveURL(/\/decisions\/dec_/);
 
     const download = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Export JSON' }).click();
+    await page.getByRole('button', { name: 'Export JSON', exact: true }).click();
     const record = JSON.parse(readFileSync((await (await download).path())!, 'utf8'));
 
     expect(Object.keys(record.scores).length).toBeGreaterThan(0);
@@ -94,7 +94,7 @@ test.describe('exporting evidence @screen-only', () => {
     await page.getByRole('row').nth(1).click();
     await expect(page).toHaveURL(/\/decisions\/dec_/);
 
-    const pdf = page.getByRole('button', { name: 'Export PDF' });
+    const pdf = page.getByRole('button', { name: 'Export PDF', exact: true });
     await expect(pdf).toBeVisible();
     await expect(pdf).toBeDisabled();
     // The reason reaches the person, not just a reader of the source.
@@ -118,7 +118,7 @@ test.describe('exporting a compiled flow @screen-only', () => {
     await expect(page).toHaveURL(/\/decision-flows\/[a-z-]+$/);
 
     const download = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Export DIR' }).click();
+    await page.getByRole('button', { name: 'Export DIR', exact: true }).click();
     const dir = JSON.parse(readFileSync((await (await download).path())!, 'utf8'));
 
     // A DIR that cannot be run is not a DIR. These four are what make it one.
@@ -134,14 +134,14 @@ test.describe('exporting a compiled flow @screen-only', () => {
 
   test('Version history is disabled and says what is missing', async ({ page }) => {
     await page.goto('/decision-flows/next-best-action');
-    const history = page.getByRole('button', { name: 'Version history' });
+    const history = page.getByRole('button', { name: 'Version history', exact: true });
     await expect(history).toBeDisabled();
     await expect(history).toHaveAttribute('title', /Not built/);
   });
 
   test('New flow is disabled and points at the control that does work', async ({ page }) => {
     await page.goto('/decision-flows');
-    const create = page.getByRole('button', { name: 'New flow' });
+    const create = page.getByRole('button', { name: 'New flow', exact: true });
     await expect(create).toBeVisible();
     await expect(create).toBeDisabled();
     // Not merely "not built": it names Edit graph, which is how a new version

@@ -19,7 +19,7 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
 async function newOffer(page: Page, name: string) {
   await page.goto('/offers');
-  await page.getByRole('button', { name: 'New offer' }).click();
+  await page.getByRole('button', { name: 'New offer', exact: true }).click();
 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
@@ -48,38 +48,39 @@ test.describe('authoring an offer', () => {
     // delivered — the thing to do next is on this page.
     await expect(page).toHaveURL(/\/offers\/prop_speed_boost_100mb$/);
     await expect(page.getByRole('heading', { name: /Speed Boost 100Mb/ })).toBeVisible();
-    await expect(page.getByText('draft').first()).toBeVisible();
+    await expect(page.getByText('draft', { exact: true }).first()).toBeVisible();
   });
 
   test('suggests a key from the name, and locks it once the offer exists', async ({ page }) => {
     // The key is the action every decision record names. Suggesting it saves a
     // step; changing it later would orphan history.
     await page.goto('/offers');
-    await page.getByRole('button', { name: 'New offer' }).click();
+    await page.getByRole('button', { name: 'New offer', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Name').fill('Speed Boost 100Mb');
     await expect(dialog.getByLabel('Key')).toHaveValue('speed_boost_100mb');
 
     await dialog.getByRole('button', { name: 'Cancel' }).click();
     await page.goto('/offers/off_5g_home_ultimate');
-    await page.getByRole('button', { name: 'Edit' }).first().click();
+    // The offer's own edit, by its whole name: the creatives on this page have edit buttons too.
+    await page.getByRole('button', { name: 'Edit offer 5G Home Ultimate', exact: true }).click();
     await expect(page.getByRole('dialog').getByLabel('Key')).toBeDisabled();
   });
 
   test('refuses to activate an offer with nothing to deliver, and says why', async ({ page }) => {
     await newOffer(page, 'Speed Boost 100Mb');
-    await page.getByRole('button', { name: 'Activate' }).click();
+    await page.getByRole('button', { name: 'Activate', exact: true }).click();
 
     // Not `getByRole('alert')`: Next renders its route announcer with that
     // role too, so the role alone is ambiguous.
     await expect(page.getByText(/has no active creative/)).toBeVisible();
     // Still a draft: the refusal is real, not cosmetic.
-    await expect(page.getByText('draft').first()).toBeVisible();
+    await expect(page.getByText('draft', { exact: true }).first()).toBeVisible();
   });
 
   test('adds a creative, puts each refusal on its own field, then activates', async ({ page }) => {
     await newOffer(page, 'Speed Boost 100Mb');
-    await page.getByRole('button', { name: 'Add the first creative' }).click();
+    await page.getByRole('button', { name: 'Add the first creative', exact: true }).click();
 
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Name').fill('Speed Boost — SMS');
@@ -106,10 +107,10 @@ test.describe('authoring an offer', () => {
     await dialog.getByRole('button', { name: 'Add creative' }).click();
     await expect(dialog).toBeHidden();
 
-    await expect(page.getByText('Speed Boost — SMS')).toBeVisible();
+    await expect(page.getByText('Speed Boost — SMS', { exact: true })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Activate' }).click();
-    await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
+    await page.getByRole('button', { name: 'Activate', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
   });
 
   test('edits a creative through the console', async ({ page }) => {
@@ -136,7 +137,7 @@ test.describe('authoring an offer', () => {
     await dialog.getByLabel('Subject').fill('Fibre is ready — one week left');
     await dialog.getByRole('button', { name: 'Save creative' }).click();
     await expect(dialog).toBeHidden();
-    await expect(page.getByText('one week left')).toBeVisible();
+    await expect(page.getByText('Fibre is ready — one week left', { exact: true })).toBeVisible();
   });
 
   test('offers nothing to write with to an account that cannot author', async ({ page }) => {
@@ -149,23 +150,23 @@ test.describe('authoring an offer', () => {
     await page.evaluate(() => localStorage.clear());
     await login(page, ACCOUNTS.priya);
     await page.goto('/offers');
-    await expect(page.getByRole('button', { name: 'New offer' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'New offer', exact: true })).toHaveCount(0);
 
     await page.goto('/offers/off_5g_home_ultimate');
-    await expect(page.getByRole('button', { name: 'Add creative' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Activate' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Add creative', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Activate', exact: true })).toHaveCount(0);
   });
 
   test('both dialogs are accessible', async ({ page }) => {
     // The axe sweep walks routes, and a dialog is not a route — so these were
     // outside it by construction.
     await page.goto('/offers');
-    await page.getByRole('button', { name: 'New offer' }).click();
+    await page.getByRole('button', { name: 'New offer', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     expect((await new AxeBuilder({ page }).withTags(TAGS).analyze()).violations).toEqual([]);
 
     await page.goto('/offers/off_5g_home_ultimate');
-    await page.getByRole('button', { name: 'Add creative' }).click();
+    await page.getByRole('button', { name: 'Add creative', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     expect((await new AxeBuilder({ page }).withTags(TAGS).analyze()).violations).toEqual([]);
   });

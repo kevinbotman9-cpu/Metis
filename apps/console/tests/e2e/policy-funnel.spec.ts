@@ -11,7 +11,7 @@ import { login, ACCOUNTS } from './helpers';
  * tenant, so they are what is asserted (G-096 is what happens otherwise).
  */
 
-const rail = (page: Page) => page.getByRole('navigation', { name: 'Where candidates fall out' });
+const rail = (page: Page) => page.getByRole('navigation', { name: 'Where candidates fall out', exact: true });
 
 /** A rail stage's figure and removals, read from the name the rail gives it. */
 async function readStage(button: Locator) {
@@ -26,7 +26,7 @@ test.describe('the policy funnel @screen-only', () => {
   test.beforeEach(async ({ page }) => {
     await login(page, ACCOUNTS.marcus);
     await page.goto('/targeting-policies');
-    await page.getByRole('button', { name: 'Funnel' }).click();
+    await page.getByRole('button', { name: 'Funnel', exact: true }).click();
     await expect(page).toHaveURL(/view=funnel/);
     await expect(rail(page)).toBeVisible();
   });
@@ -81,8 +81,8 @@ test.describe('the policy funnel @screen-only', () => {
     await page.goto(`${current}&stage=eligibility`);
     await expect(rail(page).getByRole('button', { name: /^Eligibility: / })).toHaveAttribute('aria-current', 'step');
 
-    await page.getByRole('button', { name: 'Policies' }).click();
+    await page.getByRole('button', { name: 'Policies', exact: true }).click();
     await expect(page).not.toHaveURL(/view=funnel/);
-    await expect(page.getByRole('heading', { name: 'All policies' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'All policies', exact: true })).toBeVisible();
   });
 });

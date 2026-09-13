@@ -103,7 +103,7 @@ test.describe('accessibility', () => {
       // stage open, a rule expanded, the evidence pane populated — is the one
       // that has to be clean.
       await openFirstTrace(page);
-      const rail = page.getByRole('navigation', { name: 'Elimination funnel' });
+      const rail = page.getByRole('navigation', { name: 'Elimination funnel', exact: true });
       await expect(rail).toBeVisible({ timeout: 20_000 });
 
       const names: string[] = [];
@@ -132,7 +132,7 @@ test.describe('accessibility', () => {
 
     test('dark theme has no contrast violations', async ({ page }) => {
       await openAccountPanel(page, /Marcus Webb/);
-      await page.getByRole('group', { name: 'Colour scheme' }).getByText('Dark').click();
+      await page.getByRole('group', { name: 'Colour scheme', exact: true }).getByText('Dark').click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
       for (const path of ['/', '/decisions', '/offers', '/agentic']) {

@@ -71,7 +71,7 @@ async function choose(page: Page, label: string) {
   // a second time waits forever for an element the panel is covering.
   const panel = page.locator('#panel');
   if (!(await panel.evaluate((el) => el.classList.contains('open')))) {
-    await page.getByRole('button', { name: 'Decided by METIS' }).click();
+    await page.getByRole('button', { name: 'Decided by METIS', exact: true }).click();
   }
   // Which decision the grid is showing now, so the wait below can tell a new
   // answer from the old one still on screen.

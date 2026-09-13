@@ -15,7 +15,35 @@
     "@next/next/no-html-link-for-pages": "off",
     "@typescript-eslint/no-unused-vars": [
       "error",
-      { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "ignoreRestSiblings": true }
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }
     ]
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "tests/e2e/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "CallExpression[callee.object.name='cn'] > Literal[value=/^(#|rgb|hsl|bg-|text-)/]",
+            "message": "Do not use literal colors in cn(). Use CSS custom properties instead (e.g., 'bg-[var(--accent)]')."
+          },
+          {
+            "selector": "CallExpression[callee.type='MemberExpression'][callee.object.type='Identifier'][callee.object.name='page'][callee.property.name=/^getBy(Label|Text)$/][arguments.0.type=/^(Literal|TemplateLiteral)$/]:not([arguments.0.regex]):not(:has(Property[key.name='exact'][value.value=true]))",
+            "message": "An unscoped page.getByLabel or page.getByText with a plain string matches any label or text containing it — a control in the global header included, which is how the persona switch was taken for a select on 2026-09-13. Pass { exact: true }; or scope it to the region, dialog or card it belongs to; or, if a substring is what you mean, say so with a RegExp. See tests/unit/locator-guard.test.ts."
+          },
+          {
+            "selector": "CallExpression[callee.type='MemberExpression'][callee.object.type='Identifier'][callee.object.name='page'][callee.property.name='getByRole'] > ObjectExpression:not(:has(Property[key.name='exact'][value.value=true])) > Property[key.name='name'][value.type=/^(Literal|TemplateLiteral)$/]:not([value.regex])",
+            "message": "An unscoped page.getByRole with a plain-string name matches any element of that role whose name contains it, anywhere on the page. Pass { exact: true }; or scope it to the region, dialog or card it belongs to; or, if a substring is what you mean, say so with a RegExp. See tests/unit/locator-guard.test.ts."
+          }
+        ]
+      }
+    }
+  ]
 }

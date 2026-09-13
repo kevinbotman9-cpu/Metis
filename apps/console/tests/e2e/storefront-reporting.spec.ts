@@ -68,7 +68,7 @@ test.describe('the storefront reports an impression of an offer, not of a win', 
     // The branch under test, reached: an offer won and there was nothing to
     // render it with. Without this the test could pass on a page that simply
     // never decided.
-    const notice = page.getByText('has no web creative for it').first();
+    const notice = page.locator('.notice', { hasText: 'won this slot, and has no web creative for it.' }).first();
     await expect(notice).toBeVisible({ timeout: 20_000 });
 
     const slots = page.locator('[id^="slot-"]');
@@ -142,8 +142,8 @@ test.describe('a slot stops advertising a decision the moment it stops showing i
     // "Decide again" lives in the explanation drawer, which is translated off
     // screen until somebody opens it. Opened by clicking, not by forcing the
     // click through, so the test still fails if the drawer stops opening.
-    await page.getByRole('button', { name: 'Decided by METIS' }).click();
-    const again = page.getByRole('button', { name: 'Decide again' });
+    await page.getByRole('button', { name: 'Decided by METIS', exact: true }).click();
+    const again = page.getByRole('button', { name: 'Decide again', exact: true });
     await expect(again).toBeInViewport();
     await again.click();
 

@@ -24,7 +24,7 @@ const SHA256 = /^[0-9a-f]{64}$/;
 test.describe('@screen-only the decision panel shows the decision', () => {
   test('renders the hashes, the candidates, the cascade and the provenance', async ({ page }) => {
     await page.goto(STOREFRONT);
-    await page.getByRole('button', { name: 'Decided by METIS' }).click();
+    await page.getByRole('button', { name: 'Decided by METIS', exact: true }).click();
 
     // Each decision is a collapsed `<details>`; a person opens the one they
     // want to read, so the test does too.

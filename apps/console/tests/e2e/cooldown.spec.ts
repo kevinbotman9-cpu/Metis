@@ -49,14 +49,14 @@ test.describe('@screen-only a declined offer stops being offered', () => {
       .not.toBe(declined);
 
     // The panel says the rest period is running, in words, naming the offer.
-    await page.getByRole('button', { name: 'Decided by METIS' }).click();
+    await page.getByRole('button', { name: 'Decided by METIS', exact: true }).click();
     await expect(page.locator('#declines-note')).toContainText(declined!);
     await expect(page.locator('#declines-note')).toContainText('rest period');
 
     // And it is a rest, not a deletion: clear the decline and the offer is
     // eligible again. A cooldown that never lifts is a different bug wearing
     // the same clothes, and nothing else here would tell the two apart.
-    await page.getByRole('button', { name: 'Clear declines' }).click();
+    await page.getByRole('button', { name: 'Clear declines', exact: true }).click();
     await expect
       .poll(
         async () =>

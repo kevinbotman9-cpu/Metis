@@ -73,7 +73,7 @@ test.describe('smart search', () => {
   });
 
   test('replaces the row of separate filter inputs with one box', async ({ page }) => {
-    await expect(page.getByRole('combobox', { name: 'Search and filter' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Search and filter', exact: true })).toBeVisible();
     // The old pattern: a labelled input per parameter.
     await expect(page.getByLabel('Channel', { exact: true })).toHaveCount(0);
     await expect(page.getByLabel('Outcome', { exact: true })).toHaveCount(0);
@@ -94,12 +94,12 @@ test.describe('smart search', () => {
     expect(totalBefore).toBeGreaterThan(1000);
     expect(totalBefore).toBeLessThanOrEqual(CORPUS);
 
-    await page.getByRole('combobox', { name: 'Search and filter' }).click();
+    await page.getByRole('combobox', { name: 'Search and filter', exact: true }).click();
     await page.getByRole('option', { name: /^Outcome/ }).click();
-    await page.getByRole('option', { name: 'Outcome: Suppressed' }).click();
+    await page.getByRole('option', { name: 'Outcome: Suppressed', exact: true }).click();
 
     // The choice becomes a chip.
-    await expect(page.getByText('Outcome: Suppressed')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Remove filter Outcome: Suppressed', exact: true })).toBeVisible();
 
     // And it actually narrows the data.
     //
@@ -107,7 +107,7 @@ test.describe('smart search', () => {
     // for 5,000 rows and both the whole corpus and the suppressed half exceed
     // that, so the grid reports its cap either way. The summary counts what
     // the filter matched, which is the thing being tested.
-    await expect(page.getByText('Offer made')).toBeVisible();
+    await expect(page.getByText('Offer made', { exact: true })).toBeVisible();
     const offered = page.locator('p', { hasText: /^Offer made$/ }).locator('..').locator('p').nth(1);
     await expect(offered).toHaveText('0');
 
@@ -119,22 +119,22 @@ test.describe('smart search', () => {
   });
 
   test('accepts a typed facet query', async ({ page }) => {
-    const box = page.getByRole('combobox', { name: 'Search and filter' });
+    const box = page.getByRole('combobox', { name: 'Search and filter', exact: true });
     await box.fill('channel:sms');
     await page.keyboard.press('Enter');
 
-    await expect(page.getByText('Channel: SMS')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Remove filter Channel: SMS', exact: true })).toBeVisible();
     await expect(page.locator('tr[data-row]').first().getByText('sms')).toBeVisible();
   });
 
   test('removes the last chip on backspace in an empty box', async ({ page }) => {
-    const box = page.getByRole('combobox', { name: 'Search and filter' });
+    const box = page.getByRole('combobox', { name: 'Search and filter', exact: true });
     await box.fill('channel:sms');
     await page.keyboard.press('Enter');
-    await expect(page.getByText('Channel: SMS')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Remove filter Channel: SMS', exact: true })).toBeVisible();
 
     await box.press('Backspace');
-    await expect(page.getByText('Channel: SMS')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Remove filter Channel: SMS', exact: true })).toHaveCount(0);
   });
 });
 
@@ -143,7 +143,7 @@ test('breadcrumbs place a detail page in the hierarchy', async ({ page }) => {
   await page.goto('/decisions');
   await page.locator('tr[data-row]').first().click();
 
-  const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' });
+  const crumbs = page.getByRole('navigation', { name: 'Breadcrumb', exact: true });
   await expect(crumbs).toBeVisible();
   await expect(crumbs.getByText('Decisioning')).toBeVisible();
 
@@ -179,7 +179,7 @@ test.describe('summary strip', () => {
     // drawn again as a label on the flow diagram beside it — so the check reads
     // the rail's own stage rather than any matching text on the page. At least
     // the corpus, not exactly it: the ledger adds live decisions as specs run.
-    const total = page.getByRole('navigation', { name: 'The loop' }).getByRole('button', { name: /^Decisions made: / });
+    const total = page.getByRole('navigation', { name: 'The loop', exact: true }).getByRole('button', { name: /^Decisions made: / });
     await expect(total).toBeVisible();
     const shown = Number(/^Decisions made:\s*([\d,]+)/.exec((await total.getAttribute('aria-label')) ?? '')![1].replace(/,/g, ''));
     expect(shown).toBeGreaterThanOrEqual(CORPUS);
@@ -239,21 +239,21 @@ test.describe('sign-in page', () => {
     await page.goto('/login');
 
     await expect(page.getByRole('heading', { name: /Decisions you can prove/ })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Deterministic replay' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Scoped agent autonomy' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Deterministic replay', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Scoped agent autonomy', exact: true })).toBeVisible();
 
     // The form still works, which is the part that matters.
-    await expect(page.getByLabel('Email')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+    await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
   });
 
   test('fills the form from a demo account and signs in', async ({ page }) => {
     await page.goto('/login');
     await page.getByRole('button', { name: /Priya Natarajan/ }).click();
 
-    await expect(page.getByLabel('Email')).toHaveValue('priya.natarajan@telco.example');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.getByLabel('Email', { exact: true })).toHaveValue('priya.natarajan@telco.example');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
-    await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main', exact: true })).toBeVisible();
   });
 });

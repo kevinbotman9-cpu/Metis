@@ -289,20 +289,26 @@ These are high-touch and need product/design review before code.
 
 ## Session Discipline
 
-- One slice per branch, one branch per PR. `git fetch` and verify local `main`
-  matches `origin/main` before branching — a stale local ref has already sent one
-  slice off a week-old commit.
+- **Work slices in batches of three: one branch and one pull request per batch.**
+  Decided by the product owner on 2026-09-13. A slice goes alone only when it has
+  to land before the next can start. `git fetch` and verify local `main` matches
+  `origin/main` before branching — a stale local ref has already sent one slice
+  off a week-old commit.
 - Start the session by running `npm run conformance` and reporting the current
   failure count. End the session the same way. The count is ratcheted against
   `docs/ux-conformance-baseline.json`, and `npm run gates` fails if it rises —
   or if it falls and the baseline was not lowered in the same commit.
 - **CI is the gate, not the local gates run.** Decided by the product owner on
-  2026-09-13. Before a pull request, run `npm run gates:pre-pr`: every gate
-  `npm run gates` has except end-to-end — typecheck, lint, every unit suite,
-  Storybook, bundle budgets, the spec, the corpus, generated files, required
-  checks and UX conformance. Those catch real defects, and a busy machine does
-  not make them lie. Then push, and let CI run end-to-end on clean runners —
-  four shards, about five minutes, nothing competing for the machine.
+  2026-09-13. Before a push, run `npm run gates:quick`: typecheck, lint and every
+  unit suite. Then push, and let CI run everything else on clean runners —
+  end-to-end in four shards, nothing competing for the machine.
+
+  Run `npm run gates:pre-pr` — every gate but end-to-end, Storybook and bundle
+  budgets included — only when the change could plausibly break something CI
+  runs later that the quick run does not: the harness, the fixtures, the build
+  config, a screen's structure. A locator change, a prose change or a register
+  edit is not that. A six-minute local run in front of every push is the old
+  habit wearing the new rule's name.
 
   Run the full `npm run gates` locally only with a reason to think end-to-end
   will fail: a change to the harness, the fixtures, or a screen's structure.
@@ -313,7 +319,7 @@ These are high-touch and need product/design review before code.
   and say which script ran.** `npm run gates` runs exactly what CI runs, in CI's
   order, and `tests/gates-parity.test.ts` fails if the two ever drift;
   `npm run gates:pre-pr` is that list less end-to-end, and says so when it
-  finishes. A claim of "lint clean" or "gates green" from anything else is a
+  finishes; `npm run gates:quick` is typecheck, lint and the unit suites. A claim of "lint clean" or "gates green" from anything else is a
   claim about an unknown subset, and the subsets were not small: until
   2026-09-10 the root lint ran nowhere on a pull request, `test:core`,
   `test:catalogue` and `test:portability` ran in no CI job at all, and
@@ -336,8 +342,8 @@ These are high-touch and need product/design review before code.
   owner's decision cited; a change that breaks the contract never is.
 - If you are more than 60% through context and slice artefacts 5–9 are not done,
   stop, commit nothing, and report what remains.
-- Do not proceed past a red gate — a red pre-PR run or a red CI run. Report it
-  and stop.
+- Do not proceed past a red gate — a red local run of any gate script, or a red
+  CI run. Report it and stop.
 - Read-only means read-only. Do not fix things during a survey phase.
 - Do not report numbers from a run you disturbed — a branch switch mid-suite, a
   dev server saturated by another suite, a server that has been up for hours.

@@ -23,8 +23,8 @@ test.describe('experiments', () => {
     // the wait means a slow load fails as "the seed did not arrive" instead of
     // as "the field path is missing" — which is what it looked like on
     // 2026-09-09, in one full run out of six, on a machine under load. G-003.
-    await expect(page.getByRole('heading', { level: 1, name: 'Experiments' })).toBeVisible();
-    await expect(page.getByText('FIOS Gigabit holdout')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Experiments', exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'FIOS Gigabit holdout', exact: true })).toBeVisible();
   });
 
   test.afterEach(async ({ page }) => {
@@ -32,12 +32,12 @@ test.describe('experiments', () => {
   });
 
   test('shows the split and which arm is the holdout', async ({ page }) => {
-    await expect(page.getByRole('heading', { level: 1, name: 'Experiments' })).toBeVisible();
-    await expect(page.getByText('FIOS Gigabit holdout')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Experiments', exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'FIOS Gigabit holdout', exact: true })).toBeVisible();
 
     // 10/90, declared in the fixture.
     await expect(page.getByRole('img', { name: /Held back 10%/ })).toBeVisible();
-    await expect(page.getByText('holdout').first()).toBeVisible();
+    await expect(page.getByText('holdout', { exact: true }).first()).toBeVisible();
   });
 
   test('seeds nothing running, because starting one moves every chain hash', async ({ page }) => {
@@ -53,14 +53,14 @@ test.describe('experiments', () => {
     // Same claim, two readings of it: no experiment carries the status, and the
     // page's own counter agrees.
     await expect(page.getByText('running', { exact: true })).toHaveCount(0);
-    await expect(page.getByText('Running').locator('..')).toContainText('0');
-    await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
+    await expect(page.getByText('Running', { exact: true }).locator('..')).toContainText('0');
+    await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
   });
 
   test('names the field path an arm reaches policies at', async ({ page }) => {
     // The reason no engine change was needed: an arm is an ordinary field, so a
     // holdout is an ordinary eligibility rule.
-    await expect(page.getByText('experiments.fiber_holdout').first()).toBeVisible();
+    await expect(page.getByText('experiments.fiber_holdout', { exact: true }).first()).toBeVisible();
   });
 
   test('explains why a started split cannot be changed', async ({ page }) => {
@@ -73,7 +73,7 @@ test.describe('experiments', () => {
   });
 
   test('creates a holdout as a draft, assigning nobody yet', async ({ page }) => {
-    await page.getByRole('button', { name: 'New holdout' }).click();
+    await page.getByRole('button', { name: 'New holdout', exact: true }).click();
     const dialog = page.getByRole('dialog');
 
     await dialog.getByLabel('Name').fill('Roaming holdout');
@@ -85,7 +85,7 @@ test.describe('experiments', () => {
 
     // Scoped to the new card: the seeded holdout is also a draft with its own
     // Start button, so a bare lookup would pass without proving anything.
-    const card = page.getByRole('region', { name: 'Roaming holdout' });
+    const card = page.getByRole('region', { name: 'Roaming holdout', exact: true });
     await expect(card.getByText('draft')).toBeVisible();
     // Created as a draft whatever was asked for — nobody is split until
     // somebody starts it.
@@ -93,14 +93,14 @@ test.describe('experiments', () => {
   });
 
   test('starting one freezes its split', async ({ page }) => {
-    await page.getByRole('button', { name: 'New holdout' }).click();
+    await page.getByRole('button', { name: 'New holdout', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Name').fill('Freeze me');
     await dialog.getByLabel('Key').fill('freeze_me');
     await dialog.getByRole('button', { name: 'Create draft' }).click();
     await expect(dialog).toBeHidden();
 
-    const card = page.getByRole('region', { name: 'Freeze me' });
+    const card = page.getByRole('region', { name: 'Freeze me', exact: true });
     await card.getByRole('button', { name: 'Start' }).click();
 
     await expect(card.getByRole('button', { name: 'Stop' })).toBeVisible();
@@ -111,7 +111,7 @@ test.describe('experiments', () => {
   test('refuses a key that would collide at the same field path', async ({ page }) => {
     // Two experiments at `experiments.fiber_holdout` would overwrite each
     // other in the decision input.
-    await page.getByRole('button', { name: 'New holdout' }).click();
+    await page.getByRole('button', { name: 'New holdout', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Name').fill('Duplicate');
     await dialog.getByLabel('Key').fill('fiber_holdout');
@@ -125,7 +125,7 @@ test.describe('experiments', () => {
     await login(page, ACCOUNTS.priya);
     await page.goto('/experiments');
 
-    await expect(page.getByRole('button', { name: 'New holdout' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Stop' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'New holdout', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toHaveCount(0);
   });
 });
