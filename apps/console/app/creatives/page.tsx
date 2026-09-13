@@ -284,8 +284,8 @@ function CreativesView() {
         title="Creatives"
         description={
           view === 'coverage'
-            ? 'Which offers have something to send, and on which channels. An offer with nothing live on a channel wins that channel’s slots and renders nothing.'
-            : 'Every piece of content in the catalogue, across offers. A creative belongs to one offer and is delivered on one channel.'
+            ? 'An offer with nothing live on a channel wins that channel’s slots and renders nothing.'
+            : undefined
         }
         actions={
           <div className="flex gap-2" role="group" aria-label="View">

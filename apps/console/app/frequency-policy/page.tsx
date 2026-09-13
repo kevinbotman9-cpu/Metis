@@ -1,5 +1,6 @@
 'use client';
 
+import { InfoTip } from '@/components/ui/tooltip';
 import { useQuery } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
 import {
@@ -103,7 +104,7 @@ function FrequencyPolicyView() {
     <PageBody>
       <PageHeader
         title="Frequency policy"
-        description="Caps limit how often we contact someone; cooldowns rest an offer after they decline it. Both suppress an otherwise-winning offer, and the trace names which rule did it."
+        description="The trace names the rule that suppressed an offer."
       />
 
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -143,21 +144,18 @@ function FrequencyPolicyView() {
 
       <div className="mt-stack">
         <Card>
-          <CardHeader title="How suppression appears in a decision" />
+          <CardHeader
+            title="How suppression appears in a decision"
+            tip={
+              <InfoTip label="About the two reason codes">
+                FREQUENCY_CAP_BREACHED: contacted too often. COOLDOWN_ACTIVE: the customer declined this offer and its
+                rest period has not elapsed. Both name the rule.
+              </InfoTip>
+            }
+          />
           <CardBody>
             <p className="text-body text-content-muted">
-              When a frequency policy blocks delivery, the decision still runs and still ranks
-              candidates. The constraint node then removes the winner, and the decision returns
-              no offer. The trace keeps the full ranking, so you can answer both{' '}
-              <em>&ldquo;what would we have offered?&rdquo;</em> and{' '}
-              <em>&ldquo;why did nothing go out?&rdquo;</em> from the same record.
-            </p>
-            <p className="mt-3 text-body text-content-muted">
-              A cap and a rest period are told apart in the trace:{' '}
-              <code className="font-mono text-label">FREQUENCY_CAP_BREACHED</code> means we have
-              contacted them too often, <code className="font-mono text-label">COOLDOWN_ACTIVE</code>{' '}
-              means they declined that offer and the rest period has not elapsed. Both name the rule
-              that did it.
+              A block still ranks candidates; the trace keeps the full ranking and records why nothing went out.
             </p>
             <p className="mt-3 text-body text-content-muted">
               <strong className="text-content">Where the decline comes from.</strong> The platform

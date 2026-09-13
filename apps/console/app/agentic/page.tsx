@@ -110,9 +110,6 @@ function ScopeCard({ setting, canEdit }: { setting: AutonomySettingDto; canEdit:
 
       {editing && (
         <div className="mt-3 rounded border border-accent/40 bg-accent-subtle p-2">
-          <p className="mb-1.5 text-label text-content-muted">
-            Raising a level widens what agents may do here without asking. The change is audited.
-          </p>
           <div className="flex flex-wrap gap-1">
             {LADDER.map((l) => (
               <button
@@ -235,7 +232,7 @@ function AgenticView() {
     <PageBody>
       <PageHeader
         title="Agentic AI"
-        description="How much authority agents hold, and over what. Autonomy is set per scope and resolves most-specific-first: offer beats category, category beats objective, objective beats tenant."
+        description="Resolves most specific first: offer, category, objective, tenant."
         actions={
           canEdit ? (
             // No API creates a scope rule — `updateAutonomySetting` edits the
@@ -279,7 +276,6 @@ function AgenticView() {
       <Card className="mb-stack">
         <CardHeader
           title="The autonomy ladder"
-          description="Each level is a different answer to: what may the agent change without asking?"
         />
         <CardBody className="p-0">
           <div className="overflow-x-auto">

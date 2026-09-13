@@ -51,7 +51,7 @@ export const creativeDescriptor: EntityDescriptor = {
 
   create: {
     title: 'Add creative',
-    description: 'The content this offer is delivered with, on one channel.',
+    description: 'One creative is delivered on one channel.',
     submitLabel: 'Add creative',
   },
   edit: {
@@ -204,7 +204,7 @@ export const creativeDescriptor: EntityDescriptor = {
       field: 'content.imageUrl',
       type: 'text',
       label: 'Image reference',
-      help: 'A path or URL. Nothing here stores or serves the file — see W-015.',
+      help: 'A path or URL. Nothing here stores or serves the file.',
       placeholder: 'e.g. /assets/offers/example.jpg',
       order: 30,
     }),

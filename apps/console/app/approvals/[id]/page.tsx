@@ -211,7 +211,6 @@ function ChangeSetDetail({ id }: { id: string }) {
             >
               <CardHeader
                 title="Simulation"
-                description="Replayed against a historical population before anything ships."
                 actions={
                   <Badge tone={cr.simulation.passed ? 'pass' : 'block'}>
                     {cr.simulation.passed ? 'passed' : 'failed'}

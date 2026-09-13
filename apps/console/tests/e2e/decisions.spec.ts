@@ -109,6 +109,6 @@ test.describe('decision search and trace', () => {
 
     await firstRow.click();
     await expect(page.getByRole('heading', { level: 1 })).toContainText('no offer');
-    await expect(page.getByText(/decision returned no offer/)).toBeVisible();
+    await expect(page.getByText('Every candidate was removed before arbitration.', { exact: true })).toBeVisible();
   });
 });

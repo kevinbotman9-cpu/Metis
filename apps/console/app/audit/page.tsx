@@ -106,7 +106,7 @@ function AuditView() {
     <PageBody>
       <PageHeader
         title="Audit log"
-        description="Append-only record of every control-plane change. Nothing is edited or deleted, so the log is evidence rather than a report."
+        description="Append-only. Nothing is edited or deleted."
       />
 
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">

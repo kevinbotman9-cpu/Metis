@@ -41,7 +41,7 @@ function SimulationsView() {
     <PageBody>
       <PageHeader
         title="Simulations"
-        description="Every change is replayed against a historical population before it ships. A failed bias gate blocks the change regardless of its commercial upside."
+        description="A failed bias gate blocks the change regardless of its commercial upside."
       />
 
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -66,12 +66,7 @@ function SimulationsView() {
                 Ad-hoc simulation is specified but not implemented
               </p>
               <p className="mt-1 text-body text-content-muted">
-                The <code className="font-mono text-label">simulateDecisionFlow</code> and{' '}
-                <code className="font-mono text-label">getCounterfactual</code> operations exist in
-                the OpenAPI spec, and the execution plane has not built them. Until it does, this
-                page shows the simulations that were run as part of a change set. Running one
-                on demand — pick a flow, pick a population, see the distribution shift — needs
-                the platform side first.
+                On-demand simulation isn&apos;t available; this lists the simulations run for change sets.
               </p>
               <p className="mt-1.5 text-label text-content-subtle">
                 Tracked in docs/gaps.md.

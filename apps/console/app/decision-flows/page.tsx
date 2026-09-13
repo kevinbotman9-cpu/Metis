@@ -192,7 +192,7 @@ function FlowsView() {
     <PageBody>
       <PageHeader
         title="Decision flows"
-        description="Compiled decision graphs. Each version is immutable and pinned to the node package versions it was compiled against, so any decision it made can be replayed exactly."
+        description="Versions are immutable and pinned to their node package versions."
         actions={
           // A flow is drafted on an existing flow's canvas and published from
           // there; nothing in the spec creates one from nothing — there is no

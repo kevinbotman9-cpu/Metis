@@ -1,5 +1,6 @@
 'use client';
 
+import { InfoTip } from '@/components/ui/tooltip';
 import { useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -68,7 +69,7 @@ function Proposals() {
     <Card>
       <CardHeader
         title="Proposed changes"
-        description="A change to what this tenant decides, with the diff and the simulation that has to pass before anyone can approve it."
+        description="Waiting for approval. Each carries a diff and a simulation."
         actions={
           <Link href="/approvals" className="text-label text-accent hover:underline">
             All change sets →
@@ -145,7 +146,6 @@ function Activity() {
     <Card>
       <CardHeader
         title="Agent activity"
-        description="What agents did under their autonomy level, and what a guardrail stopped."
         actions={
           <Link href="/agentic" className="text-label text-accent hover:underline">
             Autonomy and guardrails →
@@ -161,10 +161,7 @@ function Activity() {
           <div className="px-card py-4">
             <p className="text-body text-content">Nothing in this feed.</p>
             <p className="mt-1 text-label text-content-muted">
-              An entry is written when an agent acts under its autonomy level: at L2 it opens a change
-              set and waits for a person; at L3 it publishes inside its guardrails and is rolled back
-              automatically if one is breached. This tenant&apos;s feed holds none. The audit log is the complete record of who
-              changed what, and for this tenant it lists agent actions this feed does not — G-101.
+              The audit log records agent actions this feed doesn&apos;t.
             </p>
             <Link href="/audit" className="mt-2 inline-block text-label text-accent hover:underline">
               Open the audit log →
@@ -235,7 +232,7 @@ function OverviewView() {
     <PageBody>
       <PageHeader
         title="The loop"
-        description="What this tenant decided, what reached a customer, and what came back — under the changes agents have proposed to it."
+        description="Decisions, delivery and outcomes, under the changes proposed to them."
       />
 
       <section aria-labelledby="thesis" className="mb-stack">
@@ -243,13 +240,9 @@ function OverviewView() {
           Agents author, people approve, simulation gates it
         </h2>
         <p className="mb-3 max-w-3xl text-label text-content-muted">
-          What an agent may do is a level set per scope. At L2 it opens a change set — a diff, and a
-          simulation replayed over recorded decisions — and nothing is published until a person holding{' '}
-          <code className="font-mono">approve:changes</code> approves it. At L3 it publishes without
-          waiting, but only a change inside the guardrails for that scope: a cap on how many customers
-          it reaches and how far it moves a boost, a simulation that must pass, and a bias ratio under
-          the gate. A change that breaches one is rolled back automatically, and a person reviews it
-          afterwards. What gets published is what the loop below measures.
+          L2: nothing publishes until someone with <code className="font-mono">approve:changes</code> approves
+          it. L3: changes inside the scope&apos;s guardrails publish immediately, roll back on a breach, and are
+          reviewed afterwards.
         </p>
         <div className="grid gap-stack lg:grid-cols-2">
           <Proposals />
@@ -269,13 +262,14 @@ function OverviewView() {
       ) : (
         <section aria-label="The loop">
           <ProvenanceBanner provenance={report.data.provenance} />
-          <p className="mb-stack text-label text-content-subtle">
+          <p className="mb-stack flex items-center gap-1.5 text-label text-content-subtle">
             {report.data.from && report.data.to
-              ? `Decisions from ${format.date(report.data.from)} to ${format.date(report.data.to)}. `
+              ? `Decisions from ${format.date(report.data.from)} to ${format.date(report.data.to)}.`
               : ''}
-            Each stage counts distinct decisions, and each is a subset of the one above: an offer
-            cannot be seen that was never deliverable, and a decision counts once however many times
-            a channel reports it.
+            <InfoTip label="About the stages">
+              Each stage counts distinct decisions and is a subset of the one above: an offer cannot be seen that
+              was never deliverable, and a decision counts once however many times a channel reports it.
+            </InfoTip>
           </p>
 
           <LoopInversions loop={loop} />

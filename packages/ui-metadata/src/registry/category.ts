@@ -19,7 +19,7 @@ export const categoryDescriptor: EntityDescriptor = {
 
   create: {
     title: 'New category',
-    description: 'A product or service grouping under one objective. Offers are filed under it.',
+    description: 'Filed under one objective.',
     submitLabel: 'Create category',
   },
   edit: {

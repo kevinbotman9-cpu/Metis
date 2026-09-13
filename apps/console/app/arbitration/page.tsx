@@ -169,7 +169,6 @@ function ArbitrationView() {
         <Card>
           <CardHeader
             title="Ranking formula"
-            description="Exponent weights change how much each term matters without rewriting the formula."
             actions={
               canEdit ? (
                 <>
@@ -285,7 +284,7 @@ function ArbitrationView() {
       <Card>
         <CardHeader
           title="Boosts"
-          description="Business weights applied at a scope. The most specific boost wins, the same way autonomy resolves."
+          description="Business weights applied at a scope. The most specific scope wins."
           actions={
             canEdit ? (
               // Disabled rather than removed, and disabled rather than left

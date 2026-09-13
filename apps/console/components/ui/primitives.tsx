@@ -191,15 +191,29 @@ export function CardHeader({
   title,
   description,
   actions,
+  tip,
 }: {
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
+  /**
+   * Reference text beside the title: an `InfoTip`. Outside the heading, so the
+   * heading's accessible name stays the title rather than gaining the trigger's.
+   */
+  tip?: ReactNode;
 }) {
+  const heading = <h2 className="text-body font-semibold tracking-tight text-content">{title}</h2>;
   return (
     <header className="flex items-start justify-between gap-4 border-b border-border px-card py-3.5">
       <div className="min-w-0">
-        <h2 className="text-body font-semibold tracking-tight text-content">{title}</h2>
+        {tip ? (
+          <div className="flex items-center gap-1.5">
+            {heading}
+            {tip}
+          </div>
+        ) : (
+          heading
+        )}
         {description ? (
           <p className="mt-0.5 text-label text-content-muted">{description}</p>
         ) : null}

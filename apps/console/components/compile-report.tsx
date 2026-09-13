@@ -148,8 +148,7 @@ export function CompileReport({ compilation }: { compilation: CompileResultDto |
               <code className="font-mono">
                 {compilation.artifact.artifactHash.slice(0, 16)}
               </code>
-              . Pinning is what makes a decision replayable: a floating version would change
-              the answer.
+              .
             </p>
           </div>
         ) : null}

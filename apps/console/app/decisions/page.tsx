@@ -174,7 +174,6 @@ function DecisionsView() {
     <PageBody>
       <PageHeader
         title="Decisions"
-        description="Every decision the platform made, with the full reasoning trace behind it. Open one to see why the winner won and to prove the result reproduces."
       />
 
       {/* Above the numbers, inside the content column. A screenshot of these

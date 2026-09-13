@@ -27,7 +27,7 @@ test.describe('the compilation gate', () => {
     await expect(page.getByRole('heading', { name: 'Registry' })).toBeVisible();
     await expect(page.getByText('Not in the registry')).toBeVisible();
     // The point, stated where someone will read it.
-    await expect(page.getByText(/cannot be promoted and cannot reach execution/)).toBeVisible();
+    await expect(page.getByText(/never compiled, so it can't be promoted/)).toBeVisible();
   });
 
   test('the refusal is in the registry log, not silently dropped', async ({ page }) => {

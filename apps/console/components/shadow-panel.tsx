@@ -49,7 +49,7 @@ export function ShadowSummary({ report }: { report: ShadowReport }) {
     return (
       <EmptyState
         title="Nothing shadowing"
-        description="Start a shadow to run a second version beside the active one. It decides nothing — the active version's answer is always what is returned — and what it would have decided is compared and recorded."
+        description="Runs beside the active version. The active version's answer is always returned."
       />
     );
   }
@@ -166,7 +166,6 @@ export function ShadowPanel({ flowName }: { flowName: string }) {
     <Card>
       <CardHeader
         title="Shadow"
-        description="A second version runs beside the active one and decides nothing. Comparing what it would have chosen is how a migration is evidenced rather than asserted."
       />
       <CardBody className="space-y-4">
         {problem && (

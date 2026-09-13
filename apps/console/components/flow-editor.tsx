@@ -1,5 +1,6 @@
 'use client';
 
+import { InfoTip } from '@/components/ui/tooltip';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardHeader, Badge } from '@/components/ui/primitives';
@@ -131,10 +132,13 @@ export function FlowEditor({ artifactId, nodes, edges, candidateKeys, canEdit }:
       <Card className="overflow-hidden">
         <CardHeader
           title="Decision graph"
-          description={
-            editing
-              ? 'Drag to rearrange, drag from a node edge to connect, select an edge and press Delete to remove it. Saving does not change any decision — publish and promote do.'
-              : 'Select a node to inspect what it does.'
+          description={editing ? 'Saving does not change any decision — publish and promote do.' : undefined}
+          tip={
+            editing ? (
+              <InfoTip label="How to edit the graph">
+                Drag to rearrange, drag from a node edge to connect, select an edge and press Delete to remove it.
+              </InfoTip>
+            ) : undefined
           }
           actions={
             canEdit ? (
