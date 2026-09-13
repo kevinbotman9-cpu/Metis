@@ -430,7 +430,7 @@ export function LoopStageEvidence({ data, loop, stage }: { data: LoopReport; loo
   if (!selected) {
     return (
       <>
-        <h2 className="text-label font-semibold uppercase tracking-wide text-content-subtle">The loop</h2>
+        <h2 className="text-label font-semibold text-content-subtle">The loop</h2>
         <p className="mt-1 text-body font-semibold text-content">
           Closed on {loop.population}, open on {loop.dead.length}
         </p>
@@ -462,7 +462,7 @@ export function LoopStageEvidence({ data, loop, stage }: { data: LoopReport; loo
 
   return (
     <>
-      <h2 className="text-label font-semibold uppercase tracking-wide text-content-subtle">{selected.label}</h2>
+      <h2 className="text-label font-semibold text-content-subtle">{selected.label}</h2>
       <p className="mt-1 text-body font-semibold text-content">
         {format.number(selected.value)} · {selected.note}
       </p>

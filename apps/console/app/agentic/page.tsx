@@ -161,7 +161,7 @@ function ScopeCard({ setting, canEdit }: { setting: AutonomySettingDto; canEdit:
       </dl>
 
       <div className="mt-3">
-        <p className="mb-1 text-label uppercase tracking-wide text-content-subtle">
+        <p className="mb-1 text-label text-content-subtle">
           Permitted changes
         </p>
         {g.allowedChangeTypes.length === 0 ? (
@@ -179,7 +179,7 @@ function ScopeCard({ setting, canEdit }: { setting: AutonomySettingDto; canEdit:
 
       {g.protectedAttributes.length > 0 && (
         <div className="mt-3">
-          <p className="mb-1 text-label uppercase tracking-wide text-content-subtle">
+          <p className="mb-1 text-label text-content-subtle">
             Frozen attributes
           </p>
           <div className="flex flex-wrap gap-1">
@@ -281,7 +281,7 @@ function AgenticView() {
           <div className="overflow-x-auto">
             <table className="w-full text-body">
               <thead>
-                <tr className="border-b border-border text-label uppercase tracking-wide text-content-subtle">
+                <tr className="border-b border-border text-label text-content-subtle">
                   <th className="px-cell py-2 text-left font-semibold">Level</th>
                   <th className="px-cell py-2 text-left font-semibold">The agent may</th>
                   <th className="px-cell py-2 text-left font-semibold">Human gate</th>

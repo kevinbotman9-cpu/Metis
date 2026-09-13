@@ -69,7 +69,7 @@ export function Field({
     <div className="flex flex-col gap-1">
       <label
         htmlFor={htmlFor}
-        className="text-label font-medium uppercase tracking-wide text-content-subtle"
+        className="text-label font-medium text-content-subtle"
       >
         {label}
       </label>
@@ -287,7 +287,7 @@ export function Metric({
   };
   return (
     <div className="rounded-lg border border-border bg-surface px-card py-3">
-      <p className="text-label uppercase tracking-wide text-content-subtle">{label}</p>
+      <p className="text-label text-content-subtle">{label}</p>
       <p className={cn('tnum mt-1 text-figure font-semibold tabular-nums', toneCls[tone])}>
         {value}
       </p>

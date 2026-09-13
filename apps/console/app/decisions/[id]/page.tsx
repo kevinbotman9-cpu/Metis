@@ -234,7 +234,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
 
       {/* Audience selector */}
       <div className="mb-stack flex flex-wrap items-center gap-2">
-        <span className="text-label uppercase tracking-wide text-content-subtle">
+        <span className="text-label text-content-subtle">
           Explain for
         </span>
         <div className="flex flex-wrap gap-1" role="group" aria-label="Trace audience">
@@ -455,7 +455,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
                 ) : (
                   <table className="w-full text-body">
                     <thead>
-                      <tr className="border-b border-border text-label uppercase tracking-wide text-content-subtle">
+                      <tr className="border-b border-border text-label text-content-subtle">
                         <th className="py-1.5 text-left font-semibold">Action</th>
                         <th className="py-1.5 text-right font-semibold">P</th>
                         <th className="py-1.5 text-right font-semibold">V</th>
@@ -642,7 +642,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
               </dl>
 
               <div className="mt-3 border-t border-border pt-3">
-                <p className="mb-1 text-label uppercase tracking-wide text-content-subtle">
+                <p className="mb-1 text-label text-content-subtle">
                   Chain hash
                 </p>
                 <code className="block break-all rounded border border-border bg-surface-sunken px-2 py-1.5 font-mono text-label text-content-muted">
@@ -710,7 +710,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
                 description="What governed this decision."
               />
               <CardBody>
-                <p className="mb-2 text-label uppercase tracking-wide text-content-subtle">
+                <p className="mb-2 text-label text-content-subtle">
                   Consent state
                 </p>
                 <div className="flex flex-wrap gap-1">
@@ -721,7 +721,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
                   ))}
                 </div>
 
-                <p className="mb-2 mt-4 text-label uppercase tracking-wide text-content-subtle">
+                <p className="mb-2 mt-4 text-label text-content-subtle">
                   Frequency policies applied
                 </p>
                 <ul className="space-y-1">
@@ -734,7 +734,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
 
                 {trace.creativeId && (
                   <>
-                    <p className="mb-2 mt-4 text-label uppercase tracking-wide text-content-subtle">
+                    <p className="mb-2 mt-4 text-label text-content-subtle">
                       Creative delivered
                     </p>
                     <Link

@@ -85,10 +85,10 @@ export function FilterBlocks({ blocks, activeId, onSelect, label, className }: F
                 : 'border-border bg-surface hover:border-border-strong hover:bg-surface-sunken'
             )}
           >
-            <span className="block text-label uppercase tracking-wide text-content-subtle">
+            <span className="block text-label text-content-subtle">
               {b.label}
             </span>
-            <span className={cn('mt-0.5 block text-h2 font-semibold tnum', TONE[tone])}>
+            <span className={cn('mt-0.5 block text-figure font-semibold tnum', TONE[tone])}>
               {b.value}
             </span>
             {b.sub ? (

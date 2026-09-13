@@ -162,7 +162,7 @@ function LoginForm() {
 
           {/* Roles change what the console shows, so make switching easy. */}
           <div className="mt-8">
-            <p className="mb-2 text-label uppercase tracking-wide text-content-subtle">
+            <p className="mb-2 text-label text-content-subtle">
               Demo accounts
             </p>
             <ul className="space-y-1.5">

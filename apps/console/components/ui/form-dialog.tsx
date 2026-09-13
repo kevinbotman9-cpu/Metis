@@ -72,7 +72,7 @@ export function FormDialog({
         >
           <form onSubmit={handle} className="flex min-h-0 flex-col">
             <div className="border-b border-border px-card py-3">
-              <Dialog.Title className="text-heading font-semibold text-content">
+              <Dialog.Title className="text-title font-semibold text-content">
                 {title}
               </Dialog.Title>
               {description ? (

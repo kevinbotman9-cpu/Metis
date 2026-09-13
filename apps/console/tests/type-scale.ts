@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 
 /**
  * Every place type is set outside the scale. `docs/METIS_CONSOLE_SPEC.md` Part 5,
@@ -21,8 +22,8 @@ import path from 'node:path';
  * can also be pointed at an older checkout to prove it would have caught the
  * sites it was written for.
  *
- * All-caps and letter-spacing are deliberately not here: the spec forbids them
- * too, but whether to follow that is a design decision registered as G-102.
+ * All-caps and letter-spacing are not here: they are `tests/letter-case.ts`,
+ * written once the product owner decided G-102 for sentence case everywhere.
  */
 
 export interface TypeOffender {
@@ -72,6 +73,46 @@ const RULES: { rule: string; pattern: RegExp }[] = [
 /** The file that defines the tokens, where raw values are the point. */
 const TOKEN_FILES = new Set(['app/globals.css']);
 
+/**
+ * A `text-*` class naming nothing — no size on the scale, no colour, no other
+ * utility.
+ *
+ * Tailwind generates nothing for a class it does not know, so the element takes
+ * whatever size it inherits, and nothing fails. On 2026-09-13 three had shipped
+ * that way: `text-h2` on the offer drawer's title and on every filter block's
+ * figure, `text-heading` on every form dialog's title. The rules above caught a
+ * fixed size and a Tailwind default size but not a size that matches nothing —
+ * the same failure as the 45 hardcoded compact labels, one level further out.
+ * G-106.
+ *
+ * The valid names come from the resolved Tailwind config, so a size or a colour
+ * added there is accepted here without anyone remembering to.
+ */
+const UNKNOWN_TEXT_RULE = 'a text-* class that names no size on the scale and no colour — it renders at whatever it inherits';
+
+/** `text-*` utilities that are neither a size nor a colour. */
+const TEXT_UTILITIES = new Set(['left', 'center', 'right', 'justify', 'start', 'end', 'ellipsis', 'clip', 'wrap', 'nowrap', 'balance', 'pretty']);
+
+/** A `text-` class, variant prefixes allowed, an opacity modifier stripped. Arbitrary values are the fixed-size rule's. */
+const TEXT_CLASS = /(?<![-\w[])text-([a-z][a-z0-9-]*)(?:\/\d+)?(?![-\w[])/g;
+
+/** The names a `text-*` class may carry under `root`'s Tailwind config: scale sizes, colours, utilities. */
+function validTextNames(root: string): Set<string> {
+  // Resolved from this repository's Tailwind, but the config read is the one under
+  // `root`, so an older checkout is judged by its own scale.
+  const load = createRequire(__filename);
+  const resolveConfig = load('tailwindcss/resolveConfig') as (c: unknown) => {
+    theme: { fontSize: Record<string, unknown>; colors: Record<string, unknown> };
+  };
+  const theme = resolveConfig(load(path.join(root, 'tailwind.config.js'))).theme;
+  const flatten = (o: Record<string, unknown>, prefix = ''): string[] =>
+    Object.entries(o).flatMap(([k, v]) => {
+      const name = k === 'DEFAULT' ? prefix : prefix ? `${prefix}-${k}` : k;
+      return v && typeof v === 'object' ? flatten(v as Record<string, unknown>, name) : [name];
+    });
+  return new Set([...Object.keys(theme.fontSize), ...flatten(theme.colors).filter(Boolean), ...TEXT_UTILITIES]);
+}
+
 function files(root: string): string[] {
   const out: string[] = [];
   const walk = (dir: string) => {
@@ -89,6 +130,7 @@ function files(root: string): string[] {
 /** Every off-scale site under `root` (an `apps/console` directory), in file and line order. */
 export function typeOffenders(root: string): TypeOffender[] {
   const found: TypeOffender[] = [];
+  const valid = validTextNames(root);
   for (const full of files(root)) {
     const file = path.relative(root, full).split(path.sep).join('/');
     if (TOKEN_FILES.has(file)) continue;
@@ -98,6 +140,9 @@ export function typeOffenders(root: string): TypeOffender[] {
         for (const _ of text.matchAll(pattern)) {
           found.push({ file, line: i + 1, rule, text: text.trim() });
         }
+      }
+      for (const m of text.matchAll(TEXT_CLASS)) {
+        if (!valid.has(m[1])) found.push({ file, line: i + 1, rule: UNKNOWN_TEXT_RULE, text: text.trim() });
       }
     });
   }

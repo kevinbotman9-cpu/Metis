@@ -67,7 +67,7 @@ function FlowNodeComponent({ data }: NodeProps<FlowNodeData>) {
       />
 
       <div className="flex items-center justify-between gap-2">
-        <span className={cn('text-label font-semibold uppercase tracking-wide', TONE_TEXT[tone])}>
+        <span className={cn('text-label font-semibold', TONE_TEXT[tone])}>
           {family}
         </span>
         <span className="tnum text-label text-content-muted">

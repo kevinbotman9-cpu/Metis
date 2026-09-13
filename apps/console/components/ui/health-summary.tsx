@@ -122,7 +122,7 @@ export function HealthSummary({
     <div className="flex min-w-0 items-start gap-3.5 rounded-xl border border-border bg-surface px-card py-4 shadow-sm">
       <Ring segments={segments} total={sum} />
       <div className="min-w-0">
-        <p className="text-label font-medium uppercase tracking-[0.06em] text-content-subtle">
+        <p className="text-label font-medium text-content-subtle">
           {label}
         </p>
         <ul className="mt-1.5 space-y-1">
@@ -164,7 +164,7 @@ export function BigStat({
   const up = (delta ?? 0) >= 0;
   return (
     <div className="rounded-xl border border-border bg-surface px-card py-4 shadow-sm">
-      <p className="text-label font-medium uppercase tracking-[0.06em] text-content-subtle">
+      <p className="text-label font-medium text-content-subtle">
         {label}
       </p>
       <p className="tnum mt-1.5 flex items-baseline gap-2 text-figure font-semibold tracking-[-0.02em] text-content">

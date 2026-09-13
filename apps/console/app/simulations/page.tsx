@@ -113,7 +113,7 @@ function SimulationsView() {
 
                     <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-3">
                       <div>
-                        <p className="text-label uppercase tracking-wide text-content-subtle">
+                        <p className="text-label text-content-subtle">
                           Population
                         </p>
                         <p className="tnum text-body font-medium">
@@ -121,7 +121,7 @@ function SimulationsView() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-label uppercase tracking-wide text-content-subtle">
+                        <p className="text-label text-content-subtle">
                           Margin impact
                         </p>
                         <p
@@ -136,7 +136,7 @@ function SimulationsView() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-label uppercase tracking-wide text-content-subtle">
+                        <p className="text-label text-content-subtle">
                           Bias ratio
                         </p>
                         <p

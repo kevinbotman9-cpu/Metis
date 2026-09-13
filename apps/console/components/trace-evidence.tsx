@@ -112,7 +112,7 @@ export function TraceEvidence({
   if (!stage) {
     return (
       <>
-        <h2 className="text-label font-semibold uppercase tracking-wide text-content-subtle">
+        <h2 className="text-label font-semibold text-content-subtle">
           The decision
         </h2>
         <p className="mt-1 text-body font-semibold text-content">
@@ -165,7 +165,7 @@ export function TraceEvidence({
 
   return (
     <>
-      <h2 className="text-label font-semibold uppercase tracking-wide text-content-subtle">
+      <h2 className="text-label font-semibold text-content-subtle">
         {group ? (group.ruleId ?? group.codes[0]) : stage.label}
       </h2>
 

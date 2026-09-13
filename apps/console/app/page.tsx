@@ -236,7 +236,7 @@ function OverviewView() {
       />
 
       <section aria-labelledby="thesis" className="mb-stack">
-        <h2 id="thesis" className="mb-1 text-label font-semibold uppercase tracking-wide text-content-subtle">
+        <h2 id="thesis" className="mb-1 text-label font-semibold text-content-subtle">
           Agents author, people approve, simulation gates it
         </h2>
         <p className="mb-3 max-w-3xl text-label text-content-muted">

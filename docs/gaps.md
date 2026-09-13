@@ -44,6 +44,43 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-105 — A connection reset fails a test against a harness-owned server with nothing competing
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** none — the mechanism is unknown
+
+[G-035](gaps.md) closed with one failure it could not account for: an
+`ECONNRESET` on a teardown POST, seen on a *reused* server, "not reproduced
+since", and "whether it survives a harness-owned server is unknown". It does.
+
+**The observation, 2026-09-13.** A full `npm run gates` on the sentence-case
+slice (`fix/sentence-case`, a class-name change touching no route, mock or
+harness file) went red at end-to-end: 393 passed, 34 skipped, 1 failed.
+`traffic.spec.ts` › *does not record reads of itself* failed in its
+`beforeEach`:
+
+```
+Error: apiRequestContext.post: read ECONNRESET
+  → POST http://localhost:3200/api/inbound-calls/clear
+```
+
+The server was the harness's own, on port 3200, started for that run. Nothing
+was listening on port 3000 or 3200 before the run started, so this is not the
+reused-server fault G-035 fixed, and not the competing server of
+[G-104](gaps.md).
+
+**What was tried.** `traffic.spec.ts` run in isolation, once, with
+`--repeat-each 3` on a fresh harness-owned server: 22 passed, none failed. That
+is one isolated run, not three. It did not reproduce.
+
+**What is not known.** The mechanism. Nothing here establishes whether the
+server closed the connection, the client reused one the server had already
+closed, or something else did; no guess is recorded because none has evidence
+behind it.
+
+**Done when:** the reset is reproduced on demand, or a sustained repeat run on a
+harness-owned server is recorded as not producing it, and either way the cause
+is stated with the evidence that shows it.
+
 ### G-104 — Nothing stops a long-lived dev server competing with the suite's own server
 
 **Registered:** 2026-09-13 · **Status:** Open · **Work item:** none — the unfixed half of [G-035](gaps.md)
@@ -105,28 +142,6 @@ should be reviewable on its own rather than inside a copy edit.
 
 **Done when:** neither field is in the fixtures under a telco-uk name, the
 corpora and bundle are regenerated in the same commit, and conformance is green.
-
-### G-102 — The console uses the all-caps and tracked labels the visual spec forbids
-
-**Registered:** 2026-09-13 · **Status:** Open · **Work item:** slice three of the 2026-09-13 design pass, by the product owner
-
-`docs/METIS_CONSOLE_SPEC.md` Part 5 lists, under *Type*, "No all-caps labels. No
-tracked-out eyebrows above headings", and repeats "All-caps tracked eyebrow
-labels" under *Forbidden* as one of the tells that make a build read as
-generated. The console carries **48 `uppercase` classes in 24 files and 42
-letter-spacing classes in 21 files**, counted on 2026-09-13 by the same sweep that
-found the 126 off-scale type sites. That includes the eyebrow above the Overview's
-thesis panels, added the same day.
-
-**Kept out of the type-scale slice on purpose.** A size, a line height or a
-weight outside the scale is a token failure with one right answer. Whether every
-section label loses its capitals and tracking is a decision about the forbidden
-list itself — it restyles most of the console's section headings — and the
-product owner put it in slice three, the design pass on the non-Cascade screens.
-
-**Done when:** each `uppercase` and `tracking-*` either goes, or the spec's
-forbidden list is amended to say where they are allowed, and a check holds
-whichever answer is chosen.
 
 ### G-101 — The agent activity feed and the audit log disagree about what agents did
 
@@ -1891,6 +1906,71 @@ payload, and a descriptor no longer needs a screen-supplied default to avoid
 sending zero.
 
 ## Resolved
+
+### G-106 — A size class that named nothing rendered at whatever it inherited, and no check noticed
+
+**Registered:** 2026-09-13 · **Resolved:** 2026-09-13 · **Status:** Resolved · **Work item:** none — a defect, fixed in the slice that registered it
+
+Tailwind generates nothing for a class it does not know. So `text-h2` — on the
+offer drawer's title and on every filter block's figure — and `text-heading`, on
+every form dialog's title, produced no CSS at all, and each element took the size
+of its parent. Three titles and figures meant to be large read at body size,
+across every drawer, every create and edit dialog, and the filter blocks on
+`/offers` and `/creatives`.
+
+The type-scale guard written the same day did not catch them. It failed on a
+fixed size (`text-[11px]`) and on a Tailwind default size (`text-sm`), but a
+class matching no size at all passed both patterns — the same failure as the 45
+hardcoded compact labels, one level further out. Found reading `filter-blocks.tsx`
+during the sentence-case slice.
+
+**Resolved by:** both titles now `text-title` and the figure `text-figure`, the
+sizes the scale names for a title and for the one number on a panel.
+`apps/console/tests/type-scale.ts` now fails on any `text-*` class that is not a
+size on the scale, a colour, or one of the non-size text utilities, with the
+valid names read from the resolved Tailwind config rather than written down.
+`tests/unit/type-scale.test.ts` proves it flags `text-h2`, `text-heading` and a
+misspelt colour, and passes an opacity modifier, a variant prefix, alignment and
+the default palette. Bite-proven against `main`.
+
+### G-102 — The console uses the all-caps and tracked labels the visual spec forbids
+
+**Registered:** 2026-09-13 · **Resolved:** 2026-09-13 · **Status:** Resolved · **Work item:** slice three of the 2026-09-13 design pass, by the product owner
+
+`docs/METIS_CONSOLE_SPEC.md` Part 5 lists, under *Type*, "No all-caps labels. No
+tracked-out eyebrows above headings", and repeats "All-caps tracked eyebrow
+labels" under *Forbidden* as one of the tells that make a build read as
+generated. The console carries **48 `uppercase` classes in 24 files and 42
+letter-spacing classes in 21 files**, counted on 2026-09-13 by the same sweep that
+found the 126 off-scale type sites. That includes the eyebrow above the Overview's
+thesis panels, added the same day.
+
+**Kept out of the type-scale slice on purpose.** A size, a line height or a
+weight outside the scale is a token failure with one right answer. Whether every
+section label loses its capitals and tracking is a decision about the forbidden
+list itself — it restyles most of the console's section headings — and the
+product owner put it in slice three, the design pass on the non-Cascade screens.
+
+**Done when:** each `uppercase` and `tracking-*` either goes, or the spec's
+forbidden list is amended to say where they are allowed, and a check holds
+whichever answer is chosen.
+
+**Decided: sentence case everywhere.** The product owner chose the spec over an
+amendment, table headers and nav group labels included. The recount on the day
+found **49** all-caps classes and **49** widened letter-spacing classes in 26
+files, stories included — the first count missed the three in
+`primitives.stories.tsx`. Two shared components carried most of what a reader
+sees: `Metric`'s label and `DataTable`'s column header, on every metric and every
+table in the console.
+
+**Resolved by:** every one removed. Tight and negative tracking on titles and
+figures stays, because the spec forbids tracked-*out* labels, not tracking. One
+label was relying on the capitals to hide its casing: a creative's content keys
+on `/offers/[id]` were split on capitals into "image Url", and now read "Image
+URL". `apps/console/tests/letter-case.ts` fails on an all-caps class, widened
+tracking, or either as an inline style or CSS declaration, and its test proves
+each rule fires and that a `value="uppercase"` option is not a class. Bite-proven
+on the unchanged tree: 49 and 49.
 
 ### G-092 — The console formatted every date and number as British, and there was no tenant locale to read instead
 

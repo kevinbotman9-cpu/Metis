@@ -195,7 +195,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <span
           className={cn(
-            'hidden shrink-0 rounded-full border px-2 py-0.5 text-label font-semibold uppercase tracking-[0.06em] sm:inline-block',
+            'hidden shrink-0 rounded-full border px-2 py-0.5 text-label font-semibold sm:inline-block',
             ENV_IS_LIVE ? 'border-on-header bg-on-header/25' : 'border-on-header/40'
           )}
         >
@@ -248,7 +248,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   id="tenant-panel"
                   className="absolute right-0 z-30 mt-2 w-60 rounded-xl border border-border bg-surface-raised p-1 shadow-lg"
                 >
-                  <p className="px-3 py-1.5 text-label font-semibold uppercase tracking-[0.08em] text-content-subtle">
+                  <p className="px-3 py-1.5 text-label font-semibold text-content-subtle">
                     Tenant
                   </p>
                   <p className="flex items-center justify-between rounded px-3 py-1.5 text-body text-content">
@@ -308,7 +308,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     they use constantly.
                   */}
                   <div className="border-b border-border px-3 py-2.5">
-                    <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.08em] text-content-subtle">
+                    <p className="mb-1.5 text-label font-semibold text-content-subtle">
                       Appearance
                     </p>
                     <div className="flex gap-1.5">
