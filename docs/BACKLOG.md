@@ -1264,8 +1264,11 @@ publish and on package install.
 **Check:** none — see **Done when** below for the check that would close it
 
 Gate 3 · Spec §10 · Depends: W-009, W-029
-Full decision → cached decision → default action → static fallback. Never a
-timeout to the channel. **Done when:** each rung is chaos-tested, the rung used
+Full decision → journalled decision → declined with the placement's fallback
+content → static fallback at the channel, as [ADR-016](adr/ADR-016-deployment-operations-and-scale.md)
+§5 decides. Never a timeout to the channel. The *cached decision* rung this item
+first named is struck (§5.2): an earlier decision served under a new request
+would carry a record whose inputs are not the request's. **Done when:** each rung is chaos-tested, the rung used
 is recorded in the decision, and a test asserts no path returns a timeout.
 
 ### W-046 — Per-decision cost accounting
