@@ -261,7 +261,10 @@ object Engine {
         // Initial candidate set, in artifact order so it is reproducible.
         var candidates: List<Offer> = artifact.candidateKeys.mapNotNull { byKey[it] }
 
-        val consent = request.consent ?: Consent(marketing = true, profiling = true, thirdParty = false)
+        // What was stated, per purpose: a request with no consent is absent, and
+        // absent is enforced as withheld. Until 2026-09-13 this granted marketing
+        // and profiling when the caller said nothing (G-065).
+        val consent = ConsentState.of(request.consent)
         val eliminations = mutableListOf<EliminationStep>()
         val scores = linkedMapOf<String, CandidateScore>()
         val constraintsApplied = mutableListOf<String>()
@@ -401,8 +404,8 @@ object Engine {
 
                         for (p in candidates) for (c in relevantTo(p)) constraintsApplied.add(c.id)
 
-                        candidates = if (!consent.marketing) {
-                            // Withheld consent removes commercial offers but
+                        candidates = if (!ConsentState.permits(consent.marketing)) {
+                            // Withheld or absent consent removes commercial offers but
                             // not duty-of-care messages, which is why a scope
                             // can raise its own cap.
                             candidates.filter { p ->

@@ -29,6 +29,7 @@ import {
   type UtilityFunction,
 } from '@metis/core/utility';
 import { canonicalise, hash, seededUnitInterval, round } from './canonical';
+import { assertionOf, consentStateOf, permits } from './consent';
 import {
   modelKeyOf,
   scorerFor,
@@ -307,7 +308,10 @@ export function execute(
     .map((k) => byKey.get(k))
     .filter((p): p is Offer => Boolean(p));
 
-  const consent = request.consent ?? { marketing: true, profiling: true, thirdParty: false };
+  // What was stated, per purpose, and nothing that was not: a request with no
+  // consent is absent, enforced as withheld. Until 2026-09-13 this line granted
+  // marketing and profiling when the caller said nothing (G-065).
+  const consent = consentStateOf(request.consent);
   const eliminations: EliminationStep[] = [];
   const scores: Record<string, CandidateScore> = {};
   const constraintsApplied: string[] = [];
@@ -493,9 +497,10 @@ export function execute(
             for (const c of relevantTo(p)) constraintsApplied.push(c.id);
           }
 
-          if (!consent.marketing) {
-            // Withheld consent removes commercial offers, but not duty-of-care
-            // messages, which are the reason a scope can raise its own cap.
+          if (!permits(consent.marketing)) {
+            // Withheld or absent consent removes commercial offers, but not
+            // duty-of-care messages, which are the reason a scope can raise its
+            // own cap. Absent is not a softer no.
             candidates = candidates.filter((p) => {
               const exempt = relevantTo(p).some(
                 (c) => c.maxContacts >= SERVICE_EXEMPT_THRESHOLD
@@ -825,7 +830,9 @@ export function replay(
     occurredAt: d.occurredAt,
     input,
     contactHistory,
-    consent: d.consentState,
+    // The request that produces the recorded state: an absent purpose stays
+    // unstated, so the replay records it as absent again.
+    consent: assertionOf(d.consentState),
   });
 
   const identical = fresh.chainHash === trace.chainHash;

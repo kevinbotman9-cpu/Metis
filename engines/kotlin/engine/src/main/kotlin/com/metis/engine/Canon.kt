@@ -72,9 +72,9 @@ object Canon {
         ),
         "constraintsApplied" to arr(d.constraintsApplied.map { str(it) }),
         "consentState" to obj(
-            "marketing" to Value.Bool(d.consentState.marketing),
-            "profiling" to Value.Bool(d.consentState.profiling),
-            "thirdParty" to Value.Bool(d.consentState.thirdParty),
+            "marketing" to str(d.consentState.marketing),
+            "profiling" to str(d.consentState.profiling),
+            "thirdParty" to str(d.consentState.thirdParty),
         ),
         "winner" to strOrNull(d.winner),
         "winnerOfferId" to strOrNull(d.winnerOfferId),

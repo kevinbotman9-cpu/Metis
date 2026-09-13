@@ -196,7 +196,8 @@ class DecisionService(private val store: Store, port: Int = 0) {
                 occurredAt = d.occurredAt,
                 input = stored.input,
                 contactHistory = stored.contactHistory,
-                consent = d.consentState,
+                // Absent stays unstated, so the replay records it as absent again.
+                consent = d.consentState.asAssertion(),
             ),
             catalogueSnapshotHash = d.catalogueSnapshotHash,
             inputSnapshotHash = d.inputSnapshotHash,

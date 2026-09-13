@@ -206,6 +206,7 @@ otherwise.
 | W-079 | 14 | Serve deleting a policy, a placement and a creative from a plane | OPEN | 2 |
 | W-080 | 14 | Descriptors, manifests and panels load per route, not whole | OPEN | 1 |
 | W-081 | 14 | Route budgets measure what a route renders, not what it links to | PARTIAL | 1 |
+| W-082 | 14 | A person can set a targeting policy's scope | OPEN | 2 |
 
 ---
 
@@ -1507,6 +1508,24 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-082 — A person can set a targeting policy's scope
+
+**Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet
+
+Gate 2 · Gap [G-113](gaps.md)
+
+The TargetingPolicy descriptor leaves `scope` unmanaged, and the write sends the
+tenant scope for every new policy, so the console can only author tenant-wide
+policies although the model and the engine support objective, category and
+offer scopes.
+
+**Done when:** the policy form asks for a scope level and a target at that
+level, both declared in `packages/ui-metadata/src/registry/targeting-policy.ts`
+with `scope` no longer unmanaged; the binding stops supplying a scope; and a
+`@screen-only` test creates an offer-scoped policy by clicking and shows it
+removes that offer and no other.
+
 ### W-081 — Route budgets measure what a route renders, not what it links to
 
 **Registered:** 2026-09-13 · **Stage:** 14 · **Status:** PARTIAL

@@ -12,6 +12,8 @@
  */
 
 export { execute, replay, diff, topologicalOrder } from './deterministic/engine';
+export { consentStateOf, assertionOf, permits } from './deterministic/consent';
+export type { ConsentState, ConsentValue, ConsentAssertion } from './deterministic/consent';
 export { canonicalise, hash, shortHash, seededUnitInterval } from './deterministic/canonical';
 export {
   resolveInputs,

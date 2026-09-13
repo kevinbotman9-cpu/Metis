@@ -415,7 +415,10 @@ like the one already configured.
 1. **Absent is withheld.** The default at `engine.ts:302` and `Engine.kt:247`
    flips. `consentState` becomes, per purpose, `granted | withheld | absent`;
    `absent` is enforced as `withheld` and recorded as itself, so a trace stops
-   claiming consent nobody gave.
+   claiming consent nobody gave. *Landed 2026-09-13 in both engines, with every
+   chain hash moved and nothing else in any decision (G-065). Absent is enforced
+   exactly as withheld — duty-of-care offers survive both — by decision of the
+   product owner. §7.2–§7.5 are not yet built.*
 2. **The source decides, and the caller can only narrow.** The engine's consent
    is the resolved consent-class value. `request.consent` is demoted to a caller
    assertion, combined as the more restrictive of the two. The storefront's

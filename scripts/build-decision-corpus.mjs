@@ -125,6 +125,14 @@ function artifact(over = {}) {
   };
 }
 
+/**
+ * Consent stated, because a caller has to state it. Until 2026-09-13 this helper
+ * sent none, and 31 of the cases were therefore decided on consent both engines
+ * invented (G-065). They test ranking, scope and caps, not consent, so they state
+ * a grant; the consent cases below state or omit it on purpose.
+ */
+const GRANTED = { marketing: true, profiling: true, thirdParty: false };
+
 function request(over = {}) {
   return {
     tenantId: 't',
@@ -133,9 +141,42 @@ function request(over = {}) {
     placement: 'hero',
     occurredAt: '2026-06-01T12:00:00.000Z',
     input: { tenureMonths: 24 },
+    consent: GRANTED,
     ...over,
   };
 }
+
+/**
+ * One commercial scope and one duty-of-care scope, for the consent cases: what
+ * survives withheld, absent and partly stated consent is the service offer.
+ */
+const consentScenario = () => ({
+  artifact: artifact({
+    candidateKeys: threeKeys,
+    nodes: [
+      { id: 'n1_source', type: 'source', label: 'Source' },
+      { id: 'n2_constraint', type: 'constraint', label: 'Frequency policy', frequencyPolicyIds: ['cp_1'] },
+      { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+    ],
+    edges: [
+      { from: 'n1_source', to: 'n2_constraint' },
+      { from: 'n2_constraint', to: 'n3_arbitrate' },
+    ],
+  }),
+  catalogue: catalogue({
+    offers: [
+      offer({ id: 'p_a', key: 'offer_a', categoryId: 'grp_svc' }),
+      offer({ id: 'p_b', key: 'offer_b', categoryId: 'grp_2' }),
+      offer({ id: 'p_c', key: 'offer_c', categoryId: 'grp_2' }),
+    ],
+    frequencyPolicies: [
+      // A cap this high is a scope declaring itself exempt, which is how a
+      // duty-of-care message stays deliverable when commercial offers stop.
+      frequencyPolicy({ id: 'cp_svc', maxContacts: 100, scope: { level: 'category', targetId: 'grp_svc' } }),
+      frequencyPolicy({ id: 'cp_com', maxContacts: 3, scope: { level: 'category', targetId: 'grp_2' } }),
+    ],
+  }),
+});
 
 const scoreNode = { id: 'n2_score', type: 'score-model', label: 'Propensity', model: { id: 'm_prop', version: '3.1.0' } };
 
@@ -600,34 +641,26 @@ const CASES = [
   },
   {
     name: 'withheld consent leaves only service-exempt scopes',
-    artifact: artifact({
-      candidateKeys: threeKeys,
-      nodes: [
-        { id: 'n1_source', type: 'source', label: 'Source' },
-        { id: 'n2_constraint', type: 'constraint', label: 'Frequency policy', frequencyPolicyIds: ['cp_1'] },
-        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
-      ],
-      edges: [
-        { from: 'n1_source', to: 'n2_constraint' },
-        { from: 'n2_constraint', to: 'n3_arbitrate' },
-      ],
-    }),
-    catalogue: catalogue({
-      offers: [
-        offer({ id: 'p_a', key: 'offer_a', categoryId: 'grp_svc' }),
-        offer({ id: 'p_b', key: 'offer_b', categoryId: 'grp_2' }),
-        offer({ id: 'p_c', key: 'offer_c', categoryId: 'grp_2' }),
-      ],
-      frequencyPolicies: [
-        // A cap this high is a scope declaring itself exempt, which is how a
-        // duty-of-care message stays deliverable when commercial offers stop.
-        frequencyPolicy({ id: 'cp_svc', maxContacts: 100, scope: { level: 'category', targetId: 'grp_svc' } }),
-        frequencyPolicy({ id: 'cp_com', maxContacts: 3, scope: { level: 'category', targetId: 'grp_2' } }),
-      ],
-    }),
+    ...consentScenario(),
     request: request({
       consent: { marketing: false, profiling: true, thirdParty: false },
     }),
+  },
+  {
+    // G-065. The request states no consent at all. Both engines once read that
+    // as marketing granted and recorded it under the chain hash as though the
+    // customer had given it. Absent is enforced as withheld — only the
+    // duty-of-care offer survives — and recorded as absent, not as a no.
+    name: 'absent consent is enforced as withheld and recorded as absent',
+    ...consentScenario(),
+    request: request({ consent: undefined }),
+  },
+  {
+    // A caller that states some purposes and leaves marketing out has not
+    // granted marketing. The Kotlin service once read a missing field as true.
+    name: 'a purpose left out of stated consent is absent, not granted',
+    ...consentScenario(),
+    request: request({ consent: { profiling: true, thirdParty: false } }),
   },
   {
     name: 'channel-specific frequency policy ignores other channels',

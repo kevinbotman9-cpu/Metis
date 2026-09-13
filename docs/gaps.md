@@ -44,6 +44,32 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-113 — A targeting policy's scope is in the model and cannot be set by a person
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-082](BACKLOG.md)
+
+A targeting policy applies at a scope — the tenant, an objective, a category or
+one offer — and the engine honours it: a policy is checked only against the
+candidates its scope covers. The seeded tenant uses that: 21 of its policies are
+scoped below the tenant, `pol_5g_bandwidth_need` to the one offer it concerns.
+
+The console cannot author one. When targeting policies moved into the metadata
+registry on 2026-09-13 (#49), `scope` was left out of the form and declared
+unmanaged, with the reason *"No screen scopes a policy yet"*. The binding sends
+`{ level: 'tenant', targetId: null }` for every new policy and keeps an existing
+policy's own on edit (`apps/console/lib/layouts/sources.ts`,
+`packages/ui-metadata/src/registry/targeting-policy.ts`). The hand-built dialog
+it replaced did the same. So every policy a person has ever written from the
+screen is tenant-wide, and one written to narrow a single offer applies to the
+whole catalogue instead — silently, because the form never asked.
+
+Raised in the review notes on #49.
+
+What is missing is the scope in the form: a level, and a target chosen from the
+records at that level, with a policy created at an offer's scope applying to
+that offer only. It needs no new field type: `scope.level` is a closed select,
+and `scope.targetId` a select over a named source filtered by the level chosen.
+
 ### G-112 — A route's bundle budget counts the screens it links to, so a link can fail an unrelated route
 
 **Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-081](BACKLOG.md)
@@ -1756,6 +1782,32 @@ happens when it does not arrive.
 distinct from withheld, in both engines, with a corpus case for each; consent is
 taken from the platform's source and the request can only narrow it; and
 restoring the default at `engine.ts:302` turns a named test red.
+
+**Half landed, 2026-09-13 — ADR-014 §7.1.** Both engines now record consent per
+purpose as `granted`, `withheld` or `absent`, and enforce `absent` exactly as
+`withheld`: commercial offers are removed and duty-of-care offers survive
+(`packages/runtime/src/deterministic/consent.ts`,
+`engines/kotlin/engine/src/main/kotlin/com/metis/engine/Consent.kt`). A purpose
+left out of a stated consent is absent too — the Kotlin service's JSON reader
+had been reading a missing `marketing` field as granted, one level below this
+entry's default. `ConsentState` in the spec is the three-valued form.
+
+The decision corpus gained two cases, *absent consent is enforced as withheld and
+recorded as absent* and *a purpose left out of stated consent is absent, not
+granted*, and its other 31 cases now state the grant they had been assuming.
+Every chain hash moved, and only that: predicted before regenerating and diffed
+after, across the 34 corpus cases, the 60 service cases and the 10,400 seeded
+decisions, no winner, elimination or snapshot hash changed — only `consentState`,
+and with it the chain hash and the decision id derived from it. Restoring either
+default turns named tests red in both engines.
+
+**What is still open is the second half, §7.2–§7.5:** consent is still what the
+request asserts. `conn_consent_registry` is still fetched and read by nothing, the
+storefront's checkboxes can still grant what the registry withholds, a stale
+value is not yet absent, and the trace does not name where consent came from.
+And consent is still checked only at constraint nodes — of the 31 corpus cases
+that had sent no consent, only 4 would have changed winner under the new rule,
+because the others have no constraint node (G-015).
 
 ---
 

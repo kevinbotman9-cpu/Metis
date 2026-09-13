@@ -231,10 +231,12 @@ object Json {
             )
         },
         consent = n["consent"]?.takeIf { !it.isNull }?.let {
+            // A purpose the caller left out, or sent as null, was not stated. Until
+            // 2026-09-13 a missing marketing or profiling field read as granted.
             Consent(
-                it["marketing"]?.asBoolean() ?: true,
-                it["profiling"]?.asBoolean() ?: true,
-                it["thirdParty"]?.asBoolean() ?: false,
+                it["marketing"]?.takeIf { v -> !v.isNull }?.asBoolean(),
+                it["profiling"]?.takeIf { v -> !v.isNull }?.asBoolean(),
+                it["thirdParty"]?.takeIf { v -> !v.isNull }?.asBoolean(),
             )
         },
         idempotencyKey = n["idempotencyKey"]?.takeIf { !it.isNull }?.asText(),

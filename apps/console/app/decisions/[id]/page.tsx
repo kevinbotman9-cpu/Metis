@@ -714,9 +714,12 @@ function TraceView({ decisionId }: { decisionId: string }) {
                   Consent state
                 </p>
                 <div className="flex flex-wrap gap-1">
+                  {/* Absent is shown as absent: nobody stated it, and it was
+                      enforced as withheld. The badge must not read as a no that
+                      somebody gave, or as a yes. */}
                   {Object.entries(trace.consentState).map(([k, v]) => (
-                    <Badge key={k} tone={v ? 'pass' : 'block'}>
-                      {k}: {v ? 'granted' : 'withheld'}
+                    <Badge key={k} tone={v === 'granted' ? 'pass' : v === 'withheld' ? 'block' : 'hold'}>
+                      {k}: {v === 'absent' ? 'absent, treated as withheld' : v}
                     </Badge>
                   ))}
                 </div>
