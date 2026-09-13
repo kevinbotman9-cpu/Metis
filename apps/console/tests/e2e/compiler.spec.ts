@@ -33,7 +33,7 @@ test.describe('compiler output in the console', () => {
   test('shows why it fails, and what to do about it', async ({ page }) => {
     await page.goto('/decision-flows/entertainment-cross-sell');
 
-    await expect(page.getByText('Blocked.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Blocked. These errors would produce wrong or undeliverable decisions.', { exact: true })).toBeVisible();
 
     // The specific defect, not a generic failure. Exact, because the registry
     // log on the same page also names the codes in its refusal summary — which
@@ -44,7 +44,8 @@ test.describe('compiler output in the console', () => {
     ).toBeVisible();
 
     // A remedy, phrased for someone who is not the compiler author.
-    await expect(page.getByText('Add an arbitrate node as the final step.', { exact: true })).toBeVisible();
+    // The remedy's whole line, label included: the report renders it as "Fix: <remedy>".
+    await expect(page.getByText('Fix: Add an arbitrate node as the final step.', { exact: true })).toBeVisible();
 
     // `NO_DELIVERABLE_CREATIVE` used to be asserted here too, because the flow
     // that used to fail failed on both. This one has a deliverable candidate
@@ -58,7 +59,7 @@ test.describe('compiler output in the console', () => {
     await page.goto('/decision-flows/next-best-action');
 
     await expect(page.getByText('passing', { exact: true })).toBeVisible();
-    await expect(page.getByText('Validated against the catalogue', { exact: true })).toBeVisible();
+    await expect(page.getByText('Validated against the catalogue. Safe to publish.', { exact: true })).toBeVisible();
 
     // Pinning is the reason replay works, so it has to be visible.
     await expect(page.getByText('Pinned at compile time', { exact: true })).toBeVisible();

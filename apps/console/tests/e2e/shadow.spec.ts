@@ -295,7 +295,7 @@ test.describe('the shadow panel', () => {
 
     // Configured but never exercised. A percentage here would be read as a
     // measurement, and there is nothing behind it yet.
-    await expect(page.getByText(`${OTHER} is shadowing 1.0.0`, { exact: true })).toBeVisible();
+    await expect(page.locator('section').filter({ has: page.getByRole('heading', { name: 'Shadow', exact: true }) }).getByText(`${OTHER} is shadowing 1.0.0`)).toBeVisible();
     await expect(panel.getByText('no decisions compared')).toBeVisible();
     await expect(panel.getByText('—')).toBeVisible();
 
@@ -334,7 +334,7 @@ test.describe('the shadow panel', () => {
 
     await login(page, ACCOUNTS.marcus);
     await page.goto(FLOW_PAGE);
-    await expect(page.getByText(`${OTHER} is shadowing 1.0.0`, { exact: true })).toBeVisible();
+    await expect(page.locator('section').filter({ has: page.getByRole('heading', { name: 'Shadow', exact: true }) }).getByText(`${OTHER} is shadowing 1.0.0`)).toBeVisible();
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])

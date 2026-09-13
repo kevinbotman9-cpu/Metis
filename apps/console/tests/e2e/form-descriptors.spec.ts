@@ -84,7 +84,7 @@ test.describe('declared forms @screen-only', () => {
   test('locks the key when editing, because a decision record names it', async ({ page }) => {
     await createOffer(page, 'Lockable Offer');
 
-    await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Edit offer Lockable Offer', exact: true }).click();
     const d = dialog(page);
     await expect(d.getByLabel('Key')).toBeDisabled();
     await expect(d.getByLabel('Name')).toBeEnabled();
@@ -139,7 +139,7 @@ test.describe('declared forms @screen-only', () => {
 
     // Reopen it: the value came back from the server, so it was stored rather
     // than merely accepted by the form.
-    await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Edit offer Descriptor proof offer', exact: true }).click();
     const edit = dialog(page);
     await expect(edit.getByLabel('Contract terms')).toHaveValue(
       'https://terms.telco.example/proof'

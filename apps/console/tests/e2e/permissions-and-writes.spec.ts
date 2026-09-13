@@ -65,7 +65,9 @@ test.describe('writes persist', () => {
     await expect(page.getByText('Published. Recorded in the audit log.', { exact: true })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByText('C0.35', { exact: true })).toBeVisible();
+    // The saved weight itself. The formula draws it as a symbol beside a superscript,
+    // so no element's whole text is "C0.35"; the slider carries the value that persisted.
+    await expect(page.getByRole('slider', { name: 'Context weight', exact: true })).toHaveValue('0.35');
 
     await page.goto('/audit');
     await expect(page.getByText('ArbitrationWeightsChanged', { exact: true }).first()).toBeVisible();

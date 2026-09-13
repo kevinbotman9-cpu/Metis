@@ -24,7 +24,7 @@ test.describe('experiments', () => {
     // as "the field path is missing" — which is what it looked like on
     // 2026-09-09, in one full run out of six, on a machine under load. G-003.
     await expect(page.getByRole('heading', { level: 1, name: 'Experiments', exact: true })).toBeVisible();
-    await expect(page.getByText('FIOS Gigabit holdout', { exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'FIOS Gigabit holdout', exact: true })).toBeVisible();
   });
 
   test.afterEach(async ({ page }) => {
@@ -33,7 +33,7 @@ test.describe('experiments', () => {
 
   test('shows the split and which arm is the holdout', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1, name: 'Experiments', exact: true })).toBeVisible();
-    await expect(page.getByText('FIOS Gigabit holdout', { exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'FIOS Gigabit holdout', exact: true })).toBeVisible();
 
     // 10/90, declared in the fixture.
     await expect(page.getByRole('img', { name: /Held back 10%/ })).toBeVisible();

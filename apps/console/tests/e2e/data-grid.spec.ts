@@ -99,7 +99,7 @@ test.describe('smart search', () => {
     await page.getByRole('option', { name: 'Outcome: Suppressed', exact: true }).click();
 
     // The choice becomes a chip.
-    await expect(page.getByText('Outcome: Suppressed', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Remove filter Outcome: Suppressed', exact: true })).toBeVisible();
 
     // And it actually narrows the data.
     //
@@ -123,7 +123,7 @@ test.describe('smart search', () => {
     await box.fill('channel:sms');
     await page.keyboard.press('Enter');
 
-    await expect(page.getByText('Channel: SMS', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Remove filter Channel: SMS', exact: true })).toBeVisible();
     await expect(page.locator('tr[data-row]').first().getByText('sms')).toBeVisible();
   });
 
@@ -131,10 +131,10 @@ test.describe('smart search', () => {
     const box = page.getByRole('combobox', { name: 'Search and filter', exact: true });
     await box.fill('channel:sms');
     await page.keyboard.press('Enter');
-    await expect(page.getByText('Channel: SMS', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Remove filter Channel: SMS', exact: true })).toBeVisible();
 
     await box.press('Backspace');
-    await expect(page.getByText('Channel: SMS', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Remove filter Channel: SMS', exact: true })).toHaveCount(0);
   });
 });
 

@@ -62,7 +62,8 @@ test.describe('authoring an offer', () => {
 
     await dialog.getByRole('button', { name: 'Cancel' }).click();
     await page.goto('/offers/off_5g_home_ultimate');
-    await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+    // The offer's own edit, by its whole name: the creatives on this page have edit buttons too.
+    await page.getByRole('button', { name: 'Edit offer 5G Home Ultimate', exact: true }).click();
     await expect(page.getByRole('dialog').getByLabel('Key')).toBeDisabled();
   });
 
@@ -136,7 +137,7 @@ test.describe('authoring an offer', () => {
     await dialog.getByLabel('Subject').fill('Fibre is ready — one week left');
     await dialog.getByRole('button', { name: 'Save creative' }).click();
     await expect(dialog).toBeHidden();
-    await expect(page.getByText('one week left', { exact: true })).toBeVisible();
+    await expect(page.getByText('Fibre is ready — one week left', { exact: true })).toBeVisible();
   });
 
   test('offers nothing to write with to an account that cannot author', async ({ page }) => {

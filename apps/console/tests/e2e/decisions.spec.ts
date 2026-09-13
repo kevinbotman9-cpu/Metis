@@ -102,7 +102,7 @@ test.describe('decision search and trace', () => {
     const box = page.getByRole('combobox', { name: 'Search and filter', exact: true });
     await box.fill('outcome:suppressed');
     await page.keyboard.press('Enter');
-    await expect(page.getByText('Outcome: Suppressed', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Remove filter Outcome: Suppressed', exact: true })).toBeVisible();
 
     const firstRow = page.locator('tr[data-row]').first();
     await expect(firstRow.getByText('no offer')).toBeVisible();

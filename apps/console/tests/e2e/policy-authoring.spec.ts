@@ -32,8 +32,11 @@ test.describe('the data model', () => {
     // reads, and the request it was made for. ADR-014 §2.
     await expect(page.getByText('profile root', { exact: true })).toBeVisible();
     await expect(page.getByText('request root', { exact: true })).toBeVisible();
-    await expect(page.getByText('Customer', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Context', { exact: true }).first()).toBeVisible();
+    // A RegExp on purpose: the entity's name and its root badge share one heading,
+    // so the name is that heading's prefix, not its whole text.
+    await expect(page.getByRole('heading', { name: /^Customer/ }).first()).toBeVisible();
+    // The same shape as the Customer card above: name and root badge in one heading.
+    await expect(page.getByRole('heading', { name: /^Context/ }).first()).toBeVisible();
 
     // Personal data is marked, because retention needs to know.
     await expect(page.getByText('special category', { exact: true }).first()).toBeVisible();
