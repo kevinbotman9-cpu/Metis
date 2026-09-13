@@ -47,7 +47,8 @@ export const PANELS = {
     params: {
       source: 'source',
       entity: 'entity',
-      by: 'field',
+      // Absent when the source is already scoped to the open record.
+      by: 'field?',
       title: 'field',
       subtitle: 'field?',
       description: 'field?',
@@ -183,6 +184,17 @@ export function validateLayout(
     return problems;
   }
 
+  // The detail route is where this screen keeps its selection, so it is this
+  // screen's route and one segment more — not a route somewhere else that
+  // happens to be dynamic, and not a sub-page beneath the record.
+  const { detailRoute } = manifest.params;
+  if (
+    detailRoute !== null &&
+    !(detailRoute.startsWith(`${manifest.route}/`) && /^\[[A-Za-z]\w*\]$/.test(detailRoute.slice(manifest.route.length + 1)))
+  ) {
+    problems.push(`${at}: detailRoute '${detailRoute}' is not ${manifest.route} and one dynamic segment`);
+  }
+
   // Slots and occupants.
   const ids = new Set<string>();
   const { entity } = manifest.params.detail;
@@ -256,15 +268,21 @@ export function validateLayout(
     }
   }
   for (const facet of list.facets) {
+    if (typeof facet !== 'string') {
+      // Derived by the source, so the manifest is the only thing that can say
+      // what it is called and what its values are.
+      const labelled = isText(facet.label) && facet.options.length > 0 && facet.options.every((o) => isText(o.label));
+      if (!isText(facet.field) || !labelled) {
+        problems.push(`${at}: facet '${facet.field}' is derived, so it needs a label and at least one labelled value`);
+      }
+      continue;
+    }
     const field = described.get(facet);
-    const closed =
-      field && (field.type === 'boolean' || (field.options !== undefined && 'static' in field.options));
+    // Options from a named source are a closed set too: what the source holds.
+    const closed = field && (field.type === 'boolean' || field.options !== undefined);
     if (!closed) {
       problems.push(`${at}: facet '${facet}' is not a ${entity} field with a closed set of values to count`);
     }
-  }
-  if (manifest.params.detailRoute !== null && !/\[[^\]]+\]/.test(manifest.params.detailRoute)) {
-    problems.push(`${at}: detailRoute '${manifest.params.detailRoute}' is not a dynamic route`);
   }
   return problems;
 }

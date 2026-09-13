@@ -54,6 +54,24 @@ export type ListColumn =
       unit?: readonly [string, string];
     };
 
+/**
+ * A value to filter a list by, shown with counts (§4.1).
+ *
+ * A bare string is a field of the entity with a closed set of values: boolean
+ * labels, static options, or the options a named source holds — so a tenant's
+ * categories are values to filter by without a manifest listing them. The
+ * object form is for a value the source derives: "cannot be delivered" is a
+ * fact about an offer rather than a field of one, so the descriptor can neither
+ * label it nor say what its values are, and the manifest does both.
+ */
+export type ListFacet =
+  | string
+  | {
+      field: string;
+      label: string;
+      options: readonly { value: string; label: string }[];
+    };
+
 export interface ListDetailParams {
   list: {
     /** A named source. The host resolves it to a generated-client call. */
@@ -63,11 +81,8 @@ export interface ListDetailParams {
     /** The row's second line, when there is one. */
     subtitle?: string;
     columns: readonly ListColumn[];
-    /**
-     * Fields to filter by, each with a closed set of values in the descriptor —
-     * static options or boolean labels. Shown with counts, per §4.1.
-     */
-    facets: readonly string[];
+    /** What to filter by, with counts. See `ListFacet`. */
+    facets: readonly ListFacet[];
     /** The order rows arrive in before anybody filters. */
     sort?: { field: string; dir: 'asc' | 'desc' };
     /** What an empty list says. Nothing to show is still something to explain. */
@@ -90,8 +105,14 @@ export interface ListDetailParams {
     footer: { version?: string; state?: string; editedAt?: string; editedBy?: string };
   };
   /**
-   * The `[id]` route that deep-links a selection, or `null`. Only a route named
-   * here is exempt from needing its own manifest (§5).
+   * The `[id]` route that deep-links a selection, or `null`.
+   *
+   * The screen's own route and one dynamic segment — `/offers/[id]` for
+   * `/offers` — whose page renders this same manifest. A screen with a detail
+   * route keeps its selection in the path rather than the query string, so the
+   * link to one record is that record's address, and every link already written
+   * to it keeps working. Only a route named here is exempt from needing its own
+   * manifest (§5).
    */
   detailRoute: string | null;
 }

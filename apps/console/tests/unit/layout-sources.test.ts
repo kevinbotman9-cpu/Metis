@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { LAYOUTS, PANELS } from '@metis/ui-metadata';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { LAYOUTS, PANELS, declaredScreen } from '@metis/ui-metadata';
 import { categories, objectives, offers } from '@/mocks/fixtures/catalogue';
-import { ENTITY_BINDINGS, LIST_SOURCES } from '@/lib/layouts/sources';
+import { ENTITY_BINDINGS, LIST_SOURCES, invalidationsFor, isRecordSource, type EntityBinding } from '@/lib/layouts/sources';
 import { PANEL_COMPONENTS } from '@/components/layouts/panels';
 
 /**
@@ -47,6 +49,32 @@ describe.each(manifests.map((m) => [m.id, m] as const))('manifest %s', (_id, man
     for (const occupants of Object.values(manifest.slots)) {
       for (const o of occupants ?? []) expect(Object.keys(PANEL_COMPONENTS), `panel '${o.panel}'`).toContain(o.panel);
     }
+  });
+
+  it('lists from a source that answers for the tenant, never one scoped to a single record', () => {
+    // A record source resolves only once a record is open, and nothing is open
+    // until the list has rows: listing from one would wait on itself forever.
+    expect(isRecordSource(LIST_SOURCES[manifest.params.list.source])).toBe(false);
+  });
+
+  it('names a detail route whose page renders this same screen', () => {
+    const { detailRoute } = manifest.params;
+    if (detailRoute === null) return;
+    const page = resolve(__dirname, '../../app', ...detailRoute.split('/').filter(Boolean), 'page.tsx');
+    expect(existsSync(page), `${detailRoute} has no page`).toBe(true);
+    expect(declaredScreen(readFileSync(page, 'utf8')), `${detailRoute}/page.tsx`).toBe(manifest.id);
+  });
+});
+
+describe('a write inside another record', () => {
+  it('invalidates what that record is made of, given which record it was', () => {
+    const binding: EntityBinding = {
+      identity: (r) => String(r.id),
+      permission: 'edit:offers',
+      invalidate: (parent) => [['offer', parent?.id], ['offers']],
+    };
+    expect(invalidationsFor(binding, { entity: 'Offer', id: 'off_1' })).toEqual([['offer', 'off_1'], ['offers']]);
+    expect(invalidationsFor({ ...binding, invalidate: [['placements']] }, null)).toEqual([['placements']]);
   });
 });
 

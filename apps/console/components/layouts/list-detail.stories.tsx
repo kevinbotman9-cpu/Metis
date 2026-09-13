@@ -87,14 +87,24 @@ interface Args {
   status: SourceState['status'];
   editable: boolean;
   initialFilter?: ListFilter;
+  /** What the URL names when the screen opens. */
+  initialSelected?: string;
   /** Empties every source but the list's, so a related list has nothing under the open record. */
   noChildren?: boolean;
 }
 
 /** Plays the host: selection, tab and filter held in state rather than the URL. */
-function Host({ screen = 'placements', rows, status, editable, initialFilter = NO_FILTER, noChildren = false }: Args) {
+function Host({
+  screen = 'placements',
+  rows,
+  status,
+  editable,
+  initialFilter = NO_FILTER,
+  initialSelected,
+  noChildren = false,
+}: Args) {
   const { manifest, descriptor, identity } = SCREENS[screen];
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initialSelected ?? null);
   const [tab, setTab] = useState<string | null>(null);
   const [filter, setFilter] = useState<ListFilter>(initialFilter);
   return (
@@ -168,6 +178,15 @@ export const Faceted: Story = {
     editable: true,
     initialFilter: { query: '', facets: { decidable: 'true', 'delivery.mode': '' } },
   },
+};
+
+/**
+ * A link to a record the list does not hold — deleted since, or never there.
+ * The detail pane says so rather than opening the first row under an address
+ * that names a different one.
+ */
+export const LinkedToAMissingRecord: Story = {
+  args: { rows: seeded, status: 'ready', editable: true, initialSelected: 'retired_slot' },
 };
 
 /** A filter nothing meets, which is not the same state as an empty list. */

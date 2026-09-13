@@ -127,6 +127,45 @@ describe('validateLayout refuses', () => {
       variant((m) => ({ ...m, formatVersion: 2 as unknown as 1 }))
     ).toContain(`layout 'placements' is format 2; this renderer reads 1`);
   });
+
+  it('a derived facet with no label, or no values to count', () => {
+    const facet = (f: { field: string; label: string; options: { value: string; label: string }[] }) =>
+      variant((m) => ({ ...m, params: { ...m.params, list: { ...m.params.list, facets: [f] } } }));
+    const says = `layout 'placements': facet 'reach' is derived, so it needs a label and at least one labelled value`;
+    expect(facet({ field: 'reach', label: '', options: [{ value: 'x', label: 'X' }] })).toContain(says);
+    expect(facet({ field: 'reach', label: 'Reach', options: [] })).toContain(says);
+  });
+
+  it('a detail route that is not this screen’s route and one dynamic segment', () => {
+    const route = (detailRoute: string) => variant((m) => ({ ...m, params: { ...m.params, detailRoute } }));
+    expect(route('/offers/[id]')).toContain(`layout 'placements': detailRoute '/offers/[id]' is not /placements and one dynamic segment`);
+    expect(route('/placements/[key]/edit')).toContain(
+      `layout 'placements': detailRoute '/placements/[key]/edit' is not /placements and one dynamic segment`
+    );
+    expect(route('/placements/key')).toContain(`layout 'placements': detailRoute '/placements/key' is not /placements and one dynamic segment`);
+  });
+});
+
+/** What the richer list–detail admits, seen to pass, so the refusals above are not refusing everything. */
+describe('validateLayout accepts', () => {
+  const base = LAYOUTS.placements as ListDetailManifest;
+
+  it('a facet over options a source holds, a derived facet in its own words, and a detail route', () => {
+    const m = structuredClone(base) as ListDetailManifest;
+    expect(
+      validateLayout({
+        ...m,
+        params: {
+          ...m.params,
+          list: {
+            ...m.params.list,
+            facets: ['artifactId', { field: 'reach', label: 'Reach', options: [{ value: 'none', label: 'Delivers nothing' }] }],
+          },
+          detailRoute: '/placements/[key]',
+        },
+      })
+    ).toEqual([]);
+  });
 });
 
 /** A panel's parameters are references too, and are held to the same standard. */
@@ -143,7 +182,7 @@ describe('validateLayout refuses a panel parameter', () => {
   const at = `layout 'objectives': 'categories'`;
 
   it('that is required and missing', () => {
-    expect(categories(({ by: _, ...rest }) => rest)).toContain(`${at} needs 'by' (field)`);
+    expect(categories(({ empty: _, ...rest }) => rest)).toContain(`${at} needs 'empty' (empty)`);
   });
 
   it('that the panel does not take', () => {

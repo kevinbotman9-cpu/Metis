@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useMemo, useState } from 'react';
 import NextLink from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQueries } from '@tanstack/react-query';
 import { descriptorFor, layoutFor, type LayoutManifest, type ListDetailManifest } from '@metis/ui-metadata';
 import { RequireAuth } from '@/components/require-auth';
@@ -10,7 +10,16 @@ import { useAuth } from '@/components/auth-provider';
 import { EntityFormDialog } from '@/components/entity-form-dialog';
 import { LoadingState, PageBody } from '@/components/ui/primitives';
 import { useOptionSources } from '@/lib/option-sources';
-import { bindingFor, sourceFor, type Row } from '@/lib/layouts/sources';
+import {
+  bindingFor,
+  invalidationsFor,
+  isRecordSource,
+  sourceFor,
+  type ListSource,
+  type Parent,
+  type RecordSource,
+  type Row,
+} from '@/lib/layouts/sources';
 import type { ListFilter } from '@/lib/layouts/list';
 import { ListDetail } from './list-detail';
 import type { LinkProps, PanelContext, SourceState } from './panel';
@@ -82,6 +91,8 @@ interface Dialog {
   entity: string;
   record: Row | null;
   defaults?: Record<string, unknown>;
+  /** The open record, when the form writes a record filed under it. */
+  parent: Parent | null;
   onSaved?: (saved: Row) => void;
 }
 
@@ -95,28 +106,55 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
   const descriptor = descriptorFor(entity);
   const binding = bindingFor(entity);
 
-  // --- data: every named source, resolved here and handed down.
+  // --- data: every named source, resolved here and handed down. A source
+  // scoped to a record is resolved for the open one only, once the renderer
+  // says which that is.
   const names = useMemo(() => sourcesOf(manifest), [manifest]);
+  const tenantWide = useMemo(() => names.filter((n) => !isRecordSource(sourceFor(n))), [names]);
+  const perRecord = useMemo(() => names.filter((n) => isRecordSource(sourceFor(n))), [names]);
+  const [openId, setOpenId] = useState<string | null>(null);
   const results = useQueries({
-    queries: names.map((name) => {
-      const source = sourceFor(name);
+    queries: tenantWide.map((name) => {
+      const source = sourceFor(name) as ListSource;
       return { queryKey: source.queryKey, queryFn: source.queryFn, select: source.select };
     }),
   });
+  const recordResults = useQueries({
+    queries: perRecord.map((name) => {
+      const source = sourceFor(name) as RecordSource;
+      return {
+        queryKey: source.queryKey(openId ?? ''),
+        queryFn: () => source.queryFn(openId ?? ''),
+        select: source.select,
+        enabled: openId !== null,
+      };
+    }),
+  });
+  const stateOf = (r: { data?: Row[]; isError: boolean; isPending: boolean }): SourceState => ({
+    rows: r.data ?? NO_ROWS,
+    status: r.isError ? 'error' : r.isPending ? 'loading' : 'ready',
+  });
   // Row arrays are stable between renders — TanStack memoises `select` — so
   // nothing below needs this object itself to be.
-  const sources: Record<string, SourceState> = Object.fromEntries(
-    names.map((name, i): [string, SourceState] => {
-      const r = results[i];
-      return [name, { rows: r.data ?? NO_ROWS, status: r.isError ? 'error' : r.isPending ? 'loading' : 'ready' }];
-    })
-  );
+  const sources: Record<string, SourceState> = Object.fromEntries([
+    ...tenantWide.map((name, i): [string, SourceState] => [name, stateOf(results[i])]),
+    ...perRecord.map((name, i): [string, SourceState] => [name, stateOf(recordResults[i])]),
+  ]);
   const list = sources[manifest.params.list.source];
+  const listResult = results[tenantWide.indexOf(manifest.params.list.source)];
+  // A record's own source failing is its panel's to say. The screen fails only
+  // when what it lists does.
   const failed = results.find((r) => r.isError);
   const optionSources = useOptionSources(true);
 
-  // --- navigation state, in the URL.
+  // --- navigation state, in the URL. A screen with a detail route keeps the
+  // selection in the path, so the link to one record is that record's address;
+  // any other keeps it in the query string.
+  const routeParams = useParams();
+  const pathParam = manifest.params.detailRoute?.match(/\[(\w+)\]$/)?.[1];
   const selectionParam = entity.charAt(0).toLowerCase() + entity.slice(1);
+  const fromPath = pathParam ? routeParams?.[pathParam] : undefined;
+  const selected = pathParam ? ((Array.isArray(fromPath) ? fromPath[0] : fromPath) ?? null) : params.get(selectionParam);
   const replace = useCallback(
     (change: (next: URLSearchParams) => void) => {
       const next = new URLSearchParams(params.toString());
@@ -127,8 +165,12 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
     [params, pathname, router]
   );
   const onSelect = useCallback(
-    (id: string) => replace((next) => next.set(selectionParam, id)),
-    [replace, selectionParam]
+    (id: string) => {
+      if (!pathParam) return replace((next) => next.set(selectionParam, id));
+      const qs = params.toString();
+      router.replace(`${manifest.route}/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`, { scroll: false });
+    },
+    [replace, selectionParam, pathParam, params, router, manifest.route]
   );
   const filter = useMemo<ListFilter>(
     () => ({
@@ -149,7 +191,12 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
 
   // --- writes: the descriptor's form, saved through the entity's binding.
   const [dialog, setDialog] = useState<Dialog | null>(null);
-  const canEdit = useCallback((e: string) => hasPermission(bindingFor(e).permission), [hasPermission]);
+  const canEdit = useCallback(
+    (e: string) => Boolean(bindingFor(e).save) && hasPermission(bindingFor(e).permission),
+    [hasPermission]
+  );
+  // A panel names the open record by its identity; the entity is this screen's.
+  const parentOf = (id?: string | null): Parent | null => (id ? { entity, id } : null);
   const context: PanelContext = {
     sources,
     optionSources,
@@ -160,8 +207,9 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
         entity: e,
         record: null,
         defaults: { ...bindingFor(e).defaults?.(seed?.siblings ?? []), ...seed?.defaults },
+        parent: parentOf(seed?.parent),
       }),
-    edit: (e, record) => setDialog({ entity: e, record }),
+    edit: (e, record, parent) => setDialog({ entity: e, record, parent: parentOf(parent) }),
     Link,
   };
   const editable = canEdit(entity);
@@ -175,8 +223,10 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
         list={list}
         error={failed?.error instanceof Error ? failed.error.message : undefined}
         onRetry={() => results.forEach((r) => r.isError && void r.refetch())}
-        selected={params.get(selectionParam)}
+        selected={selected}
         onSelect={onSelect}
+        onOpen={setOpenId}
+        refreshing={listResult?.isFetching ?? false}
         tab={params.get('tab')}
         onTab={(tab) => replace((next) => next.set('tab', tab))}
         filter={filter}
@@ -188,12 +238,13 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
                   entity,
                   record: null,
                   defaults: binding.defaults?.(list.rows),
+                  parent: null,
                   // The detail pane opens on what was just made.
                   onSaved: (saved) => onSelect(binding.identity(saved)),
                 })
             : undefined
         }
-        onEdit={editable ? (record) => setDialog({ entity, record }) : undefined}
+        onEdit={editable ? (record) => setDialog({ entity, record, parent: null }) : undefined}
         context={context}
       />
       {dialog ? (
@@ -203,8 +254,9 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
           entity={dialog.entity}
           record={dialog.record}
           defaults={dialog.defaults}
-          save={bindingFor(dialog.entity).save}
-          invalidate={bindingFor(dialog.entity).invalidate}
+          // Only reachable through `canEdit`, which requires the binding to have a write.
+          save={(body, record) => bindingFor(dialog.entity).save!(body, record, dialog.parent)}
+          invalidate={invalidationsFor(bindingFor(dialog.entity), dialog.parent)}
           onSaved={dialog.onSaved}
         />
       ) : null}

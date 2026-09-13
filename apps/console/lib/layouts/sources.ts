@@ -27,11 +27,30 @@ export interface ListSource {
   select: (data: unknown) => Row[];
 }
 
+/**
+ * A source scoped to the open record: what one offer is made of, read by the
+ * operation that answers for one offer. The host resolves it for the record in
+ * the detail pane, and again when the selection moves — never for every row,
+ * which is the difference between one request and one per row.
+ */
+export interface RecordSource {
+  scope: 'record';
+  /** Keyed by the record, and shared with whatever else reads it, so one write refreshes both. */
+  queryKey: (id: string) => readonly unknown[];
+  queryFn: (id: string) => Promise<unknown>;
+  select: (data: unknown) => Row[];
+}
+
+export type Source = ListSource | RecordSource;
+
+export const isRecordSource = (source: Source): source is RecordSource =>
+  'scope' in source && source.scope === 'record';
+
 /** The taxonomy answers in one snapshot; both levels read it, and count what is filed under them. */
 const offersUnder = (t: TaxonomyDto, categoryIds: ReadonlySet<string>) =>
   t.offers.filter((o) => categoryIds.has(o.categoryId)).length;
 
-export const LIST_SOURCES: Record<string, ListSource> = {
+export const LIST_SOURCES: Record<string, Source> = {
   placements: {
     queryKey: ['placements'],
     queryFn: () => apiClient.listPlacements(),
@@ -68,6 +87,16 @@ export const LIST_SOURCES: Record<string, ListSource> = {
  * convention to make them look derivable would be a hand-rolled client by
  * another route (the same reason `EntityFormDialog` takes `save` as a prop).
  */
+/** The record a child is written under, when a screen writes one from inside another. */
+export interface Parent {
+  /** The screen's entity. */
+  entity: string;
+  /** Its identity, as the binding for that entity gives it. */
+  id: string;
+}
+
+export type Invalidations = readonly (readonly unknown[])[];
+
 export interface EntityBinding {
   /** What the URL carries and the update operation takes. */
   identity: (row: Row) => string;
@@ -75,10 +104,21 @@ export interface EntityBinding {
   permission: string;
   /** Field values a new record starts with, given the records beside it. */
   defaults?: (siblings: readonly Row[]) => Record<string, unknown>;
-  save: (body: Record<string, unknown>, existing: Row | null) => Promise<Row>;
-  /** Query keys a write changes. */
-  invalidate: readonly (readonly unknown[])[];
+  /**
+   * The write. Absent for an entity nobody writes through a form here: the
+   * screen then offers no create and no edit, rather than a button that fails.
+   *
+   * `parent` is the open record when the write happens inside it. A creative is
+   * created under an offer, and the operation's path names the offer — a fact
+   * the form does not hold, because the click already answered it.
+   */
+  save?: (body: Record<string, unknown>, existing: Row | null, parent: Parent | null) => Promise<Row>;
+  /** Query keys a write changes, given the parent when what changes is what one record is made of. */
+  invalidate: Invalidations | ((parent: Parent | null) => Invalidations);
 }
+
+export const invalidationsFor = (binding: EntityBinding, parent: Parent | null): Invalidations =>
+  typeof binding.invalidate === 'function' ? binding.invalidate(parent) : binding.invalidate;
 
 /** Either level of the taxonomy going stale takes the offers with it: an offer is filed under both. */
 const TAXONOMY_WRITES = [['taxonomy'], ['offers']] as const;
@@ -146,7 +186,7 @@ export function bindingFor(entity: string): EntityBinding {
   return found;
 }
 
-export function sourceFor(name: string): ListSource {
+export function sourceFor(name: string): Source {
   const found = LIST_SOURCES[name];
   if (!found) {
     throw new Error(
