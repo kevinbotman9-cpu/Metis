@@ -294,7 +294,7 @@ function OfferDetail({ offerId }: { offerId: string }) {
                     >
                       {CHANNEL_LABEL[t.channel] ?? t.channel}
                       {!t.active && (
-                        <span className="rounded-sm bg-hold-subtle px-1 text-[0.625rem] text-hold">
+                        <span className="rounded-sm bg-hold-subtle px-1 text-label text-hold">
                           off
                         </span>
                       )}
@@ -386,7 +386,7 @@ function OfferDetail({ offerId }: { offerId: string }) {
                               {pol.conditions.map((c, i) => (
                                 <code
                                   key={i}
-                                  className="rounded-sm bg-surface px-1.5 py-0.5 font-mono text-[0.6875rem] text-content-muted"
+                                  className="rounded-sm bg-surface px-1.5 py-0.5 font-mono text-label text-content-muted"
                                 >
                                   {c.field} {c.operator} {JSON.stringify(c.value)}
                                 </code>

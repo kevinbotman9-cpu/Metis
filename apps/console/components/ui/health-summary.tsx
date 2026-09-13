@@ -96,7 +96,7 @@ function Ring({ segments, total }: { segments: HealthSegment[]; total: number })
         dominantBaseline="central"
         className={cn(
           'tnum fill-content font-semibold',
-          total >= 1000 ? 'text-[0.8125rem]' : 'text-[1rem]'
+          total >= 1000 ? 'text-body' : 'text-title'
         )}
       >
         {abbreviate(total)}
@@ -127,7 +127,7 @@ export function HealthSummary({
         </p>
         <ul className="mt-1.5 space-y-1">
           {segments.map((s) => (
-            <li key={s.label} className="flex items-baseline gap-1.5 text-label leading-tight">
+            <li key={s.label} className="flex items-baseline gap-1.5 text-label">
               <span
                 aria-hidden
                 className={cn('mt-1 h-1.5 w-1.5 shrink-0 rounded-full', TONE_DOT[s.tone])}
@@ -167,7 +167,7 @@ export function BigStat({
       <p className="text-label font-medium uppercase tracking-[0.06em] text-content-subtle">
         {label}
       </p>
-      <p className="tnum mt-1.5 flex items-baseline gap-2 text-[2rem] font-semibold leading-none tracking-[-0.02em] text-content">
+      <p className="tnum mt-1.5 flex items-baseline gap-2 text-figure font-semibold tracking-[-0.02em] text-content">
         {value}
         {delta !== undefined && (
           <span className={cn('text-label font-medium', up ? 'text-pass' : 'text-block')}>
@@ -234,7 +234,7 @@ export function StatusDot({
     <span
       title={label}
       className={cn(
-        'inline-flex h-4 w-4 items-center justify-center rounded-full border text-[0.625rem] font-bold',
+        'inline-flex h-4 w-4 items-center justify-center rounded-full border text-label font-semibold',
         cls,
         state === 'pass' && 'border-pass/40 bg-pass-subtle',
         state === 'risk' && 'border-hold/40 bg-hold-subtle',

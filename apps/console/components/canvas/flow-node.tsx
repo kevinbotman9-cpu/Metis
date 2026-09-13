@@ -67,31 +67,31 @@ function FlowNodeComponent({ data }: NodeProps<FlowNodeData>) {
       />
 
       <div className="flex items-center justify-between gap-2">
-        <span className={cn('text-[0.625rem] font-semibold uppercase tracking-wide', TONE_TEXT[tone])}>
+        <span className={cn('text-label font-semibold uppercase tracking-wide', TONE_TEXT[tone])}>
           {family}
         </span>
-        <span className="tnum text-[0.625rem] text-content-muted">
+        <span className="tnum text-label text-content-muted">
           {data.estimatedMs.toFixed(1)}ms
         </span>
       </div>
 
-      <p className="mt-0.5 text-body font-medium leading-tight text-content">{data.label}</p>
-      <p className="mt-0.5 font-mono text-[0.625rem] text-content-subtle">{data.nodeType}</p>
+      <p className="mt-0.5 text-body font-medium text-content">{data.label}</p>
+      <p className="mt-0.5 font-mono text-label text-content-subtle">{data.nodeType}</p>
 
       {(data.policyCount > 0 || data.hasModel || data.eliminatedHere) && (
         <div className="mt-1.5 flex flex-wrap gap-1">
           {data.policyCount > 0 && (
-            <span className="rounded-sm bg-surface px-1 py-0.5 text-[0.625rem] text-content-muted">
+            <span className="rounded-sm bg-surface px-1 py-0.5 text-label text-content-muted">
               {data.policyCount} {data.policyCount === 1 ? 'policy' : 'policies'}
             </span>
           )}
           {data.hasModel && (
-            <span className="rounded-sm bg-surface px-1 py-0.5 text-[0.625rem] text-content-muted">
+            <span className="rounded-sm bg-surface px-1 py-0.5 text-label text-content-muted">
               pinned model
             </span>
           )}
           {data.eliminatedHere ? (
-            <span className="rounded-sm bg-block px-1 py-0.5 text-[0.625rem] font-medium text-on-block">
+            <span className="rounded-sm bg-block px-1 py-0.5 text-label font-medium text-on-block">
               −{data.eliminatedHere}
             </span>
           ) : null}

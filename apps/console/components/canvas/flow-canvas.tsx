@@ -88,7 +88,7 @@ function Canvas({
         label: e.label,
         type: 'smoothstep',
         style: { stroke: 'rgb(var(--border-strong))', strokeWidth: 1.5 },
-        labelStyle: { fill: 'rgb(var(--text-muted))', fontSize: 11 },
+        labelStyle: { fill: 'rgb(var(--text-muted))', fontSize: 'var(--text-label)' },
         labelBgStyle: { fill: 'rgb(var(--surface))' },
         markerEnd: {
           type: MarkerType.ArrowClosed,

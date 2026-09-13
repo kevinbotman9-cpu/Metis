@@ -182,7 +182,7 @@ export function DataTable<T>({
                       className="inline-flex items-center gap-1 hover:text-content"
                     >
                       {col.header}
-                      <span aria-hidden className="text-[0.6rem] leading-none">
+                      <span aria-hidden className="text-label">
                         {sort?.key === col.key ? (sort.dir === 'asc' ? '▲' : '▼') : '⇅'}
                       </span>
                     </button>

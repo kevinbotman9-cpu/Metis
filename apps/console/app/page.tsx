@@ -160,7 +160,7 @@ function Activity() {
         ) : entries.length === 0 ? (
           <div className="px-card py-4">
             <p className="text-body text-content">Nothing in this feed.</p>
-            <p className="mt-1 text-label leading-relaxed text-content-muted">
+            <p className="mt-1 text-label text-content-muted">
               An entry is written when an agent acts under its autonomy level: at L2 it opens a change
               set and waits for a person; at L3 it publishes inside its guardrails and is rolled back
               automatically if one is breached. This tenant&apos;s feed holds none. The audit log is the complete record of who
@@ -242,7 +242,7 @@ function OverviewView() {
         <h2 id="thesis" className="mb-1 text-label font-semibold uppercase tracking-wide text-content-subtle">
           Agents author, people approve, simulation gates it
         </h2>
-        <p className="mb-3 max-w-3xl text-label leading-relaxed text-content-muted">
+        <p className="mb-3 max-w-3xl text-label text-content-muted">
           What an agent may do is a level set per scope. At L2 it opens a change set — a diff, and a
           simulation replayed over recorded decisions — and nothing is published until a person holding{' '}
           <code className="font-mono">approve:changes</code> approves it. At L3 it publishes without

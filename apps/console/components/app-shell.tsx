@@ -190,12 +190,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               <path d="M12 12 20 7.5M12 12v9M12 12 4 7.5" strokeLinejoin="round" />
             </svg>
           </span>
-          <span className="text-base font-semibold tracking-tight">METIS</span>
+          <span className="text-body font-semibold tracking-tight">METIS</span>
         </Link>
 
         <span
           className={cn(
-            'hidden shrink-0 rounded-full border px-2 py-0.5 text-[0.625rem] font-semibold uppercase tracking-[0.06em] sm:inline-block',
+            'hidden shrink-0 rounded-full border px-2 py-0.5 text-label font-semibold uppercase tracking-[0.06em] sm:inline-block',
             ENV_IS_LIVE ? 'border-on-header bg-on-header/25' : 'border-on-header/40'
           )}
         >
@@ -209,7 +209,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <span aria-hidden>⌕</span>
           <span>Search offers, decision flows, decisions…</span>
-          <kbd className="ml-auto rounded border border-on-header/30 px-1.5 py-0.5 font-mono text-[0.625rem]">
+          <kbd className="ml-auto rounded border border-on-header/30 px-1.5 py-0.5 font-mono text-label">
             ⌘K
           </kbd>
         </button>
@@ -236,7 +236,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               className="flex items-center gap-1.5 rounded-md border border-on-header/25 bg-on-header/10 px-2.5 py-1 text-label font-medium transition-colors hover:bg-on-header/20"
             >
               {user?.tenantId ?? 'no tenant'}
-              <span aria-hidden className="text-[0.5rem]">
+              <span aria-hidden className="text-label">
                 ▼
               </span>
             </button>
@@ -248,7 +248,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   id="tenant-panel"
                   className="absolute right-0 z-30 mt-2 w-60 rounded-xl border border-border bg-surface-raised p-1 shadow-lg"
                 >
-                  <p className="px-3 py-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-content-subtle">
+                  <p className="px-3 py-1.5 text-label font-semibold uppercase tracking-[0.08em] text-content-subtle">
                     Tenant
                   </p>
                   <p className="flex items-center justify-between rounded px-3 py-1.5 text-body text-content">
@@ -274,7 +274,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               aria-controls="account-panel"
               className="flex items-center gap-2 rounded-md px-1.5 py-1 text-body transition-colors hover:bg-on-header/15"
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-on-header/20 text-[0.625rem] font-semibold">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-on-header/20 text-label font-semibold">
                 {initials}
               </span>
               <span className="hidden sm:inline">{user?.name ?? 'Signed out'}</span>
@@ -294,7 +294,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       {user?.roles.map((r) => (
                         <span
                           key={r}
-                          className="rounded-sm bg-surface-sunken px-1.5 py-0.5 text-[0.625rem] text-content-muted"
+                          className="rounded-sm bg-surface-sunken px-1.5 py-0.5 text-label text-content-muted"
                         >
                           {r}
                         </span>
@@ -308,7 +308,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     they use constantly.
                   */}
                   <div className="border-b border-border px-3 py-2.5">
-                    <p className="mb-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-content-subtle">
+                    <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.08em] text-content-subtle">
                       Appearance
                     </p>
                     <div className="flex gap-1.5">

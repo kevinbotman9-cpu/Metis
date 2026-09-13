@@ -248,7 +248,7 @@ export function CommandPalette({
             placeholder="Search offers, decision flows, decisions…"
             className="w-full bg-transparent py-3 text-body text-content outline-none placeholder:text-content-subtle"
           />
-          <kbd className="rounded border border-border px-1.5 py-0.5 font-mono text-[0.625rem] text-content-subtle">
+          <kbd className="rounded border border-border px-1.5 py-0.5 font-mono text-label text-content-subtle">
             Esc
           </kbd>
         </div>
@@ -261,7 +261,7 @@ export function CommandPalette({
           ) : (
             grouped.map((category) => (
               <li key={category.kind}>
-                <p className="px-2 pb-1 pt-2 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-content-subtle">
+                <p className="px-2 pb-1 pt-2 text-label font-semibold uppercase tracking-[0.08em] text-content-subtle">
                   {KIND_LABEL[category.kind]}
                 </p>
                 <ul>
@@ -285,7 +285,7 @@ export function CommandPalette({
                         >
                           <span
                             aria-hidden
-                            className={cn('shrink-0 text-[0.625rem]', KIND_TONE[r.kind])}
+                            className={cn('shrink-0 text-label', KIND_TONE[r.kind])}
                           >
                             ●
                           </span>
@@ -293,7 +293,7 @@ export function CommandPalette({
                             {r.title}
                           </span>
                           {r.subtitle ? (
-                            <span className="shrink-0 truncate font-mono text-[0.6875rem] text-content-subtle">
+                            <span className="shrink-0 truncate font-mono text-label text-content-subtle">
                               {r.subtitle}
                             </span>
                           ) : null}
@@ -307,7 +307,7 @@ export function CommandPalette({
           )}
         </ul>
 
-        <div className="flex items-center gap-3 border-t border-border px-3 py-2 text-[0.625rem] text-content-subtle">
+        <div className="flex items-center gap-3 border-t border-border px-3 py-2 text-label text-content-subtle">
           <span>
             <kbd className="font-mono">↑↓</kbd> navigate
           </span>

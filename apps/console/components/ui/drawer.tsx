@@ -109,7 +109,7 @@ export function Drawer({
             ) : null}
             <Dialog.Close asChild>
               <Button variant="ghost" size="icon" className="ml-auto" aria-label="Close">
-                <span aria-hidden="true" className="text-[16px] leading-none">
+                <span aria-hidden="true" className="text-title">
                   ×
                 </span>
               </Button>

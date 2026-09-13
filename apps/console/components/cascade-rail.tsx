@@ -113,7 +113,7 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
                 <span className="mt-1.5 flex items-baseline gap-2">
                   <strong
                     className={cn(
-                      'tnum text-[1.75rem] font-bold leading-none tracking-tight',
+                      'tnum text-figure font-semibold tracking-tight',
                       stage.broken ? 'text-block' : 'text-content'
                     )}
                   >
@@ -152,7 +152,7 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
                 ) : null}
 
                 {stage.broken ? (
-                  <span className="mt-2 block text-label leading-snug text-block">
+                  <span className="mt-2 block text-label text-block">
                     {stage.broken}
                   </span>
                 ) : null}
@@ -162,7 +162,7 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
         })}
       </ul>
       {foot ? (
-        <p className="px-cell py-3 text-label leading-relaxed text-content-subtle">{foot}</p>
+        <p className="px-cell py-3 text-label text-content-subtle">{foot}</p>
       ) : null}
     </nav>
   );

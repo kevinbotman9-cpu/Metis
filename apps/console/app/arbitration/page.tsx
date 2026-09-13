@@ -102,7 +102,7 @@ function ArbitrationView() {
         <div>
           <Badge tone="outline">{l.scope.level}</Badge>
           {l.scope.targetId && (
-            <div className="mt-0.5 font-mono text-[0.6875rem] text-content-subtle">
+            <div className="mt-0.5 font-mono text-label text-content-subtle">
               {l.scope.targetId}
             </div>
           )}
@@ -197,7 +197,7 @@ function ArbitrationView() {
           />
           <CardBody>
             <div className="mb-5 rounded border border-border bg-surface-sunken px-4 py-3 text-center">
-              <p className="font-mono text-base text-content">
+              <p className="font-mono text-body text-content">
                 Priority ={' '}
                 {TERMS.map((t, i) => (
                   <span key={t.key}>
@@ -250,7 +250,7 @@ function ArbitrationView() {
                     aria-label={`${term.name} weight`}
                     className="w-full accent-accent disabled:opacity-50"
                   />
-                  <div className="mt-1 flex justify-between text-[0.625rem] text-content-subtle">
+                  <div className="mt-1 flex justify-between text-label text-content-subtle">
                     <span>0 (ignored)</span>
                     <span>1 (neutral)</span>
                     <span>2 (doubled)</span>

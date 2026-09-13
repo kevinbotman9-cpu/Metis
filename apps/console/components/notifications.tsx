@@ -91,7 +91,7 @@ export function Notifications() {
         {count > 0 && (
           <span
             aria-hidden
-            className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-block px-1 text-[0.5625rem] font-bold text-on-block"
+            className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-block px-1 text-label font-semibold text-on-block"
           >
             {count > 9 ? '9+' : count}
           </span>

@@ -89,7 +89,7 @@ function Body({ label, body }: { label: string; body: InboundCallDto['request'] 
         <span className="text-label text-content-muted">{bytes(body.bytes)}</span>
         {body.truncated ? <Badge tone="hold">truncated</Badge> : null}
       </div>
-      <pre className="mt-1 max-h-80 overflow-auto rounded border border-border bg-surface-sunken p-2 font-mono text-[0.6875rem] leading-relaxed text-content">
+      <pre className="mt-1 max-h-80 overflow-auto rounded border border-border bg-surface-sunken p-2 font-mono text-label text-content">
         {text}
       </pre>
     </div>

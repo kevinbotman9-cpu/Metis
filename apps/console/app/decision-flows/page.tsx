@@ -68,7 +68,7 @@ function FlowsView() {
       cell: (a) => (
         <div>
           <span className="font-mono text-label font-medium text-accent">{a.activeVersion}</span>
-          <div className="text-[0.6875rem] text-content-subtle">
+          <div className="text-label text-content-subtle">
             {a.versions.length} versions
           </div>
         </div>
@@ -174,7 +174,7 @@ function FlowsView() {
               month: 'short',
             })}
           </div>
-          <div className="truncate text-[0.6875rem] text-content-subtle">{a.updatedBy}</div>
+          <div className="truncate text-label text-content-subtle">{a.updatedBy}</div>
         </div>
       ),
     },

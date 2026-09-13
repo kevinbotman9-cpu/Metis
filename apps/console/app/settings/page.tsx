@@ -154,7 +154,7 @@ function SettingsView() {
                 {user?.permissions.map((p) => (
                   <code
                     key={p}
-                    className="rounded-sm bg-surface-sunken px-1.5 py-0.5 font-mono text-[0.6875rem] text-content-muted"
+                    className="rounded-sm bg-surface-sunken px-1.5 py-0.5 font-mono text-label text-content-muted"
                   >
                     {p}
                   </code>

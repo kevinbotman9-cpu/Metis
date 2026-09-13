@@ -106,14 +106,14 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
         <Card>
           <CardBody>
             <p className="text-label text-content-subtle">Realised value</p>
-            <p className="tnum mt-1 text-[1.5rem] font-bold text-content">{money(loop.realised, format)}</p>
+            <p className="tnum mt-1 text-figure font-semibold text-content">{money(loop.realised, format)}</p>
             <p className="mt-1 text-label text-content-subtle">from {format.number(data.acted)} acted on</p>
           </CardBody>
         </Card>
         <Card>
           <CardBody>
             <p className="text-label text-content-subtle">Expected, at the ceiling</p>
-            <p className="tnum mt-1 text-[1.5rem] font-bold text-content">
+            <p className="tnum mt-1 text-figure font-semibold text-content">
               {money(loop.expectedDelivered, format)}
             </p>
             <p className="mt-1 text-label text-content-subtle">
@@ -124,7 +124,7 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
         <Card className={cn(undeliverable > 0 && 'border-block/40')}>
           <CardBody>
             <p className="text-label text-content-subtle">Never had the chance</p>
-            <p className={cn('tnum mt-1 text-[1.5rem] font-bold', undeliverable > 0 ? 'text-block' : 'text-content')}>
+            <p className={cn('tnum mt-1 text-figure font-semibold', undeliverable > 0 ? 'text-block' : 'text-content')}>
               {money(loop.expectedUndelivered, format)}
             </p>
             <p className="mt-1 text-label text-content-subtle">
@@ -187,7 +187,7 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
           <Card key={t.label}>
             <CardBody>
               <p className="text-label text-content-subtle">{t.label}</p>
-              <p className="tnum mt-1 text-[1.25rem] font-bold text-content">{t.value}</p>
+              <p className="tnum mt-1 text-figure font-semibold text-content">{t.value}</p>
               <div className="mt-2">
                 <Sparkline values={t.series} label={`${t.label}, last ${tail.length} days`} tone={t.tone} />
               </div>
@@ -455,7 +455,7 @@ export function LoopStageEvidence({ data, loop, stage }: { data: LoopReport; loo
             </div>
           ))}
         </dl>
-        <p className="mt-3 text-label leading-relaxed text-content-subtle">Select a stage to see what it is made of.</p>
+        <p className="mt-3 text-label text-content-subtle">Select a stage to see what it is made of.</p>
       </>
     );
   }

@@ -73,7 +73,7 @@ export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
               y={FLOOR - 8}
               textAnchor="middle"
               className={cn(
-                'tnum text-[11px]',
+                'tnum text-label',
                 next.broken ? 'fill-block' : 'fill-content-subtle'
               )}
             >
@@ -97,7 +97,7 @@ export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
             x={x(i) + BAR / 2}
             y={top(stage.value) - 16}
             textAnchor="middle"
-            className="tnum fill-content text-[15px] font-bold"
+            className="tnum fill-content text-body font-semibold"
           >
             {format.number(stage.value)}
           </text>
@@ -105,7 +105,7 @@ export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
             x={x(i) + BAR / 2}
             y={FLOOR + 16}
             textAnchor="middle"
-            className="fill-content-subtle text-[11px]"
+            className="fill-content-subtle text-label"
           >
             {stage.label}
           </text>

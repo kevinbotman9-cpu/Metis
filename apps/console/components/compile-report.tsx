@@ -24,9 +24,9 @@ function DiagnosticRow({ d }: { d: DiagnosticDto }) {
     >
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone={isError ? 'block' : 'hold'}>{d.severity}</Badge>
-        <code className="font-mono text-[0.6875rem] text-content-muted">{d.code}</code>
+        <code className="font-mono text-label text-content-muted">{d.code}</code>
         {d.at ? (
-          <code className="font-mono text-[0.6875rem] text-content-subtle">at {d.at}</code>
+          <code className="font-mono text-label text-content-subtle">at {d.at}</code>
         ) : null}
       </div>
       <p className="mt-1.5 text-body text-content">{d.message}</p>
@@ -129,7 +129,7 @@ export function CompileReport({ compilation }: { compilation: CompileResultDto |
               {Object.entries(compilation.artifact.packageVersions).map(([name, version]) => (
                 <code
                   key={name}
-                  className="rounded-sm bg-surface-sunken px-1.5 py-0.5 font-mono text-[0.6875rem] text-content-muted"
+                  className="rounded-sm bg-surface-sunken px-1.5 py-0.5 font-mono text-label text-content-muted"
                 >
                   {name}@{version}
                 </code>
@@ -137,7 +137,7 @@ export function CompileReport({ compilation }: { compilation: CompileResultDto |
               {compilation.artifact.costManifest.modelInvocations.map((m) => (
                 <code
                   key={m.nodeId}
-                  className="rounded-sm bg-surface-sunken px-1.5 py-0.5 font-mono text-[0.6875rem] text-content-muted"
+                  className="rounded-sm bg-surface-sunken px-1.5 py-0.5 font-mono text-label text-content-muted"
                 >
                   {m.model}
                 </code>
