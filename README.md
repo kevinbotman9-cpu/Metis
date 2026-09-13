@@ -76,7 +76,7 @@ npx ts-node -e "
 │                          EXECUTION PLANE                                  │
 │  Artifact registry → Compiled flow VM → Arbitration → Explanation     │
 │  Feature store (online) · Rules eval · Model scoring · Constraint engine   │
-│                  no LLM · deterministic · p95 < 50ms                      │
+│                  no LLM · deterministic · p95 budget 50ms                 │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -145,7 +145,7 @@ metis/
 2. **Compiler** — Type checking, version resolution, cost analysis
 3. **Runtime** — Deterministic execution with zero LLM calls
 4. **Trace System** — Canonical audit trail with replay
-5. **Load Harness** — Performance testing with p95 < 50ms gate
+5. **Benchmark harness** — In-process latency measurement of the engine, with a p95/p99 < 50ms gate
 
 **Success Gate:** A decision made today can be replayed in a month, producing byte-identical results with zero LLM calls in the hot path.
 
@@ -321,12 +321,15 @@ npm test
 npm test -- tests/integration/
 ```
 
-### Load Testing (Phase 0 Performance Gate)
+### Engine benchmark (in-process)
 ```bash
 npm run bench
 ```
 
-Fails if p95 latency > 50ms.
+Runs the engine inside one process — no HTTP, no ledger write, no connector
+call — and fails if a scenario's p95 or p99 exceeds 50 ms, or if the 10- and
+40-candidate scenarios fall below 1,000 decisions/s on one core. It measures
+the engine, not a deployed service.
 
 ### Determinism Validation
 ```bash
@@ -341,8 +344,8 @@ Executes each fixture 100 times, asserts identical results.
 
 | Metric | Target | Status |
 |--------|--------|--------|
-| **P95 Latency** | < 50ms | ✓ Gated in CI |
-| **Throughput** | > 1000 req/sec | ✓ Load tested |
+| **P95 Latency** | < 50ms | Gated in CI on the engine in-process — `bench/harness/tests/gate.test.ts`, 5,000 decisions over 40 offers. Not measured through a service |
+| **Throughput** | > 1000 req/sec | **Target, not measured.** Nothing has measured throughput through a running service. In one process on one core, S1 measured 594 decisions/s cold and 930/s warm — 100 actions, 20,000 decisions per variant, no HTTP, ledger write or connector call, commit `660e56f` on a 12-core Windows laptop under Node 20 (`bench/results/S1.json`) |
 | **Determinism** | 100% byte-for-byte | ✓ Validated |
 | **LLM Calls in Hot Path** | 0 | ✓ Enforced |
 
@@ -363,7 +366,7 @@ METIS is in active development. Guidelines:
 
 1. **Design principles first** — Every change must align with the 10 principles
 2. **Test coverage** — Unit + integration tests required
-3. **Performance gate** — CI fails if p95 > 50ms
+3. **Performance gate** — CI fails if the engine's in-process p95 or p99 exceeds 50ms
 4. **Documentation** — Every public API must be documented
 5. **ADRs** — Significant decisions get an ADR
 

@@ -94,7 +94,7 @@ Ledger              50 passed  - the same pattern: one suite, both stores
 Portability         22 passed  - export, re-import, round-trip conformance, and
                                  the guard that stops the export rotting
 Performance         12 passed  - bench/harness: the p99 gate, and S1 over a
-                                 million seeded profiles
+                                 million generated customers, in-process
 Unit (Vitest)      217 passed  - apps/console
 E2E (Playwright)   310 passed  - contract, cross-engine, axe, registry, ledger,
                                  idempotency, shadow, the seeded tenant
@@ -237,13 +237,13 @@ W-029 is registered in [`BACKLOG.md`](BACKLOG.md), not in
 | Capability | Status | Screen? | Config? | Evidence |
 |---|---|---|---|---|
 | Latency gate in CI | BUILT | NO | NO | `bench/harness/tests/gate.test.ts`, gating **p99 < 50 ms** — the promise the specification actually states. Verified: a budget the engine cannot meet fails it |
-| **S1 benchmark** — 1M profiles, 100 actions | **BUILT** | NO | NO | `npm run bench:s1` over 1,000,000 seeded profiles and 100 active actions, cold and warm. Measured p99 **6.8 ms cold, 3.6 ms warm** against the 50 ms budget. `bench/results/S1.json` |
+| **S1 benchmark** — 1M generated customers, 100 actions, in-process | **BUILT** | NO | NO | `npm run bench:s1` over requests generated in-process for 1,000,000 distinct seeded customers and 100 active actions, cold and warm. No profile store exists, so no decision reads a profile from storage. Measured p99 **6.8 ms cold, 3.6 ms warm** against the 50 ms budget, in one process with no HTTP, ledger write or connector call. `bench/results/S1.json` |
 | S1's remaining variants — feature-store miss, degraded provider, sustained 1k/2k per second | PARTIAL | NO | NO | Named in the result with the reason each is absent, rather than left to be inferred from silence. The first two need a feature service and the gateway in the measured path ([W-009](BACKLOG.md), [W-010](BACKLOG.md)); the third needs a deployed service, since this harness is single-threaded and measures per-core capacity |
 | Publishing workload, data distribution, infrastructure, code version, model latency, cache state and confidence intervals | BUILT | NO | NO | Mandatory fields on the report type, asserted field by field in `s1.test.ts`. Verified: dropping one fails the suite |
 | Route bundle budgets | BUILT | NO | NO | `apps/console/tests/bundle`; nine budgets measured against the standalone build |
 | A running system observed at all — latency distribution, throughput, error rate, log lag | ABSENT | NO | NO | Taxonomy 17.1, 17.4, 17.10 `TABLE-STAKES` / `DIFFERENTIATING`. The bench measures a process offline. There is no metrics endpoint, no health check beyond `docker-compose.yml`'s, and no operator screen |
 
-Throughput is measured and deliberately **not** gated: it swung 3x under machine
+Throughput is measured and deliberately **not** gated in CI: it swung 3x under machine
 load, and an ignored gate is worse than none. The number is published on every
 S1 variant, so a real collapse is still visible.
 
@@ -297,7 +297,7 @@ apply:
 |---|---|
 | Semantic tests pass | **Met** — three corpora, two languages, two engines |
 | Complete export / re-import | **Met for everything durably stored.** The round-trip conformance utility passes on the registry and the ledger. The catalogue, policies and approvals are still in memory, so they are outside the export until they are outside memory — [W-005](BACKLOG.md) |
-| S1 benchmark | **Met at the scale the engine can be held to.** 1M profiles, 100 actions, p99 6.8 ms cold against 50 ms, published with its context. The load variants that need a feature store, a gateway or a deployed service are named in the result as unmeasured |
+| S1 benchmark | **Met at the scale the engine can be held to.** 1M generated customers (no profile store), 100 actions, in-process p99 6.8 ms cold against 50 ms, published with its context. The load variants that need a feature store, a gateway or a deployed service are named in the result as unmeasured |
 | No LLM dependency | **Met, and guarded.** `no-egress.test.ts` blocks fetch, http, https, net, socket and dns at the process level, then decides and replays successfully with zero attempts. Verified: a `fetch` planted in the engine fails it |
 
 **All eight capabilities are built, and all four exit criteria are met — two of
