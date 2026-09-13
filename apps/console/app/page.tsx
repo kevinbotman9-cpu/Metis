@@ -1,22 +1,130 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
-import { useAuth } from '@/components/auth-provider';
 import {
   PageBody,
   PageHeader,
   Card,
-  CardHeader,
   CardBody,
+  CardHeader,
   Badge,
-  AutonomyBadge,
+  EmptyState,
+  ErrorState,
   LoadingState,
+  AutonomyBadge,
 } from '@/components/ui/primitives';
-import { HealthSummary, BigStat } from '@/components/ui/health-summary';
+import { ProvenanceBanner } from '@/components/ui/provenance-banner';
+import { CascadeRail } from '@/components/cascade-rail';
+import {
+  LoopFirstPaint,
+  LoopInversions,
+  LoopRailFoot,
+  LoopStageDetail,
+  LoopStageEvidence,
+} from '@/components/loop-panes';
 import { apiClient } from '@/lib/api-client';
+import { buildLoop } from '@/lib/loop';
 import { useFormat } from '@/components/tenant-format';
+
+/**
+ * Overview — the loop, as a Cascade. `docs/METIS_CONSOLE_SPEC.md` §4.7.
+ *
+ * Until 2026-09-13 this was a greeting over four doughnuts — decisions,
+ * outcomes, compilation, governance — with the agent panels beneath them. The
+ * doughnuts counted things without saying how one led to the next, and the
+ * panels that carry the product's thesis sat below all four of them.
+ *
+ * Now, in reading order:
+ *
+ * 1. **Agents author, people approve, simulation gates it.** The proposals
+ *    waiting for a person and what the agents did, first, because that is what
+ *    this platform is for.
+ * 2. **The loop.** The same decomposition `/performance` draws, from the same
+ *    model (`lib/loop.ts`): a rail of stages, the selected stage in the middle,
+ *    evidence on the right. Before a stage is chosen the middle holds the whole
+ *    loop — realised value against the expected ceiling, the flow with the
+ *    drop-outs drawn as volume leaving, and three trends.
+ *
+ * The tenant is one flow, five offers and three channels, so most figures are
+ * small, and they are shown small. Nothing is added to fill the space.
+ *
+ * Hand-built on the shared loop components rather than declared through a
+ * layout manifest: ADR-015 accepts Cascade as a pattern but no Cascade renderer
+ * exists yet, and `/performance` is built the same way.
+ */
+
+function Proposals() {
+  const changeSets = useQuery({ queryKey: ['change-sets'], queryFn: () => apiClient.listChangeSets() });
+  const all = changeSets.data?.changeSets ?? [];
+  const pending = all.filter((c) => c.status === 'pending');
+  const approved = all.filter((c) => c.status === 'approved').length;
+  const rejected = all.filter((c) => c.status === 'rejected').length;
+
+  return (
+    <Card>
+      <CardHeader
+        title="Proposed changes"
+        description="A change to what this tenant decides, with the diff and the simulation that has to pass before anyone can approve it."
+        actions={
+          <Link href="/approvals" className="text-label text-accent hover:underline">
+            All change sets →
+          </Link>
+        }
+      />
+      <CardBody className="p-0">
+        {changeSets.isLoading ? (
+          <LoadingState />
+        ) : changeSets.isError ? (
+          <ErrorState description="Could not load the change sets." onRetry={() => void changeSets.refetch()} />
+        ) : pending.length === 0 ? (
+          <p className="px-card py-4 text-body text-content-muted">
+            Nothing is waiting for a person. {approved} approved and {rejected} rejected before now.
+          </p>
+        ) : (
+          <>
+            <ul className="divide-y divide-border">
+              {pending.map((cr) => (
+                <li key={cr.id}>
+                  <Link
+                    href={`/approvals/${cr.id}`}
+                    className="block px-card py-3 transition-colors hover:bg-surface-sunken"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-body font-medium text-content">{cr.title}</p>
+                        <p className="mt-0.5 text-label text-content-muted">
+                          {cr.requestedBy.startsWith('agent-') ? 'Proposed by an agent' : 'Proposed by a person'} ·{' '}
+                          <span className="font-mono">{cr.requestedBy}</span>
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <Badge tone="hold">waiting</Badge>
+                        {cr.simulation ? (
+                          <Badge tone={cr.simulation.passed ? 'pass' : 'block'}>
+                            simulation {cr.simulation.passed ? 'passed' : 'failed'}
+                          </Badge>
+                        ) : (
+                          <Badge tone="neutral">no simulation</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <p className="border-t border-border px-card py-2 text-label text-content-subtle">
+              {approved} approved and {rejected} rejected before these.
+            </p>
+          </>
+        )}
+      </CardBody>
+    </Card>
+  );
+}
 
 const OUTCOME_TONE: Record<string, 'pass' | 'block' | 'hold' | 'info' | 'neutral'> = {
   auto_applied: 'pass',
@@ -26,210 +134,179 @@ const OUTCOME_TONE: Record<string, 'pass' | 'block' | 'hold' | 'info' | 'neutral
   reverted: 'hold',
 };
 
-function Home() {
-  const format = useFormat();
-  const { user } = useAuth();
-
-  const decisions = useQuery({
-    queryKey: ['decisions', 'overview'],
-    // The whole set, not a page of it: the strip reports totals, and a headline
-    // that silently showed the page size instead would be wrong.
-    queryFn: () => apiClient.searchDecisions({ limit: 5000 }),
-  });
-  const changeSets = useQuery({
-    queryKey: ['change-sets'],
-    queryFn: () => apiClient.listChangeSets(),
-  });
-  const activityQuery = useQuery({
+function Activity() {
+  const activity = useQuery({
     queryKey: ['agent-activity', 'overview'],
     queryFn: () => apiClient.listAgentActivity({ limit: 20 }),
   });
-  const flows = useQuery({
-    queryKey: ['artifacts'],
-    queryFn: () => apiClient.listArtifacts(),
+  const entries = activity.data?.activity ?? [];
+
+  return (
+    <Card>
+      <CardHeader
+        title="Agent activity"
+        description="What agents did under their autonomy level, and what a guardrail stopped."
+        actions={
+          <Link href="/agentic" className="text-label text-accent hover:underline">
+            Autonomy and guardrails →
+          </Link>
+        }
+      />
+      <CardBody className="p-0">
+        {activity.isLoading ? (
+          <LoadingState />
+        ) : activity.isError ? (
+          <ErrorState description="Could not load agent activity." onRetry={() => void activity.refetch()} />
+        ) : entries.length === 0 ? (
+          <div className="px-card py-4">
+            <p className="text-body text-content">Nothing in this feed.</p>
+            <p className="mt-1 text-label leading-relaxed text-content-muted">
+              An entry is written when an agent acts under its autonomy level: at L2 it opens a change
+              set and waits for a person; at L3 it publishes inside its guardrails and is rolled back
+              automatically if one is breached. This tenant&apos;s feed holds none. The audit log is the complete record of who
+              changed what, and for this tenant it lists agent actions this feed does not — G-101.
+            </p>
+            <Link href="/audit" className="mt-2 inline-block text-label text-accent hover:underline">
+              Open the audit log →
+            </Link>
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {entries.slice(0, 6).map((a) => (
+              <li key={a.id} className="px-card py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <AutonomyBadge level={a.level} />
+                      <span className="font-mono text-label text-content-subtle">{a.agentId}</span>
+                    </div>
+                    <p className="mt-1 text-body text-content-muted">{a.summary}</p>
+                    {a.guardrailBreached ? (
+                      <p className="mt-1 rounded border border-block/30 bg-block-subtle px-2 py-1 text-label text-block">
+                        {a.guardrailBreached}
+                      </p>
+                    ) : null}
+                  </div>
+                  <Badge tone={OUTCOME_TONE[a.outcome] ?? 'neutral'}>{a.outcome.replace('_', ' ')}</Badge>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardBody>
+    </Card>
+  );
+}
+
+function OverviewView() {
+  const format = useFormat();
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+
+  // The open stage lives in the URL, so a stage can be sent to someone.
+  const selected = params.get('stage');
+  const setSelected = (id: string | null) => {
+    const next = new URLSearchParams(params.toString());
+    if (id) next.set('stage', id);
+    else next.delete('stage');
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  // The whole tenant: the same query key `/performance` uses unfiltered, so the
+  // two screens share one fetch and cannot disagree about a figure.
+  const report = useQuery({
+    queryKey: ['performance', '', ''],
+    queryFn: () => apiClient.getPerformance({}),
   });
+  const taxonomy = useQuery({ queryKey: ['taxonomy'], queryFn: () => apiClient.getTaxonomy() });
 
-  const decs = decisions.data?.decisions ?? [];
-  const crs = changeSets.data?.changeSets ?? [];
-  const pending = crs.filter((c) => c.status === 'pending');
-  const activity = activityQuery.data?.activity ?? [];
-
-  const suppressed = decs.filter((d) => !d.winner).length;
-  const offered = decs.length - suppressed;
-
-  const artifacts = flows.data?.artifacts ?? [];
-  const compileFailing = artifacts.filter((a) => a.compileOk === false).length;
-  const compileWarning = artifacts.filter(
-    (a) => a.compileOk !== false && (a.warningCount ?? 0) > 0
-  ).length;
-
-  // Anything the agents did that a guardrail had to stop is what an operator
-  // actually needs surfaced, so it gets its own segment rather than a footnote.
-  const blocked = activity.filter(
-    (a) => a.outcome === 'blocked' || a.outcome === 'reverted'
-  ).length;
+  const marginByKey = useMemo(
+    () => new Map((taxonomy.data?.offers ?? []).map((o) => [o.key, o.financials.expectedMargin.amount])),
+    [taxonomy.data]
+  );
+  const loop = useMemo(
+    () => (report.data ? buildLoop(report.data, marginByKey, format) : null),
+    [report.data, marginByKey, format]
+  );
 
   return (
     <PageBody>
       <PageHeader
-        title={`Good to see you, ${user?.name.split(' ')[0] ?? 'there'}`}
-        description="Everything the platform decided, offered and changed for telco-us."
+        title="The loop"
+        description="What this tenant decided, what reached a customer, and what came back — under the changes agents have proposed to it."
       />
 
-      <div className="mb-stack grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-        <BigStat
-          label="Decisions"
-          value={format.number(decisions.data?.total ?? 0)}
-          sub="last 7 days"
-        />
-        <HealthSummary
-          label="Decision outcomes"
-          segments={[
-            { label: 'offered', count: offered, tone: 'pass' },
-            { label: 'suppressed', count: suppressed, tone: 'hold' },
-          ]}
-        />
-        <HealthSummary
-          label="Flow compilation"
-          segments={[
-            {
-              label: 'clean',
-              count: artifacts.length - compileFailing - compileWarning,
-              tone: 'pass',
-            },
-            { label: 'warnings', count: compileWarning, tone: 'hold' },
-            { label: 'blocked', count: compileFailing, tone: 'block' },
-          ]}
-        />
-        <HealthSummary
-          label="Governance"
-          segments={[
-            { label: 'pending', count: pending.length, tone: 'hold' },
-            { label: 'guardrail stops', count: blocked, tone: 'block' },
-            { label: 'decided', count: crs.length - pending.length, tone: 'pass' },
-          ]}
-        />
-      </div>
+      <section aria-labelledby="thesis" className="mb-stack">
+        <h2 id="thesis" className="mb-1 text-label font-semibold uppercase tracking-wide text-content-subtle">
+          Agents author, people approve, simulation gates it
+        </h2>
+        <p className="mb-3 max-w-3xl text-label leading-relaxed text-content-muted">
+          What an agent may do is a level set per scope. At L2 it opens a change set — a diff, and a
+          simulation replayed over recorded decisions — and nothing is published until a person holding{' '}
+          <code className="font-mono">approve:changes</code> approves it. At L3 it publishes without
+          waiting, but only a change inside the guardrails for that scope: a cap on how many customers
+          it reaches and how far it moves a boost, a simulation that must pass, and a bias ratio under
+          the gate. A change that breaches one is rolled back automatically, and a person reviews it
+          afterwards. What gets published is what the loop below measures.
+        </p>
+        <div className="grid gap-stack lg:grid-cols-2">
+          <Proposals />
+          <Activity />
+        </div>
+      </section>
 
-      <div className="grid gap-stack lg:grid-cols-2">
-        <Card>
-          <CardHeader
-            title="Awaiting your approval"
-            description="Changes proposed by people and agents."
-            actions={
-              <Link href="/approvals" className="text-label text-accent hover:underline">
-                All approvals →
-              </Link>
-            }
-          />
-          <CardBody className="p-0">
-            {changeSets.isLoading ? (
-              <LoadingState />
-            ) : pending.length === 0 ? (
-              <p className="px-card py-6 text-body text-content-muted">
-                Nothing pending. The queue is clear.
-              </p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {pending.map((cr) => (
-                  <li key={cr.id}>
-                    <Link
-                      href={`/approvals/${cr.id}`}
-                      className="block px-card py-3 transition-colors hover:bg-surface-sunken"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-body font-medium text-content">{cr.title}</p>
-                          <p className="mt-0.5 text-label text-content-muted">
-                            {cr.requestedBy.startsWith('agent-') ? 'Agent' : 'Person'} ·{' '}
-                            {cr.requestedBy}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1">
-                          <Badge tone="hold">pending</Badge>
-                          {cr.simulation && (
-                            <Badge tone={cr.simulation.passed ? 'pass' : 'block'}>
-                              sim {cr.simulation.passed ? 'passed' : 'failed'}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardBody>
-        </Card>
+      {report.isLoading ? (
+        <LoadingState label="Joining outcomes to decisions" />
+      ) : report.isError || !report.data || !loop ? (
+        <ErrorState description="Could not build the loop." onRetry={() => void report.refetch()} />
+      ) : report.data.decisions === 0 ? (
+        <EmptyState
+          title="Nothing has been decided yet"
+          description="The loop starts at a decision. Until a flow answers a request there is nothing to follow."
+        />
+      ) : (
+        <section aria-label="The loop">
+          <ProvenanceBanner provenance={report.data.provenance} />
+          <p className="mb-stack text-label text-content-subtle">
+            {report.data.from && report.data.to
+              ? `Decisions from ${format.date(report.data.from)} to ${format.date(report.data.to)}. `
+              : ''}
+            Each stage counts distinct decisions, and each is a subset of the one above: an offer
+            cannot be seen that was never deliverable, and a decision counts once however many times
+            a channel reports it.
+          </p>
 
-        <Card>
-          <CardHeader
-            title="Agent activity"
-            description="What the agents did, and what the guardrails stopped."
-            actions={
-              <Link href="/agentic" className="text-label text-accent hover:underline">
-                Autonomy settings →
-              </Link>
-            }
-          />
-          <CardBody className="p-0">
-            {activityQuery.isLoading ? (
-              <LoadingState />
-            ) : (
-              <ul className="divide-y divide-border">
-                {activity.slice(0, 6).map((a) => (
-                  <li key={a.id} className="px-card py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <AutonomyBadge level={a.level} />
-                          <span className="font-mono text-label text-content-subtle">
-                            {a.agentId}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-body text-content-muted">{a.summary}</p>
-                        {a.guardrailBreached && (
-                          <p className="mt-1 rounded border border-block/30 bg-block-subtle px-2 py-1 text-label text-block">
-                            {a.guardrailBreached}
-                          </p>
-                        )}
-                      </div>
-                      <Badge tone={OUTCOME_TONE[a.outcome] ?? 'neutral'}>
-                        {a.outcome.replace('_', ' ')}
-                      </Badge>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardBody>
-        </Card>
-      </div>
+          <LoopInversions loop={loop} />
 
-      <div className="mt-stack">
-        <Card>
-          <CardHeader title="Jump to" />
-          <CardBody>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                { href: '/offers', label: 'Offers', blurb: 'Master and category offers' },
-                { href: '/decisions', label: 'Decisions', blurb: 'Search traces and replay' },
-                { href: '/arbitration', label: 'Arbitration', blurb: 'Tune P × V × B × C' },
-                { href: '/agentic', label: 'Agentic AI', blurb: 'Autonomy and guardrails' },
-              ].map((l) => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  className="rounded border border-border px-3 py-2.5 transition-colors hover:border-accent hover:bg-accent-subtle"
-                >
-                  <p className="text-body font-medium text-content">{l.label}</p>
-                  <p className="mt-0.5 text-label text-content-muted">{l.blurb}</p>
-                </Link>
-              ))}
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,19rem)]">
+            <Card className="self-start">
+              <CascadeRail
+                label="The loop"
+                stages={loop.stages}
+                selected={selected}
+                onSelect={setSelected}
+                foot={<LoopRailFoot loop={loop} />}
+              />
+            </Card>
+
+            <div className="min-w-0">
+              {selected ? (
+                <LoopStageDetail data={report.data} loop={loop} stage={selected} />
+              ) : (
+                <LoopFirstPaint data={report.data} loop={loop} />
+              )}
             </div>
-          </CardBody>
-        </Card>
-      </div>
+
+            <Card className="self-start">
+              <CardBody>
+                <LoopStageEvidence data={report.data} loop={loop} stage={selected} />
+              </CardBody>
+            </Card>
+          </div>
+        </section>
+      )}
     </PageBody>
   );
 }
@@ -237,7 +314,7 @@ function Home() {
 export default function HomePage() {
   return (
     <RequireAuth>
-      <Home />
+      <OverviewView />
     </RequireAuth>
   );
 }

@@ -185,7 +185,7 @@ built when a spine in `docs/JOURNEY_SPINES.md` reaches them.
 ### Overview
 | Screen | Pattern | Notes |
 |---|---|---|
-| Persona home | Dashboard | Layout manifest per persona. Panels only. |
+| Overview | Cascade (4.7) | The loop — decisions → offered → deliverable → seen → acted — as rail, selected stage and evidence, with the proposed changes and agent activity above it. Changed from *Dashboard* by the product owner on 2026-09-13: the loop has a spine, and the dashboard it replaced put the product's thesis below four doughnuts. Hand-built on the shared loop components (`lib/loop.ts`, `components/loop-panes.tsx`) until a Cascade renderer exists (ADR-015). |
 
 ### Catalogue
 | Screen | Pattern | Notes |
