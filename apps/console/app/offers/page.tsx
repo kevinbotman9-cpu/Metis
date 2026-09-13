@@ -271,7 +271,7 @@ function OffersView() {
     <PageBody>
       <PageHeader
         title="Offers"
-        description="The offer catalogue, organised by business objective and product category. A decision flow's candidate set is drawn from here."
+        description="The offer catalogue, organised by business objective and product category."
         actions={
           canEdit ? (
             <Button variant="primary" size="md" onClick={() => setCreating(true)}>

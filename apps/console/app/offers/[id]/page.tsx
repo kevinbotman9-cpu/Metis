@@ -347,7 +347,6 @@ function OfferDetail({ offerId }: { offerId: string }) {
           <Card>
             <CardHeader
               title="Targeting policy"
-              description="Eligibility asks whether we can. Relevance asks whether we should now. Suitability asks whether it is right for this customer."
             />
             <CardBody className="space-y-4">
               {(['eligibility', 'relevance', 'suitability'] as const).map((kind) => {

@@ -33,7 +33,7 @@ export const objectivesLayout = {
       sort: { field: 'sortOrder', dir: 'asc' },
       empty: {
         title: 'No objectives yet',
-        description: 'An objective is the first thing in the catalogue. Everything else is filed under one.',
+        description: 'Categories and offers are filed under one.',
       },
     },
     detail: {

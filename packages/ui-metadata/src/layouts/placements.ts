@@ -16,8 +16,7 @@ export const placementsLayout = {
   formatVersion: 1,
   pattern: 'list-detail',
   title: 'Placements',
-  description:
-    'Every slot the platform decides for, and what carries the result to a customer. Deciding and delivering are separate questions — a slot can do the first without the second.',
+  description: 'A slot can decide without anything delivering.',
   params: {
     list: {
       source: 'placements',
@@ -28,8 +27,7 @@ export const placementsLayout = {
       sort: { field: 'channel', dir: 'asc' },
       empty: {
         title: 'No placements configured',
-        description:
-          'A placement is the slot a decision request names. Without one, decidePlacement has nothing to answer.',
+        description: 'A request naming an unconfigured slot is refused.',
       },
     },
     detail: {

@@ -265,9 +265,7 @@ function TrafficView() {
                             className="font-mono text-accent underline underline-offset-2"
                           >
                             {call.decisionId}
-                          </Link>{' '}
-                          — the trace shows which candidates were considered and why the
-                          winner won.
+                          </Link>
                         </p>
                       ) : null}
 
@@ -292,7 +290,7 @@ export default function TrafficPage() {
     <RequireAuth>
       <PageHeader
         title="Inbound traffic"
-        description="Every call served by this API, with the request and response in full. The outbound half — what METIS calls out to — is on Integrations."
+        description="Every call served by this API, request and response."
       />
       <PageBody>
         <TrafficView />

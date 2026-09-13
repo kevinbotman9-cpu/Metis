@@ -1,5 +1,6 @@
 'use client';
 
+import { InfoTip } from '@/components/ui/tooltip';
 import Link from 'next/link';
 import { Badge, Card, CardBody, CardHeader } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
@@ -137,7 +138,11 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
       <Card className="mb-stack">
         <CardHeader
           title="From decision to outcome"
-          description="Bar height is volume. The wedge between two stages is what left the loop there."
+          tip={
+            <InfoTip label="About the flow diagram">
+              Bar height is volume. The wedge between two stages is what left the loop there.
+            </InfoTip>
+          }
         />
         <CardBody>
           <LoopFlow
@@ -198,18 +203,14 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
 
       {dead.length > 0 ? (
         <Card className="border-block/40">
-          <CardHeader title="Wants your attention" description="One thing, and it is structural." />
+          <CardHeader title="Wants your attention" />
           <CardBody>
             <p className="text-body text-content">
               <strong>
-                {dead.length} {dead.length === 1 ? 'channel decides' : 'channels decide'} and nothing delivers the result.
+                {dead.map((c) => channelLabel(c.channel)).join(', ')} {dead.length === 1 ? 'decides' : 'decide'} and
+                nothing sends:
               </strong>{' '}
-              {format.number(undeliverable)} decisions on {dead.map((c) => channelLabel(c.channel)).join(', ')}. Every
-              figure below <em>Deliverable</em> in the rail describes {population}.
-            </p>
-            <p className="mt-2 text-label text-content-subtle">
-              W-017 is the adapter and is blocked on W-008 — there is no recipient address in the profile schema.
-              ADR-013.
+              no recipient address in the profile schema. Figures below <em>Deliverable</em> describe {population}.
             </p>
             <Link href="/placements" className="mt-3 block text-label text-accent underline-offset-2 hover:underline">
               Open placements →
@@ -224,17 +225,19 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
 function StageTable({
   title,
   description,
+  tip,
   head,
   children,
 }: {
   title: string;
-  description: string;
+  description?: string;
+  tip?: React.ReactNode;
   head: string;
   children: React.ReactNode;
 }) {
   return (
     <Card>
-      <CardHeader title={title} description={description} />
+      <CardHeader title={title} description={description} tip={tip} />
       <table className="w-full">
         <thead>
           <tr className="border-b border-border">
@@ -279,7 +282,7 @@ function StageRows({
 /** The selected stage, in the middle pane. */
 export function LoopStageDetail({ data, loop, stage }: { data: LoopReport; loop: Loop; stage: string }) {
   const format = useFormat();
-  const { population, undeliverable, delivering } = loop;
+  const { population, delivering } = loop;
 
   const columns: Column<PerformanceRowDto>[] = [
     {
@@ -357,7 +360,6 @@ export function LoopStageDetail({ data, loop, stage }: { data: LoopReport; loop:
       return (
         <StageTable
           title={`${format.number(data.decisions)} decisions`}
-          description="Every request that reached a decision flow and returned a ranked slate. Each produced a decision record, a chain hash and a replayable trace."
           head="Decisions"
         >
           <StageRows channels={data.channels} get={(c) => c.decisions} />
@@ -367,7 +369,6 @@ export function LoopStageDetail({ data, loop, stage }: { data: LoopReport; loop:
       return (
         <StageTable
           title={`${format.number(data.offered)} returned an offer`}
-          description="The rest found nothing eligible after targeting policy and frequency. A suppressed decision is a result, not a shortfall."
           head="Offered"
         >
           <StageRows channels={data.channels} get={(c) => c.offered} of={(c) => c.decisions} />
@@ -376,25 +377,13 @@ export function LoopStageDetail({ data, loop, stage }: { data: LoopReport; loop:
     case 'deliverable':
       return (
         <>
-          {undeliverable > 0 ? (
-            <Card className="mb-stack border-block/40">
-              <CardBody>
-                <p className="text-body text-content">
-                  <strong>The loop breaks here.</strong> {format.number(undeliverable)} of{' '}
-                  {format.number(data.offered)} decisions picked an offer on a channel with nothing to send it. They
-                  were decided correctly, recorded, and reached nobody — a replay of any of them returns a
-                  byte-identical hash confirming a choice that could never have been shown.
-                </p>
-                <p className="mt-2 text-label text-content-subtle">
-                  An adapter is W-017, blocked on W-008: no recipient address exists anywhere in the profile schema.
-                  ADR-013.
-                </p>
-              </CardBody>
-            </Card>
-          ) : null}
           <StageTable
             title={`${format.number(data.deliverable ?? 0)} could be delivered`}
-            description="A channel delivers when a placement on it names something that carries the result to a customer."
+            tip={
+              <InfoTip label="About deliverable">
+                A channel delivers when a placement on it names something that carries the result to a customer.
+              </InfoTip>
+            }
             head="Deliverable"
           >
             <StageRows channels={data.channels} get={(c) => c.deliverable} of={(c) => c.offered} />
@@ -405,7 +394,7 @@ export function LoopStageDetail({ data, loop, stage }: { data: LoopReport; loop:
       return (
         <StageTable
           title={`${format.number(data.measured)} were seen`}
-          description={`An impression is of an offer somebody could look at. Measured over ${population}, because nothing else was sent.`}
+          description={`Measured on ${population}.`}
           head="Seen"
         >
           <StageRows channels={data.channels} get={(c) => c.seen} of={(c) => c.deliverable} />
@@ -416,7 +405,7 @@ export function LoopStageDetail({ data, loop, stage }: { data: LoopReport; loop:
         <Card>
           <CardHeader
             title={`${format.number(data.acted)} were acted on`}
-            description={`Clicks, acceptances and conversions, by action. Every rate is over what was measured on ${population} — never over what was decided.`}
+            description={`Rates are over decisions measured on ${population}, not decisions made.`}
           />
           <DataTable
             columns={columns}

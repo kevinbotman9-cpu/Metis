@@ -71,7 +71,7 @@ export interface TraceEvidenceProps {
 function whenComputed(call: SourceCallDto): React.ReactNode {
   if (!call.observedAt) {
     return (
-      <Absent reason="this cache does not record when it stored the value (G-056)" />
+      <Absent reason="this cache does not record when it stored the value" />
     );
   }
   const observed = new Date(call.observedAt);
@@ -159,9 +159,6 @@ export function TraceEvidence({
             )}
           </Row>
         </dl>
-        <p className="mt-3 text-label text-content-subtle">
-          Select a stage to see what it removed, then a rule to see the evidence behind it.
-        </p>
       </>
     );
   }
@@ -290,7 +287,7 @@ export function TraceEvidence({
             </Row>
 
             <Row label="What the customer was told">
-              <Absent reason="nothing. No customer-facing refusal text exists in the platform (G-057)" />
+              <Absent reason="nothing. No customer-facing refusal text exists in the platform" />
             </Row>
           </dl>
         </>
@@ -317,11 +314,7 @@ export function TraceEvidence({
               )}
             </Row>
           </dl>
-          <p className="mt-3 text-label text-content-subtle">
-            {stage.removed > 0
-              ? 'Select a rule in the middle pane to see the evidence behind it.'
-              : 'This node removed nothing.'}
-          </p>
+          {stage.removed > 0 ? null : <p className="mt-3 text-label text-content-subtle">This node removed nothing.</p>}
         </>
       )}
     </>

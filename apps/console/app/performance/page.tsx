@@ -114,14 +114,13 @@ function PerformanceView() {
     <PageBody>
       <PageHeader
         title="Performance"
-        description="The loop, end to end. Each stage is a subset of the one above it, and where it breaks is drawn rather than smoothed."
       />
 
       <ProvenanceBanner provenance={data.provenance} />
 
       <p className="mb-stack text-label text-content-subtle">
         {data.from && data.to ? `Decisions from ${format.date(data.from)} to ${format.date(data.to)}. ` : ''}
-        Counts are distinct decisions, never events — a channel that fires twice reports once.
+        A channel that reports twice counts once.
       </p>
 
       <div className="mb-stack flex flex-wrap items-end gap-3">
@@ -187,14 +186,12 @@ function PerformanceView() {
         </>
       )}
 
-      {/* What this screen will not claim. Kept verbatim: it is cited in
+      {/* What this screen will not claim. Change it with the row that quotes it: it is cited in
           `docs/CAPABILITIES.md` as the place the product says it in its own
           words, and a rebuild that quietly dropped it would make that row a lie. */}
       <p className="mt-stack text-label text-content-muted">
-        Rates are over the decisions someone reported back on, never over the decisions offered — dividing by offers
-        nobody reported on turns silence into 0%. A dash means the number does not exist rather than being zero.
-        Counting only: attribution and uplift are statistical claims, and this platform does not make one it cannot
-        show you the workings for.
+        Rates are over decisions with a reported outcome. A dash is no measurement, not zero. Counting only: no
+        attribution or uplift.
       </p>
     </PageBody>
   );

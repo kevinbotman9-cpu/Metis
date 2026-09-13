@@ -168,7 +168,7 @@ function IntegrationsView() {
     <PageBody>
       <PageHeader
         title="Integrations"
-        description="Data the platform does not hold, fetched at decision time. A decision flow's source node names the connectors it needs; the values it returns land in the input snapshot the decision is hashed from, so a replay six months later uses what was fetched then, not what the system would return today."
+        description="Fetched at decision time. Values land in the input snapshot, so a replay uses what was fetched then."
       />
 
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">

@@ -72,7 +72,7 @@ export const objectiveDescriptor: EntityDescriptor = {
       field: 'description',
       type: 'textarea',
       label: 'Description',
-      help: 'What this objective is for, in the words a marketer would use.',
+      help: 'What this objective is for.',
       group: 'identity',
       order: 30,
       validation: { maxLength: 500 },

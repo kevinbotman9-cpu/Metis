@@ -91,7 +91,6 @@ test.describe('configuring a slot @screen-only', () => {
   test('a slot that decides and delivers nothing is named, not hidden', async ({ page }) => {
     await openPlacements(page);
     await expect(page.getByText(/decide, nothing delivers/)).toBeVisible();
-    await expect(page.getByText(/blocked on W-008/)).toBeVisible();
   });
 
   test('the key is locked once the slot exists, because a decision request carries it', async ({

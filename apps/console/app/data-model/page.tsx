@@ -176,7 +176,7 @@ function DataModelView() {
         <Card>
           <CardHeader
             title="The model does not hold together"
-            description="A schema that names an entity it does not define, or aggregates over a relationship that holds one object, produces confident nonsense downstream."
+            description="An undefined entity, or a rollup over a one-to-one relationship, fails validation."
           />
           <ul className="space-y-1 px-card py-3">
             {problems.map((p) => (
@@ -193,7 +193,7 @@ function DataModelView() {
           title={view === 'entities' ? 'Entities' : 'What a policy can reference'}
           description={
             view === 'entities'
-              ? `Version ${schema.version}. The root entity is what a decision request carries; the rest hang off it.`
+              ? `Version ${schema.version}.`
               : 'Every path a targeting policy may name. A field not on this list cannot be authored, and no longer compiles.'
           }
           actions={
@@ -292,8 +292,7 @@ function DataModelView() {
       {manyRelationships.length > 0 ? (
         <p className="text-label text-content-muted">
           {manyRelationships.length} one-to-many relationship
-          {manyRelationships.length === 1 ? '' : 's'} declared. A policy cannot read through one
-          directly — there is no single value to compare — which is what a rollup is for.
+          {manyRelationships.length === 1 ? '' : 's'} declared. A policy can&apos;t read one directly; use a rollup.
         </p>
       ) : null}
     </div>
@@ -305,7 +304,7 @@ export default function DataModelPage() {
     <RequireAuth>
       <PageHeader
         title="Data model"
-        description="What a decision can read about a customer, and what a targeting policy may reference. Declared here; enforced by the compiler."
+        description="What a policy may reference. Enforced by the compiler."
       />
       <PageBody>
         <DataModelView />

@@ -176,7 +176,6 @@ function ExperimentsView() {
       {list.length === 0 ? (
         <EmptyState
           title="No experiments"
-          description="A holdout is the usual first one: hold a slice of eligible customers back from an offer, so its uplift can be measured against people who were never asked."
         />
       ) : null}
 
@@ -294,7 +293,7 @@ function ExperimentsView() {
             id="exp-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Roaming pass holdout"
+            placeholder="e.g. 5G Home holdout"
           />
         </Field>
         <Field
@@ -306,7 +305,7 @@ function ExperimentsView() {
             id="exp-key"
             value={key}
             onChange={(e) => setKey(e.target.value)}
-            placeholder="e.g. roaming_holdout"
+            placeholder="e.g. home_5g_holdout"
           />
         </Field>
         <Field label="Held back (%)" htmlFor="exp-holdout" hint="The rest are offered as usual.">
@@ -329,7 +328,7 @@ export default function ExperimentsPage() {
     <RequireAuth>
       <PageHeader
         title="Experiments"
-        description="Arms are assigned from the customer reference, never stored, and recomputed when a decision is explained later."
+        description="Arms are derived from the customer reference, never stored, and recomputed when a decision is explained."
       />
       <PageBody>
         <ExperimentsView />

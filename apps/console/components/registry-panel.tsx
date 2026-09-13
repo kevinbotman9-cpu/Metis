@@ -78,7 +78,7 @@ export function RegistryPanel({ flowName }: { flowName: string }) {
         <CardHeader title="Registry" />
         <EmptyState
           title="Not in the registry"
-          description="Publishing compiles first, and this decision flow has not been published successfully. A version that does not compile is refused, so it cannot be promoted and cannot reach execution. The registry log below records the attempt."
+          description="This flow has never compiled, so it can't be promoted. The registry log below records the attempt."
         />
         <CardBody>
           <RegistryLog events={events.data?.events ?? []} />
@@ -95,7 +95,7 @@ export function RegistryPanel({ flowName }: { flowName: string }) {
     <Card>
       <CardHeader
         title="Registry"
-        description="Published versions are immutable and inactive until promoted. Promotion is when a change reaches customers, so it is its own decision with its own audit entry."
+        description="Published versions are immutable and inactive until promoted."
       />
       <CardBody className="space-y-4">
         {problem && (

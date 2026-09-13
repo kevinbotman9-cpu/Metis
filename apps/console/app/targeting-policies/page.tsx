@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth-provider';
 import { PolicyFormDialog } from '@/components/policy-form-dialog';
 import { cn } from '@/lib/cn';
+import { InfoTip } from '@/components/ui/tooltip';
 
 const KINDS = [
   {
@@ -151,7 +152,7 @@ function PoliciesView() {
     <PageBody>
       <PageHeader
         title="Targeting policies"
-        description="Three tiers decide whether an offer may reach a customer. Every trace records which tier removed a candidate and why."
+        description="The trace records which tier removed a candidate."
         actions={
           canEdit ? (
             <Button variant="primary" onClick={() => setCreating(true)}>
@@ -175,12 +176,12 @@ function PoliciesView() {
           const count = all.filter((p) => p.kind === k.key).length;
           const selected = kind === k.key;
           return (
+            <div key={k.key} className="relative">
             <button
-              key={k.key}
               onClick={() => setKind(selected ? '' : k.key)}
               aria-pressed={selected}
               className={cn(
-                'rounded-lg border p-card text-left transition-colors',
+                'h-full w-full rounded-lg border p-card pr-8 text-left transition-colors',
                 selected
                   ? 'border-accent bg-accent-subtle'
                   : 'border-border bg-surface hover:border-border-strong'
@@ -191,7 +192,6 @@ function PoliciesView() {
                 <span className="tnum text-body font-semibold text-content">{count}</span>
               </div>
               <p className="mt-2 text-body font-medium text-content">{k.question}</p>
-              <p className="mt-1 text-label text-content-muted">{k.blurb}</p>
               {/* A zero here is ambiguous: it reads as an omission, and on the
                   tier a regulator reads that is the worst thing for it to read
                   as. This tenant genuinely declares no suitability policy —
@@ -205,6 +205,11 @@ function PoliciesView() {
                 </p>
               ) : null}
             </button>
+            {/* Outside the button: a tooltip trigger cannot be nested inside one. */}
+            <div className="absolute bottom-card right-card">
+              <InfoTip label={`About ${k.title.toLowerCase()}`}>{k.blurb}</InfoTip>
+            </div>
+            </div>
           );
         })}
       </div>
@@ -212,11 +217,6 @@ function PoliciesView() {
       <Card>
         <CardHeader
           title={kind ? `${kind} rules` : 'All policies'}
-          description={
-            kind
-              ? 'Selected tier only. Click the card again to clear.'
-              : 'Every engagement rule across all scopes.'
-          }
         />
         <DataTable
           columns={columns}

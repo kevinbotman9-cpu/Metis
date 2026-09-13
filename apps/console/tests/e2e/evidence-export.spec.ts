@@ -99,7 +99,7 @@ test.describe('exporting evidence @screen-only', () => {
     await expect(pdf).toBeDisabled();
     // The reason reaches the person, not just a reader of the source.
     await expect(pdf).toHaveAttribute('title', /Not built/);
-    await expect(pdf).toHaveAttribute('title', /W-053/);
+    await expect(pdf).toHaveAttribute('title', /regulator pack/);
   });
 });
 

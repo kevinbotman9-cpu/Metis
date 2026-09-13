@@ -318,16 +318,8 @@ export function CreativeCoverage({
                 <p className="mt-1 text-body text-content-muted">
                   {undeliverableChannels
                     .map((ch) => CHANNEL_LABEL[ch] ?? ch)
-                    .join(', ')}{' '}
-                  — every slot on{' '}
-                  {undeliverableChannels.length === 1 ? 'this channel' : 'these channels'} is
-                  decidable and has no delivery mode, so content written for{' '}
-                  {undeliverableChannels.length === 1 ? 'it' : 'them'} could not reach anybody.
-                  Coverage below is measured against what can actually be delivered.
-                </p>
-                <p className="mt-1.5 text-label text-content-subtle">
-                  ADR-013. The adapter is W-017, blocked on W-008 — there is no recipient
-                  address in the profile schema.
+                    .join(', ')}
+                  : content here can&apos;t reach anyone. Coverage below counts deliverable channels only.
                 </p>
               </div>
             </div>
@@ -338,7 +330,6 @@ export function CreativeCoverage({
       <Card>
         <CardHeader
           title="Content coverage"
-          description="One row per active offer, one column per channel this tenant can deliver on. An offer with nothing live on a channel wins that channel's slots and renders nothing in them."
         />
         <DataTable
           columns={columns}

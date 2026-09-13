@@ -44,6 +44,68 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-104 — Nothing stops a long-lived dev server competing with the suite's own server
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** none — the unfixed half of [G-035](gaps.md)
+
+[G-035](gaps.md) was resolved by making the e2e harness start its own server on
+port 3200 and never reuse one. That stops the suite *measuring* a stale server.
+It does not stop one *competing* with the suite for the same machine, and G-035
+says so in its own text: "A machine doing other work while the suite runs… no
+harness setting prevents that." Until now that sentence had one observation
+behind it, from 2026-09-12. It now has two more.
+
+**The observations, 2026-09-13, on the prose slice (a docs-and-copy change).**
+A `next dev` process had been on port 3000 since 08:18, serving the browser the
+slice's screenshots came from. Two consecutive `npm run gates` runs on a fresh
+harness-owned server each went red on one e2e test, and on different tests:
+
+| Run | e2e | Failure |
+|---|---|---|
+| 1 | 393 passed, 34 skipped, 1 failed, 14.1 min | `accessibility.spec.ts` — axe reported the decision trace had no `<title>`. The title is Next `metadata` in `app/layout.tsx`, which the slice does not touch. The test passed 3 of 3 alone on a fresh server. |
+| 2 | 393 passed, 34 skipped, 1 failed, 17.0 min | `outcome-loop.spec.ts` @screen-only — the snapshot shows `/performance` still on "Joining outcomes to decisions…" when the 10-second wait ran out. The sentence it waited for is not in the diff. |
+
+Both are timing assertions, not content assertions. Neither test is registered
+as a flake. The second run was three minutes slower than the first.
+
+**What this does not establish.** Causation. Process sampling taken after run
+two showed the port-3000 server at 181 CPU-seconds since 08:18, which is not
+heavy, and it had exited on its own by the time it was to be stopped before
+the third run. A third run started with no other node process on the machine went green on all 23 gates (e2e 394 passed, 34 skipped, 0 failed, 16.3 min). That is consistent with competition and does not prove it: one green run after two red ones is also what an intermittent fault looks like.
+
+**Done when:** a gates run refuses to start, or warns loudly, when another
+console server is listening on the machine, or the rule is written down with
+the reason and a check holds it. Not a longer timeout: that hides the class
+instead of naming it.
+
+### G-103 — Two telco-uk fields are still in the telco-us fixtures, and renaming them moves every chain hash
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** none — a fixture change with a corpus regeneration behind it
+
+The 2026-09-13 prose pass swept rendered text for facts left over from the
+`telco-uk` tenant and fixed the ones that were prose: a placement help string
+counting "four of this tenant's five channels" on a three-channel tenant, and
+"Roaming pass" in the experiment form's placeholders. Two remain, and both are
+data rather than prose:
+
+- `customer.usage.roaming_days` in `apps/console/mocks/fixtures/profile-schema.ts`,
+  rendered on `/data-model` as "Days roaming in the last period." and generated
+  into requests by `apps/console/mocks/gateway.ts`. This tenant sells no mobile
+  plan.
+- The order-book connector's `billing.rollingSpendPence` path in
+  `apps/console/mocks/fixtures/catalogue.ts`, rendered on `/integrations`, on a
+  tenant that bills in dollars.
+
+**Not fixed with the prose, on purpose.** Both reach the corpus requests and
+`docs/conformance/service-bundle.json`, and this register already records that
+one field falling out of the generated requests diverged all 60 conformance
+cases on chain hash while agreeing on every winner. A rename is a fixture change
+followed by regenerating the corpora and the service bundle, and that diff
+should be reviewable on its own rather than inside a copy edit.
+
+**Done when:** neither field is in the fixtures under a telco-uk name, the
+corpora and bundle are regenerated in the same commit, and conformance is green.
+
 ### G-102 — The console uses the all-caps and tracked labels the visual spec forbids
 
 **Registered:** 2026-09-13 · **Status:** Open · **Work item:** slice three of the 2026-09-13 design pass, by the product owner

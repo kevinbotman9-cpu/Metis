@@ -111,7 +111,6 @@ function SettingsView() {
     <PageBody>
       <PageHeader
         title="Settings"
-        description="Your account, appearance and tenant configuration."
       />
 
       <div className="grid gap-stack lg:grid-cols-2">
@@ -160,10 +159,6 @@ function SettingsView() {
                   </code>
                 ))}
               </div>
-              <p className="mt-2 text-label text-content-muted">
-                Navigation and actions are filtered by these. Signing in as a different demo
-                account changes what this console shows.
-              </p>
             </div>
           </CardBody>
         </Card>
@@ -219,8 +214,7 @@ function SettingsView() {
                 ))}
               </div>
               <p className="mt-2 text-label text-content-muted">
-                Currently <strong>{colorScheme}</strong> × <strong>{density}</strong>. All four
-                combinations are covered by the Storybook theme axes.
+                Currently <strong>{colorScheme}</strong> × <strong>{density}</strong>.
               </p>
             </div>
           </CardBody>

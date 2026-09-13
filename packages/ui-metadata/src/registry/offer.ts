@@ -180,7 +180,7 @@ export const offerDescriptor: EntityDescriptor = {
     {
       field: 'validity',
       reason:
-        'Effective dating is the Schedule screen, which sets it across every catalogue entity at once. W-015.',
+        'Effective dating is the Schedule screen, which sets it across every catalogue entity at once.',
     },
     {
       field: 'policyIds',

@@ -151,7 +151,6 @@ export const placementDescriptor: EntityDescriptor = {
       field: 'delivery.mode',
       type: 'select',
       label: 'Delivered by',
-      help: 'Nothing is the honest answer for a slot with no far end, and four of this tenant’s five channels are in that state.',
       group: 'delivery',
       order: 20,
       options: {
@@ -166,7 +165,7 @@ export const placementDescriptor: EntityDescriptor = {
       field: 'delivery.adapterId',
       type: 'text',
       label: 'Adapter',
-      help: 'No adapter exists yet — W-017, blocked on W-008 because no recipient address exists in the profile schema.',
+      help: 'No adapter exists yet.',
       group: 'delivery',
       order: 30,
       visibleWhen: { field: 'delivery.mode', equals: 'adapter' },

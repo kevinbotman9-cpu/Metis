@@ -1,5 +1,6 @@
 'use client';
 
+import { InfoTip } from '@/components/ui/tooltip';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
@@ -339,7 +340,6 @@ function IntakeView() {
       <Card>
         <CardHeader
           title="Sources"
-          description="Where customer records come from, and how each source's shape maps onto the model."
           actions={
             canEdit ? (
               <Button variant="primary" onClick={() => setCreating(true)}>
@@ -391,7 +391,7 @@ function IntakeView() {
           <Card>
             <CardHeader
               title={`Land — ${selected.name}`}
-              description="Records are held as they arrived, unmapped. Landing observes the column names and does not interpret them. New rows send the source back to draft, because rows that arrive after a verdict were not the rows it was about."
+              description="New rows send the source back to draft: a verdict covers only the rows it saw."
             />
             <div className="space-y-2 px-card py-3">
               <Field label="Records as JSON" htmlFor="paste">
@@ -424,7 +424,11 @@ function IntakeView() {
           <Card>
             <CardHeader
               title="Map"
-              description="Each column onto a field the model declares. A path the model does not have cannot be chosen."
+              tip={
+                <InfoTip label="About mapping">
+                  Each column maps onto a field the model declares. A path the model does not have cannot be chosen.
+                </InfoTip>
+              }
               actions={
                 canEdit ? (
                   <div className="flex gap-2">
@@ -513,7 +517,6 @@ function IntakeView() {
         open={creating}
         onOpenChange={setCreating}
         title="New source"
-        description="Name it and say how records arrive. Mapping comes after the first rows land."
         submitLabel="Create source"
         busy={create.isPending}
         onSubmit={() => create.mutate()}
@@ -547,7 +550,7 @@ export default function IntakePage() {
     <RequireAuth>
       <PageHeader
         title="Intake"
-        description="Land records as they arrive, map them onto the data model, validate, and only then activate. Held in memory and lost on restart — retention is ADR-004 and still open."
+        description="Held in memory and lost on restart."
       />
       <PageBody>
         <IntakeView />

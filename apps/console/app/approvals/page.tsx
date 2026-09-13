@@ -123,7 +123,6 @@ function ApprovalsView() {
     <PageBody>
       <PageHeader
         title="Approvals"
-        description="Every change to an offer, policy, boost or decision flow arrives here as a change set — whether a person or an agent raised it."
       />
 
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">

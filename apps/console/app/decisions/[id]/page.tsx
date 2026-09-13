@@ -1,5 +1,6 @@
 'use client';
 
+import { InfoTip } from '@/components/ui/tooltip';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, usePathname, useSearchParams } from 'next/navigation';
@@ -191,7 +192,6 @@ function TraceView({ decisionId }: { decisionId: string }) {
             )}
           </span>
         }
-        description="Immutable record of what the platform decided and why."
         actions={
           <>
             {/* The regulator-ready pack is a document, not a serialisation: it
@@ -204,7 +204,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
               variant="secondary"
               size="sm"
               disabled
-              title="Not built: the regulator pack needs a document renderer and a hash verification page (W-053). Export JSON carries the same evidence."
+              title="Not built: the regulator pack needs a document renderer and a hash verification page. Export JSON carries the same evidence."
             >
               Export PDF
             </Button>
@@ -317,8 +317,15 @@ function TraceView({ decisionId }: { decisionId: string }) {
                 }
                 description={
                   selectedStage.removed > 0
-                    ? 'Grouped by the rule that removed them. A reason code is shared by a whole tier; the rule is the thing somebody can go and change.'
+                    ? 'Grouped by the rule that removed them.'
                     : selectedStage.reason || 'Every candidate carried on from this node.'
+                }
+                tip={
+                  selectedStage.removed > 0 ? (
+                    <InfoTip label="Why rules, not reason codes">
+                      A reason code is shared by a whole tier; the rule is the thing somebody can go and change.
+                    </InfoTip>
+                  ) : undefined
                 }
               />
               <CardBody>
@@ -385,7 +392,6 @@ function TraceView({ decisionId }: { decisionId: string }) {
             <Card>
               <CardHeader
                 title={`${trace.candidateCount} candidates, ${trace.winner ? 'one offered' : 'none offered'}`}
-                description="The flow that ran, node by node. Select a stage in the rail to see what it removed."
               />
               <CardBody>
                 <ol className="flex flex-col gap-1.5">
@@ -401,12 +407,6 @@ function TraceView({ decisionId }: { decisionId: string }) {
                     </li>
                   ))}
                 </ol>
-                {!trace.winner ? (
-                  <p className="mt-3 text-label text-content-muted">
-                    This decision returned no offer. Every candidate was removed before
-                    arbitration could rank one, which is a result rather than a failure.
-                  </p>
-                ) : null}
               </CardBody>
             </Card>
           )}
@@ -649,10 +649,8 @@ function TraceView({ decisionId }: { decisionId: string }) {
                   {trace.chainHash}
                 </code>
                 <p className="mt-1 text-label text-content-subtle">
-                  sha256 over the reproducible part of this decision. Timings are excluded, so
-                  the hash is stable across executions. The decision ID is its first 16
-                  characters. It covers the input snapshot and the catalogue above, both of
-                  which are named here so the hash can be checked rather than taken on trust.
+                  sha256 over the reproducible part, excluding timings, covering the input snapshot and
+                  catalogue above. The decision ID is its first 16 characters.
                 </p>
               </div>
             </CardBody>
@@ -662,7 +660,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
             <Card>
               <CardHeader
                 title="Where the data came from"
-                description="Fields fetched from an integration when this decision was made. The values are inside the input snapshot above, not stored here — a trace can be kept without keeping the customer data it was made from."
+                description="Values are in the input snapshot above, not stored here."
               />
               <CardBody>
                 <ul className="space-y-2">

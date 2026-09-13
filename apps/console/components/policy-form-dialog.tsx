@@ -37,7 +37,7 @@ import {
 const KINDS: { value: TargetingPolicyDto['kind']; label: string; help: string }[] = [
   { value: 'eligibility', label: 'Eligibility', help: 'Can we offer this at all? A hard gate.' },
   { value: 'relevance', label: 'Relevance', help: 'Should we offer it now? Situational.' },
-  { value: 'suitability', label: 'Suitability', help: 'Is it right for this customer? Affordability and ethics.' },
+  { value: 'suitability', label: 'Suitability', help: 'Is it right for this customer?' },
 ];
 
 const OPERATOR_LABEL: Record<string, string> = {

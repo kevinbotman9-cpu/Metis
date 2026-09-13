@@ -118,7 +118,7 @@ function FlowDetail({ artifactId }: { artifactId: string }) {
               variant="secondary"
               size="md"
               disabled
-              title="Not built: comparing two versions needs a diff view (W-054). The active version and its pinned packages are shown below."
+              title="Not built: comparing two versions needs a diff view. The active version and its pinned packages are shown below."
             >
               Version history
             </Button>
