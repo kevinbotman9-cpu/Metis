@@ -87,7 +87,10 @@ export default defineConfig({
     // Playwright refuses a busy port before a single test runs.
     reuseExistingServer: false,
     env: {
-      // Inside `.next`, so git, tsc and eslint already ignore it.
+      // Inside `.next`, so git and eslint already ignore it. tsc does not, on
+      // purpose: `next dev` adds this directory's generated route types to
+      // tsconfig.json's include, as it did for `.next/dev`, and those globs are
+      // committed so a run does not dirty the tree.
       NEXT_DIST_DIR: '.next/e2e',
       METIS_E2E_RUN: process.env.METIS_E2E_RUN!,
     },

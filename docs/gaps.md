@@ -1852,9 +1852,14 @@ last.
 - **The dist directory is what makes that livable.** Next 16 takes a lock at
   `<distDir>/lock` and refuses a second `next dev` on the same directory, so a
   suite on the default directory would fail whenever a person had the console
-  open. On its own directory it runs beside theirs. Inside `.next`, so git,
-  `tsc`'s exclude and eslint already ignore it. `next.config.js` reads
-  `NEXT_DIST_DIR`; everybody else gets `.next`.
+  open. On its own directory it runs beside theirs. Inside `.next`, so git and
+  eslint already ignore it. `next.config.js` reads `NEXT_DIST_DIR`; everybody
+  else gets `.next`.
+- **`next dev` rewrote `tsconfig.json` on the harness's first run**, adding
+  `.next/e2e/types` and `.next/e2e/dev/types` to `include` — the same thing it
+  does for `.next/dev`. Committed rather than reverted, since a revert is
+  recreated by every run, and `e2e-harness.test.ts` asserts the globs stay so a
+  run leaves the tree clean.
 - `GET /api/_test/uptime` echoes the run token. `global-setup.ts` refuses a
   server that does not echo *this* run's token, before the seed check.
 - **The refusal logic is a pure function**, `apps/console/tests/server-trust.ts`,

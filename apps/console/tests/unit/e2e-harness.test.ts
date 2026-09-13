@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
+import fs from 'node:fs';
 import path from 'node:path';
 import config from '../../playwright.config';
 
@@ -54,12 +55,26 @@ describe('the suite starts its own server and never reuses one', () => {
   it('builds into a dist directory of its own, inside .next', () => {
     // Next 16 takes a lock at `<distDir>/lock` and refuses a second `next dev`
     // on the same directory, so a separate directory is what lets the suite run
-    // beside a person's server rather than failing on it. Inside `.next` so the
-    // existing ignores already cover it: git, tsc's exclude and eslint.
+    // beside a person's server rather than failing on it. Inside `.next`, so git
+    // and eslint already ignore it.
     const dir = server.env?.NEXT_DIST_DIR;
     expect(dir).toBeTruthy();
     expect(dir).not.toBe('.next');
     expect(dir!.startsWith('.next/')).toBe(true);
+  });
+
+  it('keeps the route types Next adds for that directory, so a run leaves the tree clean', () => {
+    // `next dev` rewrites tsconfig.json to include `<distDir>/dev/types` for
+    // whatever dist directory it runs in. Found by the first run of this
+    // harness, which left tsconfig.json modified. Committed rather than
+    // reverted: a revert is recreated by every run, and a tree that is dirty
+    // after every e2e run is one where a real uncommitted change hides.
+    const tsconfig = JSON.parse(
+      fs.readFileSync(path.resolve(__dirname, '../../tsconfig.json'), 'utf8')
+    ) as { include: string[] };
+    const dir = server.env!.NEXT_DIST_DIR;
+    expect(tsconfig.include).toContain(`${dir}/types/**/*.ts`);
+    expect(tsconfig.include).toContain(`${dir}/dev/types/**/*.ts`);
   });
 
   it('hands the server the run token the setup checks it for', () => {
