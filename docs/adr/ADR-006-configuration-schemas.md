@@ -116,6 +116,31 @@ separate decision. Metadata-driven rendering makes it *easier* to route every
 console write through change sets, because the write path is one code path
 rather than five — but it does not decide whether they should be.
 
+### Amended 2026-09-13: the vocabulary gained a type
+
+A targeting policy's conditions are a list of field, operator and value, and
+none of the eight field types could hold one. The first plan was to leave
+conditions out of the form and edit them afterwards in a panel. The server
+refuses a policy with no conditions — one would match everything — so a form
+without them could not create a policy at all, and the type became necessary
+rather than convenient. `conditions` was added, and nothing else changed. That
+is the precedent for the next one:
+
+- **A type is added when an entity cannot be written without it**, not when a
+  field would look better as something else. A type is an interaction the
+  generic renderer learns once for every entity, so one screen's preference is
+  not enough.
+- **It is additive.** No existing type changed meaning, and no descriptor that
+  does not use it changed.
+- **Form state stays a map of strings.** A `conditions` value travels through the
+  form as JSON and is parsed back in `toPayload`, so the codec's contract with
+  every other type is untouched.
+- **What it offers comes from a named source**, as a select's options do. The
+  editor lists `profile.paths` — the data model's selectable paths and the
+  operators each admits — which the host resolves, so the descriptor stays data.
+- **Refusals still land on what they are about.** A problem on `conditions.2`
+  shows against the third row, not at the top of the form.
+
 ## Status, honestly
 
 **Accepted 2026-09-09 by the product owner.** It was Proposed from 2026-09-06,

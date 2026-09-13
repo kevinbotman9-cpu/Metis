@@ -78,6 +78,8 @@ const context = (
   canEdit: () => editable,
   create: (entity, seed) => console.info('create', entity, seed?.defaults),
   edit: (entity, record) => console.info('edit', entity, record.key),
+  canDelete: () => editable,
+  remove: (entity, record) => console.info('delete', entity, record.key),
   Link: Anchor,
 });
 
@@ -123,6 +125,7 @@ function Host({
       onFilter={setFilter}
       onCreate={editable ? () => console.info('create') : undefined}
       onEdit={editable ? (r) => console.info('edit', r.key) : undefined}
+      onDelete={editable ? (r) => console.info('delete', r.key) : undefined}
       context={context(screen, rows, status, editable, noChildren)}
     />
   );

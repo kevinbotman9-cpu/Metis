@@ -150,7 +150,8 @@ test.describe('authoring a policy', () => {
     await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
     const dialog = page.getByRole('dialog');
 
-    await expect(dialog.getByRole('heading', { name: 'Edit policy' })).toBeVisible();
+    // The declared form names the record it edits.
+    await expect(dialog.getByRole('heading', { name: /^Edit / })).toBeVisible();
     // The form arrives populated, or an edit silently becomes a rewrite.
     await expect(dialog.getByLabel('Name')).not.toHaveValue('');
 
@@ -161,6 +162,41 @@ test.describe('authoring a policy', () => {
     await expect(page.getByText('Renamed by a test', { exact: true })).toBeVisible();
 
     await resetStore(page);
+  });
+
+  // covers: deleteTargetingPolicy
+  test('deletes a policy it wrote, and it leaves the list', async ({ page }) => {
+    await page.getByRole('button', { name: 'New policy', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Name').fill('Written to be deleted');
+    await dialog.getByLabel('Field for condition 1').selectOption('customer.age');
+    await dialog.getByLabel('Operator for condition 1').selectOption('gte');
+    await dialog.getByLabel('Value for condition 1').fill('21');
+    await dialog.getByRole('button', { name: 'Create policy' }).click();
+    await expect(dialog).toBeHidden();
+
+    await page.getByRole('button', { name: 'Delete policy Written to be deleted', exact: true }).click();
+    await expect(dialog.getByRole('heading', { name: 'Delete this policy?' })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Delete policy', exact: true }).click();
+
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText('Written to be deleted', { exact: true })).toHaveCount(0);
+
+    await resetStore(page);
+  });
+
+  test('refuses to delete a policy an offer is bound to, and says what to do instead', async ({ page }) => {
+    // 5G Home Ultimate is bound to this one. Deleting it would change who that
+    // offer reaches, so the platform refuses, and the dialog keeps the sentence
+    // that says why rather than closing on a failure. Named rather than taken
+    // first: three seeded policies are bound to nothing, and deleting one of
+    // those is allowed.
+    await page.getByRole('button', { name: 'Delete policy Bandwidth need in the usage profile', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Delete policy', exact: true }).click();
+
+    await expect(dialog.getByRole('alert')).toContainText('Deactivate it instead');
+    await expect(dialog).toBeVisible();
   });
 
   test('offers no authoring control to an account that cannot author policies', async ({
@@ -174,5 +210,6 @@ test.describe('authoring a policy', () => {
 
     await expect(page.getByRole('button', { name: 'New policy', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Delete policy / })).toHaveCount(0);
   });
 });

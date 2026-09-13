@@ -7,6 +7,7 @@ import {
   type ListDetailManifest,
   type ListFacet,
   type Option,
+  type RuleCondition,
 } from '@metis/ui-metadata';
 import type { Row } from './sources';
 import type { Formatter } from '@/lib/format';
@@ -64,6 +65,10 @@ export function display(
     }
     case 'tags':
       return Array.isArray(value) && value.length ? { text: value.join(', ') } : NOT_SET;
+    case 'conditions':
+      return Array.isArray(value) && value.length
+        ? { text: (value as RuleCondition[]).map((c) => `${c.field} ${c.operator} ${JSON.stringify(c.value)}`).join('; ') }
+        : NOT_SET;
     case 'date':
       return { text: format.date(String(value), { day: '2-digit', month: 'short', year: 'numeric' }) };
     default:

@@ -31,6 +31,12 @@ export const placementDescriptor: EntityDescriptor = {
     description: 'Changes apply immediately and are written to the audit log.',
     submitLabel: 'Save placement',
   },
+  remove: {
+    title: 'Delete this placement?',
+    description:
+      'A request naming this slot is refused from then on, and it cannot be restored. A slot a creative names is refused: point that content at another slot first.',
+    confirmLabel: 'Delete placement',
+  },
 
   groups: [
     { key: 'identity', order: 10, columns: 1 },

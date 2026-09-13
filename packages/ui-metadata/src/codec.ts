@@ -1,4 +1,4 @@
-import type { Condition, EntityDescriptor, FieldDescriptor, Option } from './types';
+import type { Condition, EntityDescriptor, FieldDescriptor, Option, RuleCondition } from './types';
 
 /**
  * The pure half of the renderer: entity ⇄ form state, and which fields apply.
@@ -120,10 +120,32 @@ function fieldToString(field: FieldDescriptor, value: unknown): string {
       return Array.isArray(value) ? value.join(', ') : '';
     case 'boolean':
       return value ? 'true' : '';
+    case 'conditions':
+      return writeConditions(Array.isArray(value) ? (value as RuleCondition[]) : []);
     default:
       return String(value);
   }
 }
+
+/**
+ * A `conditions` field's form state as the list it holds.
+ *
+ * Form state is a map of strings for every type, so this one travels as JSON.
+ * Anything that is not a JSON array reads as no conditions — never as a throw
+ * in the middle of somebody typing, and never as a guess at what was meant.
+ */
+export function readConditions(raw: string): RuleCondition[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as RuleCondition[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export const writeConditions = (conditions: readonly RuleCondition[]): string =>
+  conditions.length === 0 ? '' : JSON.stringify(conditions);
 
 /** An existing entity as form state, or the blank state for a new one. */
 export function toFormState(
@@ -201,6 +223,9 @@ export function toPayload(
             .map((t) => t.trim())
             .filter(Boolean)
         );
+        break;
+      case 'conditions':
+        setPath(body, field.field, readConditions(raw));
         break;
       default:
         setPath(body, field.field, raw.trim());

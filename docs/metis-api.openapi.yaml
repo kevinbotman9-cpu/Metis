@@ -3151,6 +3151,39 @@ paths:
             Switching this off would leave an active offer with no active
             creative.
 
+    delete:
+      summary: Delete a creative
+      operationId: deleteCreative
+      x-metis-status: proposed
+      description: |
+        Proposed (G-110). The console's development API serves it; no plane
+        does.
+
+        Refused, as switching one off is, when it would leave an active offer
+        with no deliverable content. Pause or retire the offer first.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: creativeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted, and written to the audit log
+        '403':
+          description: Caller lacks edit:offers
+        '404':
+          description: No such offer or creative
+        '409':
+          description: |
+            Deleting this would leave an active offer with no active creative.
+
   # ---------------------------------------------------------------------------
   # Targeting policy, frequency policy, arbitration
   # ---------------------------------------------------------------------------
@@ -3244,6 +3277,32 @@ paths:
           description: Requires edit:policies
         '404':
           description: No such policy
+
+    delete:
+      summary: Delete a targeting policy
+      operationId: deleteTargetingPolicy
+      x-metis-status: proposed
+      description: |
+        Proposed (G-110). The console's development API serves it; no plane
+        does.
+
+        Refused while an offer is bound to the policy: deleting it would change
+        who that offer reaches. Deactivating it stores it and stops applying it.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Deleted, and written to the audit log
+        '403':
+          description: Requires edit:policies
+        '404':
+          description: No such policy
+        '409':
+          description: An offer is bound to this policy
 
   /data-sources/{tenantId}:
     get:
@@ -4304,6 +4363,33 @@ paths:
           description: Caller lacks edit:integrations
         '404':
           description: No such placement
+
+    delete:
+      summary: Delete a placement
+      operationId: deletePlacement
+      x-metis-status: proposed
+      description: |
+        Proposed (G-110). The console's development API serves it; no plane
+        does.
+
+        Refused while a creative names the slot: content pointed at a slot that
+        no longer exists cannot be delivered. Point it at another slot first.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: placementKey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted, and written to the audit log
+        '403':
+          description: Caller lacks edit:integrations
+        '404':
+          description: No such placement
+        '409':
+          description: A creative names this slot
 
   # ---------------------------------------------------------------------------
   # Tenant — how a tenant presents dates, numbers and money

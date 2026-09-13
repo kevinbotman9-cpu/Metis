@@ -104,6 +104,22 @@ test.describe('configuring a slot @screen-only', () => {
     await expect(dialog(page).getByLabel('Key')).toBeDisabled();
   });
 
+  // covers: deletePlacement
+  test('a slot configured by mistake can be deleted, and leaves the registry', async ({ page }) => {
+    await openPlacements(page);
+    await createPlacement(page, 'Winback SMS');
+
+    await page.getByRole('option').filter({ hasText: 'winback_sms' }).click();
+    await page.getByRole('button', { name: 'Delete placement Winback SMS', exact: true }).click();
+    await expect(dialog(page).getByRole('heading', { name: 'Delete this placement?' })).toBeVisible();
+    await dialog(page).getByRole('button', { name: 'Delete placement', exact: true }).click();
+    await expect(dialog(page)).toHaveCount(0);
+
+    await expect(page.getByRole('option').filter({ hasText: 'winback_sms' })).toHaveCount(0);
+    // The address named the slot that is gone, so it no longer does.
+    await expect(page).not.toHaveURL(/placement=winback_sms/);
+  });
+
   test('the shape is asked for on web and on nothing else', async ({ page }) => {
     // An email placement has no equivalent of a hero, so it carries none rather
     // than a value that means nothing.

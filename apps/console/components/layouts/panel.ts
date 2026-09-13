@@ -39,6 +39,10 @@ export interface PanelContext {
     seed?: { defaults?: Record<string, unknown>; siblings?: readonly Row[]; parent?: string | null }
   ) => void;
   edit: (entity: string, record: Row, parent?: string | null) => void;
+  /** Whether the session may delete this entity: the permission, a declared delete, and a write for it. */
+  canDelete: (entity: string) => boolean;
+  /** Asks to delete a record. The host confirms it in the entity's own words, and says a refusal. */
+  remove: (entity: string, record: Row, parent?: string | null) => void;
   /** next/link in the console; an anchor in Storybook, which has no router. */
   Link: ComponentType<LinkProps>;
 }

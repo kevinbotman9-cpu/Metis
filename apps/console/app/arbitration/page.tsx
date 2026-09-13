@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { descriptorFor, toFormState, toPayload, type FormState } from '@metis/ui-metadata';
 import { RequireAuth } from '@/components/require-auth';
 import { useAuth } from '@/components/auth-provider';
 import {
@@ -17,67 +18,59 @@ import {
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
+import { FormRenderer } from '@/components/ui/form-renderer';
 import { apiClient, type BoostDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
 
+/**
+ * The terms of the ranking formula, as the formula line draws them. What each
+ * weight is called and what it means is the descriptor's
+ * (`packages/ui-metadata/src/registry/arbitration-config.ts`); this holds only
+ * the symbol and the order the formula multiplies them in.
+ */
 const TERMS = [
-  {
-    key: 'propensity' as const,
-    symbol: 'P',
-    name: 'Propensity',
-    blurb: 'Model-predicted likelihood the customer accepts.',
-  },
-  {
-    key: 'value' as const,
-    symbol: 'V',
-    name: 'Value',
-    blurb: 'Expected margin if accepted, normalised.',
-  },
-  {
-    key: 'boost' as const,
-    symbol: 'L',
-    name: 'Boost',
-    blurb: 'Business weight. The only term humans set directly.',
-  },
-  {
-    key: 'context' as const,
-    symbol: 'C',
-    name: 'Context',
-    blurb: 'Channel and moment fit.',
-  },
-];
+  { field: 'weights.propensity', symbol: 'P' },
+  { field: 'weights.value', symbol: 'V' },
+  { field: 'weights.boost', symbol: 'L' },
+  { field: 'weights.context', symbol: 'C' },
+] as const;
+
+const descriptor = descriptorFor('ArbitrationConfig');
+const NOTHING_TOUCHED: ReadonlySet<string> = new Set();
+const weightOf = (form: FormState | null, field: string) => Number(form?.[field] || 0);
 
 function ArbitrationView() {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const canEdit = hasPermission('edit:arbitration');
+  const permissions = user?.permissions ?? [];
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['arbitration'],
     queryFn: () => apiClient.getArbitration(),
   });
 
-  const [weights, setWeights] = useState({
-    propensity: 1,
-    value: 1,
-    boost: 1,
-    context: 0.5,
-  });
+  const config = data?.config as unknown as Record<string, unknown> | undefined;
+  const saved = useMemo(() => (config ? toFormState(descriptor, config) : null), [config]);
+  const [form, setForm] = useState<FormState>(() => toFormState(descriptor));
 
-  // Seed the editor once the server config arrives.
+  // Seed the form once the server's weights arrive, and again after a publish.
   useEffect(() => {
-    if (data?.config.weights) setWeights(data.config.weights);
-  }, [data]);
+    if (saved) setForm(saved);
+  }, [saved]);
 
   const queryClient = useQueryClient();
   const save = useMutation({
-    mutationFn: () => apiClient.updateArbitration(weights),
+    mutationFn: () => {
+      const body = toPayload(descriptor, form, { editing: true, permissions, entity: config });
+      return apiClient.updateArbitration(
+        body.weights as { propensity: number; value: number; boost: number; context: number }
+      );
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['arbitration'] }),
   });
 
-  const saved = data?.config.weights;
   const dirty =
-    saved &&
-    TERMS.some((t) => Math.abs(weights[t.key] - saved[t.key]) > 0.001);
+    saved !== null && TERMS.some((t) => Math.abs(weightOf(form, t.field) - weightOf(saved, t.field)) > 0.001);
 
   const boosts = data?.boosts ?? [];
 
@@ -176,7 +169,7 @@ function ArbitrationView() {
                     variant="ghost"
                     size="sm"
                     disabled={!dirty || save.isPending}
-                    onClick={() => saved && setWeights(saved)}
+                    onClick={() => saved && setForm(saved)}
                   >
                     Reset
                   </Button>
@@ -186,7 +179,7 @@ function ArbitrationView() {
                     disabled={!dirty || save.isPending}
                     onClick={() => save.mutate()}
                   >
-                    {save.isPending ? 'Publishing…' : 'Publish weights'}
+                    {save.isPending ? 'Publishing…' : descriptor.edit.submitLabel}
                   </Button>
                 </>
               ) : (
@@ -199,17 +192,16 @@ function ArbitrationView() {
               <p className="font-mono text-body text-content">
                 Priority ={' '}
                 {TERMS.map((t, i) => (
-                  <span key={t.key}>
+                  <span key={t.field}>
                     {i > 0 && <span className="text-content-subtle"> × </span>}
                     <span className="font-semibold text-accent">{t.symbol}</span>
-                    <sup className="tnum">{weights[t.key].toFixed(2)}</sup>
+                    <sup className="tnum">{weightOf(form, t.field).toFixed(2)}</sup>
                   </span>
                 ))}
               </p>
               {dirty && (
                 <p className="mt-1.5 text-label text-hold">
-                  Unsaved. Publishing changes how every subsequent decision is ranked, and is
-                  recorded in the audit log.
+                  Unsaved. {descriptor.edit.description}
                 </p>
               )}
               {save.isSuccess && !dirty && (
@@ -224,40 +216,33 @@ function ArbitrationView() {
               )}
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              {TERMS.map((term) => (
-                <div key={term.key} className="rounded border border-border p-3">
-                  <div className="mb-2 flex items-baseline justify-between gap-2">
-                    <div>
-                      <span className="font-mono font-semibold text-accent">{term.symbol}</span>
-                      <span className="ml-2 text-body font-medium text-content">{term.name}</span>
+            {canEdit ? (
+              // The generic renderer, inline rather than in a dialog: the
+              // formula above is the preview, and it has to be in view while the
+              // weights change.
+              <FormRenderer
+                descriptor={descriptor}
+                form={form}
+                onChange={setForm}
+                editing
+                permissions={permissions}
+                touched={NOTHING_TOUCHED}
+                onTouch={() => undefined}
+                idPrefix="arbitration"
+              />
+            ) : (
+              <dl className="grid gap-4 lg:grid-cols-2">
+                {descriptor.fields.map((field) => (
+                  <div key={field.field} className="rounded border border-border p-3">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <dt className="text-body font-medium text-content">{field.label}</dt>
+                      <dd className="tnum text-body font-semibold">{weightOf(saved, field.field).toFixed(2)}</dd>
                     </div>
-                    <span className="tnum text-body font-semibold">
-                      {weights[term.key].toFixed(2)}
-                    </span>
+                    {field.help ? <p className="mt-1.5 text-label text-content-muted">{field.help}</p> : null}
                   </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={2}
-                    step={0.05}
-                    value={weights[term.key]}
-                    disabled={!canEdit}
-                    onChange={(e) =>
-                      setWeights({ ...weights, [term.key]: Number(e.target.value) })
-                    }
-                    aria-label={`${term.name} weight`}
-                    className="w-full accent-accent disabled:opacity-50"
-                  />
-                  <div className="mt-1 flex justify-between text-label text-content-subtle">
-                    <span>0 (ignored)</span>
-                    <span>1 (neutral)</span>
-                    <span>2 (doubled)</span>
-                  </div>
-                  <p className="mt-1.5 text-label text-content-muted">{term.blurb}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </dl>
+            )}
           </CardBody>
         </Card>
       </div>

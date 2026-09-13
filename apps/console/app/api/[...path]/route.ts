@@ -3231,6 +3231,127 @@ async function handlePut(req: Request, { params }: Ctx) {
   }
 }
 
+/**
+ * DELETE — three proposed operations (G-110). No plane serves a delete for any
+ * of these records; this does, so the screens can be built against them.
+ *
+ * Each refuses rather than cascades while something still depends on the
+ * record: an offer bound to the policy, a creative naming the slot, an active
+ * offer whose last deliverable content this is. A delete that quietly changed
+ * what decisions do would be a decision nobody made.
+ */
+async function handleDelete(req: Request, { params }: Ctx) {
+  const { path } = await params;
+  const [head, ...rest] = path;
+  await store.ledgerReady;
+  const user = actor(req);
+  if (!user) return json({ error: 'no_session' }, 401);
+
+  switch (head) {
+    case 'targeting-policies': {
+      // DELETE /api/targeting-policies/{tenantId}/{policyId}
+      if (!user.permissions.includes('edit:policies')) return forbidden('edit:policies');
+      const [, policyId] = rest;
+      const index = store.targetingPolicies.findIndex((p) => p.id === policyId);
+      if (index === -1) return notFound(`No policy ${policyId}`);
+      const policy = store.targetingPolicies[index];
+
+      const bound = store.offers.filter((o) => o.policyIds.includes(policy.id));
+      if (bound.length > 0) {
+        return json(
+          {
+            error: 'conflict',
+            message: `'${policy.name}' applies to ${bound.map((o) => `'${o.name}'`).join(', ')}, so deleting it would change who ${bound.length === 1 ? 'that offer reaches' : 'those offers reach'}. Deactivate it instead: it is stored and stops applying.`,
+          },
+          409
+        );
+      }
+
+      store.targetingPolicies.splice(index, 1);
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'TargetingPolicyDeleted',
+        scope: policy.id,
+        summary: `Deleted ${policy.kind} policy '${policy.name}'.`,
+      });
+      return new Response(null, { status: 204 });
+    }
+
+    case 'placements': {
+      // DELETE /api/placements/{tenantId}/{placementKey}
+      if (!user.permissions.includes('edit:integrations')) return forbidden('edit:integrations');
+      const placementKey = rest[1];
+      const index = store.placements.findIndex((p) => p.key === placementKey);
+      if (index === -1) return notFound(`No placement ${placementKey}`);
+      const placement = store.placements[index];
+
+      const naming = store.creatives.filter(
+        (c) => (c.content as { placement?: string }).placement === placement.key
+      );
+      if (naming.length > 0) {
+        return json(
+          {
+            error: 'conflict',
+            message: `${naming.map((c) => `'${c.name}'`).join(', ')} ${naming.length === 1 ? 'names' : 'name'} '${placement.key}'. Point ${naming.length === 1 ? 'it' : 'them'} at another slot first: content aimed at a slot that does not exist cannot be delivered.`,
+          },
+          409
+        );
+      }
+
+      store.placements.splice(index, 1);
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'PlacementDeleted',
+        scope: placement.key,
+        summary: `Deleted placement '${placement.key}'.`,
+      });
+      return new Response(null, { status: 204 });
+    }
+
+    case 'creatives': {
+      // DELETE /api/creatives/{tenantId}/{offerId}/{creativeId}
+      if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
+      const [, offerId, creativeId] = rest;
+      const offer = store.offers.find((p) => p.id === offerId);
+      if (!offer) return notFound(`No offer ${offerId}`);
+      const index = store.creatives.findIndex((c) => c.id === creativeId && c.offerId === offerId);
+      if (index === -1) return notFound(`No creative ${creativeId} on offer ${offerId}`);
+      const creative = store.creatives[index];
+
+      // The same rule as switching one off, for the same reason: an active
+      // offer would keep winning decisions with nothing to render.
+      if (creative.active && offer.status === 'active') {
+        const remaining = store.creatives.filter((c) => c.offerId === offerId && c.id !== creativeId);
+        if (!offerMayBeActive(remaining, decidableChannels())) {
+          return json(
+            {
+              error: 'conflict',
+              message: `'${creative.name}' is the only active creative on '${offer.name}' for a channel this tenant delivers on, and '${offer.name}' is active. Pause or retire the offer first.`,
+            },
+            409
+          );
+        }
+      }
+
+      store.creatives.splice(index, 1);
+      offer.creativeIds = offer.creativeIds.filter((id) => id !== creative.id);
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'CreativeDeleted',
+        scope: creative.id,
+        summary: `Deleted ${creative.name} from '${offer.name}'.`,
+      });
+      return new Response(null, { status: 204 });
+    }
+
+    default:
+      return notFound(`No route for /${path.join('/')}`);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Recording
 // ---------------------------------------------------------------------------
@@ -3246,3 +3367,4 @@ async function handlePut(req: Request, { params }: Ctx) {
 export const GET = recorded('GET', handleGet);
 export const POST = recorded('POST', handlePost);
 export const PUT = recorded('PUT', handlePut);
+export const DELETE = recorded('DELETE', handleDelete);

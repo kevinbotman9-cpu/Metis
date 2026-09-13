@@ -203,6 +203,7 @@ otherwise.
 | W-076 | 14 | Serve where candidates fall out of decisions from a plane | OPEN | 2 |
 | W-077 | 14 | The generated client carries the spec's nullability | OPEN | 2 |
 | W-078 | 14 | Report the latest result of each conformance check | OPEN | 2 |
+| W-079 | 14 | Serve deleting a policy, a placement and a creative from a plane | OPEN | 2 |
 
 ---
 
@@ -1504,6 +1505,19 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-079 — Serve deleting a policy, a placement and a creative from a plane
+
+**Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN
+**Check:** `apps/console/tests/e2e/policy-authoring.spec.ts`, `placement-authoring.spec.ts` (each deletes one by clicking, and is refused where something depends on it)
+
+Gate 2 · Gap [G-110](gaps.md)
+
+`deleteTargetingPolicy`, `deletePlacement` and `deleteCreative` are proposed and
+served only by the console's development API, with the refusals G-110 describes.
+
+**Done when:** a plane serves all three with the same refusals, and none is
+marked proposed.
+
 ### W-078 — Report the latest result of each conformance check
 
 **Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN

@@ -8,6 +8,7 @@ import { descriptorFor, layoutFor, type LayoutManifest, type ListDetailManifest 
 import { RequireAuth } from '@/components/require-auth';
 import { useAuth } from '@/components/auth-provider';
 import { EntityFormDialog } from '@/components/entity-form-dialog';
+import { DeleteDialog } from '@/components/delete-dialog';
 import { LoadingState, PageBody } from '@/components/ui/primitives';
 import { useOptionSources } from '@/lib/option-sources';
 import {
@@ -172,6 +173,11 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
     },
     [replace, selectionParam, pathParam, params, router, manifest.route]
   );
+  const clearSelection = () => {
+    if (!pathParam) return replace((next) => next.delete(selectionParam));
+    const qs = params.toString();
+    router.replace(`${manifest.route}${qs ? `?${qs}` : ''}`, { scroll: false });
+  };
   const filter = useMemo<ListFilter>(
     () => ({
       query: params.get('q') ?? '',
@@ -195,6 +201,12 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
     (e: string) => Boolean(bindingFor(e).save) && hasPermission(bindingFor(e).permission),
     [hasPermission]
   );
+  const canDelete = useCallback(
+    (e: string) =>
+      Boolean(bindingFor(e).remove && descriptorFor(e).remove) && hasPermission(bindingFor(e).permission),
+    [hasPermission]
+  );
+  const [deleting, setDeleting] = useState<{ entity: string; record: Row; parent: Parent | null } | null>(null);
   // A panel names the open record by its identity; the entity is this screen's.
   const parentOf = (id?: string | null): Parent | null => (id ? { entity, id } : null);
   const context: PanelContext = {
@@ -210,6 +222,8 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
         parent: parentOf(seed?.parent),
       }),
     edit: (e, record, parent) => setDialog({ entity: e, record, parent: parentOf(parent) }),
+    canDelete,
+    remove: (e, record, parent) => setDeleting({ entity: e, record, parent: parentOf(parent) }),
     Link,
   };
   const editable = canEdit(entity);
@@ -245,6 +259,7 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
             : undefined
         }
         onEdit={editable ? (record) => setDialog({ entity, record, parent: null }) : undefined}
+        onDelete={canDelete(entity) ? (record) => setDeleting({ entity, record, parent: null }) : undefined}
         context={context}
       />
       {dialog ? (
@@ -258,6 +273,22 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
           save={(body, record) => bindingFor(dialog.entity).save!(body, record, dialog.parent)}
           invalidate={invalidationsFor(bindingFor(dialog.entity), dialog.parent)}
           onSaved={dialog.onSaved}
+        />
+      ) : null}
+      {deleting ? (
+        <DeleteDialog<Row>
+          open
+          onOpenChange={(open) => !open && setDeleting(null)}
+          entity={deleting.entity}
+          record={deleting.record}
+          name={String(deleting.record.name ?? deleting.record.key ?? deleting.record.id ?? '')}
+          // Only reachable through `canDelete`, which requires the binding to have a delete.
+          remove={(record) => bindingFor(deleting.entity).remove!(record, deleting.parent)}
+          invalidate={invalidationsFor(bindingFor(deleting.entity), deleting.parent)}
+          onDeleted={(record) => {
+            // The open record is gone, so the address that named it names nothing.
+            if (deleting.entity === entity && binding.identity(record) === openId) clearSelection();
+          }}
         />
       ) : null}
     </>

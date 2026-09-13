@@ -44,6 +44,29 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-110 — A targeting policy, a placement and a creative can be deleted only through proposed operations
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-079](BACKLOG.md)
+
+The console could create and edit all three and delete none: the spec had no
+delete operation for any of them, so a policy written by mistake stayed in the
+list and a slot configured by mistake stayed in the registry. Asked for on
+2026-09-13, in the batch that gave targeting policies and arbitration their
+descriptors.
+
+`deleteTargetingPolicy`, `deletePlacement` and `deleteCreative` are added to
+`docs/metis-api.openapi.yaml` as `x-metis-status: proposed`, and the console's
+development API serves them. Each refuses rather than cascades while something
+still depends on the record — an offer bound to the policy, a creative naming
+the slot, an active offer whose last deliverable content this is — because a
+delete that quietly changed what decisions do would be a decision nobody made.
+
+`ArbitrationConfig` has no delete, deliberately. It is one record per tenant, and
+a tenant without one has no ranking function, which publishing already refuses
+(`UNKNOWN_UTILITY_FUNCTION`).
+
+What is missing is a plane serving the three operations, with the same refusals.
+
 ### G-109 — What the engines are held to is a proposed operation, and it can name the checks but not their results
 
 **Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-078](BACKLOG.md)

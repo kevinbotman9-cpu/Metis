@@ -93,6 +93,8 @@ export interface ListDetailProps {
   onCreate?: () => void;
   /** Present only when the session may edit one. */
   onEdit?: (row: Row) => void;
+  /** Present only when the session may delete one and the entity declares a delete. */
+  onDelete?: (row: Row) => void;
   context: PanelContext;
 }
 
@@ -154,6 +156,7 @@ export function ListDetail({
   onFilter,
   onCreate,
   onEdit,
+  onDelete,
   context,
 }: ListDetailProps) {
   const format = useFormat();
@@ -523,6 +526,7 @@ export function ListDetail({
             tab={tab}
             onTab={onTab}
             onEdit={onEdit}
+            onDelete={onDelete}
             onKeyDown={onDetailKey}
             headingRef={headingRef}
             render={render}
@@ -541,6 +545,7 @@ interface DetailPaneProps {
   tab: string | null;
   onTab: (id: string) => void;
   onEdit?: (row: Row) => void;
+  onDelete?: (row: Row) => void;
   onKeyDown: (e: KeyboardEvent<HTMLElement>) => void;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   render: (o: Occupant, record: Row | null) => React.ReactNode;
@@ -554,6 +559,7 @@ function DetailPane({
   tab,
   onTab,
   onEdit,
+  onDelete,
   onKeyDown,
   headingRef,
   render,
@@ -597,6 +603,16 @@ function DetailPane({
               aria-label={`Edit ${descriptor.noun.singular} ${title}`}
             >
               Edit
+            </Button>
+          ) : null}
+          {onDelete ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onDelete(record)}
+              aria-label={`Delete ${descriptor.noun.singular} ${title}`}
+            >
+              Delete
             </Button>
           ) : null}
         </div>

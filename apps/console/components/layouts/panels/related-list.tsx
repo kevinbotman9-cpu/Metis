@@ -118,6 +118,16 @@ export function RelatedList({ occupant, recordId, context }: PanelProps) {
                     Edit
                   </Button>
                 ) : null}
+                {context.canDelete(p.entity) ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => context.remove(p.entity, row, recordId)}
+                    aria-label={`Delete ${child.noun.singular} ${title}`}
+                  >
+                    Delete
+                  </Button>
+                ) : null}
               </div>
             </li>
           );

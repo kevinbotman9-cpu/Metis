@@ -32,6 +32,12 @@ export function useOptionSources(enabled: boolean): Record<string, readonly Opti
     enabled,
   });
 
+  const { data: profile } = useQuery({
+    queryKey: ['profile-schema'],
+    queryFn: () => apiClient.getProfileSchema(),
+    enabled,
+  });
+
   return useMemo(
     () => ({
       'taxonomy.objectives': (taxonomy?.objectives ?? []).map((o) => ({
@@ -53,7 +59,21 @@ export function useOptionSources(enabled: boolean): Record<string, readonly Opti
       flows: (artifacts?.artifacts ?? [])
         .filter((a) => a.status === 'active')
         .map((a) => ({ value: a.id, label: a.name, href: `/decision-flows/${a.id}` })),
+      // The data model's selectable paths, for a `conditions` field. Each
+      // carries its type and the operators that type admits — served rather
+      // than derived, so the editor and the compiler cannot offer different
+      // sets. Lists travel comma-joined: an option's extra properties are strings.
+      'profile.paths': (profile?.paths ?? []).map((p) => ({
+        value: p.path,
+        label: p.path,
+        type: p.type,
+        kind: p.kind,
+        operators: p.operators.join(','),
+        members: p.members?.join(','),
+        unit: p.unit,
+        description: p.description,
+      })),
     }),
-    [taxonomy, placements, artifacts]
+    [taxonomy, placements, artifacts, profile]
   );
 }

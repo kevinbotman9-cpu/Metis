@@ -1,8 +1,11 @@
 import {
   apiClient,
   type CategoryDto,
+  type CreativeDto,
   type ObjectiveDto,
+  type OfferDto,
   type PlacementDto,
+  type TargetingPolicyDto,
   type TaxonomyDto,
 } from '@/lib/api-client';
 
@@ -113,6 +116,12 @@ export interface EntityBinding {
    * the form does not hold, because the click already answered it.
    */
   save?: (body: Record<string, unknown>, existing: Row | null, parent: Parent | null) => Promise<Row>;
+  /**
+   * The delete, for an entity whose descriptor says what deleting one costs.
+   * Absent, and no screen offers one. A refusal comes back as the platform's own
+   * sentence, which says what still depends on the record.
+   */
+  remove?: (existing: Row, parent: Parent | null) => Promise<void>;
   /** Query keys a write changes, given the parent when what changes is what one record is made of. */
   invalidate: Invalidations | ((parent: Parent | null) => Invalidations);
 }
@@ -150,9 +159,66 @@ export const ENTITY_BINDINGS: Record<string, EntityBinding> = {
       (existing
         ? await apiClient.updatePlacement(String(existing.key), body as Partial<PlacementDto>)
         : await apiClient.createPlacement(body as Partial<PlacementDto>)) as unknown as Row,
+    // Refused while a creative names the slot (G-110).
+    remove: (existing) => apiClient.deletePlacement(String(existing.key)),
     // The coverage screen's denominator is the set of channels with a delivery
     // mode, so changing one here changes what that screen measures.
     invalidate: [['placements'], ['creatives'], ['offers']],
+  },
+  Offer: {
+    identity: (row) => String(row.id),
+    permission: 'edit:offers',
+    save: async (body, existing) =>
+      (existing
+        ? await apiClient.updateOffer(String(existing.id), body as Partial<OfferDto>)
+        : await apiClient.createOffer(body as Partial<OfferDto>)) as unknown as Row,
+    invalidate: [['offers'], ['offer'], ['taxonomy']],
+  },
+  Creative: {
+    identity: (row) => String(row.id),
+    permission: 'edit:offers',
+    // The offer is where a creative is authored from rather than a field of its
+    // form, and the operations' paths name it: a new creative takes the open
+    // offer, an existing one keeps its own.
+    save: async (body, existing, parent) => {
+      if (existing) {
+        return (await apiClient.updateCreative(
+          String(existing.offerId),
+          String(existing.id),
+          body as Partial<CreativeDto>
+        )) as unknown as Row;
+      }
+      if (!parent) throw new Error('A creative is created under an offer, and this write was given none.');
+      return (await apiClient.createCreative(parent.id, body as Partial<CreativeDto>)) as unknown as Row;
+    },
+    // Refused when it would leave an active offer nothing to deliver (G-110).
+    remove: (existing) => apiClient.deleteCreative(String(existing.offerId), String(existing.id)),
+    // What one offer is made of changes, so that offer's own query goes stale.
+    invalidate: (parent) => [parent ? ['offer', parent.id] : ['offer'], ['offers'], ['creatives']],
+  },
+  TargetingPolicy: {
+    identity: (row) => String(row.id),
+    permission: 'edit:policies',
+    // A tier has to be chosen for a policy to exist, and the first question —
+    // can we offer this at all — is where the hand-built form started. A new
+    // policy is also stored, not applied, until somebody says otherwise.
+    defaults: () => ({ kind: 'eligibility', active: false }),
+    save: async (body, existing) =>
+      (existing
+        ? await apiClient.updateTargetingPolicy({
+            ...(existing as unknown as TargetingPolicyDto),
+            ...(body as Partial<TargetingPolicyDto>),
+          })
+        : await apiClient.createTargetingPolicy({
+            ...(body as Omit<TargetingPolicyDto, 'id' | 'createdAt' | 'updatedAt'>),
+            // No screen scopes a policy yet, so a new one is tenant-wide, as
+            // every policy authored here has been. The descriptor says why.
+            scope: { level: 'tenant', targetId: null },
+          })) as unknown as Row,
+    // Refused while an offer is bound to the policy (G-110).
+    remove: (existing) => apiClient.deleteTargetingPolicy(String(existing.id)),
+    // The funnel counts what the policies remove, so it goes stale with them.
+    invalidate: [['targeting-policies'], ['policy-funnel']],
   },
   Objective: {
     identity: (row) => String(row.id),

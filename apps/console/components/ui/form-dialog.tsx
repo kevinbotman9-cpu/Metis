@@ -37,6 +37,10 @@ export interface FormDialogProps {
   children: ReactNode;
   /** Extra controls beside Cancel — a destructive action, usually. */
   footerAside?: ReactNode;
+  /** `danger` when the primary button deletes something. */
+  tone?: 'primary' | 'danger';
+  /** What the primary button says while `busy`. */
+  busyLabel?: string;
   className?: string;
 }
 
@@ -51,6 +55,8 @@ export function FormDialog({
   error,
   children,
   footerAside,
+  tone = 'primary',
+  busyLabel = 'Saving…',
   className,
 }: FormDialogProps) {
   const handle = (e: FormEvent) => {
@@ -102,8 +108,8 @@ export function FormDialog({
                   Cancel
                 </Button>
               </Dialog.Close>
-              <Button variant="primary" type="submit" disabled={busy}>
-                {busy ? 'Saving…' : submitLabel}
+              <Button variant={tone} type="submit" disabled={busy}>
+                {busy ? busyLabel : submitLabel}
               </Button>
             </div>
           </form>

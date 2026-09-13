@@ -5,6 +5,8 @@ import { objectiveDescriptor } from './objective';
 import { categoryDescriptor } from './category';
 import { placementDescriptor } from './placement';
 import { tenantSettingsDescriptor } from './tenant-settings';
+import { targetingPolicyDescriptor } from './targeting-policy';
+import { arbitrationConfigDescriptor } from './arbitration-config';
 
 /**
  * The metadata registry.
@@ -24,6 +26,8 @@ export const REGISTRY: Record<string, EntityDescriptor> = {
   Category: categoryDescriptor,
   Offer: offerDescriptor,
   Creative: creativeDescriptor,
+  TargetingPolicy: targetingPolicyDescriptor,
+  ArbitrationConfig: arbitrationConfigDescriptor,
 };
 
 /**
@@ -70,9 +74,7 @@ export const USER_EDITABLE_ENTITIES = [
  */
 export const PENDING: Record<string, string> = {
   DecisionFlow: 'Authored on the canvas, not in a form. Needs a descriptor for its metadata only.',
-  TargetingPolicy: 'Hand-built in components/policy-form-dialog.tsx.',
   FrequencyPolicy: 'Read-only screen today; no write endpoint is served.',
-  ArbitrationConfig: 'Edited as weights on /arbitration, not as an entity form.',
   Audience: 'No schema in the spec and no screen. Declared in the console spec only.',
   Model: 'Gate 2. No schema, no screen.',
   Channel: 'Supplied by a channel package rather than authored in the console.',
@@ -98,4 +100,6 @@ export {
   placementDescriptor,
   offerDescriptor,
   creativeDescriptor,
+  targetingPolicyDescriptor,
+  arbitrationConfigDescriptor,
 };
