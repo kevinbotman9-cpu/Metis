@@ -91,7 +91,7 @@ test.describe('inbound traffic', () => {
     await expect(row).toBeVisible();
 
     // Collapsed, the row says what happened. Expanded, it says what was said.
-    await expect(page.getByText('"cust_0001"')).toHaveCount(0);
+    await expect(page.getByText('"cust_0001"', { exact: true })).toHaveCount(0);
     await row.click();
 
     // The request the site sent — the thing the ledger deliberately does not keep.
@@ -131,10 +131,10 @@ test.describe('inbound traffic', () => {
     // what separates "the site is calling" from "I am looking at the site".
     await expect(page.getByRole('button', { name: /from Storefront/ })).toHaveCount(1);
 
-    await page.getByLabel('Caller').selectOption('console');
+    await page.getByLabel('Caller', { exact: true }).selectOption('console');
     await expect(page.getByRole('button', { name: /from Storefront/ })).toHaveCount(0);
 
-    await page.getByLabel('Caller').selectOption('storefront');
+    await page.getByLabel('Caller', { exact: true }).selectOption('storefront');
     await expect(page.getByRole('button', { name: /from Storefront/ })).toHaveCount(1);
   });
 
@@ -206,7 +206,7 @@ test.describe('inbound traffic', () => {
     await page.goto('/integrations/traffic');
     await expect(page.getByRole('button', { name: /from Console/ }).first()).toBeVisible();
 
-    await page.getByLabel('Caller').selectOption('storefront');
-    await expect(page.getByText('Nothing from Storefront yet.')).toBeVisible();
+    await page.getByLabel('Caller', { exact: true }).selectOption('storefront');
+    await expect(page.getByText('Nothing from Storefront yet.', { exact: true })).toBeVisible();
   });
 });

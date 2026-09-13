@@ -65,7 +65,7 @@ test.describe('decision search and trace', () => {
     await expect(page.getByText(/Re-executed against artifact/)).toBeVisible();
 
     // Not a canned response: the engine ran again and produced the same hash.
-    await expect(page.getByText('Replayed hash')).toBeVisible();
+    await expect(page.getByText('Replayed hash', { exact: true })).toBeVisible();
     const hashes = await page.getByText(new RegExp(`^${storedHash}$`)).count();
     expect(hashes).toBeGreaterThanOrEqual(2);
   });
@@ -75,7 +75,7 @@ test.describe('decision search and trace', () => {
     const id = (await row.locator('td').first().innerText()).trim();
     await row.click();
 
-    await expect(page.getByText('Chain hash')).toBeVisible();
+    await expect(page.getByText('Chain hash', { exact: true })).toBeVisible();
     const hash = (await page.getByText(/^[0-9a-f]{64}$/).first().innerText()).trim();
 
     // The id is the first 16 hex of the hash, so it is verifiable, not a label.
@@ -102,7 +102,7 @@ test.describe('decision search and trace', () => {
     const box = page.getByRole('combobox', { name: 'Search and filter' });
     await box.fill('outcome:suppressed');
     await page.keyboard.press('Enter');
-    await expect(page.getByText('Outcome: Suppressed')).toBeVisible();
+    await expect(page.getByText('Outcome: Suppressed', { exact: true })).toBeVisible();
 
     const firstRow = page.locator('tr[data-row]').first();
     await expect(firstRow.getByText('no offer')).toBeVisible();

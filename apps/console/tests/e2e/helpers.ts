@@ -22,8 +22,8 @@ export const ACCOUNTS = {
 /** Sign in through the real form, so the login path stays covered. */
 export async function login(page: Page, email: string) {
   await page.goto('/login');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill('demo');
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByLabel('Password', { exact: true }).fill('demo');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
 }

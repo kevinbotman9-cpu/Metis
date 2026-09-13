@@ -30,7 +30,7 @@ test.describe('integrations', () => {
     // The bureau declares 180ms against a 50ms budget. Saying so here is the
     // whole point of declaring latency at configuration time.
     await expect(
-      page.getByText('Some connectors cannot be called synchronously')
+      page.getByText('Some connectors cannot be called synchronously', { exact: true })
     ).toBeVisible();
     await expect(page.getByText(/Credit bureau declares 180ms/)).toBeVisible();
   });
@@ -47,7 +47,7 @@ test.describe('integrations', () => {
     ).toBeVisible();
 
     await page.goto('/audit');
-    await expect(page.getByText('ConnectorChanged').first()).toBeVisible();
+    await expect(page.getByText('ConnectorChanged', { exact: true }).first()).toBeVisible();
   });
 
 });

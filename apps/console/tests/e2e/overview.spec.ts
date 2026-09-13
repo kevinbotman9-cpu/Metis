@@ -55,7 +55,7 @@ test.describe("the marketer's Overview is the loop @screen-only", () => {
     expect((await activity.boundingBox())!.y).toBeLessThan(railTop);
 
     // And the four doughnuts it replaced are gone rather than moved.
-    await expect(page.getByText('Flow compilation')).toHaveCount(0);
+    await expect(page.getByText('Flow compilation', { exact: true })).toHaveCount(0);
   });
 
   test('first paint selects nothing and shows the loop whole', async ({ page }) => {

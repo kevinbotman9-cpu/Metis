@@ -18,10 +18,10 @@ test.describe('header band', () => {
     await expect(header.getByText('Development')).toBeVisible();
 
     await header.getByRole('button', { name: /telco/ }).click();
-    await expect(page.getByText('Only one tenant is provisioned')).toBeVisible();
+    await expect(page.getByText('Only one tenant is provisioned', { exact: true })).toBeVisible();
 
     await page.keyboard.press('Escape');
-    await expect(page.getByText('Only one tenant is provisioned')).toBeHidden();
+    await expect(page.getByText('Only one tenant is provisioned', { exact: true })).toBeHidden();
   });
 
   test('the first tab stop skips the chrome and reaches the content', async ({ page }) => {

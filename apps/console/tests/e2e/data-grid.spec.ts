@@ -99,7 +99,7 @@ test.describe('smart search', () => {
     await page.getByRole('option', { name: 'Outcome: Suppressed' }).click();
 
     // The choice becomes a chip.
-    await expect(page.getByText('Outcome: Suppressed')).toBeVisible();
+    await expect(page.getByText('Outcome: Suppressed', { exact: true })).toBeVisible();
 
     // And it actually narrows the data.
     //
@@ -107,7 +107,7 @@ test.describe('smart search', () => {
     // for 5,000 rows and both the whole corpus and the suppressed half exceed
     // that, so the grid reports its cap either way. The summary counts what
     // the filter matched, which is the thing being tested.
-    await expect(page.getByText('Offer made')).toBeVisible();
+    await expect(page.getByText('Offer made', { exact: true })).toBeVisible();
     const offered = page.locator('p', { hasText: /^Offer made$/ }).locator('..').locator('p').nth(1);
     await expect(offered).toHaveText('0');
 
@@ -123,7 +123,7 @@ test.describe('smart search', () => {
     await box.fill('channel:sms');
     await page.keyboard.press('Enter');
 
-    await expect(page.getByText('Channel: SMS')).toBeVisible();
+    await expect(page.getByText('Channel: SMS', { exact: true })).toBeVisible();
     await expect(page.locator('tr[data-row]').first().getByText('sms')).toBeVisible();
   });
 
@@ -131,10 +131,10 @@ test.describe('smart search', () => {
     const box = page.getByRole('combobox', { name: 'Search and filter' });
     await box.fill('channel:sms');
     await page.keyboard.press('Enter');
-    await expect(page.getByText('Channel: SMS')).toBeVisible();
+    await expect(page.getByText('Channel: SMS', { exact: true })).toBeVisible();
 
     await box.press('Backspace');
-    await expect(page.getByText('Channel: SMS')).toHaveCount(0);
+    await expect(page.getByText('Channel: SMS', { exact: true })).toHaveCount(0);
   });
 });
 
@@ -243,7 +243,7 @@ test.describe('sign-in page', () => {
     await expect(page.getByRole('heading', { name: 'Scoped agent autonomy' })).toBeVisible();
 
     // The form still works, which is the part that matters.
-    await expect(page.getByLabel('Email')).toBeVisible();
+    await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
   });
 
@@ -251,7 +251,7 @@ test.describe('sign-in page', () => {
     await page.goto('/login');
     await page.getByRole('button', { name: /Priya Natarajan/ }).click();
 
-    await expect(page.getByLabel('Email')).toHaveValue('priya.natarajan@telco.example');
+    await expect(page.getByLabel('Email', { exact: true })).toHaveValue('priya.natarajan@telco.example');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
     await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();

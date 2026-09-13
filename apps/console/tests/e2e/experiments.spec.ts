@@ -24,7 +24,7 @@ test.describe('experiments', () => {
     // as "the field path is missing" — which is what it looked like on
     // 2026-09-09, in one full run out of six, on a machine under load. G-003.
     await expect(page.getByRole('heading', { level: 1, name: 'Experiments' })).toBeVisible();
-    await expect(page.getByText('FIOS Gigabit holdout')).toBeVisible();
+    await expect(page.getByText('FIOS Gigabit holdout', { exact: true })).toBeVisible();
   });
 
   test.afterEach(async ({ page }) => {
@@ -33,11 +33,11 @@ test.describe('experiments', () => {
 
   test('shows the split and which arm is the holdout', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1, name: 'Experiments' })).toBeVisible();
-    await expect(page.getByText('FIOS Gigabit holdout')).toBeVisible();
+    await expect(page.getByText('FIOS Gigabit holdout', { exact: true })).toBeVisible();
 
     // 10/90, declared in the fixture.
     await expect(page.getByRole('img', { name: /Held back 10%/ })).toBeVisible();
-    await expect(page.getByText('holdout').first()).toBeVisible();
+    await expect(page.getByText('holdout', { exact: true }).first()).toBeVisible();
   });
 
   test('seeds nothing running, because starting one moves every chain hash', async ({ page }) => {
@@ -53,14 +53,14 @@ test.describe('experiments', () => {
     // Same claim, two readings of it: no experiment carries the status, and the
     // page's own counter agrees.
     await expect(page.getByText('running', { exact: true })).toHaveCount(0);
-    await expect(page.getByText('Running').locator('..')).toContainText('0');
+    await expect(page.getByText('Running', { exact: true }).locator('..')).toContainText('0');
     await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
   });
 
   test('names the field path an arm reaches policies at', async ({ page }) => {
     // The reason no engine change was needed: an arm is an ordinary field, so a
     // holdout is an ordinary eligibility rule.
-    await expect(page.getByText('experiments.fiber_holdout').first()).toBeVisible();
+    await expect(page.getByText('experiments.fiber_holdout', { exact: true }).first()).toBeVisible();
   });
 
   test('explains why a started split cannot be changed', async ({ page }) => {

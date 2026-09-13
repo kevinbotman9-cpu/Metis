@@ -181,7 +181,7 @@ test.describe('offer catalogue', () => {
     ).toEqual([]);
 
     // Filtered first: with 251 offers a named row is not on the first page.
-    await page.getByLabel('Search offers').fill('5G Home Ultimate');
+    await page.getByLabel('Search offers', { exact: true }).fill('5G Home Ultimate');
     await page.getByRole('row').filter({ hasText: '5G Home Ultimate' }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
 

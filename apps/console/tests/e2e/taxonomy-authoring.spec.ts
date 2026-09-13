@@ -67,7 +67,7 @@ test.describe('authoring the taxonomy @screen-only', () => {
     // A listbox option: the list–detail pattern's list selects, it does not navigate.
     const row = page.getByRole('option').filter({ hasText: 'win_back' });
     await expect(row).toHaveCount(1);
-    await expect(page.getByText('No categories under this objective')).toBeVisible();
+    await expect(page.getByText('No categories under this objective', { exact: true })).toBeVisible();
   });
 
   test('suggests the key from the name and locks it once the objective exists', async ({
@@ -122,8 +122,8 @@ test.describe('authoring the taxonomy @screen-only', () => {
     await createObjective(page, 'Win Back');
     await createCategory(page, 'Lapsed Mobile');
 
-    await expect(page.getByText('lapsed_mobile')).toBeVisible();
-    await expect(page.getByText('No categories under this objective')).toHaveCount(0);
+    await expect(page.getByText('lapsed_mobile', { exact: true })).toBeVisible();
+    await expect(page.getByText('No categories under this objective', { exact: true })).toHaveCount(0);
 
     // The objective was not asked for again: the click that opened the form
     // answered it. Re-open the category to read back what was stored.
@@ -141,10 +141,10 @@ test.describe('authoring the taxonomy @screen-only', () => {
     await dialog(page).getByLabel('Description').fill('Bring lapsed customers back.');
     await dialog(page).getByRole('button', { name: 'Save objective' }).click();
     await expect(dialog(page)).toHaveCount(0);
-    await expect(page.getByText('Bring lapsed customers back.')).toBeVisible();
+    await expect(page.getByText('Bring lapsed customers back.', { exact: true })).toBeVisible();
 
     await page.goto('/audit');
-    await expect(page.getByText('ObjectiveUpdated').first()).toBeVisible();
+    await expect(page.getByText('ObjectiveUpdated', { exact: true }).first()).toBeVisible();
   });
 
   // covers: updateCategory
@@ -157,9 +157,9 @@ test.describe('authoring the taxonomy @screen-only', () => {
     await dialog(page).getByRole('button', { name: 'Save category' }).click();
     await expect(dialog(page)).toHaveCount(0);
 
-    await expect(page.getByText('Lapsed Mobile & Broadband')).toBeVisible();
+    await expect(page.getByText('Lapsed Mobile & Broadband', { exact: true })).toBeVisible();
     await page.goto('/audit');
-    await expect(page.getByText('CategoryUpdated').first()).toBeVisible();
+    await expect(page.getByText('CategoryUpdated', { exact: true }).first()).toBeVisible();
   });
 
   test('the whole taxonomy step, and an offer filed under what it made', async ({ page }) => {

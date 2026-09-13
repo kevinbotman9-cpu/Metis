@@ -26,7 +26,7 @@ import { login, ACCOUNTS } from './helpers';
  * Setup is a sign-in. Nothing is created, seeded or requested over the API.
  */
 
-const refusal = (page: Page) => page.getByText('You do not have access to this view');
+const refusal = (page: Page) => page.getByText('You do not have access to this view', { exact: true });
 
 /** What Oliver holds, and what he does not. Read off the screens, never mocked. */
 const OPEN = ['/integrations', '/integrations/traffic', '/data-model/intake'] as const;

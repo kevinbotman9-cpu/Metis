@@ -123,7 +123,7 @@ test.describe('performance reads as a cascade @screen-only', () => {
     // the browser, and the shape is the thing this screen is for.
     await rail(page).getByRole('button', { name: /^Deliverable: / }).click();
     await expect(page).toHaveURL(/\/performance$/);
-    await expect(page.getByText('From decision to outcome')).toBeVisible();
+    await expect(page.getByText('From decision to outcome', { exact: true })).toBeVisible();
   });
 
   test('the rail is operable from the keyboard alone', async ({ page }) => {
@@ -153,8 +153,8 @@ test.describe('performance reads as a cascade @screen-only', () => {
   }) => {
     await open(page);
 
-    await expect(page.getByText('Realised value')).toBeVisible();
-    await expect(page.getByText('Never had the chance')).toBeVisible();
+    await expect(page.getByText('Realised value', { exact: true })).toBeVisible();
+    await expect(page.getByText('Never had the chance', { exact: true })).toBeVisible();
 
     // Both expectation figures are ceilings — expected margin is what an offer
     // is worth if it is taken, and there is no propensity in a decision record

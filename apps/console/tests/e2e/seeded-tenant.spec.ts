@@ -144,7 +144,7 @@ test.describe('the seeded tenant reaches every built screen @screen-only', () =>
     // The grid's own filter, which searches name, key *and* tag — so the one
     // offer carrying `bias-review` is reachable by typing what is wrong with
     // it, which is how somebody would actually find it.
-    await page.getByLabel('Search offers').fill('bias');
+    await page.getByLabel('Search offers', { exact: true }).fill('bias');
 
     const rows = page.locator('tr[data-row]');
     await expect(rows.first()).toBeVisible();

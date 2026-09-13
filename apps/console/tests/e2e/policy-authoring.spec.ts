@@ -30,13 +30,13 @@ test.describe('the data model', () => {
 
     // Two roots, and the screen says which is which: the subject a decision
     // reads, and the request it was made for. ADR-014 §2.
-    await expect(page.getByText('profile root')).toBeVisible();
-    await expect(page.getByText('request root')).toBeVisible();
-    await expect(page.getByText('Customer').first()).toBeVisible();
-    await expect(page.getByText('Context').first()).toBeVisible();
+    await expect(page.getByText('profile root', { exact: true })).toBeVisible();
+    await expect(page.getByText('request root', { exact: true })).toBeVisible();
+    await expect(page.getByText('Customer', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Context', { exact: true }).first()).toBeVisible();
 
     // Personal data is marked, because retention needs to know.
-    await expect(page.getByText('special category').first()).toBeVisible();
+    await expect(page.getByText('special category', { exact: true }).first()).toBeVisible();
   });
 
   test('lists every path a policy may reference', async ({ page }) => {
@@ -44,22 +44,22 @@ test.describe('the data model', () => {
     // select on 2026-09-13, the day that switch shipped.
     await page.getByLabel('View', { exact: true }).selectOption('paths');
 
-    await expect(page.getByText('customer.credit_status')).toBeVisible();
+    await expect(page.getByText('customer.credit_status', { exact: true })).toBeVisible();
     // Twice on the page by design: once in the list, once in the card that
     // explains what a rollup is and how it is computed. `.first()` rather than
     // a looser matcher, so a path vanishing from the list would still fail.
-    await expect(page.getByText('customer.worst_arrears_days').first()).toBeVisible();
-    await expect(page.getByText('rollup').first()).toBeVisible();
+    await expect(page.getByText('customer.worst_arrears_days', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('rollup', { exact: true }).first()).toBeVisible();
 
     // A rollup is the only way to read across a one-to-many, so the raw path
     // must not be offered — it would promise something the engine cannot do.
-    await expect(page.getByText('customer.accounts.arrears_days')).toHaveCount(0);
+    await expect(page.getByText('customer.accounts.arrears_days', { exact: true })).toHaveCount(0);
   });
 
   test('reports no structural problems with the seeded model', async ({ page }) => {
     // A guard on the fixture: a model that names an entity it does not define
     // would make every assertion below meaningless.
-    await expect(page.getByText('Model problems').locator('..')).toContainText('0');
+    await expect(page.getByText('Model problems', { exact: true }).locator('..')).toContainText('0');
   });
 });
 
@@ -127,7 +127,7 @@ test.describe('authoring a policy', () => {
     await dialog.getByRole('button', { name: 'Create policy' }).click();
 
     await expect(dialog).toBeHidden();
-    await expect(page.getByText('Over 21 only')).toBeVisible();
+    await expect(page.getByText('Over 21 only', { exact: true })).toBeVisible();
 
     await resetStore(page);
   });
@@ -155,7 +155,7 @@ test.describe('authoring a policy', () => {
     await dialog.getByRole('button', { name: 'Save policy' }).click();
 
     await expect(dialog).toBeHidden();
-    await expect(page.getByText('Renamed by a test')).toBeVisible();
+    await expect(page.getByText('Renamed by a test', { exact: true })).toBeVisible();
 
     await resetStore(page);
   });

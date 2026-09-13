@@ -213,7 +213,7 @@ test.describe('the declared creative form @screen-only', () => {
     await d.getByRole('button', { name: 'Add creative' }).click();
 
     await expect(d).toHaveCount(0);
-    await expect(page.getByText('Hero — declared')).toBeVisible();
+    await expect(page.getByText('Hero — declared', { exact: true })).toBeVisible();
   });
 
   test('locks the channel when editing, because the content shape is its', async ({ page }) => {

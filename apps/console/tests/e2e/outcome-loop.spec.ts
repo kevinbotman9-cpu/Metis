@@ -246,6 +246,6 @@ test.describe('the seeded corpus reports back @screen-only', () => {
     await login(page, ACCOUNTS.sarah);
     await page.goto('/performance');
     await openActed(page);
-    await expect(page.getByText('netflix').first()).toBeVisible();
+    await expect(page.getByText('netflix', { exact: true }).first()).toBeVisible();
   });
 });

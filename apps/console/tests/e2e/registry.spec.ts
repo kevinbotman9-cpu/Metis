@@ -25,7 +25,7 @@ test.describe('the compilation gate', () => {
     await page.goto(`/decision-flows/${UNCOMPILABLE}`);
 
     await expect(page.getByRole('heading', { name: 'Registry' })).toBeVisible();
-    await expect(page.getByText('Not in the registry')).toBeVisible();
+    await expect(page.getByText('Not in the registry', { exact: true })).toBeVisible();
     // The point, stated where someone will read it.
     await expect(page.getByText(/never compiled, so it can't be promoted/)).toBeVisible();
   });
@@ -33,7 +33,7 @@ test.describe('the compilation gate', () => {
   test('the refusal is in the registry log, not silently dropped', async ({ page }) => {
     await page.goto(`/decision-flows/${UNCOMPILABLE}`);
 
-    await expect(page.getByText('PublishRejected')).toBeVisible();
+    await expect(page.getByText('PublishRejected', { exact: true })).toBeVisible();
     // Naming the codes is what makes the log answerable rather than decorative.
     // Matched on the log line, because the compile report on the same page
     // lists the codes too — and this test is about the registry recording it.
@@ -49,7 +49,7 @@ test.describe('the compilation gate', () => {
     await expect(page.getByRole('heading', { name: 'Registry' })).toBeVisible();
     // One per published version, so `.first()`: the seed now publishes the
     // whole declared history rather than only the active version.
-    await expect(page.getByText('ArtifactPublished').first()).toBeVisible();
+    await expect(page.getByText('ArtifactPublished', { exact: true }).first()).toBeVisible();
     // Scoped to the active version rather than `.first()`: every publish event
     // says this — it is true of each version at the moment it was published —
     // and the one worth asserting is the version actually running.
@@ -70,12 +70,12 @@ test.describe('promotion and rollback', () => {
   test('promoting to an environment is recorded', async ({ page }) => {
     await page.getByRole('button', { name: 'Promote to staging' }).first().click();
 
-    await expect(page.getByText('VersionPromoted').first()).toBeVisible();
+    await expect(page.getByText('VersionPromoted', { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/Promoted next-best-action .* to staging/)).toBeVisible();
 
     // And in the console's own audit log, not only the registry's.
     await page.goto('/audit');
-    await expect(page.getByText('VersionPromoted').first()).toBeVisible();
+    await expect(page.getByText('VersionPromoted', { exact: true }).first()).toBeVisible();
   });
 
   test('rollback is offered only once there is somewhere to go back to', async ({ page }) => {
@@ -128,15 +128,15 @@ test.describe('promotion and rollback', () => {
     await expect(rollback).toHaveCount(1);
     await rollback.click();
 
-    await expect(page.getByText('VersionRolledBack')).toBeVisible();
+    await expect(page.getByText('VersionRolledBack', { exact: true })).toBeVisible();
     await expect(page.getByText(/back from 1\.2\.0 to 1\.0\.0/)).toBeVisible();
   });
 
   test('the environment list states what is running and what preceded it', async ({ page }) => {
     // Environments not yet promoted to say so, rather than showing nothing.
-    await expect(page.getByText('nothing promoted').first()).toBeVisible();
+    await expect(page.getByText('nothing promoted', { exact: true }).first()).toBeVisible();
     // And the one that is running names its version.
-    await expect(page.getByText('1.0.0').first()).toBeVisible();
+    await expect(page.getByText('1.0.0', { exact: true }).first()).toBeVisible();
   });
 });
 

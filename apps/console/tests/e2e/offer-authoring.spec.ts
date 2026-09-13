@@ -48,7 +48,7 @@ test.describe('authoring an offer', () => {
     // delivered — the thing to do next is on this page.
     await expect(page).toHaveURL(/\/offers\/prop_speed_boost_100mb$/);
     await expect(page.getByRole('heading', { name: /Speed Boost 100Mb/ })).toBeVisible();
-    await expect(page.getByText('draft').first()).toBeVisible();
+    await expect(page.getByText('draft', { exact: true }).first()).toBeVisible();
   });
 
   test('suggests a key from the name, and locks it once the offer exists', async ({ page }) => {
@@ -74,7 +74,7 @@ test.describe('authoring an offer', () => {
     // role too, so the role alone is ambiguous.
     await expect(page.getByText(/has no active creative/)).toBeVisible();
     // Still a draft: the refusal is real, not cosmetic.
-    await expect(page.getByText('draft').first()).toBeVisible();
+    await expect(page.getByText('draft', { exact: true }).first()).toBeVisible();
   });
 
   test('adds a creative, puts each refusal on its own field, then activates', async ({ page }) => {
@@ -106,7 +106,7 @@ test.describe('authoring an offer', () => {
     await dialog.getByRole('button', { name: 'Add creative' }).click();
     await expect(dialog).toBeHidden();
 
-    await expect(page.getByText('Speed Boost — SMS')).toBeVisible();
+    await expect(page.getByText('Speed Boost — SMS', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Activate' }).click();
     await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
@@ -136,7 +136,7 @@ test.describe('authoring an offer', () => {
     await dialog.getByLabel('Subject').fill('Fibre is ready — one week left');
     await dialog.getByRole('button', { name: 'Save creative' }).click();
     await expect(dialog).toBeHidden();
-    await expect(page.getByText('one week left')).toBeVisible();
+    await expect(page.getByText('one week left', { exact: true })).toBeVisible();
   });
 
   test('offers nothing to write with to an account that cannot author', async ({ page }) => {

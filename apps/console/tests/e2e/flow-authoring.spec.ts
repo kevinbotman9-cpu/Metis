@@ -31,13 +31,13 @@ test.describe('the flow editor', () => {
   test('is read-only until asked', async ({ page }) => {
     await expect(page.getByRole('button', { name: 'Edit graph' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Save graph' })).toHaveCount(0);
-    await expect(page.getByText('Add:')).toHaveCount(0);
+    await expect(page.getByText('Add:', { exact: true })).toHaveCount(0);
   });
 
   test('offers a palette of the node kinds the engine runs', async ({ page }) => {
     await page.getByRole('button', { name: 'Edit graph' }).click();
 
-    await expect(page.getByText('Add:')).toBeVisible();
+    await expect(page.getByText('Add:', { exact: true })).toBeVisible();
     for (const kind of ['Source', 'Filter', 'Constraint', 'Score', 'Switch', 'Arbitrate']) {
       await expect(page.getByRole('button', { name: kind, exact: true })).toBeVisible();
     }
@@ -49,7 +49,7 @@ test.describe('the flow editor', () => {
 
     // The new node is selected, so the inspector is about the thing just added
     // rather than about nothing.
-    await expect(page.getByLabel('Node label')).toBeVisible();
+    await expect(page.getByLabel('Node label', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Save graph' }).click();
     // Disconnected from the graph, so the compiler has something to say — which
@@ -81,7 +81,7 @@ test.describe('the flow editor', () => {
   test('edits the candidate set, which is what makes an offer decidable', async ({ page }) => {
     await page.getByRole('button', { name: 'Edit graph' }).click();
 
-    const candidates = page.getByText('Candidate offers');
+    const candidates = page.getByText('Candidate offers', { exact: true });
     await expect(candidates).toBeVisible();
     await expect(
       page.getByText(/An offer absent from this list is never a candidate/)
@@ -93,7 +93,7 @@ test.describe('the flow editor', () => {
     await page.getByRole('button', { name: 'Arbitrate', exact: true }).click();
 
     await page.getByRole('button', { name: 'Delete node' }).click();
-    await expect(page.getByLabel('Node label')).toHaveCount(0);
+    await expect(page.getByLabel('Node label', { exact: true })).toHaveCount(0);
   });
 
   test('says plainly that saving is not deploying', async ({ page }) => {

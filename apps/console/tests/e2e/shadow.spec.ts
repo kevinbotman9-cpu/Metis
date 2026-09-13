@@ -288,14 +288,14 @@ test.describe('the shadow panel', () => {
     const panel = page.getByRole('region', { name: 'Shadow' }).or(
       page.locator('section', { has: page.getByRole('heading', { name: 'Shadow', exact: true }) })
     );
-    await expect(page.getByText('Nothing shadowing')).toBeVisible();
+    await expect(page.getByText('Nothing shadowing', { exact: true })).toBeVisible();
 
-    await page.getByLabel('Shadow version').selectOption(OTHER);
+    await page.getByLabel('Shadow version', { exact: true }).selectOption(OTHER);
     await page.getByRole('button', { name: 'Start shadowing' }).click();
 
     // Configured but never exercised. A percentage here would be read as a
     // measurement, and there is nothing behind it yet.
-    await expect(page.getByText(`${OTHER} is shadowing 1.0.0`)).toBeVisible();
+    await expect(page.getByText(`${OTHER} is shadowing 1.0.0`, { exact: true })).toBeVisible();
     await expect(panel.getByText('no decisions compared')).toBeVisible();
     await expect(panel.getByText('—')).toBeVisible();
 
@@ -308,7 +308,7 @@ test.describe('the shadow panel', () => {
 
     // The registry panel explains why it is not there; a second panel offering
     // to shadow it would contradict that on the same screen.
-    await expect(page.getByText('Not in the registry')).toBeVisible();
+    await expect(page.getByText('Not in the registry', { exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Shadow', exact: true })).toHaveCount(0);
   });
 
@@ -319,7 +319,7 @@ test.describe('the shadow panel', () => {
     await page.goto(FLOW_PAGE);
 
     await expect(page.getByRole('heading', { name: 'Shadow', exact: true })).toBeVisible();
-    await expect(page.getByLabel('Shadow version')).toHaveCount(0);
+    await expect(page.getByLabel('Shadow version', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Start shadowing' })).toHaveCount(0);
   });
 
@@ -334,7 +334,7 @@ test.describe('the shadow panel', () => {
 
     await login(page, ACCOUNTS.marcus);
     await page.goto(FLOW_PAGE);
-    await expect(page.getByText(`${OTHER} is shadowing 1.0.0`)).toBeVisible();
+    await expect(page.getByText(`${OTHER} is shadowing 1.0.0`, { exact: true })).toBeVisible();
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])

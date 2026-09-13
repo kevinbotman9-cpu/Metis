@@ -67,7 +67,7 @@ test.describe('navigation', () => {
         .click();
 
       await expect(page.getByRole('heading', { level: 1, name: item.heading })).toBeVisible();
-      await expect(page.getByText('This page could not be found')).toHaveCount(0);
+      await expect(page.getByText('This page could not be found', { exact: true })).toHaveCount(0);
     });
   }
 
@@ -113,8 +113,8 @@ test.describe('authentication', () => {
     await page.goto('/offers');
     await expect(page).toHaveURL(/\/login\?next=%2Foffers/);
 
-    await page.getByLabel('Email').fill(ACCOUNTS.sarah);
-    await page.getByLabel('Password').fill('demo');
+    await page.getByLabel('Email', { exact: true }).fill(ACCOUNTS.sarah);
+    await page.getByLabel('Password', { exact: true }).fill('demo');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
     await expect(page).toHaveURL(/\/offers$/);
@@ -123,8 +123,8 @@ test.describe('authentication', () => {
 
   test('rejects a wrong password without signing in', async ({ page }) => {
     await page.goto('/login');
-    await page.getByLabel('Email').fill(ACCOUNTS.sarah);
-    await page.getByLabel('Password').fill('wrong');
+    await page.getByLabel('Email', { exact: true }).fill(ACCOUNTS.sarah);
+    await page.getByLabel('Password', { exact: true }).fill('wrong');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
     // Scope to the form: Next.js injects its own role="alert" route announcer.

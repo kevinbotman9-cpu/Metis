@@ -11,14 +11,14 @@ test.describe('role-based access', () => {
     await expect(nav.getByRole('link', { name: 'Arbitration & boosts' })).toBeVisible();
 
     await page.goto('/arbitration');
-    await expect(page.getByText('read only')).toBeVisible();
+    await expect(page.getByText('read only', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /Publish weights/ })).toHaveCount(0);
   });
 
   test('lets an administrator edit arbitration', async ({ page }) => {
     await login(page, ACCOUNTS.marcus);
     await page.goto('/arbitration');
-    await expect(page.getByText('read only')).toHaveCount(0);
+    await expect(page.getByText('read only', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Publish weights/ })).toBeVisible();
   });
 
@@ -26,7 +26,7 @@ test.describe('role-based access', () => {
   test('gates approval on the permission, not just the UI', async ({ page }) => {
     await login(page, ACCOUNTS.sarah);
     await page.goto('/approvals/cr_0042');
-    await expect(page.getByText('approve:changes required')).toBeVisible();
+    await expect(page.getByText('approve:changes required', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Approve' })).toHaveCount(0);
 
     // The server must refuse too, not merely the hidden button. page.request
@@ -62,13 +62,13 @@ test.describe('writes persist', () => {
     const context = page.getByRole('slider', { name: 'Context weight' });
     await context.fill('0.35');
     await page.getByRole('button', { name: /Publish weights/ }).click();
-    await expect(page.getByText('Published. Recorded in the audit log.')).toBeVisible();
+    await expect(page.getByText('Published. Recorded in the audit log.', { exact: true })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByText('C0.35')).toBeVisible();
+    await expect(page.getByText('C0.35', { exact: true })).toBeVisible();
 
     await page.goto('/audit');
-    await expect(page.getByText('ArbitrationWeightsChanged').first()).toBeVisible();
+    await expect(page.getByText('ArbitrationWeightsChanged', { exact: true }).first()).toBeVisible();
   });
 
   // covers: createChangeSet
@@ -93,7 +93,7 @@ test.describe('writes persist', () => {
     expect(policyAfter.conditions[0].value).toBe(0.7);
 
     await page.goto('/audit');
-    await expect(page.getByText('ChangeSetApproved').first()).toBeVisible();
+    await expect(page.getByText('ChangeSetApproved', { exact: true }).first()).toBeVisible();
   });
 
   // covers: updateAutonomySetting
@@ -106,7 +106,7 @@ test.describe('writes persist', () => {
 
     await page.reload();
     await page.goto('/audit');
-    await expect(page.getByText('AutonomyChanged').first()).toBeVisible();
+    await expect(page.getByText('AutonomyChanged', { exact: true }).first()).toBeVisible();
   });
 });
 
@@ -196,8 +196,8 @@ test.describe('creating an offer', () => {
     await page.goto('/offers');
     // Found by filtering rather than by scrolling: the seeded tenant holds 251
     // offers, so a newly created one is not on the first page.
-    await page.getByLabel('Search offers').fill('Speed Boost 100Mb');
-    await expect(page.getByText('Speed Boost 100Mb').first()).toBeVisible();
+    await page.getByLabel('Search offers', { exact: true }).fill('Speed Boost 100Mb');
+    await expect(page.getByText('Speed Boost 100Mb', { exact: true }).first()).toBeVisible();
   });
 
   test('refuses a duplicate key', async ({ page }) => {
