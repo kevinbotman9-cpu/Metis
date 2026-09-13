@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { decisions, findTrace } from '@/mocks/fixtures/decisions';
+import { REASON_CODES } from '@metis/runtime';
+import { decisions, findTrace, corpusFunnelRows } from '@/mocks/fixtures/decisions';
 import { executeAt, DECISION_COUNT } from '@/mocks/fixtures/engine';
 import index from '@/mocks/fixtures/decision-index.json';
 
@@ -19,6 +20,7 @@ import index from '@/mocks/fixtures/decision-index.json';
  */
 
 const rows = index.rows as unknown[][];
+const ruleIds = (index as unknown as { ruleIds: string[] }).ruleIds;
 
 describe('the committed decision index matches the generator', () => {
   it('has a row for every decision the generator makes', () => {
@@ -30,7 +32,7 @@ describe('the committed decision index matches the generator', () => {
     expect(index.columns).toEqual([
       'slot', 'id', 'artifactId', 'artifactVersion', 'customerId', 'timestamp',
       'channel', 'placement', 'winner', 'winnerOfferId', 'candidateCount',
-      'chainHash',
+      'chainHash', 'removals',
     ]);
   });
 
@@ -62,6 +64,14 @@ describe('the committed decision index matches the generator', () => {
       expect(row[9], `row ${k}: winnerOfferId`).toBe(d.winnerOfferId);
       expect(row[10], `row ${k}: candidateCount`).toBe(d.candidateKeys.length);
       expect(row[11], `row ${k}: chainHash`).toBe(trace.chainHash);
+      expect(row[12], `row ${k}: removals`).toEqual(
+        d.eliminations.flatMap((step) =>
+          step.denials.flatMap((denial) => [
+            REASON_CODES.indexOf(denial.code),
+            denial.ruleId === null ? -1 : ruleIds.indexOf(denial.ruleId),
+          ])
+        )
+      );
     }
   });
 
@@ -85,6 +95,19 @@ describe('the committed decision index matches the generator', () => {
 
   it('returns nothing for an id it does not hold, rather than throwing', () => {
     expect(findTrace('dec_not_a_real_decision')).toBeUndefined();
+  });
+
+  it('names its rule ids once each, sorted, so the file regenerates to the same bytes', () => {
+    expect(ruleIds).toEqual([...new Set(ruleIds)].sort());
+  });
+
+  it('accounts for every candidate of every seeded decision: removed once, or the winner', () => {
+    // The property the policy funnel's stages rest on, over all 10,400 — cheap
+    // here, because it reads the column rather than re-executing anything.
+    const broken = corpusFunnelRows().filter(
+      (d) => d.removals.length + (d.winner ? 1 : 0) !== d.candidates || d.removals.some((r) => r.code === undefined)
+    );
+    expect(broken.map((d) => d.decisionId)).toEqual([]);
   });
 });
 

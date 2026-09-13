@@ -200,6 +200,8 @@ otherwise.
 | W-073 | 14 | A duplicate-entry check for the gap register | OPEN | 2 |
 | W-074 | 14 | Integration fields and policy fields are one vocabulary | DONE | 2 |
 | W-075 | 14 | A live flow compiles, and every input branch is declared | PARTIAL | 1 |
+| W-076 | 14 | Serve where candidates fall out of decisions from a plane | OPEN | 2 |
+| W-077 | 14 | The generated client carries the spec's nullability | OPEN | 2 |
 
 ---
 
@@ -1501,6 +1503,36 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-077 — The generated client carries the spec's nullability
+
+**Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet
+
+Gate 2 · Gap [G-108](gaps.md)
+
+The generator reads `type: [x, 'null']` and ignores `nullable: true`, which the
+spec uses 13 times, so those fields are generated as never null. Either spelling
+can be the one; what is missing is agreement between the spec and the generator,
+and a check that holds it.
+
+**Done when:** a nullable field in the spec is nullable in
+`packages/client/src/generated.ts`, and a check fails when one is not.
+
+### W-076 — Serve where candidates fall out of decisions from a plane
+
+**Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN
+**Check:** `packages/ledger/tests/policy-funnel.test.ts`, `apps/console/tests/e2e/policy-funnel.spec.ts`
+
+Gate 2 · Gap [G-107](gaps.md)
+
+`getPolicyFunnel` is proposed and served only by the console's development API.
+The read model it serves, `buildPolicyFunnel`, is in `packages/ledger` and tested
+there, so what remains is a plane endpoint over the ledger and the compiled
+artifacts, and the operation leaving `proposed`.
+
+**Done when:** a plane serves `getPolicyFunnel`, the spec no longer marks it
+proposed, and `contract.spec.ts` covers it.
+
 ### W-075 — A live flow compiles, and every input branch is declared
 
 **Registered:** 2026-09-11 · **Stage:** 14 · **Status:** PARTIAL

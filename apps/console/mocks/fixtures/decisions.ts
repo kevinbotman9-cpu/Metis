@@ -11,6 +11,8 @@
  * are measurements and are not.
  */
 
+import { REASON_CODES } from '@metis/runtime';
+import type { FunnelDecision, FunnelRemoval } from '@metis/ledger';
 import { creatives, connectors } from './catalogue';
 import { executeAt, type GeneratedDecision } from './engine';
 import index from './decision-index.json';
@@ -253,6 +255,40 @@ const slotById = new Map(
 );
 
 const slotFor = (id: string): number | undefined => slotById.get(id);
+
+/** A seeded decision as the policy funnel reads it, with the two fields its filters need. */
+export type CorpusFunnelRow = FunnelDecision & { flowId: string; channel: string };
+
+let funnelRows: CorpusFunnelRow[] | null = null;
+
+/**
+ * Every seeded decision's removals, decoded from the index's `removals` column.
+ *
+ * Read from the index rather than from 10,400 re-executions, which take 5.5
+ * seconds; `tests/unit/decision-index.test.ts` holds the column equal to the
+ * generator. Decoded once, on first use, because the funnel is the only reader.
+ */
+export function corpusFunnelRows(): readonly CorpusFunnelRow[] {
+  if (funnelRows) return funnelRows;
+  const ruleIds = (index as unknown as { ruleIds: string[] }).ruleIds;
+  funnelRows = (index.rows as unknown[][]).map((row) => {
+    const flat = row[12] as number[];
+    const removals: FunnelRemoval[] = [];
+    for (let i = 0; i < flat.length; i += 2) {
+      removals.push({ code: REASON_CODES[flat[i]], ruleId: flat[i + 1] === -1 ? null : ruleIds[flat[i + 1]] });
+    }
+    return {
+      decisionId: row[1] as string,
+      flowId: row[2] as string,
+      occurredAt: row[5] as string,
+      channel: row[6] as string,
+      winner: row[8] as string | null,
+      candidates: row[10] as number,
+      removals,
+    };
+  });
+  return funnelRows;
+}
 
 const traceCache = new Map<string, TraceRecord>();
 

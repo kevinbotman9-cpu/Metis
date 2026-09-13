@@ -1,16 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
 import {
   PageBody,
   PageHeader,
   Card,
+  CardBody,
   CardHeader,
   Badge,
+  EmptyState,
   ErrorState,
+  Field,
+  LoadingState,
+  Select,
 } from '@/components/ui/primitives';
+import { ProvenanceBanner } from '@/components/ui/provenance-banner';
+import { CascadeRail } from '@/components/cascade-rail';
+import {
+  FunnelFirstPaint,
+  FunnelRailFoot,
+  FunnelStageDetail,
+  FunnelStageEvidence,
+  FunnelUnaccounted,
+} from '@/components/policy-funnel-panes';
+import { buildFunnelView } from '@/lib/policy-funnel';
+import { useFormat } from '@/components/tenant-format';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { apiClient, type TargetingPolicyDto } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
@@ -43,8 +60,119 @@ const KINDS = [
   },
 ];
 
+/**
+ * Where candidates fall out of decisions, by reason code and by rule.
+ *
+ * A second question of the same subject, answered as a view on this page
+ * rather than a route of its own, as `/creatives?view=coverage` is: the policies
+ * are what the funnel counts, and a separate route would be a screen with no
+ * layout manifest and a Cascade with no renderer to give it one.
+ */
+function PolicyFunnel() {
+  const format = useFormat();
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const [flowId, setFlowId] = useState('');
+
+  const selected = params.get('stage');
+  const setSelected = (id: string | null) => {
+    const next = new URLSearchParams(params.toString());
+    if (id) next.set('stage', id);
+    else next.delete('stage');
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  };
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['policy-funnel', flowId],
+    queryFn: () => apiClient.getPolicyFunnel({ flowId: flowId || undefined }),
+  });
+  const flows = useQuery({ queryKey: ['artifacts'], queryFn: () => apiClient.listArtifacts() });
+  const view = useMemo(() => (data ? buildFunnelView(data, format) : null), [data, format]);
+
+  if (isLoading) return <LoadingState label="Summing removals over decisions" />;
+  if (error || !data || !view) {
+    return (
+      <ErrorState
+        description="Could not build the funnel."
+        onRetry={() => {
+          void refetch();
+        }}
+      />
+    );
+  }
+
+  return (
+    <>
+      <ProvenanceBanner provenance={data.provenance} />
+
+      <div className="mb-stack flex flex-wrap items-end gap-3">
+        <div className="w-56">
+          <Field label="Flow" htmlFor="funnel-flow">
+            <Select id="funnel-flow" value={flowId} onChange={(e) => setFlowId(e.target.value)}>
+              <option value="">All flows</option>
+              {(flows.data?.artifacts ?? []).map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+      </div>
+
+      {data.decisions === 0 ? (
+        <EmptyState
+          title="Nothing has been decided in this window"
+          description="The funnel starts at a decision. Choose another flow."
+        />
+      ) : (
+        <>
+          <FunnelUnaccounted report={data} />
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,19rem)]">
+            <Card className="self-start">
+              <CascadeRail
+                label="Where candidates fall out"
+                stages={view.stages}
+                selected={selected}
+                onSelect={setSelected}
+                foot={<FunnelRailFoot />}
+              />
+            </Card>
+            <div className="min-w-0">
+              {selected ? (
+                <FunnelStageDetail report={data} stageId={selected} />
+              ) : (
+                <FunnelFirstPaint report={data} view={view} />
+              )}
+            </div>
+            <Card className="self-start">
+              <CardBody>
+                <FunnelStageEvidence report={data} stageId={selected} />
+              </CardBody>
+            </Card>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 function PoliciesView() {
   const [kind, setKind] = useState<string>('');
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const view = params.get('view') === 'funnel' ? 'funnel' : 'policies';
+  const setView = (next: 'policies' | 'funnel') => {
+    const q = new URLSearchParams(params.toString());
+    q.delete('stage');
+    if (next === 'funnel') q.set('view', 'funnel');
+    else q.delete('view');
+    const qs = q.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['targeting-policies'],
@@ -152,15 +280,44 @@ function PoliciesView() {
     <PageBody>
       <PageHeader
         title="Targeting policies"
-        description="The trace records which tier removed a candidate."
+        description={
+          view === 'funnel'
+            ? 'Candidates removed at each stage, summed over decisions. Each is removed once, or offered.'
+            : 'The trace records which tier removed a candidate.'
+        }
         actions={
-          canEdit ? (
-            <Button variant="primary" onClick={() => setCreating(true)}>
-              New policy
-            </Button>
-          ) : undefined
+          <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2" role="group" aria-label="View">
+              <Button
+                variant={view === 'policies' ? 'primary' : 'secondary'}
+                size="md"
+                aria-pressed={view === 'policies'}
+                onClick={() => setView('policies')}
+              >
+                Policies
+              </Button>
+              <Button
+                variant={view === 'funnel' ? 'primary' : 'secondary'}
+                size="md"
+                aria-pressed={view === 'funnel'}
+                onClick={() => setView('funnel')}
+              >
+                Funnel
+              </Button>
+            </div>
+            {canEdit && view === 'policies' ? (
+              <Button variant="primary" onClick={() => setCreating(true)}>
+                New policy
+              </Button>
+            ) : null}
+          </div>
         }
       />
+
+      {view === 'funnel' ? (
+        <PolicyFunnel />
+      ) : (
+      <>
 
       <PolicyFormDialog open={creating} onOpenChange={setCreating} />
       <PolicyFormDialog
@@ -228,6 +385,8 @@ function PoliciesView() {
           caption="Targeting policies"
         />
       </Card>
+      </>
+      )}
     </PageBody>
   );
 }

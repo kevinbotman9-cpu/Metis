@@ -782,6 +782,92 @@ components:
         seen: { type: integer }
         acted: { type: integer }
 
+    PolicyFunnelReport:
+      type: object
+      description: |
+        Where candidates fall out of decisions, summed over decisions.
+
+        The unit is a candidate within a decision. Every candidate is removed
+        once or wins, so `entered`, less each stage's `removed` in order, gives
+        that stage's `survived`, and the last stage's survivors are `offered`.
+        A decision for which that does not hold is counted in `unaccounted`.
+      required: [decisions, entered, offered, stages, unaccounted, from, to]
+      properties:
+        decisions: { type: integer }
+        entered:
+          type: integer
+          description: Candidates the flows were allowed to consider, summed over decisions.
+        offered:
+          type: integer
+          description: Decisions with a winner.
+        stages:
+          type: array
+          description: >-
+            All seven, always, in the order a decision meets them. A stage no
+            flow in range asks is present, with `asked` false, rather than
+            omitted.
+          items: { $ref: '#/components/schemas/PolicyFunnelStage' }
+        unaccounted:
+          type: integer
+          description: >-
+            Decisions whose removals and winner do not add up to their
+            candidates, or that carry a code outside the closed set. Zero on a
+            correct engine. Not zero means the stages are not a decomposition,
+            and a screen must say so.
+        from: { type: [string, 'null'], format: date-time }
+        to: { type: [string, 'null'], format: date-time }
+        provenance:
+          $ref: '#/components/schemas/Provenance'
+
+    PolicyFunnelStage:
+      type: object
+      required: [id, codes, asked, removed, survived, rules]
+      properties:
+        id:
+          type: string
+          enum: [not_live, eligibility, relevance, suitability, consent, frequency, not_ranked]
+        codes:
+          type: array
+          items: { type: string }
+          description: The reason codes this stage counts.
+        asked:
+          type: [boolean, 'null']
+          description: >-
+            Whether any flow in range asks this question, from the compiled
+            artifacts. Null when that is not known, which is not the same as
+            false. True whenever the stage removed a candidate.
+        removed:
+          type: integer
+          description: Candidates this stage removed.
+        survived:
+          type: integer
+          description: Candidates left after this stage and every stage before it.
+        rules:
+          type: array
+          description: Largest first.
+          items: { $ref: '#/components/schemas/PolicyFunnelRule' }
+
+    PolicyFunnelRule:
+      type: object
+      required: [ruleId, code, removed, decisions, sampleDecisionId]
+      properties:
+        ruleId:
+          type: [string, 'null']
+          description: >-
+            The targeting or frequency policy. Null for codes that are
+            properties of the candidate rather than of a rule, which group by
+            code instead.
+        code: { type: string }
+        removed:
+          type: integer
+          description: Candidates removed.
+        decisions:
+          type: integer
+          description: Distinct decisions it removed at least one candidate from.
+        sampleDecisionId:
+          type: string
+          description: A decision it removed a candidate from, so the figure links to a trace.
+
     ProfileSchema:
       type: object
       description: >-
@@ -3391,6 +3477,39 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/PerformanceReport' }
+
+  /policy-funnel/{tenantId}:
+    get:
+      summary: Where candidates fall out of decisions
+      description: |
+        Of every candidate the flows in range were allowed to consider, how many
+        each kind of rule removed, and which rule removed most — the trace
+        reader's cascade, summed over decisions.
+
+        Staged by reason code, in the order a decision meets them, because a
+        flow's nodes are not a common spine and a node's tier does not bound
+        what it removes: consent and frequency are enforced at every constraint
+        node. The unit is a candidate within a decision. Each is removed once or
+        wins, so every stage's survivors are a subset of the stage above.
+
+        Proposed. The console's development API serves it from the seeded
+        corpus and the ledger; no plane does (G-107).
+      operationId: getPolicyFunnel
+      x-metis-status: proposed
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: flowId
+          in: query
+          schema: { type: string }
+        - name: channel
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: The funnel
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyFunnelReport' }
 
   /profile-schema/{tenantId}:
     get:
