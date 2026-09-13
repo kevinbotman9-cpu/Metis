@@ -217,16 +217,52 @@ function run(gate) {
   return { ok: result.status === 0, seconds: (Date.now() - started) / 1000 };
 }
 
+/**
+ * Which gates a run selects.
+ *
+ * Positional ids run only those gates. `--skip <id>` runs every gate but that
+ * one — which is how `npm run gates:pre-pr` leaves end-to-end to CI (CLAUDE.md,
+ * Session Discipline). An id that names no gate is refused, whichever way it was
+ * given: a misspelt skip would otherwise run everything, and a misspelt id beside
+ * a real one used to be dropped without a word.
+ */
+export function selectGates(gates, argv) {
+  const only = [];
+  const skip = [];
+  for (let i = 0; i < argv.length; i += 1) {
+    if (argv[i] === '--skip') {
+      if (argv[i + 1] === undefined) throw new Error('--skip needs a gate id');
+      skip.push(argv[i + 1]);
+      i += 1;
+    } else {
+      only.push(argv[i]);
+    }
+  }
+  const known = new Set(gates.map((g) => g.id));
+  const unknown = [...only, ...skip].filter((id) => !known.has(id));
+  if (unknown.length > 0) {
+    throw new Error(`No gate matched ${unknown.join(', ')}. Known: ${[...known].join(', ')}`);
+  }
+  return {
+    selected: gates.filter((g) => (only.length === 0 || only.includes(g.id)) && !skip.includes(g.id)),
+    skipped: gates.filter((g) => skip.includes(g.id)),
+  };
+}
+
 const isMain =
   process.argv[1] && import.meta.url.endsWith(process.argv[1].split(/[\\/]/).pop());
 
 if (isMain) {
-  const only = process.argv.slice(2);
-  const selected = only.length ? GATES.filter((g) => only.includes(g.id)) : GATES;
-
-  if (selected.length === 0) {
-    console.error(`No gate matched ${only.join(', ')}. Known: ${GATES.map((g) => g.id).join(', ')}`);
+  let selection;
+  try {
+    selection = selectGates(GATES, process.argv.slice(2));
+  } catch (err) {
+    console.error(err.message);
     process.exit(2);
+  }
+  const { selected, skipped: skippedOnPurpose } = selection;
+  if (skippedOnPurpose.length > 0) {
+    console.log(`Skipping on purpose: ${skippedOnPurpose.map((g) => g.label).join(', ')}. This is not a full gates run.`);
   }
 
   const before = treeState();
@@ -251,6 +287,9 @@ if (isMain) {
   }
   const skipped = selected.length - done.length;
   if (skipped > 0) console.log(`  ${skipped} gate(s) not reached`);
+  // Said again at the end, where a report is copied from: a run that left a gate
+  // out must not read as a full one.
+  for (const g of skippedOnPurpose) console.log(`  - ${g.label.padEnd(44)} skipped on purpose`);
   console.log('─'.repeat(60));
 
   // Only after a green run. `check-regenerated` leaves its output in place on
