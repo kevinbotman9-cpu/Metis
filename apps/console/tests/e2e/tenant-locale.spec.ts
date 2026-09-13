@@ -36,6 +36,7 @@ test.describe('the tenant reads in its own locale @screen-only', () => {
     await resetStore(page);
   });
 
+  // covers: updateTenantSettings
   test('switching the tenant locale changes dates and money on every screen', async ({ page }) => {
     await login(page, ACCOUNTS.marcus);
 
