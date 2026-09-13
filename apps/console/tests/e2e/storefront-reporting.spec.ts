@@ -142,8 +142,8 @@ test.describe('a slot stops advertising a decision the moment it stops showing i
     // "Decide again" lives in the explanation drawer, which is translated off
     // screen until somebody opens it. Opened by clicking, not by forcing the
     // click through, so the test still fails if the drawer stops opening.
-    await page.getByRole('button', { name: 'Decided by METIS' }).click();
-    const again = page.getByRole('button', { name: 'Decide again' });
+    await page.getByRole('button', { name: 'Decided by METIS', exact: true }).click();
+    const again = page.getByRole('button', { name: 'Decide again', exact: true });
     await expect(again).toBeInViewport();
     await again.click();
 

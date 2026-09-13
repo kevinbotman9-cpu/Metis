@@ -27,7 +27,7 @@ const dialog = (page: Page) => page.getByRole('dialog');
 
 async function createObjective(page: Page, name: string) {
   await page.goto('/objectives');
-  await page.getByRole('button', { name: 'New objective' }).click();
+  await page.getByRole('button', { name: 'New objective', exact: true }).click();
   const d = dialog(page);
   await expect(d.getByRole('heading', { name: 'New objective' })).toBeVisible();
   await d.getByLabel('Name').fill(name);
@@ -39,7 +39,7 @@ async function createObjective(page: Page, name: string) {
 }
 
 async function createCategory(page: Page, name: string) {
-  await page.getByRole('button', { name: 'New category' }).click();
+  await page.getByRole('button', { name: 'New category', exact: true }).click();
   const d = dialog(page);
   await expect(d.getByRole('heading', { name: 'New category' })).toBeVisible();
   await d.getByLabel('Name').fill(name);
@@ -74,7 +74,7 @@ test.describe('authoring the taxonomy @screen-only', () => {
     page,
   }) => {
     await page.goto('/objectives');
-    await page.getByRole('button', { name: 'New objective' }).click();
+    await page.getByRole('button', { name: 'New objective', exact: true }).click();
     await dialog(page).getByLabel('Name').fill('Win Back');
     await expect(dialog(page).getByLabel('Key')).toHaveValue('win_back');
     await dialog(page).getByRole('button', { name: 'Create objective' }).click();
@@ -83,7 +83,7 @@ test.describe('authoring the taxonomy @screen-only', () => {
     // Everything below an objective is filed under its key, so an edit cannot
     // move it. The descriptor says `immutableAfterCreate`; this is that,
     // rendered.
-    await page.getByRole('button', { name: 'Edit objective Win Back' }).click();
+    await page.getByRole('button', { name: 'Edit objective Win Back', exact: true }).click();
     await expect(dialog(page).getByLabel('Key')).toBeDisabled();
     await expect(dialog(page).getByLabel('Key')).toHaveValue('win_back');
   });
@@ -91,7 +91,7 @@ test.describe('authoring the taxonomy @screen-only', () => {
   test('refuses a key that is already in the taxonomy, and says which', async ({ page }) => {
     await createObjective(page, 'Win Back');
 
-    await page.getByRole('button', { name: 'New objective' }).click();
+    await page.getByRole('button', { name: 'New objective', exact: true }).click();
     const d = dialog(page);
     await d.getByLabel('Name').fill('Win Back Again');
     await d.getByLabel('Key').fill('win_back');
@@ -110,7 +110,7 @@ test.describe('authoring the taxonomy @screen-only', () => {
     // This asserts the browser is actually enforcing it, which is the thing
     // that was broken and which `new RegExp(pattern)` could not see.
     await page.goto('/objectives');
-    await page.getByRole('button', { name: 'New objective' }).click();
+    await page.getByRole('button', { name: 'New objective', exact: true }).click();
     const key = dialog(page).getByLabel('Key');
     await dialog(page).getByLabel('Name').fill('Win Back');
     await key.fill('Not A Key!');
@@ -127,7 +127,7 @@ test.describe('authoring the taxonomy @screen-only', () => {
 
     // The objective was not asked for again: the click that opened the form
     // answered it. Re-open the category to read back what was stored.
-    await page.getByRole('button', { name: 'Edit category Lapsed Mobile' }).click();
+    await page.getByRole('button', { name: 'Edit category Lapsed Mobile', exact: true }).click();
     await expect(dialog(page).getByLabel('Objective')).toHaveValue(/win_back/);
   });
 
@@ -137,7 +137,7 @@ test.describe('authoring the taxonomy @screen-only', () => {
   }) => {
     await createObjective(page, 'Win Back');
 
-    await page.getByRole('button', { name: 'Edit objective Win Back' }).click();
+    await page.getByRole('button', { name: 'Edit objective Win Back', exact: true }).click();
     await dialog(page).getByLabel('Description').fill('Bring lapsed customers back.');
     await dialog(page).getByRole('button', { name: 'Save objective' }).click();
     await expect(dialog(page)).toHaveCount(0);
@@ -152,7 +152,7 @@ test.describe('authoring the taxonomy @screen-only', () => {
     await createObjective(page, 'Win Back');
     await createCategory(page, 'Lapsed Mobile');
 
-    await page.getByRole('button', { name: 'Edit category Lapsed Mobile' }).click();
+    await page.getByRole('button', { name: 'Edit category Lapsed Mobile', exact: true }).click();
     await dialog(page).getByLabel('Name').fill('Lapsed Mobile & Broadband');
     await dialog(page).getByRole('button', { name: 'Save category' }).click();
     await expect(dialog(page)).toHaveCount(0);
@@ -170,7 +170,7 @@ test.describe('authoring the taxonomy @screen-only', () => {
     // an API call. This is the join that makes the previous two tests worth
     // anything: an objective nothing can be filed under is a row in a table.
     await page.goto('/offers');
-    await page.getByRole('button', { name: 'New offer' }).click();
+    await page.getByRole('button', { name: 'New offer', exact: true }).click();
     const d = dialog(page);
 
     await d.getByLabel('Name').fill('Come Back 20GB');

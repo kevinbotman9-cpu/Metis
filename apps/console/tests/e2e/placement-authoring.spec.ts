@@ -24,13 +24,13 @@ const dialog = (page: Page) => page.getByRole('dialog');
 
 async function openPlacements(page: Page) {
   await page.goto('/placements');
-  await expect(page.getByRole('heading', { level: 1, name: 'Placements' })).toBeVisible({
+  await expect(page.getByRole('heading', { level: 1, name: 'Placements', exact: true })).toBeVisible({
     timeout: 20_000,
   });
 }
 
 async function createPlacement(page: Page, name: string, deliveredBy?: string) {
-  await page.getByRole('button', { name: 'New placement' }).click();
+  await page.getByRole('button', { name: 'New placement', exact: true }).click();
   const d = dialog(page);
   await expect(d.getByRole('heading', { name: 'New placement' })).toBeVisible();
   await d.getByLabel('Name').fill(name);
@@ -108,7 +108,7 @@ test.describe('configuring a slot @screen-only', () => {
     // An email placement has no equivalent of a hero, so it carries none rather
     // than a value that means nothing.
     await openPlacements(page);
-    await page.getByRole('button', { name: 'New placement' }).click();
+    await page.getByRole('button', { name: 'New placement', exact: true }).click();
     const d = dialog(page);
 
     await d.getByLabel('Channel').selectOption('web');
@@ -141,7 +141,7 @@ test.describe('the coverage denominator counts what can be delivered @screen-onl
      */
     const channelColumns = async (): Promise<string[]> => {
       await page.goto('/creatives?view=coverage');
-      await expect(page.getByRole('heading', { name: 'Content coverage' })).toBeVisible({
+      await expect(page.getByRole('heading', { name: 'Content coverage', exact: true })).toBeVisible({
         timeout: 20_000,
       });
       const head = page.getByRole('table').locator('thead th');

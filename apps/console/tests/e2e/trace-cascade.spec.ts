@@ -21,7 +21,7 @@ import { login, ACCOUNTS } from './helpers';
  * nothing about whether the funnel adds up.
  */
 
-const rail = (page: Page) => page.getByRole('navigation', { name: 'Elimination funnel' });
+const rail = (page: Page) => page.getByRole('navigation', { name: 'Elimination funnel', exact: true });
 
 /** Open the trace of a decision that actually eliminated something. */
 async function openRichTrace(page: Page) {
@@ -151,7 +151,7 @@ test.describe('the trace reads as a cascade @screen-only', () => {
     await rail(page).getByRole('button', { name: names.find((n) => / removed here/.test(n))! }).click();
     await page.getByRole('button', { name: /: \d+ removed$/ }).first().click();
 
-    const evidence = page.getByRole('region', { name: 'Evidence' });
+    const evidence = page.getByRole('region', { name: 'Evidence', exact: true });
 
     // When the value was computed. This was an absence until 2026-09-11 —
     // `sourceCalls` carried a duration and a cache flag and no time at all, so
@@ -199,7 +199,7 @@ test.describe('the trace reads as a cascade @screen-only', () => {
     // reader sees. A cached value carries its age: "was that consent flag
     // current" is the question, and an age is the answer.
     await openRichTrace(page);
-    const evidence = page.getByRole('region', { name: 'Evidence' });
+    const evidence = page.getByRole('region', { name: 'Evidence', exact: true });
 
     await expect(evidence.getByText('Values fetched')).toBeVisible();
     await expect(evidence.getByText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z/).first()).toBeVisible();
@@ -244,9 +244,9 @@ test.describe('the trace reads as a cascade @screen-only', () => {
     // demo path's centre and replay is what makes it evidence rather than a
     // report.
     await openRichTrace(page);
-    await expect(page.getByRole('button', { name: 'Export JSON' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Export JSON', exact: true })).toBeEnabled();
 
-    await page.getByRole('button', { name: 'Replay this decision' }).click();
+    await page.getByRole('button', { name: 'Replay this decision', exact: true }).click();
     await expect(page.getByText('Identical', { exact: true })).toBeVisible({ timeout: 20_000 });
   });
 });

@@ -12,7 +12,7 @@ import { login, ACCOUNTS, openAccountPanel } from './helpers';
  */
 
 const nav = (page: import('@playwright/test').Page) =>
-  page.getByRole('navigation', { name: 'Main' });
+  page.getByRole('navigation', { name: 'Main', exact: true });
 
 test.describe('navigation rail @screen-only', () => {
   test('a group the user holds no permission inside is hidden, not disabled', async ({ page }) => {
@@ -43,7 +43,7 @@ test.describe('navigation rail @screen-only', () => {
     await rail.getByRole('button', { name: 'Catalogue', exact: true }).click();
     await expect(rail.getByRole('link', { name: 'Offers', exact: true })).toBeVisible();
     await rail.getByRole('link', { name: 'Offers', exact: true }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Offers' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Offers', exact: true })).toBeVisible();
   });
 
   test('one group is open at a time, and arriving on a page opens its group', async ({ page }) => {
@@ -58,7 +58,7 @@ test.describe('navigation rail @screen-only', () => {
     await expect(overview).toHaveAttribute('aria-expanded', 'false');
 
     await rail.getByRole('link', { name: 'Audit log', exact: true }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Audit log' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Audit log', exact: true })).toBeVisible();
     await expect(evidence).toHaveAttribute('aria-expanded', 'true');
     await expect(rail.locator('[aria-current="page"]')).toHaveCount(1);
   });
@@ -72,7 +72,7 @@ test.describe('navigation rail @screen-only', () => {
     await expect(rail.getByText('Data', { exact: true })).toBeVisible();
     await rail.getByRole('link', { name: 'Intake', exact: true }).click();
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Intake' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Intake', exact: true })).toBeVisible();
     await expect(rail.getByRole('link', { name: 'Intake', exact: true })).toHaveAttribute(
       'aria-current',
       'page'
@@ -87,23 +87,23 @@ test.describe('navigation rail @screen-only', () => {
     expect((await rail.boundingBox())?.width).toBe(240);
 
     await openAccountPanel(page, /Marcus Webb/);
-    await page.getByRole('group', { name: 'Density' }).getByText('compact').click();
+    await page.getByRole('group', { name: 'Density', exact: true }).getByText('compact').click();
     await page.keyboard.press('Escape');
     expect((await rail.boundingBox())?.width).toBe(200);
 
-    await page.getByRole('button', { name: 'Collapse sidebar' }).click();
+    await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
     expect((await rail.boundingBox())?.width).toBe(48);
 
     // The icon rail still gets you somewhere: a group's icon is a link to its
     // first screen, named for the screen reader by the group.
     await rail.getByRole('link', { name: 'Evidence', exact: true }).click();
     await expect(page).toHaveURL(/\/decisions$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Decisions' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Decisions', exact: true })).toBeVisible();
 
     // Restore, so the persisted density does not leak into the next spec.
-    await page.getByRole('button', { name: 'Expand sidebar' }).click();
+    await page.getByRole('button', { name: 'Expand sidebar', exact: true }).click();
     await openAccountPanel(page, /Marcus Webb/);
-    await page.getByRole('group', { name: 'Density' }).getByText('comfy').click();
+    await page.getByRole('group', { name: 'Density', exact: true }).getByText('comfy').click();
   });
 
   test('the keyboard path: a group opens on Enter and Tab lands on its first screen', async ({ page }) => {
@@ -121,7 +121,7 @@ test.describe('navigation rail @screen-only', () => {
     await expect(focused).toHaveAttribute('href', '/approvals');
 
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Approvals', exact: true })).toBeVisible();
   });
 
   test('the icons are at group level only', async ({ page }) => {

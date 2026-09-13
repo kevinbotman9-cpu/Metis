@@ -59,7 +59,7 @@ test.describe('decision search and trace', () => {
     // The chain hash shown on the trace is what a replay has to reproduce.
     const storedHash = (await page.getByText(/^[0-9a-f]{64}$/).first().innerText()).trim();
 
-    await page.getByRole('button', { name: 'Replay this decision' }).click();
+    await page.getByRole('button', { name: 'Replay this decision', exact: true }).click();
 
     await expect(page.getByText('Identical', { exact: true })).toBeVisible();
     await expect(page.getByText(/Re-executed against artifact/)).toBeVisible();
@@ -85,21 +85,21 @@ test.describe('decision search and trace', () => {
   test('switches the trace audience', async ({ page }) => {
     await page.locator('tr[data-row]').first().click();
 
-    await page.getByRole('button', { name: 'Regulator' }).click();
-    await expect(page.getByRole('button', { name: 'Regulator' })).toHaveAttribute(
+    await page.getByRole('button', { name: 'Regulator', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Regulator', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true'
     );
     await expect(page.getByText('Consent state', { exact: true })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Engineer' }).click();
+    await page.getByRole('button', { name: 'Engineer', exact: true }).click();
     await expect(
-      page.getByRole('heading', { name: 'Execution timings' })
+      page.getByRole('heading', { name: 'Execution timings', exact: true })
     ).toBeVisible();
   });
 
   test('filters to suppressed decisions and shows why nothing went out', async ({ page }) => {
-    const box = page.getByRole('combobox', { name: 'Search and filter' });
+    const box = page.getByRole('combobox', { name: 'Search and filter', exact: true });
     await box.fill('outcome:suppressed');
     await page.keyboard.press('Enter');
     await expect(page.getByText('Outcome: Suppressed', { exact: true })).toBeVisible();

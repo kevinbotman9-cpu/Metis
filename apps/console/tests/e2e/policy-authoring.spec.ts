@@ -26,7 +26,7 @@ test.describe('the data model', () => {
   });
 
   test('shows what a decision can read, and what it cannot', async ({ page }) => {
-    await expect(page.getByRole('heading', { level: 1, name: 'Data model' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Data model', exact: true })).toBeVisible();
 
     // Two roots, and the screen says which is which: the subject a decision
     // reads, and the request it was made for. ADR-014 §2.
@@ -70,7 +70,7 @@ test.describe('authoring a policy', () => {
   });
 
   test('the field is a list, never a text box', async ({ page }) => {
-    await page.getByRole('button', { name: 'New policy' }).click();
+    await page.getByRole('button', { name: 'New policy', exact: true }).click();
     const dialog = page.getByRole('dialog');
 
     const field = dialog.getByLabel('Field for condition 1');
@@ -81,7 +81,7 @@ test.describe('authoring a policy', () => {
   });
 
   test('the operators narrow to the type of the chosen field', async ({ page }) => {
-    await page.getByRole('button', { name: 'New policy' }).click();
+    await page.getByRole('button', { name: 'New policy', exact: true }).click();
     const dialog = page.getByRole('dialog');
 
     await dialog.getByLabel('Field for condition 1').selectOption('customer.age');
@@ -99,7 +99,7 @@ test.describe('authoring a policy', () => {
   test('an enum offers its members rather than a text box', async ({ page }) => {
     // `passed` for `pass` reads correctly, matches nothing, and suppresses
     // every candidate. A dropdown makes it unwritable.
-    await page.getByRole('button', { name: 'New policy' }).click();
+    await page.getByRole('button', { name: 'New policy', exact: true }).click();
     const dialog = page.getByRole('dialog');
 
     await dialog.getByLabel('Field for condition 1').selectOption('customer.credit_status');
@@ -108,7 +108,7 @@ test.describe('authoring a policy', () => {
   });
 
   test('an existence check asks for no value', async ({ page }) => {
-    await page.getByRole('button', { name: 'New policy' }).click();
+    await page.getByRole('button', { name: 'New policy', exact: true }).click();
     const dialog = page.getByRole('dialog');
 
     await dialog.getByLabel('Field for condition 1').selectOption('customer.age');
@@ -117,7 +117,7 @@ test.describe('authoring a policy', () => {
   });
 
   test('creates a policy and shows it in the list', async ({ page }) => {
-    await page.getByRole('button', { name: 'New policy' }).click();
+    await page.getByRole('button', { name: 'New policy', exact: true }).click();
     const dialog = page.getByRole('dialog');
 
     await dialog.getByLabel('Name').fill('Over 21 only');
@@ -133,7 +133,7 @@ test.describe('authoring a policy', () => {
   });
 
   test('a second condition can be added and removed', async ({ page }) => {
-    await page.getByRole('button', { name: 'New policy' }).click();
+    await page.getByRole('button', { name: 'New policy', exact: true }).click();
     const dialog = page.getByRole('dialog');
 
     await dialog.getByRole('button', { name: 'Add condition' }).click();
@@ -144,7 +144,7 @@ test.describe('authoring a policy', () => {
   });
 
   test('edits an existing policy', async ({ page }) => {
-    await page.getByRole('button', { name: 'Edit' }).first().click();
+    await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
     const dialog = page.getByRole('dialog');
 
     await expect(dialog.getByRole('heading', { name: 'Edit policy' })).toBeVisible();
@@ -169,7 +169,7 @@ test.describe('authoring a policy', () => {
     await login(page, ACCOUNTS.sarah);
     await page.goto('/targeting-policies');
 
-    await expect(page.getByRole('button', { name: 'New policy' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'New policy', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
   });
 });

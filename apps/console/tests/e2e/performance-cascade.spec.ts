@@ -25,7 +25,7 @@ import { login, ACCOUNTS } from './helpers';
 
 const STAGES = ['Decisions made', 'Offered something', 'Deliverable', 'Seen', 'Acted on'] as const;
 
-const rail = (page: Page) => page.getByRole('navigation', { name: 'The loop' });
+const rail = (page: Page) => page.getByRole('navigation', { name: 'The loop', exact: true });
 
 /**
  * The figure on one rail stage, read from the button's accessible name.
@@ -46,7 +46,7 @@ async function stage(page: Page, label: string): Promise<number> {
 
 async function open(page: Page) {
   await page.goto('/performance');
-  await expect(page.getByRole('heading', { level: 1, name: 'Performance' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Performance', exact: true })).toBeVisible();
   await expect(rail(page)).toBeVisible({ timeout: 20_000 });
 }
 
@@ -185,7 +185,7 @@ test.describe('performance reads as a cascade @screen-only', () => {
     const seen = await stage(page, 'Seen');
     // Middle: what the stage is.
     await expect(
-      page.getByRole('heading', { name: `${seen.toLocaleString('en-GB')} were seen` })
+      page.getByRole('heading', { name: `${seen.toLocaleString('en-GB')} were seen`, exact: true })
     ).toBeVisible();
 
     // Right: the evidence. The per-channel breakdown has to sum to the stage,

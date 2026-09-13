@@ -191,7 +191,7 @@ test.describe('inbound traffic', () => {
     await page.goto('/integrations/traffic');
     await expect(page.getByRole('button', { name: /homepage_hero/ })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Clear log' }).click();
+    await page.getByRole('button', { name: 'Clear log', exact: true }).click();
 
     // The clear records itself, so the log is not empty — it says what emptied it.
     await expect(page.getByRole('button', { name: /homepage_hero/ })).toBeHidden();

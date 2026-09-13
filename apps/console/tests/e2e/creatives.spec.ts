@@ -106,7 +106,7 @@ test.describe('the content library', () => {
 
   test('edits content from here, without going via the offer', async ({ page }) => {
     await page.getByLabel('Search content', { exact: true }).fill('Fiber is ready');
-    await page.getByRole('button', { name: 'Edit' }).first().click();
+    await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
@@ -122,7 +122,7 @@ test.describe('the content library', () => {
     // A creative belongs to exactly one offer, and the page says so by making
     // the offer the only navigable thing on the row.
     await page.getByLabel('Search content', { exact: true }).fill('5G Home Ultimate');
-    await page.getByRole('link', { name: '5G Home Ultimate' }).first().click();
+    await page.getByRole('link', { name: '5G Home Ultimate', exact: true }).first().click();
     await expect(page).toHaveURL(/\/offers\/off_5g_home_ultimate$/);
   });
 
@@ -132,6 +132,6 @@ test.describe('the content library', () => {
     await page.goto('/creatives');
 
     await expect(page.locator('tbody tr').first()).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
   });
 });

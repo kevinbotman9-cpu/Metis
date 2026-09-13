@@ -33,7 +33,7 @@ test.describe('header band', () => {
     // Concealed until focused. `sr-only` clips to a 1px box rather than using
     // display:none, so it stays in the tab order — which is the whole point,
     // and also why toBeHidden() is the wrong assertion here.
-    const skip = page.getByRole('link', { name: 'Skip to content' });
+    const skip = page.getByRole('link', { name: 'Skip to content', exact: true });
     const clipped = await skip.boundingBox();
     expect(clipped?.width, 'skip link should be clipped before focus').toBeLessThan(4);
 
@@ -58,33 +58,33 @@ test.describe('header band', () => {
 
   test('every header panel closes on Escape', async ({ page }) => {
     await page.getByRole('button', { name: /Notifications/ }).click();
-    const notifications = page.getByRole('group', { name: 'Needs attention' });
+    const notifications = page.getByRole('group', { name: 'Needs attention', exact: true });
     await expect(notifications).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(notifications).toBeHidden();
 
     await openAccountPanel(page, /Sarah Chen/);
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('group', { name: 'Colour scheme' })).toBeHidden();
+    await expect(page.getByRole('group', { name: 'Colour scheme', exact: true })).toBeHidden();
   });
 
   test('collapsing the sidebar hides navigation and is reversible', async ({ page }) => {
     // On /decisions the Evidence group is the open one, so its links are the
     // ones that should disappear into the icon rail and come back.
     await page.goto('/decisions');
-    const nav = page.getByRole('navigation', { name: 'Main' });
+    const nav = page.getByRole('navigation', { name: 'Main', exact: true });
     await expect(nav.getByRole('link', { name: 'Decisions', exact: true })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Collapse sidebar' }).click();
+    await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
     await expect(nav.getByRole('link', { name: 'Decisions', exact: true })).toBeHidden();
 
-    await page.getByRole('button', { name: 'Expand sidebar' }).click();
+    await page.getByRole('button', { name: 'Expand sidebar', exact: true }).click();
     await expect(nav.getByRole('link', { name: 'Decisions', exact: true })).toBeVisible();
   });
 
   test('appearance controls persist from the account panel', async ({ page }) => {
     await openAccountPanel(page, /Sarah Chen/);
-    await page.getByRole('group', { name: 'Colour scheme' }).getByText('Light').click();
+    await page.getByRole('group', { name: 'Colour scheme', exact: true }).getByText('Light').click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
     await page.reload();
@@ -99,7 +99,7 @@ test.describe('command palette', () => {
 
   test('opens on the keyboard shortcut and closes on Escape', async ({ page }) => {
     await page.keyboard.press('ControlOrMeta+k');
-    const palette = page.getByRole('dialog', { name: 'Command palette' });
+    const palette = page.getByRole('dialog', { name: 'Command palette', exact: true });
     await expect(palette).toBeVisible();
 
     await page.keyboard.press('Escape');
@@ -111,7 +111,7 @@ test.describe('command palette', () => {
     await page.getByRole('combobox').fill('arbitration');
     await page.keyboard.press('Enter');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Arbitration & boosts' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Arbitration & boosts', exact: true })).toBeVisible();
   });
 
   test('finds an offer by name and opens its detail page', async ({ page }) => {
@@ -160,11 +160,11 @@ test.describe('notifications', () => {
     await expect(bell).toBeVisible();
     await bell.click();
 
-    const panel = page.getByRole('group', { name: 'Needs attention' });
+    const panel = page.getByRole('group', { name: 'Needs attention', exact: true });
     await expect(panel).toBeVisible();
 
     await panel.getByRole('link', { name: 'All approvals' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Approvals', exact: true })).toBeVisible();
   });
 
   test('the badge count matches the number of items listed', async ({ page }) => {
@@ -180,7 +180,7 @@ test.describe('notifications', () => {
     expect(expected).toBeGreaterThan(0);
 
     await bell.click();
-    const panel = page.getByRole('group', { name: 'Needs attention' });
+    const panel = page.getByRole('group', { name: 'Needs attention', exact: true });
     await expect(panel.getByRole('link', { name: 'All approvals' })).toBeVisible();
     await expect(panel.locator('ul > li')).toHaveCount(expected);
   });

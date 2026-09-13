@@ -18,7 +18,7 @@ const dialog = (page: import('@playwright/test').Page) => page.getByRole('dialog
 
 async function openNewOffer(page: import('@playwright/test').Page) {
   await page.goto('/offers');
-  await page.getByRole('button', { name: 'New offer' }).click();
+  await page.getByRole('button', { name: 'New offer', exact: true }).click();
   await expect(dialog(page).getByRole('heading', { name: 'New offer' })).toBeVisible();
 }
 
@@ -84,7 +84,7 @@ test.describe('declared forms @screen-only', () => {
   test('locks the key when editing, because a decision record names it', async ({ page }) => {
     await createOffer(page, 'Lockable Offer');
 
-    await page.getByRole('button', { name: 'Edit' }).first().click();
+    await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
     const d = dialog(page);
     await expect(d.getByLabel('Key')).toBeDisabled();
     await expect(d.getByLabel('Name')).toBeEnabled();
@@ -139,7 +139,7 @@ test.describe('declared forms @screen-only', () => {
 
     // Reopen it: the value came back from the server, so it was stored rather
     // than merely accepted by the form.
-    await page.getByRole('button', { name: 'Edit' }).first().click();
+    await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
     const edit = dialog(page);
     await expect(edit.getByLabel('Contract terms')).toHaveValue(
       'https://terms.telco.example/proof'
@@ -164,7 +164,7 @@ test.describe('the declared creative form @screen-only', () => {
 
   async function addCreativeTo(page: import('@playwright/test').Page, name: string) {
     await createOffer(page, name);
-    await page.getByRole('button', { name: 'Add creative' }).first().click();
+    await page.getByRole('button', { name: 'Add creative', exact: true }).first().click();
     await expect(dialog(page).getByRole('heading', { name: 'Add creative' })).toBeVisible();
   }
 
@@ -230,7 +230,7 @@ test.describe('the declared creative form @screen-only', () => {
     // the page, which is the offer's as well as each creative's — so the
     // assertion depended on how many creatives existed, which depended on what
     // other specs had left behind. G-003.
-    await page.getByRole('button', { name: 'Edit creative SMS — declared' }).click();
+    await page.getByRole('button', { name: 'Edit creative SMS — declared', exact: true }).click();
     const edit = dialog(page);
     await expect(edit.getByLabel('Channel')).toBeDisabled();
     // The content came back, and the discriminant still went with it — the
@@ -257,7 +257,7 @@ test.describe('the declared creative form @screen-only', () => {
     await d.getByRole('button', { name: 'Add creative' }).click();
     await expect(d).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Edit creative Reviewed hero' }).click();
+    await page.getByRole('button', { name: 'Edit creative Reviewed hero', exact: true }).click();
     await expect(dialog(page).getByLabel('Review note')).toHaveValue(
       'Ofcom speed claim substantiated 2026-09-01, ref LEG-4471.'
     );

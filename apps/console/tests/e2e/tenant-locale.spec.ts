@@ -53,7 +53,7 @@ test.describe('the tenant reads in its own locale @screen-only', () => {
     // The fifth of September, which en-US writes month first.
     await expect(card.getByText('9/5/2026', { exact: true })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Edit tenant settings' }).click();
+    await page.getByRole('button', { name: 'Edit tenant settings', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Locale').selectOption('de-DE');
     await dialog.getByLabel('Currency').selectOption('EUR');
@@ -83,7 +83,7 @@ test.describe('the tenant reads in its own locale @screen-only', () => {
     await login(page, ACCOUNTS.sarah);
     await page.goto('/settings');
     await expect(page.getByText('A date reads', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Edit tenant settings' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Edit tenant settings', exact: true })).toHaveCount(0);
     await expect(page.getByText(/needs the admin:settings permission/)).toBeVisible();
   });
 });

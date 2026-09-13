@@ -24,7 +24,7 @@ test.describe('the compilation gate', () => {
   test('a flow that does not compile is not in the registry', async ({ page }) => {
     await page.goto(`/decision-flows/${UNCOMPILABLE}`);
 
-    await expect(page.getByRole('heading', { name: 'Registry' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Registry', exact: true })).toBeVisible();
     await expect(page.getByText('Not in the registry', { exact: true })).toBeVisible();
     // The point, stated where someone will read it.
     await expect(page.getByText(/never compiled, so it can't be promoted/)).toBeVisible();
@@ -46,7 +46,7 @@ test.describe('the compilation gate', () => {
   test('a flow that compiles is published and running', async ({ page }) => {
     await page.goto(`/decision-flows/${PUBLISHED}`);
 
-    await expect(page.getByRole('heading', { name: 'Registry' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Registry', exact: true })).toBeVisible();
     // One per published version, so `.first()`: the seed now publishes the
     // whole declared history rather than only the active version.
     await expect(page.getByText('ArtifactPublished', { exact: true }).first()).toBeVisible();
@@ -68,7 +68,7 @@ test.describe('promotion and rollback', () => {
 
   // covers: promoteVersion
   test('promoting to an environment is recorded', async ({ page }) => {
-    await page.getByRole('button', { name: 'Promote to staging' }).first().click();
+    await page.getByRole('button', { name: 'Promote to staging', exact: true }).first().click();
 
     await expect(page.getByText('VersionPromoted', { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/Promoted next-best-action .* to staging/)).toBeVisible();
@@ -80,7 +80,7 @@ test.describe('promotion and rollback', () => {
 
   test('rollback is offered only once there is somewhere to go back to', async ({ page }) => {
     // Production has one version promoted and no predecessor.
-    await expect(page.getByRole('button', { name: 'Roll back' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Roll back', exact: true })).toHaveCount(0);
   });
 
   // covers: rollbackVersion
@@ -120,11 +120,11 @@ test.describe('promotion and rollback', () => {
     expect((await published.json()).status).toBe('published');
 
     await page.reload();
-    await page.getByRole('button', { name: 'Promote to production' }).first().click();
+    await page.getByRole('button', { name: 'Promote to production', exact: true }).first().click();
     await expect(page.getByText(/replacing 1\.0\.0/)).toBeVisible();
 
     // Now there is somewhere to go back to.
-    const rollback = page.getByRole('button', { name: 'Roll back' });
+    const rollback = page.getByRole('button', { name: 'Roll back', exact: true });
     await expect(rollback).toHaveCount(1);
     await rollback.click();
 
@@ -148,10 +148,10 @@ test.describe('registry permissions', () => {
 
     // Compliance can see what is running — that is most of their job — without
     // being able to change what customers get.
-    await expect(page.getByRole('heading', { name: 'Registry' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Registry', exact: true })).toBeVisible();
     await expect(page.getByText('Published versions', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /Promote to/ })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Roll back' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Roll back', exact: true })).toHaveCount(0);
   });
 
   test('the API refuses too, not just the UI', async ({ page, request }) => {

@@ -8,7 +8,7 @@ test.describe('offer catalogue', () => {
   test.beforeEach(async ({ page }) => {
     await login(page, ACCOUNTS.sarah);
     await page.goto('/offers');
-    await expect(page.getByRole('heading', { level: 1, name: 'Offers' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Offers', exact: true })).toBeVisible();
     // The heading renders before the catalogue query resolves, and the filter
     // blocks count an empty array until it does. Reading a figure before this
     // point measures the loading state, which is how the first version of the
@@ -19,7 +19,7 @@ test.describe('offer catalogue', () => {
 
   test.describe('the summary is the filter', () => {
     test('selecting a block narrows the table to the rows behind the number', async ({ page }) => {
-      const group = page.getByRole('radiogroup', { name: 'Filter the catalogue' });
+      const group = page.getByRole('radiogroup', { name: 'Filter the catalogue', exact: true });
 
       // Any block with rows behind it. This named "Cannot be delivered" and
       // asserted the count was above zero, which was true of a tenant carrying
@@ -50,7 +50,7 @@ test.describe('offer catalogue', () => {
     });
 
     test('arrow keys move between blocks, as a radio group should', async ({ page }) => {
-      const group = page.getByRole('radiogroup', { name: 'Filter the catalogue' });
+      const group = page.getByRole('radiogroup', { name: 'Filter the catalogue', exact: true });
       await group.getByRole('radio', { name: /Offers/ }).focus();
       await page.keyboard.press('ArrowRight');
       await expect(group.getByRole('radio', { name: /Selectable/ })).toHaveAttribute(
@@ -88,7 +88,7 @@ test.describe('offer catalogue', () => {
       // the real proof that the list was never left.
       await expect(page).toHaveURL(/\/offers\?/);
       await page.keyboard.press('Escape');
-      await expect(page.getByRole('heading', { level: 1, name: 'Offers' })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: 'Offers', exact: true })).toBeVisible();
     });
 
     test('which offer is open lives in the URL, so it can be linked and gone back from', async ({

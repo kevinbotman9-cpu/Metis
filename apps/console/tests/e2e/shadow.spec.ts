@@ -285,13 +285,13 @@ test.describe('the shadow panel', () => {
     await login(page, ACCOUNTS.marcus);
     await page.goto(FLOW_PAGE);
 
-    const panel = page.getByRole('region', { name: 'Shadow' }).or(
+    const panel = page.getByRole('region', { name: 'Shadow', exact: true }).or(
       page.locator('section', { has: page.getByRole('heading', { name: 'Shadow', exact: true }) })
     );
     await expect(page.getByText('Nothing shadowing', { exact: true })).toBeVisible();
 
     await page.getByLabel('Shadow version', { exact: true }).selectOption(OTHER);
-    await page.getByRole('button', { name: 'Start shadowing' }).click();
+    await page.getByRole('button', { name: 'Start shadowing', exact: true }).click();
 
     // Configured but never exercised. A percentage here would be read as a
     // measurement, and there is nothing behind it yet.
@@ -299,7 +299,7 @@ test.describe('the shadow panel', () => {
     await expect(panel.getByText('no decisions compared')).toBeVisible();
     await expect(panel.getByText('—')).toBeVisible();
 
-    await expect(page.getByRole('button', { name: 'Stop shadowing' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop shadowing', exact: true })).toBeVisible();
   });
 
   test('no panel at all for a flow the registry never accepted', async ({ page }) => {
@@ -320,7 +320,7 @@ test.describe('the shadow panel', () => {
 
     await expect(page.getByRole('heading', { name: 'Shadow', exact: true })).toBeVisible();
     await expect(page.getByLabel('Shadow version', { exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Start shadowing' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Start shadowing', exact: true })).toHaveCount(0);
   });
 
   test('the panel is accessible while it is reporting', async ({ page, request }) => {
