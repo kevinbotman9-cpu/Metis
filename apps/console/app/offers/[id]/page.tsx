@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { apiClient, ApiError, type CreativeDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
+import { useFormat } from '@/components/tenant-format';
 
 const CHANNEL_LABEL: Record<string, string> = {
   email: 'Email',
@@ -40,11 +41,6 @@ const KIND_TONE: Record<string, 'accent' | 'info' | 'hold'> = {
   relevance: 'info',
   suitability: 'hold',
 };
-
-function money(m: { amount: number; currency: string }) {
-  const symbol = m.currency === 'GBP' ? '£' : m.currency === 'USD' ? '$' : '€';
-  return `${symbol}${(m.amount / 100).toFixed(2)}`;
-}
 
 /** Renders a creative's channel-specific fields without leaking the shape. */
 function CreativeBody({ creative }: { creative: CreativeDto }) {
@@ -68,6 +64,7 @@ function CreativeBody({ creative }: { creative: CreativeDto }) {
 }
 
 function OfferDetail({ offerId }: { offerId: string }) {
+  const format = useFormat();
   const [activeCreative, setActiveCreative] = useState<string | null>(null);
   const [editingOffer, setEditingOffer] = useState(false);
   const [creativeDialog, setCreativeDialog] = useState<
@@ -225,13 +222,13 @@ function OfferDetail({ offerId }: { offerId: string }) {
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Metric
           label="Price"
-          value={money(p.financials.price)}
+          value={format.money(p.financials.price)}
           sub={p.financials.oneOff ? 'one-off' : 'per month'}
         />
-        <Metric label="Cost to serve" value={money(p.financials.cost)} />
+        <Metric label="Cost to serve" value={format.money(p.financials.cost)} />
         <Metric
           label="Expected margin"
-          value={money(margin)}
+          value={format.money(margin)}
           tone={margin.amount < 0 ? 'block' : 'pass'}
           sub={p.financials.termMonths > 0 ? `over ${p.financials.termMonths} months` : 'one-off'}
         />
@@ -475,7 +472,7 @@ function OfferDetail({ offerId }: { offerId: string }) {
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-content-subtle">Last updated</dt>
-                  <dd>{new Date(p.updatedAt).toLocaleDateString('en-GB')}</dd>
+                  <dd>{format.date(p.updatedAt)}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="shrink-0 text-content-subtle">By</dt>

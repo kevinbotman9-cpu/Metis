@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { RequireAuth } from '@/components/require-auth';
 import { useAuth } from '@/components/auth-provider';
 import { useTheme } from '@/components/theme-provider';
@@ -12,6 +13,93 @@ import {
   Badge,
 } from '@/components/ui/primitives';
 import { cn } from '@/lib/cn';
+import { Button } from '@/components/ui/button';
+import { EntityFormDialog } from '@/components/entity-form-dialog';
+import { TENANT_SETTINGS_KEY, useFormat, useTenantSettings } from '@/components/tenant-format';
+import { apiClient, type TenantSettingsDto } from '@/lib/api-client';
+
+/**
+ * The fifth of September, 14:30 UTC: the date en-US and en-GB write as each
+ * other's ninth of May, which is the ambiguity this setting exists to settle.
+ */
+const EXAMPLE_INSTANT = '2026-09-05T14:30:00Z';
+
+/**
+ * How this tenant reads dates, numbers and money. G-092.
+ *
+ * The page stays hand-built — ADR-015 holds the Form pattern for design review
+ * and keeps `/settings` as it is until then — but the form is not: it is the
+ * `TenantSettings` descriptor, drawn by the generic renderer (Rule 8). The
+ * examples are formatted by the same formatter every other screen uses, so what
+ * this card shows is what the console shows.
+ */
+function TenantCard() {
+  const { hasPermission } = useAuth();
+  const settings = useTenantSettings();
+  const format = useFormat();
+  const [editing, setEditing] = useState(false);
+  const canEdit = hasPermission('admin:settings');
+  const data = settings.data;
+
+  return (
+    <Card>
+      <CardHeader
+        title="Tenant"
+        description="Every date, number and amount in the console is formatted in this tenant's locale."
+      />
+      <CardBody>
+        <dl className="space-y-2 text-body">
+          <div className="flex justify-between gap-3">
+            <dt className="text-content-subtle">Locale</dt>
+            <dd className="font-mono text-label">{data?.locale}</dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-content-subtle">Currency</dt>
+            <dd className="font-mono text-label">{data?.currency}</dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-content-subtle">A date reads</dt>
+            <dd className="tnum">{format.date(EXAMPLE_INSTANT, { timeZone: 'UTC' })}</dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-content-subtle">An amount reads</dt>
+            <dd className="tnum">{format.minor(123456)}</dd>
+          </div>
+          {data?.updatedAt ? (
+            <div className="flex justify-between gap-3">
+              <dt className="text-content-subtle">Last changed</dt>
+              <dd className="text-right text-label text-content-muted">
+                {format.dateTime(data.updatedAt)} by {data.updatedBy}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+
+        <div className="mt-4 border-t border-border pt-3">
+          {canEdit ? (
+            <Button onClick={() => setEditing(true)}>Edit tenant settings</Button>
+          ) : (
+            <p className="text-label text-content-muted">
+              Changing these needs the <code className="font-mono">admin:settings</code> permission.
+            </p>
+          )}
+        </div>
+      </CardBody>
+
+      {editing && data ? (
+        <EntityFormDialog<TenantSettingsDto>
+          open
+          onOpenChange={setEditing}
+          entity="TenantSettings"
+          record={data}
+          title="Tenant settings"
+          save={(body) => apiClient.updateTenantSettings(body as Partial<TenantSettingsDto>)}
+          invalidate={[TENANT_SETTINGS_KEY]}
+        />
+      ) : null}
+    </Card>
+  );
+}
 
 function SettingsView() {
   const { user } = useAuth();
@@ -135,6 +223,8 @@ function SettingsView() {
             </div>
           </CardBody>
         </Card>
+
+        <TenantCard />
 
         <Card className="lg:col-span-2">
           <CardHeader

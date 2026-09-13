@@ -22,6 +22,7 @@ import {
   type FilterChip,
 } from '@/components/ui/smart-search';
 import { apiClient, type DecisionDto } from '@/lib/api-client';
+import { useFormat } from '@/components/tenant-format';
 
 /**
  * The facets the decision store can actually narrow on.
@@ -63,6 +64,7 @@ function asOutcome(value: string | undefined): 'offered' | 'suppressed' | undefi
 }
 
 function DecisionsView() {
+  const format = useFormat();
   const router = useRouter();
   const [chips, setChips] = useState<FilterChip[]>([]);
   const filters = chipsToQuery(chips);
@@ -98,7 +100,7 @@ function DecisionsView() {
   const offered = rows.filter((d) => d.winner).length;
   const suppressed = rows.length - offered;
   const overPage =
-    rows.length < total ? `across ${rows.length.toLocaleString('en-GB')} loaded rows` : undefined;
+    rows.length < total ? `across ${format.number(rows.length)} loaded rows` : undefined;
 
   const columns: Column<DecisionDto>[] = [
     {
@@ -115,7 +117,7 @@ function DecisionsView() {
       sortValue: (d) => d.timestamp,
       cell: (d) => (
         <span className="tnum text-content-muted">
-          {new Date(d.timestamp).toLocaleString('en-GB', {
+          {format.dateTime(d.timestamp, {
             day: '2-digit',
             month: 'short',
             hour: '2-digit',

@@ -16,7 +16,6 @@ import type { EntityDescriptor } from '../types';
 export const offerDescriptor: EntityDescriptor = {
   entity: 'Offer',
   noun: { singular: 'offer', plural: 'offers' },
-  moneyCurrencyDefault: 'GBP',
 
   create: {
     title: 'New offer',

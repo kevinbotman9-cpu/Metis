@@ -25,6 +25,8 @@ import { CascadeRail, type CascadeStage } from '@/components/cascade-rail';
 import { LoopFlow } from '@/components/loop-flow';
 import { apiClient, type PerformanceRowDto, type ChannelStagesDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
+import { useFormat } from '@/components/tenant-format';
+import type { Formatter } from '@/lib/format';
 
 /**
  * What happened after the decisions — the loop, read as a Cascade.
@@ -78,11 +80,12 @@ function pct(n: number, of: number): string {
  *
  * The currency was `GBP`, hardcoded, so a US tenant's realised value rendered
  * in pounds — a number in the wrong unit reads as a smaller or larger business
- * than the one being shown. It comes from the catalogue now, which is the only
- * place that knows: the performance API returns minor units and no currency,
- * so nothing in this response can say what unit it is in.
+ * than the one being shown. It then came from whichever offer was first in the
+ * catalogue, which was a guess that happened to be right. It comes from the
+ * tenant's settings now (G-092). The performance API still returns minor units
+ * with no currency, so the response cannot describe itself (G-093).
  */
-function money(minor: number | null, currency: string) {
+function money(minor: number | null, format: Formatter) {
   if (minor === null) {
     return (
       <span className="text-content-muted" title="No outcome carried a value.">
@@ -92,7 +95,7 @@ function money(minor: number | null, currency: string) {
   }
   return (
     <span className="tnum tabular-nums">
-      {(minor / 100).toLocaleString(undefined, { style: 'currency', currency })}
+      {format.minor(minor)}
     </span>
   );
 }
@@ -123,6 +126,7 @@ function Rate({ value, measured }: { value: number | null; measured: number }) {
 }
 
 function PerformanceView() {
+  const format = useFormat();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -151,8 +155,6 @@ function PerformanceView() {
 
   const flows = useQuery({ queryKey: ['artifacts'], queryFn: () => apiClient.listArtifacts() });
   const taxonomy = useQuery({ queryKey: ['taxonomy'], queryFn: () => apiClient.getTaxonomy() });
-  /** The tenant's currency, from its own catalogue. USD only until one loads. */
-  const currency = taxonomy.data?.offers?.[0]?.financials?.price?.currency ?? 'USD';
 
   const marginByKey = useMemo(
     () =>
@@ -194,7 +196,7 @@ function PerformanceView() {
         series: tail.map((d) => d.deliverable),
         broken:
           undeliverable > 0
-            ? `${undeliverable.toLocaleString('en-GB')} decisions won a slot on a channel nothing delivers — ${dead
+            ? `${format.number(undeliverable)} decisions won a slot on a channel nothing delivers — ${dead
                 .map((c) => CHANNEL_LABEL[c.channel] ?? c.channel)
                 .join(', ')}. They were decided correctly and reached nobody.`
             : undefined,
@@ -216,7 +218,7 @@ function PerformanceView() {
         series: tail.map((d) => d.acted),
       },
     ];
-  }, [data]);
+  }, [data, format]);
 
   if (isLoading) return <LoadingState label="Joining outcomes to decisions" />;
   if (error || !data) {
@@ -329,7 +331,7 @@ function PerformanceView() {
       align: 'right',
       secondary: true,
       sortValue: (r) => r.valueMinor ?? -1,
-      cell: (r) => money(r.valueMinor, currency),
+      cell: (r) => money(r.valueMinor, format),
     },
   ];
 
@@ -342,7 +344,7 @@ function PerformanceView() {
           </Badge>
         </td>
         <td className="tnum px-cell py-cell-y text-right text-content-muted">
-          {get(c).toLocaleString('en-GB')}
+          {format.number(get(c))}
         </td>
         <td className="px-cell py-cell-y text-right text-label text-content-subtle">
           {of ? pct(get(c), of(c)) : c.delivers ? 'delivered' : 'no sender'}
@@ -387,7 +389,7 @@ function PerformanceView() {
       case 'decisions':
         return (
           <StageTable
-            title={`${data.decisions.toLocaleString('en-GB')} decisions`}
+            title={`${format.number(data.decisions)} decisions`}
             description="Every request that reached a decision flow and returned a ranked slate. Each produced a decision record, a chain hash and a replayable trace."
             head="Decisions"
             body={stageRows((c) => c.decisions)}
@@ -396,7 +398,7 @@ function PerformanceView() {
       case 'offered':
         return (
           <StageTable
-            title={`${data.offered.toLocaleString('en-GB')} returned an offer`}
+            title={`${format.number(data.offered)} returned an offer`}
             description="The rest found nothing eligible after targeting policy and frequency. A suppressed decision is a result, not a shortfall."
             head="Offered"
             body={stageRows(
@@ -412,7 +414,7 @@ function PerformanceView() {
               <CardBody>
                 <p className="text-body text-content">
                   <strong>The loop breaks here.</strong>{' '}
-                  {undeliverable.toLocaleString('en-GB')} of {data.offered.toLocaleString('en-GB')}{' '}
+                  {format.number(undeliverable)} of {format.number(data.offered)}{' '}
                   decisions picked an offer on a channel with nothing to send it. They were decided
                   correctly, recorded, and reached nobody — a replay of any of them returns a
                   byte-identical hash confirming a choice that could never have been shown.
@@ -424,7 +426,7 @@ function PerformanceView() {
               </CardBody>
             </Card>
             <StageTable
-              title={`${(data.deliverable ?? 0).toLocaleString('en-GB')} could be delivered`}
+              title={`${format.number(data.deliverable ?? 0)} could be delivered`}
               description="A channel delivers when a placement on it names something that carries the result to a customer."
               head="Deliverable"
               body={stageRows(
@@ -437,7 +439,7 @@ function PerformanceView() {
       case 'seen':
         return (
           <StageTable
-            title={`${data.measured.toLocaleString('en-GB')} were seen`}
+            title={`${format.number(data.measured)} were seen`}
             description={`An impression is of an offer somebody could look at. Measured over ${population}, because nothing else was sent.`}
             head="Seen"
             body={stageRows(
@@ -450,7 +452,7 @@ function PerformanceView() {
         return (
           <Card>
             <CardHeader
-              title={`${data.acted.toLocaleString('en-GB')} were acted on`}
+              title={`${format.number(data.acted)} were acted on`}
               description={`Clicks, acceptances and conversions, by action. Every rate is over what was measured on ${population} — never over what was decided.`}
             />
             <DataTable
@@ -506,7 +508,7 @@ function PerformanceView() {
           {stage.label}
         </h2>
         <p className="mt-1 text-body font-semibold text-content">
-          {stage.value.toLocaleString('en-GB')} · {stage.note}
+          {format.number(stage.value)} · {stage.note}
         </p>
         <dl className="mt-3 flex flex-col text-label">
           {data.channels.map((c) => {
@@ -529,7 +531,7 @@ function PerformanceView() {
                   {CHANNEL_LABEL[c.channel] ?? c.channel}
                   {!c.delivers ? ' · no sender' : ''}
                 </dt>
-                <dd className="tnum text-content">{value.toLocaleString('en-GB')}</dd>
+                <dd className="tnum text-content">{format.number(value)}</dd>
               </div>
             );
           })}
@@ -561,9 +563,9 @@ function PerformanceView() {
         <Card>
           <CardBody>
             <p className="text-label text-content-subtle">Realised value</p>
-            <p className="tnum mt-1 text-[1.5rem] font-bold text-content">{money(realised, currency)}</p>
+            <p className="tnum mt-1 text-[1.5rem] font-bold text-content">{money(realised, format)}</p>
             <p className="mt-1 text-label text-content-subtle">
-              from {data.acted.toLocaleString('en-GB')} acted on
+              from {format.number(data.acted)} acted on
             </p>
           </CardBody>
         </Card>
@@ -571,10 +573,10 @@ function PerformanceView() {
           <CardBody>
             <p className="text-label text-content-subtle">Expected, at the ceiling</p>
             <p className="tnum mt-1 text-[1.5rem] font-bold text-content">
-              {money(ceiling(delivered), currency)}
+              {money(ceiling(delivered), format)}
             </p>
             <p className="mt-1 text-label text-content-subtle">
-              if all {(data.deliverable ?? 0).toLocaleString('en-GB')} delivered offers had been
+              if all {format.number(data.deliverable ?? 0)} delivered offers had been
               taken — a bound, not a forecast
             </p>
           </CardBody>
@@ -583,10 +585,10 @@ function PerformanceView() {
           <CardBody>
             <p className="text-label text-content-subtle">Never had the chance</p>
             <p className="tnum mt-1 text-[1.5rem] font-bold text-block">
-              {money(ceiling(undelivered), currency)}
+              {money(ceiling(undelivered), format)}
             </p>
             <p className="mt-1 text-label text-content-subtle">
-              the same ceiling over the {undeliverable.toLocaleString('en-GB')} decisions nothing
+              the same ceiling over the {format.number(undeliverable)} decisions nothing
               sent
             </p>
           </CardBody>
@@ -615,7 +617,7 @@ function PerformanceView() {
           nobody reported on is the most common way these mislead. */}
       {data.offered > 0 && data.measured === 0 ? (
         <p className="mb-stack rounded border border-hold/40 bg-hold-subtle px-2 py-1.5 text-body text-hold">
-          Nothing has been reported back. {data.offered.toLocaleString('en-GB')} offers were made
+          Nothing has been reported back. {format.number(data.offered)} offers were made
           and no channel has recorded an impression, a click or an acceptance against any of them,
           so every rate here is empty rather than zero.
         </p>
@@ -623,10 +625,10 @@ function PerformanceView() {
 
       {data.measured > 0 && (data.deliverable ?? 0) > data.measured ? (
         <p className="mb-stack text-label text-content-muted">
-          {((data.deliverable ?? 0) - data.measured).toLocaleString('en-GB')} of{' '}
-          {(data.deliverable ?? 0).toLocaleString('en-GB')} deliverable offers have no outcome
+          {format.number((data.deliverable ?? 0) - data.measured)} of{' '}
+          {format.number(data.deliverable ?? 0)} deliverable offers have no outcome
           recorded. Every rate below the break describes the{' '}
-          {data.measured.toLocaleString('en-GB')} that do, on {population}, and says nothing about
+          {format.number(data.measured)} that do, on {population}, and says nothing about
           the rest.
         </p>
       ) : null}
@@ -635,9 +637,9 @@ function PerformanceView() {
         {[
           {
             label: 'Decisions per day',
-            value: Math.round(
+            value: format.number(Math.round(
               tail.reduce((s, d) => s + d.decisions, 0) / Math.max(1, tail.length)
-            ).toLocaleString('en-GB'),
+            )),
             series: tail.map((d) => d.decisions),
             tone: 'accent' as const,
           },
@@ -649,9 +651,9 @@ function PerformanceView() {
           },
           {
             label: `Seen per day · ${population}`,
-            value: Math.round(
+            value: format.number(Math.round(
               tail.reduce((s, d) => s + d.seen, 0) / Math.max(1, tail.length)
-            ).toLocaleString('en-GB'),
+            )),
             series: tail.map((d) => d.seen),
             tone: 'pass' as const,
           },
@@ -676,7 +678,7 @@ function PerformanceView() {
               <strong>
                 {dead.length} channels decide and nothing delivers the result.
               </strong>{' '}
-              {undeliverable.toLocaleString('en-GB')} decisions on{' '}
+              {format.number(undeliverable)} decisions on{' '}
               {dead.map((c) => CHANNEL_LABEL[c.channel] ?? c.channel).join(', ')}. Every figure
               below <em>Deliverable</em> in the rail describes {population}.
             </p>
@@ -707,9 +709,9 @@ function PerformanceView() {
 
       <p className="mb-stack text-label text-content-subtle">
         {data.from && data.to
-          ? `Decisions from ${new Date(data.from).toLocaleDateString('en-GB')} to ${new Date(
+          ? `Decisions from ${format.date(data.from)} to ${format.date(
               data.to
-            ).toLocaleDateString('en-GB')}. `
+            )}. `
           : ''}
         Counts are distinct decisions, never events — a channel that fires twice reports once.
       </p>

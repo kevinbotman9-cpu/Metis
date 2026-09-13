@@ -14,6 +14,10 @@ import {
   NO_FILTER,
 } from '@/lib/layouts/list';
 import type { Row } from '@/lib/layouts/sources';
+import { formatterFor } from '@/lib/format';
+
+/** The seeded tenant's settings: these assertions are about words, not locales. */
+const F = formatterFor({ locale: 'en-US', currency: 'USD' });
 
 /**
  * The list–detail renderer's rules, run against the real Placement descriptor,
@@ -33,42 +37,42 @@ const flows = { flows: [{ value: 'inbound-web-offers', label: 'Inbound web offer
 
 describe('a value reads in the descriptor’s words', () => {
   it('shortens an option on a row and keeps the sentence in the overview', () => {
-    expect(display(field('delivery.mode'), undefined, {}, true).text).toBe('Nothing');
-    expect(display(field('delivery.mode'), undefined, {}).text).toBe('Nothing — decides, and nobody sends it');
-    expect(display(field('delivery.mode'), 'caller', {}, true).text).toBe('Whoever asked');
+    expect(display(field('delivery.mode'), undefined, {}, F, true).text).toBe('Nothing');
+    expect(display(field('delivery.mode'), undefined, {}, F).text).toBe('Nothing — decides, and nobody sends it');
+    expect(display(field('delivery.mode'), 'caller', {}, F, true).text).toBe('Whoever asked');
   });
 
   it('names a boolean by its labels, not true and false', () => {
-    expect(display(field('decidable'), true, {}).text).toBe('Decides');
-    expect(display(field('decidable'), false, {}).text).toBe('Refuses requests');
+    expect(display(field('decidable'), true, {}, F).text).toBe('Decides');
+    expect(display(field('decidable'), false, {}, F).text).toBe('Refuses requests');
   });
 
   it('names a chosen record, and links to it', () => {
-    expect(display(field('artifactId'), 'inbound-web-offers', flows)).toEqual({
+    expect(display(field('artifactId'), 'inbound-web-offers', flows, F)).toEqual({
       text: 'Inbound web offers',
       href: '/decision-flows/inbound-web-offers',
     });
   });
 
   it('shows the raw value when the chosen record is not among the options, rather than nothing', () => {
-    expect(display(field('artifactId'), 'retired-flow', flows)).toEqual({ text: 'retired-flow' });
+    expect(display(field('artifactId'), 'retired-flow', flows, F)).toEqual({ text: 'retired-flow' });
   });
 
   it('says a missing value is not set, and never shows it as a zero', () => {
-    expect(display(field('description'), undefined, {})).toEqual({ text: 'Not set', empty: true });
-    expect(display(undefined, '', {})).toEqual({ text: 'Not set', empty: true });
+    expect(display(field('description'), undefined, {}, F)).toEqual({ text: 'Not set', empty: true });
+    expect(display(undefined, '', {}, F)).toEqual({ text: 'Not set', empty: true });
   });
 
   it('counts with a unit, so a number does not stand alone', () => {
     const slots = columnsOf(manifest, placementDescriptor).find((c) => c.field === 'slotCount')!;
-    expect(cell(rows.find((r) => r.key === 'homepage_hero')!, slots, {}).text).toBe('1 slot');
-    expect(cell(rows.find((r) => r.key === 'homepage_grid')!, slots, {}).text).toBe('3 slots');
+    expect(cell(rows.find((r) => r.key === 'homepage_hero')!, slots, {}, F).text).toBe('1 slot');
+    expect(cell(rows.find((r) => r.key === 'homepage_grid')!, slots, {}, F).text).toBe('3 slots');
   });
 
   it('shows a row the short form, which is what fits in a 20rem pane', () => {
     const delivered = columnsOf(manifest, placementDescriptor).find((c) => c.field === 'delivery.mode')!;
-    expect(cell(rows.find((r) => r.key === 'homepage_hero')!, delivered, {}).text).toBe('Whoever asked');
-    expect(cell(rows.find((r) => r.key === 'app_inbox')!, delivered, {}).text).toBe('Nothing');
+    expect(cell(rows.find((r) => r.key === 'homepage_hero')!, delivered, {}, F).text).toBe('Whoever asked');
+    expect(cell(rows.find((r) => r.key === 'app_inbox')!, delivered, {}, F).text).toBe('Nothing');
   });
 
   it('labels a column from the descriptor', () => {
@@ -83,7 +87,7 @@ describe('a value reads in the descriptor’s words', () => {
 
 describe('filtering', () => {
   it('keeps everything, in the manifest’s order, until somebody filters', () => {
-    const { rows: kept } = applyFilter(rows, NO_FILTER, manifest, placementDescriptor, {});
+    const { rows: kept } = applyFilter(rows, NO_FILTER, manifest, placementDescriptor, {}, F);
     expect(keys(kept)).toEqual([
       'weekly_offers_send',
       'app_inbox',
@@ -97,7 +101,7 @@ describe('filtering', () => {
   });
 
   it('matches typed text against the name, the key and what each column shows', () => {
-    const by = (query: string) => keys(applyFilter(rows, { query, facets: {} }, manifest, placementDescriptor, {}).rows);
+    const by = (query: string) => keys(applyFilter(rows, { query, facets: {} }, manifest, placementDescriptor, {}, F).rows);
     expect(by('grid')).toEqual(['homepage_grid']);
     expect(by('TRIGGERED_out')).toEqual(['triggered_outbound']);
     // "Nothing" is the delivered-by column as a row shows it.
@@ -105,7 +109,7 @@ describe('filtering', () => {
   });
 
   it('keeps only the chosen value of a facet, including the empty one', () => {
-    const kept = applyFilter(rows, { query: '', facets: { 'delivery.mode': '' } }, manifest, placementDescriptor, {});
+    const kept = applyFilter(rows, { query: '', facets: { 'delivery.mode': '' } }, manifest, placementDescriptor, {}, F);
     expect(keys(kept.rows)).toEqual(['weekly_offers_send', 'app_inbox', 'triggered_outbound']);
   });
 
@@ -116,7 +120,7 @@ describe('filtering', () => {
       manifest,
       placementDescriptor,
       {}
-    );
+    , F);
     // Six decidable, not seven: `app_inbox` stopped being decidable when this
     // tenant turned out to have no push content at all (G-090), and
     // `retention_queue` went with the outbound-call flow it answered.
@@ -131,7 +135,7 @@ describe('filtering', () => {
   });
 
   it('offers every value the descriptor declares, with a zero where nothing has it', () => {
-    const { counts } = applyFilter(rows, NO_FILTER, manifest, placementDescriptor, {});
+    const { counts } = applyFilter(rows, NO_FILTER, manifest, placementDescriptor, {}, F);
     expect(counts['delivery.mode'].adapter).toBe(0);
     expect(facetOptions(field('delivery.mode')).map((o) => o.label)).toEqual(['Nothing', 'Whoever asked', 'An adapter']);
     expect(facetOptions(field('decidable')).map((o) => o.label)).toEqual(['Decides', 'Refuses requests']);

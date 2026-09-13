@@ -154,6 +154,11 @@ export function toPayload(
     permissions: readonly string[];
     /** The record being edited, for values the form preserves but never asks. */
     entity?: Record<string, unknown> | null;
+    /**
+     * The tenant's currency, for a money field on a record that has none yet.
+     * Supplied by the host from the tenant's settings. G-092.
+     */
+    currencyDefault?: string;
   }
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {};
@@ -166,10 +171,18 @@ export function toPayload(
     const raw = form[field.field] ?? '';
     switch (field.type) {
       case 'money': {
+        // The record's own currency, then the tenant's. There is no third
+        // answer: this was `'GBP'`, so every offer created in a US tenant was
+        // priced in sterling (G-092), and a default nobody chose is that bug.
         const currency =
           (getPath(options.entity, `${field.field}.currency`) as string | undefined) ??
-          descriptor.moneyCurrencyDefault ??
-          'GBP';
+          options.currencyDefault ??
+          descriptor.moneyCurrencyDefault;
+        if (!currency) {
+          throw new Error(
+            `${descriptor.entity}.${field.field} is money and nothing says which currency: the record has none and the host passed no currencyDefault.`
+          );
+        }
         setPath(body, field.field, { amount: toMinor(raw), currency });
         break;
       }

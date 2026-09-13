@@ -8,6 +8,7 @@ import {
   type Option,
 } from '@metis/ui-metadata';
 import type { Row } from './sources';
+import type { Formatter } from '@/lib/format';
 
 /**
  * What the list–detail renderer computes, kept out of the component so each
@@ -36,6 +37,7 @@ export function display(
   field: FieldDescriptor | undefined,
   value: unknown,
   optionSources: Record<string, readonly Option[]>,
+  format: Formatter,
   short = false
 ): Shown {
   if (!field) {
@@ -62,7 +64,7 @@ export function display(
     case 'tags':
       return Array.isArray(value) && value.length ? { text: value.join(', ') } : NOT_SET;
     case 'date':
-      return { text: new Date(String(value)).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) };
+      return { text: format.date(String(value), { day: '2-digit', month: 'short', year: 'numeric' }) };
     default:
       return { text: String(value) };
   }
@@ -96,12 +98,12 @@ export function columnsFrom(columns: readonly ListColumn[], descriptor: EntityDe
 }
 
 /** A column's value on one row, as the row shows it. "1 offer", not "1". */
-export function cell(row: Row, column: Column, optionSources: Record<string, readonly Option[]>): Shown {
+export function cell(row: Row, column: Column, optionSources: Record<string, readonly Option[]>, format: Formatter): Shown {
   const value = getPath(row, column.field);
   if (column.unit && typeof value === 'number') {
     return { text: `${value} ${value === 1 ? column.unit[0] : column.unit[1]}` };
   }
-  return display(column.descriptor, value, optionSources, true);
+  return display(column.descriptor, value, optionSources, format, true);
 }
 
 // --- filtering -------------------------------------------------------------
@@ -146,10 +148,11 @@ function haystack(
   row: Row,
   manifest: ListDetailManifest,
   columns: Column[],
-  optionSources: Record<string, readonly Option[]>
+  optionSources: Record<string, readonly Option[]>,
+  format: Formatter
 ): string {
   const { title, subtitle } = manifest.params.list;
-  return [getPath(row, title), subtitle ? getPath(row, subtitle) : '', ...columns.map((c) => cell(row, c, optionSources).text)]
+  return [getPath(row, title), subtitle ? getPath(row, subtitle) : '', ...columns.map((c) => cell(row, c, optionSources, format).text)]
     .map((v) => String(v ?? ''))
     .join(' ')
     .toLowerCase();
@@ -173,12 +176,13 @@ export function applyFilter(
   filter: ListFilter,
   manifest: ListDetailManifest,
   descriptor: EntityDescriptor,
-  optionSources: Record<string, readonly Option[]>
+  optionSources: Record<string, readonly Option[]>,
+  format: Formatter
 ): Filtered {
   const columns = columnsOf(manifest, descriptor);
   const facets = facetFields(manifest, descriptor);
   const query = filter.query.trim().toLowerCase();
-  const byQuery = query ? rows.filter((r) => haystack(r, manifest, columns, optionSources).includes(query)) : [...rows];
+  const byQuery = query ? rows.filter((r) => haystack(r, manifest, columns, optionSources, format).includes(query)) : [...rows];
 
   const keeps = (row: Row, except?: string) =>
     facets.every((f) => f.field === except || filter.facets[f.field] === undefined || facetValue(row, f) === filter.facets[f.field]);

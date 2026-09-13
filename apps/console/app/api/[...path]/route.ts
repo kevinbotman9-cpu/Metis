@@ -15,6 +15,7 @@
 
 import { NextResponse } from 'next/server';
 import { store, resetStore, recordAudit } from '@/mocks/store';
+import type { TenantSettings } from '@metis/core/domain';
 import {
   findTrace,
   decisions,
@@ -282,21 +283,59 @@ const forbidden = (permission: string) =>
   );
 
 /**
- * The tenant's currency and content locale, read from what it already has.
+ * The tenant's currency and content locale, from its settings. G-092.
  *
- * Both were hardcoded — `GBP` and `en-GB` — which is invisible in a UK tenant
- * and wrong in every other one: an offer created in `telco-us` was written with
- * sterling financials and a creative with British English. Derived from the
- * catalogue rather than defaulted, because the catalogue is the only thing that
- * knows, and a fixed default is the bug rather than a safe fallback.
+ * Both were hardcoded — `GBP` and `en-GB` — and the fix on 2026-09-12 derived
+ * them instead from whichever offer and creative were first in the catalogue.
+ * That was a workaround wearing a fix's clothes: the first offer is not a
+ * statement about the tenant, and a tenant whose first offer was priced in
+ * euros would have authored every new offer in euros. Nothing held the answer,
+ * so the tenant now does.
  */
-function tenantCurrency(): 'GBP' | 'USD' | 'EUR' {
-  const c = store.offers[0]?.financials.price.currency;
-  return c === 'GBP' || c === 'EUR' ? c : 'USD';
+function tenantCurrency(): TenantSettings['currency'] {
+  return store.tenantSettings.currency;
 }
 
 function tenantLocale(): string {
-  return store.creatives[0]?.locale ?? 'en-US';
+  return store.tenantSettings.locale;
+}
+
+/** The currencies `Money` can hold. An amount in any other is not an amount this domain can store. */
+const TENANT_CURRENCIES: readonly TenantSettings['currency'][] = ['USD', 'GBP', 'EUR'];
+
+/**
+ * What is wrong with a settings body, per field.
+ *
+ * A locale is accepted only if the runtime can format in it: an unknown tag
+ * would not fail, it would silently fall back to the runtime's default, which is
+ * the bug this setting exists to remove.
+ */
+function tenantSettingsProblems(body: Record<string, unknown>): { field: string; message: string }[] {
+  const problems: { field: string; message: string }[] = [];
+  if (body.locale !== undefined) {
+    let supported = false;
+    try {
+      supported =
+        typeof body.locale === 'string' &&
+        Intl.DateTimeFormat.supportedLocalesOf([body.locale]).length === 1 &&
+        Intl.NumberFormat.supportedLocalesOf([body.locale]).length === 1;
+    } catch {
+      supported = false;
+    }
+    if (!supported) {
+      problems.push({
+        field: 'locale',
+        message: `'${String(body.locale)}' is not a locale this runtime can format dates and numbers in.`,
+      });
+    }
+  }
+  if (body.currency !== undefined && !TENANT_CURRENCIES.includes(body.currency as TenantSettings['currency'])) {
+    problems.push({
+      field: 'currency',
+      message: `Amounts are held in ${TENANT_CURRENCIES.join(', ')}; '${String(body.currency)}' is not one of them.`,
+    });
+  }
+  return problems;
 }
 
 function actor(req: Request) {
@@ -970,6 +1009,14 @@ async function handleGet(req: Request, { params }: Ctx) {
 
     case 'connectors': {
       return json({ connectors: store.connectors });
+    }
+
+    // GET /api/tenants/{tenantId}/settings — the locale and currency every
+    // formatter in the console reads. G-092.
+    case 'tenants': {
+      if (rest[1] !== 'settings') return notFound();
+      if (rest[0] !== store.tenantSettings.tenantId) return notFound(`No tenant ${rest[0]}`);
+      return json(store.tenantSettings);
     }
 
     case 'placements': {
@@ -2880,6 +2927,44 @@ async function handlePut(req: Request, { params }: Ctx) {
         eventType: 'CreativeUpdated',
         scope: updated.id,
         summary: `Updated ${updated.name}${changed.length ? ` (${changed.join(', ')})` : ''}.`,
+      });
+      return json(updated);
+    }
+
+    // PUT /api/tenants/{tenantId}/settings. G-092.
+    case 'tenants': {
+      if (rest[1] !== 'settings') return notFound();
+      if (!user.permissions.includes('admin:settings')) return forbidden('admin:settings');
+      if (rest[0] !== store.tenantSettings.tenantId) return notFound(`No tenant ${rest[0]}`);
+
+      const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+      const problems = tenantSettingsProblems(body);
+      if (problems.length > 0) {
+        return json(
+          { error: 'bad_request', message: problems.map((p) => p.message).join(' '), problems },
+          400
+        );
+      }
+
+      const before = store.tenantSettings;
+      const updated: TenantSettings = {
+        ...before,
+        // Stored canonical, so `en-us` and `en-US` are one setting rather than two.
+        locale: typeof body.locale === 'string' ? Intl.getCanonicalLocales(body.locale)[0] : before.locale,
+        currency:
+          typeof body.currency === 'string' ? (body.currency as TenantSettings['currency']) : before.currency,
+        tenantId: before.tenantId,
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.email,
+      };
+      store.tenantSettings = updated;
+
+      recordAudit({
+        actor: user.email,
+        actorType: 'human',
+        eventType: 'TenantSettingsChanged',
+        scope: before.tenantId,
+        summary: `Locale ${before.locale} → ${updated.locale}; currency ${before.currency} → ${updated.currency}.`,
       });
       return json(updated);
     }

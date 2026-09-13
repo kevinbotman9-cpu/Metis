@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/cn';
+import { useFormat } from '@/components/tenant-format';
 
 /**
  * The loop as volume, with the drop-outs drawn as volume leaving.
@@ -35,6 +36,7 @@ const FLOOR = H - 26;
 const BAR = 78;
 
 export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
+  const format = useFormat();
   const max = Math.max(1, ...stages.map((s) => s.value));
   const gap = (W - stages.length * BAR) / Math.max(1, stages.length - 1);
   const x = (i: number) => i * (BAR + gap);
@@ -48,7 +50,7 @@ export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
       className="block h-auto w-full"
       role="img"
       aria-label={`The loop as volume: ${stages
-        .map((s) => `${s.label} ${s.value.toLocaleString('en-GB')}`)
+        .map((s) => `${s.label} ${format.number(s.value)}`)
         .join(', ')}. Volume leaving between each pair is drawn as a wedge.`}
     >
       {stages.slice(0, -1).map((stage, i) => {
@@ -75,7 +77,7 @@ export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
                 next.broken ? 'fill-block' : 'fill-content-subtle'
               )}
             >
-              −{lost.toLocaleString('en-GB')}
+              −{format.number(lost)}
             </text>
           </g>
         );
@@ -97,7 +99,7 @@ export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
             textAnchor="middle"
             className="tnum fill-content text-[15px] font-bold"
           >
-            {stage.value.toLocaleString('en-GB')}
+            {format.number(stage.value)}
           </text>
           <text
             x={x(i) + BAR / 2}

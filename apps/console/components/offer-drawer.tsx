@@ -7,6 +7,7 @@ import { CoverageBar } from '@/components/ui/coverage-bar';
 import { StatusBadge, LoadingState, ErrorState } from '@/components/ui/primitives';
 import { apiClient, type OfferDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
+import { useFormat } from '@/components/tenant-format';
 
 /** Every channel the platform can deliver on, in the order a marketer reads them. */
 const CHANNELS = ['email', 'sms', 'web', 'push', 'outbound_call'] as const;
@@ -17,11 +18,6 @@ const CHANNEL_LABEL: Record<string, string> = {
   push: 'Push',
   outbound_call: 'Outbound call',
 };
-
-function money(m: { amount: number; currency: string }) {
-  const symbol = m.currency === 'GBP' ? '£' : m.currency === 'USD' ? '$' : '€';
-  return `${symbol}${(m.amount / 100).toFixed(2)}`;
-}
 
 /**
  * Whether this offer has any pricing at all. Same pair as
@@ -68,6 +64,7 @@ export function OfferDrawer({
   nextLabel,
   summary,
 }: OfferDrawerProps) {
+  const format = useFormat();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['offer', offerId],
     queryFn: () => apiClient.getOffer(offerId as string),
@@ -106,18 +103,18 @@ export function OfferDrawer({
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 px-5 py-4 sm:grid-cols-3">
             <Fact
               label="Price"
-              value={unpriced(offer.financials) ? '— not supplied' : money(offer.financials.price)}
+              value={unpriced(offer.financials) ? '— not supplied' : format.money(offer.financials.price)}
             />
             <Fact
               label="Cost"
-              value={unpriced(offer.financials) ? '— not supplied' : money(offer.financials.cost)}
+              value={unpriced(offer.financials) ? '— not supplied' : format.money(offer.financials.cost)}
             />
             <Fact
               label={unpriced(offer.financials) ? 'Value term (V)' : 'Expected margin'}
               value={
                 unpriced(offer.financials)
                   ? valueTerm(offer.financials.expectedMargin)
-                  : money(offer.financials.expectedMargin)
+                  : format.money(offer.financials.expectedMargin)
               }
               tone={offer.financials.expectedMargin.amount < 0 ? 'block' : undefined}
             />

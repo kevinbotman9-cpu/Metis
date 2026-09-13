@@ -2107,6 +2107,37 @@ components:
         updatedBy:
           type: string
 
+    TenantSettings:
+      type: object
+      description: |
+        How a tenant presents itself: the locale every date, count and amount in
+        the console is formatted in, and the currency of an amount that carries
+        none of its own.
+
+        Neither existed before 2026-09-13. `en-GB` was written at 77 call sites,
+        and the currency was inferred from whichever offer was first in the
+        catalogue — so a US tenant read British dates, and a tenant whose first
+        offer happened to be priced in euros would have reported its revenue in
+        euros. G-092.
+      required: [tenantId, locale, currency]
+      properties:
+        tenantId: { type: string }
+        locale:
+          type: string
+          description: >-
+            A BCP 47 language tag, stored in canonical form. Refused unless the
+            runtime can format dates and numbers in it.
+          example: en-US
+        currency:
+          type: string
+          description: >-
+            ISO 4217. Limited to the currencies `Money` can hold, because an amount
+            written in a currency the domain cannot represent is not an amount.
+          enum: [GBP, USD, EUR]
+          example: USD
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+
     Placement:
       type: object
       description: |
@@ -4109,6 +4140,60 @@ paths:
           description: Caller lacks edit:integrations
         '404':
           description: No such placement
+
+  # ---------------------------------------------------------------------------
+  # Tenant — how a tenant presents dates, numbers and money
+  # ---------------------------------------------------------------------------
+  /tenants/{tenantId}/settings:
+    get:
+      summary: The tenant's locale and currency
+      operationId: getTenantSettings
+      x-metis-status: built
+      description: |
+        Read by every formatter in the console. A screen renders nothing
+        formatted until this has loaded, rather than falling back to a locale
+        nobody chose.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: The tenant's settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantSettings'
+        '404':
+          description: No such tenant
+
+    put:
+      summary: Change the tenant's locale or currency
+      operationId: updateTenantSettings
+      x-metis-status: built
+      description: |
+        Applies to every screen on its next render, and is written to the audit
+        log. Only `locale` and `currency` are read from the body; the tenant and
+        the author come from the URL and the session.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantSettings'
+      responses:
+        '200':
+          description: The settings as saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantSettings'
+        '400':
+          description: A locale the runtime cannot format, or a currency Money cannot hold
+        '403':
+          description: Caller lacks admin:settings
+        '404':
+          description: No such tenant
 
   /deliveries/{tenantId}/{decisionId}:
     get:

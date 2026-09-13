@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { Preview } from '@storybook/react';
 import '../app/globals.css';
+import { StaticFormatProvider } from '../components/tenant-format';
 
 /**
  * Theme axes: light/dark × compact/comfortable.
@@ -51,6 +52,14 @@ const preview: Preview = {
   },
 
   decorators: [
+    // A component that formats reads the tenant's locale through useFormat(),
+    // and a story has no tenant to ask. The seeded tenant's settings, so a
+    // story reads the way the screen does. G-092.
+    (Story) => (
+      <StaticFormatProvider settings={{ locale: 'en-US', currency: 'USD' }}>
+        <Story />
+      </StaticFormatProvider>
+    ),
     (Story, context) => {
       const theme = context.globals.theme ?? 'light';
       const density = context.globals.density ?? 'comfortable';

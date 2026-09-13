@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/cn';
 import { Sparkline } from '@/components/ui/health-summary';
+import { useFormat } from '@/components/tenant-format';
 
 /**
  * The Cascade rail — `docs/METIS_CONSOLE_SPEC.md` §4.7.
@@ -63,6 +64,7 @@ export interface CascadeRailProps {
 }
 
 export function CascadeRail({ stages, selected, onSelect, foot, label }: CascadeRailProps) {
+  const format = useFormat();
   return (
     <nav aria-label={label} className="flex flex-col">
       <ul className="flex flex-col">
@@ -80,8 +82,8 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
                 // computation: the button contains a sparkline, and a name
                 // assembled from its contents reads the figure, the proportion
                 // and then "Deliverable per day" as one run-on sentence.
-                aria-label={`${stage.label}: ${stage.value.toLocaleString('en-GB')}, ${stage.note}${
-                  stage.removed ? `, ${stage.removed.toLocaleString('en-GB')} removed here` : ''
+                aria-label={`${stage.label}: ${format.number(stage.value)}, ${stage.note}${
+                  stage.removed ? `, ${format.number(stage.removed)} removed here` : ''
                 }${
                   stage.broken ? `. ${stage.broken}` : ''
                 }`}
@@ -115,7 +117,7 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
                       stage.broken ? 'text-block' : 'text-content'
                     )}
                   >
-                    {stage.value.toLocaleString('en-GB')}
+                    {format.number(stage.value)}
                   </strong>
                   <span className="text-label text-content-subtle">{stage.note}</span>
                 </span>
@@ -145,7 +147,7 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
 
                 {stage.removed !== undefined && stage.removed > 0 ? (
                   <span className="mt-2 block text-label text-content-subtle">
-                    −{stage.removed.toLocaleString('en-GB')} removed here
+                    −{format.number(stage.removed)} removed here
                   </span>
                 ) : null}
 

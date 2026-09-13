@@ -1,5 +1,6 @@
 'use client';
 
+import { useFormat } from '@/components/tenant-format';
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -66,6 +67,7 @@ export function EntityFormDialog<T extends object>({
   onSaved,
 }: EntityFormDialogProps<T>) {
   const descriptor = descriptorFor(entity);
+  const format = useFormat();
   const editing = Boolean(record);
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -91,6 +93,8 @@ export function EntityFormDialog<T extends object>({
   const mutation = useMutation({
     mutationFn: () =>
       save(toPayload(descriptor, form, {
+        // A money field on a new record is in the tenant's currency. G-092.
+        currencyDefault: format.currency,
         editing,
         permissions,
         entity: (record ?? null) as Record<string, unknown> | null,

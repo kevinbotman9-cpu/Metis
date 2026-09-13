@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
+import { useFormat } from '@/components/tenant-format';
 
 /**
  * A summary card that shows a total and how that total breaks down.
@@ -114,6 +115,7 @@ export function HealthSummary({
   /** Defaults to the sum of the segments. */
   total?: number;
 }) {
+  const format = useFormat();
   const sum = total ?? segments.reduce((n, s) => n + s.count, 0);
 
   return (
@@ -131,7 +133,7 @@ export function HealthSummary({
                 className={cn('mt-1 h-1.5 w-1.5 shrink-0 rounded-full', TONE_DOT[s.tone])}
               />
               <span className={cn('tnum shrink-0 font-semibold', TONE_TEXT[s.tone])}>
-                {s.count.toLocaleString('en-GB')}
+                {format.number(s.count)}
               </span>
               <span className="text-content-muted">{s.label}</span>
             </li>

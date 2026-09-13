@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
 import { apiClient, type InboundCallDto } from '@/lib/api-client';
+import { useFormat } from '@/components/tenant-format';
+import type { Formatter } from '@/lib/format';
 
 /**
  * Inbound traffic.
@@ -54,9 +56,9 @@ function bytes(n: number): string {
   return `${(n / 1024).toFixed(1)} kB`;
 }
 
-function time(iso: string): string {
+function time(iso: string, format: Formatter): string {
   const d = new Date(iso);
-  return `${d.toLocaleTimeString('en-GB', { hour12: false })}.${String(d.getMilliseconds()).padStart(3, '0')}`;
+  return `${format.time(d, { hour12: false })}.${String(d.getMilliseconds()).padStart(3, '0')}`;
 }
 
 /**
@@ -95,6 +97,7 @@ function Body({ label, body }: { label: string; body: InboundCallDto['request'] 
 }
 
 function TrafficView() {
+  const format = useFormat();
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [origin, setOrigin] = useState<'all' | InboundCallDto['origin']>('all');
@@ -225,7 +228,7 @@ function TrafficView() {
                     className="flex w-full items-center gap-3 px-card py-2 text-left hover:bg-surface-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
                   >
                     <span className="tnum w-24 shrink-0 font-mono text-label text-content-muted">
-                      {time(call.at)}
+                      {time(call.at, format)}
                     </span>
                     <Badge tone={statusTone(call.status)}>{call.status}</Badge>
                     <span className="w-12 shrink-0 font-mono text-label text-content-subtle">

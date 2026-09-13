@@ -212,23 +212,27 @@ describe('the Offer descriptor, exercised', () => {
 
   it('sends the key when creating, and not when editing', () => {
     const form = toFormState(offer, record);
-    const created = toPayload(offer, form, { editing: false, permissions: all });
+    const created = toPayload(offer, form, { editing: false, permissions: all, currencyDefault: 'USD' });
     expect(created.key).toBe('unlimited_5g');
   });
 
   it('derives oneOff from the term rather than asking twice', () => {
     const form = { ...toFormState(offer, record), 'financials.termMonths': '0' };
-    const body = toPayload(offer, form, { editing: false, permissions: all });
+    const body = toPayload(offer, form, { editing: false, permissions: all, currencyDefault: 'USD' });
     expect(getPath(body, 'financials.oneOff')).toBe(true);
   });
 
-  it('defaults the currency for a new entity and preserves it for an existing one', () => {
+  it('prices a new entity in the tenant’s currency and preserves an existing one’s', () => {
+    // The tenant's, handed in by the host. This was the descriptor's own
+    // `'GBP'`, so every offer created in a US tenant was priced in sterling.
+    // G-092.
     const blank = toFormState(offer);
     const created = toPayload(offer, { ...blank, 'financials.price': '10' }, {
       editing: false,
       permissions: all,
+      currencyDefault: 'USD',
     });
-    expect(getPath(created, 'financials.price.currency')).toBe('GBP');
+    expect(getPath(created, 'financials.price.currency')).toBe('USD');
 
     const eur = { ...record, financials: { ...record.financials, price: { amount: 100, currency: 'EUR' } } };
     const kept = toPayload(offer, toFormState(offer, eur), {
@@ -237,6 +241,14 @@ describe('the Offer descriptor, exercised', () => {
       entity: eur,
     });
     expect(getPath(kept, 'financials.price.currency')).toBe('EUR');
+  });
+
+  it('refuses to guess a currency when neither the record nor the tenant gives one', () => {
+    // A default nobody chose is the bug G-092 removed, so there is no third answer.
+    const blank = toFormState(offer);
+    expect(() =>
+      toPayload(offer, { ...blank, 'financials.price': '10' }, { editing: false, permissions: all })
+    ).toThrow(/nothing says which currency/);
   });
 
   it('offers no category until an objective is chosen, then only that objective’s', () => {

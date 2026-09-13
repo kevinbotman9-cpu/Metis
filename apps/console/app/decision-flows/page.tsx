@@ -16,8 +16,10 @@ import { HealthSummary, BigStat, Sparkline, StatusDot } from '@/components/ui/he
 import { Button } from '@/components/ui/button';
 import { apiClient, type ArtifactSummaryDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
+import { useFormat } from '@/components/tenant-format';
 
 function FlowsView() {
+  const format = useFormat();
   const router = useRouter();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['artifacts'],
@@ -167,7 +169,7 @@ function FlowsView() {
       cell: (a) => (
         <div>
           <div className="tnum text-label text-content-muted">
-            {new Date(a.updatedAt).toLocaleDateString('en-GB', {
+            {format.date(a.updatedAt, {
               day: '2-digit',
               month: 'short',
             })}
@@ -211,7 +213,7 @@ function FlowsView() {
         <BigStat label="Decision flows" value={rows.length} sub="in this tenant" />
         <BigStat
           label="Decisions served"
-          value={(decisions.data?.total ?? 0).toLocaleString('en-GB')}
+          value={format.number(decisions.data?.total ?? 0)}
           sub="across all decision flows"
         />
         <HealthSummary

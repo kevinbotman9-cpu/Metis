@@ -16,6 +16,7 @@ import {
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { apiClient, type AuditEventDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
+import { useFormat } from '@/components/tenant-format';
 
 const ACTOR_TONE: Record<string, 'accent' | 'outline' | 'hold'> = {
   agent: 'accent',
@@ -24,6 +25,7 @@ const ACTOR_TONE: Record<string, 'accent' | 'outline' | 'hold'> = {
 };
 
 function AuditView() {
+  const format = useFormat();
   const [actorType, setActorType] = useState('');
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -42,7 +44,7 @@ function AuditView() {
       sortValue: (e) => e.timestamp,
       cell: (e) => (
         <span className="tnum text-label text-content-muted">
-          {new Date(e.timestamp).toLocaleString('en-GB', {
+          {format.dateTime(e.timestamp, {
             day: '2-digit',
             month: 'short',
             hour: '2-digit',

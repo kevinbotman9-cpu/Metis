@@ -2,6 +2,7 @@ import { getPath, layout, toFormState } from '@metis/ui-metadata';
 import { display } from '@/lib/layouts/list';
 import { cn } from '@/lib/cn';
 import type { PanelProps } from '../panel';
+import { useFormat } from '@/components/tenant-format';
 
 /**
  * `core.entity-overview` — the record's descriptor, read-only.
@@ -16,6 +17,7 @@ import type { PanelProps } from '../panel';
  * shows both.
  */
 export function EntityOverview({ record, descriptor, manifest, context }: PanelProps) {
+  const format = useFormat();
   if (!record) return null;
   const shownElsewhere = new Set([manifest.params.list.title, manifest.params.detail.description]);
   const groups = layout(descriptor, toFormState(descriptor, record), context.permissions)
@@ -34,7 +36,7 @@ export function EntityOverview({ record, descriptor, manifest, context }: PanelP
           ) : null}
           <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
             {fields.map((field) => {
-              const shown = display(field, getPath(record, field.field), context.optionSources);
+              const shown = display(field, getPath(record, field.field), context.optionSources, format);
               return (
                 <div key={field.field} className="min-w-0">
                   <dt className="text-label text-content-subtle">{field.label}</dt>
