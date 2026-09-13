@@ -44,6 +44,43 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-105 — A connection reset fails a test against a harness-owned server with nothing competing
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** none — the mechanism is unknown
+
+[G-035](gaps.md) closed with one failure it could not account for: an
+`ECONNRESET` on a teardown POST, seen on a *reused* server, "not reproduced
+since", and "whether it survives a harness-owned server is unknown". It does.
+
+**The observation, 2026-09-13.** A full `npm run gates` on the sentence-case
+slice (`fix/sentence-case`, a class-name change touching no route, mock or
+harness file) went red at end-to-end: 393 passed, 34 skipped, 1 failed.
+`traffic.spec.ts` › *does not record reads of itself* failed in its
+`beforeEach`:
+
+```
+Error: apiRequestContext.post: read ECONNRESET
+  → POST http://localhost:3200/api/inbound-calls/clear
+```
+
+The server was the harness's own, on port 3200, started for that run. Nothing
+was listening on port 3000 or 3200 before the run started, so this is not the
+reused-server fault G-035 fixed, and not the competing server of
+[G-104](gaps.md).
+
+**What was tried.** `traffic.spec.ts` run in isolation, once, with
+`--repeat-each 3` on a fresh harness-owned server: 22 passed, none failed. That
+is one isolated run, not three. It did not reproduce.
+
+**What is not known.** The mechanism. Nothing here establishes whether the
+server closed the connection, the client reused one the server had already
+closed, or something else did; no guess is recorded because none has evidence
+behind it.
+
+**Done when:** the reset is reproduced on demand, or a sustained repeat run on a
+harness-owned server is recorded as not producing it, and either way the cause
+is stated with the evidence that shows it.
+
 ### G-104 — Nothing stops a long-lived dev server competing with the suite's own server
 
 **Registered:** 2026-09-13 · **Status:** Open · **Work item:** none — the unfixed half of [G-035](gaps.md)
@@ -1869,6 +1906,32 @@ payload, and a descriptor no longer needs a screen-supplied default to avoid
 sending zero.
 
 ## Resolved
+
+### G-106 — A size class that named nothing rendered at whatever it inherited, and no check noticed
+
+**Registered:** 2026-09-13 · **Resolved:** 2026-09-13 · **Status:** Resolved · **Work item:** none — a defect, fixed in the slice that registered it
+
+Tailwind generates nothing for a class it does not know. So `text-h2` — on the
+offer drawer's title and on every filter block's figure — and `text-heading`, on
+every form dialog's title, produced no CSS at all, and each element took the size
+of its parent. Three titles and figures meant to be large read at body size,
+across every drawer, every create and edit dialog, and the filter blocks on
+`/offers` and `/creatives`.
+
+The type-scale guard written the same day did not catch them. It failed on a
+fixed size (`text-[11px]`) and on a Tailwind default size (`text-sm`), but a
+class matching no size at all passed both patterns — the same failure as the 45
+hardcoded compact labels, one level further out. Found reading `filter-blocks.tsx`
+during the sentence-case slice.
+
+**Resolved by:** both titles now `text-title` and the figure `text-figure`, the
+sizes the scale names for a title and for the one number on a panel.
+`apps/console/tests/type-scale.ts` now fails on any `text-*` class that is not a
+size on the scale, a colour, or one of the non-size text utilities, with the
+valid names read from the resolved Tailwind config rather than written down.
+`tests/unit/type-scale.test.ts` proves it flags `text-h2`, `text-heading` and a
+misspelt colour, and passes an opacity modifier, a variant prefix, alignment and
+the default palette. Bite-proven against `main`.
 
 ### G-102 — The console uses the all-caps and tracked labels the visual spec forbids
 

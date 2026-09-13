@@ -118,7 +118,7 @@ export function Drawer({
 
           <div className="flex items-start gap-3 border-b border-border px-5 py-4">
             <div className="min-w-0 flex-1">
-              <Dialog.Title className="truncate text-h2 font-semibold text-content">
+              <Dialog.Title className="truncate text-title font-semibold text-content">
                 {title}
               </Dialog.Title>
               {subtitle ? (
