@@ -44,9 +44,11 @@ Two exemptions, both narrow and both decided rather than assumed:
   navigating. A detail route with its own manifest would declare a second screen
   where the design has one, and would then have to be kept in step with the
   parent by hand. The parent's manifest is where the detail pane's regions are
-  declared. ADR-015 §5.3 narrows this to the `[id]` routes a list–detail
-  manifest names as its `detailRoute`; that lands with its third build step, not
-  yet, and until then every dynamic route is exempt.
+  declared. The exemption covers only the `[id]` routes a list–detail manifest
+  names as its `detailRoute` (ADR-015 §5.3, amended). Until 2026-09-13 it covered
+  every dynamic route, which kept `/decisions/[id]` — the trace reader, the most
+  important screen in the product — away from the check. A dynamic route no
+  manifest names is a screen, and fails until it renders through a manifest.
 - **Routes outside the app shell are exempt entirely.** Today that is `/login`,
   which renders before there is a session, a persona or a nav — the three things
   a manifest is composed against. A manifest for it would resolve nothing.

@@ -181,6 +181,17 @@ const SHELL_EXEMPT = new Set(["/login"]);
 const isDynamicRoute = (routePath) => /\[[^\]]+\]/.test(routePath);
 
 /**
+ * The dynamic routes some list–detail manifest names as its `detailRoute`: the
+ * only dynamic routes exempt from needing a manifest of their own. ADR-015 §5.3.
+ */
+const declaredDetailRoutes = () =>
+  new Set(
+    Object.values(LAYOUTS)
+      .map((manifest) => manifest?.params?.detailRoute)
+      .filter((route) => typeof route === "string")
+  );
+
+/**
  * A route passes only if its page renders through a manifest the registry
  * holds, declared for that route. ADR-015 §5.1.
  *
@@ -189,15 +200,21 @@ const isDynamicRoute = (routePath) => /\[[^\]]+\]/.test(routePath);
  * would have cleared every route without converting a screen. Now the page
  * itself is read: it must be `<Screen manifest="…" />` and nothing else.
  *
- * The `[id]` exemption stays until ADR-015's third step narrows it to a
- * list–detail's declared `detailRoute`, together with enough conversions that
- * the count does not rise (§5.3). There is no pending list for routes: the
- * baseline is the ledger, and it falls only as pages are converted (§5.4).
+ * Until 2026-09-13 every dynamic route was exempt, so `/decisions/[id]` — the
+ * trace reader, the screen the specification calls the most important in the
+ * product — and three other `[id]` pages were invisible to this check. The
+ * exemption now covers only a route a list–detail manifest names as its
+ * `detailRoute` (§5.3, amended). It landed ahead of the conversions ADR-015
+ * paired it with, by decision of the product owner, and the count rose from 23 to
+ * 27: the check starting to see screens, recorded in the baseline in the same
+ * commit. There is still no pending list for routes: the baseline is the ledger,
+ * and it falls only as pages are converted (§5.4).
  */
 function checkLayoutManifests() {
   if (layoutRegistryError) {
     fail("layout-manifests", `Could not load the layout registry at ${CONFIG.layoutRegistry}: ${layoutRegistryError.message}`);
   }
+  const detailRoutes = declaredDetailRoutes();
   for (const f of routeFiles()) {
     // The root route is `app/page.tsx`: nothing precedes the filename once the
     // app dir is stripped, so the separator is optional and the result is "/".
@@ -207,13 +224,22 @@ function checkLayoutManifests() {
         .replace(`${CONFIG.consoleAppDir}/`, "")
         .replace(/(^|\/)(page|route)\.tsx?$/, "");
 
+    if (SHELL_EXEMPT.has(routePath)) continue;
+
     // A detail route renders inside its parent's list–detail manifest; it is
-    // one screen with two panes, not two screens. UX_CONTRACT.md §2.
-    if (isDynamicRoute(routePath) || SHELL_EXEMPT.has(routePath)) continue;
+    // one screen with two panes, not two screens. UX_CONTRACT.md §2. That holds
+    // only for a route a manifest actually names as its detail pane: any other
+    // dynamic route is a screen, and is checked like one.
+    if (isDynamicRoute(routePath) && detailRoutes.has(routePath)) continue;
 
     const id = declaredScreen(read(f));
     if (!id) {
-      fail("layout-manifests", `Route "${routePath}" does not render through a layout manifest: its page must be \`<Screen manifest="…" />\` and nothing else. Screens are declared, not coded. See UX_CONTRACT.md §2.`);
+      fail(
+        "layout-manifests",
+        isDynamicRoute(routePath)
+          ? `Route "${routePath}" is a dynamic route that no list–detail manifest names as its detailRoute, and it does not render through a layout manifest of its own. If it is a detail pane, name it as a list–detail manifest's detailRoute; if it is a screen, its page must be \`<Screen manifest="…" />\` and nothing else. See UX_CONTRACT.md §2.`
+          : `Route "${routePath}" does not render through a layout manifest: its page must be \`<Screen manifest="…" />\` and nothing else. Screens are declared, not coded. See UX_CONTRACT.md §2.`
+      );
       continue;
     }
     const manifest = LAYOUTS[id];

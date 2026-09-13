@@ -1,10 +1,10 @@
 {
-  "failures": 23,
+  "failures": 27,
   "warnings": 2,
   "recorded": "2026-09-13",
-  "why": "The count npm run conformance reports today. It is a ratchet, not a target: this number may fall and may not rise, per CLAUDE.md Session Discipline, and there is no exception. layout-manifests has an implementation since ADR-015, so a new screen is a manifest, not a new failure.",
+  "why": "The count npm run conformance reports today. It is a ratchet, not a target: this number may fall and may not rise, per CLAUDE.md Session Discipline. It rose once, from 23 to 27 on 2026-09-13, by decision of the product owner: layout-manifests stopped exempting every dynamic route and began failing the four [id] pages no list–detail manifest names as its detailRoute (ADR-015 §5.3, amended). That was the check starting to see screens it could not, not a regression, and it is not a precedent. layout-manifests has an implementation since ADR-015, so a new screen is a manifest, not a new failure.",
   "standing": {
-    "layout-manifests": "one per route whose page does not render through a layout manifest. The format and the list–detail renderer exist (ADR-015); the check reads each page.tsx, so a route clears only by being converted",
+    "layout-manifests": "one per route whose page does not render through a layout manifest, including a dynamic route no list–detail manifest names as its detailRoute: /approvals/[id], /decision-flows/[id], /decisions/[id] and /offers/[id] since 2026-09-13. The format and the list–detail renderer exist (ADR-015); the check reads each page.tsx, so a route clears only by being converted or, for a detail pane, by being named as its list–detail's detailRoute",
     "mock-banner": "two screens read from fixtures without saying so. Three until 2026-09-13, when /settings began reading the tenant's locale and currency through the generated client (G-092)",
     "generated-client-only": "api-client.ts is the hand-written transport the rule is about",
     "tokens-only": "raw values that predate the token layer"

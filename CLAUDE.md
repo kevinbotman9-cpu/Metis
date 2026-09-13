@@ -313,7 +313,12 @@ These are high-touch and need product/design review before code.
   `<Screen manifest="…" />` and nothing else, so it adds no failure. A screen on
   a pattern with no renderer yet — list–detail is the only one today — needs that
   renderer first, and building it is part of the slice. Never invent a format
-  nothing reads in order to move a number.
+  nothing reads in order to move a number. The baseline has risen once, and not
+  for a regression: on 2026-09-13 the product owner had `layout-manifests` stop
+  exempting every dynamic route, and the four `[id]` pages no manifest names took
+  the count from 23 to 27 (ADR-015 §5.3, amended). A check that starts to see
+  what it could not is recorded in the baseline in the same commit, with the
+  owner's decision cited; a change that breaks the contract never is.
 - If you are more than 60% through context and slice artefacts 5–9 are not done,
   stop, commit nothing, and report what remains.
 - Do not proceed past a red gate. Report it and stop.
