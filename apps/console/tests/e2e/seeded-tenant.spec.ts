@@ -44,16 +44,16 @@ test.describe('the seeded tenant reaches every built screen @screen-only', () =>
     // edited to five — which asserts nothing about the seed reaching the
     // screen. The property that survives both tenants is that every offer the
     // fixture declares is on the page and nothing else is.
-    const rows = page.locator('tr[data-row]');
+    // The catalogue is a list–detail screen: one option per offer in its list.
+    const rows = page.getByRole('listbox', { name: 'Offers', exact: true }).getByRole('option');
     await expect(rows.first()).toBeVisible();
     expect(await rows.count()).toBe(offers.length);
 
     // Real-shaped names: the offers are the ones the brief names, and none of
     // them is a placeholder.
-    // Every row's first cell, not the first cell on the page: `rows` matches
-    // all five rows, so `.locator('td').first()` is one cell and a check over
-    // it can only ever see one offer.
-    const names = await rows.locator('td:first-child').allInnerTexts();
+    // Every option's title line, not the first on the page: `rows` matches all
+    // five options, so a single `.first()` could only ever see one offer.
+    const names = await rows.locator('p:first-child').allInnerTexts();
     for (const offer of offers) expect(names.some((n) => n.includes(offer.name))).toBe(true);
     expect(names.every((n) => !/test offer|sample|foo|lorem/i.test(n))).toBe(true);
   });
@@ -141,22 +141,18 @@ test.describe('the seeded tenant reaches every built screen @screen-only', () =>
     test.skip(true, 'no offer is held for bias review in telco-us — G-096');
     await railTo(page, 'Catalogue', 'Offers');
 
-    // The grid's own filter, which searches name, key *and* tag — so the one
-    // offer carrying `bias-review` is reachable by typing what is wrong with
-    // it, which is how somebody would actually find it.
-    await page.getByLabel('Search offers', { exact: true }).fill('bias');
+    // The catalogue's own filter. Kept current with the screen while skipped,
+    // so it can be switched back on when a tenant holds an offer for review.
+    await page.getByLabel('Filter offers', { exact: true }).fill('bias');
 
-    const rows = page.locator('tr[data-row]');
+    const rows = page.getByRole('listbox', { name: 'Offers', exact: true }).getByRole('option');
     await expect(rows.first()).toBeVisible();
     expect(await rows.count(), 'the bias tag should identify exactly one offer').toBe(1);
     await rows.first().click();
 
-    // The drawer, then the record. Held, and paused rather than quietly live.
-    const drawer = page.locator('[role=dialog]').first();
-    await expect(drawer).toContainText('60GB 5G renewal');
-    await expect(drawer.getByText('paused')).toBeVisible();
-
-    await drawer.getByRole('link', { name: /Open the full record/i }).click();
+    // The detail pane. Held, and paused rather than quietly live.
+    await expect(page.getByRole('heading', { level: 2, name: '60GB 5G renewal', exact: true })).toBeVisible();
+    await expect(page.getByText('paused', { exact: true }).first()).toBeVisible();
 
     // The reason is on the page rather than in somebody's head.
     await expect(page.getByText(/skews by age band/i)).toBeVisible();

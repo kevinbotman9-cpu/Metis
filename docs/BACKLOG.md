@@ -205,7 +205,7 @@ otherwise.
 | W-078 | 14 | Report the latest result of each conformance check | OPEN | 2 |
 | W-079 | 14 | Serve deleting a policy, a placement and a creative from a plane | OPEN | 2 |
 | W-080 | 14 | Descriptors, manifests and panels load per route, not whole | OPEN | 1 |
-| W-081 | 14 | Route budgets measure what a route renders, not what it links to | OPEN | 1 |
+| W-081 | 14 | Route budgets measure what a route renders, not what it links to | PARTIAL | 1 |
 
 ---
 
@@ -1509,14 +1509,21 @@ channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
 ### W-081 — Route budgets measure what a route renders, not what it links to
 
-**Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN
-**Check:** none yet. `apps/console/scripts/measure-route-payload.mjs --prefetch both` reports the difference
+**Registered:** 2026-09-13 · **Stage:** 14 · **Status:** PARTIAL
+**Check:** `apps/console/tests/bundle/bundle-size.spec.ts` (prefetch not counted, and how much is reported); `apps/console/scripts/measure-route-payload.mjs --prefetch both` reports the difference
 
 Gate 1 · Gap [G-112](gaps.md)
 
-`bundle-size.spec.ts` counts what Next prefetches for visible links, so a route's
-budget includes the screens it links to and a link can fail an unrelated route.
-Measured on 2026-09-13: prefetch adds 95 to 250 kB per route.
+`bundle-size.spec.ts` counted what Next prefetches for visible links, so a
+route's budget included the screens it links to, a link could fail an unrelated
+route, and one build measured differently on two runs. Measured on 2026-09-13:
+prefetch added 95 to 250 kB per route, and `/offers` measured 871.5 and 885.2 kB
+from the same commit.
+
+**Landed 2026-09-13:** the check aborts router prefetch requests, two runs of one
+build measure every route identically, and the budgets were reset from that
+measurement. **Not yet:** the test in *Done when* that proves a heavier linked
+screen does not fail the route linking to it.
 
 **Done when:** the budget check measures a route with router prefetch excluded,
 the budgets are reset against that measurement, and a test proves that making a

@@ -79,8 +79,24 @@ So a budget does not say what a route costs. Adding a link to a heavy screen,
 or making a linked screen heavier, fails routes that did not change — and the
 failure message tells whoever reads it to trim a page they did not touch.
 
-What is missing is a measurement of what a route loads to render, separate from
-what it prefetches, with budgets set against that.
+**A second effect: the number was not repeatable.** Which links have
+prefetched by the time the network goes idle varies between runs, so one
+build gives different numbers. On 2026-09-13 the same commit measured
+`/offers` at 871.5 kB locally and 885.2 kB on CI, and failed CI's run against
+a budget the local run passed. Every other route matched to the decimal. A
+budget that cannot measure one build twice the same way is not a budget: it
+fails at random, and the failure names a route that may not have changed.
+
+**What landed on 2026-09-13.** `bundle-size.spec.ts` aborts router prefetch
+requests and reports how many it did not count. Two runs of one build then
+measured every route to the same byte, although the prefetch requests aborted
+differed between them — 3 against 11 on `/decisions` — which is the variance
+this entry describes, now outside the number. The budgets were reset from
+that measurement in the same change.
+
+What is still missing is the check that would have caught this: a test that
+makes a linked screen heavier and proves the route linking to it does not
+fail.
 
 ### G-111 — The descriptor registry and the panel registry load whole on every route that touches either
 
@@ -110,8 +126,10 @@ arbitration forms, the `conditions` type, the deletes) +14 kB on `/offers` and
 list–detail screens) +45 kB on `/offers`, +21 kB on `/creatives`, and +136 kB on
 `/`, which is G-112.
 
-The budgets were raised on 2026-09-13 to let that batch land, with this as the
-recorded reason. The cost is structural: every descriptor or panel added for one
+The budgets were first raised on 2026-09-13 to let that batch land, with this as
+the recorded reason, and then reset the same day from a measurement without
+prefetch (G-112). Those two chunks are still in every figure for a route that
+touches either. The cost is structural: every descriptor or panel added for one
 screen is paid by every screen that uses any descriptor, and it grows with the
 registry, not with the screen.
 
