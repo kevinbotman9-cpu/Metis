@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { load } from 'js-yaml';
 // @ts-expect-error — plain ESM with no types; the shape is asserted below.
-import { GATES, NOT_A_GATE } from '../scripts/gates.mjs';
+import { GATES, NOT_A_GATE, selectGates } from '../scripts/gates.mjs';
 
 /**
  * `npm run gates` and CI run the same thing, and stay that way.
@@ -167,5 +167,39 @@ describe('the local gate and the CI gate are the same gate', () => {
     expect(pkg.scripts.gates, 'there is no `npm run gates`').toBeTruthy();
     expect(pkg.scripts.conformance, 'there is still no `npm run conformance`').toBeTruthy();
     expect(readFileSync(resolve(root, 'CLAUDE.md'), 'utf8')).toContain('npm run gates');
+  });
+});
+
+/**
+ * The run before a pull request: every gate but end-to-end, which CI runs on
+ * clean machines. Decided on 2026-09-13, after red local end-to-end runs on a
+ * loaded machine cost three re-runs in a day and disproved nothing.
+ */
+describe('the run before a pull request', () => {
+  const ids = (gates: Gate[]) => gates.map((g) => g.id);
+
+  it('skips end-to-end and nothing else', () => {
+    const { selected, skipped } = selectGates(GATES, ['--skip', 'e2e']);
+    expect(ids(skipped)).toEqual(['e2e']);
+    expect(ids(selected)).toEqual(ids((GATES as Gate[]).filter((g) => g.id !== 'e2e')));
+  });
+
+  it('is the script CLAUDE.md names', () => {
+    const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>;
+    };
+    expect(pkg.scripts['gates:pre-pr']).toBe('node scripts/gates.mjs --skip e2e');
+    expect(readFileSync(resolve(root, 'CLAUDE.md'), 'utf8')).toContain('npm run gates:pre-pr');
+  });
+
+  it('refuses an id that names no gate, rather than running everything', () => {
+    expect(() => selectGates(GATES, ['--skip', 'e2 e'])).toThrow(/No gate matched/);
+    expect(() => selectGates(GATES, ['--skip'])).toThrow(/needs a gate id/);
+    expect(() => selectGates(GATES, ['lint-root', 'lint-roof'])).toThrow(/No gate matched lint-roof/);
+  });
+
+  it('still runs only the gates named, when given ids', () => {
+    expect(ids(selectGates(GATES, ['lint-root', 'spec']).selected)).toEqual(['lint-root', 'spec']);
+    expect(selectGates(GATES, []).selected).toHaveLength(GATES.length);
   });
 });

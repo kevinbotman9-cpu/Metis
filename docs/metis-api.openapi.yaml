@@ -868,6 +868,51 @@ components:
           type: string
           description: A decision it removed a candidate from, so the figure links to a trace.
 
+    ConformanceReport:
+      type: object
+      required: [corpora, engines]
+      properties:
+        corpora:
+          type: array
+          items: { $ref: '#/components/schemas/ConformanceCorpus' }
+        engines:
+          type: array
+          items: { $ref: '#/components/schemas/ConformanceEngine' }
+
+    ConformanceCorpus:
+      type: object
+      required: [id, file, cases, covers]
+      properties:
+        id:
+          type: string
+          enum: [values, decisions, service]
+        file:
+          type: string
+          description: The committed file, relative to the repository root.
+        cases:
+          type: integer
+          description: Counted from the file as served, not written down.
+        covers:
+          type: string
+          description: What a case in this corpus pins, in words.
+
+    ConformanceEngine:
+      type: object
+      required: [engine, checkedBy, runsIn]
+      properties:
+        engine:
+          type: string
+          enum: [typescript, kotlin]
+        checkedBy:
+          type: string
+          description: The named check that fails when this engine disagrees with the corpora.
+        runsIn:
+          type: string
+          enum: [gates, ci]
+          description: >-
+            Where that check runs. `gates` is `npm run gates` and every pull
+            request; `ci` is a job in the console workflow only.
+
     ProfileSchema:
       type: object
       description: >-
@@ -4960,6 +5005,33 @@ paths:
                           type: string
                         from: {}
                         to: {}
+
+  /conformance:
+    get:
+      summary: What the engines are held to, and by which check
+      description: |
+        The corpora that make a chain hash mean the same thing whichever engine
+        produced it, how many cases each holds, and the named check that holds
+        each engine to them.
+
+        It does not report whether the engines agree now. That is what the
+        checks named here assert, where they run: the TypeScript engine in the
+        `corpus` gate, which regenerates every corpus and fails unless the files
+        come out byte-identical, and the Kotlin engine in the
+        `kotlin-conformance` CI job. The development API can run neither, so a
+        screen reading this can say what is checked and by what, and must not
+        say it passed.
+
+        Proposed. The console's development API serves it from the committed
+        corpus files; no plane does (G-109).
+      operationId: getConformance
+      x-metis-status: proposed
+      responses:
+        '200':
+          description: The corpora and the checks that hold each engine to them
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConformanceReport' }
 
   /inbound-calls:
     get:

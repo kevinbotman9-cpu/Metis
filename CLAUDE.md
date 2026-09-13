@@ -296,16 +296,31 @@ These are high-touch and need product/design review before code.
   failure count. End the session the same way. The count is ratcheted against
   `docs/ux-conformance-baseline.json`, and `npm run gates` fails if it rises —
   or if it falls and the baseline was not lowered in the same commit.
-- **Report gates by running `npm run gates`, never by naming individual
-  commands.** It runs exactly what CI runs, in CI's order, and
-  `tests/gates-parity.test.ts` fails if the two ever drift. A claim of "lint
-  clean" or "gates green" from anything else is a claim about an unknown
-  subset, and the subsets were not small: until 2026-09-10 the root lint ran
-  nowhere on a pull request, `test:core`, `test:catalogue` and
-  `test:portability` ran in no CI job at all, and `npm run conformance` — named
-  twice in this file — was not a script. Three sessions reported lint clean
-  while the directory they were editing went unlinted. `npm run gates -- <id>`
-  re-runs one gate.
+- **CI is the gate, not the local gates run.** Decided by the product owner on
+  2026-09-13. Before a pull request, run `npm run gates:pre-pr`: every gate
+  `npm run gates` has except end-to-end — typecheck, lint, every unit suite,
+  Storybook, bundle budgets, the spec, the corpus, generated files, required
+  checks and UX conformance. Those catch real defects, and a busy machine does
+  not make them lie. Then push, and let CI run end-to-end on clean runners —
+  four shards, about five minutes, nothing competing for the machine.
+
+  Run the full `npm run gates` locally only with a reason to think end-to-end
+  will fail: a change to the harness, the fixtures, or a screen's structure.
+  A red local end-to-end run on a loaded machine is not evidence of a defect.
+  On 2026-09-13 three of them cost three re-runs and disproved nothing (G-104,
+  G-105).
+- **Report gates by running the script, never by naming individual commands,
+  and say which script ran.** `npm run gates` runs exactly what CI runs, in CI's
+  order, and `tests/gates-parity.test.ts` fails if the two ever drift;
+  `npm run gates:pre-pr` is that list less end-to-end, and says so when it
+  finishes. A claim of "lint clean" or "gates green" from anything else is a
+  claim about an unknown subset, and the subsets were not small: until
+  2026-09-10 the root lint ran nowhere on a pull request, `test:core`,
+  `test:catalogue` and `test:portability` ran in no CI job at all, and
+  `npm run conformance` — named twice in this file — was not a script. Three
+  sessions reported lint clean while the directory they were editing went
+  unlinted. `npm run gates -- <id>` re-runs one gate; `--skip <id>` runs all but
+  one.
 - **The count may not rise. There is no exception.** Until 2026-09-11 a new screen
   was allowed to add one `layout-manifests` failure, because the rule had no
   implementation behind it. It has one now (ADR-015): a new screen is a manifest
@@ -321,7 +336,8 @@ These are high-touch and need product/design review before code.
   owner's decision cited; a change that breaks the contract never is.
 - If you are more than 60% through context and slice artefacts 5–9 are not done,
   stop, commit nothing, and report what remains.
-- Do not proceed past a red gate. Report it and stop.
+- Do not proceed past a red gate — a red pre-PR run or a red CI run. Report it
+  and stop.
 - Read-only means read-only. Do not fix things during a survey phase.
 - Do not report numbers from a run you disturbed — a branch switch mid-suite, a
   dev server saturated by another suite, a server that has been up for hours.

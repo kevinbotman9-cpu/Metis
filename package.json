@@ -36,6 +36,7 @@
     "test:catalogue": "npm --prefix packages/catalogue run test",
     "test:ui-metadata": "npm --prefix packages/ui-metadata run test",
     "gates": "node scripts/gates.mjs",
+    "gates:pre-pr": "node scripts/gates.mjs --skip e2e",
     "conformance": "node --import tsx scripts/conformance.mjs"
   },
   "devDependencies": {

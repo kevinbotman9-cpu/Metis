@@ -40,7 +40,9 @@ test.describe('the data model', () => {
   });
 
   test('lists every path a policy may reference', async ({ page }) => {
-    await page.getByLabel('View').selectOption('paths');
+    // Exact: a substring match took the header's "Overview persona" switch for this
+    // select on 2026-09-13, the day that switch shipped.
+    await page.getByLabel('View', { exact: true }).selectOption('paths');
 
     await expect(page.getByText('customer.credit_status')).toBeVisible();
     // Twice on the page by design: once in the list, once in the card that

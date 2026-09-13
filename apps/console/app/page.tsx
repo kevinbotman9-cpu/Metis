@@ -30,9 +30,17 @@ import {
 import { apiClient } from '@/lib/api-client';
 import { buildLoop } from '@/lib/loop';
 import { useFormat } from '@/components/tenant-format';
+import { useAuth } from '@/components/auth-provider';
+import { ArchitectOverview } from '@/components/architect-overview';
+import { useOverviewPersona } from '@/lib/persona';
 
 /**
  * Overview — the loop, as a Cascade. `docs/METIS_CONSOLE_SPEC.md` §4.7.
+ *
+ * For the marketer. Since 2026-09-13 the Overview is a landing page per persona:
+ * a decision architect lands on the change pipeline instead
+ * (`components/architect-overview.tsx`), and an account that can see both
+ * chooses with the switch in the chrome (`lib/persona.ts`).
  *
  * Until 2026-09-13 this was a greeting over four doughnuts — decisions,
  * outcomes, compilation, governance — with the agent panels beneath them. The
@@ -305,10 +313,17 @@ function OverviewView() {
   );
 }
 
+/** The persona decides the page; the switch in the chrome and this read the same stored choice. */
+function Overview() {
+  const { user } = useAuth();
+  const { persona } = useOverviewPersona(user);
+  return persona === 'architect' ? <ArchitectOverview /> : <OverviewView />;
+}
+
 export default function HomePage() {
   return (
     <RequireAuth>
-      <OverviewView />
+      <Overview />
     </RequireAuth>
   );
 }

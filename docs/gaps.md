@@ -44,6 +44,31 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-109 — What the engines are held to is a proposed operation, and it can name the checks but not their results
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-078](BACKLOG.md)
+
+The decision architect's Overview has a panel for what makes a chain hash mean
+the same thing whichever engine produced it. The persona mockup filled it with
+"every decision replays byte-identical" and "two independent engines agree on
+every chain hash" — and nothing the platform serves could say either.
+
+`getConformance` (`GET /conformance`) is added to `docs/metis-api.openapi.yaml`
+as `x-metis-status: proposed`, and the console's development API serves it: the
+three committed corpora (`docs/conformance/`) with their case counts, counted
+from the files as served, and the named check that holds each engine to them —
+the `corpus` gate for TypeScript, the `kotlin-conformance` CI job for Kotlin.
+
+**What it cannot say, on purpose.** Whether those checks passed. The development
+API can run neither of them, so a figure claiming agreement would be invented,
+and the panel says in words that it does not claim it. A per-decision replay
+count — "10,400 of 10,400" — has no source at all: replay is on demand, one
+decision at a time, on the trace reader.
+
+**Done when:** a plane serves the operation, and it reports the most recent
+result of each named check — when it ran, against which commit, and whether it
+passed — so the Overview can say what it currently cannot.
+
 ### G-108 — The client generator ignores `nullable: true`, so 13 spec fields are typed as never null
 
 **Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-077](BACKLOG.md)
