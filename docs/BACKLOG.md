@@ -449,7 +449,17 @@ Gate 2 · Depends: none · Spec §8
 **Done:** `packages/catalogue` — 40 tests, one behaviour suite over memory and a
 real PostgreSQL, foreign keys, a unique offer key per tenant, RESTRICT rather
 than CASCADE on creatives, and an append-only edit log by trigger. The export
-carries all nine tables and the round trip asserts the catalogue survives.
+carries all eleven tables and the round trip asserts the catalogue survives.
+
+**2026-09-13:** connectors and placements joined the store
+(`002_connectors_and_placements.sql`) and the export (bundle format 2.0.0) — the
+two things a decision reads that had no store. Both stores now read every array
+in id order, and the console builds its snapshots in that order too, so the
+catalogue a decision names is the catalogue a store reads back: test `hashes the
+fixture snapshot the same as the same catalogue read back from a store`. That
+moved every catalogue hash — the 10,400 seeded decisions and the 60 service
+cases — and no winner. It is the store half of ADR-016's amended build order;
+the decision service reads it next.
 
 **Not done:** the console still writes to its in-memory store, so authored state
 is still lost on restart there.

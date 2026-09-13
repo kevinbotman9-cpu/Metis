@@ -111,6 +111,8 @@ export async function exportTenant(
     catalogue_targeting_policies: cat.targetingPolicies,
     catalogue_frequency_policies: cat.frequencyPolicies,
     catalogue_boosts: cat.boosts,
+    catalogue_connectors: cat.connectors,
+    catalogue_placements: cat.placements,
     catalogue_arbitration: cat.arbitration ? [cat.arbitration] : [],
     catalogue_events: catEvents,
     registry_versions: versions,

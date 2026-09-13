@@ -5,10 +5,12 @@ import type {
   ArbitrationConfig,
   Boost,
   Category,
+  Connector,
   Creative,
   FrequencyPolicy,
   Objective,
   Offer,
+  Placement,
   TargetingPolicy,
 } from '@metis/core/domain';
 import type { EntityName } from './entities';
@@ -21,7 +23,7 @@ import type { EntityName } from './entities';
  * import the parts it recognises: a half-imported tenant is a worse outcome
  * than a refused one, because the refusal is visible and the half is not.
  */
-export const FORMAT_VERSION = '1.0.0';
+export const FORMAT_VERSION = '2.0.0';
 
 export interface BundleFile {
   entity: EntityName;
@@ -74,6 +76,10 @@ export interface TenantBundle {
   catalogue_targeting_policies: TargetingPolicy[];
   catalogue_frequency_policies: FrequencyPolicy[];
   catalogue_boosts: Boost[];
+  /** Since format 2.0.0. A 1.x bundle has no such file, so it is refused by version rather than as incomplete. */
+  catalogue_connectors: Connector[];
+  /** Since format 2.0.0. */
+  catalogue_placements: Placement[];
   /** Zero or one. An array so every file in the bundle has the same shape. */
   catalogue_arbitration: ArbitrationConfig[];
   catalogue_events: CatalogueEvent[];

@@ -54,13 +54,18 @@ const byHash = new Map<string, CatalogueSnapshot>();
  * decision already made, which is the one thing a snapshot must never do.
  */
 function build(): CatalogueSnapshot {
+  // In id order, as every catalogue store reads it — `catalogueSnapshot` in
+  // fixtures/engine.ts says why. Sorted copies, so the store the screens list
+  // from keeps the order things were authored in.
+  const byId = <T extends { id: string }>(list: T[]): T[] =>
+    [...list].sort((a, b) => a.id.localeCompare(b.id));
   return {
-    offers: store.offers,
-    targetingPolicies: store.targetingPolicies,
-    frequencyPolicies: store.frequencyPolicies,
+    offers: byId(store.offers),
+    targetingPolicies: byId(store.targetingPolicies),
+    frequencyPolicies: byId(store.frequencyPolicies),
     arbitration: store.arbitration,
-    boosts: store.boosts,
-    connectors: store.connectors,
+    boosts: byId(store.boosts),
+    connectors: byId(store.connectors),
   } as CatalogueSnapshot;
 }
 
