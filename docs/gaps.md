@@ -44,6 +44,56 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-108 — The client generator ignores `nullable: true`, so 13 spec fields are typed as never null
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-077](BACKLOG.md)
+
+`packages/client/generate.mjs` reads OpenAPI 3.1's spelling of a nullable field,
+`type: [string, 'null']`, and generates `string | null` — `Denial.ruleId` is
+correct. It does not read the 3.0 spelling, `nullable: true`, and the spec uses
+that spelling in **13** places, counted on 2026-09-13. Each is generated as a
+plain type: `ArmPerformance.acceptanceRate` is `number`, though the spec says it
+is null when nothing was measured and the API sends null.
+
+So the DTO tells a screen a value is always there when it is not, and TypeScript
+cannot make that screen handle the null. The console copes by convention —
+`?? null`, a comparison against `null` the type says cannot succeed — and nothing
+fails when a new screen forgets. Found on 2026-09-13 while typing the policy
+funnel's test fixture: its schemas were first written with `nullable: true`,
+generated `asked: boolean`, and now use the 3.1 spelling.
+
+**Done when:** the generator reads both spellings, or the spec uses one and a
+check refuses the other, and a check fails if a nullable spec field is generated
+non-null.
+
+### G-107 — Where candidates fall out of decisions is a proposed operation, served only by the development API
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-076](BACKLOG.md)
+
+A decisioning architect's first question of a targeting setup is where
+candidates fall out, across all decisions rather than in one trace. Nothing in
+the spec answered it: `getPerformance` counts decisions after they are made, and
+`PerformanceReport.suppressed` is one integer with no stage or rule behind it.
+
+`getPolicyFunnel` (`GET /policy-funnel/{tenantId}`) is added to
+`docs/metis-api.openapi.yaml` as `x-metis-status: proposed`. The arithmetic is
+real platform code — `buildPolicyFunnel` in `packages/ledger/src/policy-funnel.ts`
+— but the only thing that serves it is the console's development API
+(`apps/console/app/api/[...path]/route.ts`), from the seeded corpus and the
+ledger. No plane does.
+
+**How it is served there, and why.** The 10,400 seeded decisions are rows in the
+committed decision index, not ledger entries, and re-executing all of them to
+read their removals took 5.5 seconds on 2026-09-13. So the index gained a
+`removals` column — each removal as a reason-code index and a rule-id index into
+a sorted `ruleIds` table — which took the file from 1.5 MB to 2.4 MB.
+`apps/console/tests/unit/decision-index.test.ts` holds the column equal to the
+generator. Decisions made through the API are read from the ledger, whose
+records carry their eliminations whole.
+
+**Done when:** a plane serves `getPolicyFunnel` from the ledger, the operation is
+no longer proposed, and `contract.spec.ts` covers it.
+
 ### G-105 — A connection reset fails a test against a harness-owned server with nothing competing
 
 **Registered:** 2026-09-13 · **Status:** Open · **Work item:** none — the mechanism is unknown

@@ -21,3 +21,13 @@ export type {
   ChannelStages,
   LoopDay,
 } from './performance';
+
+export { buildPolicyFunnel, funnelDecisionOf, FUNNEL_STAGES } from './policy-funnel';
+export type {
+  PolicyFunnelReport,
+  FunnelStage,
+  FunnelStageId,
+  FunnelRule,
+  FunnelDecision,
+  FunnelRemoval,
+} from './policy-funnel';

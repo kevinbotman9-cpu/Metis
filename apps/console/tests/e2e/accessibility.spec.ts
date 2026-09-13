@@ -15,6 +15,10 @@ const PAGES = [
   { path: '/creatives?view=coverage', name: 'creative coverage' },
   { path: '/offers/off_5g_home_ultimate', name: 'offer detail' },
   { path: '/targeting-policies', name: 'targeting policies' },
+  // The funnel is a view on the same page and a separate render, and its stage
+  // pane is a third: the rules table with its evidence links appears only there.
+  { path: '/targeting-policies?view=funnel', name: 'policy funnel' },
+  { path: '/targeting-policies?view=funnel&stage=eligibility', name: 'policy funnel, a stage' },
   { path: '/frequency-policy', name: 'frequency policy' },
   { path: '/arbitration', name: 'arbitration' },
   { path: '/decision-flows', name: 'flows' },

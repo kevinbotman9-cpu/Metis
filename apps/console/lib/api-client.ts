@@ -62,6 +62,9 @@ import type {
   PerformanceReport as PerformanceReportDto,
   PerformanceRow as PerformanceRowDto,
   ChannelStages as ChannelStagesDto,
+  PolicyFunnelReport as PolicyFunnelReportDto,
+  PolicyFunnelStage as PolicyFunnelStageDto,
+  PolicyFunnelRule as PolicyFunnelRuleDto,
   LoopDay as LoopDayDto,
   Experiment as ExperimentDto,
   ExperimentArm as ExperimentArmDto,
@@ -515,6 +518,15 @@ export const apiClient = {
     tenantId: string = TENANT
   ) => apiCall<PerformanceReportDto>('getPerformance', { params: { tenantId }, query: filters }),
 
+  /**
+   * Where candidates fall out of decisions, by reason code and by rule, summed
+   * over the decisions in range. Proposed: the development API serves it (G-107).
+   */
+  getPolicyFunnel: (
+    filters: { flowId?: string; channel?: string } = {},
+    tenantId: string = TENANT
+  ) => apiCall<PolicyFunnelReportDto>('getPolicyFunnel', { params: { tenantId }, query: filters }),
+
   // --- Data model ---------------------------------------------------------
   /**
    * The tenant's data model, and the paths a policy may reference.
@@ -669,6 +681,9 @@ export type {
   PerformanceReportDto,
   PerformanceRowDto,
   ChannelStagesDto,
+  PolicyFunnelReportDto,
+  PolicyFunnelStageDto,
+  PolicyFunnelRuleDto,
   LoopDayDto,
   ExperimentDto,
   ExperimentArmDto,

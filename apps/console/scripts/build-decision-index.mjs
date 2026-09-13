@@ -30,6 +30,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(here, '../mocks/fixtures/decision-index.json');
 
 const { executeAt, DECISION_COUNT } = await import('../mocks/fixtures/engine.ts');
+const { REASON_CODES } = await import('@metis/runtime');
 
 /**
  * Column order. Positional rather than an object per row: the same 10,400
@@ -58,6 +59,11 @@ export const COLUMNS = [
   // performance (G-052). A decision's duration is on its trace, measured when
   // the trace is re-executed.
   'chainHash',
+  // Every candidate the decision removed, as flat pairs: an index into
+  // `REASON_CODES`, then an index into the file's `ruleIds`, or -1 where the code
+  // names no rule. What the policy funnel sums, so it can answer over the whole
+  // corpus without re-executing it — 5.5 seconds, measured on 2026-09-13.
+  'removals',
 ];
 
 const rows = [];
@@ -77,13 +83,26 @@ for (let i = 0; i < DECISION_COUNT; i++) {
     d.winnerOfferId,
     d.candidateKeys.length,
     trace.chainHash,
+    d.eliminations.flatMap((step) => step.denials.map((denial) => [denial.code, denial.ruleId ?? null])),
   ]);
 }
 
 // Newest first, which is the order every screen reads them in.
 rows.sort((a, b) => String(b[5]).localeCompare(String(a[5])));
 
-const next = JSON.stringify({ columns: COLUMNS, rows });
+// Rule ids once, sorted, so each removal is two small numbers rather than a
+// repeated string, and so the file still regenerates to the same bytes.
+const ruleIds = [...new Set(rows.flatMap((row) => row[12].map(([, rule]) => rule).filter((rule) => rule !== null)))].sort();
+const ruleIndex = new Map(ruleIds.map((id, i) => [id, i]));
+for (const row of rows) {
+  row[12] = row[12].flatMap(([code, rule]) => {
+    const c = REASON_CODES.indexOf(code);
+    if (c === -1) throw new Error(`decision ${row[1]} records reason code ${code}, which is not in REASON_CODES`);
+    return [c, rule === null ? -1 : ruleIndex.get(rule)];
+  });
+}
+
+const next = JSON.stringify({ columns: COLUMNS, ruleIds, rows });
 const prev = existsSync(OUT) ? readFileSync(OUT, 'utf8') : null;
 
 if (prev === next) {

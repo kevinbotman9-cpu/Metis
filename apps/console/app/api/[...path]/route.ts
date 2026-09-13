@@ -21,6 +21,7 @@ import {
   decisions,
   findGeneratedDecision,
   toApiTrace,
+  corpusFunnelRows,
 } from '@/mocks/fixtures/decisions';
 import type { GeneratedDecision } from '@/mocks/fixtures/engine';
 import { seededOutcomeMap, seededOutcomesFor } from '@/mocks/fixtures/outcomes';
@@ -42,7 +43,7 @@ import { RecordedIntegrationGateway } from '@/mocks/gateway';
 import { recorded, listCalls, clearCalls, isEnabled as callLogEnabled } from '@/mocks/call-log';
 import type { DecisionRecord } from '@metis/runtime';
 import type { OutcomeType } from '@metis/ledger';
-import { buildPerformance } from '@metis/ledger';
+import { buildPerformance, buildPolicyFunnel, funnelDecisionOf, type FunnelStageId } from '@metis/ledger';
 import type { Category, Creative, Objective, Offer, Placement } from '@metis/core/domain';
 import { validateCreativeContent, offerMayBeActive } from '@metis/core/creative';
 import {
@@ -1189,6 +1190,52 @@ async function handleGet(req: Request, { params }: Ctx) {
         ...report,
         arms: armRows,
         provenance: provenanceOver(all.map((e) => e.decisionId)),
+      });
+    }
+
+    // Where candidates fall out of decisions: the trace reader's cascade, summed
+    // over every decision in range. Proposed (G-107) — no plane serves it; this
+    // development API does, from the same two sources the performance report
+    // reads.
+    case 'policy-funnel': {
+      const tenantId = rest[0];
+      if (!tenantId) return notFound();
+      const flowId = q.get('flowId');
+      const channel = q.get('channel');
+      const inScope = (flow: string, ch: string) => (flowId ? flow === flowId : true) && (channel ? ch === channel : true);
+
+      // The seeded corpus from the index's `removals` column, not from 10,400
+      // re-executions (5.5 seconds). Decisions made through the API come from
+      // the ledger, whose records carry their eliminations whole, deduped by id
+      // the way the performance report dedupes them.
+      const corpus = corpusFunnelRows().filter((d) => inScope(d.flowId, d.channel));
+      const seen = new Set(corpus.map((d) => d.decisionId));
+      const live = (await store.ledger.query({ tenantId, limit: 20000 })).filter(
+        (e) => !seen.has(e.decisionId) && inScope(e.flowId, e.record.decision.channel)
+      );
+      const inRange = [...corpus, ...live.map(funnelDecisionOf)];
+
+      // Which questions the flows in range ask, from their compiled nodes. A
+      // targeting tier is the one the node's declared policies share. The source
+      // node is where a retired or out-of-window candidate is removed, every
+      // constraint node enforces consent and frequency whatever its tier, and
+      // the arbitrate node is where a candidate loses on priority.
+      const asked = new Set<FunnelStageId>();
+      for (const id of new Set([...corpus.map((d) => d.flowId), ...live.map((e) => e.flowId)])) {
+        for (const node of findCompilation(id)?.result.artifact?.nodes ?? []) {
+          if (node.tier === 'eligibility' || node.tier === 'relevance' || node.tier === 'suitability') asked.add(node.tier);
+          if (node.type === 'source') asked.add('not_live');
+          if (node.type === 'constraint') {
+            asked.add('consent');
+            asked.add('frequency');
+          }
+          if (node.type === 'arbitrate') asked.add('not_ranked');
+        }
+      }
+
+      return json({
+        ...buildPolicyFunnel(inRange, asked),
+        provenance: provenanceOver(inRange.map((d) => d.decisionId)),
       });
     }
 

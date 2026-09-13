@@ -433,6 +433,54 @@ export interface LoopDay {
   acted: number;
 }
 
+/** Where candidates fall out of decisions, summed over decisions.
+
+The unit is a candidate within a decision. Every candidate is removed
+once or wins, so `entered`, less each stage's `removed` in order, gives
+that stage's `survived`, and the last stage's survivors are `offered`.
+A decision for which that does not hold is counted in `unaccounted`.
+ */
+export interface PolicyFunnelReport {
+  decisions: number;
+  /** Candidates the flows were allowed to consider, summed over decisions. */
+  entered: number;
+  /** Decisions with a winner. */
+  offered: number;
+  /** All seven, always, in the order a decision meets them. A stage no flow in range asks is present, with `asked` false, rather than omitted. */
+  stages: PolicyFunnelStage[];
+  /** Decisions whose removals and winner do not add up to their candidates, or that carry a code outside the closed set. Zero on a correct engine. Not zero means the stages are not a decomposition, and a screen must say so. */
+  unaccounted: number;
+  from: string | null;
+  to: string | null;
+  provenance?: Provenance;
+}
+
+export interface PolicyFunnelStage {
+  id: "not_live" | "eligibility" | "relevance" | "suitability" | "consent" | "frequency" | "not_ranked";
+  /** The reason codes this stage counts. */
+  codes: string[];
+  /** Whether any flow in range asks this question, from the compiled artifacts. Null when that is not known, which is not the same as false. True whenever the stage removed a candidate. */
+  asked: boolean | null;
+  /** Candidates this stage removed. */
+  removed: number;
+  /** Candidates left after this stage and every stage before it. */
+  survived: number;
+  /** Largest first. */
+  rules: PolicyFunnelRule[];
+}
+
+export interface PolicyFunnelRule {
+  /** The targeting or frequency policy. Null for codes that are properties of the candidate rather than of a rule, which group by code instead. */
+  ruleId: string | null;
+  code: string;
+  /** Candidates removed. */
+  removed: number;
+  /** Distinct decisions it removed at least one candidate from. */
+  decisions: number;
+  /** A decision it removed a candidate from, so the figure links to a trace. */
+  sampleDecisionId: string;
+}
+
 /** The tenant's customer data model. A contract about what fields exist and how entities relate; it says nothing about where values come from, which is already two separate answers (the caller sends them, or a connector resolves them). */
 export interface ProfileSchema {
   id: string;
@@ -1464,6 +1512,13 @@ export const OPERATIONS = {
     queryParams: ['flowId', 'channel', 'limit'],
     statuses: ['200'],
   },
+  getPolicyFunnel: {
+    method: 'GET',
+    path: '/policy-funnel/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: ['flowId', 'channel'],
+    statuses: ['200'],
+  },
   getProfileSchema: {
     method: 'GET',
     path: '/profile-schema/{tenantId}',
@@ -1973,6 +2028,9 @@ export type GetOfferResponse = OfferDetail;
 /** What happened after the decisions */
 export type GetPerformanceResponse = PerformanceReport;
 
+/** Where candidates fall out of decisions */
+export type GetPolicyFunnelResponse = PolicyFunnelReport;
+
 /** The tenant's customer data model */
 export type GetProfileSchemaResponse = {
   schema: ProfileSchema;
@@ -2287,6 +2345,7 @@ export interface ResponseOf {
   getDecisionRecord: GetDecisionRecordResponse;
   getOffer: GetOfferResponse;
   getPerformance: GetPerformanceResponse;
+  getPolicyFunnel: GetPolicyFunnelResponse;
   getProfileSchema: GetProfileSchemaResponse;
   getRegistryEntry: GetRegistryEntryResponse;
   getSession: GetSessionResponse;
