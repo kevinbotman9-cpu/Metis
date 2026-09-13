@@ -1818,6 +1818,8 @@ export const OPERATIONS = {
 
 export type OperationId = keyof typeof OPERATIONS;
 
+/** The OpenAPI version the spec declares. */
+export const OPENAPI_VERSION = '3.1.0';
 // --- Request and response bodies --------------------------------------------
 
 /** Activate a validated source */

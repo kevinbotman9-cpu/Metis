@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { EntityFormDialog } from '@/components/entity-form-dialog';
 import { TENANT_SETTINGS_KEY, useFormat, useTenantSettings } from '@/components/tenant-format';
 import { apiClient, type TenantSettingsDto } from '@/lib/api-client';
+import { OPENAPI_VERSION, OPERATIONS } from '@metis/client';
 
 /**
  * The fifth of September, 14:30 UTC: the date en-US and en-GB write as each
@@ -103,6 +104,7 @@ function TenantCard() {
 
 function SettingsView() {
   const { user } = useAuth();
+  const format = useFormat();
   const { colorScheme, density, setColorScheme, setDensity } = useTheme();
 
   return (
@@ -248,8 +250,14 @@ function SettingsView() {
                   ),
                 },
                 {
+                  // Read from the generated client, not written here. This was
+                  // "OpenAPI 3.1 · 30 operations" while the spec held 71: a
+                  // count in two places, one of them under a heading claiming
+                  // every call maps to an operationId. `OPERATIONS` is emitted
+                  // from docs/metis-api.openapi.yaml, and the gates fail if the
+                  // generated file drifts from the spec.
                   term: 'Contract',
-                  value: 'OpenAPI 3.1 · 30 operations',
+                  value: `OpenAPI ${OPENAPI_VERSION} · ${format.number(Object.keys(OPERATIONS).length)} operations`,
                   detail: 'Every call in this console maps to an operationId in the spec.',
                 },
                 {
