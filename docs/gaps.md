@@ -106,45 +106,6 @@ should be reviewable on its own rather than inside a copy edit.
 **Done when:** neither field is in the fixtures under a telco-uk name, the
 corpora and bundle are regenerated in the same commit, and conformance is green.
 
-### G-102 — The console uses the all-caps and tracked labels the visual spec forbids
-
-**Registered:** 2026-09-13 · **Resolved:** 2026-09-13 · **Status:** Resolved · **Work item:** slice three of the 2026-09-13 design pass, by the product owner
-
-`docs/METIS_CONSOLE_SPEC.md` Part 5 lists, under *Type*, "No all-caps labels. No
-tracked-out eyebrows above headings", and repeats "All-caps tracked eyebrow
-labels" under *Forbidden* as one of the tells that make a build read as
-generated. The console carries **48 `uppercase` classes in 24 files and 42
-letter-spacing classes in 21 files**, counted on 2026-09-13 by the same sweep that
-found the 126 off-scale type sites. That includes the eyebrow above the Overview's
-thesis panels, added the same day.
-
-**Kept out of the type-scale slice on purpose.** A size, a line height or a
-weight outside the scale is a token failure with one right answer. Whether every
-section label loses its capitals and tracking is a decision about the forbidden
-list itself — it restyles most of the console's section headings — and the
-product owner put it in slice three, the design pass on the non-Cascade screens.
-
-**Done when:** each `uppercase` and `tracking-*` either goes, or the spec's
-forbidden list is amended to say where they are allowed, and a check holds
-whichever answer is chosen.
-
-**Decided: sentence case everywhere.** The product owner chose the spec over an
-amendment, table headers and nav group labels included. The recount on the day
-found **49** all-caps classes and **49** widened letter-spacing classes in 26
-files, stories included — the first count missed the three in
-`primitives.stories.tsx`. Two shared components carried most of what a reader
-sees: `Metric`'s label and `DataTable`'s column header, on every metric and every
-table in the console.
-
-**Resolved by:** every one removed. Tight and negative tracking on titles and
-figures stays, because the spec forbids tracked-*out* labels, not tracking. One
-label was relying on the capitals to hide its casing: a creative's content keys
-on `/offers/[id]` were split on capitals into "image Url", and now read "Image
-URL". `apps/console/tests/letter-case.ts` fails on an all-caps class, widened
-tracking, or either as an inline style or CSS declaration, and its test proves
-each rule fires and that a `value="uppercase"` option is not a class. Bite-proven
-on the unchanged tree: 49 and 49.
-
 ### G-101 — The agent activity feed and the audit log disagree about what agents did
 
 **Registered:** 2026-09-13 · **Status:** Open · **Work item:** none — one decision about which is the record
@@ -1908,6 +1869,45 @@ payload, and a descriptor no longer needs a screen-supplied default to avoid
 sending zero.
 
 ## Resolved
+
+### G-102 — The console uses the all-caps and tracked labels the visual spec forbids
+
+**Registered:** 2026-09-13 · **Resolved:** 2026-09-13 · **Status:** Resolved · **Work item:** slice three of the 2026-09-13 design pass, by the product owner
+
+`docs/METIS_CONSOLE_SPEC.md` Part 5 lists, under *Type*, "No all-caps labels. No
+tracked-out eyebrows above headings", and repeats "All-caps tracked eyebrow
+labels" under *Forbidden* as one of the tells that make a build read as
+generated. The console carries **48 `uppercase` classes in 24 files and 42
+letter-spacing classes in 21 files**, counted on 2026-09-13 by the same sweep that
+found the 126 off-scale type sites. That includes the eyebrow above the Overview's
+thesis panels, added the same day.
+
+**Kept out of the type-scale slice on purpose.** A size, a line height or a
+weight outside the scale is a token failure with one right answer. Whether every
+section label loses its capitals and tracking is a decision about the forbidden
+list itself — it restyles most of the console's section headings — and the
+product owner put it in slice three, the design pass on the non-Cascade screens.
+
+**Done when:** each `uppercase` and `tracking-*` either goes, or the spec's
+forbidden list is amended to say where they are allowed, and a check holds
+whichever answer is chosen.
+
+**Decided: sentence case everywhere.** The product owner chose the spec over an
+amendment, table headers and nav group labels included. The recount on the day
+found **49** all-caps classes and **49** widened letter-spacing classes in 26
+files, stories included — the first count missed the three in
+`primitives.stories.tsx`. Two shared components carried most of what a reader
+sees: `Metric`'s label and `DataTable`'s column header, on every metric and every
+table in the console.
+
+**Resolved by:** every one removed. Tight and negative tracking on titles and
+figures stays, because the spec forbids tracked-*out* labels, not tracking. One
+label was relying on the capitals to hide its casing: a creative's content keys
+on `/offers/[id]` were split on capitals into "image Url", and now read "Image
+URL". `apps/console/tests/letter-case.ts` fails on an all-caps class, widened
+tracking, or either as an inline style or CSS declaration, and its test proves
+each rule fires and that a `value="uppercase"` option is not a class. Bite-proven
+on the unchanged tree: 49 and 49.
 
 ### G-092 — The console formatted every date and number as British, and there was no tenant locale to read instead
 
