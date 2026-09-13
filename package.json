@@ -37,6 +37,7 @@
     "test:ui-metadata": "npm --prefix packages/ui-metadata run test",
     "gates": "node scripts/gates.mjs",
     "gates:pre-pr": "node scripts/gates.mjs --skip e2e",
+    "gates:quick": "node scripts/gates.mjs typecheck-packages typecheck-console lint-root lint-console test-runtime test-compiler test-core test-catalogue test-portability test-ledger test-registry test-ui-metadata test-integration test-console",
     "conformance": "node --import tsx scripts/conformance.mjs"
   },
   "devDependencies": {
