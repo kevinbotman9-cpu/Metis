@@ -302,11 +302,12 @@ function DataModelView() {
 export default function DataModelPage() {
   return (
     <RequireAuth>
-      <PageHeader
-        title="Data model"
-        description="What a policy may reference. Enforced by the compiler."
-      />
+      {/* Inside the body, so the heading sits in the page gutter like every other screen's. */}
       <PageBody>
+        <PageHeader
+          title="Data model"
+          description="What a policy may reference. Enforced by the compiler."
+        />
         <DataModelView />
       </PageBody>
     </RequireAuth>

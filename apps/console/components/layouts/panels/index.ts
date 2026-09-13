@@ -3,6 +3,12 @@ import type { PanelComponent } from '../panel';
 import { EntityOverview } from './entity-overview';
 import { RelatedList } from './related-list';
 import { PlacementsUndeliverable } from './placements-undeliverable';
+import { OfferStatus } from './offer-status';
+import { OfferFigures } from './offer-figures';
+import { OfferReach } from './offer-reach';
+import { OfferAutonomy } from './offer-autonomy';
+import { ChangeSetDiff } from './change-set-diff';
+import { ChangeSetDecision } from './change-set-decision';
 
 /**
  * Each panel `PANELS` declares, and the component that draws it.
@@ -14,6 +20,12 @@ export const PANEL_COMPONENTS: { [K in PanelId]: PanelComponent } = {
   'core.entity-overview': EntityOverview,
   'core.related-list': RelatedList,
   'placements.undeliverable': PlacementsUndeliverable,
+  'offers.status': OfferStatus,
+  'offers.figures': OfferFigures,
+  'offers.reach': OfferReach,
+  'offers.autonomy': OfferAutonomy,
+  'change-sets.diff': ChangeSetDiff,
+  'change-sets.decision': ChangeSetDecision,
 };
 
 export function panelFor(id: string): PanelComponent {

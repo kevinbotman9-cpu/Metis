@@ -288,11 +288,12 @@ function TrafficView() {
 export default function TrafficPage() {
   return (
     <RequireAuth>
-      <PageHeader
-        title="Inbound traffic"
-        description="Every call served by this API, request and response."
-      />
+      {/* Inside the body, so the heading sits in the page gutter like every other screen's. */}
       <PageBody>
+        <PageHeader
+          title="Inbound traffic"
+          description="Every call served by this API, request and response."
+        />
         <TrafficView />
       </PageBody>
     </RequireAuth>

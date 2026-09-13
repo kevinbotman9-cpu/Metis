@@ -3,7 +3,17 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { LAYOUTS, PANELS, declaredScreen } from '@metis/ui-metadata';
 import { categories, objectives, offers } from '@/mocks/fixtures/catalogue';
-import { ENTITY_BINDINGS, LIST_SOURCES, invalidationsFor, isRecordSource, type EntityBinding } from '@/lib/layouts/sources';
+import { changeSets } from '@/mocks/fixtures/governance';
+import type { ChangeSetDto, OfferDto } from '@/lib/api-client';
+import {
+  ENTITY_BINDINGS,
+  LIST_SOURCES,
+  changeSetRow,
+  invalidationsFor,
+  isRecordSource,
+  offerRow,
+  type EntityBinding,
+} from '@/lib/layouts/sources';
 import { PANEL_COMPONENTS } from '@/components/layouts/panels';
 
 /**
@@ -63,6 +73,33 @@ describe.each(manifests.map((m) => [m.id, m] as const))('manifest %s', (_id, man
     const page = resolve(__dirname, '../../app', ...detailRoute.split('/').filter(Boolean), 'page.tsx');
     expect(existsSync(page), `${detailRoute} has no page`).toBe(true);
     expect(declaredScreen(readFileSync(page, 'utf8')), `${detailRoute}/page.tsx`).toBe(manifest.id);
+  });
+});
+
+describe('the catalogue and the approvals list derive what their facets count', () => {
+  const offer = (over: Partial<OfferDto>) => ({ ...offers[0], ...over }) as OfferDto;
+
+  it('calls an offer with no creative undeliverable unless it is retired, and a live one with content selectable', () => {
+    expect(offerRow(offer({ status: 'draft', creativeIds: [] })).reach).toBe('undeliverable');
+    expect(offerRow(offer({ status: 'active', creativeIds: [] })).reach).toBe('undeliverable');
+    expect(offerRow(offer({ status: 'retired', creativeIds: [] })).reach).toBe('not-live');
+    expect(offerRow(offer({ status: 'active', creativeIds: ['c1'] })).reach).toBe('selectable');
+    expect(offerRow(offer({ status: 'paused', creativeIds: ['c1'] })).reach).toBe('not-live');
+  });
+
+  it('counts a boost above 1.0 as boosted, and 1.0 itself as not', () => {
+    expect(offerRow(offer({ boost: 1.2 })).boosted).toBe(true);
+    expect(offerRow(offer({ boost: 1 })).boosted).toBe(false);
+  });
+
+  it('says who raised a change set and whether its simulation ran and passed', () => {
+    const [first] = changeSets as unknown as ChangeSetDto[];
+    expect(changeSetRow({ ...first, requestedBy: 'agent-retention' }).raisedBy).toBe('agent');
+    expect(changeSetRow({ ...first, requestedBy: 'priya@telco.example' }).raisedBy).toBe('person');
+    expect(changeSetRow({ ...first, simulation: null }).simulationResult).toBe('not-run');
+    const sim = { ran: true, passed: false, populationSize: 1, projectedMarginDelta: '0', biasRatio: 1, notes: '' };
+    expect(changeSetRow({ ...first, simulation: sim }).simulationResult).toBe('failed');
+    expect(changeSetRow({ ...first, simulation: { ...sim, passed: true } }).simulationResult).toBe('passed');
   });
 });
 

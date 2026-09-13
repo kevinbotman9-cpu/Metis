@@ -88,6 +88,32 @@ const Link = ({ href, className, children }: LinkProps) => (
 
 const NO_ROWS: Row[] = [];
 
+const keyOf = (queryKey: readonly unknown[]) => JSON.stringify(queryKey);
+const unique = (keys: string[]) => [...new Set(keys)];
+
+/**
+ * A source's rows from an answer, computed once per answer.
+ *
+ * The answer object is TanStack's cached reference, so it only changes when the
+ * data does; keying the rows on it keeps each source's array stable between
+ * renders, which the filters and the open-record effect depend on.
+ */
+const selections = new WeakMap<(data: unknown) => Row[], WeakMap<object, Row[]>>();
+function selectOnce(select: (data: unknown) => Row[], data: unknown): Row[] {
+  if (data === null || typeof data !== 'object') return NO_ROWS;
+  let byAnswer = selections.get(select);
+  if (!byAnswer) {
+    byAnswer = new WeakMap();
+    selections.set(select, byAnswer);
+  }
+  let rows = byAnswer.get(data);
+  if (!rows) {
+    rows = select(data);
+    byAnswer.set(data, rows);
+  }
+  return rows;
+}
+
 interface Dialog {
   entity: string;
   record: Row | null;
@@ -114,35 +140,53 @@ function ListDetailHost({ manifest }: { manifest: ListDetailManifest }) {
   const tenantWide = useMemo(() => names.filter((n) => !isRecordSource(sourceFor(n))), [names]);
   const perRecord = useMemo(() => names.filter((n) => isRecordSource(sourceFor(n))), [names]);
   const [openId, setOpenId] = useState<string | null>(null);
+  // One query per distinct key. Sources over the same operation — both levels
+  // of the taxonomy, or everything one offer is made of — share a key on
+  // purpose, so one write refreshes all of them; asked for twice in one
+  // useQueries, a key is a duplicate TanStack warns may misbehave. So the
+  // answer is fetched once, and each source selects its own rows from it.
+  const tenantSources = tenantWide.map((name) => sourceFor(name) as ListSource);
+  const tenantKeys = unique(tenantSources.map((s) => keyOf(s.queryKey)));
   const results = useQueries({
-    queries: tenantWide.map((name) => {
-      const source = sourceFor(name) as ListSource;
-      return { queryKey: source.queryKey, queryFn: source.queryFn, select: source.select };
+    queries: tenantKeys.map((key) => {
+      const source = tenantSources.find((s) => keyOf(s.queryKey) === key) as ListSource;
+      return { queryKey: source.queryKey, queryFn: source.queryFn };
     }),
   });
+  const recordSources = perRecord.map((name) => sourceFor(name) as RecordSource);
+  const recordKeyOf = (s: RecordSource) => keyOf(s.queryKey(openId ?? ''));
+  const recordKeys = unique(recordSources.map(recordKeyOf));
   const recordResults = useQueries({
-    queries: perRecord.map((name) => {
-      const source = sourceFor(name) as RecordSource;
+    queries: recordKeys.map((key) => {
+      const source = recordSources.find((s) => recordKeyOf(s) === key) as RecordSource;
       return {
         queryKey: source.queryKey(openId ?? ''),
         queryFn: () => source.queryFn(openId ?? ''),
-        select: source.select,
         enabled: openId !== null,
       };
     }),
   });
-  const stateOf = (r: { data?: Row[]; isError: boolean; isPending: boolean }): SourceState => ({
-    rows: r.data ?? NO_ROWS,
+  const stateOf = (
+    r: { data?: unknown; isError: boolean; isPending: boolean },
+    select: (data: unknown) => Row[]
+  ): SourceState => ({
+    rows: selectOnce(select, r.data),
     status: r.isError ? 'error' : r.isPending ? 'loading' : 'ready',
   });
-  // Row arrays are stable between renders — TanStack memoises `select` — so
-  // nothing below needs this object itself to be.
+  // Row arrays are stable between renders — `selectOnce` keeps one per answer —
+  // so nothing below needs this object itself to be.
   const sources: Record<string, SourceState> = Object.fromEntries([
-    ...tenantWide.map((name, i): [string, SourceState] => [name, stateOf(results[i])]),
-    ...perRecord.map((name, i): [string, SourceState] => [name, stateOf(recordResults[i])]),
+    ...tenantWide.map((name, i): [string, SourceState] => [
+      name,
+      stateOf(results[tenantKeys.indexOf(keyOf(tenantSources[i].queryKey))], tenantSources[i].select),
+    ]),
+    ...perRecord.map((name, i): [string, SourceState] => [
+      name,
+      stateOf(recordResults[recordKeys.indexOf(recordKeyOf(recordSources[i]))], recordSources[i].select),
+    ]),
   ]);
   const list = sources[manifest.params.list.source];
-  const listResult = results[tenantWide.indexOf(manifest.params.list.source)];
+  const listResult = results[tenantKeys.indexOf(keyOf((sourceFor(manifest.params.list.source) as ListSource).queryKey))];
   // A record's own source failing is its panel's to say. The screen fails only
   // when what it lists does.
   const failed = results.find((r) => r.isError);

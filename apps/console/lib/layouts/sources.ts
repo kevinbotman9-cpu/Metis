@@ -1,6 +1,8 @@
 import {
   apiClient,
   type CategoryDto,
+  type ChangeSetDto,
+  type OfferDetailDto,
   type CreativeDto,
   type ObjectiveDto,
   type OfferDto,
@@ -80,7 +82,66 @@ export const LIST_SOURCES: Record<string, Source> = {
       return t.categories.map((c) => ({ ...c, offerCount: offersUnder(t, new Set([c.id])) }) as unknown as Row);
     },
   },
+  // The catalogue, with the two facts its summary blocks used to count derived
+  // onto each row so they filter like any other facet.
+  offers: {
+    queryKey: ['offers'],
+    queryFn: () => apiClient.listOffers(),
+    select: (data) => (data as { offers: OfferDto[] }).offers.map((o) => offerRow(o)),
+  },
+  // What one offer is made of. One operation answers all three, under one key,
+  // so a write that invalidates the offer refreshes every pane reading it.
+  'offer.creatives': {
+    scope: 'record',
+    queryKey: (id) => ['offer', id],
+    queryFn: (id) => apiClient.getOffer(id),
+    select: (data) => (data as OfferDetailDto).creatives as unknown as Row[],
+  },
+  'offer.policies': {
+    scope: 'record',
+    queryKey: (id) => ['offer', id],
+    queryFn: (id) => apiClient.getOffer(id),
+    select: (data) => (data as OfferDetailDto).policies as unknown as Row[],
+  },
+  'offer.autonomy': {
+    scope: 'record',
+    queryKey: (id) => ['offer', id],
+    queryFn: (id) => apiClient.getOffer(id),
+    select: (data) => {
+      const autonomy = (data as OfferDetailDto).autonomy;
+      return autonomy ? [autonomy as unknown as Row] : [];
+    },
+  },
+  'change-sets': {
+    queryKey: ['change-sets'],
+    queryFn: () => apiClient.listChangeSets(),
+    select: (data) => (data as { changeSets: ChangeSetDto[] }).changeSets.map((c) => changeSetRow(c)),
+  },
 };
+
+/**
+ * An offer as the catalogue lists it.
+ *
+ * `reach` is what the list can prove about delivery: an offer with no creative
+ * cannot be delivered unless it is retired, when it is not meant to be. Whether
+ * an active creative covers a channel needs the creatives, which the Reach tab
+ * reads.
+ */
+export function offerRow(o: OfferDto): Row {
+  const reach =
+    o.creativeIds.length === 0 && o.status !== 'retired' ? 'undeliverable' : o.status === 'active' ? 'selectable' : 'not-live';
+  return { ...o, reach, boosted: o.boost > 1 } as unknown as Row;
+}
+
+/** A change set as the approvals list shows it: who raised it, and whether its simulation passed. */
+export function changeSetRow(c: ChangeSetDto): Row {
+  const simulationResult = !c.simulation ? 'not-run' : c.simulation.passed ? 'passed' : 'failed';
+  return {
+    ...c,
+    raisedBy: c.requestedBy.startsWith('agent-') ? 'agent' : 'person',
+    simulationResult,
+  } as unknown as Row;
+}
 
 /**
  * How each entity a screen shows is identified and written.
@@ -195,6 +256,13 @@ export const ENTITY_BINDINGS: Record<string, EntityBinding> = {
     remove: (existing) => apiClient.deleteCreative(String(existing.offerId), String(existing.id)),
     // What one offer is made of changes, so that offer's own query goes stale.
     invalidate: (parent) => [parent ? ['offer', parent.id] : ['offer'], ['offers'], ['creatives']],
+  },
+  // Read, never written as a form: approving or rejecting is the change-set
+  // decision panel's, and nothing here offers create or edit.
+  ChangeSet: {
+    identity: (row) => String(row.id),
+    permission: 'approve:changes',
+    invalidate: [['change-sets']],
   },
   TargetingPolicy: {
     identity: (row) => String(row.id),

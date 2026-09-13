@@ -186,8 +186,9 @@ test.describe('authoring the taxonomy @screen-only', () => {
     await d.getByLabel('Price / month').fill('12.00');
     await d.getByRole('button', { name: 'Create offer' }).click();
 
+    // It opens beside the catalogue, in the detail pane.
     await expect(
-      page.getByRole('heading', { level: 1, name: /Come Back 20GB/ })
+      page.getByRole('heading', { level: 2, name: 'Come Back 20GB', exact: true })
     ).toBeVisible();
 
     // And the count on the taxonomy screen followed it, which is the loop

@@ -326,11 +326,12 @@ function ExperimentsView() {
 export default function ExperimentsPage() {
   return (
     <RequireAuth>
-      <PageHeader
-        title="Experiments"
-        description="Arms are derived from the customer reference, never stored, and recomputed when a decision is explained."
-      />
+      {/* Inside the body, so the heading sits in the page gutter like every other screen's. */}
       <PageBody>
+        <PageHeader
+          title="Experiments"
+          description="Arms are derived from the customer reference, never stored, and recomputed when a decision is explained."
+        />
         <ExperimentsView />
       </PageBody>
     </RequireAuth>

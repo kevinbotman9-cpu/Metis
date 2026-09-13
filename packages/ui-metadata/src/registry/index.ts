@@ -7,6 +7,7 @@ import { placementDescriptor } from './placement';
 import { tenantSettingsDescriptor } from './tenant-settings';
 import { targetingPolicyDescriptor } from './targeting-policy';
 import { arbitrationConfigDescriptor } from './arbitration-config';
+import { changeSetDescriptor } from './change-set';
 
 /**
  * The metadata registry.
@@ -18,6 +19,11 @@ import { arbitrationConfigDescriptor } from './arbitration-config';
  *
  * `packages/ui-metadata/tests/descriptors.test.ts` diffs each descriptor
  * against its OpenAPI schema in both directions.
+ *
+ * One entry is read, never written: `ChangeSet`, which `/approvals` shows
+ * through the list–detail renderer, and which the renderer names in its
+ * descriptor's words. It has no binding write, so no screen offers a form for
+ * it, and it is not in `USER_EDITABLE_ENTITIES`.
  */
 export const REGISTRY: Record<string, EntityDescriptor> = {
   Objective: objectiveDescriptor,
@@ -28,6 +34,7 @@ export const REGISTRY: Record<string, EntityDescriptor> = {
   Creative: creativeDescriptor,
   TargetingPolicy: targetingPolicyDescriptor,
   ArbitrationConfig: arbitrationConfigDescriptor,
+  ChangeSet: changeSetDescriptor,
 };
 
 /**
@@ -102,4 +109,5 @@ export {
   creativeDescriptor,
   targetingPolicyDescriptor,
   arbitrationConfigDescriptor,
+  changeSetDescriptor,
 };

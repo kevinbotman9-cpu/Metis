@@ -1,14 +1,29 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
+  approvalsLayout,
+  changeSetDescriptor,
   objectiveDescriptor,
   objectivesLayout,
+  offerDescriptor,
+  offersLayout,
   placementDescriptor,
   placementsLayout,
   type EntityDescriptor,
   type ListDetailManifest,
 } from '@metis/ui-metadata';
-import { categories, objectives, offers, placements, users } from '@/mocks/fixtures/catalogue';
+import {
+  autonomySettings,
+  categories,
+  creatives,
+  objectives,
+  offers,
+  placements,
+  targetingPolicies,
+  users,
+} from '@/mocks/fixtures/catalogue';
+import { changeSets } from '@/mocks/fixtures/governance';
 import { artifacts } from '@/mocks/fixtures/artifacts';
 import { NO_FILTER, type ListFilter } from '@/lib/layouts/list';
 import { LIST_SOURCES, type Row } from '@/lib/layouts/sources';
@@ -33,18 +48,45 @@ const seeded = placements as unknown as Row[];
 const taxonomy = { objectives, categories, offers };
 const resolved = (name: string) => LIST_SOURCES[name].select(taxonomy);
 
+const asRows = (xs: unknown) => xs as Row[];
+
+/**
+ * Each screen's manifest, descriptor and identity, and the sources its panels
+ * read. A record-scoped source is given the rows for the record that is open,
+ * as the host resolves it — the offer's own creatives, not the tenant's.
+ */
 const SCREENS = {
   placements: {
     manifest: placementsLayout as ListDetailManifest,
     descriptor: placementDescriptor,
     identity: (r: Row) => String(r.key),
-    extra: {} as Record<string, Row[]>,
+    extra: (): Record<string, Row[]> => ({}),
   },
   objectives: {
     manifest: objectivesLayout as ListDetailManifest,
     descriptor: objectiveDescriptor as EntityDescriptor,
     identity: (r: Row) => String(r.id),
-    extra: { 'taxonomy.categories': resolved('taxonomy.categories') } as Record<string, Row[]>,
+    extra: (): Record<string, Row[]> => ({ 'taxonomy.categories': resolved('taxonomy.categories') }),
+  },
+  offers: {
+    manifest: offersLayout as ListDetailManifest,
+    descriptor: offerDescriptor as EntityDescriptor,
+    identity: (r: Row) => String(r.id),
+    extra: (open: string | null): Record<string, Row[]> => {
+      const offer = offers.find((o) => o.id === open);
+      const autonomy = autonomySettings.find((a) => a.scope.targetId === open);
+      return {
+        'offer.creatives': asRows(creatives.filter((c) => c.offerId === open)),
+        'offer.policies': asRows(targetingPolicies.filter((p) => offer?.policyIds.includes(p.id))),
+        'offer.autonomy': autonomy ? asRows([autonomy]) : [],
+      };
+    },
+  },
+  approvals: {
+    manifest: approvalsLayout as ListDetailManifest,
+    descriptor: changeSetDescriptor as EntityDescriptor,
+    identity: (r: Row) => String(r.id),
+    extra: (): Record<string, Row[]> => ({}),
   },
 };
 type ScreenName = keyof typeof SCREENS;
@@ -61,15 +103,18 @@ const context = (
   rows: Row[],
   status: SourceState['status'],
   editable: boolean,
-  noChildren: boolean
+  noChildren: boolean,
+  open: string | null
 ): PanelContext => ({
   sources: {
     [SCREENS[screen].manifest.params.list.source]: { rows, status },
     ...Object.fromEntries(
-      Object.entries(SCREENS[screen].extra).map(([k, v]) => [k, { rows: noChildren ? [] : v, status }])
+      Object.entries(SCREENS[screen].extra(open)).map(([k, v]) => [k, { rows: noChildren ? [] : v, status }])
     ),
   },
   optionSources: {
+    'taxonomy.objectives': objectives.map((o) => ({ value: o.id, label: o.name })),
+    'taxonomy.categories': categories.map((c) => ({ value: c.id, label: c.name, objectiveId: c.objectiveId })),
     flows: artifacts
       .filter((a) => a.status === 'active')
       .map((a) => ({ value: a.id, label: a.name, href: `/decision-flows/${a.id}` })),
@@ -107,9 +152,14 @@ function Host({
 }: Args) {
   const { manifest, descriptor, identity } = SCREENS[screen];
   const [selected, setSelected] = useState<string | null>(initialSelected ?? null);
+  const [open, setOpen] = useState<string | null>(null);
   const [tab, setTab] = useState<string | null>(null);
   const [filter, setFilter] = useState<ListFilter>(initialFilter);
+  // The status and decision panels write, so they need a query client; nothing
+  // behind it answers, which is what a story with no network is.
+  const [client] = useState(() => new QueryClient());
   return (
+    <QueryClientProvider client={client}>
     <ListDetail
       manifest={manifest}
       descriptor={descriptor}
@@ -119,6 +169,7 @@ function Host({
       onRetry={() => console.info('retry')}
       selected={selected}
       onSelect={setSelected}
+      onOpen={setOpen}
       tab={tab}
       onTab={setTab}
       filter={filter}
@@ -126,8 +177,9 @@ function Host({
       onCreate={editable ? () => console.info('create') : undefined}
       onEdit={editable ? (r) => console.info('edit', r.key) : undefined}
       onDelete={editable ? (r) => console.info('delete', r.key) : undefined}
-      context={context(screen, rows, status, editable, noChildren)}
+      context={context(screen, rows, status, editable, noChildren, open)}
     />
+    </QueryClientProvider>
   );
 }
 
@@ -207,6 +259,20 @@ export const Objectives: Story = {
 };
 
 /** The seeded objectives before anything is filed under them: the related list's empty state. */
+/**
+ * The offer catalogue: facets over the taxonomy's options and over what the
+ * source derives, and one offer open with its creatives, reach and policies —
+ * the three surfaces this replaced, in one pane.
+ */
+export const Offers: Story = {
+  args: { screen: 'offers', rows: resolved('offers'), status: 'ready', editable: true, initialSelected: 'off_5g_home_ultimate' },
+};
+
+/** Change sets, with the one open showing what approving it changes. */
+export const Approvals: Story = {
+  args: { screen: 'approvals', rows: LIST_SOURCES['change-sets'].select({ changeSets }), status: 'ready', editable: false },
+};
+
 export const ObjectiveWithNoCategories: Story = {
   args: { screen: 'objectives', rows: resolved('taxonomy.objectives'), status: 'ready', editable: true, noChildren: true },
 };

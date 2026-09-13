@@ -548,11 +548,12 @@ function IntakeView() {
 export default function IntakePage() {
   return (
     <RequireAuth>
-      <PageHeader
-        title="Intake"
-        description="Held in memory and lost on restart."
-      />
+      {/* Inside the body, so the heading sits in the page gutter like every other screen's. */}
       <PageBody>
+        <PageHeader
+          title="Intake"
+          description="Held in memory and lost on restart."
+        />
         <IntakeView />
       </PageBody>
     </RequireAuth>

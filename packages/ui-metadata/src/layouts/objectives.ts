@@ -58,7 +58,8 @@ export const objectivesLayout = {
           description: 'description',
           sort: 'sortOrder',
           columns: [{ field: 'offerCount', label: 'Offers', unit: ['offer', 'offers'] }],
-          link: { label: 'Offers', href: '/offers?category={id}' },
+          // The offers screen's own facet, so the count lands on the offers it counted.
+          link: { label: 'Offers', href: '/offers?f.categoryId={id}' },
           empty: {
             title: 'No categories under this objective',
             description:
