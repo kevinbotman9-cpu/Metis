@@ -23,7 +23,8 @@ import { login, openAccountPanel, ACCOUNTS } from './helpers';
  * asserts that is all of them.
  */
 const NAV_ITEMS: { group: string; label: string; heading: string | RegExp; linkName?: RegExp }[] = [
-  { group: 'Overview', label: 'Home', heading: /Good to see you/ },
+  // The loop since 2026-09-13; it was a greeting over four doughnuts.
+  { group: 'Overview', label: 'Home', heading: 'The loop' },
   { group: 'Catalogue', label: 'Offers', heading: 'Offers' },
   { group: 'Catalogue', label: 'Creatives', heading: 'Creatives' },
   { group: 'Policy', label: 'Targeting policies', heading: 'Targeting policies' },

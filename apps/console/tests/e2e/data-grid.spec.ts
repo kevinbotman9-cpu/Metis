@@ -173,8 +173,15 @@ test.describe('summary strip', () => {
 
   test('reports the real decision total, not the page size', async ({ page }) => {
     await page.goto('/');
-    // Regression guard: this once showed the query limit of 200.
-    await expect(page.getByText(CORPUS.toLocaleString('en-GB'))).toBeVisible();
+    // Regression guard: this once showed the query limit of 200. The Overview's
+    // total is the loop's first stage since 2026-09-13, and the same figure is
+    // drawn again as a label on the flow diagram beside it — so the check reads
+    // the rail's own stage rather than any matching text on the page. At least
+    // the corpus, not exactly it: the ledger adds live decisions as specs run.
+    const total = page.getByRole('navigation', { name: 'The loop' }).getByRole('button', { name: /^Decisions made: / });
+    await expect(total).toBeVisible();
+    const shown = Number(/^Decisions made:\s*([\d,]+)/.exec((await total.getAttribute('aria-label')) ?? '')![1].replace(/,/g, ''));
+    expect(shown).toBeGreaterThanOrEqual(CORPUS);
     expect(CORPUS).toBeGreaterThan(1000);
   });
 

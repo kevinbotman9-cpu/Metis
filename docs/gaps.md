@@ -44,6 +44,38 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-101 — The agent activity feed and the audit log disagree about what agents did
+
+**Registered:** 2026-09-13 · **Status:** Open · **Work item:** none — one decision about which is the record
+
+The Overview puts two panels above the loop because they are the product's
+thesis: what agents proposed, and what agents did. For `telco-us` the second is
+empty, and the audit log beside it is not.
+
+- `store.activity`, seeded from `agentActivity` in
+  `apps/console/mocks/fixtures/catalogue.ts`, is **empty on purpose**: the entries
+  it held were proposals about products this tenant does not sell, and they were
+  removed rather than repointed at the new catalogue.
+- `auditEvents` in `apps/console/mocks/fixtures/governance.ts` holds **three
+  agent actions** — a copy change by `agent-copywriter-01`, a boost change by
+  `agent-optimiser-01`, and an automatic revert after a bias gate — which were
+  repointed at the new catalogue during the G-099 sweep.
+
+So one screen says no agent has acted on this tenant and another lists three
+times one did. Neither is wrong about its own source; the two sources are two
+records of the same kind of fact, maintained separately, and nothing checks that
+they agree. The Overview's empty state says so rather than claiming no agent
+acted, and links to the audit log.
+
+**What it needs is a decision, not a fixture edit.** Either the activity feed is
+derived from the audit log (an agent-actor event *is* agent activity, and a
+second store of it is a second thing to keep in step), or the feed is its own
+record and every agent write lands in both, with a check that they match.
+Seeding three feed entries to mirror the audit log would make this screen look
+consistent without making the two records one.
+
+**Done when:** an agent action cannot appear in one of the two and not the other.
+
 ### G-100 — A date reads in the viewer's time zone, and the tenant has none
 
 **Registered:** 2026-09-13 · **Status:** Open · **Work item:** none — one decision about whose clock a timestamp is on
