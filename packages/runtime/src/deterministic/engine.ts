@@ -232,6 +232,9 @@ export function topologicalOrder(artifact: ExecArtifact): ExecNode[] {
  */
 const SERVICE_EXEMPT_THRESHOLD = 50;
 
+/** The step the platform records when it applies consent itself. Not a node id a flow can declare. */
+export const CONSENT_STEP_ID = '__consent';
+
 const DAY_MS = 86_400_000;
 
 /**
@@ -362,7 +365,57 @@ export function execute(
     });
   };
 
+  /**
+   * Consent is applied exactly once per decision, whatever the flow declares.
+   * G-015, taxonomy 2.3.
+   *
+   * A constraint node applies it, as it always has, and those decisions are
+   * unchanged. Until 2026-09-13 that was the *only* place: a flow with no
+   * constraint node, or one whose constraint node ran after ranking, decided
+   * without consent, and a flow author could omit enforcement by omitting a
+   * node type. So when ranking is reached, or the flow ends, without consent
+   * applied, the platform applies it and records the step as its own — before
+   * ranking takes its candidate set, so nothing consent removed is ranked.
+   *
+   * Not a compiler refusal: artifacts reach this engine without passing the
+   * compiler (the Kotlin service and the conformance corpus both run them), and
+   * a node's presence would not be enough anyway, since one placed after ranking
+   * checks too late.
+   */
+  let consentApplied = false;
+  const applyConsentByPlatform = () => {
+    consentApplied = true;
+    const at = candidates;
+    const denials: Denial[] = [];
+    if (!permits(consent.marketing)) {
+      candidates = at.filter((p) => {
+        const exempt = catalogue.frequencyPolicies.some(
+          (c) =>
+            c.active &&
+            scopeCovers(c.scope, p) &&
+            (!c.channel || c.channel === request.channel) &&
+            c.maxContacts >= SERVICE_EXEMPT_THRESHOLD
+        );
+        if (!exempt) denials.push({ key: p.key, code: 'CONSENT_WITHHELD', ruleId: null });
+        return exempt;
+      });
+    }
+    eliminations.push({
+      nodeId: CONSENT_STEP_ID,
+      nodeType: 'consent',
+      reason:
+        denials.length > 0
+          ? `Marketing consent ${consent.marketing}; removed ${denials.length} candidate(s) not exempt as duty of care. Applied by the platform: no constraint node checked consent before this point.`
+          : `Marketing consent ${consent.marketing}; all ${at.length} candidate(s) passed. Applied by the platform: no constraint node checked consent before this point.`,
+      denials: [...denials].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
+      survived: candidates.map((p) => p.key),
+    });
+  };
+
   for (const node of topologicalOrder(artifact)) {
+    // Before this node's candidate set is taken, so ranking never sees a
+    // candidate consent removes.
+    if (node.type === 'arbitrate' && !consentApplied) applyConsentByPlatform();
     const nodeStart = Date.now();
     const before = candidates;
 
@@ -454,8 +507,10 @@ export function execute(
           return true;
         });
 
-        // Frequency policy and consent are enforced at constraint nodes only.
+        // Frequency policy is enforced at constraint nodes only. Consent is applied
+        // here too when a constraint node comes first, and by the platform otherwise.
         if (node.type === 'constraint') {
+          consentApplied = true;
           const used = request.contactHistory?.withinPeriod ?? {};
           const rejects = request.contactHistory?.rejects ?? {};
           const decidedAt = Date.parse(request.occurredAt);
@@ -708,6 +763,9 @@ export function execute(
 
     timingsByNode[node.id] = round(Date.now() - nodeStart, 3);
   }
+
+  // A flow that neither checks consent nor ranks still has its decision checked.
+  if (!consentApplied) applyConsentByPlatform();
 
   const winnerOffer = winner ? byKey.get(winner) ?? null : null;
 

@@ -106,6 +106,9 @@ const TYPE_LABELS: Record<string, string> = {
   'score-adaptive': 'Scoring',
   arbitrate: 'Ranked',
   switch: 'Routing',
+  // Not a node in the flow: the platform's consent step, recorded on every
+  // decision whatever the flow declares (G-015).
+  consent: 'Consent',
 };
 
 export function labelFor(nodeId: string, nodeType: string, tier?: string | null): string {

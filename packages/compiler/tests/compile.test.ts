@@ -124,7 +124,8 @@ describe('a valid flow', () => {
     const r = compileDecisionFlow(valid, ctx);
     expect(r.ok).toBe(true);
     expect(r.artifact).not.toBeNull();
-    expect(codes(r)).toEqual([]);
+    // No constraint node, so the flow ranks without frequency caps: warned, not refused.
+    expect(codes(r)).toEqual(['ARBITRATION_WITHOUT_CONSTRAINT']);
   });
 
   it('pins the package range to an exact available version', () => {
@@ -274,6 +275,42 @@ describe('the arbitration-without-scoring bug', () => {
     const diag = r.diagnostics.find((x) => x.code === 'ARBITRATION_MISSING_SCORE')!;
     expect(diag).toBeDefined();
     expect(diag.remedy).toContain('propensity weight to 0');
+  });
+
+  it('warns when a flow ranks with no constraint node before it', () => {
+    // G-015's sibling. Consent is the platform's now, but frequency caps and
+    // cooldowns are still a constraint node's, and a flow without one ranks
+    // candidates that passed no cap — visible only by the node's absence.
+    const r = compileDecisionFlow(valid, ctx);
+    const diag = r.diagnostics.find((x) => x.code === 'ARBITRATION_WITHOUT_CONSTRAINT')!;
+    expect(diag).toBeDefined();
+    expect(diag.severity).toBe('warning');
+    expect(diag.at).toBe('arbitrate');
+    // A warning, not a refusal: consent is applied regardless.
+    expect(r.ok).toBe(true);
+  });
+
+  it('stays quiet about constraints when one runs before ranking', () => {
+    const capped: DecisionFlowSource = {
+      ...valid,
+      nodes: [...valid.nodes, { id: 'contact', type: 'constraint', label: 'Contact cap', estimatedMs: 1 }],
+      edges: [
+        { from: 'source', to: 'gate' },
+        { from: 'gate', to: 'contact' },
+        { from: 'contact', to: 'score' },
+        { from: 'score', to: 'arbitrate' },
+      ],
+    };
+    expect(codes(compileDecisionFlow(capped, ctx))).not.toContain('ARBITRATION_WITHOUT_CONSTRAINT');
+  });
+
+  it('warns when the only constraint node runs after ranking', () => {
+    const late: DecisionFlowSource = {
+      ...valid,
+      nodes: [...valid.nodes, { id: 'contact', type: 'constraint', label: 'Contact cap', estimatedMs: 1 }],
+      edges: [...valid.edges, { from: 'arbitrate', to: 'contact' }],
+    };
+    expect(codes(compileDecisionFlow(late, ctx))).toContain('ARBITRATION_WITHOUT_CONSTRAINT');
   });
 
   it('stays quiet when the formula does not use propensity', () => {

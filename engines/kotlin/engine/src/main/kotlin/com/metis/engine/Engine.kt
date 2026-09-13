@@ -30,6 +30,9 @@ object Engine {
      */
     private const val SERVICE_EXEMPT_THRESHOLD = 50.0
 
+    /** The step the platform records when it applies consent itself. G-015. */
+    const val CONSENT_STEP_ID = "__consent"
+
     private const val DAY_MS = 86_400_000L
 
     /**
@@ -297,7 +300,47 @@ object Engine {
             )
         }
 
+        // Consent is applied exactly once per decision, whatever the flow
+        // declares. See the TypeScript engine for the reasoning; G-015. A
+        // constraint node applies it as it always has. When ranking is reached,
+        // or the flow ends, without it, the platform applies it and records the
+        // step — before ranking takes its candidate set.
+        var consentApplied = false
+        fun applyConsentByPlatform() {
+            consentApplied = true
+            val at = candidates
+            val denials = mutableListOf<Denial>()
+            if (!ConsentState.permits(consent.marketing)) {
+                candidates = at.filter { p ->
+                    val exempt = catalogue.frequencyPolicies.any { c ->
+                        c.active &&
+                            scopeCovers(c.scope, p) &&
+                            (c.channel == null || c.channel == request.channel) &&
+                            c.maxContacts >= SERVICE_EXEMPT_THRESHOLD
+                    }
+                    if (!exempt) denials.add(Denial(p.key, "CONSENT_WITHHELD", null))
+                    exempt
+                }
+            }
+            eliminations.add(
+                EliminationStep(
+                    nodeId = CONSENT_STEP_ID,
+                    nodeType = "consent",
+                    reason = if (denials.isNotEmpty()) {
+                        "Marketing consent ${consent.marketing}; removed ${denials.size} candidate(s) not exempt as duty of care. Applied by the platform: no constraint node checked consent before this point."
+                    } else {
+                        "Marketing consent ${consent.marketing}; all ${at.size} candidate(s) passed. Applied by the platform: no constraint node checked consent before this point."
+                    },
+                    denials = denials.sortedBy { it.key },
+                    survived = candidates.map { it.key },
+                )
+            )
+        }
+
         for (node in topologicalOrder(artifact)) {
+            // Before this node's candidate set is taken, so ranking never sees a
+            // candidate consent removes.
+            if (node.type == "arbitrate" && !consentApplied) applyConsentByPlatform()
             val before = candidates
 
             when (node.type) {
@@ -376,6 +419,7 @@ object Engine {
                     }
 
                     if (node.type == "constraint") {
+                        consentApplied = true
                         val used = request.contactHistory?.withinPeriod ?: emptyMap()
                         val rejects = request.contactHistory?.rejects ?: emptyMap()
                         val decidedAt = instantOf(request.occurredAt, "request.occurredAt")
@@ -578,6 +622,9 @@ object Engine {
                 else -> throw IllegalArgumentException("Unhandled node type: ${node.type}")
             }
         }
+
+        // A flow that neither checks consent nor ranks still has its decision checked.
+        if (!consentApplied) applyConsentByPlatform()
 
         val winnerOffer = winner?.let { byKey[it] }
 

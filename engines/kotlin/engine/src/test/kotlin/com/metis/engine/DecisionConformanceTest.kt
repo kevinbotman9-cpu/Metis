@@ -213,6 +213,47 @@ class DecisionConformanceTest {
         assertEquals(cases.size(), hashes.size, "two cases produce the same decision")
     }
 
+    /**
+     * G-015, named. The corpus cases below already hold this to the bytes; this
+     * says which rule broke rather than only which hashes. A flow with no
+     * constraint node before ranking has consent applied by the platform, once,
+     * before ranking — and a constraint node after ranking does not stand in.
+     */
+    @Test
+    fun `a flow with no constraint node has consent applied by the platform, before ranking`() {
+        for (name in listOf(
+            "consent is applied to a flow with no constraint node",
+            "absent consent is applied to a flow with no constraint node",
+            "a constraint node after ranking does not stand in for consent",
+        )) {
+            val steps = decide(name).eliminations
+            val consent = steps.filter { it.nodeId == Engine.CONSENT_STEP_ID }
+            assertEquals(1, consent.size, "$name: the platform applied consent ${consent.size} times")
+            assertEquals("consent", consent[0].nodeType, name)
+            assertEquals(listOf("offer_b", "offer_c"), consent[0].denials.map { it.key }, name)
+            assertTrue(steps.indexOf(consent[0]) < steps.indexOfFirst { it.nodeType == "arbitrate" }, "$name: ranked before consent")
+        }
+    }
+
+    @Test
+    fun `a flow whose constraint node applies consent records no platform step`() {
+        val steps = decide("withheld consent leaves only service-exempt scopes").eliminations
+        assertTrue(steps.none { it.nodeId == Engine.CONSENT_STEP_ID })
+        assertTrue(steps.any { s -> s.nodeType == "constraint" && s.denials.any { it.code == "CONSENT_WITHHELD" } })
+    }
+
+    private fun decide(name: String): DeterministicDecision {
+        val case = corpus["cases"].firstOrNull { it["name"].asText() == name }
+            ?: fail("the decision corpus has no case named '$name'")
+        return Engine.execute(
+            artifact(case["artifact"]),
+            catalogue(case["catalogue"]),
+            request(case["request"]),
+            catalogueSnapshotHash = Canonical.hash(toValue(case["catalogue"])),
+            inputSnapshotHash = Canonical.hash(toValue(case["request"]["input"])),
+        ).decision
+    }
+
     @Test
     fun `every decision matches the reference engine`() {
         val failures = mutableListOf<String>()

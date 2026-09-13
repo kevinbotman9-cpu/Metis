@@ -33,7 +33,7 @@ import { apiClient, ApiError, type CompileResultDto } from '@/lib/api-client';
 const PALETTE: { type: FlowNodeType; label: string; blurb: string }[] = [
   { type: 'source', label: 'Source', blurb: 'Loads fields from connectors before the engine runs.' },
   { type: 'filter', label: 'Filter', blurb: 'Applies targeting policies. Failing one removes the candidate.' },
-  { type: 'constraint', label: 'Constraint', blurb: 'Consent and frequency are enforced here, and only here.' },
+  { type: 'constraint', label: 'Constraint', blurb: 'Frequency caps and cooldowns are enforced here. Consent is applied to every decision.' },
   { type: 'score-model', label: 'Score', blurb: 'Pins a model version, which is what makes the decision replayable.' },
   { type: 'switch', label: 'Switch', blurb: 'Branches. The engine treats it as a pass-through.' },
   { type: 'arbitrate', label: 'Arbitrate', blurb: 'Ranks what survived and picks a winner.' },
@@ -286,8 +286,8 @@ export function FlowEditor({ artifactId, nodes, edges, candidateKeys, canEdit }:
                   </div>
                   {selected.type === 'constraint' ? (
                     <p className="mt-1 text-label text-content-muted">
-                      Consent and frequency caps are enforced at constraint nodes whether or not a
-                      policy is listed here.
+                      Frequency caps and cooldowns are enforced at constraint nodes whether or not a
+                      policy is listed here. Consent is applied to every decision, with or without one.
                     </p>
                   ) : null}
                 </fieldset>

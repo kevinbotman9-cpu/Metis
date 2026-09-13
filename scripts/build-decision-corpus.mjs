@@ -944,6 +944,41 @@ const CASES = [
     catalogue: catalogue(),
     request: request(),
   },
+  {
+    // G-015. A flow with no constraint node once decided without consent: the
+    // engine checked it only at constraint nodes, so omitting the node type
+    // omitted enforcement. The platform applies it before ranking instead, and
+    // records the step as its own.
+    name: 'consent is applied to a flow with no constraint node',
+    artifact: artifact({ candidateKeys: threeKeys }),
+    catalogue: consentScenario().catalogue,
+    request: request({ consent: { marketing: false, profiling: true, thirdParty: false } }),
+  },
+  {
+    name: 'absent consent is applied to a flow with no constraint node',
+    artifact: artifact({ candidateKeys: threeKeys }),
+    catalogue: consentScenario().catalogue,
+    request: request({ consent: undefined }),
+  },
+  {
+    // A constraint node after ranking checks consent too late to stop the
+    // winner. Consent is applied before ranking whatever comes after it.
+    name: 'a constraint node after ranking does not stand in for consent',
+    artifact: artifact({
+      candidateKeys: threeKeys,
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source' },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+        { id: 'n4_constraint', type: 'constraint', label: 'Frequency policy' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n3_arbitrate' },
+        { from: 'n3_arbitrate', to: 'n4_constraint' },
+      ],
+    }),
+    catalogue: consentScenario().catalogue,
+    request: request({ consent: { marketing: false, profiling: true, thirdParty: false } }),
+  },
 ];
 
 // --- Emit -------------------------------------------------------------------

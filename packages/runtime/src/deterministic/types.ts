@@ -282,7 +282,11 @@ export interface Denial {
 
 export interface EliminationStep {
   nodeId: string;
-  nodeType: ExecNodeType;
+  /**
+   * The node's type — or `consent`, for the one step that is not a node: the
+   * platform applying consent to a decision whose flow did not (G-015).
+   */
+  nodeType: ExecNodeType | 'consent';
   /** Human sentence for the trace view. Not stable; do not parse it. */
   reason: string;
   /**

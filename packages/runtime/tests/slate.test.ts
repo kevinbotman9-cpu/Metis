@@ -88,6 +88,10 @@ const request = (over: Partial<DecisionRequest> = {}): DecisionRequest =>
     placement: 'homepage_grid',
     occurredAt: '2026-06-01T12:00:00.000Z',
     input: {},
+    // Stated, because this flow has no constraint node and consent is applied to
+    // every decision regardless (G-015). Left out, it is absent, and absent removes
+    // every commercial offer — a slate of nothing, which is not what these test.
+    consent: { marketing: true, profiling: true, thirdParty: false },
     ...over,
   }) as DecisionRequest;
 
