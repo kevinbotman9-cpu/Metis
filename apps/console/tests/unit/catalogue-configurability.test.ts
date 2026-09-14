@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { POST, PUT } from '@/app/api/[...path]/route';
 import { store, resetStore } from '@/mocks/store';
-import { catalogueByHash, currentCatalogue, catalogueCount } from '@/mocks/catalogue-state';
+import { catalogueByHash, currentCatalogue, catalogueCount, readCatalogue } from '@/mocks/catalogue-state';
 
 /**
  * Configuration reaches the engine, and history survives it.
@@ -107,17 +107,18 @@ describe('configuration reaches the engine', () => {
     // asserted *and* its effect, because the write alone proved nothing.
     const res = await setWeights({ propensity: 1, value: 2, boost: 1, context: 0.5 });
     expect(res.status).toBe(200);
-    expect(store.arbitration.weights.value).toBe(2);
-    expect(store.arbitration.formula).toContain('V^2.00');
+    const stored = (await readCatalogue()).arbitration!;
+    expect(stored.weights.value).toBe(2);
+    expect(stored.formula).toContain('V^2.00');
 
-    expect(currentCatalogue().arbitration.weights.value).toBe(2);
+    expect((await currentCatalogue()).arbitration.weights.value).toBe(2);
   });
 
   it('a policy the console deactivates stops filtering', async () => {
     // Weights are one field. This is a different shape of edit — a row in a
     // list going inactive — and it has to reach the engine too, or "reaches
     // the engine" was a statement about one endpoint.
-    const fiber = store.targetingPolicies.find((p) => p.id === 'pol_fios_serviceable');
+    const fiber = (await readCatalogue()).targetingPolicies.find((p) => p.id === 'pol_fios_serviceable');
     expect(fiber, 'fixture has no fiber policy to test with').toBeDefined();
 
     const withFiberOff = {
@@ -142,7 +143,11 @@ describe('configuration reaches the engine', () => {
 
     expect(await ask()).not.toContain('fios_gigabit');
 
-    fiber!.active = false;
+    // Written through the catalogue. This line was `fiber!.active = false`, an
+    // assignment into the object the store handed out — which only reached
+    // decisions because the store handed out the object it held. A real store
+    // hands out copies, and that assignment would have deactivated nothing.
+    await store.catalogue.putTargetingPolicy('telco-us', { ...fiber!, active: false }, 'test', '2026-06-01T12:00:00.000Z');
     expect(await ask()).toContain('fios_gigabit');
   });
 });
@@ -169,10 +174,10 @@ describe('history survives configuration', () => {
   });
 
   it('the kept catalogue is the one that decided, not a live reference', async () => {
-    // The store mutates in place — `PUT /arbitration` assigns into
-    // `store.arbitration.weights` rather than replacing it — so holding a
-    // reference would let a later edit rewrite the history of a decision
-    // already made. That is the one thing a snapshot must never do.
+    // A kept snapshot must not follow later edits. When the store mutated in
+    // place, a held reference would have been rewritten by the next
+    // `PUT /arbitration` — the history of a decision already made, edited after
+    // the fact. That is the one thing a snapshot must never do.
     await setWeights({ propensity: 1, value: 1, boost: 1, context: 0.5 });
     const before = await decide();
 
@@ -180,7 +185,7 @@ describe('history survives configuration', () => {
 
     const kept = catalogueByHash(before.catalogueHash);
     expect(kept!.arbitration.weights.value).toBe(1);
-    expect(store.arbitration.weights.value).toBe(0.1);
+    expect((await readCatalogue()).arbitration!.weights.value).toBe(0.1);
   });
 
   it('an unchanged catalogue is not a new catalogue', async () => {

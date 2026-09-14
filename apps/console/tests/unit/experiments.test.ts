@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { GET, POST, PUT } from '@/app/api/[...path]/route';
 import { store, resetStore } from '@/mocks/store';
 import { assignArm } from '@metis/core/experiment';
+import { readCatalogue } from '@/mocks/catalogue-state';
 
 /**
  * Experiments over HTTP, and the property that makes them worth having.
@@ -49,10 +50,10 @@ const call = (
  * Starting it here is the same deliberate act the page makes somebody take.
  */
 async function startHoldout() {
-  const draft = store.experiments.find((e) => e.key === 'fiber_holdout')!;
+  const draft = (await readCatalogue()).experiments.find((e) => e.key === 'fiber_holdout')!;
   const res = await call(['experiments', 'telco-us', draft.id], { status: 'running' }, 'PUT');
   expect(res.status, await res.clone().text()).toBe(200);
-  return store.experiments.find((e) => e.key === 'fiber_holdout')!;
+  return (await readCatalogue()).experiments.find((e) => e.key === 'fiber_holdout')!;
 }
 
 const INPUT = {
@@ -138,7 +139,7 @@ describe('an arm is part of what was decided', () => {
   });
 
   it('assigns nobody from a draft experiment', async () => {
-    const draft = store.experiments.find((e) => e.key === 'fiber_holdout')!;
+    const draft = (await readCatalogue()).experiments.find((e) => e.key === 'fiber_holdout')!;
     expect(draft.status).toBe('draft');
     const { id } = await decide('cust_draft');
     const entry = await store.ledger.get('telco-us', id);

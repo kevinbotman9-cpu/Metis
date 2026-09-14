@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { GET, POST, PUT } from '@/app/api/[...path]/route';
 import { store, resetStore } from '@/mocks/store';
 import { toSource } from '@/mocks/fixtures/compiled';
+import { readCatalogue } from '@/mocks/catalogue-state';
 
 /**
  * Authoring a flow, and the two gaps it closes.
@@ -222,7 +223,7 @@ describe('the two gaps close', () => {
     // nothing to deliver — NO_DELIVERABLE_CREATIVE. The compiler catching that
     // here is the gate working, so the test walks the whole authoring chain
     // rather than routing around it.
-    const offer = store.offers.find((o) => o.key === 'upsell_speed_boost')!;
+    const offer = (await readCatalogue()).offers.find((o) => o.key === 'upsell_speed_boost')!;
     const creative = await call(
       ['creatives', 'telco-us', offer.id],
       {
@@ -246,7 +247,13 @@ describe('the two gaps close', () => {
       SARAH()
     );
     expect(creative.status, await creative.clone().text()).toBe(201);
-    offer.status = 'active';
+
+    // Activated the way a person activates it. This line was
+    // `offer.status = 'active'`, an assignment into the object a read returned,
+    // which reached decisions only because the store handed out the object it
+    // held. A real store hands out copies, and that line activated nothing.
+    const activated = await call(['offers', 'telco-us', offer.id], { status: 'active' }, 'PUT', SARAH());
+    expect(activated.status, await activated.clone().text()).toBe(200);
 
     expect(await decide()).not.toContain('upsell_speed_boost');
 

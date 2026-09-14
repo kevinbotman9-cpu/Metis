@@ -17,7 +17,7 @@ import { NextResponse } from 'next/server';
 import { readFileSync } from 'node:fs';
 // Not `path`: the handlers name the request's segments that.
 import * as nodePath from 'node:path';
-import { store, resetStore, recordAudit } from '@/mocks/store';
+import { store, resetStore, recordAudit, ResetRefused } from '@/mocks/store';
 import type { TenantSettings } from '@metis/core/domain';
 import {
   findTrace,
@@ -47,7 +47,15 @@ import { recorded, listCalls, clearCalls, isEnabled as callLogEnabled } from '@/
 import type { DecisionRecord } from '@metis/runtime';
 import type { OutcomeType } from '@metis/ledger';
 import { buildPerformance, buildPolicyFunnel, funnelDecisionOf, type FunnelStageId } from '@metis/ledger';
-import type { Category, Creative, Objective, Offer, Placement } from '@metis/core/domain';
+import type {
+  ArbitrationConfig,
+  Category,
+  Connector,
+  Creative,
+  Objective,
+  Offer,
+  Placement,
+} from '@metis/core/domain';
 import { validateCreativeContent, offerMayBeActive } from '@metis/core/creative';
 import {
   conditionProblems,
@@ -55,6 +63,7 @@ import {
   schemaProblems,
   operatorsFor,
   typeOf,
+  type ProfileSchema,
 } from '@metis/core/profile-schema';
 import type { TargetingPolicy } from '@metis/core/domain';
 import {
@@ -76,7 +85,11 @@ import {
   currentCatalogue,
   catalogueByHash,
   registerCatalogue,
+  readCatalogue,
+  snapshotFrom,
 } from '@/mocks/catalogue-state';
+import { CONSOLE_TENANT } from '@/mocks/catalogue-source';
+import { CatalogueError, type CatalogueSnapshotRecord } from '@metis/catalogue';
 import {
   compilations,
   findCompilation,
@@ -167,7 +180,7 @@ async function runShadow(active: DecisionRecord, request: DecisionRequest): Prom
       // edited since would report a divergence that is about the edit rather
       // than about the two versions, which is the one thing it must not do.
       const catalogue =
-        catalogueByHash(active.decision.catalogueSnapshotHash) ?? currentCatalogue();
+        catalogueByHash(active.decision.catalogueSnapshotHash) ?? (await currentCatalogue());
       const shadow = executeDecision(shadowArtifact, catalogue, request);
       const shadowMs = performance.now() - started;
 
@@ -246,20 +259,38 @@ async function artifactFor(tenantId: string, flowId: string): Promise<ExecArtifa
  * compiler could see, did not exist. Same seam as the catalogue and the
  * artifacts, in the one place it would have been hardest to notice.
  */
-function currentCompileContext(artifactId?: string) {
+async function currentCompileContext(artifactId?: string) {
   // The one builder, over the store rather than the fixtures. Three copies of
   // this existed until 2026-09-11 and two of them disagreed, which is how a
   // flow came to be live and shown as broken at the same time (G-071).
+  const cat = await readCatalogue();
   return compileContextFor(artifactId ?? '', {
-    offers: store.offers,
-    targetingPolicies: store.targetingPolicies,
-    frequencyPolicies: store.frequencyPolicies,
-    connectors: store.connectors,
-    arbitration: store.arbitration,
-    profileSchema: store.profileSchema,
-    creatives: store.creatives,
-    placements: store.placements,
+    offers: cat.offers,
+    targetingPolicies: cat.targetingPolicies,
+    frequencyPolicies: cat.frequencyPolicies,
+    connectors: cat.connectors,
+    arbitration: snapshotFrom(cat).arbitration,
+    profileSchema: schemaOf(cat),
+    creatives: cat.creatives,
+    placements: cat.placements,
   });
+}
+
+/**
+ * The tenant's data model, which a store this console seeded always holds.
+ *
+ * Nullable in the store, because a tenant can exist before it is configured.
+ * This console's tenant never does, so a missing schema means the store was
+ * not seeded here — said, rather than answered with an empty model that would
+ * make every condition look invalid.
+ */
+function schemaOf(cat: CatalogueSnapshotRecord): ProfileSchema {
+  if (!cat.profileSchema) {
+    throw new Error(
+      `Tenant '${CONSOLE_TENANT}' has no profile schema in its catalogue. A store this console seeded always has one.`
+    );
+  }
+  return cat.profileSchema;
 }
 
 /**
@@ -375,7 +406,7 @@ function publicUser(u: (typeof store.users)[number]) {
  * candidate while the trace reports a confident ELIGIBILITY_FAILED against a
  * real policy id.
  */
-function policyProblems(conditions: TargetingPolicy['conditions']) {
+function policyProblems(conditions: TargetingPolicy['conditions'], schema: ProfileSchema) {
   const problems: { field: string; message: string; code: string }[] = [];
 
   if (!Array.isArray(conditions) || conditions.length === 0) {
@@ -390,7 +421,7 @@ function policyProblems(conditions: TargetingPolicy['conditions']) {
   }
 
   conditions.forEach((condition, i) => {
-    for (const p of conditionProblems(store.profileSchema, condition)) {
+    for (const p of conditionProblems(schema, condition)) {
       // Indexed so the dialog can put each message against the row that
       // produced it rather than at the top of the form.
       problems.push({ field: `conditions.${i}`, message: p.message, code: p.code });
@@ -416,8 +447,8 @@ const blankString = (v: unknown) => typeof v !== 'string' || v.trim() === '';
  * `delivery`, not `decidable` — ADR-013 §2. What `/performance` needs for the
  * stage its loop breaks at, and what the coverage screen measures against.
  */
-const deliverableChannels = (): string[] => [
-  ...new Set(store.placements.filter((p) => p.delivery).map((p) => p.channel)),
+const deliverableChannels = (placements: Placement[]): string[] => [
+  ...new Set(placements.filter((p) => p.delivery).map((p) => p.channel)),
 ];
 
 /**
@@ -435,8 +466,8 @@ const deliverableChannels = (): string[] => [
  * of what is on screen rather than a rule the API applies, so keeping a second
  * copy here would be a second place for it to drift.
  */
-const decidableChannels = (): string[] => [
-  ...new Set(store.placements.filter((p) => p.decidable).map((p) => p.channel)),
+const decidableChannels = (placements: Placement[]): string[] => [
+  ...new Set(placements.filter((p) => p.decidable).map((p) => p.channel)),
 ];
 
 /**
@@ -521,7 +552,11 @@ async function recordDeliveryFor(
   }
 }
 
-function creativeProblems(channel: Creative['channel'], content: Creative['content']) {
+function creativeProblems(
+  channel: Creative['channel'],
+  content: Creative['content'],
+  placements: Placement[]
+) {
   const problems = validateCreativeContent(channel, content);
 
   // The slot key is checked here rather than in `@metis/core`, because which
@@ -530,10 +565,10 @@ function creativeProblems(channel: Creative['channel'], content: Creative['conte
   // silently, which is the worst way for content to fail.
   if (channel === 'web') {
     const named = (content as { placement?: string }).placement;
-    if (named && !store.placements.some((p) => p.key === named)) {
+    if (named && !placements.some((p) => p.key === named)) {
       problems.push({
         field: 'content.placement',
-        message: `No placement '${named}'. Configured: ${store.placements
+        message: `No placement '${named}'. Configured: ${placements
           .map((p) => p.key)
           .sort()
           .join(', ')}.`,
@@ -584,7 +619,9 @@ type DecideOutcome =
 
 async function decideAndRecord(
   artifact: ExecArtifact,
-  decisionRequest: DecisionRequest
+  decisionRequest: DecisionRequest,
+  /** The catalogue read the caller already made, so one request is one moment. */
+  read?: CatalogueSnapshotRecord
 ): Promise<DecideOutcome> {
   // Idempotency and durability, through the ledger.
   //
@@ -621,7 +658,8 @@ async function decideAndRecord(
   // the same object. The comment this replaces protected that invariant by
   // reading the fixture in both places, which kept them consistent and kept
   // the console's writes out of both.
-  const catalogue = currentCatalogue();
+  const cat = read ?? (await readCatalogue());
+  const catalogue = snapshotFrom(cat);
 
   let resolvedInputs;
   try {
@@ -659,7 +697,7 @@ async function decideAndRecord(
   // An absent collection produces nothing rather than zero — `active_count`
   // of 0 would make `active_count < 2` true and send an offer to somebody
   // whose accounts were never loaded. `unresolved` carries the difference.
-  const rolled = resolveAggregations(store.profileSchema, resolvedInputs.input);
+  const rolled = resolveAggregations(schemaOf(cat), resolvedInputs.input);
 
   // Experiment arms, assigned before the core and hashed with the input.
   //
@@ -668,7 +706,7 @@ async function decideAndRecord(
   // from it when the decision is explained months later. That is why a running
   // experiment cannot be reweighted — the recomputed arm would stop matching
   // the one that applied.
-  const arms = assignAll(store.experiments, decisionRequest.customerId);
+  const arms = assignAll(cat.experiments, decisionRequest.customerId);
 
   // Fields the caller supplied win, which `resolveInputs` guarantees; the
   // 60 service cases carry theirs, which is why they still hash the same.
@@ -761,22 +799,25 @@ async function handleGet(req: Request, { params }: Ctx) {
       return json({ user: publicUser(user) });
     }
 
-    case 'taxonomy':
+    case 'taxonomy': {
+      const cat = await readCatalogue();
       return json({
-        objectives: store.objectives,
-        categories: store.categories,
-        offers: store.offers,
+        objectives: cat.objectives,
+        categories: cat.categories,
+        offers: cat.offers,
       });
+    }
 
     case 'offers': {
       const offerId = rest[1];
+      const cat = await readCatalogue();
       if (offerId) {
-        const offer = store.offers.find((p) => p.id === offerId);
+        const offer = cat.offers.find((p) => p.id === offerId);
         if (!offer) return notFound(`No offer ${offerId}`);
         return json({
           offer,
-          creatives: store.creatives.filter((t) => t.offerId === offer.id),
-          policies: store.targetingPolicies.filter((p) =>
+          creatives: cat.creatives.filter((t) => t.offerId === offer.id),
+          policies: cat.targetingPolicies.filter((p) =>
             offer.policyIds.includes(p.id)
           ),
           autonomy: resolveAutonomyFor(
@@ -787,7 +828,7 @@ async function handleGet(req: Request, { params }: Ctx) {
         });
       }
 
-      let result = store.offers;
+      let result = cat.offers;
       const objectiveId = q.get('objectiveId');
       const categoryId = q.get('categoryId');
       const status = q.get('status');
@@ -813,11 +854,12 @@ async function handleGet(req: Request, { params }: Ctx) {
       // which is the only way to ask what content exists rather than what one
       // offer has.
       const offerId = rest[1];
+      const cat = await readCatalogue();
       if (offerId) {
-        return json({ creatives: store.creatives.filter((t) => t.offerId === offerId) });
+        return json({ creatives: cat.creatives.filter((t) => t.offerId === offerId) });
       }
 
-      let result = store.creatives;
+      let result = cat.creatives;
       const channel = q.get('channel');
       const active = q.get('active');
       const search = (q.get('q') || '').toLowerCase().trim();
@@ -830,7 +872,7 @@ async function handleGet(req: Request, { params }: Ctx) {
         // The content too, not only the name: somebody looking for a line of
         // copy they need to change is searching for the line, not for whatever
         // the creative was called.
-        const offerKey = new Map(store.offers.map((o) => [o.id, o.key]));
+        const offerKey = new Map(cat.offers.map((o) => [o.id, o.key]));
         result = result.filter(
           (c) =>
             c.name.toLowerCase().includes(search) ||
@@ -843,18 +885,19 @@ async function handleGet(req: Request, { params }: Ctx) {
 
     case 'targeting-policies': {
       const kind = q.get('kind');
+      const { targetingPolicies } = await readCatalogue();
       return json({
-        policies: kind
-          ? store.targetingPolicies.filter((p) => p.kind === kind)
-          : store.targetingPolicies,
+        policies: kind ? targetingPolicies.filter((p) => p.kind === kind) : targetingPolicies,
       });
     }
 
     case 'frequency-policies':
-      return json({ policies: store.frequencyPolicies });
+      return json({ policies: (await readCatalogue()).frequencyPolicies });
 
-    case 'arbitration':
-      return json({ config: store.arbitration, boosts: store.boosts });
+    case 'arbitration': {
+      const cat = await readCatalogue();
+      return json({ config: cat.arbitration, boosts: cat.boosts });
+    }
 
     case 'autonomy':
       return json({ settings: store.autonomy });
@@ -986,6 +1029,7 @@ async function handleGet(req: Request, { params }: Ctx) {
       // state. Development only, like the rest of the `_test` namespace.
       if (rest[0] !== 'uptime') return notFound();
       if (process.env.NODE_ENV === 'production') return notFound();
+      await store.catalogueReady.catch(() => {});
       return json({
         startedAt: STARTED_AT,
         uptimeMs: Date.now() - new Date(STARTED_AT).getTime(),
@@ -1002,7 +1046,12 @@ async function handleGet(req: Request, { params }: Ctx) {
         // server started. Without it a reused server answers from a seed
         // nobody is looking at, and a Rule 9 bite-proof against it proves
         // nothing (G-002).
-        seed: store.seededFingerprint,
+        //
+        // Served only when this process wrote the seed. A catalogue found
+        // already stored — a durable database from an earlier start — holds what
+        // people authored, not the fixtures, and a fingerprint of the fixtures
+        // would claim otherwise. Null makes `global-setup.ts` refuse the server.
+        seed: store.catalogueSeeded() ? store.seededFingerprint : null,
       });
     }
 
@@ -1012,7 +1061,7 @@ async function handleGet(req: Request, { params }: Ctx) {
     }
 
     case 'connectors': {
-      return json({ connectors: store.connectors });
+      return json({ connectors: (await readCatalogue()).connectors });
     }
 
     // GET /api/tenants/{tenantId}/settings — the locale and currency every
@@ -1024,7 +1073,7 @@ async function handleGet(req: Request, { params }: Ctx) {
     }
 
     case 'placements': {
-      return json({ placements: store.placements });
+      return json({ placements: (await readCatalogue()).placements });
     }
 
     case 'data-sources': {
@@ -1034,7 +1083,7 @@ async function handleGet(req: Request, { params }: Ctx) {
 
     case 'experiments': {
       if (!rest[0]) return notFound();
-      return json({ experiments: store.experiments });
+      return json({ experiments: (await readCatalogue()).experiments });
     }
 
     // GET /api/profile-schema/{tenantId} — the data model, and the paths a
@@ -1135,13 +1184,14 @@ async function handleGet(req: Request, { params }: Ctx) {
       // than inferred: the ledger has no opinion about placements, and without
       // this the report answers null for `deliverable` rather than zero, which
       // is the difference between "nothing is deliverable" and "nobody said".
-      const report = buildPerformance(all, outcomes, deliverableChannels());
+      const cat = await readCatalogue();
+      const report = buildPerformance(all, outcomes, deliverableChannels(cat.placements));
 
       // Per-arm counts, recomputed from each decision's customer reference.
       // Nothing stored the arm; it is a function of the reference and the
       // experiment, which is what makes a months-old decision still explainable
       // and what makes this join possible at all.
-      const armRows = store.experiments
+      const armRows = cat.experiments
         .filter((e) => e.status !== 'draft')
         .flatMap((experiment) =>
           experiment.arms.map((arm) => {
@@ -1291,7 +1341,8 @@ async function handleGet(req: Request, { params }: Ctx) {
 
     case 'profile-schema': {
       if (!rest[0]) return notFound();
-      const schema = store.profileSchema;
+      const cat = await readCatalogue();
+      const schema = schemaOf(cat);
       return json({
         schema,
         paths: listFieldPaths(schema).map((r) => ({
@@ -1310,7 +1361,7 @@ async function handleGet(req: Request, { params }: Ctx) {
         // eligibility rule that refuses when the arm is the untreated one, and
         // it should be written in the same editor as every other rule rather
         // than in a parallel experiment-only concept.
-        experimentPaths: store.experiments
+        experimentPaths: cat.experiments
           .filter((e) => e.status !== 'draft')
           .map((e) => ({
             path: armPath(e.key),
@@ -1555,7 +1606,8 @@ async function handlePost(req: Request, { params }: Ctx) {
       // The key is what a category and every offer beneath it is filed under,
       // and it is stable for the life of the objective, so two sharing one
       // would make the taxonomy ambiguous exactly where a flow reads it.
-      if (store.objectives.some((o) => o.key === body.key)) {
+      const cat = await readCatalogue();
+      if (cat.objectives.some((o) => o.key === body.key)) {
         return json(
           { error: 'conflict', message: `An objective already uses the key '${body.key}'.` },
           409
@@ -1567,7 +1619,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         description: '',
         // Appended to the end of the taxonomy unless the author said where.
         // Zero would silently jump a new objective to the top of every list.
-        sortOrder: store.objectives.length + 1,
+        sortOrder: cat.objectives.length + 1,
         ...body,
         // `iss_` predates the 2026-09-05 rename and is kept because an id is
         // stable and appears in authored records; the offers handler keeps
@@ -1579,7 +1631,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         updatedAt: now,
       } as Objective;
 
-      store.objectives.push(objective);
+      await store.catalogue.putObjective(CONSOLE_TENANT, objective, user.email, now);
       recordAudit({
         actor: user.email,
         actorType: 'human',
@@ -1610,7 +1662,8 @@ async function handlePost(req: Request, { params }: Ctx) {
       // `Catalogue.putCategory`'s UNKNOWN_OBJECTIVE, served: a category outside
       // the taxonomy cannot be reached by a decision flow, so accepting it
       // would create something that looks authored and can never be chosen.
-      if (!store.objectives.some((o) => o.id === body.objectiveId)) {
+      const cat = await readCatalogue();
+      if (!cat.objectives.some((o) => o.id === body.objectiveId)) {
         return json(
           {
             error: 'bad_request',
@@ -1619,7 +1672,7 @@ async function handlePost(req: Request, { params }: Ctx) {
           400
         );
       }
-      if (store.categories.some((c) => c.key === body.key)) {
+      if (cat.categories.some((c) => c.key === body.key)) {
         return json(
           { error: 'conflict', message: `A category already uses the key '${body.key}'.` },
           409
@@ -1627,7 +1680,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       }
 
       const now = new Date().toISOString();
-      const siblings = store.categories.filter((c) => c.objectiveId === body.objectiveId);
+      const siblings = cat.categories.filter((c) => c.objectiveId === body.objectiveId);
       const category: Category = {
         description: '',
         sortOrder: siblings.length + 1,
@@ -1641,7 +1694,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         updatedAt: now,
       } as Category;
 
-      store.categories.push(category);
+      await store.catalogue.putCategory(CONSOLE_TENANT, category, user.email, now);
       recordAudit({
         actor: user.email,
         actorType: 'human',
@@ -1681,13 +1734,14 @@ async function handlePost(req: Request, { params }: Ctx) {
       // The key is the action a decision names, so a duplicate would make two
       // offers indistinguishable in every trace ever written. `packages/
       // catalogue` enforces this with a unique index; here it is a check.
-      if (store.offers.some((p) => p.key === body.key)) {
+      const cat = await readCatalogue();
+      if (cat.offers.some((p) => p.key === body.key)) {
         return json(
           { error: 'conflict', message: `An offer already uses the key '${body.key}'.` },
           409
         );
       }
-      if (!store.categories.some((c) => c.id === body.categoryId)) {
+      if (!cat.categories.some((c) => c.id === body.categoryId)) {
         return json(
           { error: 'bad_request', message: `No category '${body.categoryId}'.` },
           400
@@ -1754,7 +1808,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         updatedBy: user.email,
       } as Offer;
 
-      store.offers.push(offer);
+      await store.catalogue.putOffer(CONSOLE_TENANT, offer, user.email, now);
       recordAudit({
         actor: user.email,
         actorType: 'human',
@@ -1777,7 +1831,8 @@ async function handlePost(req: Request, { params }: Ctx) {
       if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
 
       const [, offerId] = rest;
-      const offer = store.offers.find((p) => p.id === offerId);
+      const cat = await readCatalogue();
+      const offer = cat.offers.find((p) => p.id === offerId);
       if (!offer) return notFound(`No offer ${offerId}`);
 
       const body = (await req.json().catch(() => null)) as Partial<Creative> | null;
@@ -1789,11 +1844,11 @@ async function handlePost(req: Request, { params }: Ctx) {
         return json({ error: 'bad_request', message: 'Missing required field: name' }, 400);
       }
 
-      const rejected = creativeProblems(body.channel, body.content as Creative['content']);
+      const rejected = creativeProblems(body.channel, body.content as Creative['content'], cat.placements);
       if (rejected) return rejected;
 
       const id = body.id ?? `trt_${offer.key}_${body.channel}`;
-      if (store.creatives.some((c) => c.id === id)) {
+      if (cat.creatives.some((c) => c.id === id)) {
         return json({ error: 'conflict', message: `A creative already uses the id '${id}'.` }, 409);
       }
 
@@ -1818,12 +1873,19 @@ async function handlePost(req: Request, { params }: Ctx) {
         updatedAt: now,
       } as Creative;
 
-      store.creatives.push(creative);
+      await store.catalogue.putCreative(CONSOLE_TENANT, creative, user.email, now);
       // `Creative.offerId` is the foreign key — `packages/catalogue` treats it
       // as such and refuses a creative whose offer does not exist. `creativeIds`
       // is a denormalisation the offers list reads for its channel-coverage
       // column, so it is maintained here rather than left to drift.
-      if (!offer.creativeIds.includes(creative.id)) offer.creativeIds.push(creative.id);
+      if (!offer.creativeIds.includes(creative.id)) {
+        await store.catalogue.putOffer(
+          CONSOLE_TENANT,
+          { ...offer, creativeIds: [...offer.creativeIds, creative.id] },
+          user.email,
+          now
+        );
+      }
 
       recordAudit({
         actor: user.email,
@@ -2105,7 +2167,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       // POST .../validation - check what is held against the model.
       if (action === 'validation') {
         const rows = store.landedRows.get(sourceId) ?? [];
-        const report = validateRows(store.profileSchema, source, rows);
+        const report = validateRows(schemaOf(await readCatalogue()), source, rows);
         store.validationReports.set(sourceId, report);
         source.status = report.errors === 0 && report.rows > 0 ? 'validated' : 'draft';
         source.updatedAt = new Date().toISOString();
@@ -2150,7 +2212,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       if (!body?.key || !body.name) {
         return json({ error: 'bad_request', message: 'key and name are required.' }, 400);
       }
-      if (store.experiments.some((e) => e.key === body.key)) {
+      if ((await readCatalogue()).experiments.some((e) => e.key === body.key)) {
         return json(
           {
             error: 'conflict',
@@ -2185,7 +2247,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         );
       }
 
-      store.experiments.push(experiment);
+      await store.catalogue.putExperiment(CONSOLE_TENANT, experiment, user.email, now);
       recordAudit({
         actor: user.email,
         actorType: 'human',
@@ -2211,7 +2273,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         );
       }
 
-      const refused = policyProblems(body.conditions ?? []);
+      const refused = policyProblems(body.conditions ?? [], schemaOf(await readCatalogue()));
       if (refused) return refused;
 
       const now = new Date().toISOString();
@@ -2226,7 +2288,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         createdAt: now,
         updatedAt: now,
       };
-      store.targetingPolicies.push(policy);
+      await store.catalogue.putTargetingPolicy(CONSOLE_TENANT, policy, user.email, now);
 
       recordAudit({
         actor: user.email,
@@ -2263,7 +2325,7 @@ async function handlePost(req: Request, { params }: Ctx) {
             400
           );
         }
-        if (store.placements.some((p) => p.key === body.key)) {
+        if ((await readCatalogue()).placements.some((p) => p.key === body.key)) {
           return json(
             { error: 'conflict', message: `A placement already uses the key '${body.key}'.` },
             409
@@ -2300,7 +2362,7 @@ async function handlePost(req: Request, { params }: Ctx) {
           updatedBy: user.email,
         } as Placement;
 
-        store.placements.push(placement);
+        await store.catalogue.putPlacement(CONSOLE_TENANT, placement, user.email, now);
         recordAudit({
           actor: user.email,
           actorType: 'human',
@@ -2319,7 +2381,8 @@ async function handlePost(req: Request, { params }: Ctx) {
       const [tenantId, placementKey, tail] = rest;
       if (!tenantId || !placementKey || tail !== 'decisions') return notFound();
 
-      const placement = store.placements.find(
+      const cat = await readCatalogue();
+      const placement = cat.placements.find(
         // `decidable`, not `delivery`: whether a decision may be made is a
         // different question from whether anything sends the result, and this
         // endpoint answers the first. A slot with no deliverer still decides —
@@ -2328,7 +2391,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       );
       if (!placement) {
         return notFound(
-          `No active placement '${placementKey}'. Configured: ${store.placements
+          `No active placement '${placementKey}'. Configured: ${cat.placements
             .filter((p) => p.decidable)
             .map((p) => p.key)
             .sort()
@@ -2379,7 +2442,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         correlationId: body.request.correlationId,
       };
 
-      const outcome = await decideAndRecord(artifact, decisionRequest);
+      const outcome = await decideAndRecord(artifact, decisionRequest, cat);
       if (outcome.kind === 'error') return outcome.response;
 
       const record = outcome.kind === 'replay' ? outcome.record : outcome.trace;
@@ -2398,7 +2461,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       // The action key is what the decision names; the offer id is what a site
       // needs to fetch content. Resolved from the catalogue the engine read, so
       // the two cannot name different things.
-      const offerByKey = new Map(currentCatalogue().offers.map((o) => [o.key, o.id]));
+      const offerByKey = new Map(cat.offers.map((o) => [o.key, o.id]));
 
       return json(
         {
@@ -2447,7 +2510,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         body.reason ?? (approving ? 'Approved from the console.' : 'Rejected from the console.');
 
       // An approved change actually applies its diff to the store.
-      if (approving) applyChangeSet(cr);
+      if (approving) await applyChangeSet(cr, user.email);
 
       recordAudit({
         actor: user.email,
@@ -2601,7 +2664,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         },
         // The flow being published, so its candidates are judged against the
         // channels its own slots deliver on rather than the tenant's.
-        currentCompileContext(flowName)
+        await currentCompileContext(flowName)
       );
 
       if (outcome.status !== 'rejected') {
@@ -2637,7 +2700,12 @@ async function handlePost(req: Request, { params }: Ctx) {
       // Awaited. It used to return before the registry had re-seeded and
       // before the ledger had resolved, so a test that reset and immediately
       // read got a half-built store and blamed its own assertion.
-      await resetStore();
+      try {
+        await resetStore();
+      } catch (e) {
+        if (e instanceof ResetRefused) return json({ error: 'reset_refused', message: e.message }, 409);
+        throw e;
+      }
       return json({ reset: true });
     }
 
@@ -2653,55 +2721,81 @@ async function handlePost(req: Request, { params }: Ctx) {
  * else is approved for the record but leaves the data untouched, which is
  * honest rather than silently pretending.
  */
-function applyChangeSet(cr: (typeof store.changeSets)[number]) {
+async function applyChangeSet(cr: (typeof store.changeSets)[number], actor: string) {
+  // Read, change a copy, write back. This used to assign into the store's own
+  // objects, which a real store does not hand out: the edit would have landed
+  // on a copy and the approved change would have changed nothing.
+  const cat = await readCatalogue();
+  const at = new Date().toISOString();
   switch (cr.changeType) {
     case 'arbitration_weights': {
+      const current = snapshotFrom(cat).arbitration;
+      const weights = { ...current.weights };
       for (const d of cr.diff) {
-        const key = d.field.replace(/^weights\./, '') as keyof typeof store.arbitration.weights;
-        if (key in store.arbitration.weights) {
-          store.arbitration.weights[key] = Number(d.after);
-        }
+        const key = d.field.replace(/^weights\./, '') as keyof ArbitrationConfig['weights'];
+        if (key in weights) weights[key] = Number(d.after);
       }
-      const w = store.arbitration.weights;
-      store.arbitration.formula = `Priority = P^${w.propensity.toFixed(2)} × V^${w.value.toFixed(
-        2
-      )} × B^${w.boost.toFixed(2)} × C^${w.context.toFixed(2)}`;
+      await store.catalogue.putArbitration(
+        CONSOLE_TENANT,
+        { ...current, weights, formula: formulaOf(weights) },
+        actor,
+        at
+      );
       break;
     }
     case 'boost_adjust': {
       for (const d of cr.diff) {
-        const boostId = d.field.split('.')[0];
-        const boost = store.boosts.find((l) => l.id === boostId);
-        if (boost) boost.value = Number(d.after);
+        const boost = cat.boosts.find((l) => l.id === d.field.split('.')[0]);
+        if (boost) {
+          await store.catalogue.putBoost(CONSOLE_TENANT, { ...boost, value: Number(d.after) }, actor, at);
+        }
       }
       break;
     }
     case 'policy_edit': {
+      // Every diff line applied to one copy per policy, then one write per policy.
+      const edited = new Map<string, TargetingPolicy>();
+      const policy = (id: string) => {
+        if (!edited.has(id)) {
+          const found = cat.targetingPolicies.find((p) => p.id === id);
+          if (found) edited.set(id, structuredClone(found));
+        }
+        return edited.get(id);
+      };
       for (const d of cr.diff) {
         // e.g. "pol_heavy_user.conditions[0].value"
         const match = d.field.match(/^(\w+)\.conditions\[(\d+)\]\.value$/);
         if (match) {
-          const policy = store.targetingPolicies.find((p) => p.id === match[1]);
-          const cond = policy?.conditions[Number(match[2])];
+          const cond = policy(match[1])?.conditions[Number(match[2])];
           if (cond) cond.value = Number(d.after);
           continue;
         }
         const activeMatch = d.field.match(/^(\w+)\.active$/);
         if (activeMatch) {
-          const policy = store.targetingPolicies.find((p) => p.id === activeMatch[1]);
-          if (policy) policy.active = d.after === 'true';
+          const found = policy(activeMatch[1]);
+          if (found) found.active = d.after === 'true';
         }
+      }
+      for (const p of edited.values()) {
+        await store.catalogue.putTargetingPolicy(CONSOLE_TENANT, p, actor, at);
       }
       break;
     }
     case 'offer_retire': {
-      const prop = store.offers.find((p) => p.id === cr.targetScope.targetId);
-      if (prop) prop.status = 'retired';
+      const offer = cat.offers.find((p) => p.id === cr.targetScope.targetId);
+      if (offer) {
+        await store.catalogue.putOffer(CONSOLE_TENANT, { ...offer, status: 'retired' }, actor, at);
+      }
       break;
     }
     default:
       break;
   }
+}
+
+/** The formula the ranking screen shows, from the weights. */
+function formulaOf(w: ArbitrationConfig['weights']): string {
+  return `Priority = P^${w.propensity.toFixed(2)} × V^${w.value.toFixed(2)} × B^${w.boost.toFixed(2)} × C^${w.context.toFixed(2)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -2784,7 +2878,7 @@ async function handlePut(req: Request, { params }: Ctx) {
       // worth knowing about while it is being drawn, and the report is the same
       // one publish will use — so nobody discovers at publish time that the
       // thing they have been editing was never going to ship.
-      const compile = compileDecisionFlow(toSource(artifact), currentCompileContext(artifact.id));
+      const compile = compileDecisionFlow(toSource(artifact), await currentCompileContext(artifact.id));
 
       recordAudit({
         actor: user.email,
@@ -2802,7 +2896,7 @@ async function handlePut(req: Request, { params }: Ctx) {
     case 'experiments': {
       if (!user.permissions.includes('edit:flows')) return forbidden('edit:flows');
       const [, experimentId] = rest;
-      const experiment = store.experiments.find((e) => e.id === experimentId);
+      const experiment = (await readCatalogue()).experiments.find((e) => e.id === experimentId);
       if (!experiment) return notFound(`No experiment ${experimentId}`);
 
       const body = (await req.json().catch(() => null)) as Partial<Experiment> | null;
@@ -2841,16 +2935,19 @@ async function handlePut(req: Request, { params }: Ctx) {
       next.updatedAt = now;
       next.updatedBy = user.email;
 
-      Object.assign(experiment, next);
+      await store.catalogue.putExperiment(CONSOLE_TENANT, next, user.email, now);
       recordAudit({
         actor: user.email,
         actorType: 'human',
+        // Compared against the stored experiment. The in-place `Object.assign`
+        // this replaced ran before the comparison, so it was always false and a
+        // status change was never logged as one.
         eventType:
           next.status !== experiment.status ? 'ExperimentStatusChanged' : 'ExperimentChanged',
-        scope: experiment.id,
-        summary: `'${experiment.name}' is now ${experiment.status}.`,
+        scope: next.id,
+        summary: `'${next.name}' is now ${next.status}.`,
       });
-      return json(experiment);
+      return json(next);
     }
 
     case 'targeting-policies': {
@@ -2859,78 +2956,86 @@ async function handlePut(req: Request, { params }: Ctx) {
       const [, policyId] = rest;
       if (!policyId) return notFound();
 
-      const existing = store.targetingPolicies.find((p) => p.id === policyId);
+      const cat = await readCatalogue();
+      const existing = cat.targetingPolicies.find((p) => p.id === policyId);
       if (!existing) return notFound(`No policy ${policyId}`);
 
       const body = (await req.json().catch(() => null)) as Partial<TargetingPolicy> | null;
       if (!body) return json({ error: 'bad_request', message: 'Body required.' }, 400);
 
       const conditions = body.conditions ?? existing.conditions;
-      const refused = policyProblems(conditions);
+      const refused = policyProblems(conditions, schemaOf(cat));
       if (refused) return refused;
 
-      // Mutated in place rather than replaced: `currentCatalogue()` reads
-      // `store.targetingPolicies`, and swapping the array element would be
-      // equivalent — but other references to this object are held elsewhere in
-      // the store, and two policies with one id is worse than either.
-      existing.name = body.name ?? existing.name;
-      existing.kind = body.kind ?? existing.kind;
-      existing.description = body.description ?? existing.description;
-      existing.conditions = conditions;
-      existing.scope = body.scope ?? existing.scope;
-      if (typeof body.active === 'boolean') existing.active = body.active;
-      existing.updatedAt = new Date().toISOString();
+      // Built and written, not mutated in place. The comment this replaces
+      // justified editing the stored object directly; a real store hands out
+      // copies, and an edit to a copy goes nowhere.
+      const updated: TargetingPolicy = {
+        ...existing,
+        name: body.name ?? existing.name,
+        kind: body.kind ?? existing.kind,
+        description: body.description ?? existing.description,
+        conditions,
+        scope: body.scope ?? existing.scope,
+        active: typeof body.active === 'boolean' ? body.active : existing.active,
+        updatedAt: new Date().toISOString(),
+      };
+      await store.catalogue.putTargetingPolicy(CONSOLE_TENANT, updated, user.email, updated.updatedAt);
 
       recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'TargetingPolicyChanged',
-        scope: existing.id,
-        summary: `Updated ${existing.kind} policy '${existing.name}'.`,
+        scope: updated.id,
+        summary: `Updated ${updated.kind} policy '${updated.name}'.`,
       });
 
-      return json(existing);
+      return json(updated);
     }
 
     case 'arbitration': {
       if (!user.permissions.includes('edit:arbitration')) return forbidden('edit:arbitration');
-      const body = (await req.json().catch(() => ({}))) as Partial<typeof store.arbitration>;
-      if (body.weights) store.arbitration.weights = { ...store.arbitration.weights, ...body.weights };
-      const w = store.arbitration.weights;
-      store.arbitration.formula = `Priority = P^${w.propensity.toFixed(2)} × V^${w.value.toFixed(
-        2
-      )} × B^${w.boost.toFixed(2)} × C^${w.context.toFixed(2)}`;
-      store.arbitration.updatedAt = new Date().toISOString();
-      store.arbitration.updatedBy = user.email;
+      const body = (await req.json().catch(() => ({}))) as Partial<ArbitrationConfig>;
+      const current = snapshotFrom(await readCatalogue()).arbitration;
+      const weights = body.weights ? { ...current.weights, ...body.weights } : current.weights;
+      const updated: ArbitrationConfig = {
+        ...current,
+        weights,
+        formula: formulaOf(weights),
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.email,
+      };
+      await store.catalogue.putArbitration(CONSOLE_TENANT, updated, user.email, updated.updatedAt);
 
       recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'ArbitrationWeightsChanged',
         scope: 'tenant',
-        summary: `Arbitration weights set to ${store.arbitration.formula}`,
+        summary: `Arbitration weights set to ${updated.formula}`,
       });
-      return json(store.arbitration);
+      return json(updated);
     }
 
     case 'connectors': {
       // Integrations decide what a decision can see, so editing one is a
       // governed action, not a preference.
       if (!user.permissions.includes('edit:integrations')) return forbidden('edit:integrations');
-      const body = (await req.json().catch(() => ({}))) as Partial<
-        (typeof store.connectors)[number]
-      >;
-      const connector = store.connectors.find((c) => c.id === rest[1]);
-      if (!connector) return notFound(`No connector ${rest[1]}`);
+      const body = (await req.json().catch(() => ({}))) as Partial<Connector>;
+      const existing = (await readCatalogue()).connectors.find((c) => c.id === rest[1]);
+      if (!existing) return notFound(`No connector ${rest[1]}`);
 
-      const before = { active: connector.active, cacheTtlSeconds: connector.cacheTtlSeconds };
-      if (typeof body.active === 'boolean') connector.active = body.active;
-      if (typeof body.cacheTtlSeconds === 'number') {
-        connector.cacheTtlSeconds = body.cacheTtlSeconds;
-      }
-      if (typeof body.onFailure === 'string') connector.onFailure = body.onFailure;
-      connector.updatedAt = new Date().toISOString();
-      connector.updatedBy = user.email;
+      const before = { active: existing.active, cacheTtlSeconds: existing.cacheTtlSeconds };
+      const connector: Connector = {
+        ...existing,
+        active: typeof body.active === 'boolean' ? body.active : existing.active,
+        cacheTtlSeconds:
+          typeof body.cacheTtlSeconds === 'number' ? body.cacheTtlSeconds : existing.cacheTtlSeconds,
+        onFailure: typeof body.onFailure === 'string' ? body.onFailure : existing.onFailure,
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.email,
+      };
+      await store.catalogue.putConnector(CONSOLE_TENANT, connector, user.email, connector.updatedAt);
 
       recordAudit({
         actor: user.email,
@@ -2972,14 +3077,11 @@ async function handlePut(req: Request, { params }: Ctx) {
       if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
       const [, offerId, creativeId] = rest;
 
-      const offer = store.offers.find((p) => p.id === offerId);
+      const cat = await readCatalogue();
+      const offer = cat.offers.find((p) => p.id === offerId);
       if (!offer) return notFound(`No offer ${offerId}`);
-      const index = store.creatives.findIndex(
-        (c) => c.id === creativeId && c.offerId === offerId
-      );
-      if (index === -1) return notFound(`No creative ${creativeId} on offer ${offerId}`);
-
-      const before = store.creatives[index];
+      const before = cat.creatives.find((c) => c.id === creativeId && c.offerId === offerId);
+      if (!before) return notFound(`No creative ${creativeId} on offer ${offerId}`);
       const body = (await req.json().catch(() => ({}))) as Partial<Creative>;
       const updated: Creative = {
         ...before,
@@ -2989,7 +3091,7 @@ async function handlePut(req: Request, { params }: Ctx) {
         updatedAt: new Date().toISOString(),
       };
 
-      const rejected = creativeProblems(updated.channel, updated.content);
+      const rejected = creativeProblems(updated.channel, updated.content, cat.placements);
       if (rejected) return rejected;
 
       // Switching off the last active creative of an active offer would leave
@@ -2997,10 +3099,10 @@ async function handlePut(req: Request, { params }: Ctx) {
       // cascaded: retiring somebody's offer because they edited a creative is
       // not a decision this endpoint gets to make.
       if (before.active && !updated.active && offer.status === 'active') {
-        const remaining = store.creatives.filter(
+        const remaining = cat.creatives.filter(
           (c) => c.offerId === offerId && c.id !== creativeId
         );
-        if (!offerMayBeActive(remaining, decidableChannels())) {
+        if (!offerMayBeActive(remaining, decidableChannels(cat.placements))) {
           return json(
             {
               error: 'conflict',
@@ -3011,7 +3113,7 @@ async function handlePut(req: Request, { params }: Ctx) {
         }
       }
 
-      store.creatives[index] = updated;
+      await store.catalogue.putCreative(CONSOLE_TENANT, updated, user.email, updated.updatedAt);
 
       const changed = Object.keys(body).filter(
         (k) =>
@@ -3069,11 +3171,10 @@ async function handlePut(req: Request, { params }: Ctx) {
     case 'placements': {
       if (!user.permissions.includes('edit:integrations')) return forbidden('edit:integrations');
       const placementKey = rest[1];
-      const index = store.placements.findIndex((p) => p.key === placementKey);
-      if (index === -1) return notFound(`No placement ${placementKey}`);
+      const before = (await readCatalogue()).placements.find((p) => p.key === placementKey);
+      if (!before) return notFound(`No placement ${placementKey}`);
 
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-      const before = store.placements[index];
 
       if (
         typeof body.artifactId === 'string' &&
@@ -3094,7 +3195,7 @@ async function handlePut(req: Request, { params }: Ctx) {
         updatedAt: new Date().toISOString(),
         updatedBy: user.email,
       };
-      store.placements[index] = updated;
+      await store.catalogue.putPlacement(CONSOLE_TENANT, updated as Placement, user.email, updated.updatedAt);
 
       recordAudit({
         actor: user.email,
@@ -3111,11 +3212,10 @@ async function handlePut(req: Request, { params }: Ctx) {
     case 'objectives': {
       if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
       const objectiveId = rest[1];
-      const index = store.objectives.findIndex((o) => o.id === objectiveId);
-      if (index === -1) return notFound(`No objective ${objectiveId}`);
+      const before = (await readCatalogue()).objectives.find((o) => o.id === objectiveId);
+      if (!before) return notFound(`No objective ${objectiveId}`);
 
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-      const before = store.objectives[index];
       // The key and the id are what everything below is filed under, so an
       // edit cannot move them. The descriptor locks the key in the form; this
       // is the same rule where a caller cannot see the form.
@@ -3126,7 +3226,7 @@ async function handlePut(req: Request, { params }: Ctx) {
         key: before.key,
         updatedAt: new Date().toISOString(),
       };
-      store.objectives[index] = updated;
+      await store.catalogue.putObjective(CONSOLE_TENANT, updated as Objective, user.email, updated.updatedAt);
 
       recordAudit({
         actor: user.email,
@@ -3141,17 +3241,17 @@ async function handlePut(req: Request, { params }: Ctx) {
     case 'categories': {
       if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
       const categoryId = rest[1];
-      const index = store.categories.findIndex((c) => c.id === categoryId);
-      if (index === -1) return notFound(`No category ${categoryId}`);
+      const cat = await readCatalogue();
+      const before = cat.categories.find((c) => c.id === categoryId);
+      if (!before) return notFound(`No category ${categoryId}`);
 
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-      const before = store.categories[index];
 
       // Re-filing a category under a different objective is allowed; filing it
       // under one that does not exist is not, at edit as at creation.
       if (
         typeof body.objectiveId === 'string' &&
-        !store.objectives.some((o) => o.id === body.objectiveId)
+        !cat.objectives.some((o) => o.id === body.objectiveId)
       ) {
         return json(
           { error: 'bad_request', message: `No objective '${body.objectiveId}'.` },
@@ -3166,7 +3266,7 @@ async function handlePut(req: Request, { params }: Ctx) {
         key: before.key,
         updatedAt: new Date().toISOString(),
       };
-      store.categories[index] = updated;
+      await store.catalogue.putCategory(CONSOLE_TENANT, updated as Category, user.email, updated.updatedAt);
 
       recordAudit({
         actor: user.email,
@@ -3181,16 +3281,16 @@ async function handlePut(req: Request, { params }: Ctx) {
     case 'offers': {
       if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
       const offerId = rest[1];
-      const index = store.offers.findIndex((p) => p.id === offerId);
-      if (index === -1) return notFound(`No offer ${offerId}`);
+      const cat = await readCatalogue();
+      const before = cat.offers.find((p) => p.id === offerId);
+      if (!before) return notFound(`No offer ${offerId}`);
 
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-      const before = store.offers[index];
 
       // Same invariant as creation, at the other moment it can be broken.
       if (body.status === 'active' && before.status !== 'active') {
-        const own = store.creatives.filter((c) => c.offerId === before.id);
-        const served = decidableChannels();
+        const own = cat.creatives.filter((c) => c.offerId === before.id);
+        const served = decidableChannels(cat.placements);
         if (!offerMayBeActive(own, served)) {
           return json(
             {
@@ -3209,7 +3309,7 @@ async function handlePut(req: Request, { params }: Ctx) {
         updatedAt: new Date().toISOString(),
         updatedBy: user.email,
       };
-      store.offers[index] = updated;
+      await store.catalogue.putOffer(CONSOLE_TENANT, updated as Offer, user.email, updated.updatedAt);
 
       const changed = Object.keys(body).filter(
         (k) => JSON.stringify((before as unknown as Record<string, unknown>)[k]) !== JSON.stringify(body[k])
@@ -3251,11 +3351,11 @@ async function handleDelete(req: Request, { params }: Ctx) {
       // DELETE /api/targeting-policies/{tenantId}/{policyId}
       if (!user.permissions.includes('edit:policies')) return forbidden('edit:policies');
       const [, policyId] = rest;
-      const index = store.targetingPolicies.findIndex((p) => p.id === policyId);
-      if (index === -1) return notFound(`No policy ${policyId}`);
-      const policy = store.targetingPolicies[index];
+      const cat = await readCatalogue();
+      const policy = cat.targetingPolicies.find((p) => p.id === policyId);
+      if (!policy) return notFound(`No policy ${policyId}`);
 
-      const bound = store.offers.filter((o) => o.policyIds.includes(policy.id));
+      const bound = cat.offers.filter((o) => o.policyIds.includes(policy.id));
       if (bound.length > 0) {
         return json(
           {
@@ -3266,7 +3366,7 @@ async function handleDelete(req: Request, { params }: Ctx) {
         );
       }
 
-      store.targetingPolicies.splice(index, 1);
+      await store.catalogue.deleteTargetingPolicy(CONSOLE_TENANT, policy.id, user.email, new Date().toISOString());
       recordAudit({
         actor: user.email,
         actorType: 'human',
@@ -3281,11 +3381,11 @@ async function handleDelete(req: Request, { params }: Ctx) {
       // DELETE /api/placements/{tenantId}/{placementKey}
       if (!user.permissions.includes('edit:integrations')) return forbidden('edit:integrations');
       const placementKey = rest[1];
-      const index = store.placements.findIndex((p) => p.key === placementKey);
-      if (index === -1) return notFound(`No placement ${placementKey}`);
-      const placement = store.placements[index];
+      const cat = await readCatalogue();
+      const placement = cat.placements.find((p) => p.key === placementKey);
+      if (!placement) return notFound(`No placement ${placementKey}`);
 
-      const naming = store.creatives.filter(
+      const naming = cat.creatives.filter(
         (c) => (c.content as { placement?: string }).placement === placement.key
       );
       if (naming.length > 0) {
@@ -3298,7 +3398,7 @@ async function handleDelete(req: Request, { params }: Ctx) {
         );
       }
 
-      store.placements.splice(index, 1);
+      await store.catalogue.deletePlacement(CONSOLE_TENANT, placement.id, user.email, new Date().toISOString());
       recordAudit({
         actor: user.email,
         actorType: 'human',
@@ -3313,17 +3413,17 @@ async function handleDelete(req: Request, { params }: Ctx) {
       // DELETE /api/creatives/{tenantId}/{offerId}/{creativeId}
       if (!user.permissions.includes('edit:offers')) return forbidden('edit:offers');
       const [, offerId, creativeId] = rest;
-      const offer = store.offers.find((p) => p.id === offerId);
+      const cat = await readCatalogue();
+      const offer = cat.offers.find((p) => p.id === offerId);
       if (!offer) return notFound(`No offer ${offerId}`);
-      const index = store.creatives.findIndex((c) => c.id === creativeId && c.offerId === offerId);
-      if (index === -1) return notFound(`No creative ${creativeId} on offer ${offerId}`);
-      const creative = store.creatives[index];
+      const creative = cat.creatives.find((c) => c.id === creativeId && c.offerId === offerId);
+      if (!creative) return notFound(`No creative ${creativeId} on offer ${offerId}`);
 
       // The same rule as switching one off, for the same reason: an active
       // offer would keep winning decisions with nothing to render.
       if (creative.active && offer.status === 'active') {
-        const remaining = store.creatives.filter((c) => c.offerId === offerId && c.id !== creativeId);
-        if (!offerMayBeActive(remaining, decidableChannels())) {
+        const remaining = cat.creatives.filter((c) => c.offerId === offerId && c.id !== creativeId);
+        if (!offerMayBeActive(remaining, decidableChannels(cat.placements))) {
           return json(
             {
               error: 'conflict',
@@ -3334,8 +3434,14 @@ async function handleDelete(req: Request, { params }: Ctx) {
         }
       }
 
-      store.creatives.splice(index, 1);
-      offer.creativeIds = offer.creativeIds.filter((id) => id !== creative.id);
+      const at = new Date().toISOString();
+      await store.catalogue.deleteCreative(CONSOLE_TENANT, creative.id, user.email, at);
+      await store.catalogue.putOffer(
+        CONSOLE_TENANT,
+        { ...offer, creativeIds: offer.creativeIds.filter((id) => id !== creative.id) },
+        user.email,
+        at
+      );
       recordAudit({
         actor: user.email,
         actorType: 'human',
@@ -3363,7 +3469,32 @@ async function handleDelete(req: Request, { params }: Ctx) {
  * calls worth having. Wrapping records every route, including the ones added
  * after this comment.
  */
-export const GET = recorded('GET', handleGet);
-export const POST = recorded('POST', handlePost);
-export const PUT = recorded('PUT', handlePut);
-export const DELETE = recorded('DELETE', handleDelete);
+/**
+ * A write the catalogue refused after the handler's own checks passed.
+ *
+ * The handlers check keys and references before writing, with the answers
+ * they have always given. But the check and the write are separate awaits
+ * against a shared store, so a second request can land between them — and
+ * then the catalogue's own rule, or the database's constraint behind it,
+ * refuses the write. That is a conflict the caller can act on, not a 500.
+ * Mapped once, here, rather than at forty write sites.
+ */
+function refusingCatalogueErrors(handler: (req: Request, ctx: Ctx) => Promise<Response>) {
+  return async (req: Request, ctx: Ctx): Promise<Response> => {
+    try {
+      return await handler(req, ctx);
+    } catch (e) {
+      if (!(e instanceof CatalogueError)) throw e;
+      const conflict = e.code === 'DUPLICATE_KEY' || e.code === 'OFFER_IN_USE';
+      return json(
+        { error: conflict ? 'conflict' : 'bad_request', code: e.code, message: e.message },
+        conflict ? 409 : 400
+      );
+    }
+  };
+}
+
+export const GET = recorded('GET', refusingCatalogueErrors(handleGet));
+export const POST = recorded('POST', refusingCatalogueErrors(handlePost));
+export const PUT = recorded('PUT', refusingCatalogueErrors(handlePut));
+export const DELETE = recorded('DELETE', refusingCatalogueErrors(handleDelete));

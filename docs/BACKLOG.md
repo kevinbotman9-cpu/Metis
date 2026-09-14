@@ -129,7 +129,7 @@ otherwise.
 | W-002 | 7 | Export / re-import | DONE | 1 |
 | W-003 | 8 | S1 benchmark and the p99 gate | DONE | 1 |
 | W-004 | 8 | No-network-egress assertion in the decision path | DONE | 1 |
-| W-005 | 9 | Catalogue, policies and taxonomy into PostgreSQL | PARTIAL | 2 |
+| W-005 | 9 | Catalogue, policies and taxonomy into PostgreSQL | DONE | 2 |
 | W-006 | 9 | Retention and erasure design | OPEN | 2 |
 | W-007 | 9 | Configurable approved default for a missing score | DONE | 2 |
 | W-008 | 10 | Customer profile store and data model | OPEN | 2 |
@@ -441,8 +441,8 @@ storage. Verify it bites by adding a `fetch` to a node implementation.
 
 ### W-005 — Catalogue, policies and taxonomy into PostgreSQL
 
-**Registered:** 2026-09-06 · **Stage:** 9 · **Status:** PARTIAL 2026-09-07
-**Check:** `apps/console/tests/unit/catalogue-configurability.test.ts` › `configuration reaches the engine`
+**Registered:** 2026-09-06 · **Stage:** 9 · **Status:** DONE 2026-09-14
+**Check:** `apps/console/tests/unit/catalogue-durable.test.ts` › `keeps an edit made through the API across a restart, and decides the next request against it`; `apps/console/tests/unit/catalogue-configurability.test.ts` › `configuration reaches the engine`
 
 Gate 2 · Depends: none · Spec §8
 
@@ -461,8 +461,18 @@ moved every catalogue hash — the 10,400 seeded decisions and the 60 service
 cases — and no winner. It is the store half of ADR-016's amended build order;
 the decision service reads it next.
 
-**Not done:** the console still writes to its in-memory store, so authored state
-is still lost on restart there.
+**Done, 2026-09-14:** the console reads and writes its catalogue through
+`@metis/catalogue` — taxonomy, offers, creatives, policies, boosts, the ranking
+function, connectors, placements, the profile schema and experiments — opened by
+`apps/console/mocks/catalogue-source.ts`. `METIS_DATABASE_URL` puts it in
+PostgreSQL, and an edit made through the API survives a restart and reaches the
+next decision. An empty store is seeded; one holding the tenant is used as
+found; one holding only another tenant is refused.
+
+**What this did not close:** a live decision made before a restart cannot be
+replayed after it ([G-116](gaps.md)); the console's check-then-write rules have
+no transaction ([G-117](gaps.md)); flows, change sets, the audit log and data
+sources still do not survive a restart ([G-118](gaps.md)).
 
 **And it is not a swap.** The console deep-clones the fixtures while the engine
 reads the fixture modules directly, so today a ranking-weight change persists,

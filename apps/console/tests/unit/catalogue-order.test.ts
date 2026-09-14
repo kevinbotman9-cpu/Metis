@@ -61,10 +61,10 @@ describe('the catalogue a decision names is the catalogue a store holds', () => 
     expect(hash(catalogueSnapshot)).toBe(hash(await readBack()));
   });
 
-  it('hashes the live catalogue the console decides against the same way', () => {
-    // The live snapshot is built from the console's mutable store on every
+  it('hashes the live catalogue the console decides against the same way', async () => {
+    // The live snapshot is read from the console's catalogue store on every
     // request; the seeded decisions name the frozen one. Unchanged, they are one
     // catalogue, and the service cases hold both to the same hashes.
-    expect(hash(currentCatalogue())).toBe(hash(catalogueSnapshot));
+    expect(hash(await currentCatalogue())).toBe(hash(catalogueSnapshot));
   });
 });

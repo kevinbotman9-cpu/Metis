@@ -3,9 +3,8 @@
  *
  * This closes the half of W-005 that made the console's configuration
  * cosmetic. `catalogueSnapshot` in fixtures/engine.ts is built from the fixture
- * modules; the console writes to `store.*`, which is seeded from those modules
- * and is a separate mutable copy. So every write landed somewhere the engine
- * never read.
+ * modules; the console writes to its catalogue store. So until the engine read
+ * the store, every write landed somewhere the engine never read.
  *
  * It was not a subtle failure. Publishing arbitration weights returned 200,
  * persisted, audited, and updated the formula the screen displays — and the
@@ -27,14 +26,19 @@
  * the one the decision names. A hash nobody holds is refused rather than
  * approximated, because a replay that cannot be exact must say so.
  *
- * This is the property that makes configurability and traceability one
- * mechanism rather than two competing ones: editing the catalogue mints a new
- * snapshot, and every decision keeps pointing at the snapshot that produced it.
+ * **This registry is in memory, and the catalogue no longer is.** Since
+ * 2026-09-13 the catalogue lives in `@metis/catalogue` and survives a restart;
+ * this map does not. A decision recorded to a durable ledger before a restart
+ * names a catalogue hash nothing holds afterwards, and its replay answers 409
+ * `catalogue_unavailable` — correctly, and permanently. The store keeps the
+ * catalogue as it is, not every catalogue it has been. Registered in `gaps.md`.
  */
 
 import { hash } from '@metis/runtime/deterministic/canonical';
 import type { CatalogueSnapshot } from '@metis/runtime/deterministic/types';
+import type { CatalogueSnapshotRecord } from '@metis/catalogue';
 import { store } from '@/mocks/store';
+import { CONSOLE_TENANT } from '@/mocks/catalogue-source';
 
 /**
  * Every catalogue any live decision has been made against, by hash.
@@ -46,52 +50,55 @@ import { store } from '@/mocks/store';
 const byHash = new Map<string, CatalogueSnapshot>();
 
 /**
- * Build the snapshot from the store as it stands.
+ * The tenant's catalogue as it stands: one read, so everything a request
+ * checks and decides from is one moment.
  *
- * Deep-cloned on registration. The store mutates in place — `PUT /arbitration`
- * assigns into `store.arbitration.weights` rather than replacing the object —
- * so holding references would let a later edit rewrite the history of a
- * decision already made, which is the one thing a snapshot must never do.
+ * Every array in id order — the store's contract, pinned by
+ * `packages/catalogue`'s suite — which is what lets the hash of what the engine
+ * decides from equal the hash of what the store holds.
  */
-function build(): CatalogueSnapshot {
-  // In id order, as every catalogue store reads it — `catalogueSnapshot` in
-  // fixtures/engine.ts says why. Sorted copies, so the store the screens list
-  // from keeps the order things were authored in.
-  const byId = <T extends { id: string }>(list: T[]): T[] =>
-    [...list].sort((a, b) => a.id.localeCompare(b.id));
-  return {
-    offers: byId(store.offers),
-    targetingPolicies: byId(store.targetingPolicies),
-    frequencyPolicies: byId(store.frequencyPolicies),
-    arbitration: store.arbitration,
-    boosts: byId(store.boosts),
-    connectors: byId(store.connectors),
-  } as CatalogueSnapshot;
+export async function readCatalogue(): Promise<CatalogueSnapshotRecord> {
+  await store.catalogueReady;
+  return store.catalogue.read(CONSOLE_TENANT);
 }
 
 /**
- * The catalogue to decide against now.
+ * The part of a catalogue record the engine decides from, registered by hash.
  *
- * Hashed on every call rather than invalidated on every write. Invalidation
- * would mean finding all ~15 mutation sites and never missing one later, and
- * the failure mode of missing one is exactly the silent staleness this module
- * exists to remove. Hashing a catalogue this size is well inside the latency
- * budget, and `bench/harness` is what holds that claim.
- *
- * The registered object is returned rather than the freshly built one, so
- * object identity is stable while the catalogue is unchanged and the engine's
- * own memoisation of `catalogueHash` keeps hitting.
+ * The registered object is returned rather than a fresh one, so object
+ * identity is stable while the catalogue is unchanged and the engine's own
+ * memoisation of `catalogueHash` keeps hitting.
  */
-export function currentCatalogue(): CatalogueSnapshot {
-  const built = build();
+export function snapshotFrom(record: CatalogueSnapshotRecord): CatalogueSnapshot {
+  if (!record.arbitration) {
+    throw new Error(
+      `Tenant '${CONSOLE_TENANT}' has no ranking function in its catalogue, so no decision can be made. ` +
+        'A seeded store always has one; a store that lacks it was not seeded by this console.'
+    );
+  }
+  const built: CatalogueSnapshot = {
+    offers: record.offers,
+    targetingPolicies: record.targetingPolicies,
+    frequencyPolicies: record.frequencyPolicies,
+    arbitration: record.arbitration,
+    boosts: record.boosts,
+    connectors: record.connectors,
+  };
   const h = hash(built);
 
   const existing = byHash.get(h);
   if (existing) return existing;
 
+  // Cloned on registration: a record is the caller's to change, and a snapshot
+  // somebody could edit afterwards would rewrite the history of a decision.
   const frozen = structuredClone(built);
   byHash.set(h, frozen);
   return frozen;
+}
+
+/** The catalogue to decide against now. */
+export async function currentCatalogue(): Promise<CatalogueSnapshot> {
+  return snapshotFrom(await readCatalogue());
 }
 
 /**
@@ -107,10 +114,10 @@ export function catalogueByHash(h: string): CatalogueSnapshot | undefined {
 /**
  * Put a catalogue into the registry without deciding against it.
  *
- * Used for the fixture catalogue at startup. The 5,000 generated decisions
- * were made against it before any of this existed, and their records name its
- * hash — so without this they would become unreplayable the moment replay
- * started looking snapshots up rather than assuming one.
+ * Used for the fixture catalogue at startup. The seeded decisions were made
+ * against it, and their records name its hash — so without this they would
+ * become unreplayable the moment replay started looking snapshots up rather
+ * than assuming one.
  */
 export function registerCatalogue(catalogue: CatalogueSnapshot): string {
   const h = hash(catalogue);
