@@ -448,6 +448,57 @@ export function describeRegistry(label: string, harness: StoreHarness): void {
       expect(stored?.publishedAt).toBe(AT);
     });
 
+    // --- Drafts -------------------------------------------------------------
+
+    it('keeps a draft, and replaces it when it is saved again', async () => {
+      await registry.saveDraft(T, NAME, source(), 'sarah@telco.example', AT);
+      await registry.saveDraft(T, NAME, v2(), 'marcus@telco.example', '2026-06-02T12:00:00.000Z');
+
+      // Deep equality over a whole flow source: a jsonb round trip that dropped
+      // a nested field would pass a shallower assertion.
+      expect(await registry.draft(T, NAME)).toEqual({
+        tenantId: T,
+        flowName: NAME,
+        draft: v2(),
+        updatedAt: '2026-06-02T12:00:00.000Z',
+        updatedBy: 'marcus@telco.example',
+      });
+      expect(await registry.drafts(T)).toHaveLength(1);
+    });
+
+    it('has no draft for a flow nobody has drawn', async () => {
+      expect(await registry.draft(T, 'never-drawn')).toBeUndefined();
+    });
+
+    it('saves a draft without publishing, promoting or logging anything', async () => {
+      // A draft is work in progress. The versions and the log are about what
+      // shipped, and a save that appeared in either would be a lie about that.
+      await registry.saveDraft(T, NAME, source(), 'sarah@telco.example', AT);
+      expect(await registry.versions(T, NAME)).toEqual([]);
+      expect(await registry.flows(T)).toEqual([]);
+      expect(await registry.events({ tenantId: T })).toEqual([]);
+    });
+
+    it('hands back a copy, so editing a draft that was read changes nothing stored', async () => {
+      // PostgreSQL can only return copies; memory must not do better, or code
+      // that edits a read draft in place works in one and silently not the other.
+      await registry.saveDraft(T, NAME, source(), 'sarah@telco.example', AT);
+      const read = (await registry.draft<{ candidateKeys: string[] }>(T, NAME))!;
+      read.draft.candidateKeys.push('offer_edited_in_place');
+
+      const again = (await registry.draft<{ candidateKeys: string[] }>(T, NAME))!;
+      expect(again.draft.candidateKeys).toEqual(['offer_a']);
+    });
+
+    it('keeps one tenant’s drafts out of another’s, and lists them in flow order', async () => {
+      await registry.saveDraft(T, 'z-flow', source(), 'sarah@telco.example', AT);
+      await registry.saveDraft(T, 'a-flow', source(), 'sarah@telco.example', AT);
+      await registry.saveDraft('bank-uk', 'm-flow', source(), 'sarah@telco.example', AT);
+
+      expect((await registry.drafts(T)).map((d) => d.flowName)).toEqual(['a-flow', 'z-flow']);
+      expect((await registry.drafts('bank-uk')).map((d) => d.flowName)).toEqual(['m-flow']);
+    });
+
     harness.extra?.(
       () => registry,
       () => store

@@ -1,4 +1,4 @@
-import type { PublishedVersion, EnvironmentState, RegistryEvent } from '@metis/registry';
+import type { PublishedVersion, EnvironmentState, RegistryEvent, FlowDraft } from '@metis/registry';
 import type { DeliveryAttempt, LedgerEntry, OutcomeEvent } from '@metis/ledger';
 import type { CatalogueEvent } from '@metis/catalogue';
 import type {
@@ -25,7 +25,7 @@ import type { EntityName } from './entities';
  * import the parts it recognises: a half-imported tenant is a worse outcome
  * than a refused one, because the refusal is visible and the half is not.
  */
-export const FORMAT_VERSION = '3.0.0';
+export const FORMAT_VERSION = '4.0.0';
 
 export interface BundleFile {
   entity: EntityName;
@@ -92,6 +92,8 @@ export interface TenantBundle {
   registry_versions: PublishedVersion[];
   registry_environments: BundledEnvironment[];
   registry_events: RegistryEvent[];
+  /** Since format 4.0.0. */
+  registry_drafts: FlowDraft[];
   decision_records: LedgerEntry[];
   outcome_events: OutcomeEvent[];
   delivery_attempts: DeliveryAttempt[];

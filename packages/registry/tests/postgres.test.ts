@@ -49,7 +49,7 @@ if (!reachable) {
       // itself worth knowing — the append-only guarantee is about rows, not
       // about a deliberate administrative reset.
       await pool.query(
-        'TRUNCATE registry_environments, registry_versions, registry_events RESTART IDENTITY'
+        'TRUNCATE registry_environments, registry_versions, registry_events, registry_drafts RESTART IDENTITY'
       );
       return new PostgresRegistryStore(pool);
     },

@@ -269,6 +269,8 @@ export async function populatedInstance(): Promise<Instance> {
 
   await inst.registry.promote(TENANT, FLOW, '1.0.0', 'production', 'marcus', AT);
   await inst.registry.startShadow(TENANT, FLOW, '1.1.0', 'production', 'marcus', AT);
+  // Work in progress on the next version, which only a draft holds.
+  await inst.registry.saveDraft(TENANT, FLOW, source({ version: '1.2.0' }), 'sarah', AT);
 
   for (const id of ['cust_1', 'cust_2', 'cust_3']) {
     const req = request(id);

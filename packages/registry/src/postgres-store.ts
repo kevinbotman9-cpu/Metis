@@ -1,5 +1,11 @@
 import type { RegistryStore } from './registry';
-import type { Environment, EnvironmentState, PublishedVersion, RegistryEvent } from './types';
+import type {
+  Environment,
+  EnvironmentState,
+  FlowDraft,
+  PublishedVersion,
+  RegistryEvent,
+} from './types';
 
 /**
  * Durable storage for the registry.
@@ -72,6 +78,24 @@ interface EventRow {
  */
 function iso(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+interface DraftRow {
+  tenant_id: string;
+  flow_name: string;
+  draft: unknown;
+  updated_at: Date | string;
+  updated_by: string;
+}
+
+function toDraft(r: DraftRow): FlowDraft {
+  return {
+    tenantId: r.tenant_id,
+    flowName: r.flow_name,
+    draft: r.draft,
+    updatedAt: iso(r.updated_at),
+    updatedBy: r.updated_by,
+  };
 }
 
 export class PostgresRegistryStore implements RegistryStore {
@@ -272,6 +296,41 @@ export class PostgresRegistryStore implements RegistryStore {
       summary: r.summary,
       ...(r.diagnostics ? { diagnostics: r.diagnostics as RegistryEvent['diagnostics'] } : {}),
     }));
+  }
+
+  // --- Drafts ---------------------------------------------------------------
+
+  async getDraft(tenantId: string, name: string): Promise<FlowDraft | undefined> {
+    const { rows } = await this.db.query<DraftRow>(
+      `SELECT tenant_id, flow_name, draft, updated_at, updated_by
+         FROM registry_drafts
+        WHERE tenant_id = $1 AND flow_name = $2`,
+      [tenantId, name]
+    );
+    return rows[0] ? toDraft(rows[0]) : undefined;
+  }
+
+  async putDraft(d: FlowDraft): Promise<void> {
+    // The one upsert in this store. A draft is work in progress, so saving it
+    // again replaces it; everything published stays append-only.
+    await this.db.query(
+      `INSERT INTO registry_drafts (tenant_id, flow_name, draft, updated_at, updated_by)
+       VALUES ($1, $2, $3::jsonb, $4, $5)
+       ON CONFLICT (tenant_id, flow_name) DO UPDATE
+          SET draft = EXCLUDED.draft, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by`,
+      [d.tenantId, d.flowName, JSON.stringify(d.draft), d.updatedAt, d.updatedBy]
+    );
+  }
+
+  async listDrafts(tenantId: string): Promise<FlowDraft[]> {
+    const { rows } = await this.db.query<DraftRow>(
+      `SELECT tenant_id, flow_name, draft, updated_at, updated_by
+         FROM registry_drafts
+        WHERE tenant_id = $1
+        ORDER BY flow_name`,
+      [tenantId]
+    );
+    return rows.map(toDraft);
   }
 
   // --- Flows -----------------------------------------------------------

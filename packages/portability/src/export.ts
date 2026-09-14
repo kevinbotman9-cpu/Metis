@@ -81,6 +81,8 @@ export async function exportTenant(
     .sort((a, b) => a.seq - b.seq)
     .map((event, i) => ({ ...event, seq: i + 1 }));
 
+  const drafts = stable(await registry.drafts(tenantId), (d) => d.flowName);
+
   const records = stable(await ledger.query({ tenantId }), (r) => r.decisionId);
 
   const outcomes = (
@@ -120,6 +122,7 @@ export async function exportTenant(
     registry_versions: versions,
     registry_environments: environments,
     registry_events: events,
+    registry_drafts: drafts,
     decision_records: records,
     outcome_events: outcomes,
     delivery_attempts: deliveries,

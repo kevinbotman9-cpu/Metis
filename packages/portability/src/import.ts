@@ -120,6 +120,10 @@ export async function importTenant(
     await targets.registryStore.appendEvent(rest);
   }
 
+  for (const draft of bundle.registry_drafts) {
+    await targets.registryStore.putDraft(draft);
+  }
+
   for (const entry of bundle.decision_records) {
     await targets.ledger.record(entry);
   }
@@ -145,6 +149,7 @@ export async function importTenant(
       registry_versions: bundle.registry_versions.length,
       registry_environments: bundle.registry_environments.length,
       registry_events: bundle.registry_events.length,
+      registry_drafts: bundle.registry_drafts.length,
       decision_records: bundle.decision_records.length,
       outcome_events: bundle.outcome_events.length,
       delivery_attempts: bundle.delivery_attempts.length,

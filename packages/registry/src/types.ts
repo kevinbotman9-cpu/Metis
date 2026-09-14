@@ -128,6 +128,22 @@ export interface EnvironmentState {
   promotedBy: string | null;
 }
 
+/**
+ * A flow as a person is editing it, before any of it is published.
+ *
+ * The registry stores a draft and does not interpret it: what a draft carries
+ * is the editor's business, and the registry's rules are about versions. It is
+ * mutable — saving again replaces it — which is the whole difference between a
+ * draft and a version. It becomes a fact when it is published, not before.
+ */
+export interface FlowDraft<T = unknown> {
+  tenantId: string;
+  flowName: string;
+  draft: T;
+  updatedAt: string;
+  updatedBy: string;
+}
+
 export type RegistryEventType =
   | 'ArtifactPublished'
   | 'PublishRejected'

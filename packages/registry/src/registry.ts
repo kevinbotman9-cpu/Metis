@@ -9,6 +9,7 @@ import type {
   RegistryEvent,
   FlowTestResult,
   FlowTestRunner,
+  FlowDraft,
 } from './types';
 import { RegistryError } from './types';
 
@@ -51,6 +52,11 @@ export interface RegistryStore {
   }): Promise<RegistryEvent[]>;
 
   listFlows(tenantId: string): Promise<string[]>;
+
+  getDraft(tenantId: string, name: string): Promise<FlowDraft | undefined>;
+  /** Replaces the flow's draft. The one write here that is not append-only. */
+  putDraft(draft: FlowDraft): Promise<void>;
+  listDrafts(tenantId: string): Promise<FlowDraft[]>;
 }
 
 export class ArtifactRegistry {
@@ -454,6 +460,38 @@ export class ArtifactRegistry {
 
   async flows(tenantId: string): Promise<string[]> {
     return [...(await this.store.listFlows(tenantId))].sort();
+  }
+
+  // --- Drafts ----------------------------------------------------------------
+
+  /**
+   * Save the flow a person is editing.
+   *
+   * Publishes nothing and records no registry event. A draft is work in
+   * progress; the log is about what was shipped, promoted or refused, and a
+   * log that filled with every save would bury the one publish that mattered.
+   * Whoever saves a draft records that in its own audit, as the console does.
+   */
+  async saveDraft<T>(
+    tenantId: string,
+    flowName: string,
+    draft: T,
+    actor: string,
+    occurredAt: string
+  ): Promise<FlowDraft<T>> {
+    const saved: FlowDraft<T> = { tenantId, flowName, draft, updatedAt: occurredAt, updatedBy: actor };
+    await this.store.putDraft(saved);
+    return saved;
+  }
+
+  async draft<T = unknown>(tenantId: string, flowName: string): Promise<FlowDraft<T> | undefined> {
+    return (await this.store.getDraft(tenantId, flowName)) as FlowDraft<T> | undefined;
+  }
+
+  /** In flow-name order, so two reads of unchanged drafts are identical. */
+  async drafts<T = unknown>(tenantId: string): Promise<FlowDraft<T>[]> {
+    const all = (await this.store.listDrafts(tenantId)) as FlowDraft<T>[];
+    return [...all].sort((a, b) => a.flowName.localeCompare(b.flowName));
   }
 
   /** Newest first. */

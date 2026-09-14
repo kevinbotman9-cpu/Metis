@@ -31,6 +31,7 @@ export type EntityName =
   | 'registry_versions'
   | 'registry_environments'
   | 'registry_events'
+  | 'registry_drafts'
   | 'decision_records'
   | 'outcome_events'
   | 'delivery_attempts';
@@ -79,6 +80,10 @@ export const ENTITIES: EntityDeclaration[] = [
   { table: 'registry_versions', included: true },
   { table: 'registry_environments', included: true },
   { table: 'registry_events', included: true },
+  // The graph a person is editing and has not published. A restore without it
+  // would hold every version a tenant shipped and none of the work in progress
+  // on the next one.
+  { table: 'registry_drafts', included: true },
 
   // History. §9 names decision, interaction and outcome histories explicitly.
   { table: 'decision_records', included: true },
