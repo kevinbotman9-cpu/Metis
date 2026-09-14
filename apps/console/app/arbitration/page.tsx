@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { descriptorFor, toFormState, toPayload, type FormState } from '@metis/ui-metadata';
+import { descriptorFor, toFormState, type FormState } from '@metis/ui-metadata';
+import { rankCandidates, movement } from '@metis/core/arbitration';
 import { RequireAuth } from '@/components/require-auth';
 import { useAuth } from '@/components/auth-provider';
 import {
@@ -19,7 +21,8 @@ import {
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { FormRenderer } from '@/components/ui/form-renderer';
-import { apiClient, type BoostDto } from '@/lib/api-client';
+import { RankingPreview } from '@/components/arbitration/ranking-preview';
+import { apiClient, type BoostDto, type ChangeSetDto } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
 
 /**
@@ -29,15 +32,19 @@ import { cn } from '@/lib/cn';
  * the symbol and the order the formula multiplies them in.
  */
 const TERMS = [
-  { field: 'weights.propensity', symbol: 'P' },
-  { field: 'weights.value', symbol: 'V' },
-  { field: 'weights.boost', symbol: 'L' },
-  { field: 'weights.context', symbol: 'C' },
+  { field: 'weights.propensity', term: 'propensity', symbol: 'P' },
+  { field: 'weights.value', term: 'value', symbol: 'V' },
+  { field: 'weights.boost', term: 'boost', symbol: 'L' },
+  { field: 'weights.context', term: 'context', symbol: 'C' },
 ] as const;
+
+type Weights = Record<(typeof TERMS)[number]['term'], number>;
 
 const descriptor = descriptorFor('ArbitrationConfig');
 const NOTHING_TOUCHED: ReadonlySet<string> = new Set();
 const weightOf = (form: FormState | null, field: string) => Number(form?.[field] || 0);
+const weightsOf = (form: FormState): Weights =>
+  Object.fromEntries(TERMS.map((t) => [t.term, weightOf(form, t.field)])) as Weights;
 
 function ArbitrationView() {
   const { user, hasPermission } = useAuth();
@@ -48,29 +55,67 @@ function ArbitrationView() {
     queryKey: ['arbitration'],
     queryFn: () => apiClient.getArbitration(),
   });
+  const scenario = useQuery({
+    queryKey: ['arbitration', 'scenario'],
+    queryFn: () => apiClient.getArbitrationScenario(),
+  });
 
   const config = data?.config as unknown as Record<string, unknown> | undefined;
+  const live = data?.config.weights;
   const saved = useMemo(() => (config ? toFormState(descriptor, config) : null), [config]);
   const [form, setForm] = useState<FormState>(() => toFormState(descriptor));
+  const [raised, setRaised] = useState<ChangeSetDto | null>(null);
 
-  // Seed the form once the server's weights arrive, and again after a publish.
+  // Seed the form once the server's weights arrive, and again after they change.
   useEffect(() => {
     if (saved) setForm(saved);
   }, [saved]);
 
-  const queryClient = useQueryClient();
-  const save = useMutation({
-    mutationFn: () => {
-      const body = toPayload(descriptor, form, { editing: true, permissions, entity: config });
-      return apiClient.updateArbitration(
-        body.weights as { propensity: number; value: number; boost: number; context: number }
-      );
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['arbitration'] }),
-  });
+  const changes = live
+    ? TERMS.filter((t) => Math.abs(weightOf(form, t.field) - live[t.term]) > 0.001).map((t) => ({
+        ...t,
+        before: live[t.term],
+        after: weightOf(form, t.field),
+      }))
+    : [];
+  const dirty = changes.length > 0;
 
-  const dirty =
-    saved !== null && TERMS.some((t) => Math.abs(weightOf(form, t.field) - weightOf(saved, t.field)) > 0.001);
+  // Ranked here, under the weights as they stand in the form, by the same
+  // function the engine ranks with. The live ranking uses the weights the
+  // scenario was scored under, so "moved" means moved from what decides now.
+  const preview = useMemo(() => {
+    const s = scenario.data;
+    if (!s) return null;
+    const before = rankCandidates(s.candidates, s.weights, s.utility);
+    const after = rankCandidates(s.candidates, weightsOf(form), s.utility);
+    return { rows: after.rows, ties: after.ties, moved: movement(before, after), name: s.scenario.name };
+  }, [scenario.data, form]);
+
+  const queryClient = useQueryClient();
+  const raise = useMutation({
+    mutationFn: () =>
+      apiClient.createChangeSet({
+        title: `Arbitration weights: ${changes
+          .map((c) => `${c.term} ${c.before.toFixed(2)} → ${c.after.toFixed(2)}`)
+          .join(', ')}`,
+        description:
+          `Raised from /arbitration. On ${preview?.name ?? 'the scenario'}, ` +
+          `${preview ? Object.values(preview.moved).filter((m) => m !== 0).length : 0} offer(s) change place` +
+          `${preview && preview.ties.length > 0 ? ', and some offers share a priority, so their order is alphabetical' : ''}. ` +
+          'Nothing ranks differently until this is approved.',
+        changeType: 'arbitration_weights',
+        // `before` is the live weight exactly as the server holds it, which the
+        // server checks: a change set against a formula that has since changed
+        // would silently revert whatever changed it.
+        diff: changes.map((c) => ({ field: c.field, before: String(c.before), after: String(c.after) })),
+      }),
+    onSuccess: (changeSet) => {
+      setRaised(changeSet);
+      // Nothing was published, so the form goes back to what is live.
+      if (saved) setForm(saved);
+      queryClient.invalidateQueries({ queryKey: ['change-sets'] });
+    },
+  });
 
   const boosts = data?.boosts ?? [];
 
@@ -95,9 +140,7 @@ function ArbitrationView() {
         <div>
           <Badge tone="outline">{l.scope.level}</Badge>
           {l.scope.targetId && (
-            <div className="mt-0.5 font-mono text-label text-content-subtle">
-              {l.scope.targetId}
-            </div>
+            <div className="mt-0.5 font-mono text-label text-content-subtle">{l.scope.targetId}</div>
           )}
         </div>
       ),
@@ -155,7 +198,7 @@ function ArbitrationView() {
     <PageBody>
       <PageHeader
         title="Arbitration & boosts"
-        description="How competing offers are ranked. Every decision's winner comes from this formula, and every trace shows the terms that produced it."
+        description="How competing offers are ranked. Move a weight and the ranking below reorders; nothing changes how decisions rank until a change set is approved."
       />
 
       <div className="mb-stack">
@@ -168,7 +211,7 @@ function ArbitrationView() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={!dirty || save.isPending}
+                    disabled={!dirty || raise.isPending}
                     onClick={() => saved && setForm(saved)}
                   >
                     Reset
@@ -176,10 +219,10 @@ function ArbitrationView() {
                   <Button
                     variant="primary"
                     size="sm"
-                    disabled={!dirty || save.isPending}
-                    onClick={() => save.mutate()}
+                    disabled={!dirty || raise.isPending}
+                    onClick={() => raise.mutate()}
                   >
-                    {save.isPending ? 'Publishing…' : descriptor.edit.submitLabel}
+                    {raise.isPending ? 'Raising…' : descriptor.edit.submitLabel}
                   </Button>
                 </>
               ) : (
@@ -199,27 +242,27 @@ function ArbitrationView() {
                   </span>
                 ))}
               </p>
-              {dirty && (
-                <p className="mt-1.5 text-label text-hold">
-                  Unsaved. {descriptor.edit.description}
+              {dirty && <p className="mt-1.5 text-label text-hold">Proposed, not live. {descriptor.edit.description}</p>}
+              {raised && !dirty && (
+                <p className="mt-1.5 text-label text-pass" role="status">
+                  Raised{' '}
+                  <Link href={`/approvals/${raised.id}`} className="font-mono underline">
+                    {raised.id}
+                  </Link>
+                  . Nothing is published until it is approved.
                 </p>
               )}
-              {save.isSuccess && !dirty && (
-                <p className="mt-1.5 text-label text-pass">
-                  Published. Recorded in the audit log.
-                </p>
-              )}
-              {save.isError && (
+              {raise.isError && (
                 <p role="alert" className="mt-1.5 text-label text-block">
-                  {(save.error as Error).message}
+                  {(raise.error as Error).message}
                 </p>
               )}
             </div>
 
             {canEdit ? (
               // The generic renderer, inline rather than in a dialog: the
-              // formula above is the preview, and it has to be in view while the
-              // weights change.
+              // ranking below is the preview, and it has to be in view while the
+              // weights move.
               <FormRenderer
                 descriptor={descriptor}
                 form={form}
@@ -243,27 +286,27 @@ function ArbitrationView() {
                 ))}
               </dl>
             )}
+
+            <div className="mt-5 border-t border-border pt-4">
+              {scenario.isLoading ? (
+                <LoadingState label="Ranking the scenario" />
+              ) : scenario.error ? (
+                <ErrorState description={(scenario.error as Error).message} onRetry={() => scenario.refetch()} />
+              ) : preview && preview.rows.length > 0 ? (
+                <RankingPreview scenarioName={preview.name} rows={preview.rows} moved={preview.moved} ties={preview.ties} />
+              ) : (
+                <p className="text-label text-content-muted">Nothing reaches ranking in the scenario, so there is no order to show.</p>
+              )}
+            </div>
           </CardBody>
         </Card>
       </div>
 
       <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Metric label="Active boosts" value={boosts.length} />
-        <Metric
-          label="Boosting"
-          value={boosts.filter((l) => l.value > 1).length}
-          tone="pass"
-        />
-        <Metric
-          label="Suppressing"
-          value={boosts.filter((l) => l.value < 1).length}
-          tone="hold"
-        />
-        <Metric
-          label="Time-boxed"
-          value={boosts.filter((l) => l.validity).length}
-          sub="expire automatically"
-        />
+        <Metric label="Boosting" value={boosts.filter((l) => l.value > 1).length} tone="pass" />
+        <Metric label="Suppressing" value={boosts.filter((l) => l.value < 1).length} tone="hold" />
+        <Metric label="Time-boxed" value={boosts.filter((l) => l.validity).length} sub="expire automatically" />
       </div>
 
       <Card>

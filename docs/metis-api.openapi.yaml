@@ -1145,6 +1145,68 @@ components:
         updatedAt: { type: string, format: date-time }
         updatedBy: { type: string }
 
+    ArbitrationScenario:
+      type: object
+      description: >
+        One scenario run down the decision path and stopped before anything is
+        recorded: each candidate that reached ranking, with the five terms the
+        engine scored it on, beside the live weights and ranking function.
+        Weights enter a ranking only after scoring, so ranking these terms under
+        any weights gives the order a decision would. Ties are equal priorities
+        after the engine's rounding, which the engine orders by offer key.
+      required: [scenario, flow, utility, weights, candidates, defaulted]
+      properties:
+        scenario:
+          type: object
+          required: [id, name, description, placementKey, channel]
+          properties:
+            id: { type: string }
+            name: { type: string }
+            description: { type: string }
+            placementKey: { type: string }
+            channel: { type: string }
+        flow:
+          type: object
+          required: [id, version]
+          properties:
+            id: { type: string }
+            version: { type: string }
+        utility:
+          type: object
+          required: [id, version]
+          properties:
+            id: { type: string }
+            version: { type: string }
+        weights:
+          type: object
+          required: [propensity, value, boost, context]
+          properties:
+            propensity: { type: number }
+            value: { type: number }
+            boost: { type: number }
+            context: { type: number }
+        candidates:
+          type: array
+          items:
+            type: object
+            required: [key, name, terms]
+            properties:
+              key: { type: string }
+              name: { type: string }
+              terms:
+                type: object
+                required: [propensity, value, boost, context, cost]
+                properties:
+                  propensity: { type: number }
+                  value: { type: number }
+                  boost: { type: number }
+                  context: { type: number }
+                  cost: { type: number }
+        defaulted:
+          type: array
+          description: Keys whose propensity and context are the flow's declared defaults, not a model's output.
+          items: { type: string }
+
     Boost:
       type: object
       required:
@@ -1833,6 +1895,29 @@ components:
           oneOf:
             - $ref: '#/components/schemas/ChangeSetSimulation'
             - type: 'null'
+
+    ChangeSetProposal:
+      type: object
+      description: >
+        What a proposer chooses. The server assigns the id, who asked, when, and
+        the pending status, and checks every `before` against what is live.
+      required: [title, description, changeType, diff]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        changeType:
+          type: string
+          description: Only `arbitration_weights` is accepted today.
+        diff:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [field, before, after]
+            properties:
+              field: { type: string, example: weights.boost }
+              before: { type: string, example: '1' }
+              after: { type: string, example: '0' }
 
     AuditEvent:
       type: object
@@ -3751,6 +3836,22 @@ paths:
         '403':
           description: Caller lacks edit:arbitration
 
+  /arbitration/{tenantId}/scenario:
+    get:
+      summary: A scenario's candidates and the terms they rank on, without deciding
+      operationId: getArbitrationScenario
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: The scenario, its candidates' terms, and the live weights
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArbitrationScenario'
+        '404':
+          description: The scenario's placement, or the flow that answers it, does not exist
+
   # ---------------------------------------------------------------------------
   # Agentic AI
   # ---------------------------------------------------------------------------
@@ -4133,14 +4234,14 @@ paths:
                     type: integer
 
     post:
-      summary: Propose a change
+      summary: Propose a change, publishing nothing
       operationId: createChangeSet
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ChangeSet'
+              $ref: '#/components/schemas/ChangeSetProposal'
       responses:
         '201':
           description: Created, pending approval
@@ -4148,6 +4249,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ChangeSet'
+        '400':
+          description: A change type the console cannot raise, or a diff that changes nothing or is out of range
+        '403':
+          description: Caller lacks the permission the change needs (edit:arbitration for weights)
+        '409':
+          description: A `before` no longer matches what is live
 
   /change-sets/{changeSetId}:
     get:

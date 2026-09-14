@@ -615,6 +615,45 @@ export interface ArbitrationConfig {
   updatedBy: string;
 }
 
+/** One scenario run down the decision path and stopped before anything is recorded: each candidate that reached ranking, with the five terms the engine scored it on, beside the live weights and ranking function. Weights enter a ranking only after scoring, so ranking these terms under any weights gives the order a decision would. Ties are equal priorities after the engine's rounding, which the engine orders by offer key.
+ */
+export interface ArbitrationScenario {
+  scenario: {
+    id: string;
+    name: string;
+    description: string;
+    placementKey: string;
+    channel: string;
+  };
+  flow: {
+    id: string;
+    version: string;
+  };
+  utility: {
+    id: string;
+    version: string;
+  };
+  weights: {
+    propensity: number;
+    value: number;
+    boost: number;
+    context: number;
+  };
+  candidates: {
+    key: string;
+    name: string;
+    terms: {
+      propensity: number;
+      value: number;
+      boost: number;
+      context: number;
+      cost: number;
+    };
+  }[];
+  /** Keys whose propensity and context are the flow's declared defaults, not a model's output. */
+  defaulted: string[];
+}
+
 export interface Boost {
   id: string;
   name: string;
@@ -928,6 +967,20 @@ export interface ChangeSet {
     after: string;
   }[];
   simulation: ChangeSetSimulation | null;
+}
+
+/** What a proposer chooses. The server assigns the id, who asked, when, and the pending status, and checks every `before` against what is live.
+ */
+export interface ChangeSetProposal {
+  title: string;
+  description: string;
+  /** Only `arbitration_weights` is accepted today. */
+  changeType: string;
+  diff: {
+    field: string;
+    before: string;
+    after: string;
+  }[];
 }
 
 /** One entry in the append-only log. Every write produces one. */
@@ -1443,7 +1496,7 @@ export const OPERATIONS = {
     path: '/change-sets',
     pathParams: [],
     queryParams: [],
-    statuses: ['201'],
+    statuses: ['201', '400', '403', '409'],
   },
   createCreative: {
     method: 'POST',
@@ -1535,6 +1588,13 @@ export const OPERATIONS = {
     pathParams: ['tenantId'],
     queryParams: [],
     statuses: ['200'],
+  },
+  getArbitrationScenario: {
+    method: 'GET',
+    path: '/arbitration/{tenantId}/scenario',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['200', '404'],
   },
   getArtifactSummary: {
     method: 'GET',
@@ -1965,9 +2025,9 @@ export type ClearInboundCallsResponse = {
 export type CreateCategoryResponse = Category;
 export type CreateCategoryRequest = Category;
 
-/** Propose a change */
+/** Propose a change, publishing nothing */
 export type CreateChangeSetResponse = ChangeSet;
-export type CreateChangeSetRequest = ChangeSet;
+export type CreateChangeSetRequest = ChangeSetProposal;
 
 /** Add a creative to an offer */
 export type CreateCreativeResponse = Creative;
@@ -2080,6 +2140,9 @@ export type GetArbitrationConfigResponse = {
   config: ArbitrationConfig;
   boosts: Boost[];
 };
+
+/** A scenario's candidates and the terms they rank on, without deciding */
+export type GetArbitrationScenarioResponse = ArbitrationScenario;
 
 /** One flow, with its graph and full compiler output */
 export type GetArtifactSummaryResponse = ArtifactSummary;
@@ -2427,6 +2490,7 @@ export interface ResponseOf {
   deleteTargetingPolicy: DeleteTargetingPolicyResponse;
   executeDecision: ExecuteDecisionResponse;
   getArbitrationConfig: GetArbitrationConfigResponse;
+  getArbitrationScenario: GetArbitrationScenarioResponse;
   getArtifactSummary: GetArtifactSummaryResponse;
   getChangeSet: GetChangeSetResponse;
   getConformance: GetConformanceResponse;

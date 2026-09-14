@@ -44,6 +44,38 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-122 — The arbitration weights API still publishes without a change set
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found when `/arbitration` moved to raising change sets
+
+Since 2026-09-14 moving a weight on `/arbitration` changes a preview and
+nothing else, and the screen raises a change set that changes the weights only
+once somebody approves it. The operation the screen used to call is still
+built: `PUT /api/arbitration/{tenantId}` (`updateArbitrationConfig`) writes the
+weights directly for any account holding `edit:arbitration`. It is audited, as
+`ArbitrationWeightsChanged`, and approved by nobody.
+
+So "nothing publishes until a change set is raised" holds for the screen and
+not for the platform. `apps/console/tests/e2e/permissions-and-writes.spec.ts`
+holds the bypass on purpose — `the weights API still publishes directly,
+outside any change set` — so it is a check that names it rather than an absence
+nobody mentions.
+
+Two narrower edges of the same slice:
+
+- **Only `arbitration_weights` change sets can be raised.** `createChangeSet`
+  refuses every other change type with a 400, because the console has nowhere
+  else to raise one from and approval applies only a handful of types.
+- **`createChangeSet` was credited to a test that never called it.** Until this
+  slice the operation answered 404, and `contract.spec.ts`'s coverage map
+  pointed at a test whose `covers: createChangeSet` comment sat on an approval
+  of a seeded change set — the `createOffer` defect that file describes, again.
+  The comment now sits on a test that raises one.
+
+**Done when:** `updateArbitrationConfig` either requires an approved change set
+or leaves the built surface. Which one is a decision for the product owner, not
+this register.
+
 ### G-121 — Parts of the console still judge flows by the fixtures
 
 **Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found when the console moved its flows onto the registry
