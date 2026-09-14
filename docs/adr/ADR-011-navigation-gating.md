@@ -71,7 +71,7 @@ It was rejected for three reasons:
 - **It made built work unreachable.** `/experiments` for every account, and
   Evidence for the administrator. A route with no path to it from navigation is
   the defect the generated rail exists to make impossible, and
-  `nav.test.ts › the administrator reaches every route the rail can express` is
+  `apps/console/tests/unit/nav.test.ts` › `the administrator reaches every route the rail can express` is
   the test that caught it.
 
 - **It couples navigation to the fixture roster.** The fix under strict gating
@@ -100,5 +100,5 @@ for each of ninety screens, most of which do not exist yet.
   server's permission checks are.
 - A future Data Scientist fixture account should hold `analyst`. Until one
   exists, Intelligence is reachable only by the administrator, and
-  `nav-rail.stories.tsx › Operator — nothing built for this persona yet` shows
+  `apps/console/components/nav-rail.stories.tsx` › `Operator — nothing built for this persona yet` shows
   what an unserved persona's rail honestly looks like.

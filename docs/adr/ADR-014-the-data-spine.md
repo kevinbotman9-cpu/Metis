@@ -16,7 +16,7 @@ hash. From that date, every slice touching consent, contact points or model
 features is inventing the shape this ADR exists to fix.
 **Constrains:** `packages/core/src/profile-schema.ts` and `intake.ts`;
 `resolveInputs` and `resolveAggregations`; the console's decide path
-(`apps/console/app/api/[...path]/route.ts:559-633`); `DecisionRequest.consent`
+(`apps/console/app/api/[...path]/route.ts` › `Integrations resolve here, before the deterministic core`); `DecisionRequest.consent`
 and the consent default in both engines; `CatalogueSnapshot` and
 `DeterministicDecision`, and therefore every chain hash; `packages/ledger`;
 `ScoringContext`; the recipient in ADR-013 §3; the `feature-store` connector
@@ -44,18 +44,18 @@ them — a place where a value is held against a customer — does not.
 ### One attribute, hop by hop
 
 Follow `customer.credit_status`, which `pol_credit_pass` reads
-(`apps/console/mocks/fixtures/catalogue.ts:801-812`), from a system that knows
+(`apps/console/mocks/fixtures/catalogue.ts` › `id: 'pol_credit_pass'` @ `7eb765997`), from a system that knows
 it to the rule that uses it.
 
 | Hop | What the value needs | What the code does | Where it breaks |
 |---|---|---|---|
-| 1. Declared | A field in a model the tenant owns, versioned | One `ProfileSchema` in `apps/console/mocks/fixtures/profile-schema.ts`, root `DecisionInput` (`:38`), `version: '1.0.0'` typed by hand. `getProfileSchema` is the only operation | Not in `CatalogueSnapshot` (`packages/runtime/src/deterministic/types.ts:118-133`), so no decision names the model it was read against. Adding a field is an edit under `apps/console/mocks`. The Kotlin engine has no schema at all |
-| 2. Arrives | A path from a source system into the platform | Intake lands a pasted JSON array (`apps/console/app/data-model/intake/page.tsx:321-325`) into an in-memory `Map` capped at 5,000 rows (`route.ts:189`, `:1903-1905`). `kind: file` is a label; the spec has no upload (G-011) | `DataSourceDefinition` has no key column (`packages/core/src/intake.ts:69-87`), so a landed row describes nobody. Activation sets `status = 'active'` (`route.ts:1952`) and nothing reads an active source |
+| 1. Declared | A field in a model the tenant owns, versioned | One `ProfileSchema` in `apps/console/mocks/fixtures/profile-schema.ts`, root `DecisionInput` (`apps/console/mocks/fixtures/profile-schema.ts` › `root: 'DecisionInput'` @ `7eb765997`), `version: '1.0.0'` typed by hand. `getProfileSchema` is the only operation | Not in `CatalogueSnapshot` (`packages/runtime/src/deterministic/types.ts` › `export interface CatalogueSnapshot`), so no decision names the model it was read against. Adding a field is an edit under `apps/console/mocks`. The Kotlin engine has no schema at all |
+| 2. Arrives | A path from a source system into the platform | Intake lands a pasted JSON array (`apps/console/app/data-model/intake/page.tsx` › `const parsePaste`) into an in-memory `Map` capped at 5,000 rows (`apps/console/app/api/[...path]/route.ts` › `MAX_LANDED_ROWS = 5000`, `.slice(0, MAX_LANDED_ROWS)`). `kind: file` is a label; the spec has no upload (G-011) | `DataSourceDefinition` has no key column (`packages/core/src/intake.ts` › `export interface DataSourceDefinition`), so a landed row describes nobody. Activation sets `status = 'active'` (`apps/console/app/api/[...path]/route.ts` › `source.status = 'active'`) and nothing reads an active source |
 | 3. Held | A value stored against a customer | Nothing | No profile store. `redis` is declared in `docker-compose.yml` and no client exists anywhere in the tree |
 | 4. Found | The customer identified | `customerId`, a string the caller chooses | No resolution. One person's anonymous and signed-in sessions are two unrelated subjects |
-| 5. Resolved | Read before the core, hashed | `resolveInputs` merges connector fields, and the request wins over them (`packages/runtime/src/integration/resolve.ts:296-309`) | The only store it can read is the request body |
-| 6. Evaluated | The rule reads a real value | `readPath` over `request.input` | The value is what the caller typed: a hash in the seeded corpus (`apps/console/mocks/fixtures/engine.ts:259`), a literal in the storefront (`apps/console/public/storefront/index.html:534`) |
-| 7. Recorded | What was read, from where, as of when | `inputSnapshotHash` (`types.ts:277`) and connector bindings | Values are not retained (G-009), a source call has no `computedAt` (G-056), and no schema version is recorded |
+| 5. Resolved | Read before the core, hashed | `resolveInputs` merges connector fields, and the request wins over them (`packages/runtime/src/integration/resolve.ts` › `The request wins`) | The only store it can read is the request body |
+| 6. Evaluated | The rule reads a real value | `readPath` over `request.input` | The value is what the caller typed: a hash in the seeded corpus (`apps/console/mocks/fixtures/engine.ts` › `credit_status: r('credit')` @ `7eb765997`), a literal in the storefront (`apps/console/public/storefront/index.html` › `credit_status: 'pass'` @ `7eb765997`) |
+| 7. Recorded | What was read, from where, as of when | `inputSnapshotHash` (`packages/runtime/src/deterministic/types.ts` › `inputSnapshotHash`) and connector bindings | Values are not retained (G-009), a source call has no `computedAt` (G-056), and no schema version is recorded |
 
 Hop 3 is the break, and every other break points back at it. Intake cannot put a
 value there because a landed row does not say whose it is. Identity cannot be
@@ -67,26 +67,26 @@ feature to read from it, and delivery has no contact point to find in it.
 
 **The model plane has no features.** `ScoringContext` is
 `{ tenantId, customerId, offerKey, modelKey }`
-(`packages/runtime/src/scoring/index.ts:39-46`). ADR-009 §5 has a model declare
+(`packages/runtime/src/scoring/index.ts` › `export interface ScoringContext`). ADR-009 §5 has a model declare
 its features as paths into the profile schema. The paths exist; their values
 exist only in a request body. A model imported tomorrow would be scored on
 whatever a caller typed or, in the seeded tenant, on a hash.
 
 **Delivery has no recipient.** Hop 1 has no contact point in it. `Address` is
 *"the service address, and what the network can deliver there"*
-(`profile-schema.ts:199-205`). ADR-013 §3 has the adapter take a `recipient`
+(`apps/console/mocks/fixtures/profile-schema.ts` › `The service address, and what the network can deliver there`). ADR-013 §3 has the adapter take a `recipient`
 *"resolved outside the adapter"*, and outside the adapter there is nothing to
 resolve it from.
 
 **Eligibility runs on fixtures.** The tenant has eleven targeting policies
-(`catalogue.ts:790-915`). All eleven read caller-supplied grouped fields —
+(`apps/console/mocks/fixtures/catalogue.ts` › `id: 'pol_age_18'` @ `7eb765997`). All eleven read caller-supplied grouped fields —
 `customer.*`, `address.*`, `usage.*`, `contract.*`, `events.*`, `device.*`,
 `offer.*`. Not one reads any of the eight fields the connectors resolve
-(`catalogue.ts:1262-1355`). In the seeded corpus every caller field is
-`seededUnitInterval` (`fixtures/engine.ts:256-276`). In the storefront they are
+(`apps/console/mocks/fixtures/catalogue.ts` › `export const connectors: Connector[]`). In the seeded corpus every caller field is
+`seededUnitInterval` (`apps/console/mocks/fixtures/engine.ts` › `credit_status: r('credit')` @ `7eb765997`). In the storefront they are
 literals, and the preset labelled *"Anonymous visitor"* carries
 `credit_status: 'pass'`, an age and a bill-to-income ratio
-(`index.html:527-541`) — three things no website knows about somebody who has
+(`apps/console/public/storefront/index.html` › `Anonymous visitor — fibre at the address` @ `7eb765997`) — three things no website knows about somebody who has
 not signed in.
 
 ### Consent: a fail-closed source wired to nothing, and a fail-open check
@@ -94,22 +94,22 @@ not signed in.
 The most serious thing the trace found. Registered as
 [G-065](../gaps.md).
 
-- The engine enforces `request.consent` (`packages/runtime/src/deterministic/engine.ts:460`).
+- The engine enforces `request.consent` (`packages/runtime/src/deterministic/engine.ts` › `request.consent`).
   When the request carries none it substitutes
-  `{ marketing: true, profiling: true, thirdParty: false }` (`engine.ts:302`).
+  `{ marketing: true, profiling: true, thirdParty: false }` (`packages/runtime/src/deterministic/engine.ts` › `request.consent ?? { marketing: true, profiling: true, thirdParty: false }` @ `7eb765997`).
   The Kotlin engine does the same
-  (`engines/kotlin/engine/src/main/kotlin/com/metis/engine/Engine.kt:247`).
+  (`engines/kotlin/engine/src/main/kotlin/com/metis/engine/Engine.kt` › `request.consent ?: Consent(marketing = true, profiling = true, thirdParty = false)` @ `7eb765997`).
   **Absent consent is granted.**
-- `consentState` in the hashed decision (`engine.ts:689`) then records the
+- `consentState` in the hashed decision (`packages/runtime/src/deterministic/engine.ts` › `consentState: consent`) then records the
   default as though somebody had stated it. A regulator reading the trace is
   told marketing consent was given.
 - `conn_consent_registry` is configured to fail closed, `defaultValue: false`,
   *"because assuming consent is the one mistake with a regulator attached"*
-  (`catalogue.ts:1302-1320`). Its `marketingConsent` is fetched, hashed into the
+  (`apps/console/mocks/fixtures/catalogue.ts` › `the one mistake with a regulator attached`). Its `marketingConsent` is fetched, hashed into the
   input snapshot, and read by nothing: no policy names it, and the engine's
   consent check never looks at it.
 - In the storefront, consent is three checkboxes the visitor ticks
-  (`index.html:441-443`, `:644-648`).
+  (`apps/console/public/storefront/index.html` › `id="c-marketing"`, `marketing: $('#c-marketing').checked`).
 - 26 of the 27 cases in `docs/conformance/decision-corpus.json` carry no
   `consent`. The cross-engine conformance corpus demonstrates agreement on a
   consent state nobody supplied.
@@ -122,42 +122,42 @@ they are not connected. The capability map's consent row states its limit as
 ### Smaller breaks found on the way
 
 - **The rollup's one safeguard is dropped at its only call site.**
-  `packages/runtime/src/integration/aggregate.ts:38-45` carries `unresolved` so
+  `packages/runtime/src/integration/aggregate.ts` › `Aggregations that produced nothing, and why` carries `unresolved` so
   that *"this customer has no accounts in arrears"* and *"we never loaded their
-  accounts"* stay distinguishable. `route.ts:606` computes it and `:622` reads
+  accounts"* stay distinguishable. `apps/console/app/api/[...path]/route.ts` › `resolveAggregations(` computes it and `apps/console/app/api/[...path]/route.ts` › `rolled.values` reads
   only `.values`. Both declared aggregations read `customer.accounts`, which no
   preset, seed or source populates, so both resolve to nothing on every decision
   and nothing records that they did. The fixture says this is *"registered in
-  docs/gaps.md"* (`profile-schema.ts:31-32`). It was not; it is now
+  docs/gaps.md"* (`apps/console/mocks/fixtures/profile-schema.ts` › `registered in docs/gaps.md`). It was not; it is now
   [G-066](../gaps.md).
 - **The capability map's rollup row names the wrong checks.** The row
   *"Aggregations over history resolved at decision time"* names `usage becomes
-  decision input` — `packages/core/tests/volume.test.ts:78`, a test of
+  decision input` — `packages/core/tests/volume.test.ts` › `usage becomes decision input`, a test of
   `resolveVolume`, which nothing outside its own test imports — and `merging
   into the input`, which tests the merge helper alone. The test that exercises
   the wiring, `a rollup decides`
-  (`apps/console/tests/unit/aggregation-decision.test.ts:62`), is not named, and
+  (`apps/console/tests/unit/aggregation-decision.test.ts` › `a rollup decides`), is not named, and
   there is no history for the rollups to be over. [G-067](../gaps.md).
 - **Intake's activation changes one field.** `activateDataSource` sets a status
-  and writes an audit entry (`route.ts:1952-1961`); the only reads of landed rows
-  are the landing and validation handlers (`:1903`, `:1931`). `intake.ts:27` is
+  and writes an audit entry (`apps/console/app/api/[...path]/route.ts` › `source.status = 'active'`); the only reads of landed rows
+  are the landing and validation handlers (`apps/console/app/api/[...path]/route.ts` › `.slice(0, MAX_LANDED_ROWS)`, `validateRows(`). `packages/core/src/intake.ts` › `It does not store anything` is
   candid — *"It does not store anything"* — and the capability map's row, which
   lists activation, is not.
 - **The ledger is not pseudonymous.** `subjectHash` is an unkeyed sha256 of
-  `tenantId:customerRef` (`packages/ledger/src/ledger.ts:62-64`), over ids that
+  `tenantId:customerRef` (`packages/ledger/src/ledger.ts` › `export function subjectHash`), over ids that
   are `cust_` plus a base-36 counter and so can be enumerated. And the `record`
   column beside it holds the whole `DecisionRecord`
-  (`packages/ledger/src/types.ts:39-40`), whose hashed `customerRef` is the raw
-  `customerId` (`engine.ts:659`). ADR-004, lines 88–89: *"the ledger already
+  (`packages/ledger/src/types.ts` › `record: DecisionRecord`), whose hashed `customerRef` is the raw
+  `customerId` (`packages/runtime/src/deterministic/engine.ts` › `customerRef: request.customerId`). ADR-004, lines 88–89: *"the ledger already
   hashes the customer reference per tenant, so the subject is pseudonymous."* It
   does not, in the one column that holds everything else. [G-068](../gaps.md).
 - **A per-candidate fact supplied once per request.** `pol_afford_retention` —
   *"a retention offer must reduce, not increase, the customer bill"* — reads
-  `offer.monthly_delta` (`catalogue.ts:884-893`): one number for the request,
+  `offer.monthly_delta` (`apps/console/mocks/fixtures/catalogue.ts` › `id: 'pol_afford_retention'` @ `7eb765997`): one number for the request,
   applied to every retention candidate. In the seed it is a coin flip,
-  `r('delta') > 0.5 ? -500 : 300` (`fixtures/engine.ts:275`). A suitability rule
+  `r('delta') > 0.5 ? -500 : 300` (`apps/console/mocks/fixtures/engine.ts` › `monthly_delta: r('delta') > 0.5 ? -500 : 300` @ `7eb765997`). A suitability rule
   on the FCA-facing tier is evaluated per decision, not per offer. The schema
-  describes the field faithfully (`profile-schema.ts:255-267`), which is the
+  describes the field faithfully (`apps/console/mocks/fixtures/profile-schema.ts` › `name: 'OfferContext'`), which is the
   problem: it has no way to say *per candidate*.
 
 The consent default, the dropped rollups, the capability row and the ledger are
@@ -169,10 +169,10 @@ lost.
 
 - `ProfileSchema` as a contract — entities, typed fields, sensitivity, one and
   many relationships, declared aggregations — and the compiler's full-path, type
-  and enum checks against it (`packages/compiler/src/decision-flow/compile.ts:844-860`).
+  and enum checks against it (`packages/compiler/src/decision-flow/compile.ts` › `if (ctx.profileSchema)`).
   `docs/review/DATA_MODEL_DESIGN.md` §2 still holds: relationships are for the
   modeller, and a rule sees a flat typed path.
-- Intake's land, map, validate and report (`intake.ts:105-426`). Pure, total,
+- Intake's land, map, validate and report (`packages/core/src/intake.ts` › `applyTransform`, `mapRow`, `validateRows`). Pure, total,
   reported by column. It is the right mapping stage with no destination and no
   key.
 - The resolution phase — `resolveInputs`, `resolveScores` — as the only place a
@@ -180,7 +180,7 @@ lost.
   Every read this ADR adds goes there.
 - The ledger already holds decisions, outcomes and delivery attempts, bound by
   decision id, with an index on `(tenant_id, subject_hash, occurred_at DESC)`
-  (`packages/ledger/migrations/001_ledger.sql:45-46`). That index is an
+  (`packages/ledger/migrations/001_ledger.sql` › `decision_records_by_subject`, `(tenant_id, subject_hash, occurred_at DESC)`). That index is an
   interaction history's access path, and no decision uses it.
 
 ### Already decided, and binding here
@@ -251,9 +251,9 @@ it belongs with whoever sees every identifier. METIS does not.
 ### 2. The data model: profile and request separated, versioned, and named by the decision
 
 **Two roots, and an origin on every field.** Today's root is `DecisionInput`
-(`profile-schema.ts:38`): a model of a request body, not of a customer, and the
+(`apps/console/mocks/fixtures/profile-schema.ts` › `root: 'DecisionInput'` @ `7eb765997`): a model of a request body, not of a customer, and the
 fixture's header says so — *"modelled as it is rather than as it should be"*
-(`:12-23`). It becomes:
+(`apps/console/mocks/fixtures/profile-schema.ts` › `Modelled as it is rather than as it should be` @ `7eb765997`). It becomes:
 
 - **`Customer`**, the profile: fields held against a subject, written only by
   ingestion.
@@ -277,7 +277,7 @@ chain hash once, in both engines; `DATA_MODEL_DESIGN.md` §3.1 priced it and sai
 to pay it before the store is populated, and that advice stands.
 
 **Editable from the screen.** `ProfileSchema` and `DataSource` join
-`USER_EDITABLE_ENTITIES` (`packages/ui-metadata/src/registry/index.ts:41-57`),
+`USER_EDITABLE_ENTITIES` (`packages/ui-metadata/src/registry/index.ts` › `USER_EDITABLE_ENTITIES`),
 where neither appears today, so the descriptor check can see them. Adding a
 customer attribute is currently an edit to a file under `apps/console/mocks` —
 Rule 8's vendor ticket, on the one entity where a customer adding a field is the
@@ -335,7 +335,7 @@ presence as intent, which is the argument for deleting it.
 ### 4. A caller may narrow a decision, never widen it
 
 The rule that makes the store matter. `resolveInputs` lets the request win over
-anything resolved (`resolve.ts:296-298`). That is how an anonymous visitor
+anything resolved (`packages/runtime/src/integration/resolve.ts` › `The request wins`). That is how an anonymous visitor
 carries a credit status, and how a checkbox grants consent.
 
 - **A `profile`, `consent` or `interaction` field cannot be supplied on the
@@ -362,7 +362,7 @@ input_required` path (G-009) is already labelled as supplied.
 `{ subjectId, sourceRef, asOf, values }` from a named data source. Idempotent on
 `sourceRef`. Per field, the latest `asOf` wins, never the latest arrival —
 webhook destinations deliver out of order as a matter of course. Records pass
-through the existing `mapRow` and `validateRows` (`intake.ts:229-382`), so a
+through the existing `mapRow` and `validateRows` (`packages/core/src/intake.ts` › `mapRow`, `validateRows`), so a
 record that violates the schema is refused with the per-column report that
 already exists; taxonomy 1.1 is met by code already written.
 
@@ -399,7 +399,7 @@ data source that wrote it, which is W-010's done-when.
   tenant-keyed pseudonym — never the raw id, never an unkeyed hash. A key per
   tenant alone is not enough: it would let anyone holding it find an erased
   person's rows. The same amendment settles `customerRef` in the hashed decision
-  (`engine.ts:659`): the stored record becomes ciphertext under the subject key,
+  (`packages/runtime/src/deterministic/engine.ts` › `customerRef: request.customerId`): the stored record becomes ciphertext under the subject key,
   so the field may stay and no chain hash moves. Both must be in place before the
   store is keyed, because the ledger's append-only triggers make the first real
   row the last chance to change either.
@@ -412,7 +412,7 @@ and never holds the record. It arrives as `consent`-class fields — per purpose
 (2.1, 2.2) — each with its `asOf`, through ingestion (§5) or a consent connector
 like the one already configured.
 
-1. **Absent is withheld.** The default at `engine.ts:302` and `Engine.kt:247`
+1. **Absent is withheld.** The default at `packages/runtime/src/deterministic/engine.ts` › `request.consent ?? { marketing: true, profiling: true, thirdParty: false }` @ `7eb765997` and `engines/kotlin/engine/src/main/kotlin/com/metis/engine/Engine.kt` › `request.consent ?: Consent(marketing = true, profiling = true, thirdParty = false)` @ `7eb765997`
    flips. `consentState` becomes, per purpose, `granted | withheld | absent`;
    `absent` is enforced as `withheld` and recorded as itself, so a trace stops
    claiming consent nobody gave. *Landed 2026-09-13 in both engines, with every
@@ -503,7 +503,7 @@ of it: the same code on a different schedule, which is the equivalence W-019
 already demands of the artifact.
 
 **The `feature-store` connector kind is retired.** Nothing serves it, and the
-live gateway refuses it by name (`packages/runtime/src/integration/http-gateway.ts:118-126`).
+live gateway refuses it by name (`packages/runtime/src/integration/http-gateway.ts` › `case 'feature-store':`).
 `conn_billing_ledger` and `conn_network_usage` become data sources feeding
 `profile` fields.
 
@@ -512,7 +512,7 @@ live gateway refuses it by name (`packages/runtime/src/integration/http-gateway.
 **W-011 is a per-subject read over the ledger, not a new store.** The ledger
 already holds what W-011 describes — decisions, outcomes and delivery attempts,
 bound by decision id, indexed by subject and time — and none of it is read back
-into a decision. `contactHistory` is supplied by the caller (`engine.ts:442`), so
+into a decision. `contactHistory` is supplied by the caller (`packages/runtime/src/deterministic/engine.ts` › `request.contactHistory?.withinPeriod`), so
 a website reports how often it has shown an offer and cannot know about any
 other channel.
 

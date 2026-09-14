@@ -34,7 +34,7 @@ four `[id]` routes.
 
 The rule is a **substring match**. `checkLayoutManifests` reads every `.json` and
 `.ts` file under `packages/ui-metadata/layouts` into one string, and passes a route
-if its path appears anywhere in it (`scripts/conformance.mjs:162`, `:176`). A
+if its path appears anywhere in it (`scripts/conformance.mjs` › `walk(CONFIG.layoutManifestDir`, `manifests.includes(routePath)` @ `da0a2b56f`). A
 single file holding twenty-one route strings, read by nothing, would clear every
 failure. That is exactly the format `CLAUDE.md` forbids inventing to move a
 number. It is recorded here so nobody does it, and because **the check has to
@@ -100,7 +100,7 @@ template (ADR-006). A descriptor is **data with no React in it**
 drift check fails when a descriptor and its OpenAPI schema disagree in either
 direction. A `PENDING` list admits, with a reason each, the entities still
 waiting. Data a descriptor needs from elsewhere is named rather than queried —
-`OptionSource` (`types.ts:75`) — so the descriptor stays data.
+`OptionSource` (`packages/ui-metadata/src/types.ts` › `export interface OptionSource`) — so the descriptor stays data.
 
 What the precedent did **not** do matters as much for §7 and §8. ADR-006 §2 says
 schemas are *"served through the API"*. They are not: the OpenAPI spec has no
@@ -201,7 +201,7 @@ pages that exist today in code.
   host resolves the name to a generated-client call, as `OptionSource` is resolved
   today, so a manifest can never call `fetch` (Rule 2) and stays data.
 - **No permission and no persona.** `apps/console/lib/nav/route-permissions.ts`
-  and `PERSONA_MANIFEST` (`apps/console/lib/nav/persona-manifest.ts:74`) are the single sources
+  and `PERSONA_MANIFEST` (`apps/console/lib/nav/persona-manifest.ts` › `PERSONA_MANIFEST`) are the single sources
   ADR-011 established, and the check joins them rather than copying them. That
   removes "persona" from §2's list of what a manifest holds.
 - **Labels inline**, as descriptors' are. When ADR-005's catalogue exists they

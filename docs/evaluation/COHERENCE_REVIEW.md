@@ -49,7 +49,7 @@ thing in this product and it works exactly as promised.
 
 It then stops. The `Export PDF` and `Export JSON` buttons at the top of that
 page are `<Button>` elements with **no `onClick` handler at all**
-(`apps/console/app/decisions/[id]/page.tsx:117-123`). They are enabled, styled
+(`apps/console/app/decisions/[id]/page.tsx` › `Export PDF`). They are enabled, styled
 identically to working controls, and do nothing when clicked — no download, no
 dialog, no console error. The U2 gate in the Experience Layer plan reads: *"a
 compliance officer can find a decision from a date range, understand why the
@@ -123,9 +123,9 @@ The path works. Three breaks around it.
 **a. `New flow` is an enabled dead control.** On `/decision-flows`, the primary
 action on the Decision Architect's own list screen is
 `<Button variant="primary">New flow</Button>` with no handler
-(`app/decision-flows/page.tsx:195`). Verified live: `disabled=false`, clicking
+(`apps/console/app/decision-flows/page.tsx` › `New flow`). Verified live: `disabled=false`, clicking
 does nothing. `Version history` and `Export DIR` on the flow detail page are the
-same (`app/decision-flows/[id]/page.tsx:106,109`).
+same (`apps/console/app/decision-flows/[id]/page.tsx` › `Version history`, `Export DIR`).
 
 **b. The map says this path does not exist.** `docs/CAPABILITIES.md` states, in
 a section headed *"Authoring, which is worth stating plainly"*: **"The canvas is
@@ -181,7 +181,7 @@ still dead at both ends — nothing delivers a message, so nothing can report on
 **Three persistence stores are producers with no consumer.** PostgreSQL-backed
 registry, ledger and catalogue, each with migrations, dual implementations and a
 shared behaviour suite. The only non-test caller is
-`packages/portability/src/cli.ts:17-19`. The console reads an in-process store
+`packages/portability/src/cli.ts` › `createRegistryStore`, `createLedgerStore`, `createCatalogueStore`. The console reads an in-process store
 instead. Nothing a person can click reaches any of them.
 
 **`packages/nodes-core` is imported by nothing** — 445 lines of operator
@@ -224,7 +224,7 @@ ranking-weight change persists, is audited, and changes no decision."* Both
 sentences are in the repository today and only one is true.
 
 **4. Where a gap is registered.** `docs/gaps.md` holds ten W-numbers;
-`docs/BACKLOG.md` holds fifty-one. `engine.ts:522` and `artifacts.ts:147` both
+`docs/BACKLOG.md` holds fifty-one. `packages/runtime/src/deterministic/engine.ts` › `not a trained model (W-029)` and `apps/console/mocks/fixtures/artifacts.ts` › `W-029` @ `956af3355` both
 send a reader to W-029, which is in the backlog and not in the gap register that
 `CLAUDE.md` names as the place to look.
 

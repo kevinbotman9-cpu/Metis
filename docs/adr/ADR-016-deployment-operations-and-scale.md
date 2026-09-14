@@ -37,10 +37,10 @@ artefact 3 pointed at an empty directory.
 The decision operations are served by `apps/console/app/api/[...path]/route.ts`.
 That route imports its state from `@/mocks/store`. In practice:
 
-- The registry is always in memory. `store.ts:152` builds an
-  `InMemoryRegistryStore` whatever `METIS_DATABASE_URL` says, and `store.ts:301`
+- The registry is always in memory. `apps/console/mocks/store.ts` › `const registryStore = new InMemoryRegistryStore()` @ `f94c5e49d` builds an
+  `InMemoryRegistryStore` whatever `METIS_DATABASE_URL` says, and `apps/console/mocks/store.ts` › `'production', artifact.updatedBy` @ `f94c5e49d`
   promotes the fixture artifacts to `'production'` at every start.
-- Only the ledger reaches Postgres (`store.ts:229`).
+- Only the ledger reaches Postgres (`apps/console/mocks/store.ts` › `built.ledgerReady = createLedgerStore()`).
 
 So the one running system is the console process. It authors, decides and
 records, from fixtures, for one tenant, `telco-us`. A console deploy is a decision
@@ -59,11 +59,11 @@ fetch from yet"*.
 
 ### What a Postgres outage does today
 
-On a decision request, `route.ts:701` awaits `store.ledger.record(...)` before
+On a decision request, `apps/console/app/api/[...path]/route.ts` › `await store.ledger.record(store.ledger.entryFor(trace, decisionRequest.tenantId))` awaits `store.ledger.record(...)` before
 answering. The comment above it gives the reason: a decision the platform made
 and cannot produce afterwards is worse than one it failed to make.
-`route.ts:705` then awaits an idempotency claim, and every GET awaits
-`ledgerReady` (`route.ts:754`). With Postgres unreachable, every decision request
+`apps/console/app/api/[...path]/route.ts` › `await store.ledger.claim(` then awaits an idempotency claim, and every GET awaits
+`ledgerReady` (`apps/console/app/api/[...path]/route.ts` › `await store.ledgerReady`). With Postgres unreachable, every decision request
 fails. That is a better failure than a silent fall-back to storage that forgets,
 which all three `create-store.ts` files refuse. But it is not a ladder:
 `docs/CAPABILITIES.md` lists taxonomy 17.6 as `ABSENT`, and W-045's rungs
@@ -72,8 +72,8 @@ about what "cached" would mean for a hashed record.
 
 ### Migrations run inside whatever process starts first
 
-`migrate()` runs when each store is created (`packages/catalogue`, `ledger` and
-`registry` `create-store.ts`, lines 101/101/113), under a per-store advisory lock,
+`migrate()` runs when each store is created (`packages/catalogue/src/create-store.ts` › `migrate(`, `packages/ledger/src/create-store.ts` › `migrate(` and
+`packages/registry/src/create-store.ts` › `migrate(`), under a per-store advisory lock,
 inside the application process. The runner refuses before applying anything:
 
 - a changed applied file (`CHANGED`);
@@ -108,7 +108,7 @@ on a machine that receives real traffic violates the ADR, and nothing notices.
 `tenant_id` is a column in every store and a path segment in
 `POST /api/placements/{tenantId}/{key}/decisions`. There is no tenants table, no
 operation that creates one, and no refusal for a tenant nobody provisioned.
-`Environment` is `string` (`packages/registry/src/types.ts:30`), so a promotion to
+`Environment` is `string` (`packages/registry/src/types.ts` › `export type Environment = string`), so a promotion to
 `prodcution` succeeds.
 
 The only way a second tenant can come to exist is `packages/portability`'s
@@ -157,9 +157,9 @@ them honestly.
 
 **The claims made anyway:**
 
-- `README.md:345` lists *Throughput > 1000 req/sec* with a check mark and
+- `README.md` › `Load tested` @ `b46c4f4f9` lists *Throughput > 1000 req/sec* with a check mark and
   *"Load tested"*. The harness's own comments say that is a service-level claim
-  it does not measure (`bench/harness/src/index.ts:143`, `run.ts:22`), and the
+  it does not measure (`bench/harness/src/index.ts` › `is a service-level claim`, `bench/harness/src/run.ts` › `Not a loosened threshold: a different claim`), and the
   measured single-process figure is below it.
 - ADR-001's *Validation* promises *p95 < 50ms under 1000 req/sec* and replay
   from 30 days ago. There has never been a deployment that was 30 days old.
