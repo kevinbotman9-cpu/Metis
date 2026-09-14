@@ -7,8 +7,6 @@ import { RequireAuth } from '@/components/require-auth';
 import {
   PageBody,
   PageHeader,
-  Card,
-  CardBody,
   EmptyState,
   ErrorState,
   LoadingState,
@@ -17,6 +15,7 @@ import {
 } from '@/components/ui/primitives';
 import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import { CascadeRail } from '@/components/cascade-rail';
+import { CascadePanes } from '@/components/cascade-panes';
 import {
   LoopFirstPaint,
   LoopInversions,
@@ -158,8 +157,8 @@ function PerformanceView() {
       ) : (
         <>
           <LoopInversions loop={loop} />
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,19rem)]">
-            <Card className="self-start">
+          <CascadePanes
+            rail={
               <CascadeRail
                 label="The loop"
                 stages={loop.stages}
@@ -167,22 +166,15 @@ function PerformanceView() {
                 onSelect={setSelected}
                 foot={<LoopRailFoot loop={loop} />}
               />
-            </Card>
-
-            <div className="min-w-0">
-              {selected ? (
-                <LoopStageDetail data={data} loop={loop} stage={selected} />
-              ) : (
-                <LoopFirstPaint data={data} loop={loop} />
-              )}
-            </div>
-
-            <Card className="self-start">
-              <CardBody>
-                <LoopStageEvidence data={data} loop={loop} stage={selected} />
-              </CardBody>
-            </Card>
-          </div>
+            }
+            evidence={<LoopStageEvidence data={data} loop={loop} stage={selected} />}
+          >
+            {selected ? (
+              <LoopStageDetail data={data} loop={loop} stage={selected} />
+            ) : (
+              <LoopFirstPaint data={data} loop={loop} />
+            )}
+          </CascadePanes>
         </>
       )}
 

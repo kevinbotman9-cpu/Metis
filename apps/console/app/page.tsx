@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/primitives';
 import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import { CascadeRail } from '@/components/cascade-rail';
+import { CascadePanes } from '@/components/cascade-panes';
 import {
   LoopFirstPaint,
   LoopInversions,
@@ -282,8 +283,8 @@ function OverviewView() {
 
           <LoopInversions loop={loop} />
 
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,19rem)]">
-            <Card className="self-start">
+          <CascadePanes
+            rail={
               <CascadeRail
                 label="The loop"
                 stages={loop.stages}
@@ -291,22 +292,15 @@ function OverviewView() {
                 onSelect={setSelected}
                 foot={<LoopRailFoot loop={loop} />}
               />
-            </Card>
-
-            <div className="min-w-0">
-              {selected ? (
-                <LoopStageDetail data={report.data} loop={loop} stage={selected} />
-              ) : (
-                <LoopFirstPaint data={report.data} loop={loop} />
-              )}
-            </div>
-
-            <Card className="self-start">
-              <CardBody>
-                <LoopStageEvidence data={report.data} loop={loop} stage={selected} />
-              </CardBody>
-            </Card>
-          </div>
+            }
+            evidence={<LoopStageEvidence data={report.data} loop={loop} stage={selected} />}
+          >
+            {selected ? (
+              <LoopStageDetail data={report.data} loop={loop} stage={selected} />
+            ) : (
+              <LoopFirstPaint data={report.data} loop={loop} />
+            )}
+          </CascadePanes>
         </section>
       )}
     </PageBody>

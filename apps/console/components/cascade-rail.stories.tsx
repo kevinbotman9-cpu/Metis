@@ -36,6 +36,7 @@ const loop = (broken?: string): CascadeStage[] => [
     pct: 33,
     note: '33% of decisions',
     series: days(16),
+    tone: 'accent',
   },
   {
     id: 'deliverable',
@@ -46,8 +47,8 @@ const loop = (broken?: string): CascadeStage[] => [
     series: days(4),
     broken,
   },
-  { id: 'seen', label: 'Seen', value: 416, pct: 4, note: '56.3% of deliverable', series: days(3) },
-  { id: 'acted', label: 'Acted on', value: 79, pct: 0.8, note: '19.0% of seen', series: days(1) },
+  { id: 'seen', label: 'Seen', value: 416, pct: 4, note: '56.3% of deliverable', series: days(3), tone: 'attention' },
+  { id: 'acted', label: 'Acted on', value: 79, pct: 0.8, note: '19.0% of seen', series: days(1), tone: 'ok' },
 ];
 
 const BREAK =
@@ -57,7 +58,9 @@ const BREAK =
 function Interactive({ stages, foot }: { stages: CascadeStage[]; foot?: React.ReactNode }) {
   const [selected, setSelected] = useState<string | null>(null);
   return (
-    <div className="max-w-[17rem] rounded border border-border bg-surface">
+    // The rail brings its own frame colour; the story only gives it a width.
+    <div className="max-w-[17rem] overflow-hidden rounded">
+
       <CascadeRail
         label="The loop"
         stages={stages}

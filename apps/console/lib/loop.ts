@@ -110,6 +110,7 @@ export function buildLoop(
       pct: (data.offered / Math.max(1, data.decisions)) * 100,
       note: `${pct(data.offered, data.decisions, format)} of decisions`,
       series: tail.map((d) => d.offered),
+      tone: 'accent',
     },
     {
       id: 'deliverable',
@@ -118,6 +119,8 @@ export function buildLoop(
       pct: (deliverable / Math.max(1, data.decisions)) * 100,
       note: `${pct(deliverable, data.offered, format)} of offered`,
       series: tail.map((d) => d.deliverable),
+      // The colour a deliverable stage has when nothing breaks; a break overrides it.
+      tone: 'accent',
       broken:
         undeliverable > 0
           ? `${format.number(undeliverable)} decisions won a slot on a channel nothing delivers — ${dead
@@ -132,6 +135,7 @@ export function buildLoop(
       pct: (data.measured / Math.max(1, data.decisions)) * 100,
       note: `${pct(data.measured, deliverable, format)} of deliverable`,
       series: tail.map((d) => d.seen),
+      tone: 'attention',
     },
     {
       id: 'acted',
@@ -140,6 +144,7 @@ export function buildLoop(
       pct: (data.acted / Math.max(1, data.decisions)) * 100,
       note: `${pct(data.acted, data.measured, format)} of seen`,
       series: tail.map((d) => d.acted),
+      tone: 'ok',
     },
   ];
 

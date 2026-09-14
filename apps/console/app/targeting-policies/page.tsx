@@ -8,7 +8,6 @@ import {
   PageBody,
   PageHeader,
   Card,
-  CardBody,
   CardHeader,
   Badge,
   EmptyState,
@@ -19,6 +18,7 @@ import {
 } from '@/components/ui/primitives';
 import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import { CascadeRail } from '@/components/cascade-rail';
+import { CascadePanes } from '@/components/cascade-panes';
 import {
   FunnelFirstPaint,
   FunnelRailFoot,
@@ -136,8 +136,8 @@ function PolicyFunnel() {
       ) : (
         <>
           <FunnelUnaccounted report={data} />
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,19rem)]">
-            <Card className="self-start">
+          <CascadePanes
+            rail={
               <CascadeRail
                 label="Where candidates fall out"
                 stages={view.stages}
@@ -145,20 +145,15 @@ function PolicyFunnel() {
                 onSelect={setSelected}
                 foot={<FunnelRailFoot />}
               />
-            </Card>
-            <div className="min-w-0">
-              {selected ? (
-                <FunnelStageDetail report={data} stageId={selected} />
-              ) : (
-                <FunnelFirstPaint report={data} view={view} />
-              )}
-            </div>
-            <Card className="self-start">
-              <CardBody>
-                <FunnelStageEvidence report={data} stageId={selected} />
-              </CardBody>
-            </Card>
-          </div>
+            }
+            evidence={<FunnelStageEvidence report={data} stageId={selected} />}
+          >
+            {selected ? (
+              <FunnelStageDetail report={data} stageId={selected} />
+            ) : (
+              <FunnelFirstPaint report={data} view={view} />
+            )}
+          </CascadePanes>
         </>
       )}
     </>

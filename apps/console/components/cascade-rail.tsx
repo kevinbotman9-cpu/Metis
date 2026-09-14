@@ -1,5 +1,6 @@
 'use client';
 
+import { useId } from 'react';
 import { cn } from '@/lib/cn';
 import { Sparkline } from '@/components/ui/health-summary';
 import { useFormat } from '@/components/tenant-format';
@@ -12,6 +13,13 @@ import { useFormat } from '@/components/tenant-format';
  * not navigation: it is the subject, and it carries enough — figure,
  * proportion, bar, sparkline — that the shape is legible before anything is
  * clicked.
+ *
+ * **It is the frame colour, in both themes.** The one deliberate inversion in
+ * the product: the rail is the spine of the screen, and a rail drawn as a white
+ * card beside the page read as a sidebar. Every colour on it is a `--rail-*`
+ * token measured against the frame and both of its washes
+ * (`scripts/check-contrast.mjs`), never an analytic token measured against a
+ * white panel. Place it in `CascadePanes`, which gives it the full height.
  *
  * **A break is drawn, not smoothed.** Where the decomposition loses most of its
  * volume for a structural reason rather than a behavioural one, the stage is
@@ -28,6 +36,11 @@ export interface CascadeStage {
   pct: number;
   /** The short right-hand figure — usually a percentage of the stage above. */
   note: string;
+  /**
+   * The stage's colour on its dot, bar and selected edge. Defaults to neutral.
+   * A break overrides it: the block colour means exactly one thing.
+   */
+  tone?: CascadeTone;
   /**
    * Daily values, for the sparkline. Optional.
    *
@@ -54,22 +67,49 @@ export interface CascadeStage {
   broken?: string;
 }
 
+export type CascadeTone = 'neutral' | 'accent' | 'ok' | 'attention';
+
+const TONE_FILL: Record<CascadeTone | 'broken', string> = {
+  neutral: 'bg-rail-muted',
+  accent: 'bg-rail-accent',
+  ok: 'bg-rail-ok',
+  attention: 'bg-rail-attention',
+  broken: 'bg-rail-block',
+};
+
+const TONE_EDGE: Record<CascadeTone | 'broken', string> = {
+  neutral: 'shadow-rail-muted',
+  accent: 'shadow-rail-accent',
+  ok: 'shadow-rail-ok',
+  attention: 'shadow-rail-attention',
+  broken: 'shadow-rail-block',
+};
+
 export interface CascadeRailProps {
   stages: readonly CascadeStage[];
   selected: string | null;
   onSelect: (id: string | null) => void;
   /** One line under the rail, stating what the whole decomposition means. */
   foot?: React.ReactNode;
+  /** Names the rail, and is shown as its title. */
   label: string;
 }
 
 export function CascadeRail({ stages, selected, onSelect, foot, label }: CascadeRailProps) {
   const format = useFormat();
+  const titleId = useId();
   return (
-    <nav aria-label={label} className="flex flex-col">
+    <nav aria-labelledby={titleId} className="flex h-full flex-col bg-rail">
+      <h2
+        id={titleId}
+        className="border-b border-rail-line px-4 pb-2 pt-3 text-label font-semibold text-rail-dim"
+      >
+        {label}
+      </h2>
       <ul className="flex flex-col">
         {stages.map((stage) => {
           const current = stage.id === selected;
+          const tone = stage.broken ? 'broken' : (stage.tone ?? 'neutral');
           return (
             <li key={stage.id}>
               <button
@@ -89,48 +129,36 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
                 }`}
                 onClick={() => onSelect(current ? null : stage.id)}
                 className={cn(
-                  'w-full border-b border-border px-cell py-3 text-left transition-colors',
-                  'hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-accent',
-                  current && 'bg-surface-sunken shadow-[inset_3px_0_0] shadow-accent'
+                  'w-full border-b border-rail-line px-4 pb-3 pt-2.5 text-left transition-colors',
+                  'hover:bg-rail-hover-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-rail-fg',
+                  current && cn('bg-rail-selected-wash shadow-[inset_3px_0_0]', TONE_EDGE[tone])
                 )}
               >
                 <span
                   className={cn(
                     'flex items-center gap-2 text-label',
-                    stage.broken ? 'text-block' : 'text-content-subtle'
+                    stage.broken ? 'text-rail-block' : 'text-rail-dim'
                   )}
                 >
-                  <span
-                    aria-hidden
-                    className={cn(
-                      'block h-[7px] w-[7px] rounded-sm',
-                      stage.broken ? 'bg-block' : 'bg-accent'
-                    )}
-                  />
+                  <span aria-hidden className={cn('block h-1.5 w-1.5 rounded-sm', TONE_FILL[tone])} />
                   {stage.label}
                 </span>
 
                 <span className="mt-1.5 flex items-baseline gap-2">
                   <strong
                     className={cn(
-                      'tnum text-figure font-semibold tracking-tight',
-                      stage.broken ? 'text-block' : 'text-content'
+                      'tnum text-figure-rail font-semibold tracking-tight',
+                      stage.broken ? 'text-rail-block' : 'text-rail-fg'
                     )}
                   >
                     {format.number(stage.value)}
                   </strong>
-                  <span className="text-label text-content-subtle">{stage.note}</span>
+                  <span className="tnum text-label text-rail-dim">{stage.note}</span>
                 </span>
 
-                <span
-                  aria-hidden
-                  className="mt-2 block h-[5px] overflow-hidden rounded-sm bg-surface-sunken"
-                >
+                <span aria-hidden className="mt-2 block h-1 overflow-hidden rounded-sm bg-rail-hover/10">
                   <span
-                    className={cn(
-                      'block h-full rounded-sm',
-                      stage.broken ? 'bg-block' : 'bg-accent'
-                    )}
+                    className={cn('block h-full rounded-sm', TONE_FILL[tone])}
                     style={{ width: `${Math.max(stage.pct, 0.6)}%` }}
                   />
                 </span>
@@ -140,21 +168,19 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
                     <Sparkline
                       values={stage.series}
                       label={`${stage.label} per day`}
-                      tone={stage.broken ? 'hold' : 'accent'}
+                      tone={stage.broken ? 'rail-block' : 'rail'}
                     />
                   </span>
                 ) : null}
 
                 {stage.removed !== undefined && stage.removed > 0 ? (
-                  <span className="mt-2 block text-label text-content-subtle">
+                  <span className="mt-1.5 block text-label text-rail-dim">
                     −{format.number(stage.removed)} removed here
                   </span>
                 ) : null}
 
                 {stage.broken ? (
-                  <span className="mt-2 block text-label text-block">
-                    {stage.broken}
-                  </span>
+                  <span className="mt-1.5 block text-label text-rail-block">{stage.broken}</span>
                 ) : null}
               </button>
             </li>
@@ -162,7 +188,11 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
         })}
       </ul>
       {foot ? (
-        <p className="px-cell py-3 text-label text-content-subtle">{foot}</p>
+        // Callers write their emphasis for a light panel; on the frame it is
+        // lifted to the frame's own foreground rather than left to vanish.
+        <p className="mt-auto border-t border-rail-line px-4 py-3 text-label text-rail-dim [&_em]:text-rail-fg [&_strong]:text-rail-fg">
+          {foot}
+        </p>
       ) : null}
     </nav>
   );

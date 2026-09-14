@@ -31,6 +31,11 @@ module.exports = {
           hover: rgb('rail-hover'),
           ok: rgb('rail-ok'),
           attention: rgb('rail-attention'),
+          block: rgb('rail-block'),
+          // Fixed alphas from globals.css, not <alpha-value>: the contrast
+          // check measures text on exactly these two grounds.
+          'hover-wash': 'rgb(var(--rail-hover) / var(--rail-wash-hover))',
+          'selected-wash': 'rgb(var(--rail-hover) / var(--rail-wash-selected))',
         },
         surface: {
           DEFAULT: rgb('surface'),
@@ -105,6 +110,9 @@ module.exports = {
         label: 'var(--text-label)',
         title: 'var(--text-title)',
         figure: 'var(--text-figure)',
+        // Its own line height: a stage figure sits on its label and bar with no
+        // leading above or below it, and the scale sets line height on the token.
+        'figure-rail': ['var(--text-figure-rail)', { lineHeight: '1' }],
       },
       fontFamily: {
         sans: 'var(--font-sans)',
