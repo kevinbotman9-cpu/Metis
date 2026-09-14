@@ -1,35 +1,41 @@
 'use client';
 
-import type { RankedCandidate } from '@metis/core/arbitration';
 import { cn } from '@/lib/cn';
 
 /**
- * A scenario's ranking under proposed weights, with what moved and what tied.
+ * A scenario's ranking under proposed weights, and what moved from live.
  *
- * Presentational: the ranking, the movement and the ties are computed by
- * `rankCandidates` and `movement` in `@metis/core/arbitration`, which the
- * engine's own agreement test holds to the order a decision would make. This
- * draws them and decides nothing.
+ * Presentational, and it computes no priority: every row arrives from the
+ * engine through `previewArbitration`, in the engine's order. The only thing
+ * derived here is movement — the difference between an offer's place in two
+ * rankings the engine produced.
  *
- * The tie warning is driven by `ties` and nothing else. Two offers sharing a
- * priority is the only thing that shows it, which is the whole point of it: a
- * tie means the engine orders those offers by key, so their order is
- * alphabetical rather than something anybody decided.
+ * There is no tie warning. The engine does tie — equal priorities after
+ * rounding, broken by offer key — and in this tenant three offers tie when the
+ * boost weight is zero; the warning was cut for scope (G-125).
  */
+export interface RankingRow {
+  rank: number;
+  key: string;
+  name: string;
+  /** As the engine recorded it. */
+  priority: number;
+}
+
 export interface RankingPreviewProps {
   scenarioName: string;
-  rows: readonly RankedCandidate[];
-  /** How far each key moved from the live ranking; positive is up. */
-  moved: Readonly<Record<string, number>>;
-  ties: readonly (readonly string[])[];
+  rows: readonly RankingRow[];
+  /** The live ranking the rows are compared with. */
+  live: readonly RankingRow[];
 }
 
 const PRIORITY_SHOWN = 4;
 
-export function RankingPreview({ scenarioName, rows, moved, ties }: RankingPreviewProps) {
+export function RankingPreview({ scenarioName, rows, live }: RankingPreviewProps) {
   const top = rows[0]?.priority ?? 0;
-  const movedCount = rows.filter((r) => (moved[r.key] ?? 0) !== 0).length;
-  const names = new Map(rows.map((r) => [r.key, r.name]));
+  const was = new Map(live.map((r) => [r.key, r.rank]));
+  const shiftOf = (row: RankingRow) => (was.get(row.key) ?? row.rank) - row.rank;
+  const movedCount = rows.filter((r) => shiftOf(r) !== 0).length;
 
   return (
     <div>
@@ -44,8 +50,7 @@ export function RankingPreview({ scenarioName, rows, moved, ties }: RankingPrevi
 
       <ol aria-label="Ranking" className="divide-y divide-border rounded border border-border">
         {rows.map((row) => {
-          const shift = moved[row.key] ?? 0;
-          const tied = row.tiedWith.length > 0;
+          const shift = shiftOf(row);
           return (
             <li key={row.key} className="grid grid-cols-[2rem_1fr_auto_4rem] items-center gap-3 px-3 py-2">
               <span
@@ -57,13 +62,8 @@ export function RankingPreview({ scenarioName, rows, moved, ties }: RankingPrevi
                 {row.rank}
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-body font-medium text-content" data-offer-name>
-                  {row.name}
-                </span>
-                <span className="block truncate font-mono text-label text-content-subtle">
-                  {row.key}
-                  {tied ? <span className="ml-2 font-sans text-hold">tied</span> : null}
-                </span>
+                <span className="block truncate text-body font-medium text-content">{row.name}</span>
+                <span className="block truncate font-mono text-label text-content-subtle">{row.key}</span>
               </span>
               <span className="flex items-center gap-2">
                 <span className="hidden h-1.5 w-32 overflow-hidden rounded-full bg-surface-sunken sm:block" aria-hidden="true">
@@ -103,24 +103,6 @@ export function RankingPreview({ scenarioName, rows, moved, ties }: RankingPrevi
           );
         })}
       </ol>
-
-      {ties.length > 0 ? (
-        <div role="status" className="mt-3 rounded border border-border bg-surface-sunken px-4 py-3 text-label text-content">
-          {ties.map((group) => (
-            <p key={group.join()} className="mb-1 last:mb-0">
-              <span className="font-semibold text-hold">
-                {group.length} offers share a priority: {listOf(group.map((k) => names.get(k) ?? k))}.
-              </span>{' '}
-              A tie is broken by offer key, so their order is alphabetical rather than decided. Add a boost if this
-              order is meant to mean something.
-            </p>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
-}
-
-function listOf(items: readonly string[]): string {
-  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 }

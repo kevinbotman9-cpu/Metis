@@ -1145,16 +1145,41 @@ components:
         updatedAt: { type: string, format: date-time }
         updatedBy: { type: string }
 
-    ArbitrationScenario:
+    ArbitrationRanking:
       type: object
       description: >
-        One scenario run down the decision path and stopped before anything is
-        recorded: each candidate that reached ranking, with the five terms the
-        engine scored it on, beside the live weights and ranking function.
-        Weights enter a ranking only after scoring, so ranking these terms under
-        any weights gives the order a decision would. Ties are equal priorities
-        after the engine's rounding, which the engine orders by offer key.
-      required: [scenario, flow, utility, weights, candidates, defaulted]
+        One engine run's ranking: every offer that reached arbitration, in the
+        order the engine ranks them — priority, then offer key.
+      required: [weights, rows]
+      properties:
+        weights:
+          type: object
+          required: [propensity, value, boost, context]
+          properties:
+            propensity: { type: number }
+            value: { type: number }
+            boost: { type: number }
+            context: { type: number }
+        rows:
+          type: array
+          items:
+            type: object
+            required: [rank, key, name, priority]
+            properties:
+              rank: { type: integer }
+              key: { type: string }
+              name: { type: string }
+              priority:
+                type: number
+                description: As the engine recorded it.
+
+    ArbitrationPreview:
+      type: object
+      description: >
+        The tenant's arbitration scenario ranked by the engine under the live
+        weights and under proposed ones. Every priority here is one the engine
+        produced; nothing is computed outside it.
+      required: [scenario, flow, utility, live, proposed, inertWeights]
       properties:
         scenario:
           type: object
@@ -1177,35 +1202,26 @@ components:
           properties:
             id: { type: string }
             version: { type: string }
-        weights:
-          type: object
-          required: [propensity, value, boost, context]
-          properties:
-            propensity: { type: number }
-            value: { type: number }
-            boost: { type: number }
-            context: { type: number }
-        candidates:
+        live:
+          $ref: '#/components/schemas/ArbitrationRanking'
+        proposed:
+          $ref: '#/components/schemas/ArbitrationRanking'
+        inertWeights:
           type: array
+          description: >
+            Weights whose term has the same value for every offer that reached
+            arbitration in this scenario, so moving them moves no offer.
           items:
             type: object
-            required: [key, name, terms]
+            required: [weight, value, reason]
             properties:
-              key: { type: string }
-              name: { type: string }
-              terms:
-                type: object
-                required: [propensity, value, boost, context, cost]
-                properties:
-                  propensity: { type: number }
-                  value: { type: number }
-                  boost: { type: number }
-                  context: { type: number }
-                  cost: { type: number }
-        defaulted:
-          type: array
-          description: Keys whose propensity and context are the flow's declared defaults, not a model's output.
-          items: { type: string }
+              weight:
+                type: string
+                enum: [propensity, value, boost, context]
+              value:
+                type: number
+                description: The value every offer carries for that term.
+              reason: { type: string }
 
     Boost:
       type: object
@@ -3836,19 +3852,43 @@ paths:
         '403':
           description: Caller lacks edit:arbitration
 
-  /arbitration/{tenantId}/scenario:
-    get:
-      summary: A scenario's candidates and the terms they rank on, without deciding
-      operationId: getArbitrationScenario
+  /arbitration/{tenantId}/preview:
+    post:
+      summary: Rank a scenario under proposed weights, by the engine, without deciding
+      description: >
+        Runs the tenant's arbitration scenario down the decision path twice —
+        under the live weights and under the weights supplied — and returns
+        both rankings as the engine ordered them. Nothing is recorded. Proposed:
+        served by the console's development API only (G-123).
+      operationId: previewArbitration
+      x-metis-status: proposed
       parameters:
         - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [weights]
+              properties:
+                weights:
+                  type: object
+                  required: [propensity, value, boost, context]
+                  properties:
+                    propensity: { type: number }
+                    value: { type: number }
+                    boost: { type: number }
+                    context: { type: number }
       responses:
         '200':
-          description: The scenario, its candidates' terms, and the live weights
+          description: Both rankings, and the weights that move no offer in this scenario
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ArbitrationScenario'
+                $ref: '#/components/schemas/ArbitrationPreview'
+        '400':
+          description: A weight that is not a number from 0 to 2
         '404':
           description: The scenario's placement, or the flow that answers it, does not exist
 

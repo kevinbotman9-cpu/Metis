@@ -40,6 +40,12 @@ export interface FormRendererProps {
   optionSources?: Record<string, readonly Option[]>;
   /** Server refusals, keyed by field path. */
   problems?: Record<string, string>;
+  /**
+   * Something true about a field right now, keyed by field path and shown
+   * beneath it — a weight that moves nothing in the current data, say. Runtime
+   * facts the page learns from the server, not copy the descriptor declares.
+   */
+  notes?: Record<string, string>;
   /** Fields the person has typed in, so a suggestion stops overwriting them. */
   touched: ReadonlySet<string>;
   onTouch: (field: string) => void;
@@ -60,6 +66,7 @@ export function FormRenderer({
   permissions,
   optionSources = {},
   problems = {},
+  notes = {},
   touched,
   onTouch,
   idPrefix = 'form',
@@ -124,6 +131,7 @@ export function FormRenderer({
                 enabled={isEnabled(field, form, editing)}
                 options={resolveOptions(field, form, optionSources)}
                 problem={problems[field.field]}
+                note={notes[field.field]}
                 rowProblems={rowsOf(problems, field.field)}
                 id={`${idPrefix}-${field.field.replace(/\./g, '-')}`}
                 onChange={(v) => {
@@ -155,6 +163,7 @@ function FormField({
   enabled,
   options,
   problem,
+  note,
   rowProblems,
   id,
   onChange,
@@ -164,6 +173,7 @@ function FormField({
   enabled: boolean;
   options: readonly Option[];
   problem?: string;
+  note?: string;
   rowProblems: Record<number, string>;
   id: string;
   onChange: (value: string) => void;
@@ -266,6 +276,11 @@ function FormField({
           )}
         >
           {value.length} / {field.counter} characters
+        </p>
+      ) : null}
+      {note ? (
+        <p id={`${id}-note`} className="mt-1 text-label text-hold">
+          {note}
         </p>
       ) : null}
     </div>

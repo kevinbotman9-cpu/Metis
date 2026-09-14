@@ -615,9 +615,27 @@ export interface ArbitrationConfig {
   updatedBy: string;
 }
 
-/** One scenario run down the decision path and stopped before anything is recorded: each candidate that reached ranking, with the five terms the engine scored it on, beside the live weights and ranking function. Weights enter a ranking only after scoring, so ranking these terms under any weights gives the order a decision would. Ties are equal priorities after the engine's rounding, which the engine orders by offer key.
+/** One engine run's ranking: every offer that reached arbitration, in the order the engine ranks them — priority, then offer key.
  */
-export interface ArbitrationScenario {
+export interface ArbitrationRanking {
+  weights: {
+    propensity: number;
+    value: number;
+    boost: number;
+    context: number;
+  };
+  rows: {
+    rank: number;
+    key: string;
+    name: string;
+    /** As the engine recorded it. */
+    priority: number;
+  }[];
+}
+
+/** The tenant's arbitration scenario ranked by the engine under the live weights and under proposed ones. Every priority here is one the engine produced; nothing is computed outside it.
+ */
+export interface ArbitrationPreview {
   scenario: {
     id: string;
     name: string;
@@ -633,25 +651,16 @@ export interface ArbitrationScenario {
     id: string;
     version: string;
   };
-  weights: {
-    propensity: number;
+  live: ArbitrationRanking;
+  proposed: ArbitrationRanking;
+  /** Weights whose term has the same value for every offer that reached arbitration in this scenario, so moving them moves no offer.
+ */
+  inertWeights: ({
+    weight: "propensity" | "value" | "boost" | "context";
+    /** The value every offer carries for that term. */
     value: number;
-    boost: number;
-    context: number;
-  };
-  candidates: {
-    key: string;
-    name: string;
-    terms: {
-      propensity: number;
-      value: number;
-      boost: number;
-      context: number;
-      cost: number;
-    };
-  }[];
-  /** Keys whose propensity and context are the flow's declared defaults, not a model's output. */
-  defaulted: string[];
+    reason: string;
+  })[];
 }
 
 export interface Boost {
@@ -1589,13 +1598,6 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200'],
   },
-  getArbitrationScenario: {
-    method: 'GET',
-    path: '/arbitration/{tenantId}/scenario',
-    pathParams: ['tenantId'],
-    queryParams: [],
-    statuses: ['200', '404'],
-  },
   getArtifactSummary: {
     method: 'GET',
     path: '/artifacts/{tenantId}/{artifactId}',
@@ -1840,6 +1842,13 @@ export const OPERATIONS = {
     pathParams: [],
     queryParams: [],
     statuses: ['200', '401'],
+  },
+  previewArbitration: {
+    method: 'POST',
+    path: '/arbitration/{tenantId}/preview',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['200', '400', '404'],
   },
   promoteVersion: {
     method: 'POST',
@@ -2141,9 +2150,6 @@ export type GetArbitrationConfigResponse = {
   boosts: Boost[];
 };
 
-/** A scenario's candidates and the terms they rank on, without deciding */
-export type GetArbitrationScenarioResponse = ArbitrationScenario;
-
 /** One flow, with its graph and full compiler output */
 export type GetArtifactSummaryResponse = ArtifactSummary;
 
@@ -2327,6 +2333,17 @@ export type LoginRequest = {
   password: string;
 };
 
+/** Rank a scenario under proposed weights, by the engine, without deciding */
+export type PreviewArbitrationResponse = ArbitrationPreview;
+export type PreviewArbitrationRequest = {
+  weights: {
+    propensity: number;
+    value: number;
+    boost: number;
+    context: number;
+  };
+};
+
 /** Point an environment at a published version */
 export type PromoteVersionResponse = EnvironmentState;
 export type PromoteVersionRequest = {
@@ -2490,7 +2507,6 @@ export interface ResponseOf {
   deleteTargetingPolicy: DeleteTargetingPolicyResponse;
   executeDecision: ExecuteDecisionResponse;
   getArbitrationConfig: GetArbitrationConfigResponse;
-  getArbitrationScenario: GetArbitrationScenarioResponse;
   getArtifactSummary: GetArtifactSummaryResponse;
   getChangeSet: GetChangeSetResponse;
   getConformance: GetConformanceResponse;
@@ -2526,6 +2542,7 @@ export interface ResponseOf {
   listRegistryFlows: ListRegistryFlowsResponse;
   listTargetingPolicies: ListTargetingPoliciesResponse;
   login: LoginResponse;
+  previewArbitration: PreviewArbitrationResponse;
   promoteVersion: PromoteVersionResponse;
   publishArtifact: PublishArtifactResponse;
   recordOutcome: RecordOutcomeResponse;

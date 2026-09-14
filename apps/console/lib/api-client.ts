@@ -19,7 +19,7 @@ import { OPERATIONS, type OperationId } from '@metis/client';
 import type {
   AgentActivity as AgentActivityDto,
   ArbitrationConfig as ArbitrationConfigDto,
-  ArbitrationScenario as ArbitrationScenarioDto,
+  ArbitrationPreview as ArbitrationPreviewDto,
   ChangeSetProposal as ChangeSetProposalDto,
   ArtifactSummary as ArtifactSummaryDto,
   AuditEvent as AuditEventDto,
@@ -378,8 +378,9 @@ export const apiClient = {
       params: { tenantId },
     }),
 
-  getArbitrationScenario: (tenantId: string = TENANT) =>
-    apiCall<ArbitrationScenarioDto>('getArbitrationScenario', { params: { tenantId } }),
+  /** Proposed (G-123): the engine ranks the arbitration scenario under these weights. */
+  previewArbitration: (weights: ArbitrationConfigDto['weights'], tenantId: string = TENANT) =>
+    apiCall<ArbitrationPreviewDto>('previewArbitration', { params: { tenantId }, body: { weights } }),
 
   updateArbitration: (
     weights: ArbitrationConfigDto['weights'],

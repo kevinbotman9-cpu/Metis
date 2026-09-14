@@ -10,7 +10,6 @@
     ".": "./src/domain.ts",
     "./domain": "./src/domain.ts",
     "./utility": "./src/utility.ts",
-    "./arbitration": "./src/arbitration.ts",
     "./creative": "./src/creative.ts",
     "./profile-schema": "./src/profile-schema.ts",
     "./intake": "./src/intake.ts",
