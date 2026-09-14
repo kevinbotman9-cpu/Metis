@@ -12,14 +12,14 @@ test.describe('role-based access', () => {
 
     await page.goto('/arbitration');
     await expect(page.getByText('read only', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Publish weights/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Raise a change set' })).toHaveCount(0);
   });
 
   test('lets an administrator edit arbitration', async ({ page }) => {
     await login(page, ACCOUNTS.marcus);
     await page.goto('/arbitration');
     await expect(page.getByText('read only', { exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /Publish weights/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Raise a change set' })).toBeVisible();
   });
 
   // covers: approveChangeSet
@@ -54,28 +54,69 @@ test.describe('writes persist', () => {
     await resetStore(page);
   });
 
-  // covers: updateArbitrationConfig
-  test('publishing arbitration weights survives a reload and is audited', async ({ page }) => {
+  // covers: createChangeSet
+  test('a weight moved on the screen changes decisions only once its change set is approved', async ({ page }) => {
     await login(page, ACCOUNTS.marcus);
     await page.goto('/arbitration');
 
-    // A number, drawn by the generic renderer from the ArbitrationConfig
-    // descriptor; it was a range slider until the weights were declared.
-    const context = page.getByRole('spinbutton', { name: 'Context weight', exact: true });
-    await context.fill('0.35');
-    await page.getByRole('button', { name: /Publish weights/ }).click();
-    await expect(page.getByText('Published. Recorded in the audit log.', { exact: true })).toBeVisible();
+    // A slider drawn by the generic renderer from the ArbitrationConfig
+    // descriptor, moved from the keyboard: 1.00 down seven steps of 0.05.
+    const context = page.getByRole('slider', { name: 'Context weight', exact: true });
+    await expect(context).toHaveAttribute('aria-valuenow', '1');
+    await context.focus();
+    await page.keyboard.press('ArrowLeft', { delay: 10 });
+    for (let i = 1; i < 7; i++) await page.keyboard.press('ArrowLeft');
+    await expect(context).toHaveAttribute('aria-valuenow', '0.65');
 
+    await page.getByRole('button', { name: 'Raise a change set' }).click();
+    await expect(page.getByText(/Nothing is published until it is approved/)).toBeVisible();
+    const href = await page.getByRole('link', { name: /^cr_/ }).getAttribute('href');
+    expect(href).toMatch(/^\/approvals\/cr_/);
+
+    // Raised, not published: after a reload the live weight is unchanged.
     await page.reload();
-    // The saved weight itself. The formula draws it as a symbol beside a superscript,
-    // so no element's whole text is "C0.35"; the field carries the value that persisted.
-    await expect(page.getByRole('spinbutton', { name: 'Context weight', exact: true })).toHaveValue('0.35');
+    await expect(page.getByRole('slider', { name: 'Context weight', exact: true })).toHaveAttribute('aria-valuenow', '1');
+
+    // Somebody who can approve opens it and approves. Signed out first: `/login`
+    // sends a signed-in session straight back into the app, so a second login
+    // would never reach the form.
+    await page.getByRole('button', { name: /Marcus Webb/ }).click();
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await login(page, ACCOUNTS.priya);
+    await page.goto(href!);
+    await page.getByRole('button', { name: 'Approve', exact: true }).click();
+    await expect(page.getByText(/Approved\. The change will publish/)).toBeVisible();
+
+    await page.getByRole('button', { name: /Priya Natarajan/ }).click();
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await login(page, ACCOUNTS.marcus);
+    await page.goto('/arbitration');
+    await expect(page.getByRole('slider', { name: 'Context weight', exact: true })).toHaveAttribute('aria-valuenow', '0.65');
+
+    await page.goto('/audit');
+    await expect(page.getByText('ChangeSetOpened', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('ChangeSetApproved', { exact: true }).first()).toBeVisible();
+  });
+
+  // covers: updateArbitrationConfig
+  test('the weights API still publishes directly, outside any change set', async ({ page }) => {
+    // Held on purpose, and named as a cost: the screen no longer calls this,
+    // and an account with edit:arbitration can still change how every decision
+    // ranks without an approval by calling it. A check that passes over a bypass
+    // is better than a bypass nothing mentions.
+    await login(page, ACCOUNTS.marcus);
+    const token = await page.evaluate(() => localStorage.getItem('metis.auth.token'));
+    const res = await page.request.put('/api/arbitration/telco-us', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { weights: { propensity: 1, value: 1, boost: 1, context: 0.35 } },
+    });
+    expect(res.status()).toBe(200);
 
     await page.goto('/audit');
     await expect(page.getByText('ArbitrationWeightsChanged', { exact: true }).first()).toBeVisible();
   });
 
-  // covers: createChangeSet
+  // covers: approveChangeSet
   test('approving a change set applies its diff and records the decision', async ({ page }) => {
     await login(page, ACCOUNTS.priya);
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment } from 'react';
+import * as Slider from '@radix-ui/react-slider';
 import {
   isEnabled,
   layout,
@@ -238,6 +239,8 @@ function FormField({
             checked={value === 'true'}
             onChange={(e) => onChange(e.target.checked ? 'true' : '')}
           />
+        ) : field.type === 'number' && field.presentation === 'slider' ? (
+          <SliderInput field={field} value={value} enabled={enabled} described={described} onChange={onChange} />
         ) : (
           <Input
             {...shared}
@@ -265,6 +268,64 @@ function FormField({
           {value.length} / {field.counter} characters
         </p>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * A number over its declared range, moved rather than typed.
+ *
+ * Radix, per Rule 5: the keyboard contract a slider owes — arrows by a step,
+ * Page Up and Down by ten, Home and End to the ends — is the part people get
+ * wrong by hand. Named by the field's label, and its value is always printed
+ * beside it, because a position on a track is not a number anybody can read.
+ */
+function SliderInput({
+  field,
+  value,
+  enabled,
+  described,
+  onChange,
+}: {
+  field: FieldDescriptor;
+  value: string;
+  enabled: boolean;
+  described?: string;
+  onChange: (value: string) => void;
+}) {
+  const v = field.validation;
+  const min = v?.min ?? 0;
+  const max = v?.max ?? 1;
+  const step = v?.step ?? 0.01;
+  const current = Number.isFinite(Number(value)) && value !== '' ? Number(value) : min;
+  const decimals = String(step).split('.')[1]?.length ?? 0;
+
+  return (
+    <div className="flex items-center gap-3">
+      <Slider.Root
+        className="relative flex h-5 flex-1 touch-none select-none items-center data-[disabled]:opacity-50"
+        min={min}
+        max={max}
+        step={step}
+        value={[current]}
+        disabled={!enabled}
+        onValueChange={([next]) => onChange(String(Number(next.toFixed(decimals))))}
+      >
+        <Slider.Track className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-surface-sunken">
+          <Slider.Range className="absolute h-full bg-accent" />
+        </Slider.Track>
+        <Slider.Thumb
+          aria-label={field.label}
+          aria-describedby={described}
+          className={cn(
+            'block h-4 w-4 rounded-full border-2 border-accent bg-surface',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+          )}
+        />
+      </Slider.Root>
+      <output className="tnum w-12 text-right font-mono text-body font-semibold text-content" aria-hidden="true">
+        {current.toFixed(Math.max(decimals, 2))}
+      </output>
     </div>
   );
 }

@@ -143,6 +143,16 @@ export interface FieldDescriptor {
    */
   counter?: number;
   /**
+   * Draw a `number` as a slider over its `validation` range, with its value
+   * beside it.
+   *
+   * For a value somebody explores by moving rather than one they type from a
+   * document: the arbitration weights, where the ranking beneath reorders as the
+   * weight moves. A presentation, not a type — the field is still a number,
+   * stored and validated as one, so nothing about the payload changes.
+   */
+  presentation?: 'slider';
+  /**
    * Cannot be changed once the entity exists.
    *
    * An offer's key appears in every decision record ever written about it, so

@@ -455,6 +455,17 @@ describe('the ArbitrationConfig descriptor, exercised', () => {
   it('cannot be deleted: a tenant without one has no ranking function', () => {
     expect(arbitration.remove).toBeUndefined();
   });
+
+  it('draws every weight as a slider, so the ranking can be moved under the hand', () => {
+    // A presentation on a number, not a new type: the payload is unchanged,
+    // which the round trip above already holds.
+    for (const f of arbitration.fields) expect([f.field, f.type, f.presentation]).toEqual([f.field, 'number', 'slider']);
+  });
+
+  it('proposes weights rather than publishing them', () => {
+    expect(arbitration.edit.submitLabel).toBe('Raise a change set');
+    expect(arbitration.edit.description).not.toMatch(/publish/i);
+  });
 });
 
 describe('the codec rules', () => {
