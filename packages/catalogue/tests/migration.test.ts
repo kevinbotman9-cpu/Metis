@@ -156,6 +156,8 @@ if (!reachable) {
         boosts: [],
         connectors: [],
         placements: [],
+        profileSchema: null,
+        experiments: [],
         arbitration: null,
       });
       await expect(store.listEvents({ tenantId: 'telco-us' })).resolves.toEqual([]);

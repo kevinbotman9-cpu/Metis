@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { GET, POST, PUT } from '@/app/api/[...path]/route';
 import { store, resetStore } from '@/mocks/store';
-import { currentCatalogue } from '@/mocks/catalogue-state';
+import { currentCatalogue, readCatalogue } from '@/mocks/catalogue-state';
 
 /**
  * Authoring a targeting policy against the data model.
@@ -107,7 +107,7 @@ describe('creating a policy', () => {
   });
 
   it('stores one the model accepts, and the engine sees it', async () => {
-    const before = currentCatalogue().targetingPolicies.length;
+    const before = (await currentCatalogue()).targetingPolicies.length;
     const res = await call(['targeting-policies', 'telco-us'], policy());
     const created = (await res.json()) as { id: string; name: string };
 
@@ -116,8 +116,9 @@ describe('creating a policy', () => {
 
     // Not just stored — reaching the catalogue the engine decides against is
     // what makes this configuration rather than a form.
-    expect(currentCatalogue().targetingPolicies.length).toBe(before + 1);
-    expect(currentCatalogue().targetingPolicies.some((p) => p.id === created.id)).toBe(true);
+    const after = await currentCatalogue();
+    expect(after.targetingPolicies.length).toBe(before + 1);
+    expect(after.targetingPolicies.some((p) => p.id === created.id)).toBe(true);
   });
 
   it('refuses one character wrong in a leaf, and says which condition', async () => {
@@ -185,12 +186,12 @@ describe('creating a policy', () => {
   });
 
   it('stores nothing when it refuses', async () => {
-    const before = store.targetingPolicies.length;
+    const before = (await readCatalogue()).targetingPolicies.length;
     await call(
       ['targeting-policies', 'telco-us'],
       policy({ conditions: [{ field: 'customer.nope', operator: 'eq', value: 1 }] })
     );
-    expect(store.targetingPolicies.length).toBe(before);
+    expect((await readCatalogue()).targetingPolicies.length).toBe(before);
   });
 
   it('refuses an account that cannot author policies', async () => {
@@ -220,7 +221,7 @@ describe('editing a policy', () => {
   });
 
   it('applies the change to what the engine reads', async () => {
-    const target = store.targetingPolicies[0];
+    const target = (await readCatalogue()).targetingPolicies[0];
     const res = await call(
       ['targeting-policies', 'telco-us', target.id],
       { ...target, name: 'Renamed', active: !target.active },
@@ -228,14 +229,14 @@ describe('editing a policy', () => {
     );
     expect(res.status).toBe(200);
 
-    const live = currentCatalogue().targetingPolicies.find((p) => p.id === target.id);
+    const live = (await currentCatalogue()).targetingPolicies.find((p) => p.id === target.id);
     expect(live?.name).toBe('Renamed');
   });
 
   it('enforces the same rules as create', async () => {
     // A policy that could be edited into a state it could not be created in is
     // the kind of asymmetry nobody finds until it matters.
-    const target = store.targetingPolicies[0];
+    const target = (await readCatalogue()).targetingPolicies[0];
     const res = await call(
       ['targeting-policies', 'telco-us', target.id],
       { conditions: [{ field: 'address.fios_serviceabl', operator: 'eq', value: true }] },
@@ -246,7 +247,7 @@ describe('editing a policy', () => {
   });
 
   it('leaves the policy untouched when it refuses', async () => {
-    const target = store.targetingPolicies[0];
+    const target = (await readCatalogue()).targetingPolicies[0];
     const original = JSON.stringify(target.conditions);
 
     await call(
@@ -255,7 +256,8 @@ describe('editing a policy', () => {
       'PUT'
     );
 
-    expect(JSON.stringify(store.targetingPolicies[0].conditions)).toBe(original);
+    const held = (await readCatalogue()).targetingPolicies.find((p) => p.id === target.id)!;
+    expect(JSON.stringify(held.conditions)).toBe(original);
   });
 
   it('404s for a policy that does not exist', async () => {
@@ -264,7 +266,7 @@ describe('editing a policy', () => {
   });
 
   it('refuses an account that cannot author policies', async () => {
-    const target = store.targetingPolicies[0];
+    const target = (await readCatalogue()).targetingPolicies[0];
     const res = await call(
       ['targeting-policies', 'telco-us', target.id],
       { name: 'x' },

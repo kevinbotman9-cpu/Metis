@@ -10,6 +10,8 @@ import type {
   Placement,
   TargetingPolicy,
 } from '@metis/core/domain';
+import type { ProfileSchema } from '@metis/core/profile-schema';
+import type { Experiment } from '@metis/core/experiment';
 import type {
   CatalogueEntity,
   CatalogueEvent,
@@ -17,9 +19,20 @@ import type {
   CatalogueStore,
 } from './types';
 
-/** A sorted copy, by id — the order every catalogue store reads in. */
+/**
+ * A copy, not the stored object.
+ *
+ * PostgreSQL can only ever hand back copies, so a caller that edits what it read
+ * changes nothing there. The memory store handed back the stored objects until
+ * 2026-09-13, so the same edit *did* change the store here — and code that
+ * mutated a read result in place worked against memory, passed every test that
+ * used memory, and silently lost the edit against a real database.
+ */
+const copy = <T,>(value: T): T => structuredClone(value);
+
+/** A sorted deep copy, by id — the order every catalogue store reads in. */
 const byId = <T extends { id: string }>(list: T[]): T[] =>
-  [...list].sort((a, b) => a.id.localeCompare(b.id));
+  list.map(copy).sort((a, b) => a.id.localeCompare(b.id));
 
 /**
  * In-memory catalogue.
@@ -48,6 +61,8 @@ export class InMemoryCatalogueStore implements CatalogueStore {
         boosts: [],
         connectors: [],
         placements: [],
+        profileSchema: null,
+        experiments: [],
         arbitration: null,
       };
       this.tenants.set(tenantId, t);
@@ -75,14 +90,25 @@ export class InMemoryCatalogueStore implements CatalogueStore {
       boosts: byId(t.boosts),
       connectors: byId(t.connectors),
       placements: byId(t.placements),
-      arbitration: t.arbitration,
+      profileSchema: t.profileSchema ? copy(t.profileSchema) : null,
+      experiments: byId(t.experiments),
+      arbitration: t.arbitration ? copy(t.arbitration) : null,
     };
   }
 
+  /** Stores a copy, so a caller editing its own object afterwards cannot edit the store. */
   private upsert<T extends { id: string }>(list: T[], value: T): void {
+    const stored = copy(value);
     const at = list.findIndex((x) => x.id === value.id);
-    if (at === -1) list.push(value);
-    else list[at] = value;
+    if (at === -1) list.push(stored);
+    else list[at] = stored;
+  }
+
+  private remove<T extends { id: string }>(list: T[], id: string): boolean {
+    const at = list.findIndex((x) => x.id === id);
+    if (at === -1) return false;
+    list.splice(at, 1);
+    return true;
   }
 
   async putObjective(tenantId: string, objective: Objective) {
@@ -107,7 +133,7 @@ export class InMemoryCatalogueStore implements CatalogueStore {
     this.upsert(this.tenant(tenantId).boosts, boost);
   }
   async putArbitration(tenantId: string, config: ArbitrationConfig) {
-    this.tenant(tenantId).arbitration = config;
+    this.tenant(tenantId).arbitration = copy(config);
   }
   async putConnector(tenantId: string, connector: Connector) {
     this.upsert(this.tenant(tenantId).connectors, connector);
@@ -115,12 +141,24 @@ export class InMemoryCatalogueStore implements CatalogueStore {
   async putPlacement(tenantId: string, placement: Placement) {
     this.upsert(this.tenant(tenantId).placements, placement);
   }
+  async putProfileSchema(tenantId: string, schema: ProfileSchema) {
+    this.tenant(tenantId).profileSchema = copy(schema);
+  }
+  async putExperiment(tenantId: string, experiment: Experiment) {
+    this.upsert(this.tenant(tenantId).experiments, experiment);
+  }
 
   async deleteOffer(tenantId: string, offerId: string): Promise<boolean> {
-    const t = this.tenant(tenantId);
-    const before = t.offers.length;
-    t.offers = t.offers.filter((o) => o.id !== offerId);
-    return t.offers.length !== before;
+    return this.remove(this.tenant(tenantId).offers, offerId);
+  }
+  async deleteCreative(tenantId: string, creativeId: string): Promise<boolean> {
+    return this.remove(this.tenant(tenantId).creatives, creativeId);
+  }
+  async deleteTargetingPolicy(tenantId: string, policyId: string): Promise<boolean> {
+    return this.remove(this.tenant(tenantId).targetingPolicies, policyId);
+  }
+  async deletePlacement(tenantId: string, placementId: string): Promise<boolean> {
+    return this.remove(this.tenant(tenantId).placements, placementId);
   }
 
   async appendEvent(event: Omit<CatalogueEvent, 'seq'>): Promise<CatalogueEvent> {

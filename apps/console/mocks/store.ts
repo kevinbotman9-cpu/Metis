@@ -11,6 +11,13 @@
  */
 
 import { DecisionLedger, InMemoryLedgerStore, createLedgerStore } from '@metis/ledger';
+import {
+  Catalogue,
+  InMemoryCatalogueStore,
+  createCatalogueStore,
+  type CatalogueStore,
+} from '@metis/catalogue';
+import { openCatalogue } from './catalogue-source';
 import { clearCalls } from './call-log';
 import type { ShadowComparison } from '@metis/runtime';
 import {
@@ -31,9 +38,7 @@ import {
 } from './fixtures/catalogue';
 import { profileSchema as seedProfileSchema } from './fixtures/profile-schema';
 import { seedFingerprint, type SeedFingerprint } from './fixtures/fingerprint';
-import type { ProfileSchema } from '@metis/core/profile-schema';
 import type { DataSourceDefinition, ValidationReport } from '@metis/core/intake';
-import type { Experiment } from '@metis/core/experiment';
 import { experiments as seedExperiments } from './fixtures/experiments';
 import { artifacts as seedArtifacts, type ArtifactSummary } from './fixtures/artifacts';
 import { compileContextFor, toSource } from './fixtures/compiled';
@@ -46,17 +51,35 @@ import {
 } from './fixtures/governance';
 
 type Store = {
-  objectives: typeof seedObjectives;
-  categories: typeof seedCategories;
-  offers: typeof seedOffers;
-  creatives: typeof seedCreatives;
-  targetingPolicies: typeof seedTargetingPolicies;
-  /** The tenant's data model. Editable, so it lives here rather than in the fixture. */
-  profileSchema: ProfileSchema;
+  /**
+   * The catalogue: taxonomy, offers, creatives, targeting and frequency
+   * policies, boosts, the ranking function, connectors, placements, the profile
+   * schema and experiments.
+   *
+   * `@metis/catalogue` — PostgreSQL when `METIS_DATABASE_URL` is set, memory
+   * otherwise — rather than arrays in this object. Until 2026-09-13 it was the
+   * arrays, so everything a person authored was lost on restart and invisible to
+   * anything reading the real store. `mocks/catalogue-source.ts` says what
+   * happens to the fixtures: an import into an empty store, never over one that
+   * already holds the tenant.
+   *
+   * Starts as an empty in-memory store and is replaced in place once the
+   * configured one is open, like the ledger. Await `catalogueReady` first.
+   */
+  catalogue: Catalogue;
+  catalogueStore: CatalogueStore;
+  /** Resolves once the configured store is open and the tenant found or seeded. */
+  catalogueReady: Promise<void>;
+  catalogueKind: () => 'memory' | 'postgres';
+  /**
+   * Whether this process wrote the seed, or found the tenant already stored.
+   *
+   * The seed fingerprint describes the fixtures, so it describes this store only
+   * when this process seeded it; `/api/_test/uptime` serves it only then (G-002).
+   */
+  catalogueSeeded: () => boolean;
   /** Configured sources of customer records. */
   dataSources: DataSourceDefinition[];
-  /** Running experiments. Arms reach policies as `experiments.<key>`. */
-  experiments: Experiment[];
   /**
    * Rows as they were landed, by source id.
    *
@@ -68,8 +91,6 @@ type Store = {
   landedRows: Map<string, Record<string, unknown>[]>;
   /** The most recent report per source. Cleared when new rows land. */
   validationReports: Map<string, ValidationReport>;
-  frequencyPolicies: typeof seedFrequencyPolicies;
-  arbitration: typeof seedArbitration;
   /**
    * The decision ledger: records, outcomes and idempotency keys.
    *
@@ -101,11 +122,8 @@ type Store = {
    * mechanism tested with a sleep is a flake with a timer attached.
    */
   shadowInFlight: Set<Promise<void>>;
-  boosts: typeof seedBoosts;
   autonomy: typeof seedAutonomy;
   activity: typeof seedActivity;
-  connectors: typeof seedConnectors;
-  placements: typeof seedPlacements;
   /** How this tenant presents dates, numbers and money. G-092. */
   tenantSettings: typeof seedTenantSettings;
   users: typeof seedUsers;
@@ -160,20 +178,19 @@ function seed(): Store {
   // clears it, and clearing a real database from a test endpoint is not a
   // thing this should be able to do.
   let kind: 'memory' | 'postgres' = 'memory';
+  let catalogueKind: 'memory' | 'postgres' = 'memory';
+  let catalogueSeeded = false;
+  const placeholderCatalogue = new InMemoryCatalogueStore();
 
   const built: Store = {
-    objectives: clone(seedObjectives),
-    categories: clone(seedCategories),
-    offers: clone(seedOffers),
-    creatives: clone(seedCreatives),
-    targetingPolicies: clone(seedTargetingPolicies),
-    profileSchema: clone(seedProfileSchema),
+    catalogue: new Catalogue(placeholderCatalogue),
+    catalogueStore: placeholderCatalogue,
+    catalogueReady: Promise.resolve(),
+    catalogueKind: () => catalogueKind,
+    catalogueSeeded: () => catalogueSeeded,
     dataSources: [],
-    experiments: clone(seedExperiments),
     landedRows: new Map(),
     validationReports: new Map(),
-    frequencyPolicies: clone(seedFrequencyPolicies),
-    arbitration: clone(seedArbitration),
     // Replaced in place once a database resolves, below. Not a getter over a
     // closure: `resetStore` rebuilds the store with `Object.assign`, which
     // cannot write through an accessor, and not a mutation on `DecisionLedger`
@@ -185,11 +202,8 @@ function seed(): Store {
     ledgerStore,
     shadowComparisons: [],
     shadowInFlight: new Set(),
-    boosts: clone(seedBoosts),
     autonomy: clone(seedAutonomy),
     activity: clone(seedActivity),
-    connectors: clone(seedConnectors),
-    placements: clone(seedPlacements),
     tenantSettings: clone(seedTenantSettings),
     users: clone(seedUsers),
     artifacts: clone(seedArtifacts),
@@ -241,6 +255,30 @@ function seed(): Store {
       // instead of stopping the process from starting.
       // eslint-disable-next-line no-console
       console.error(`[metis] decision ledger unavailable: ${e.message}`);
+      throw e;
+    });
+
+  // The same shape for the catalogue: a configured database that cannot be
+  // reached, or that holds another tenant, fails the request that needed it
+  // rather than falling back to a catalogue nobody authored.
+  built.catalogueReady = createCatalogueStore()
+    .then(async (handle) => {
+      const opened = await openCatalogue(handle.store);
+      built.catalogueStore = opened.store;
+      built.catalogue = opened.catalogue;
+      catalogueKind = handle.kind;
+      catalogueSeeded = opened.seeded;
+      if (handle.kind === 'postgres') {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[metis] catalogue: ${handle.description}; ` +
+            (opened.seeded ? 'seeded the tenant into an empty store' : 'tenant found, used as stored')
+        );
+      }
+    })
+    .catch((e: Error) => {
+      // eslint-disable-next-line no-console
+      console.error(`[metis] catalogue unavailable: ${e.message}`);
       throw e;
     });
 
@@ -313,8 +351,23 @@ export const store: Store = g[GLOBAL_KEY]!;
 
 
 
+/** Thrown by `resetStore` when the catalogue is a real database. */
+export class ResetRefused extends Error {
+  constructor() {
+    super(
+      'The catalogue is in PostgreSQL, and a test reset would have to destroy what people authored ' +
+        "there — and the catalogue's append-only edit log with it, which only TRUNCATE can do. Reset " +
+        'is for the in-memory store the test suites run against; unset METIS_DATABASE_URL to use it.'
+    );
+    this.name = 'ResetRefused';
+  }
+}
+
 /** Restore the seed state. Used by the E2E suite between specs. */
 export async function resetStore(): Promise<void> {
+  await store.catalogueReady.catch(() => {});
+  if (store.catalogueKind() === 'postgres') throw new ResetRefused();
+
   // Drain what the last test started, before replacing anything it could
   // still be writing into. A shadow run that resolves after the swap lands a
   // comparison in the new state, and the next spec sees a divergence it did
@@ -339,6 +392,7 @@ export async function resetStore(): Promise<void> {
   // object and the registry was still filling while the next test read it.
   // Awaiting here makes the reset mean what its name says.
   await next.registryReady;
+  await next.catalogueReady;
   await next.ledgerReady.catch(() => {
     // A configured database that cannot be reached is already reported by
     // `seed()`. Swallowed here so a reset does not fail a test with the same

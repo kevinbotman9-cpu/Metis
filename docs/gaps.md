@@ -44,6 +44,110 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-118 — Authored state outside the catalogue still does not survive a restart
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found when the console moved its catalogue onto the store
+
+Since 2026-09-14 the console's catalogue lives in `@metis/catalogue` and
+survives a restart when `METIS_DATABASE_URL` is set. That covers taxonomy,
+offers, creatives, policies, boosts, the ranking function, connectors,
+placements, the profile schema and experiments.
+
+Everything else a person authors in the console is still held in arrays in
+`apps/console/mocks/store.ts`, and seeded again on every start:
+
+- **Decision flows.**
+  - Drafts are saved into `store.artifacts`.
+  - Every version published and promoted sits in an `InMemoryRegistryStore`,
+    which `seedRegistry` refills from the fixture flows. It compiles them
+    against the fixture catalogue, not the stored one.
+  - So a flow a person published is gone after a restart. The console does not
+    use the registry's own PostgreSQL store at all.
+- **Change sets and the console audit log** (`store.changeSets`,
+  `store.auditEvents`). The catalogue's own edit log persists
+  (`catalogue_events`), but the console's audit screen reads the in-memory one.
+  After a restart, the screen cannot say who changed a boost the catalogue
+  still holds.
+- **Data sources.** They reference profile-schema fields that now persist.
+- **Tenant settings** (G-092), **autonomy settings** and **users**.
+
+Two consequences of the catalogue persisting work as designed, but are not
+obvious:
+
+- **A stored tenant is used as found.** A fixture edited after a database was
+  first seeded does not reach that database.
+- **Lists come back in id order**, not in the order the fixtures were written,
+  because that is the order the store reads in.
+  `apps/console/tests/unit/placement-decision.test.ts` asserted the authoring
+  order; it now asserts the set.
+
+**Done when:** decision flows (drafts and the registry), change sets and the
+audit log survive a restart the same way, each with a restart test like
+`apps/console/tests/unit/catalogue-durable.test.ts`.
+
+### G-117 — The console checks a catalogue rule and writes in separate awaits, with no transaction
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found when the console moved its catalogue onto the store
+
+Every console write reads the catalogue, checks a rule, then writes. The rules
+checked this way:
+
+- an offer, objective, category, placement or experiment key is not already
+  taken;
+- a category's objective and a creative's offer exist;
+- an offer is not activated without an active creative on a channel the tenant
+  decides on;
+- that creative is not switched off or deleted while its offer is active;
+- a policy an offer is bound to is not deleted;
+- a placement a creative names is not deleted.
+
+In memory, each handler ran its check and its write without yielding, so
+nothing could get between them. Against a shared store they are separate
+awaits, and `CatalogueStore` has no transaction to offer. Two requests can each
+pass the check, and then both write.
+
+**Some rules have a constraint behind them.** Offer, placement and experiment
+keys are unique in the schema, and a category's objective and a creative's offer
+are foreign keys. For these, the second writer now gets a 409 or 400 rather than
+a 500 (`refusingCatalogueErrors` in `apps/console/app/api/[...path]/route.ts`).
+
+**The rest have nothing behind them:**
+
+- objective and category key uniqueness;
+- the activation rule and the last-creative rule;
+- the bound-policy and named-placement delete rules.
+
+**Seeding an empty store has the same shape.** It is a sequence of writes, so an
+interrupted seed leaves a partial tenant, and the next start uses it as found.
+
+**Done when:** each rule either holds under concurrent writers — a transaction
+around the check and the write, or a constraint — or is recorded as advisory.
+Either way, a test runs two writers at once.
+
+### G-116 — A live decision cannot be replayed after the console restarts
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** [W-005](BACKLOG.md)
+
+A decision record stores `catalogueSnapshotHash`, never the catalogue. Replay
+looks the catalogue up by that hash in `apps/console/mocks/catalogue-state.ts`,
+and that lookup is a map in memory.
+
+Since 2026-09-14 the catalogue survives a restart, and so does a PostgreSQL
+ledger. The map does not.
+
+- **A decision recorded before a restart** names a hash nothing holds
+  afterwards. Its replay answers 409 `catalogue_unavailable`, correctly and
+  permanently.
+- **The seeded decisions still replay**, because the fixture catalogue is
+  registered at every start.
+
+The store keeps the catalogue as it is now, not every version it has been.
+W-005 named a snapshot per decision, cached by hash, as the likely shape; only
+the cache was built.
+
+**Done when:** the catalogue a decision was made against can be fetched by its
+hash after a restart, and a test replays a pre-restart decision identically.
+
 ### G-115 — ADR-016 draws deployable boundaries without saying who may cross them
 
 **Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-043](BACKLOG.md) covers people signing in to the console; nothing covers a machine calling the platform

@@ -64,7 +64,11 @@ describe('GET /api/placements/{tenantId}', () => {
     const res = await call(['placements', 'telco-us'], undefined, 'GET');
     const body = (await res.json()) as { placements: { key: string; slotCount: number }[] };
     expect(res.status).toBe(200);
-    expect(body.placements.map((p) => p.key)).toEqual(placements.map((p) => p.key));
+    // The set of slots, not the order. The catalogue store reads every array in
+    // id order, as PostgreSQL does; the order the fixtures were written in is
+    // not something a real store keeps, so it is not something this can promise.
+    const sorted = (keys: string[]) => [...keys].sort();
+    expect(sorted(body.placements.map((p) => p.key))).toEqual(sorted(placements.map((p) => p.key)));
     // The grid is the reason this exists. A configuration where every slot
     // holds one action would pass every test below while proving nothing.
     expect(body.placements.find((p) => p.key === 'homepage_grid')?.slotCount).toBeGreaterThan(1);

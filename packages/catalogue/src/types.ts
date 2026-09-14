@@ -10,6 +10,8 @@ import type {
   Placement,
   TargetingPolicy,
 } from '@metis/core/domain';
+import type { ProfileSchema } from '@metis/core/profile-schema';
+import type { Experiment } from '@metis/core/experiment';
 
 /**
  * The catalogue's vocabulary.
@@ -47,7 +49,9 @@ export type CatalogueEntity =
   | 'boost'
   | 'arbitration'
   | 'connector'
-  | 'placement';
+  | 'placement'
+  | 'profile_schema'
+  | 'experiment';
 
 /** One change to the catalogue. Append-only. */
 export interface CatalogueEvent {
@@ -95,6 +99,17 @@ export interface CatalogueSnapshotRecord {
    * because `decidePlacement` cannot run without one.
    */
   placements: Placement[];
+  /**
+   * The tenant's data model. One per tenant, null until configured. Not hashed
+   * with the catalogue: a decision records the schema version it resolved
+   * against instead.
+   */
+  profileSchema: ProfileSchema | null;
+  /**
+   * Experiments, in every state. Not hashed with the catalogue: an arm reaches
+   * the engine as a field of the hashed input.
+   */
+  experiments: Experiment[];
   /** Null until a tenant has configured one. */
   arbitration: ArbitrationConfig | null;
 }
@@ -112,8 +127,13 @@ export interface CatalogueStore {
   putArbitration(tenantId: string, config: ArbitrationConfig): Promise<void>;
   putConnector(tenantId: string, connector: Connector): Promise<void>;
   putPlacement(tenantId: string, placement: Placement): Promise<void>;
+  putProfileSchema(tenantId: string, schema: ProfileSchema): Promise<void>;
+  putExperiment(tenantId: string, experiment: Experiment): Promise<void>;
 
   deleteOffer(tenantId: string, offerId: string): Promise<boolean>;
+  deleteCreative(tenantId: string, creativeId: string): Promise<boolean>;
+  deleteTargetingPolicy(tenantId: string, policyId: string): Promise<boolean>;
+  deletePlacement(tenantId: string, placementId: string): Promise<boolean>;
 
   appendEvent(event: Omit<CatalogueEvent, 'seq'>): Promise<CatalogueEvent>;
   listEvents(filter?: {

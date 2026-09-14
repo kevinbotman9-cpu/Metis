@@ -11,6 +11,8 @@ import type {
   Placement,
   TargetingPolicy,
 } from '@metis/core/domain';
+import type { ProfileSchema } from '@metis/core/profile-schema';
+import type { Experiment } from '@metis/core/experiment';
 import { Catalogue } from '../src/catalogue';
 import { CatalogueError, type CatalogueStore } from '../src/types';
 
@@ -166,6 +168,38 @@ export const placement = (over: Partial<Placement> = {}): Placement =>
     ...over,
   }) as Placement;
 
+export const profileSchema = (over: Partial<ProfileSchema> = {}): ProfileSchema =>
+  ({
+    id: 'schema_telco',
+    tenantId: T,
+    version: '1.0.0',
+    roots: { customer: 'Customer', context: 'Context' },
+    entities: [],
+    aggregations: [],
+    updatedAt: AT,
+    updatedBy: 'marcus',
+    ...over,
+  }) as unknown as ProfileSchema;
+
+export const experiment = (over: Partial<Experiment> = {}): Experiment =>
+  ({
+    id: 'exp_holdout',
+    tenantId: T,
+    key: 'fiber_holdout',
+    name: 'Fiber holdout',
+    description: '',
+    arms: [
+      { key: 'holdout', name: 'Held out', weight: 10, holdout: true },
+      { key: 'treated', name: 'Offered as usual', weight: 90 },
+    ],
+    status: 'draft',
+    startedAt: null,
+    stoppedAt: null,
+    updatedAt: AT,
+    updatedBy: 'marcus',
+    ...over,
+  }) as Experiment;
+
 export interface StoreUnderTest {
   create(): Promise<CatalogueStore>;
 }
@@ -205,6 +239,8 @@ export function describeCatalogue(name: string, harness: StoreUnderTest): void {
         await catalogue.putArbitration(T, arbitration(), 'marcus', AT);
         await catalogue.putConnector(T, connector(), 'marcus', AT);
         await catalogue.putPlacement(T, placement(), 'marcus', AT);
+        await catalogue.putProfileSchema(T, profileSchema(), 'marcus', AT);
+        await catalogue.putExperiment(T, experiment(), 'marcus', AT);
 
         const s = await catalogue.read(T);
         // Deep equality, not a field count: a jsonb round trip that dropped a
@@ -217,6 +253,33 @@ export function describeCatalogue(name: string, harness: StoreUnderTest): void {
         expect(s.arbitration).toEqual(arbitration());
         expect(s.connectors).toEqual([connector()]);
         expect(s.placements).toEqual([placement()]);
+        expect(s.profileSchema).toEqual(profileSchema());
+        expect(s.experiments).toEqual([experiment()]);
+      });
+
+      it('has no profile schema until one is put, rather than an invented one', async () => {
+        expect((await catalogue.read(T)).profileSchema).toBeNull();
+      });
+
+      it('hands back copies, so editing what was read or written changes nothing stored', async () => {
+        // PostgreSQL can only return copies. The memory store returned the
+        // stored objects until 2026-09-13, so code that edited a read result in
+        // place worked against memory and silently lost the edit against a real
+        // database — the console did exactly that for policies, connectors,
+        // experiments and the ranking function.
+        const written = offer();
+        await catalogue.putOffer(T, written, 'sarah', AT);
+        written.name = 'Edited after writing';
+
+        const read = (await catalogue.read(T)).offers[0];
+        read.name = 'Edited after reading';
+        await catalogue.putArbitration(T, arbitration(), 'marcus', AT);
+        const arbitrationRead = (await catalogue.read(T)).arbitration!;
+        arbitrationRead.weights.value = 99;
+
+        const again = await catalogue.read(T);
+        expect(again.offers[0].name).toBe('Fibre 900');
+        expect(again.arbitration!.weights.value).toBe(1);
       });
 
       it('reads every array in id order, whatever order it was written in', async () => {
@@ -243,6 +306,9 @@ export function describeCatalogue(name: string, harness: StoreUnderTest): void {
         for (const id of ['plc_c', 'plc_b', 'plc_a']) {
           await catalogue.putPlacement(T, placement({ id, key: `key_${id}` }), 'marcus', AT);
         }
+        for (const id of ['exp_c', 'exp_b', 'exp_a']) {
+          await catalogue.putExperiment(T, experiment({ id, key: `key_${id}` }), 'marcus', AT);
+        }
 
         const s = await catalogue.read(T);
         const ids = (list: { id: string }[]) => list.map((x) => x.id);
@@ -252,6 +318,7 @@ export function describeCatalogue(name: string, harness: StoreUnderTest): void {
         expect(ids(s.boosts)).toEqual(['bst_a', 'bst_b', 'bst_c']);
         expect(ids(s.connectors)).toEqual(['conn_a', 'conn_b', 'conn_c']);
         expect(ids(s.placements)).toEqual(['plc_a', 'plc_b', 'plc_c']);
+        expect(ids(s.experiments)).toEqual(['exp_a', 'exp_b', 'exp_c']);
       });
 
       it('is stable across two reads, because the engine hashes it', async () => {
@@ -333,6 +400,37 @@ export function describeCatalogue(name: string, harness: StoreUnderTest): void {
         expect((await catalogue.read(T)).placements).toHaveLength(1);
       });
 
+      it('refuses two experiments sharing a key', async () => {
+        await catalogue.putExperiment(T, experiment(), 'marcus', AT);
+        await expect(
+          catalogue.putExperiment(T, experiment({ id: 'exp_other' }), 'marcus', AT)
+        ).rejects.toThrow(/already used by exp_holdout/);
+      });
+
+      it('deletes a creative, a policy and a placement, and reports what was never there', async () => {
+        await catalogue.putOffer(T, offer(), 'sarah', AT);
+        await catalogue.putCreative(T, creative(), 'sarah', AT);
+        await catalogue.putTargetingPolicy(T, targeting(), 'sarah', AT);
+        await catalogue.putPlacement(T, placement(), 'marcus', AT);
+
+        expect(await catalogue.deleteCreative(T, 'crt_fibre_email', 'sarah', AT)).toBe(true);
+        expect(await catalogue.deleteTargetingPolicy(T, 'tp_adult', 'sarah', AT)).toBe(true);
+        expect(await catalogue.deletePlacement(T, 'plc_hero', 'marcus', AT)).toBe(true);
+        const s = await catalogue.read(T);
+        expect([s.creatives, s.targetingPolicies, s.placements]).toEqual([[], [], []]);
+
+        expect(await catalogue.deleteCreative(T, 'crt_never', 'sarah', AT)).toBe(false);
+        expect(await catalogue.deleteTargetingPolicy(T, 'tp_never', 'sarah', AT)).toBe(false);
+        expect(await catalogue.deletePlacement(T, 'plc_never', 'marcus', AT)).toBe(false);
+
+        const deleted = (await catalogue.events({ tenantId: T })).filter((e) => e.action === 'deleted');
+        expect(deleted.map((e) => [e.entity, e.entityId]).sort()).toEqual([
+          ['creative', 'crt_fibre_email'],
+          ['placement', 'plc_hero'],
+          ['targeting_policy', 'tp_adult'],
+        ]);
+      });
+
       it('allows a placement to keep its own key when updated', async () => {
         await catalogue.putPlacement(T, placement(), 'marcus', AT);
         await catalogue.putPlacement(T, placement({ slotCount: 3 }), 'marcus', AT);
@@ -364,6 +462,18 @@ export function describeCatalogue(name: string, harness: StoreUnderTest): void {
         expect(connectors.map((e) => e.action)).toEqual(['updated', 'created']);
         const placements = await catalogue.events({ tenantId: T, entity: 'placement' });
         expect(placements.map((e) => [e.action, e.entityId])).toEqual([['created', 'plc_hero']]);
+      });
+
+      it('records a profile schema and an experiment change like any other', async () => {
+        await catalogue.putProfileSchema(T, profileSchema(), 'marcus', AT);
+        await catalogue.putProfileSchema(T, profileSchema({ version: '1.1.0' }), 'marcus', AT);
+        await catalogue.putExperiment(T, experiment(), 'marcus', AT);
+        await catalogue.putExperiment(T, experiment({ status: 'running' }), 'marcus', AT);
+
+        const schemas = await catalogue.events({ tenantId: T, entity: 'profile_schema' });
+        expect(schemas.map((e) => e.action)).toEqual(['updated', 'created']);
+        const experiments = await catalogue.events({ tenantId: T, entity: 'experiment' });
+        expect(experiments.map((e) => e.action)).toEqual(['updated', 'created']);
       });
 
       it('orders by sequence, newest first', async () => {
