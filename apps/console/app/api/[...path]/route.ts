@@ -91,9 +91,9 @@ import {
 import { CONSOLE_TENANT } from '@/mocks/catalogue-source';
 import { CatalogueError, type CatalogueSnapshotRecord } from '@metis/catalogue';
 import {
-  compilations,
   findCompilation,
   compileContextFor,
+  compileSourcesFrom,
   toSource,
 } from '@/mocks/fixtures/compiled';
 import { compileDecisionFlow } from '@metis/compiler/decision-flow/compile';
@@ -263,17 +263,26 @@ async function currentCompileContext(artifactId?: string) {
   // The one builder, over the store rather than the fixtures. Three copies of
   // this existed until 2026-09-11 and two of them disagreed, which is how a
   // flow came to be live and shown as broken at the same time (G-071).
-  const cat = await readCatalogue();
-  return compileContextFor(artifactId ?? '', {
-    offers: cat.offers,
-    targetingPolicies: cat.targetingPolicies,
-    frequencyPolicies: cat.frequencyPolicies,
-    connectors: cat.connectors,
-    arbitration: snapshotFrom(cat).arbitration,
-    profileSchema: schemaOf(cat),
-    creatives: cat.creatives,
-    placements: cat.placements,
-  });
+  // Registry seeding reads the stored catalogue through the same builder.
+  return compileContextFor(artifactId ?? '', compileSourcesFrom(await readCatalogue()));
+}
+
+/**
+ * A flow as a person last saved it, from the registry.
+ *
+ * Drafts were `store.artifacts`, an array seeded from the fixtures every start
+ * and edited in place. They are registry state now, so a saved graph survives a
+ * restart beside the versions published from it, and a read hands back a copy.
+ */
+async function flowDraft(flowId: string): Promise<ArtifactSummary | undefined> {
+  await store.registryReady;
+  return (await store.registry.draft<ArtifactSummary>(CONSOLE_TENANT, flowId))?.draft;
+}
+
+/** Every flow's draft, in flow-id order — the order the store reads in. */
+async function flowDrafts(): Promise<ArtifactSummary[]> {
+  await store.registryReady;
+  return (await store.registry.drafts<ArtifactSummary>(CONSOLE_TENANT)).map((d) => d.draft);
 }
 
 /**
@@ -1030,6 +1039,7 @@ async function handleGet(req: Request, { params }: Ctx) {
       if (rest[0] !== 'uptime') return notFound();
       if (process.env.NODE_ENV === 'production') return notFound();
       await store.catalogueReady.catch(() => {});
+      await store.registryReady.catch(() => {});
       return json({
         startedAt: STARTED_AT,
         uptimeMs: Date.now() - new Date(STARTED_AT).getTime(),
@@ -1051,7 +1061,9 @@ async function handleGet(req: Request, { params }: Ctx) {
         // already stored — a durable database from an earlier start — holds what
         // people authored, not the fixtures, and a fingerprint of the fixtures
         // would claim otherwise. Null makes `global-setup.ts` refuse the server.
-        seed: store.catalogueSeeded() ? store.seededFingerprint : null,
+        // The same holds for flows: the fingerprint covers the fixture flows,
+        // so a registry found already stored voids it too.
+        seed: store.catalogueSeeded() && store.registrySeeded() ? store.seededFingerprint : null,
       });
     }
 
@@ -1452,21 +1464,27 @@ async function handleGet(req: Request, { params }: Ctx) {
     }
 
     case 'artifacts': {
+      // The verdict is compiled from the stored draft against the stored
+      // catalogue on every read. It was a table compiled once at import from
+      // the fixture flows and the fixture catalogue, so a saved draft or an
+      // edited offer never moved what the flow list said.
       if (rest[1]) {
-        const artifact = store.artifacts.find((a) => a.id === rest[1]);
+        const artifact = await flowDraft(rest[1]);
         if (!artifact) return notFound(`No flow ${rest[1]}`);
         // The compiler's verdict travels with the flow: a console that
         // hides it is no better than not compiling at all.
-        return json({ ...artifact, compilation: findCompilation(artifact.id)?.result ?? null });
+        const compilation = compileDecisionFlow(toSource(artifact), await currentCompileContext(artifact.id));
+        return json({ ...artifact, compilation });
       }
+      const sources = compileSourcesFrom(await readCatalogue());
       return json({
-        artifacts: store.artifacts.map((a) => {
-          const result = compilations.find((c) => c.artifactId === a.id)?.result;
+        artifacts: (await flowDrafts()).map((a) => {
+          const result = compileDecisionFlow(toSource(a), compileContextFor(a.id, sources));
           return {
             ...a,
-            compileOk: result?.ok ?? null,
-            errorCount: result?.diagnostics.filter((x) => x.severity === 'error').length ?? 0,
-            warningCount: result?.diagnostics.filter((x) => x.severity === 'warning').length ?? 0,
+            compileOk: result.ok,
+            errorCount: result.diagnostics.filter((x) => x.severity === 'error').length,
+            warningCount: result.diagnostics.filter((x) => x.severity === 'warning').length,
           };
         }),
       });
@@ -2333,7 +2351,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         }
         // A slot answered by a flow that does not exist decides nothing, and
         // the 404 would surface at the first request rather than here.
-        if (!store.artifacts.some((a) => a.id === body.artifactId)) {
+        if (!(await flowDraft(body.artifactId!))) {
           return json(
             { error: 'bad_request', message: `No decision flow '${body.artifactId}'.` },
             400
@@ -2857,8 +2875,8 @@ async function handlePut(req: Request, { params }: Ctx) {
       const [, artifactId, tail] = rest;
       if (!artifactId || tail !== 'draft') return notFound();
 
-      const artifact = store.artifacts.find((a) => a.id === artifactId);
-      if (!artifact) return notFound(`No flow ${artifactId}`);
+      const before = await flowDraft(artifactId);
+      if (!before) return notFound(`No flow ${artifactId}`);
 
       const body = (await req.json().catch(() => null)) as {
         nodes?: ArtifactSummary['nodes'];
@@ -2867,12 +2885,19 @@ async function handlePut(req: Request, { params }: Ctx) {
       } | null;
       if (!body) return json({ error: 'bad_request', message: 'Body required.' }, 400);
 
-      if (body.nodes) artifact.nodes = body.nodes;
-      if (body.edges) artifact.edges = body.edges;
-      if (body.candidateKeys) artifact.candidateKeys = body.candidateKeys;
-      artifact.nodeCount = artifact.nodes.length;
-      artifact.updatedAt = new Date().toISOString();
-      artifact.updatedBy = user.email;
+      // Built and saved whole, not assigned into the draft that was read: a
+      // registry hands back a copy, and an edit to a copy saves nothing.
+      const nodes = body.nodes ?? before.nodes;
+      const artifact: ArtifactSummary = {
+        ...before,
+        nodes,
+        edges: body.edges ?? before.edges,
+        candidateKeys: body.candidateKeys ?? before.candidateKeys,
+        nodeCount: nodes.length,
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.email,
+      };
+      await store.registry.saveDraft(CONSOLE_TENANT, artifactId, artifact, user.email, artifact.updatedAt);
 
       // Compiled on every save, not on demand. A graph that will not compile is
       // worth knowing about while it is being drawn, and the report is the same
@@ -3178,7 +3203,7 @@ async function handlePut(req: Request, { params }: Ctx) {
 
       if (
         typeof body.artifactId === 'string' &&
-        !store.artifacts.some((a) => a.id === body.artifactId)
+        !(await flowDraft(body.artifactId))
       ) {
         return json({ error: 'bad_request', message: `No decision flow '${body.artifactId}'.` }, 400);
       }

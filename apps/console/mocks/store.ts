@@ -40,9 +40,14 @@ import { profileSchema as seedProfileSchema } from './fixtures/profile-schema';
 import { seedFingerprint, type SeedFingerprint } from './fixtures/fingerprint';
 import type { DataSourceDefinition, ValidationReport } from '@metis/core/intake';
 import { experiments as seedExperiments } from './fixtures/experiments';
-import { artifacts as seedArtifacts, type ArtifactSummary } from './fixtures/artifacts';
-import { compileContextFor, toSource } from './fixtures/compiled';
-import { ArtifactRegistry, InMemoryRegistryStore } from '@metis/registry';
+import { artifacts as seedArtifacts } from './fixtures/artifacts';
+import {
+  ArtifactRegistry,
+  InMemoryRegistryStore,
+  createRegistryStore,
+  type RegistryStore,
+} from '@metis/registry';
+import { openRegistry } from './registry-source';
 import {
   changeSets as seedChangeSets,
   auditEvents as seedAuditEvents,
@@ -127,27 +132,39 @@ type Store = {
   /** How this tenant presents dates, numbers and money. G-092. */
   tenantSettings: typeof seedTenantSettings;
   users: typeof seedUsers;
-  artifacts: ArtifactSummary[];
   changeSets: ChangeSetRecord[];
   auditEvents: AuditEvent[];
   /**
-   * The artifact registry.
+   * The artifact registry: every flow's draft, every published version, the
+   * environment pointers and the registry's event log.
    *
-   * Held alongside the rest of the development store and reset with it, so an
-   * E2E spec that publishes a version does not leak it into the next one.
+   * `@metis/registry` — PostgreSQL when `METIS_DATABASE_URL` is set, memory
+   * otherwise. Until 2026-09-14 drafts were an array here and the registry was
+   * always in memory, refilled from the fixture flows on every start, so a
+   * published flow did not survive a restart. `mocks/registry-source.ts` says
+   * what happens to the fixture flows now.
+   *
+   * Starts as an empty in-memory registry and is replaced in place once the
+   * configured one is open. Await `registryReady` first.
    */
-  registryStore: InMemoryRegistryStore;
+  registryStore: RegistryStore;
   registry: ArtifactRegistry;
   /**
-   * Resolves once the fixture flows have been through the publish path.
+   * Resolves once the registry is open and the flows found or seeded.
    *
-   * Seeding is asynchronous because the registry is — durable storage forced
-   * that, and the in-memory store follows the same interface rather than
-   * getting a synchronous shortcut. Handlers await this before reading the
+   * Waits on `catalogueReady`, because seeding compiles the fixture flows
+   * against the catalogue as stored. Handlers await this before reading the
    * registry, so a request that arrives during startup waits instead of seeing
    * an empty one.
    */
   registryReady: Promise<void>;
+  registryKind: () => 'memory' | 'postgres';
+  /**
+   * Whether this process wrote the fixture flows, or found drafts already
+   * stored. The seed fingerprint covers the flows, so like `catalogueSeeded`
+   * this decides whether `/api/_test/uptime` may serve it.
+   */
+  registrySeeded: () => boolean;
   /**
    * What this store seeded, hashed, set when the store was built.
    *
@@ -167,9 +184,6 @@ type Store = {
 function seed(): Store {
   // Deep clone so mutations never write back through to the fixture modules.
   const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
-  const registryStore = new InMemoryRegistryStore();
-  const registry = new ArtifactRegistry(registryStore);
-  const registryReady = seedRegistry(registry);
   const ledgerStore = new InMemoryLedgerStore();
 
   // Starts in memory and is replaced in place if a database is configured, so
@@ -181,6 +195,9 @@ function seed(): Store {
   let catalogueKind: 'memory' | 'postgres' = 'memory';
   let catalogueSeeded = false;
   const placeholderCatalogue = new InMemoryCatalogueStore();
+  let registryKind: 'memory' | 'postgres' = 'memory';
+  let registrySeeded = false;
+  const placeholderRegistry = new InMemoryRegistryStore();
 
   const built: Store = {
     catalogue: new Catalogue(placeholderCatalogue),
@@ -206,12 +223,13 @@ function seed(): Store {
     activity: clone(seedActivity),
     tenantSettings: clone(seedTenantSettings),
     users: clone(seedUsers),
-    artifacts: clone(seedArtifacts),
     changeSets: clone(seedChangeSets),
     auditEvents: clone(seedAuditEvents),
-    registryStore,
-    registry,
-    registryReady,
+    registryStore: placeholderRegistry,
+    registry: new ArtifactRegistry(placeholderRegistry),
+    registryReady: Promise.resolve(),
+    registryKind: () => registryKind,
+    registrySeeded: () => registrySeeded,
     seededFingerprint: seedFingerprint({
       objectives: seedObjectives,
       categories: seedCategories,
@@ -282,63 +300,34 @@ function seed(): Store {
       throw e;
     });
 
+  // After the catalogue, because an empty registry is seeded by compiling the
+  // fixture flows against the catalogue as stored. Same failure shape: a
+  // configured database that cannot be reached, or a registry holding flows
+  // the console cannot show, fails the request that needed it.
+  built.registryReady = built.catalogueReady
+    .then(async () => {
+      const handle = await createRegistryStore();
+      const registry = new ArtifactRegistry(handle.store);
+      const opened = await openRegistry(registry, built.catalogue);
+      built.registryStore = handle.store;
+      built.registry = registry;
+      registryKind = handle.kind;
+      registrySeeded = opened.seeded;
+      if (handle.kind === 'postgres') {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[metis] registry: ${handle.description}; ` +
+            (opened.seeded ? 'seeded the fixture flows into an empty registry' : 'flows found, used as stored')
+        );
+      }
+    })
+    .catch((e: Error) => {
+      // eslint-disable-next-line no-console
+      console.error(`[metis] registry unavailable: ${e.message}`);
+      throw e;
+    });
+
   return built;
-}
-
-/**
- * Put the fixture flows through the real publish path.
- *
- * Not inserted directly: they are compiled and either accepted or refused,
- * exactly as a publish from the console would be. One of the fixtures does not
- * compile, so the seeded registry starts with a rejection in its log — which is
- * the honest starting state for a console whose home page already reports one
- * flow as blocked.
- *
- * Accepted versions are promoted to `production`, because the console's
- * decisions were generated from them and it would be odd to show a flow as
- * running while the registry says nothing is active.
- */
-async function seedRegistry(registry: ArtifactRegistry): Promise<void> {
-  const at = '2026-08-01T09:00:00.000Z';
-  for (const artifact of seedArtifacts) {
-    /** Which versions the registry actually accepted. */
-    const accepted = new Set<string>();
-
-    // Oldest first, so the registry's publishedAt ordering matches the order
-    // the versions were actually released in.
-    for (const version of [...artifact.versions].reverse()) {
-      const source = toSource(artifact);
-      const outcome = await registry.publish(
-        {
-          tenantId: 'telco-us',
-          flowName: artifact.id,
-          version,
-          source: {
-            ...source,
-            version,
-            candidateKeys: artifact.priorCandidateKeys?.[version] ?? source.candidateKeys,
-          },
-          actor: artifact.updatedBy,
-          occurredAt: at,
-        },
-        // The context the console judges this flow by, not a weaker one.
-        // Publishing against a context without `servedChannels` is how
-        // `retention-outbound` became live while the console showed it
-        // blocked (G-071).
-        compileContextFor(artifact.id)
-      );
-      if (outcome.status !== 'rejected') accepted.add(version);
-    }
-
-    // Promote only what published. Seeding used to promote whatever the
-    // fixture called active, which was fine while the registry accepted
-    // everything and became a thrown error the moment it stopped — and a
-    // silent lie before that, since a flow the compiler refuses cannot be in
-    // production. A rejected flow simply has no active version.
-    if (artifact.status === 'active' && accepted.has(artifact.activeVersion)) {
-      await registry.promote('telco-us', artifact.id, artifact.activeVersion, 'production', artifact.updatedBy, at);
-    }
-  }
 }
 
 const GLOBAL_KEY = Symbol.for('metis.dev.store');

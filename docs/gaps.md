@@ -83,7 +83,7 @@ obvious:
 
 **Done when:** decision flows (drafts and the registry), change sets and the
 audit log survive a restart the same way, each with a restart test like
-`apps/console/tests/unit/catalogue-durable.test.ts`.
+`apps/console/tests/unit/console-durable.test.ts`.
 
 ### G-117 — The console checks a catalogue rule and writes in separate awaits, with no transaction
 

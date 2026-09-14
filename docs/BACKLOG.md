@@ -442,7 +442,7 @@ storage. Verify it bites by adding a `fetch` to a node implementation.
 ### W-005 — Catalogue, policies and taxonomy into PostgreSQL
 
 **Registered:** 2026-09-06 · **Stage:** 9 · **Status:** DONE 2026-09-14
-**Check:** `apps/console/tests/unit/catalogue-durable.test.ts` › `keeps an edit made through the API across a restart, and decides the next request against it`; `apps/console/tests/unit/catalogue-configurability.test.ts` › `configuration reaches the engine`
+**Check:** `apps/console/tests/unit/console-durable.test.ts` › `keeps an edit made through the API across a restart, and decides the next request against it`; `apps/console/tests/unit/catalogue-configurability.test.ts` › `configuration reaches the engine`
 
 Gate 2 · Depends: none · Spec §8
 

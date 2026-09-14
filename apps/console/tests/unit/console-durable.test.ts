@@ -1,19 +1,28 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { Pool } from 'pg';
 import { PostgresCatalogueStore, runMigration, type CatalogueSnapshotRecord } from '@metis/catalogue';
+import { createRegistryStore } from '@metis/registry';
 import { hash } from '@metis/runtime/deterministic/canonical';
 import type { CatalogueSnapshot } from '@metis/runtime/deterministic/types';
 import { catalogueSnapshot } from '@/mocks/fixtures/engine';
 import { openCatalogue, CatalogueTenantRefused, CONSOLE_TENANT } from '@/mocks/catalogue-source';
+import { toSource } from '@/mocks/fixtures/compiled';
+import type { ArtifactSummary } from '@/mocks/fixtures/artifacts';
 
 /**
  * What a person authors in the console survives a restart, and the next
  * decision is made against it.
  *
- * Until 2026-09-13 neither was true. The console authored into arrays in its
+ * Until 2026-09-13 none of it did. The console authored into arrays in its
  * development store, a restart put the fixtures back, and a decision service
- * reading `packages/catalogue` would never have seen a marketer's edit. These
- * run against a real PostgreSQL, because memory is exactly what cannot show it.
+ * reading `packages/catalogue` would never have seen a marketer's edit. The
+ * catalogue moved onto its store that day; decision flows — drafts, published
+ * versions and environments — followed on 2026-09-14. These run against a real
+ * PostgreSQL, because memory is exactly what cannot show it.
+ *
+ * One file for every store the console opens, not one per store: the console's
+ * unit files run in parallel, and two files truncating one database would take
+ * each other's locks (G-078).
  *
  * Skipped rather than failed when no database is reachable, like every other
  * PostgreSQL suite here. CI's `verify` job runs a postgres service, so the skip
@@ -33,7 +42,7 @@ try {
   reachable = false;
 }
 
-const TABLES = [
+const CATALOGUE_TABLES = [
   'catalogue_events',
   'catalogue_arbitration',
   'catalogue_boosts',
@@ -49,8 +58,11 @@ const TABLES = [
   'catalogue_objectives',
 ];
 
-/** TRUNCATE, because the edit log refuses DELETE by trigger. Test database only. */
-const truncate = () => pool.query(`TRUNCATE ${TABLES.join(', ')} RESTART IDENTITY CASCADE`);
+const REGISTRY_TABLES = ['registry_environments', 'registry_versions', 'registry_events', 'registry_drafts'];
+
+/** TRUNCATE, because the edit logs refuse DELETE by trigger. Test database only. */
+const truncate = (tables = [...CATALOGUE_TABLES, ...REGISTRY_TABLES]) =>
+  pool.query(`TRUNCATE ${tables.join(', ')} RESTART IDENTITY CASCADE`);
 
 /** The part of a stored catalogue the engine decides from. */
 const engineSnapshot = (held: CatalogueSnapshotRecord): CatalogueSnapshot => ({
@@ -94,11 +106,17 @@ function call(booted: Booted, method: 'GET' | 'POST' | 'PUT', path: string[], bo
   return method === 'GET' ? booted.route.GET(req, ctx) : method === 'PUT' ? booted.route.PUT(req, ctx) : booted.route.POST(req, ctx);
 }
 
+const uptimeSeed = async (booted: Booted) =>
+  ((await (await call(booted, 'GET', ['_test', 'uptime'])).json()) as { seed: unknown }).seed;
+
 if (!reachable) {
   it.skip(`postgres at ${URL.replace(/:[^:@]*@/, ':***@')} is not reachable`, () => {});
 } else {
   beforeAll(async () => {
     await runMigration(pool);
+    // The registry's migrations, through the same entry point the console uses.
+    const registry = await createRegistryStore({ databaseUrl: URL });
+    await registry.close();
   });
 
   afterAll(async () => {
@@ -160,8 +178,7 @@ if (!reachable) {
       expect(first.store.catalogueSeeded()).toBe(true);
       // This process wrote the seed, so the fingerprint of the fixtures
       // describes what it serves (G-002).
-      const firstUptime = (await (await call(first, 'GET', ['_test', 'uptime'])).json()) as { seed: unknown };
-      expect(firstUptime.seed).not.toBeNull();
+      expect(await uptimeSeed(first)).not.toBeNull();
 
       const weights = { propensity: 1, value: 0.1, boost: 3, context: 0.5 };
       const put = await call(first, 'PUT', ['arbitration', CONSOLE_TENANT], { weights });
@@ -176,8 +193,7 @@ if (!reachable) {
       expect(second.store.catalogueSeeded(), 'the restart reseeded over the edit').toBe(false);
       // It found what people authored, not the fixtures, so it must not claim
       // the fixtures' fingerprint — `global-setup.ts` would trust it.
-      const secondUptime = (await (await call(second, 'GET', ['_test', 'uptime'])).json()) as { seed: unknown };
-      expect(secondUptime.seed).toBeNull();
+      expect(await uptimeSeed(second)).toBeNull();
 
       const got = await call(second, 'GET', ['arbitration', CONSOLE_TENANT]);
       expect(((await got.json()) as { config: { weights: typeof weights } }).config.weights).toEqual(weights);
@@ -220,6 +236,93 @@ if (!reachable) {
       const held = await second.store.catalogue.read(CONSOLE_TENANT);
       expect(entry!.record.decision.catalogueSnapshotHash).toBe(hash(engineSnapshot(held)));
       expect(entry!.record.decision.catalogueSnapshotHash).not.toBe(hash(catalogueSnapshot));
+    });
+
+    it('keeps a flow drawn, published and promoted through the API across a restart, and the next decision runs it', async () => {
+      await truncate();
+      process.env.METIS_DATABASE_URL = URL;
+      const FLOW = 'next-best-action';
+
+      const first = await bootConsole();
+      expect(first.store.registryKind()).toBe('postgres');
+      expect(first.store.registrySeeded()).toBe(true);
+
+      // Drawn: a node relabelled, saved as the draft.
+      const drawn = (await (await call(first, 'GET', ['artifacts', CONSOLE_TENANT, FLOW])).json()) as ArtifactSummary;
+      const nodes = drawn.nodes.map((n) => (n.type === 'arbitrate' ? { ...n, label: 'Ranked by a person' } : n));
+      const saved = await call(first, 'PUT', ['artifacts', CONSOLE_TENANT, FLOW, 'draft'], { nodes });
+      expect(saved.status, await saved.clone().text()).toBe(200);
+      const { artifact } = (await saved.json()) as { artifact: ArtifactSummary };
+
+      // Published and promoted, as two separate authorities.
+      const published = await call(first, 'POST', ['registry', CONSOLE_TENANT, FLOW], {
+        version: '9.0.0',
+        source: toSource({ ...artifact, activeVersion: '9.0.0' }),
+      });
+      expect(published.status, await published.clone().text()).toBe(201);
+      const promoted = await call(first, 'POST', ['registry', CONSOLE_TENANT, FLOW, 'promote'], {
+        version: '9.0.0',
+        environment: 'production',
+      });
+      expect(promoted.status, await promoted.clone().text()).toBe(200);
+
+      const second = await bootConsole();
+      expect(second.store.registrySeeded(), 'the restart reseeded the fixture flows').toBe(false);
+
+      // The published version is still the one in production, and the draft is
+      // the graph the person saved rather than the fixture.
+      const env = await second.store.registry.environment(CONSOLE_TENANT, FLOW, 'production');
+      expect(env?.activeVersion).toBe('9.0.0');
+      const kept = (await (await call(second, 'GET', ['artifacts', CONSOLE_TENANT, FLOW])).json()) as ArtifactSummary;
+      expect(kept.nodes.find((n) => n.type === 'arbitrate')!.label).toBe('Ranked by a person');
+
+      const decided = await call(second, 'POST', ['placements', CONSOLE_TENANT, 'homepage_hero', 'decisions'], {
+        request: {
+          tenantId: CONSOLE_TENANT,
+          customerId: `cust_flow_durable_${Date.now()}`,
+          channel: 'web',
+          occurredAt: '2026-06-01T12:00:00.000Z',
+          // The brief's fiber-available customer: every gate passes.
+          input: {
+            customer: {
+              account_status: 'active',
+              moving_within_days: 999,
+              address: { fios_serviceable: true, fiveg_coverage: 'strong' },
+              broadband: { status: 'active', product: 'dsl' },
+              orders: { open_broadband: false },
+              ott: { disney: false, netflix: false, disney_available: true, netflix_available: true },
+              affinity: { gaming: 0.8, entertainment: 0.8 },
+              engagement: { digital_or_broadband_intent: true },
+              usage: { pct_of_allowance_3mo_avg: 0.94, months_of_history: 14 },
+            },
+            context: {},
+          },
+          consent: { marketing: true, profiling: true, thirdParty: false },
+          contactHistory: { channel: 'web', withinPeriod: { day: 0, week: 0, month: 0 } },
+        },
+      });
+      expect(decided.status, await decided.clone().text()).toBe(200);
+      const { decisionId } = (await decided.json()) as { decisionId: string };
+
+      // The decision was made by the version published before the restart —
+      // not by a reseeded fixture version, and not by the fallback artifact
+      // `artifactFor` uses for a flow the registry does not hold.
+      const entry = await second.store.ledger.get(CONSOLE_TENANT, decisionId);
+      expect(entry!.record.decision.artifactId).toBe(FLOW);
+      expect(entry!.record.decision.artifactVersion).toBe('9.0.0');
+    });
+
+    it('does not claim the fixture flows when the catalogue is seeded and the flows were found', async () => {
+      // The fingerprint covers both, so either one found as stored voids it.
+      await truncate();
+      process.env.METIS_DATABASE_URL = URL;
+      await bootConsole();
+      await truncate(CATALOGUE_TABLES);
+
+      const again = await bootConsole();
+      expect(again.store.catalogueSeeded()).toBe(true);
+      expect(again.store.registrySeeded()).toBe(false);
+      expect(await uptimeSeed(again)).toBeNull();
     });
   });
 }
