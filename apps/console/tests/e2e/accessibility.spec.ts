@@ -135,20 +135,25 @@ test.describe('accessibility', () => {
       await page.getByRole('group', { name: 'Colour scheme', exact: true }).getByText('Dark').click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
+      const violations: string[] = [];
       for (const path of ['/', '/decisions', '/offers', '/agentic']) {
         await page.goto(path);
-        // `goto` resolves before React has rendered, and axe throws "No
-        // elements found for include" rather than failing an assertion — a
-        // scan that never ran, reported as a violation nobody can read.
+        // `goto` resolves before React has rendered; a scan taken now would
+        // measure an empty shell and pass.
         await expect(page.locator('main')).toBeVisible();
-        const results = await new AxeBuilder({ page })
-          .withTags(['wcag2aa'])
-          .include('main')
-          .analyze();
-        expect(
-          results.violations.map((v) => `${path} ${v.id}: ${v.help}`)
-        ).toEqual([]);
+        // The whole page and every level, as in light mode. This scan was
+        // `wcag2aa` inside `main` until 2026-09-14, which switched off every
+        // level-A rule and every page-level one — `document-title`, `html-has-lang`,
+        // `bypass`, landmarks — and left the navigation and header unscanned in
+        // dark mode.
+        const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+        // Collected across all four pages, then asserted once: a failure on the
+        // first page would otherwise hide whatever the other three have.
+        violations.push(
+          ...results.violations.map((v) => `${path} ${v.id}: ${v.nodes.length} node(s) — ${v.help}`)
+        );
       }
+      expect(violations).toEqual([]);
     });
 
     test('the decision grid is reachable and operable by keyboard', async ({ page }) => {
