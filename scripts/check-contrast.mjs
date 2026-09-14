@@ -253,6 +253,32 @@ export const PAIRS = [
   // a number that means somebody is waiting.
   { fg: 'rail-bg', bg: 'rail-attention', min: AA_TEXT, why: 'the approvals count, on the amber pill' },
   { fg: 'rail-fg', bg: 'rail-bg', min: AA_LARGE, why: 'focus ring on the rail, SC 1.4.11' },
+  // The nav chevron sits in a group button whose hover is `bg-rail-hover/10`.
+  { fg: 'rail-dim', bg: 'rail-hover', bgAlpha: 0.1, bgBase: 'rail-bg', min: AA_LARGE, why: 'nav chevron on the group hover, non-text' },
+  // The Cascade rail (§4.7). Its text sits on the frame, on a hover wash and on
+  // a selected wash, and the washes are alpha tokens in globals.css, read here
+  // by name so the ground checked is the ground drawn. Checking the bare frame
+  // alone is how --rail-dim passed at 4.61 while failing at 3.61 selected.
+  ...['rail-wash-hover', 'rail-wash-selected'].flatMap((wash) => [
+    ...['rail-fg', 'rail-dim', 'rail-block'].map((fg) => ({
+      fg,
+      bg: 'rail-hover',
+      bgAlpha: wash,
+      bgBase: 'rail-bg',
+      min: AA_TEXT,
+      why: `Cascade rail stage text on the ${wash.replace('rail-wash-', '')} wash`,
+    })),
+    // A stage's dot, bar and selected edge: non-text, 3:1.
+    ...['rail-accent', 'rail-ok', 'rail-attention', 'rail-block', 'rail-muted'].map((fg) => ({
+      fg,
+      bg: 'rail-hover',
+      bgAlpha: wash,
+      bgBase: 'rail-bg',
+      min: AA_LARGE,
+      why: `Cascade rail stage colour on the ${wash.replace('rail-wash-', '')} wash, non-text`,
+    })),
+  ]),
+  { fg: 'rail-block', bg: 'rail-bg', min: AA_TEXT, why: 'the break label on the Cascade rail' },
   // The autonomy ladder. `required` now: the badge renders a named tint rather
   // than an alpha of itself, so the pair is one the palette controls.
   ...['l0', 'l1', 'l2', 'l3', 'l4'].flatMap((fg) => [
@@ -266,7 +292,22 @@ export const PAIRS = [
   ]),
 ];
 
-export function check(tokens = parseTokens()) {
+/**
+ * Alpha tokens — `--name: 0.08;` — by theme, dark inheriting light as the
+ * cascade does. A separate reader because `parseTokens` holds colour triplets.
+ */
+export function parseAlphas(rawCss = readFileSync(CSS_PATH, 'utf8')) {
+  const css = stripComments(rawCss);
+  const scalars = (text) =>
+    Object.fromEntries(
+      [...text.matchAll(/--([a-z0-9-]+)\s*:\s*(0?\.\d+|0|1)\s*;/g)].map((m) => [m[1], Number(m[2])])
+    );
+  const light = scalars(block(css, ':root {'));
+  const dark = { ...light, ...scalars(block(css, ":root[data-theme='dark']")) };
+  return { light, dark };
+}
+
+export function check(tokens = parseTokens(), alphas = parseAlphas()) {
   const results = [];
 
   for (const theme of ['light', 'dark']) {
@@ -289,8 +330,15 @@ export function check(tokens = parseTokens()) {
       // `text-rail-accent` on `bg-rail-accent/10`, so what the text sits on is
       // the tint, not the rail. Checking the plain ground passes at 4.60 while
       // the rendered pair fails at 3.91 — which is exactly what happened.
-      const ground = pair.bgAlpha
-        ? over(bg, tokens[theme][pair.bgBase], pair.bgAlpha)
+      // An alpha may be a number or the name of an alpha token in globals.css.
+      const bgAlpha =
+        typeof pair.bgAlpha === 'string' ? alphas[theme][pair.bgAlpha] : pair.bgAlpha;
+      if (typeof pair.bgAlpha === 'string' && typeof bgAlpha !== 'number') {
+        results.push({ ...pair, theme, measured: null, tier: pair.tier ?? 'required', missing: pair.bgAlpha });
+        continue;
+      }
+      const ground = bgAlpha
+        ? over(bg, tokens[theme][pair.bgBase], bgAlpha)
         : bg;
       const front = pair.alpha ? over(fg, ground, pair.alpha) : fg;
       results.push({

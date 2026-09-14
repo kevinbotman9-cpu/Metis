@@ -54,6 +54,17 @@ export function FlowEditor({ artifactId, nodes, edges, candidateKeys, canEdit }:
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [compile, setCompile] = useState<CompileResultDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showVolume, setShowVolume] = useState(true);
+
+  // The overlay describes the graph the decisions ran, so it is off while a
+  // draft is being drawn: a new node has no volume, and an old edge's thickness
+  // on a rearranged graph would be a claim about decisions nobody made.
+  const volumeOn = showVolume && !editing;
+  const volume = useQuery({
+    queryKey: ['flow-volume', artifactId],
+    queryFn: () => apiClient.getFlowVolume({ flowId: artifactId }),
+    enabled: volumeOn,
+  });
 
   // The server's copy wins whenever it changes underneath — otherwise leaving
   // and returning shows a stale graph that a save would then write back.
@@ -141,7 +152,17 @@ export function FlowEditor({ artifactId, nodes, edges, candidateKeys, canEdit }:
             ) : undefined
           }
           actions={
-            canEdit ? (
+            <div className="flex items-center gap-2">
+              {editing ? null : (
+                <Button
+                  variant="secondary"
+                  aria-pressed={showVolume}
+                  onClick={() => setShowVolume(!showVolume)}
+                >
+                  Volume overlay
+                </Button>
+              )}
+              {canEdit ? (
               <div className="flex items-center gap-2">
                 {editing ? (
                   <Button
@@ -156,7 +177,8 @@ export function FlowEditor({ artifactId, nodes, edges, candidateKeys, canEdit }:
                   {editing ? 'Done' : 'Edit graph'}
                 </Button>
               </div>
-            ) : undefined
+              ) : null}
+            </div>
           }
         />
 
@@ -231,8 +253,35 @@ export function FlowEditor({ artifactId, nodes, edges, candidateKeys, canEdit }:
                     setDraft((d) => ({ ...d, edges: d.edges.filter((e) => e.id !== edgeId) }))
                 : undefined
             }
+            volume={volumeOn ? volume.data ?? null : null}
           />
         </div>
+
+        {volumeOn ? (
+          <p className="border-t border-border px-card py-2 text-label text-content-subtle">
+            {volume.isError ? (
+              'Volume could not be loaded. The graph is shown without it.'
+            ) : volume.data ? (
+              volume.data.decisions === 0 ? (
+                'No decisions recorded for this flow, so every edge is drawn at its thinnest.'
+              ) : (
+                <>
+                  <strong className="font-semibold text-content">Edge thickness is candidates, last {volume.data.hours} hours</strong>{' '}
+                  to the newest decision: {volume.data.decisions} decisions, {volume.data.entered} candidates entered,{' '}
+                  {volume.data.offered} offered. Each node shows what it removed.
+                  {volume.data.platformRemoved > 0
+                    ? ` Consent the platform applied removed ${volume.data.platformRemoved} before ranking.`
+                    : ''}
+                  {volume.data.unplaced > 0
+                    ? ` ${volume.data.unplaced} removals were recorded at nodes this graph does not have, so the figures do not add up.`
+                    : ''}
+                </>
+              )
+            ) : (
+              'Loading volume…'
+            )}
+          </p>
+        ) : null}
       </Card>
 
       <div className="space-y-stack">

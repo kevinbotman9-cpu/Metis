@@ -110,3 +110,52 @@ describe('the pane names the pack that supplied a rule', () => {
     expect(screen.queryByText(/no installed pack claims this rule/)).toBeNull();
   });
 });
+
+/**
+ * The pane's quote says only what the record carries. The reference quoted "the
+ * reason shown to the customer", and the platform has no such text (G-057), so a
+ * quote of it here would be evidence nobody recorded.
+ */
+describe('the quote states what the record holds', () => {
+  it('quotes a rule’s reason code meaning, and never claims a reason was shown to the customer', () => {
+    pane({});
+    expect(screen.getByText('What this code means')).toBeTruthy();
+    expect(screen.getByText('Affordability and ethics. Is it right for this customer?')).toBeTruthy();
+    expect(screen.queryByText(/shown to the customer/i)).toBeNull();
+    expect(screen.getByText(/No customer-facing refusal text exists/)).toBeTruthy();
+  });
+
+  it('quotes the node’s own recorded reason for a stage', () => {
+    render(
+      <TraceEvidence
+        trace={TRACE}
+        stage={STAGE}
+        group={null}
+        policies={[POLICY]}
+        packageVersions={null}
+        policySources={{}}
+      />
+    );
+    expect(screen.getByText('What the node recorded')).toBeTruthy();
+    expect(screen.getByText(STAGE.reason)).toBeTruthy();
+  });
+
+  it('quotes the ranking formula for the decision whole only when the trace carries one', () => {
+    const whole = (trace: TraceDto) =>
+      render(
+        <TraceEvidence trace={trace} stage={null} group={null} policies={[]} packageVersions={null} policySources={{}} />
+      );
+
+    whole(TRACE);
+    expect(screen.queryByText('How it was ranked')).toBeNull();
+    cleanup();
+
+    whole({
+      ...TRACE,
+      arbitration: { formula: 'priority = P × V × B', utility: { id: 'multiplicative', version: '1.0.0' } },
+    } as unknown as TraceDto);
+    expect(screen.getByText('How it was ranked')).toBeTruthy();
+    expect(screen.getByText('priority = P × V × B')).toBeTruthy();
+    expect(screen.getByText('multiplicative@1.0.0')).toBeTruthy();
+  });
+});

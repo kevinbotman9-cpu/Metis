@@ -782,6 +782,76 @@ components:
         seen: { type: integer }
         acted: { type: integer }
 
+    FlowVolumeReport:
+      type: object
+      description: |
+        Candidates through one flow's nodes over a window. The unit is a
+        candidate within a decision, as in `PolicyFunnelReport`: a node's
+        `entered`, less its `removed`, is its `survived`, and the arbitrate
+        node's survivors are the decisions offered something.
+      required: [flowId, hours, decisions, entered, offered, platformRemoved, unplaced, nodes, edges, from, to]
+      properties:
+        flowId: { type: string }
+        hours:
+          type: integer
+          description: The window's length, ending at `to`.
+        decisions: { type: integer }
+        entered:
+          type: integer
+          description: Candidates the flow was allowed to consider, summed over decisions.
+        offered:
+          type: integer
+          description: Decisions with a winner.
+        platformRemoved:
+          type: integer
+          description: >-
+            Candidates removed by consent the platform applied because no
+            constraint node did (G-015), counted before the arbitrate node.
+        unplaced:
+          type: integer
+          description: >-
+            Removals recorded at a step the flow's graph does not hold. Zero when
+            the records match the graph. Not zero means the node figures are not
+            a decomposition, and a screen must say so.
+        nodes:
+          type: array
+          description: Every node of the graph, in the order the engine visits them.
+          items: { $ref: '#/components/schemas/FlowVolumeNode' }
+        edges:
+          type: array
+          items: { $ref: '#/components/schemas/FlowVolumeEdge' }
+        from: { type: [string, 'null'], format: date-time }
+        to: { type: [string, 'null'], format: date-time }
+        provenance:
+          $ref: '#/components/schemas/Provenance'
+
+    FlowVolumeNode:
+      type: object
+      required: [nodeId, type, label, entered, removed, survived]
+      properties:
+        nodeId: { type: string }
+        type: { type: string }
+        label: { type: string }
+        entered:
+          type: integer
+          description: Candidates that reached the node, summed over decisions.
+        removed:
+          type: integer
+          description: Candidates the node's step removed.
+        survived:
+          type: integer
+          description: Candidates that went on.
+
+    FlowVolumeEdge:
+      type: object
+      required: [from, to, volume]
+      properties:
+        from: { type: string }
+        to: { type: string }
+        volume:
+          type: integer
+          description: Candidates that crossed the edge, the survivors of `from`.
+
     PolicyFunnelReport:
       type: object
       description: |
@@ -3728,6 +3798,45 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/PolicyFunnelReport' }
+
+  /flow-volume/{tenantId}:
+    get:
+      summary: Candidates through one flow, node by node
+      description: |
+        For one flow, how many candidates reached each node, how many it
+        removed and how many went on, and on each edge the candidates that
+        crossed it. What the canvas draws as edge thickness.
+
+        Counted from the eliminations each decision recorded, never inferred
+        from the graph. The engine carries one candidate set through the nodes
+        in topological order and a branch does not split it, so an edge carries
+        the survivors of the node it leaves. Consent applied by the platform
+        rather than by a node (G-015) is counted in `platformRemoved`, before the
+        arbitrate node.
+
+        The window ends at the newest decision recorded for the flow, not at the
+        wall clock, so the same records always give the same figures.
+
+        Proposed. The console's development API serves it from the seeded
+        corpus and the ledger; no plane does (G-127).
+      operationId: getFlowVolume
+      x-metis-status: proposed
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: flowId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: hours
+          in: query
+          description: The window's length in hours, ending at the newest decision. 24 when absent.
+          schema: { type: integer, minimum: 1, maximum: 8760 }
+      responses:
+        '200':
+          description: The volume through the flow
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FlowVolumeReport' }
 
   /profile-schema/{tenantId}:
     get:

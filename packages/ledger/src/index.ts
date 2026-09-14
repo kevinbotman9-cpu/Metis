@@ -31,3 +31,12 @@ export type {
   FunnelDecision,
   FunnelRemoval,
 } from './policy-funnel';
+
+export { buildFlowVolume, flowVolumeDecisionOf } from './flow-volume';
+export type {
+  FlowVolumeReport,
+  FlowVolumeNode,
+  FlowVolumeEdge,
+  FlowVolumeDecision,
+  FlowVolumeGraph,
+} from './flow-volume';

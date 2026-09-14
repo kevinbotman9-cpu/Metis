@@ -11,6 +11,14 @@ import type { Formatter } from '@/lib/format';
 import type { ChannelStagesDto, PerformanceRowDto } from '@/lib/api-client';
 import { channelLabel, pct, type Loop, type LoopReport } from '@/lib/loop';
 import { cn } from '@/lib/cn';
+import {
+  EvidenceAction,
+  EvidenceFields,
+  EvidenceLabel,
+  EvidencePick,
+  EvidenceQuote,
+  EvidenceRow,
+} from '@/components/ui/evidence';
 
 /**
  * The panes of the loop Cascade, shared by `/performance` and the Overview.
@@ -422,28 +430,37 @@ export function LoopStageDetail({ data, loop, stage }: { data: LoopReport; loop:
   }
 }
 
-/** Evidence for the selected stage, or for the loop whole when none is. */
+/**
+ * Evidence for the selected stage, or for the loop whole when none is.
+ *
+ * Its quote is a sentence the loop already derives, never one written here: the
+ * break's own statement from `lib/loop.ts`, and for the stages below it the
+ * population their rates describe. A stage with nothing to add has no quote.
+ */
 export function LoopStageEvidence({ data, loop, stage }: { data: LoopReport; loop: Loop; stage: string | null }) {
   const format = useFormat();
   const selected = loop.stages.find((s) => s.id === stage);
+  const breakStage = loop.stages.find((s) => s.broken);
 
   if (!selected) {
     return (
       <>
-        <h2 className="text-label font-semibold text-content-subtle">The loop</h2>
-        <p className="mt-1 text-body font-semibold text-content">
+        <EvidenceLabel>The loop</EvidenceLabel>
+        <EvidencePick>
           Closed on {loop.population}, open on {loop.dead.length}
-        </p>
-        <dl className="mt-3 flex flex-col text-label">
+        </EvidencePick>
+        {breakStage?.broken ? (
+          <EvidenceQuote title="Where the loop breaks" tone="block">
+            {breakStage.broken}
+          </EvidenceQuote>
+        ) : null}
+        <EvidenceFields>
           {data.channels.map((c) => (
-            <div key={c.channel} className="flex items-center justify-between border-t border-border py-2">
-              <dt className="text-content-muted">{channelLabel(c.channel)}</dt>
-              <dd>
-                <Badge tone={c.delivers ? 'pass' : 'hold'}>{c.delivers ? 'delivers' : 'no sender'}</Badge>
-              </dd>
-            </div>
+            <EvidenceRow key={c.channel} label={channelLabel(c.channel)}>
+              <Badge tone={c.delivers ? 'pass' : 'hold'}>{c.delivers ? 'delivers' : 'no sender'}</Badge>
+            </EvidenceRow>
           ))}
-        </dl>
+        </EvidenceFields>
         <p className="mt-3 text-label text-content-subtle">Select a stage to see what it is made of.</p>
       </>
     );
@@ -460,32 +477,41 @@ export function LoopStageEvidence({ data, loop, stage }: { data: LoopReport; loo
             ? c.seen
             : c.acted;
 
+  const measuredBelow = selected.id === 'seen' || selected.id === 'acted';
+
   return (
     <>
-      <h2 className="text-label font-semibold text-content-subtle">{selected.label}</h2>
-      <p className="mt-1 text-body font-semibold text-content">
+      <EvidenceLabel>{selected.label}</EvidenceLabel>
+      <EvidencePick>
         {format.number(selected.value)} · {selected.note}
-      </p>
-      <dl className="mt-3 flex flex-col text-label">
+      </EvidencePick>
+      {selected.broken ? (
+        <EvidenceQuote title="Why it breaks here" tone="block">
+          {selected.broken}
+        </EvidenceQuote>
+      ) : measuredBelow ? (
+        <EvidenceQuote title="What these rates describe" tone="hold">
+          Rates are over decisions measured on {loop.population}, not decisions made.
+        </EvidenceQuote>
+      ) : null}
+      <EvidenceFields>
         {data.channels.map((c) => (
-          <div key={c.channel} className="flex items-center justify-between border-t border-border py-2">
-            <dt className={cn('text-content-muted', !c.delivers && 'text-content-subtle')}>
-              {channelLabel(c.channel)}
-              {!c.delivers ? ' · no sender' : ''}
-            </dt>
-            <dd className="tnum text-content">{format.number(valueOf(c))}</dd>
-          </div>
+          <EvidenceRow key={c.channel} label={`${channelLabel(c.channel)}${c.delivers ? '' : ' · no sender'}`}>
+            <span className={cn('tnum', c.delivers ? 'text-content' : 'text-content-subtle')}>
+              {format.number(valueOf(c))}
+            </span>
+          </EvidenceRow>
         ))}
-      </dl>
+      </EvidenceFields>
       {selected.id === 'deliverable' ? (
-        <Link href="/creatives?view=coverage" className="mt-4 block text-label text-accent underline-offset-2 hover:underline">
-          Open the coverage matrix →
-        </Link>
+        <EvidenceAction href="/creatives?view=coverage" primary sub="Every offer against the channels that deliver it">
+          Open the coverage matrix
+        </EvidenceAction>
       ) : null}
       {selected.id === 'acted' ? (
-        <Link href="/decisions" className="mt-4 block text-label text-accent underline-offset-2 hover:underline">
-          Open the decisions behind these →
-        </Link>
+        <EvidenceAction href="/decisions" sub="Each one opens its trace">
+          Open the decisions behind these
+        </EvidenceAction>
       ) : null}
     </>
   );

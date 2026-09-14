@@ -194,11 +194,23 @@ export function Sparkline({
   values: number[];
   /** Screen readers get this instead of the bars. */
   label: string;
-  tone?: 'accent' | 'pass' | 'hold';
+  /**
+   * `rail` and `rail-block` are for the Cascade rail, which is the frame colour:
+   * the analytic tones are measured against a light panel and sink into it.
+   */
+  tone?: 'accent' | 'pass' | 'hold' | 'rail' | 'rail-block';
 }) {
   const max = Math.max(1, ...values);
   const fill =
-    tone === 'pass' ? 'bg-pass' : tone === 'hold' ? 'bg-hold' : 'bg-accent';
+    tone === 'pass'
+      ? 'bg-pass'
+      : tone === 'hold'
+        ? 'bg-hold'
+        : tone === 'rail'
+          ? 'bg-rail-muted'
+          : tone === 'rail-block'
+            ? 'bg-rail-block'
+            : 'bg-accent';
 
   return (
     <span className="inline-flex h-6 items-end gap-[2px]" role="img" aria-label={label}>

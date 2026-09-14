@@ -433,6 +433,51 @@ export interface LoopDay {
   acted: number;
 }
 
+/** Candidates through one flow's nodes over a window. The unit is a
+candidate within a decision, as in `PolicyFunnelReport`: a node's
+`entered`, less its `removed`, is its `survived`, and the arbitrate
+node's survivors are the decisions offered something.
+ */
+export interface FlowVolumeReport {
+  flowId: string;
+  /** The window's length, ending at `to`. */
+  hours: number;
+  decisions: number;
+  /** Candidates the flow was allowed to consider, summed over decisions. */
+  entered: number;
+  /** Decisions with a winner. */
+  offered: number;
+  /** Candidates removed by consent the platform applied because no constraint node did (G-015), counted before the arbitrate node. */
+  platformRemoved: number;
+  /** Removals recorded at a step the flow's graph does not hold. Zero when the records match the graph. Not zero means the node figures are not a decomposition, and a screen must say so. */
+  unplaced: number;
+  /** Every node of the graph, in the order the engine visits them. */
+  nodes: FlowVolumeNode[];
+  edges: FlowVolumeEdge[];
+  from: string | null;
+  to: string | null;
+  provenance?: Provenance;
+}
+
+export interface FlowVolumeNode {
+  nodeId: string;
+  type: string;
+  label: string;
+  /** Candidates that reached the node, summed over decisions. */
+  entered: number;
+  /** Candidates the node's step removed. */
+  removed: number;
+  /** Candidates that went on. */
+  survived: number;
+}
+
+export interface FlowVolumeEdge {
+  from: string;
+  to: string;
+  /** Candidates that crossed the edge, the survivors of `from`. */
+  volume: number;
+}
+
 /** Where candidates fall out of decisions, summed over decisions.
 
 The unit is a candidate within a decision. Every candidate is removed
@@ -1631,6 +1676,13 @@ export const OPERATIONS = {
     queryParams: [],
     statuses: ['200', '404'],
   },
+  getFlowVolume: {
+    method: 'GET',
+    path: '/flow-volume/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: ['flowId', 'hours'],
+    statuses: ['200'],
+  },
   getOffer: {
     method: 'GET',
     path: '/offers/{tenantId}/{offerId}',
@@ -2170,6 +2222,9 @@ export type GetCounterfactualRequest = {
 /** The full reasoning behind one decision */
 export type GetDecisionRecordResponse = DecisionRecord;
 
+/** Candidates through one flow, node by node */
+export type GetFlowVolumeResponse = FlowVolumeReport;
+
 /** An offer with its creatives, policies and effective autonomy */
 export type GetOfferResponse = OfferDetail;
 
@@ -2496,6 +2551,7 @@ export interface ResponseOf {
   getConformance: GetConformanceResponse;
   getCounterfactual: GetCounterfactualResponse;
   getDecisionRecord: GetDecisionRecordResponse;
+  getFlowVolume: GetFlowVolumeResponse;
   getOffer: GetOfferResponse;
   getPerformance: GetPerformanceResponse;
   getPolicyFunnel: GetPolicyFunnelResponse;

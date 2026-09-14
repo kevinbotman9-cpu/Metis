@@ -24,6 +24,7 @@ import { apiClient, ApiError } from '@/lib/api-client';
 import { downloadJson, evidenceFilename } from '@/lib/download';
 import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import { CascadeRail, type CascadeStage } from '@/components/cascade-rail';
+import { CascadePanes } from '@/components/cascade-panes';
 import { TraceEvidence } from '@/components/trace-evidence';
 import { CODE_MEANING, groupDenials, stagesFor } from '@/components/trace-cascade';
 import { cn } from '@/lib/cn';
@@ -287,8 +288,10 @@ function TraceView({ decisionId }: { decisionId: string }) {
         show three permanently empty stages on two thirds of this tenant's
         decisions, which is a screen lying about the flow it is showing.
       */}
-      <div className="mb-stack grid gap-3 xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,21rem)]">
-        <Card className="self-start">
+      <CascadePanes
+        className="mb-stack"
+        wide
+        rail={
           <CascadeRail
             label="Elimination funnel"
             stages={railStages}
@@ -297,16 +300,25 @@ function TraceView({ decisionId }: { decisionId: string }) {
             foot={
               <>
                 {trace.candidateCount} entered,{' '}
-                <strong className="font-semibold text-content">
+                <strong className="font-semibold">
                   {trace.winner ? '1 was offered' : 'none was offered'}
                 </strong>
                 . Every stage is what the flow actually ran, not the policy model.
               </>
             }
           />
-        </Card>
-
-        <div className="min-w-0">
+        }
+        evidence={
+          <TraceEvidence
+            trace={trace}
+            stage={selectedStage}
+            group={selectedGroup}
+            policies={policies.data?.policies ?? []}
+            packageVersions={packageVersions}
+            policySources={policySources}
+          />
+        }
+      >
           {selectedStage ? (
             <Card>
               <CardHeader
@@ -410,21 +422,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
               </CardBody>
             </Card>
           )}
-        </div>
-
-        <Card className="self-start" label="Evidence">
-          <CardBody>
-            <TraceEvidence
-              trace={trace}
-              stage={selectedStage}
-              group={selectedGroup}
-              policies={policies.data?.policies ?? []}
-              packageVersions={packageVersions}
-              policySources={policySources}
-            />
-          </CardBody>
-        </Card>
-      </div>
+      </CascadePanes>
 
       <div className="grid gap-stack lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-stack">

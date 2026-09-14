@@ -52,7 +52,12 @@
   --rail-bg: 44 58 71;
   --rail-fg: 255 255 255;
   --rail-muted: 190 205 217;
-  --rail-dim: 143 166 184;
+  /* Lifted from Rail's #8FA6B8 on 2026-09-14. That holds 4.61 on the bare
+     frame, and the Cascade rail puts it on a 4.5% hover wash (4.02) and an 8%
+     selected wash (3.61), where it fails. The rail is lifted rather than the
+     frame lightened: the frame's weight is the point of it. This holds 5.91
+     bare, 5.16 hovered, 4.63 selected, and stays under --rail-muted. */
+  --rail-dim: 170 187 201;
   --rail-line: 59 75 89;
   /* Lighter than --accent, twice over. The interactive blue is measured against
      a white panel and reaches only 2.05 on the frame. And the active nav item
@@ -72,6 +77,17 @@
      count needs as text. One value that clears both is simpler than two that
      nearly match: this holds 5.63 on the light frame and 8.97 on the dark. */
   --rail-attention: 240 164 88;
+  /* The break, on the frame. The analytic --block is measured against a white
+     panel and reaches 2.20 here; the dark theme's red reaches 4.08 bare and
+     3.19 on the selected wash, short for the 11.5px label a break carries. This
+     holds 5.93 bare and 4.62 selected. */
+  --rail-block: 245 164 158;
+  /* The Cascade rail's two washes, as --rail-hover (white) at these alphas.
+     Tokens rather than Tailwind's opacity steps because the steps miss: at 10%
+     --rail-dim falls to 4.35 on a selected stage. `scripts/check-contrast.mjs`
+     reads these same two numbers, so the pairs it checks are the ones drawn. */
+  --rail-wash-hover: 0.045;
+  --rail-wash-selected: 0.08;
 
   /* The dim behind a modal.
      A token rather than `bg-black/40` — the last literal colours in app code —
@@ -184,6 +200,9 @@
      type outside the scale, most of them standing in for these two. */
   --text-title: 1.125rem;
   --text-figure: 1.5rem;
+  /* A stage figure on the Cascade rail (§4.7): the figure is the stage, so it
+     is the largest number on the screen. 29px comfortable, 24px compact. */
+  --text-figure-rail: 1.8125rem;
   /* The rail's open width. 240px comfortable, 200px compact, per the console
      spec; collapsed it is the 48px icon rail, which is w-12 and needs no token. */
   --rail-w: 15rem;
@@ -217,6 +236,7 @@
   --text-label: 0.6875rem;
   --text-title: 1rem;
   --text-figure: 1.25rem;
+  --text-figure-rail: 1.5rem;
   --rail-w: 12.5rem;
 }
 
@@ -252,6 +272,7 @@
   --rail-hover: 255 255 255;
   --rail-ok: 63 191 140;
   --rail-attention: 240 164 88;
+  --rail-block: 240 115 106;
   /* Darker than the darkest surface, so a dialog still sits *above* something
      rather than dissolving into it. */
   --scrim: 0 0 0;

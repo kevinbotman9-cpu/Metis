@@ -7,6 +7,14 @@ import { CODE_MEANING } from '@/components/trace-cascade';
 import { pct } from '@/lib/loop';
 import { ENTERED, STAGE_LABEL, reaching, stageOf, type FunnelView } from '@/lib/policy-funnel';
 import type { PolicyFunnelReportDto, PolicyFunnelRuleDto } from '@/lib/api-client';
+import {
+  EvidenceAction,
+  EvidenceFields,
+  EvidenceLabel,
+  EvidencePick,
+  EvidenceQuote,
+  EvidenceRow,
+} from '@/components/ui/evidence';
 
 /**
  * The panes of the policy funnel Cascade: the whole funnel before a stage is
@@ -203,16 +211,13 @@ export function FunnelStageDetail({ report, stageId }: { report: PolicyFunnelRep
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3 border-t border-border py-2">
-      <dt className="text-content-muted">{label}</dt>
-      <dd className="tnum text-right text-content">{children}</dd>
-    </div>
-  );
-}
-
-/** Evidence for the chosen stage, or for the funnel whole when none is chosen. */
+/**
+ * Evidence for the chosen stage, or for the funnel whole when none is chosen.
+ *
+ * A stage's quote is the meaning of its own reason codes, from the closed set the
+ * trace reads (`CODE_MEANING`), so the funnel and a single decision's trace
+ * explain a removal in the same words. A stage no flow asks says so instead.
+ */
 export function FunnelStageEvidence({ report, stageId }: { report: PolicyFunnelReportDto; stageId: string | null }) {
   const format = useFormat();
   const stage = stageId ? stageOf(report, stageId) : undefined;
@@ -220,45 +225,60 @@ export function FunnelStageEvidence({ report, stageId }: { report: PolicyFunnelR
   if (!stage) {
     return (
       <>
-        <h2 className="text-label font-semibold text-content-subtle">
-          {stageId === ENTERED ? 'Candidates entered' : 'The funnel'}
-        </h2>
-        <p className="mt-1 text-body font-semibold text-content">
+        <EvidenceLabel>{stageId === ENTERED ? 'Candidates entered' : 'The funnel'}</EvidenceLabel>
+        <EvidencePick>
           {format.number(report.offered)} offered of {format.number(report.decisions)} decisions
-        </p>
-        <dl className="mt-3 flex flex-col text-label">
-          <Row label="Candidates entered">{format.number(report.entered)}</Row>
-          <Row label="From">{report.from ? format.date(report.from) : '—'}</Row>
-          <Row label="To">{report.to ? format.date(report.to) : '—'}</Row>
-          <Row label="Decisions that do not add up">{format.number(report.unaccounted)}</Row>
-        </dl>
+        </EvidencePick>
+        <EvidenceFields>
+          <EvidenceRow label="Candidates entered">
+            <span className="tnum">{format.number(report.entered)}</span>
+          </EvidenceRow>
+          <EvidenceRow label="From">{report.from ? format.date(report.from) : '—'}</EvidenceRow>
+          <EvidenceRow label="To">{report.to ? format.date(report.to) : '—'}</EvidenceRow>
+          <EvidenceRow label="Decisions that do not add up">
+            <span className="tnum">{format.number(report.unaccounted)}</span>
+          </EvidenceRow>
+        </EvidenceFields>
       </>
     );
   }
 
   const top = stage.rules[0];
+  const meanings = stage.codes.map((c) => CODE_MEANING[c]).filter(Boolean);
   return (
     <>
-      <h2 className="text-label font-semibold text-content-subtle">{STAGE_LABEL[stage.id]}</h2>
-      <p className="mt-1 text-body font-semibold text-content">
+      <EvidenceLabel>{STAGE_LABEL[stage.id]}</EvidenceLabel>
+      <EvidencePick>
         {format.number(stage.survived)} left
         {stage.asked === false ? ', not asked' : `, ${format.number(stage.removed)} removed`}
-      </p>
-      <dl className="mt-3 flex flex-col text-label">
-        <Row label="Reason codes">
+      </EvidencePick>
+      {stage.asked === false ? (
+        <EvidenceQuote title="Not asked by these flows" tone="neutral">
+          No flow in range has a node that asks this, so nothing could be removed here.
+        </EvidenceQuote>
+      ) : meanings.length > 0 ? (
+        <EvidenceQuote title="What this stage removes" tone={stage.removed > 0 ? 'hold' : 'neutral'}>
+          {meanings.join(' ')}
+        </EvidenceQuote>
+      ) : null}
+      <EvidenceFields>
+        <EvidenceRow label="Reason codes">
           <span className="font-mono">{stage.codes.join(', ')}</span>
-        </Row>
-        <Row label="Asked by these flows">{stage.asked === null ? 'Not known' : stage.asked ? 'Yes' : 'No'}</Row>
-        <Row label="Reached it">{format.number(reaching(report, stage.id))}</Row>
-        <Row label="Rules that removed any">{format.number(stage.rules.length)}</Row>
-      </dl>
+        </EvidenceRow>
+        <EvidenceRow label="Asked by these flows">
+          {stage.asked === null ? 'Not known' : stage.asked ? 'Yes' : 'No'}
+        </EvidenceRow>
+        <EvidenceRow label="Reached it">
+          <span className="tnum">{format.number(reaching(report, stage.id))}</span>
+        </EvidenceRow>
+        <EvidenceRow label="Rules that removed any">
+          <span className="tnum">{format.number(stage.rules.length)}</span>
+        </EvidenceRow>
+      </EvidenceFields>
       {top ? (
-        <Link
-          href={`/decisions/${top.sampleDecisionId}`}
-          className="mt-4 flex min-h-6 items-center text-label text-accent underline-offset-2 hover:underline"
-        >
+        <EvidenceAction href={`/decisions/${top.sampleDecisionId}`} primary sub="The trace, with the rule that removed it">
           Open a decision this stage removed a candidate from
-        </Link>
+        </EvidenceAction>
       ) : null}
     </>
   );
