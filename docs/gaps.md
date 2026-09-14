@@ -44,6 +44,78 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-129 — Six screen families do not have a decomposition, and must not be given a Cascade rail
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found assessing every screen in `METIS_CONSOLE_SPEC.md` Part 3 against §4.7
+
+§4.7 gives a rail only to a screen with a spine: one decomposition, ordered,
+nested and named, where the first question is *where does it fall off*. The
+Cascade now runs on five screens — `/`, `/performance`,
+`/targeting-policies?view=funnel`, `/decisions/[id]` and
+`/creatives?view=coverage` — and each passes: every stage is a subset of the
+one above. The families below were assessed and do not, and giving one a rail
+would be worse than giving it none, because a rail teaches a reader to expect a
+subset relationship the page does not have.
+
+- **Approvals, Environments, Release history.** Counts of different things —
+  change sets proposed, simulated, released; versions per environment. A
+  released change set is not a subset of the proposed ones in any window a
+  screen shows, and the architect's own mockup drew this as a rail and
+  withdrew it on 2026-09-13 (Part 3, Overview).
+- **Version comparison, Shadow comparison, Bias check, Counterfactual.** Two
+  populations side by side — before and after, active and shadow, one group
+  and another. The question is *how do they differ*, not *where does one fall
+  off*, and Split result is the pattern for it.
+- **Replay.** One binary outcome, identical or divergent, with the byte-level
+  difference behind it. There are no stages.
+- **Attribution, Value, Cost.** Shares and sums. Cost "broken to component"
+  adds up to a whole; attribution divides credit across touchpoints. Neither
+  narrows from one stage to the next.
+- **Health, Latency & throughput, Degradation, Capacity.** Degradation has an
+  ordered ladder, but a rung is a mode the platform is in, not a subset of the
+  rung above; the rest are measurements over time, not sequences.
+- **Decision flows and Journeys.** Graphs, not sequences. A canvas has a
+  topology, and volume through it is drawn as edge thickness on the canvas
+  itself (G-127), not as a rail beside it.
+
+Four more would earn a rail if their data existed, and are not in this entry
+because the reason they have none is absence, not shape: the Delivery log
+(decided → sent → delivered → opened → clicked, and nothing sends on email or
+SMS today), Under-served analysis (a population → eligible → offered, which
+needs simulation over a population), Paid audiences (segment → consented → not
+suppressed → exported), and Journey performance for a linear journey.
+
+**Done when:** never by adding a rail. This closes only if one of these gains a
+nested decomposition from the platform, and then that screen is reassessed
+against §4.7 rather than converted by default.
+
+### G-128 — The trace reference staged its rail by policy tier and invented reason codes; the built rail is right
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found building the evidence pane of `/decisions/[id]` from `docs/design/metis-trace-directions.html`
+
+The reference's Cascade tab for the trace draws its rail as Eligibility,
+Relevance and Suitability — the three policy tiers — and fills them with reason
+codes the engine does not have: `NO_CONSENT`, `NOT_IN_SEGMENT`,
+`AGE_RESTRICTED`, `ALREADY_HELD`, `RECENT_DECLINE`, `AFFORDABILITY`. None is in
+`REASON_CODES`. It also quotes "the reason shown to the customer", and no such
+text exists in the platform (G-057).
+
+**The built rail is right and the reference is wrong.** A trace's stages are
+the nodes the flow actually ran, in the order it ran them, from the decision
+record's own eliminations (`apps/console/components/trace-cascade.ts`,
+`stagesFor`). Flows differ: `inbound-web-offers` has one filter and no
+relevance or suitability node at all, so a tier-staged rail would show two
+permanently empty stages on most of this tenant's decisions — a screen lying
+about the flow it shows. The reason codes are the engine's closed set, and the
+evidence pane quotes their meanings and the node's recorded reason rather than
+customer-facing text nobody wrote.
+
+This is the fourth behaviour in `docs/design/` the engine does not have, after
+the three G-125 records; `docs/design/README.md` lists them beside the files.
+
+**Done when:** nothing is built from the trace reference's rail or quote, and
+the README beside it says so.
+
 ### G-127 — Volume through a flow is a proposed operation, served by the development API only
 
 **Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found building the volume overlay on the canvas (`METIS_CONSOLE_SPEC.md` §4.2)

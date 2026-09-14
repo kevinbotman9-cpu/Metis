@@ -193,7 +193,7 @@ built when a spine in `docs/JOURNEY_SPINES.md` reaches them.
 | Objectives | List–detail | Top of taxonomy. Owns categories. |
 | Categories | List–detail | Owns offers. |
 | Offers | List–detail | Properties, versions, effective dates, creatives beneath. |
-| Creatives | List–detail + preview | The content for an offer on a channel. Channel-shaped preview from the channel package. |
+| Creatives | List–detail + preview | The content for an offer on a channel. Channel-shaped preview from the channel package. The coverage view (`?view=coverage`) is a Cascade (4.7) since 2026-09-14: active offers → written for a channel that delivers → switched on → every delivering channel, each a subset of the one above, with the offer-by-channel matrix in the middle pane. The channels are not the stages; they are parallel. |
 | Actions | List–detail | An offer instance made decidable in a context. Today an offer carries the `key` used as the action; splitting them is a modelling change, not a rename. |
 | Content library | Workbench | Assets, versions, approval state, expiry, usage. |
 | Schedule | Calendar | Effective dating across every catalogue entity, one view. |
