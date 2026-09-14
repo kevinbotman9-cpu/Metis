@@ -99,7 +99,12 @@ async function resolveParams(api: APIRequestContext, token: string) {
   const taxonomy = await json('/api/taxonomy/telco-us');
   const decisions = await json('/api/decisions/search?limit=1');
   const changeSets = await json('/api/change-sets');
-  const artifacts = await json('/api/artifacts/telco-us');
+  // The flows the registry holds, not the first draft on the flow list. The
+  // list is in the store's order, and since 2026-09-14 that put
+  // `entertainment-cross-sell` first — a draft the compiler refuses, kept
+  // deliberately unpublished — so `getRegistryEntry` and `getShadowReport`
+  // were asked about a flow the registry has never held and answered 404.
+  const registry = (await json('/api/registry/telco-us')) as { flows: string[] };
   const connectors = await json('/api/connectors/telco-us');
   const placements = await json('/api/placements/telco-us');
 
@@ -115,9 +120,9 @@ async function resolveParams(api: APIRequestContext, token: string) {
     offerId: taxonomy.offers[0].id,
     decisionId: decisions.decisions[0].id,
     changeSetId: changeSets.changeSets[0].id,
-    artifactId: artifacts.artifacts[0].id,
+    artifactId: registry.flows[0],
     // The registry keys flows by the artifact id they were published under.
-    flowName: artifacts.artifacts[0].id,
+    flowName: registry.flows[0],
   } as Record<string, string>;
 }
 
