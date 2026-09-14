@@ -90,6 +90,7 @@ import {
 } from '@/mocks/catalogue-state';
 import { CONSOLE_TENANT } from '@/mocks/catalogue-source';
 import { CatalogueError, type CatalogueSnapshotRecord } from '@metis/catalogue';
+import { GovernanceError, type ChangeSet, type ChangeSetStatus } from '@metis/governance';
 import {
   findCompilation,
   compileContextFor,
@@ -1022,14 +1023,17 @@ async function handleGet(req: Request, { params }: Ctx) {
     }
 
     case 'change-sets': {
+      await store.governanceReady;
       if (rest[0]) {
-        const cr = store.changeSets.find((c) => c.id === rest[0]);
+        const cr = await store.governance.changeSet(CONSOLE_TENANT, rest[0]);
         return cr ? json(cr) : notFound(`No change set ${rest[0]}`);
       }
+      // Newest request first — the store's order, not the fixture file's.
       const status = q.get('status');
-      const result = status
-        ? store.changeSets.filter((c) => c.status === status)
-        : store.changeSets;
+      const result = await store.governance.changeSets(
+        CONSOLE_TENANT,
+        status ? (status as ChangeSetStatus) : undefined
+      );
       return json({ changeSets: result, total: result.length });
     }
 
@@ -1040,6 +1044,7 @@ async function handleGet(req: Request, { params }: Ctx) {
       if (process.env.NODE_ENV === 'production') return notFound();
       await store.catalogueReady.catch(() => {});
       await store.registryReady.catch(() => {});
+      await store.governanceReady.catch(() => {});
       return json({
         startedAt: STARTED_AT,
         uptimeMs: Date.now() - new Date(STARTED_AT).getTime(),
@@ -1062,14 +1067,22 @@ async function handleGet(req: Request, { params }: Ctx) {
         // people authored, not the fixtures, and a fingerprint of the fixtures
         // would claim otherwise. Null makes `global-setup.ts` refuse the server.
         // The same holds for flows: the fingerprint covers the fixture flows,
-        // so a registry found already stored voids it too.
-        seed: store.catalogueSeeded() && store.registrySeeded() ? store.seededFingerprint : null,
+        // so a registry found already stored voids it too, and so do change
+        // sets and an audit log found already stored.
+        seed:
+          store.catalogueSeeded() && store.registrySeeded() && store.governanceSeeded()
+            ? store.seededFingerprint
+            : null,
       });
     }
 
     case 'audit': {
+      await store.governanceReady;
       const limit = Number(q.get('limit') || 100);
-      return json({ events: store.auditEvents.slice(0, limit), total: store.auditEvents.length });
+      return json({
+        events: await store.governance.events(CONSOLE_TENANT, { limit }),
+        total: await store.governance.countEvents(CONSOLE_TENANT),
+      });
     }
 
     case 'connectors': {
@@ -1650,7 +1663,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       } as Objective;
 
       await store.catalogue.putObjective(CONSOLE_TENANT, objective, user.email, now);
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'ObjectiveCreated',
@@ -1713,7 +1726,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       } as Category;
 
       await store.catalogue.putCategory(CONSOLE_TENANT, category, user.email, now);
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'CategoryCreated',
@@ -1827,7 +1840,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       } as Offer;
 
       await store.catalogue.putOffer(CONSOLE_TENANT, offer, user.email, now);
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'OfferCreated',
@@ -1905,7 +1918,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         );
       }
 
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'CreativeCreated',
@@ -2133,7 +2146,7 @@ async function handlePost(req: Request, { params }: Ctx) {
           updatedBy: user.email,
         };
         store.dataSources.push(source);
-        recordAudit({
+        await recordAudit({
           actor: user.email,
           actorType: 'human',
           eventType: 'DataSourceCreated',
@@ -2172,7 +2185,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         source.updatedAt = new Date().toISOString();
         source.updatedBy = user.email;
 
-        recordAudit({
+        await recordAudit({
           actor: user.email,
           actorType: 'human',
           eventType: 'RowsLanded',
@@ -2208,7 +2221,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         source.status = 'active';
         source.updatedAt = new Date().toISOString();
         source.updatedBy = user.email;
-        recordAudit({
+        await recordAudit({
           actor: user.email,
           actorType: 'human',
           eventType: 'DataSourceActivated',
@@ -2266,7 +2279,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       }
 
       await store.catalogue.putExperiment(CONSOLE_TENANT, experiment, user.email, now);
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'ExperimentCreated',
@@ -2308,7 +2321,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       };
       await store.catalogue.putTargetingPolicy(CONSOLE_TENANT, policy, user.email, now);
 
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'TargetingPolicyCreated',
@@ -2381,7 +2394,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         } as Placement;
 
         await store.catalogue.putPlacement(CONSOLE_TENANT, placement, user.email, now);
-        recordAudit({
+        await recordAudit({
           actor: user.email,
           actorType: 'human',
           eventType: 'PlacementCreated',
@@ -2504,33 +2517,44 @@ async function handlePost(req: Request, { params }: Ctx) {
       if (!user) return json({ error: 'no_session' }, 401);
       if (!user.permissions.includes('approve:changes')) return forbidden('approve:changes');
 
-      const cr = store.changeSets.find((c) => c.id === rest[0]);
-      if (!cr) return notFound(`No change set ${rest[0]}`);
-      if (cr.status !== 'pending') {
-        return json(
-          {
-            error: 'already_decided',
-            message: `This change set was already ${cr.status}.`,
-          },
-          409
-        );
-      }
+      await store.governanceReady;
+      const alreadyDecided = (status: string) =>
+        json({ error: 'already_decided', message: `This change set was already ${status}.` }, 409);
+
+      const current = await store.governance.changeSet(CONSOLE_TENANT, rest[0]);
+      if (!current) return notFound(`No change set ${rest[0]}`);
+      if (current.status !== 'pending') return alreadyDecided(current.status);
 
       const approving = rest[1] === 'approve';
       if (!approving && rest[1] !== 'reject') return notFound();
 
       const body = (await req.json().catch(() => ({}))) as { reason?: string };
 
-      cr.status = approving ? 'approved' : 'rejected';
-      cr.decidedBy = user.email;
-      cr.decidedAt = new Date().toISOString();
-      cr.decisionReason =
-        body.reason ?? (approving ? 'Approved from the console.' : 'Rejected from the console.');
+      // Decided in the store before the diff is applied. The store writes a
+      // decision only over a pending change set, so of two approvals made
+      // together exactly one gets past here and a diff is applied at most once.
+      // The price is the opposite failure: an apply that throws after this line
+      // leaves a change set approved whose diff did not land (G-117's shape).
+      let cr: ChangeSet;
+      try {
+        cr = await store.governance.decide(CONSOLE_TENANT, current.id, {
+          status: approving ? 'approved' : 'rejected',
+          decidedBy: user.email,
+          decidedAt: new Date().toISOString(),
+          reason: body.reason ?? (approving ? 'Approved from the console.' : 'Rejected from the console.'),
+        });
+      } catch (e) {
+        if (e instanceof GovernanceError && e.code === 'ALREADY_DECIDED') {
+          const now = await store.governance.changeSet(CONSOLE_TENANT, current.id);
+          return alreadyDecided(now?.status ?? 'decided');
+        }
+        throw e;
+      }
 
       // An approved change actually applies its diff to the store.
       if (approving) await applyChangeSet(cr, user.email);
 
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: approving ? 'ChangeSetApproved' : 'ChangeSetRejected',
@@ -2583,7 +2607,7 @@ async function handlePost(req: Request, { params }: Ctx) {
                 tenantId, flowName, body.environment, user.email, new Date().toISOString()
               );
 
-          recordAudit({
+          await recordAudit({
             actor: user.email,
             actorType: 'human',
             eventType: body.version ? 'ShadowStarted' : 'ShadowStopped',
@@ -2634,7 +2658,7 @@ async function handlePost(req: Request, { params }: Ctx) {
                   new Date().toISOString()
                 );
 
-          recordAudit({
+          await recordAudit({
             actor: user.email,
             actorType: 'human',
             eventType: rest[2] === 'promote' ? 'VersionPromoted' : 'VersionRolledBack',
@@ -2686,7 +2710,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       );
 
       if (outcome.status !== 'rejected') {
-        recordAudit({
+        await recordAudit({
           actor: user.email,
           actorType: 'human',
           eventType: 'ArtifactPublished',
@@ -2739,7 +2763,7 @@ async function handlePost(req: Request, { params }: Ctx) {
  * else is approved for the record but leaves the data untouched, which is
  * honest rather than silently pretending.
  */
-async function applyChangeSet(cr: (typeof store.changeSets)[number], actor: string) {
+async function applyChangeSet(cr: ChangeSet, actor: string) {
   // Read, change a copy, write back. This used to assign into the store's own
   // objects, which a real store does not hand out: the edit would have landed
   // on a copy and the approved change would have changed nothing.
@@ -2859,7 +2883,7 @@ async function handlePut(req: Request, { params }: Ctx) {
       source.updatedAt = new Date().toISOString();
       source.updatedBy = user.email;
 
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'DataSourceChanged',
@@ -2905,7 +2929,7 @@ async function handlePut(req: Request, { params }: Ctx) {
       // thing they have been editing was never going to ship.
       const compile = compileDecisionFlow(toSource(artifact), await currentCompileContext(artifact.id));
 
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'DecisionFlowDraftSaved',
@@ -2961,7 +2985,7 @@ async function handlePut(req: Request, { params }: Ctx) {
       next.updatedBy = user.email;
 
       await store.catalogue.putExperiment(CONSOLE_TENANT, next, user.email, now);
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         // Compared against the stored experiment. The in-place `Object.assign`
@@ -3007,7 +3031,7 @@ async function handlePut(req: Request, { params }: Ctx) {
       };
       await store.catalogue.putTargetingPolicy(CONSOLE_TENANT, updated, user.email, updated.updatedAt);
 
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'TargetingPolicyChanged',
@@ -3032,7 +3056,7 @@ async function handlePut(req: Request, { params }: Ctx) {
       };
       await store.catalogue.putArbitration(CONSOLE_TENANT, updated, user.email, updated.updatedAt);
 
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'ArbitrationWeightsChanged',
@@ -3062,7 +3086,7 @@ async function handlePut(req: Request, { params }: Ctx) {
       };
       await store.catalogue.putConnector(CONSOLE_TENANT, connector, user.email, connector.updatedAt);
 
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'ConnectorChanged',
@@ -3087,7 +3111,7 @@ async function handlePut(req: Request, { params }: Ctx) {
         updatedBy: user.email,
       });
 
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'AutonomyChanged',
@@ -3145,7 +3169,7 @@ async function handlePut(req: Request, { params }: Ctx) {
           JSON.stringify((before as unknown as Record<string, unknown>)[k]) !==
           JSON.stringify((body as Record<string, unknown>)[k])
       );
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'CreativeUpdated',
@@ -3183,7 +3207,7 @@ async function handlePut(req: Request, { params }: Ctx) {
       };
       store.tenantSettings = updated;
 
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'TenantSettingsChanged',
@@ -3222,7 +3246,7 @@ async function handlePut(req: Request, { params }: Ctx) {
       };
       await store.catalogue.putPlacement(CONSOLE_TENANT, updated as Placement, user.email, updated.updatedAt);
 
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'PlacementUpdated',
@@ -3253,7 +3277,7 @@ async function handlePut(req: Request, { params }: Ctx) {
       };
       await store.catalogue.putObjective(CONSOLE_TENANT, updated as Objective, user.email, updated.updatedAt);
 
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'ObjectiveUpdated',
@@ -3293,7 +3317,7 @@ async function handlePut(req: Request, { params }: Ctx) {
       };
       await store.catalogue.putCategory(CONSOLE_TENANT, updated as Category, user.email, updated.updatedAt);
 
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'CategoryUpdated',
@@ -3340,7 +3364,7 @@ async function handlePut(req: Request, { params }: Ctx) {
         (k) => JSON.stringify((before as unknown as Record<string, unknown>)[k]) !== JSON.stringify(body[k])
       );
 
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'OfferUpdated',
@@ -3392,7 +3416,7 @@ async function handleDelete(req: Request, { params }: Ctx) {
       }
 
       await store.catalogue.deleteTargetingPolicy(CONSOLE_TENANT, policy.id, user.email, new Date().toISOString());
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'TargetingPolicyDeleted',
@@ -3424,7 +3448,7 @@ async function handleDelete(req: Request, { params }: Ctx) {
       }
 
       await store.catalogue.deletePlacement(CONSOLE_TENANT, placement.id, user.email, new Date().toISOString());
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'PlacementDeleted',
@@ -3467,7 +3491,7 @@ async function handleDelete(req: Request, { params }: Ctx) {
         user.email,
         at
       );
-      recordAudit({
+      await recordAudit({
         actor: user.email,
         actorType: 'human',
         eventType: 'CreativeDeleted',

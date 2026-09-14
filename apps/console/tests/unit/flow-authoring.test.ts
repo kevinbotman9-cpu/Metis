@@ -159,7 +159,8 @@ describe('saving a graph', () => {
 
   it('records who edited it', async () => {
     await saveDraft({ candidateKeys: ['netflix'] });
-    expect(store.auditEvents[0].eventType).toBe('DecisionFlowDraftSaved');
+    const [latest] = await store.governance.events('telco-us', { limit: 1 });
+    expect(latest.eventType).toBe('DecisionFlowDraftSaved');
   });
 });
 

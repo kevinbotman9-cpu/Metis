@@ -1,10 +1,13 @@
 /**
  * Development persistence.
  *
- * The fixture modules are the seed; this module holds the mutable copy that
- * route handlers read and write. State lives for the life of the server
- * process, so edits survive navigation and reload but not a restart — which is
- * the right fidelity for a console running ahead of its execution plane.
+ * The fixture modules are the seed. The catalogue, the registry, change sets
+ * with the audit log, and the ledger are real stores — PostgreSQL when
+ * `METIS_DATABASE_URL` is set — so what a person authors in them survives a
+ * restart; each `*-source.ts` module says when the seed is written. The rest of
+ * this object (data sources, tenant settings, autonomy, users, shadow
+ * comparisons) lives for the life of the process and is seeded again on every
+ * start (G-118, G-121).
  *
  * Deliberately module-scoped: Next.js dev can re-evaluate modules on HMR, so
  * the store is stashed on globalThis to survive a hot reload.
@@ -17,7 +20,7 @@ import {
   createCatalogueStore,
   type CatalogueStore,
 } from '@metis/catalogue';
-import { openCatalogue } from './catalogue-source';
+import { openCatalogue, CONSOLE_TENANT } from './catalogue-source';
 import { clearCalls } from './call-log';
 import type { ShadowComparison } from '@metis/runtime';
 import {
@@ -48,12 +51,15 @@ import {
   type RegistryStore,
 } from '@metis/registry';
 import { openRegistry } from './registry-source';
+import { changeSets as seedChangeSets, auditEvents as seedAuditEvents } from './fixtures/governance';
 import {
-  changeSets as seedChangeSets,
-  auditEvents as seedAuditEvents,
-  type ChangeSetRecord,
+  Governance,
+  InMemoryGovernanceStore,
+  createGovernanceStore,
   type AuditEvent,
-} from './fixtures/governance';
+  type GovernanceStore,
+} from '@metis/governance';
+import { openGovernance } from './governance-source';
 
 type Store = {
   /**
@@ -132,8 +138,23 @@ type Store = {
   /** How this tenant presents dates, numbers and money. G-092. */
   tenantSettings: typeof seedTenantSettings;
   users: typeof seedUsers;
-  changeSets: ChangeSetRecord[];
-  auditEvents: AuditEvent[];
+  /**
+   * Change sets and the audit log.
+   *
+   * `@metis/governance` — PostgreSQL when `METIS_DATABASE_URL` is set, memory
+   * otherwise. Until 2026-09-14 these were two arrays here, so after a restart
+   * an approved change set came back pending over a catalogue that already held
+   * its edit. `mocks/governance-source.ts` says what happens to the fixtures.
+   *
+   * Starts as an empty in-memory store and is replaced in place once the
+   * configured one is open. Await `governanceReady` first; `recordAudit` does.
+   */
+  governance: Governance;
+  governanceStore: GovernanceStore;
+  governanceReady: Promise<void>;
+  governanceKind: () => 'memory' | 'postgres';
+  /** Whether this process wrote the fixture change sets and log; see `catalogueSeeded`. */
+  governanceSeeded: () => boolean;
   /**
    * The artifact registry: every flow's draft, every published version, the
    * environment pointers and the registry's event log.
@@ -198,6 +219,9 @@ function seed(): Store {
   let registryKind: 'memory' | 'postgres' = 'memory';
   let registrySeeded = false;
   const placeholderRegistry = new InMemoryRegistryStore();
+  let governanceKind: 'memory' | 'postgres' = 'memory';
+  let governanceSeeded = false;
+  const placeholderGovernance = new InMemoryGovernanceStore();
 
   const built: Store = {
     catalogue: new Catalogue(placeholderCatalogue),
@@ -223,8 +247,11 @@ function seed(): Store {
     activity: clone(seedActivity),
     tenantSettings: clone(seedTenantSettings),
     users: clone(seedUsers),
-    changeSets: clone(seedChangeSets),
-    auditEvents: clone(seedAuditEvents),
+    governance: new Governance(placeholderGovernance),
+    governanceStore: placeholderGovernance,
+    governanceReady: Promise.resolve(),
+    governanceKind: () => governanceKind,
+    governanceSeeded: () => governanceSeeded,
     registryStore: placeholderRegistry,
     registry: new ArtifactRegistry(placeholderRegistry),
     registryReady: Promise.resolve(),
@@ -327,6 +354,29 @@ function seed(): Store {
       throw e;
     });
 
+  // Independent of the catalogue: nothing here is compiled or checked against
+  // it. The same failure shape as the other stores.
+  built.governanceReady = createGovernanceStore()
+    .then(async (handle) => {
+      const opened = await openGovernance(handle.store);
+      built.governanceStore = handle.store;
+      built.governance = new Governance(handle.store);
+      governanceKind = handle.kind;
+      governanceSeeded = opened.seeded;
+      if (handle.kind === 'postgres') {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[metis] governance: ${handle.description}; ` +
+            (opened.seeded ? 'seeded change sets and the audit log into an empty store' : 'tenant found, used as stored')
+        );
+      }
+    })
+    .catch((e: Error) => {
+      // eslint-disable-next-line no-console
+      console.error(`[metis] governance unavailable: ${e.message}`);
+      throw e;
+    });
+
   return built;
 }
 
@@ -382,6 +432,7 @@ export async function resetStore(): Promise<void> {
   // Awaiting here makes the reset mean what its name says.
   await next.registryReady;
   await next.catalogueReady;
+  await next.governanceReady;
   await next.ledgerReady.catch(() => {
     // A configured database that cannot be reached is already reported by
     // `seed()`. Swallowed here so a reset does not fail a test with the same
@@ -404,22 +455,31 @@ export async function resetStore(): Promise<void> {
 // Audit — every write goes through here, so the log is never out of step
 // ---------------------------------------------------------------------------
 
-let auditCounter = 1000;
-
-export function recordAudit(event: {
+/**
+ * Append one event to the tenant's audit log.
+ *
+ * Asynchronous, and every caller awaits it, because the log is a store: a write
+ * whose audit entry was still in flight when the response went out could be
+ * lost with nobody told. The id is assigned by `Governance` — it was a counter
+ * here that started again at 1000 on every boot, which over a durable log would
+ * have reissued ids already cited.
+ */
+export async function recordAudit(event: {
   actor: string;
   actorType: AuditEvent['actorType'];
   eventType: string;
   scope: string;
   summary: string;
   changeSetId?: string | null;
-}) {
-  const entry: AuditEvent = {
-    id: `evt_${++auditCounter}`,
+}): Promise<AuditEvent> {
+  await store.governanceReady;
+  return store.governance.record(CONSOLE_TENANT, {
     timestamp: new Date().toISOString(),
+    actor: event.actor,
+    actorType: event.actorType,
+    eventType: event.eventType,
+    scope: event.scope,
+    summary: event.summary,
     changeSetId: event.changeSetId ?? null,
-    ...event,
-  };
-  store.auditEvents.unshift(entry);
-  return entry;
+  });
 }

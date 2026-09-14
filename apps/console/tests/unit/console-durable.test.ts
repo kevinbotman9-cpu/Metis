@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { Pool } from 'pg';
 import { PostgresCatalogueStore, runMigration, type CatalogueSnapshotRecord } from '@metis/catalogue';
 import { createRegistryStore } from '@metis/registry';
+import { createGovernanceStore } from '@metis/governance';
 import { hash } from '@metis/runtime/deterministic/canonical';
 import type { CatalogueSnapshot } from '@metis/runtime/deterministic/types';
 import { catalogueSnapshot } from '@/mocks/fixtures/engine';
@@ -60,8 +61,10 @@ const CATALOGUE_TABLES = [
 
 const REGISTRY_TABLES = ['registry_environments', 'registry_versions', 'registry_events', 'registry_drafts'];
 
+const GOVERNANCE_TABLES = ['governance_change_sets', 'governance_audit_events'];
+
 /** TRUNCATE, because the edit logs refuse DELETE by trigger. Test database only. */
-const truncate = (tables = [...CATALOGUE_TABLES, ...REGISTRY_TABLES]) =>
+const truncate = (tables = [...CATALOGUE_TABLES, ...REGISTRY_TABLES, ...GOVERNANCE_TABLES]) =>
   pool.query(`TRUNCATE ${tables.join(', ')} RESTART IDENTITY CASCADE`);
 
 /** The part of a stored catalogue the engine decides from. */
@@ -117,6 +120,8 @@ if (!reachable) {
     // The registry's migrations, through the same entry point the console uses.
     const registry = await createRegistryStore({ databaseUrl: URL });
     await registry.close();
+    const governance = await createGovernanceStore({ databaseUrl: URL });
+    await governance.close();
   });
 
   afterAll(async () => {
@@ -312,6 +317,38 @@ if (!reachable) {
       expect(entry!.record.decision.artifactVersion).toBe('9.0.0');
     });
 
+    it('keeps an approval across a restart: still approved, not approvable again, and still in the log', async () => {
+      // Before 2026-09-14 the change set came back pending after a restart, over
+      // a catalogue that already held its edit, and the log had forgotten who
+      // approved it.
+      await truncate();
+      process.env.METIS_DATABASE_URL = URL;
+      const CHANGE_SET = 'cr_0041';
+
+      const first = await bootConsole();
+      expect(first.store.governanceKind()).toBe('postgres');
+      expect(first.store.governanceSeeded()).toBe(true);
+
+      const approved = await call(first, 'POST', ['change-sets', CHANGE_SET, 'approve'], { reason: 'Context explains little.' });
+      expect(approved.status, await approved.clone().text()).toBe(200);
+
+      const second = await bootConsole();
+      expect(second.store.governanceSeeded(), 'the restart reseeded the change sets').toBe(false);
+
+      const held = (await (await call(second, 'GET', ['change-sets', CHANGE_SET])).json()) as { status: string; decidedBy: string };
+      expect(held).toMatchObject({ status: 'approved', decidedBy: 'marcus.webb@telco.example' });
+
+      const again = await call(second, 'POST', ['change-sets', CHANGE_SET, 'approve'], {});
+      expect(again.status, 'an approval that survived a restart was approved a second time').toBe(409);
+
+      const log = await second.store.governance.events(CONSOLE_TENANT);
+      expect(log.filter((e) => e.eventType === 'ChangeSetApproved' && e.changeSetId === CHANGE_SET)).toHaveLength(1);
+
+      // And the diff it applied is still what the catalogue holds.
+      const weights = (await (await call(second, 'GET', ['arbitration', CONSOLE_TENANT])).json()) as { config: { weights: { context: number } } };
+      expect(weights.config.weights.context).toBe(0.65);
+    });
+
     it('does not claim the fixture flows when the catalogue is seeded and the flows were found', async () => {
       // The fingerprint covers both, so either one found as stored voids it.
       await truncate();
@@ -323,6 +360,15 @@ if (!reachable) {
       expect(again.store.catalogueSeeded()).toBe(true);
       expect(again.store.registrySeeded()).toBe(false);
       expect(await uptimeSeed(again)).toBeNull();
+
+      // And change sets and an audit log found as stored, with the catalogue
+      // and the flows both seeded by this process.
+      await truncate([...CATALOGUE_TABLES, ...REGISTRY_TABLES]);
+      const third = await bootConsole();
+      expect(third.store.catalogueSeeded()).toBe(true);
+      expect(third.store.registrySeeded()).toBe(true);
+      expect(third.store.governanceSeeded()).toBe(false);
+      expect(await uptimeSeed(third)).toBeNull();
     });
   });
 }

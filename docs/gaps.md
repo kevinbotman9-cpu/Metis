@@ -44,7 +44,74 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
-### G-118 — Authored state outside the catalogue still does not survive a restart
+### G-121 — Parts of the console still judge flows by the fixtures
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found when the console moved its flows onto the registry
+
+Since 2026-09-14 a flow's draft and every version published from it live in
+`@metis/registry`, and the flow list compiles each stored draft against the
+stored catalogue. Four readings of a flow still come from the fixture modules,
+so after a person edits and publishes a flow they describe the fixture instead:
+
+- **The policy funnel's "asked" stages.** `GET /api/policy-funnel` decides
+  which stages a flow asks from `findCompilation` in
+  `apps/console/mocks/fixtures/compiled.ts`, compiled once at import from the
+  fixture flow and the fixture catalogue. A node added and published is not a
+  stage the funnel shows.
+- **The fallback artifact.** `artifactFor` in
+  `apps/console/app/api/[...path]/route.ts` runs `execArtifacts`, the fixture
+  flows, for a flow with no production version.
+- **A draft's version history.** `versions` and `activeVersion` on the draft
+  are the fixture's lists, and publish and promote do not update them. The
+  flow's page says "N versions, all replayable" from the draft while the
+  registry holds the real list.
+- **Shadow comparisons** are an array in the development store, lost on
+  restart, so a shadow report after a restart counts none.
+
+**Done when:** each of the four reads the registry, and a flow edited and
+published through the API shows its own stages, history and shadow evidence.
+
+### G-120 — The console has three audit logs and `/audit` shows one
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found when change sets and the audit log moved onto a store
+
+Three append-only logs now survive a restart, and they do not agree:
+
+- `governance_audit_events`, which `recordAudit` writes and `/audit` reads;
+- `catalogue_events`, one row for every catalogue write;
+- `registry_events`, one row for every publish, refusal, promotion and shadow.
+
+The console writes its own summary into the first for most writes, so the
+three overlap without matching. A publish the compiler refused is in
+`registry_events` and not in `/audit`, because the route records only a
+publish that landed. Seeding writes catalogue and registry events and no audit
+events. Nothing joins them, so the question "who changed this, and was it
+approved?" is answered by reading three tables by hand.
+
+**Done when:** `/audit` shows one log a person can trust to be complete, either
+by reading all three with their source named or by the stores writing one.
+
+### G-119 — An approval is recorded before its diff is applied, in a separate write
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found when change sets moved onto a store
+
+Approving a change set is three writes across two stores with no transaction:
+the decision into `@metis/governance`, the diff into `@metis/catalogue`, and the
+audit event. The order is deliberate. The decision goes first because the store
+writes it only over a pending change set, so an approval applies its diff at
+most once — applying it twice was the failure a durable catalogue beside an
+in-memory change set produced.
+
+The price is the opposite failure. An apply that throws after the decision
+leaves a change set approved whose diff did not land, and no audit event says
+so. The same shape now holds for every console write and its `recordAudit`: a
+write that lands and an audit append that fails leaves an unaudited edit, which
+in memory could not happen. It is G-117's shape, one level up.
+
+**Done when:** an approval records whether its diff was applied, and a write
+and its audit event land together or not at all.
+
+### G-118 — Data sources, tenant settings, autonomy and users still do not survive a restart
 
 **Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found when the console moved its catalogue onto the store
 
@@ -53,22 +120,19 @@ survives a restart when `METIS_DATABASE_URL` is set. That covers taxonomy,
 offers, creatives, policies, boosts, the ranking function, connectors,
 placements, the profile schema and experiments.
 
-Everything else a person authors in the console is still held in arrays in
-`apps/console/mocks/store.ts`, and seeded again on every start:
+Since 2026-09-14 decision flows — drafts, published versions, environments and
+the registry's event log, in `@metis/registry` — and change sets with the audit
+log, in `@metis/governance`, survive a restart the same way. Each has the
+catalogue's seeding rule (`apps/console/mocks/registry-source.ts`,
+`apps/console/mocks/governance-source.ts`) and a restart test in
+`apps/console/tests/unit/console-durable.test.ts`. What that did not finish is
+G-119, G-120 and G-121.
 
-- **Decision flows.**
-  - Drafts are saved into `store.artifacts`.
-  - Every version published and promoted sits in an `InMemoryRegistryStore`,
-    which `seedRegistry` refills from the fixture flows. It compiles them
-    against the fixture catalogue, not the stored one.
-  - So a flow a person published is gone after a restart. The console does not
-    use the registry's own PostgreSQL store at all.
-- **Change sets and the console audit log** (`store.changeSets`,
-  `store.auditEvents`). The catalogue's own edit log persists
-  (`catalogue_events`), but the console's audit screen reads the in-memory one.
-  After a restart, the screen cannot say who changed a boost the catalogue
-  still holds.
-- **Data sources.** They reference profile-schema fields that now persist.
+What a person authors that is still held in `apps/console/mocks/store.ts`, and
+seeded again on every start:
+
+- **Data sources**, and the rows landed into them. They reference
+  profile-schema fields that persist.
 - **Tenant settings** (G-092), **autonomy settings** and **users**.
 
 Two consequences of the catalogue persisting work as designed, but are not
@@ -80,9 +144,15 @@ obvious:
   because that is the order the store reads in.
   `apps/console/tests/unit/placement-decision.test.ts` asserted the authoring
   order; it now asserts the set.
+- **Flows and change sets list in the store's order too.** `GET /artifacts`
+  lists flows by id and `GET /change-sets` newest request first; both followed
+  the order of the fixture files before.
+- **A registry holding published flows and no drafts is refused**, because
+  decisions would run flows the console cannot show or edit. A bundle from
+  before format 4.0.0 has no drafts, and format 3.x is refused on import anyway.
 
-**Done when:** decision flows (drafts and the registry), change sets and the
-audit log survive a restart the same way, each with a restart test like
+**Done when:** data sources, tenant settings, autonomy settings and users
+survive a restart the same way, each with a restart test in
 `apps/console/tests/unit/console-durable.test.ts`.
 
 ### G-117 — The console checks a catalogue rule and writes in separate awaits, with no transaction

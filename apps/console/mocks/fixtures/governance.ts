@@ -1,34 +1,18 @@
-/** Change sets and the audit event log. Deterministic. */
+/**
+ * Change sets and the audit event log. Deterministic.
+ *
+ * The seed, not the state: since 2026-09-14 the console reads both from
+ * `@metis/governance`, which owns these types, and `mocks/governance-source.ts`
+ * writes these into an empty store once.
+ */
+
+import type { AuditEvent, ChangeSet, ChangeSetStatus } from '@metis/governance';
+
+export type { AuditEvent, ChangeSetStatus };
+export type ChangeSetRecord = ChangeSet;
 
 const T0 = Date.parse('2026-09-01T09:00:00Z');
 const iso = (h: number) => new Date(T0 + h * 3600_000).toISOString();
-
-export type ChangeSetStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn';
-
-export interface ChangeSetRecord {
-  id: string;
-  title: string;
-  description: string;
-  status: ChangeSetStatus;
-  /** 1 = manual, 2 = bounded, 3 = autonomous. */
-  autonomyTier: 1 | 2 | 3;
-  requestedBy: string;
-  requestedAt: string;
-  decidedBy: string | null;
-  decidedAt: string | null;
-  decisionReason: string | null;
-  targetScope: { level: string; targetId: string | null };
-  changeType: string;
-  diff: { field: string; before: string; after: string }[];
-  simulation: {
-    ran: boolean;
-    passed: boolean;
-    populationSize: number;
-    projectedMarginDelta: string;
-    biasRatio: number;
-    notes: string;
-  } | null;
-}
 
 export const changeSets: ChangeSetRecord[] = [
   {
@@ -161,17 +145,6 @@ export const changeSets: ChangeSetRecord[] = [
     simulation: null,
   },
 ];
-
-export interface AuditEvent {
-  id: string;
-  timestamp: string;
-  actor: string;
-  actorType: 'human' | 'agent' | 'system';
-  eventType: string;
-  scope: string;
-  summary: string;
-  changeSetId: string | null;
-}
 
 export const auditEvents: AuditEvent[] = [
   /**
