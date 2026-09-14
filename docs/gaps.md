@@ -44,6 +44,42 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-131 — Every screen is titled "METIS Console", so nothing outside the page can tell two apart
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** [W-083](BACKLOG.md)
+
+The console has one document title. It is rendered in the root layout
+(`apps/console/app/layout.tsx`, since G-130), and no route sets its own: all 26
+page routes, and the 29 addresses the accessibility sweep scans, read "METIS
+Console".
+
+**Who that fails.**
+- **A screen reader user.** The title is what is announced when a page loads and
+  when focus returns to the window. Moving from the decision list to a trace
+  announces the same words as moving from Offers to Settings.
+- **Anyone with more than one tab.** A compliance officer comparing two decision
+  traces, or a change set beside the flow it changes, sees identical tabs, and
+  the browser's history and bookmarks are a list of identical entries.
+- **An exported or printed page.** A browser's PDF export and print header take
+  the document title, so a saved trace is titled "METIS Console" with nothing to
+  say which decision it records.
+
+WCAG 2.4.2 *Page Titled* asks for a title that describes the page's topic or
+purpose. axe's `document-title` checks only that a non-empty title exists, which
+is why every scan passes: the rule cannot see that 26 routes share one.
+
+**Why it is not a one-line change.** G-130 moved the title out of `metadata`
+because Next's per-route metadata head is remounted on every client-side
+navigation, and the document had no title for 14–37ms each time. Per-route
+`metadata` would bring that gap back. A per-screen title has to be set without
+reintroducing it, and `document-title.spec.ts` is the check that says whether it
+has.
+
+**Done when:** every route's title names the screen, and a detail route names
+the thing it shows (the offer, the decision, the change set); two different
+screens never share a title; and a check fails when a route has none of its
+own, alongside `document-title.spec.ts` still passing.
+
 ### G-122 — The arbitration weights API still publishes without a change set
 
 **Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found when `/arbitration` moved to raising change sets
