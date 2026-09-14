@@ -44,6 +44,82 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-133 — The first PostgreSQL restart test times out locally on this Windows machine and passes on CI
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — a local-environment failure with no diagnosis; the suite's subject is W-005
+
+**The observation.** `apps/console/tests/unit/console-durable.test.ts` › *keeps
+an edit made through the API across a restart, and decides the next request
+against it* timed out at Vitest's default 5000ms when the file was run alone,
+with the other seven tests passing, on three commits:
+
+| Commit | Alone |
+|---|---|
+| main, `3e49396` | 1 failed (the timeout), 7 passed |
+| #59 before merging main, `b74cc59` | 1 failed (the timeout), 7 passed |
+| #59 with main merged, `017145b` | 1 failed (the timeout), 7 passed |
+
+Inside a full `npm run gates:quick` the same file failed five tests: that one
+timing out, four more with `expected false to be true`. PostgreSQL at
+`localhost:5432` was accepting connections throughout. CI runs the suite against
+its own database and passed it on main at `34c7d7f`.
+
+**What is not known.** Why the first test takes more than five seconds here and
+not on a runner. The likeliest reading — the first test paying the connection,
+schema and seeding cost inside its own timeout — is a reading, not a measurement;
+nor is it known whether the four assertion failures in the full run are the
+same cause or a second one.
+
+**What was done instead.** The #59 and #60 merges of main were pushed with
+`gates:quick` red on this file alone, and CI was left as the gate, by the product
+owner's decision.
+
+**Done when:** the time the first test spends is measured and the cause stated;
+the suite passes locally the way it does on CI, or the reason it cannot is
+written down; and the four assertion failures seen under a full run are either
+shown to be the same cause or registered as their own.
+
+### G-132 — A bundle-budget test can hang in teardown after it has measured, and a retry is what turns it green
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — a harness defect with no diagnosis yet; W-081 owns the budget check's measurement, not its teardown
+
+**The observation.** #62's `verify` job at `1e9c499` (run 34891321276) failed
+`bundle-size.spec.ts` › *`/creatives` is within budget*:
+
+```
+/creatives: 692.4 kB of 780 kB (11 prefetch requests not counted)
+✘ … › /creatives is within budget (1.0m)
+Test timeout of 60000ms exceeded.
+```
+
+The route was measured and was inside its budget. The only statement after the
+line that printed it is a synchronous `expect`, so the sixty seconds went
+somewhere after the measurement — most plausibly in teardown: the spec leaves a
+`page.route('**/*')` handler installed and pushes a `res.body()` promise for
+every `/_next/static/*.js` response, including any that arrive after
+`Promise.all(pending)` has returned, and nothing awaits or removes either before
+the page closes. That is a reading of the code, not a demonstration.
+
+**Why it is not the change.** #62 touched one e2e spec and register prose,
+nothing that ships in a route bundle. The same application code measured
+`/creatives` identically (692.4 kB, 11 prefetch requests aborted) in 1.2s on
+#61's run and 1.1s on main's push run at `34c7d7f`.
+
+**What was done instead of a fix.** The failed job was re-run and #62 merged on
+the result, by the product owner's decision. The re-run passed: `/creatives`
+measured 692.4 kB in 1.1s — with **7** prefetch requests aborted where the failed
+run aborted **11**, from the same build. The byte count matched; what the page
+was doing on the network when the measurement ended did not, which is worth
+knowing when this is diagnosed. The Playwright config's own comment
+says a test that passes only on retry "is a defect to investigate, not a result
+to accept"; this entry is that defect, recorded so the retry is not silent.
+
+**Done when:** the hang is reproduced on demand against a production build — or a
+sustained repeat run is recorded as not producing it — the cause is stated with
+the evidence, and the spec releases what it installs (the route handler, any
+body read still pending) before the page closes, with a check that would fail if
+it stopped doing so.
+
 ### G-131 — Every screen is titled "METIS Console", so nothing outside the page can tell two apart
 
 **Registered:** 2026-09-14 · **Status:** Open · **Work item:** [W-083](BACKLOG.md)
