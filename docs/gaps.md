@@ -578,7 +578,7 @@ harness-owned server each went red on one e2e test, and on different tests:
 
 | Run | e2e | Failure |
 |---|---|---|
-| 1 | 393 passed, 34 skipped, 1 failed, 14.1 min | `accessibility.spec.ts` — axe reported the decision trace had no `<title>`. The title is Next `metadata` in `app/layout.tsx`, which the slice does not touch. The test passed 3 of 3 alone on a fresh server. |
+| 1 | 393 passed, 34 skipped, 1 failed, 14.1 min | `accessibility.spec.ts` — axe reported the decision trace had no `<title>`. The title is Next `metadata` in `app/layout.tsx`, which the slice does not touch. The test passed 3 of 3 alone on a fresh server. **Not competition: see the correction below.** |
 | 2 | 393 passed, 34 skipped, 1 failed, 17.0 min | `outcome-loop.spec.ts` @screen-only — the snapshot shows `/performance` still on "Joining outcomes to decisions…" when the 10-second wait ran out. The sentence it waited for is not in the diff. |
 
 Both are timing assertions, not content assertions. Neither test is registered
@@ -588,6 +588,20 @@ as a flake. The second run was three minutes slower than the first.
 two showed the port-3000 server at 181 CPU-seconds since 08:18, which is not
 heavy, and it had exited on its own by the time it was to be stopped before
 the third run. A third run started with no other node process on the machine went green on all 23 gates (e2e 394 passed, 34 skipped, 0 failed, 16.3 min). That is consistent with competition and does not prove it: one green run after two red ones is also what an intermittent fault looks like.
+
+**Correction, 2026-09-14: run 1's failure was not competition, and this entry
+was wrong to count it.** The same `document-title` failure went red on CI
+runners with nothing else on them — main's flake-hunt at `cd13e8e`, on the
+decision trace and on the offer catalogue, and a pull request's shard at
+`b74cc59` — and repeated on retry within each run. A competing server cannot
+explain a clean runner or a retry that fails the same way. The cause was in
+the product: the title lived in Next's per-route head, which the client router
+remounts on every navigation, and every client-side navigation removed it for
+14–37ms, measured ten times of ten. It is
+registered, with the evidence and the fix, as [G-130](gaps.md). What remains
+here is run 2 and the 2026-09-12 observation; the case for competition is
+weaker by one of its three observations, and nothing here should be extended
+with another failure until that failure's own cause has been looked for.
 
 **Done when:** a gates run refuses to start, or warns loudly, when another
 console server is listening on the machine, or the rule is written down with
@@ -2382,6 +2396,75 @@ names, or deleted. Wiring it changes which caps apply at a node, and so what
 decisions do; that makes it a decision rather than a cleanup.
 
 ## Resolved
+
+### G-130 — Every client-side navigation removed the document's title, and axe caught it when the timing lined up
+
+**Registered:** 2026-09-14 · **Resolved:** 2026-09-14 · **Status:** Resolved · **Work item:** none — found and closed in one change
+
+**What was seen.** Axe reported `document-title` ("Documents must have `<title>`
+element") on screens whose title was static metadata in `app/layout.tsx`:
+
+| Where | Commit | Test | Retry |
+|---|---|---|---|
+| main, flake-hunt | `cd13e8e` | `accessibility.spec.ts` › the decision trace has no violations | failed again |
+| main, flake-hunt | `cd13e8e` | `offer-catalogue.spec.ts` › the catalogue, and an offer open beside it, are free of violations | failed again |
+| #59, e2e shard 3 | `b74cc59` | `offer-catalogue.spec.ts`, the same test | failed again |
+| a local `npm run gates`, 2026-09-13 | — | `accessibility.spec.ts`, the decision trace | — |
+
+The last row was attributed to a competing dev server in [G-104](gaps.md).
+**That attribution was wrong.** The CI runners had nothing else on them, and a
+retry that fails the same way is not load. G-104 carries the correction.
+
+**What it was.** Not hydration, not axe starting before a navigation settled,
+and not streaming metadata. Next renders a metadata title inside the client
+router's per-route `Head` (`next/dist/client/components/app-router.js`), which
+is keyed by route and remounted on every client-side navigation. The old title
+is removed when the navigation commits and the new one is mounted once the new
+route's head resolves. In between, the document has no title.
+
+Measured with a `MutationObserver` through the navigation, on a harness-owned
+server, ten navigations of ten:
+
+- **Opening an offer beside the catalogue:** no title for 20–37ms. The detail
+  heading painted 85–179ms *before* the title was removed, five times of five,
+  because the pane renders from the list already loaded while the navigation is
+  still in flight. A test that waits for that heading and then runs axe starts
+  just ahead of the gap, so it failed on retry as well: the ordering is
+  structural, not load.
+- **Opening a trace from the decisions list:** no title for 14–26ms. The `h1`
+  came 150–187ms *after* the title returned, which is why this screen failed
+  less often.
+- **A plain `goto`:** a title at first paint every time. No test that only loads
+  a page failed this way.
+
+This was a product defect, not a test defect: a screen reader announcing the
+document on navigation had, for that window, no title to announce.
+
+**What was tried first, and did not work.** `htmlLimitedBots: /.*/` in
+`next.config.js`, which serves blocking rather than streamed metadata. The gap
+was unchanged — removed at 164–261ms, back 19–28ms later, ten navigations of ten —
+because the remount is the router's, not the stream's. Reverted.
+
+**What closed it.** The title is rendered as `<title>` in the root layout's
+`<head>`, and `title` is gone from the `metadata` export so Next does not emit a
+second one. The root layout is never remounted by a navigation, so its title is
+never removed. The axe checks were not changed: they neither skip the rule nor
+wait for a title, because there is no longer a moment without one.
+
+**The check.** `apps/console/tests/e2e/document-title.spec.ts` watches the
+document through opening an offer and opening a trace, and fails on any removal
+of a `<title>` node; it also asserts exactly one title afterwards. It counts
+removals rather than sampling whether a title exists: a sample taken in the
+observer's callback runs after the whole task, and the first version of the
+check, which sampled, passed three attempts in twelve with the gap present.
+
+**Proven.** Each run on its own harness-owned server:
+
+| Run | Result |
+|---|---|
+| The fix, with the new check, the diagnostic and both axe tests that had failed, each five times | 36 passed, 0 failed; the diagnostic recorded no title removal on any of ten navigations |
+| The title moved back into `metadata` | the new check failed ten times of ten, each on "a `<title>` was removed during the navigation" |
+| Restored | 10 of 10 passed |
 
 ### G-015 — A flow can ignore consent and nothing says so
 
