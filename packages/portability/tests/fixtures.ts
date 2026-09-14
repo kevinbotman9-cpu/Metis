@@ -275,6 +275,17 @@ export async function populatedInstance(): Promise<Instance> {
 
   await inst.registry.promote(TENANT, FLOW, '1.0.0', 'production', 'marcus', AT);
   await inst.registry.startShadow(TENANT, FLOW, '1.1.0', 'production', 'marcus', AT);
+  // What that shadow has found so far. A restore that carried the pointer and
+  // not this would be shadowing with nothing to show.
+  await inst.registry.recordShadowComparison({
+    tenantId: TENANT,
+    flowName: FLOW,
+    environment: 'production',
+    activeVersion: '1.0.0',
+    shadowVersion: '1.1.0',
+    recordedAt: AT,
+    comparison: { agrees: false, divergences: [{ kind: 'winner', summary: 'offer_a became nothing' }], shadowMs: 1.5 },
+  });
   // Work in progress on the next version, which only a draft holds.
   await inst.registry.saveDraft(TENANT, FLOW, source({ version: '1.2.0' }), 'sarah', AT);
 

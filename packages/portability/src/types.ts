@@ -1,4 +1,10 @@
-import type { PublishedVersion, EnvironmentState, RegistryEvent, FlowDraft } from '@metis/registry';
+import type {
+  PublishedVersion,
+  EnvironmentState,
+  RegistryEvent,
+  FlowDraft,
+  ShadowComparisonRecord,
+} from '@metis/registry';
 import type { DeliveryAttempt, LedgerEntry, OutcomeEvent } from '@metis/ledger';
 import type { CatalogueEvent } from '@metis/catalogue';
 import type { AuditEvent, ChangeSet } from '@metis/governance';
@@ -95,6 +101,8 @@ export interface TenantBundle {
   registry_events: RegistryEvent[];
   /** Since format 4.0.0. */
   registry_drafts: FlowDraft[];
+  /** Since format 4.0.0. By flow, oldest first within each. */
+  registry_shadow_comparisons: ShadowComparisonRecord[];
   /** Since format 4.0.0. In id order. */
   governance_change_sets: ChangeSet[];
   /** Since format 4.0.0. Oldest first, the order the log was written in. */

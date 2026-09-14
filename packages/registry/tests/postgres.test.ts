@@ -49,7 +49,7 @@ if (!reachable) {
       // itself worth knowing — the append-only guarantee is about rows, not
       // about a deliberate administrative reset.
       await pool.query(
-        'TRUNCATE registry_environments, registry_versions, registry_events, registry_drafts RESTART IDENTITY'
+        'TRUNCATE registry_shadow_comparisons, registry_environments, registry_versions, registry_events, registry_drafts RESTART IDENTITY'
       );
       return new PostgresRegistryStore(pool);
     },
@@ -109,6 +109,37 @@ if (!reachable) {
              VALUES ('telco-us', 'inbound-web-offers', 'production', '404.0.0')`
           )
         ).rejects.toThrow();
+      });
+
+      it('the database refuses to rewrite a shadow comparison', async () => {
+        const registry = getRegistry();
+        for (const version of ['1.0.0', '2.0.0']) {
+          await registry.publish(
+            {
+              tenantId: 'telco-us',
+              flowName: 'inbound-web-offers',
+              version,
+              source: source({ version }),
+              actor: 'test',
+              occurredAt: '2026-06-01T12:00:00.000Z',
+            },
+            context()
+          );
+        }
+        await registry.recordShadowComparison({
+          tenantId: 'telco-us',
+          flowName: 'inbound-web-offers',
+          environment: 'production',
+          activeVersion: '1.0.0',
+          shadowVersion: '2.0.0',
+          recordedAt: '2026-06-01T12:00:00.000Z',
+          comparison: { agrees: false },
+        });
+
+        await expect(
+          pool.query(`UPDATE registry_shadow_comparisons SET comparison = '{"agrees": true}'`)
+        ).rejects.toThrow(/append-only/);
+        await expect(pool.query('DELETE FROM registry_shadow_comparisons')).rejects.toThrow(/append-only/);
       });
 
       it('assigns sequence numbers from the database, not the process', async () => {

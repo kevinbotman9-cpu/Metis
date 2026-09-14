@@ -59,7 +59,13 @@ const CATALOGUE_TABLES = [
   'catalogue_objectives',
 ];
 
-const REGISTRY_TABLES = ['registry_environments', 'registry_versions', 'registry_events', 'registry_drafts'];
+const REGISTRY_TABLES = [
+  'registry_shadow_comparisons',
+  'registry_environments',
+  'registry_versions',
+  'registry_events',
+  'registry_drafts',
+];
 
 const GOVERNANCE_TABLES = ['governance_change_sets', 'governance_audit_events'];
 
@@ -315,6 +321,68 @@ if (!reachable) {
       const entry = await second.store.ledger.get(CONSOLE_TENANT, decisionId);
       expect(entry!.record.decision.artifactId).toBe(FLOW);
       expect(entry!.record.decision.artifactVersion).toBe('9.0.0');
+    });
+
+    it('keeps what a shadow found across a restart, and the report still counts it', async () => {
+      // The shadow pointer always survived — it is `registry_environments`.
+      // Until 2026-09-14 the comparisons did not, so a shadow that had run for a
+      // week reported nothing compared the moment the process restarted.
+      await truncate();
+      process.env.METIS_DATABASE_URL = URL;
+      const FLOW = 'next-best-action';
+
+      const first = await bootConsole();
+      type Entry = { versions: { artifact: { id: string; tenantId: string; nodes: unknown[]; edges: unknown[]; candidateKeys: string[] } }[] };
+      const entry = (await (await call(first, 'GET', ['registry', CONSOLE_TENANT, FLOW])).json()) as Entry;
+      const artifact = entry.versions[0].artifact;
+
+      // A second version that can disagree: one candidate fewer.
+      const published = await call(first, 'POST', ['registry', CONSOLE_TENANT, FLOW], {
+        version: '1.1.0',
+        source: {
+          id: artifact.id,
+          version: '1.1.0',
+          tenantId: artifact.tenantId,
+          nodes: artifact.nodes,
+          edges: artifact.edges,
+          candidateKeys: artifact.candidateKeys.filter((k) => k !== 'netflix'),
+          packageRanges: { '@metis/nodes-core': '^1.2.0', '@metis/core': '^2.0.0' },
+        },
+      });
+      expect(published.status, await published.clone().text()).toBe(201);
+      const shadowing = await call(first, 'POST', ['registry', CONSOLE_TENANT, FLOW, 'shadow'], {
+        version: '1.1.0',
+        environment: 'production',
+      });
+      expect(shadowing.status, await shadowing.clone().text()).toBe(200);
+
+      const run = Date.now();
+      for (const n of [1, 2, 3]) {
+        const decided = await call(first, 'POST', ['decisions'], {
+          artifactId: FLOW,
+          request: {
+            tenantId: CONSOLE_TENANT,
+            customerId: `cust_shadow_durable_${run}_${n}`,
+            channel: 'email',
+            placement: 'weekly_offers_send',
+            occurredAt: '2026-06-01T12:00:00.000Z',
+            input: { customer: { age: 41 } },
+            consent: { marketing: true, profiling: true, thirdParty: false },
+          },
+        });
+        expect(decided.status, await decided.clone().text()).toBeLessThan(300);
+      }
+      // The shadow runs after the response; wait for it rather than sleep.
+      expect((await call(first, 'POST', ['_test', 'drain'])).status).toBeLessThan(300);
+
+      type Report = { compared: number; agreementRate: number; shadowVersion: string | null };
+      const before = (await (await call(first, 'GET', ['registry', CONSOLE_TENANT, FLOW, 'shadow-report'])).json()) as Report;
+      expect(before.shadowVersion).toBe('1.1.0');
+      expect(before.compared, 'the shadow compared nothing, so there is nothing for a restart to lose').toBe(3);
+
+      const second = await bootConsole();
+      const after = (await (await call(second, 'GET', ['registry', CONSOLE_TENANT, FLOW, 'shadow-report'])).json()) as Report;
+      expect(after).toEqual(before);
     });
 
     it('keeps an approval across a restart: still approved, not approvable again, and still in the log', async () => {

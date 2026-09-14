@@ -33,6 +33,7 @@ import {
   IdempotencyConflict,
   compareShadow,
   buildShadowReport,
+  type ShadowComparison,
   resolveInputs,
   selectSlate,
   resolveAggregations,
@@ -158,7 +159,10 @@ async function runShadow(active: DecisionRecord, request: DecisionRequest): Prom
         active.decision.artifactId,
         'production'
       );
-      if (!env?.shadowVersion) return;
+      // Both sides of the pair, or there is nothing to compare and nothing the
+      // registry would accept as evidence.
+      if (!env?.shadowVersion || !env.activeVersion) return;
+      const pair = { activeVersion: env.activeVersion, shadowVersion: env.shadowVersion };
 
       // The registry's own compiled artifact for that version, not a lookup by
       // flow id: a shadow is a *version* of the same flow, and matching the
@@ -185,14 +189,18 @@ async function runShadow(active: DecisionRecord, request: DecisionRequest): Prom
       const shadow = executeDecision(shadowArtifact, catalogue, request);
       const shadowMs = performance.now() - started;
 
-      store.shadowComparisons.push(
-        compareShadow(
-          active,
-          shadow,
-          { activeVersion: env.activeVersion ?? 'unknown', shadowVersion: env.shadowVersion },
-          shadowMs
-        )
-      );
+      // Into the registry beside the shadow pointer, not an array here. The
+      // pointer has always persisted in `registry_environments`; until
+      // 2026-09-14 its evidence did not, so a shadow that ran for a week had
+      // nothing to show after a restart.
+      await store.registry.recordShadowComparison<ShadowComparison>({
+        tenantId: request.tenantId,
+        flowName: active.decision.artifactId,
+        environment: 'production',
+        ...pair,
+        recordedAt: new Date().toISOString(),
+        comparison: compareShadow(active, shadow, pair, shadowMs),
+      });
     } catch {
       // Deliberately silent. The decision already went out.
     }
@@ -1449,9 +1457,16 @@ async function handleGet(req: Request, { params }: Ctx) {
         // Filtered to the pair currently configured. Comparisons from an
         // earlier shadow describe a different question, and folding them into
         // one agreement rate would average across two migrations.
-        const mine = store.shadowComparisons.filter(
-          (c) => c.shadowVersion === env?.shadowVersion && c.activeVersion === env?.activeVersion
-        );
+        const mine =
+          env?.activeVersion && env.shadowVersion
+            ? (
+                await store.registry.shadowComparisons<ShadowComparison>(tenantId, rest[1], {
+                  environment: 'production',
+                  activeVersion: env.activeVersion,
+                  shadowVersion: env.shadowVersion,
+                })
+              ).map((r) => r.comparison)
+            : [];
         return json(
           buildShadowReport(
             rest[1],

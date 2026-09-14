@@ -132,6 +132,11 @@ export async function importTenant(
     await targets.registryStore.putDraft(draft);
   }
 
+  // After the versions they reference, in the order exported.
+  for (const comparison of bundle.registry_shadow_comparisons) {
+    await targets.registryStore.appendShadowComparison(comparison);
+  }
+
   for (const changeSet of bundle.governance_change_sets) {
     await targets.governanceStore.insertChangeSet(tenantId, changeSet);
   }
@@ -167,6 +172,7 @@ export async function importTenant(
       registry_environments: bundle.registry_environments.length,
       registry_events: bundle.registry_events.length,
       registry_drafts: bundle.registry_drafts.length,
+      registry_shadow_comparisons: bundle.registry_shadow_comparisons.length,
       governance_change_sets: bundle.governance_change_sets.length,
       governance_audit_events: bundle.governance_audit_events.length,
       decision_records: bundle.decision_records.length,

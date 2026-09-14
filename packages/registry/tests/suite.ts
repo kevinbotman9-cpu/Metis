@@ -499,6 +499,75 @@ export function describeRegistry(label: string, harness: StoreHarness): void {
       expect((await registry.drafts('bank-uk')).map((d) => d.flowName)).toEqual(['m-flow']);
     });
 
+    // --- Shadow comparisons ---------------------------------------------------
+
+    /** 1.0.0 active and 2.0.0 shadowing, both published. */
+    const twoVersions = async () => {
+      await publish();
+      await publish({ version: '2.0.0', source: source({ version: '2.0.0' }) });
+    };
+    const comparison = (over: Partial<Parameters<ArtifactRegistry['recordShadowComparison']>[0]> = {}) => ({
+      tenantId: T,
+      flowName: NAME,
+      environment: 'production' as const,
+      activeVersion: '1.0.0',
+      shadowVersion: '2.0.0',
+      recordedAt: AT,
+      comparison: { agrees: false, divergences: [{ kind: 'winner', summary: 'offer_a became offer_b' }] },
+      ...over,
+    });
+
+    it('keeps shadow comparisons, oldest first, and narrows them to the pair asked about', async () => {
+      await twoVersions();
+      await publish({ version: '3.0.0', source: source({ version: '3.0.0' }) });
+      await registry.recordShadowComparison(comparison({ recordedAt: '2026-06-01T12:00:01.000Z' }));
+      await registry.recordShadowComparison(
+        comparison({ activeVersion: '2.0.0', shadowVersion: '1.0.0', recordedAt: '2026-06-01T12:00:02.000Z' })
+      );
+      // The same shadow beside a different active version — what a promotion
+      // during a running shadow leaves behind. Matching on the shadow version
+      // alone would fold it into the pair below, and the swapped record above
+      // could not show that: its shadow version differs too.
+      await registry.recordShadowComparison(
+        comparison({ activeVersion: '3.0.0', recordedAt: '2026-06-01T12:00:02.500Z' })
+      );
+      await registry.recordShadowComparison(comparison({ recordedAt: '2026-06-01T12:00:03.000Z' }));
+
+      const pair = await registry.shadowComparisons(T, NAME, {
+        environment: 'production',
+        activeVersion: '1.0.0',
+        shadowVersion: '2.0.0',
+      });
+      // Whole records, so a jsonb round trip that dropped a nested field fails.
+      expect(pair).toEqual([
+        comparison({ recordedAt: '2026-06-01T12:00:01.000Z' }),
+        comparison({ recordedAt: '2026-06-01T12:00:03.000Z' }),
+      ]);
+      expect(await registry.shadowComparisons(T, NAME)).toHaveLength(4);
+      expect(await registry.shadowComparisons('bank-uk', NAME)).toEqual([]);
+    });
+
+    it('refuses a comparison naming a version that was never published, and keeps nothing', async () => {
+      await publish();
+      await expect(registry.recordShadowComparison(comparison())).rejects.toMatchObject({
+        code: 'UNKNOWN_VERSION',
+      });
+      expect(await registry.shadowComparisons(T, NAME)).toEqual([]);
+    });
+
+    it('hands back comparisons as copies', async () => {
+      await twoVersions();
+      await registry.recordShadowComparison(comparison());
+      const [read] = await registry.shadowComparisons<{ agrees: boolean }>(T, NAME);
+      try {
+        read.comparison.agrees = true;
+      } catch {
+        // A frozen copy refusing the edit is as good as a copy ignoring it.
+      }
+      const [again] = await registry.shadowComparisons<{ agrees: boolean }>(T, NAME);
+      expect(again.comparison.agrees).toBe(false);
+    });
+
     harness.extra?.(
       () => registry,
       () => store

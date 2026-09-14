@@ -144,6 +144,24 @@ export interface FlowDraft<T = unknown> {
   updatedBy: string;
 }
 
+/**
+ * One run of a shadow version beside the active one, and how they compared.
+ *
+ * The comparison is the caller's shape and the registry does not interpret it:
+ * the registry deliberately does not depend on the engine that produces it. The
+ * fields beside it are what a report filters on, because a report is about one
+ * pair of versions in one environment.
+ */
+export interface ShadowComparisonRecord<T = unknown> {
+  tenantId: string;
+  flowName: string;
+  environment: Environment;
+  activeVersion: string;
+  shadowVersion: string;
+  recordedAt: string;
+  comparison: T;
+}
+
 export type RegistryEventType =
   | 'ArtifactPublished'
   | 'PublishRejected'

@@ -10,6 +10,7 @@ import type {
   FlowTestResult,
   FlowTestRunner,
   FlowDraft,
+  ShadowComparisonRecord,
 } from './types';
 import { RegistryError } from './types';
 
@@ -57,6 +58,17 @@ export interface RegistryStore {
   /** Replaces the flow's draft. The one write here that is not append-only. */
   putDraft(draft: FlowDraft): Promise<void>;
   listDrafts(tenantId: string): Promise<FlowDraft[]>;
+
+  /** Append-only. */
+  appendShadowComparison(record: ShadowComparisonRecord): Promise<void>;
+  /** Oldest first, narrowed by whichever of the pair's fields are given. */
+  listShadowComparisons(filter: {
+    tenantId: string;
+    flowName: string;
+    environment?: Environment;
+    activeVersion?: string;
+    shadowVersion?: string;
+  }): Promise<ShadowComparisonRecord[]>;
 }
 
 export class ArtifactRegistry {
@@ -492,6 +504,36 @@ export class ArtifactRegistry {
   async drafts<T = unknown>(tenantId: string): Promise<FlowDraft<T>[]> {
     const all = (await this.store.listDrafts(tenantId)) as FlowDraft<T>[];
     return [...all].sort((a, b) => a.flowName.localeCompare(b.flowName));
+  }
+
+  // --- Shadow comparisons ----------------------------------------------------
+
+  /**
+   * Record one shadow run and how it compared with the active version.
+   *
+   * Both versions must be published: evidence about a version that does not
+   * exist is evidence about nothing, and PostgreSQL refuses it by foreign key,
+   * so memory refuses it here rather than accepting what a database would not.
+   */
+  async recordShadowComparison<T>(record: ShadowComparisonRecord<T>): Promise<void> {
+    for (const version of [record.activeVersion, record.shadowVersion]) {
+      if (!(await this.store.getVersion(record.tenantId, record.flowName, version))) {
+        throw new RegistryError(
+          'UNKNOWN_VERSION',
+          `Cannot record a shadow comparison for ${record.flowName} ${version}: that version was never published.`
+        );
+      }
+    }
+    await this.store.appendShadowComparison(record);
+  }
+
+  /** Oldest first. Pass the pair to get only the comparisons about it. */
+  async shadowComparisons<T = unknown>(
+    tenantId: string,
+    flowName: string,
+    pair?: { environment: Environment; activeVersion: string; shadowVersion: string }
+  ): Promise<ShadowComparisonRecord<T>[]> {
+    return (await this.store.listShadowComparisons({ tenantId, flowName, ...pair })) as ShadowComparisonRecord<T>[];
   }
 
   /** Newest first. */

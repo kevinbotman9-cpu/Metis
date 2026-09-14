@@ -85,6 +85,12 @@ export async function exportTenant(
 
   const drafts = stable(await registry.drafts(tenantId), (d) => d.flowName);
 
+  // Flows in name order, each flow's comparisons in the order they were
+  // recorded — the order a report reads them in.
+  const shadowComparisons = (
+    await Promise.all(flows.map((f) => registry.shadowComparisons(tenantId, f)))
+  ).flat();
+
   // Change sets by id; audit events oldest first. The log's order is the order
   // it was written in, which its timestamps do not always agree with, so an
   // import appends them in exactly this order and a re-export matches.
@@ -131,6 +137,7 @@ export async function exportTenant(
     registry_environments: environments,
     registry_events: events,
     registry_drafts: drafts,
+    registry_shadow_comparisons: shadowComparisons,
     governance_change_sets: changeSets,
     governance_audit_events: auditEvents,
     decision_records: records,

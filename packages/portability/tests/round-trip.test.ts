@@ -92,6 +92,10 @@ describe('a tenant survives being exported and imported', () => {
     // A migration in progress is part of what a tenant owns. Dropping it would
     // silently abandon the comparison the customer was mid-way through.
     expect(production?.shadowVersion).toBe('1.1.0');
+    // And what that shadow had found, or the migration arrives with no evidence.
+    const comparisons = await target.registry.shadowComparisons(TENANT, FLOW);
+    expect(comparisons).toEqual(await source.registry.shadowComparisons(TENANT, FLOW));
+    expect(comparisons).toHaveLength(1);
   });
 
   it('keeps the catalogue — what the engine decides from', async () => {

@@ -5,6 +5,7 @@ import type {
   FlowDraft,
   PublishedVersion,
   RegistryEvent,
+  ShadowComparisonRecord,
 } from './types';
 
 /**
@@ -26,6 +27,8 @@ export class InMemoryRegistryStore implements RegistryStore {
   private events: RegistryEvent[] = [];
   private seq = 0;
   private drafts = new Map<string, FlowDraft>();
+  /** In the order they were appended, which is the order they happened. */
+  private shadowComparisonLog: ShadowComparisonRecord[] = [];
 
   private draftKey = (t: string, n: string) => `${t}\u0000${n}`;
   private versionKey = (t: string, n: string, v: string) => `${t}\u0000${n}\u0000${v}`;
@@ -121,8 +124,32 @@ export class InMemoryRegistryStore implements RegistryStore {
     return [...this.drafts.values()].filter((d) => d.tenantId === tenantId).map((d) => structuredClone(d));
   }
 
+  async appendShadowComparison(record: ShadowComparisonRecord): Promise<void> {
+    this.shadowComparisonLog.push(deepFreeze(structuredClone(record)));
+  }
+
+  async listShadowComparisons(filter: {
+    tenantId: string;
+    flowName: string;
+    environment?: Environment;
+    activeVersion?: string;
+    shadowVersion?: string;
+  }): Promise<ShadowComparisonRecord[]> {
+    return this.shadowComparisonLog
+      .filter(
+        (c) =>
+          c.tenantId === filter.tenantId &&
+          c.flowName === filter.flowName &&
+          (filter.environment === undefined || c.environment === filter.environment) &&
+          (filter.activeVersion === undefined || c.activeVersion === filter.activeVersion) &&
+          (filter.shadowVersion === undefined || c.shadowVersion === filter.shadowVersion)
+      )
+      .map((c) => structuredClone(c));
+  }
+
   /** Test-only: restore an empty registry. */
   reset(): void {
+    this.shadowComparisonLog = [];
     this.versions.clear();
     this.environments.clear();
     this.events = [];

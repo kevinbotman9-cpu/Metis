@@ -5,6 +5,7 @@ import type {
   FlowDraft,
   PublishedVersion,
   RegistryEvent,
+  ShadowComparisonRecord,
 } from './types';
 
 /**
@@ -96,6 +97,16 @@ function toDraft(r: DraftRow): FlowDraft {
     updatedAt: iso(r.updated_at),
     updatedBy: r.updated_by,
   };
+}
+
+interface ShadowComparisonRow {
+  tenant_id: string;
+  flow_name: string;
+  environment: string;
+  active_version: string;
+  shadow_version: string;
+  recorded_at: Date | string;
+  comparison: unknown;
 }
 
 export class PostgresRegistryStore implements RegistryStore {
@@ -331,6 +342,59 @@ export class PostgresRegistryStore implements RegistryStore {
       [tenantId]
     );
     return rows.map(toDraft);
+  }
+
+  // --- Shadow comparisons -----------------------------------------------------
+
+  async appendShadowComparison(c: ShadowComparisonRecord): Promise<void> {
+    await this.db.query(
+      `INSERT INTO registry_shadow_comparisons
+         (tenant_id, flow_name, environment, active_version, shadow_version, recorded_at, comparison)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+      [
+        c.tenantId,
+        c.flowName,
+        c.environment,
+        c.activeVersion,
+        c.shadowVersion,
+        c.recordedAt,
+        JSON.stringify(c.comparison),
+      ]
+    );
+  }
+
+  async listShadowComparisons(filter: {
+    tenantId: string;
+    flowName: string;
+    environment?: Environment;
+    activeVersion?: string;
+    shadowVersion?: string;
+  }): Promise<ShadowComparisonRecord[]> {
+    const { rows } = await this.db.query<ShadowComparisonRow>(
+      `SELECT tenant_id, flow_name, environment, active_version, shadow_version, recorded_at, comparison
+         FROM registry_shadow_comparisons
+        WHERE tenant_id = $1 AND flow_name = $2
+          AND ($3::text IS NULL OR environment = $3)
+          AND ($4::text IS NULL OR active_version = $4)
+          AND ($5::text IS NULL OR shadow_version = $5)
+        ORDER BY seq`,
+      [
+        filter.tenantId,
+        filter.flowName,
+        filter.environment ?? null,
+        filter.activeVersion ?? null,
+        filter.shadowVersion ?? null,
+      ]
+    );
+    return rows.map((r) => ({
+      tenantId: r.tenant_id,
+      flowName: r.flow_name,
+      environment: r.environment as Environment,
+      activeVersion: r.active_version,
+      shadowVersion: r.shadow_version,
+      recordedAt: iso(r.recorded_at),
+      comparison: r.comparison,
+    }));
   }
 
   // --- Flows -----------------------------------------------------------

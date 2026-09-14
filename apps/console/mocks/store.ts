@@ -5,9 +5,8 @@
  * with the audit log, and the ledger are real stores — PostgreSQL when
  * `METIS_DATABASE_URL` is set — so what a person authors in them survives a
  * restart; each `*-source.ts` module says when the seed is written. The rest of
- * this object (data sources, tenant settings, autonomy, users, shadow
- * comparisons) lives for the life of the process and is seeded again on every
- * start (G-118, G-121).
+ * this object (data sources, tenant settings, autonomy, users) lives for the
+ * life of the process and is seeded again on every start (G-118).
  *
  * Deliberately module-scoped: Next.js dev can re-evaluate modules on HMR, so
  * the store is stashed on globalThis to survive a hot reload.
@@ -22,7 +21,6 @@ import {
 } from '@metis/catalogue';
 import { openCatalogue, CONSOLE_TENANT } from './catalogue-source';
 import { clearCalls } from './call-log';
-import type { ShadowComparison } from '@metis/runtime';
 import {
   objectives as seedObjectives,
   categories as seedCategories,
@@ -124,8 +122,6 @@ type Store = {
   ledgerKind: () => 'memory' | 'postgres';
   /** The in-memory store, when there is one, so the test reset can clear it. */
   ledgerStore: InMemoryLedgerStore;
-  /** Shadow comparisons recorded this process, oldest first. */
-  shadowComparisons: ShadowComparison[];
   /**
    * Shadow runs not yet finished.
    *
@@ -241,7 +237,6 @@ function seed(): Store {
     ledgerReady: Promise.resolve(),
     ledgerKind: () => kind,
     ledgerStore,
-    shadowComparisons: [],
     shadowInFlight: new Set(),
     autonomy: clone(seedAutonomy),
     activity: clone(seedActivity),

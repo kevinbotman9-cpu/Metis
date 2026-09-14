@@ -50,7 +50,7 @@ reproduced here, because a count in two places is a count that will disagree.
 
 Since 2026-09-14 a flow's draft and every version published from it live in
 `@metis/registry`, and the flow list compiles each stored draft against the
-stored catalogue. Four readings of a flow still come from the fixture modules,
+stored catalogue. Three readings of a flow still come from the fixture modules,
 so after a person edits and publishes a flow they describe the fixture instead:
 
 - **The policy funnel's "asked" stages.** `GET /api/policy-funnel` decides
@@ -65,11 +65,13 @@ so after a person edits and publishes a flow they describe the fixture instead:
   are the fixture's lists, and publish and promote do not update them. The
   flow's page says "N versions, all replayable" from the draft while the
   registry holds the real list.
-- **Shadow comparisons** are an array in the development store, lost on
-  restart, so a shadow report after a restart counts none.
 
-**Done when:** each of the four reads the registry, and a flow edited and
-published through the API shows its own stages, history and shadow evidence.
+A fourth, shadow comparisons, moved into the registry on 2026-09-14
+(`registry_shadow_comparisons`) with a restart test in
+`apps/console/tests/unit/console-durable.test.ts`.
+
+**Done when:** each of the three reads the registry, and a flow edited and
+published through the API shows its own stages and history.
 
 ### G-120 — The console has three audit logs and `/audit` shows one
 
