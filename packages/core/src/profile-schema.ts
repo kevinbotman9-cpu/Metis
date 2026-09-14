@@ -46,7 +46,7 @@
  * latency; METIS needs it for replay. Convergent, not a workaround.
  */
 
-import type { PolicyCondition, PolicyOperator } from './domain';
+import { CANDIDATE_ROOT, isPathValue, type PolicyCondition, type PolicyOperator } from './domain';
 
 /**
  * Field types.
@@ -95,6 +95,11 @@ export type FieldOrigin =
   | 'request'
   | 'interaction'
   | 'aggregation'
+  /**
+   * A fact about the candidate, read from its record in the catalogue snapshot
+   * the decision ran against. Only under the candidate root. ADR-017 §1.
+   */
+  | 'catalogue'
   | `connector:${string}`;
 
 /**
@@ -201,6 +206,14 @@ export interface SchemaRoot {
 export interface SchemaRoots {
   profile: SchemaRoot;
   request: SchemaRoot;
+  /**
+   * The offer being judged, bound once per candidate. ADR-017 §1.
+   *
+   * Optional: a schema without it has no `offer.` paths. When present its alias
+   * must be `offer`, because the engines never see the schema and recognise a
+   * candidate path by that prefix alone.
+   */
+  candidate?: SchemaRoot;
 }
 
 /**
@@ -258,10 +271,16 @@ const entityByName = (schema: ProfileSchema, name: string) =>
  * A path ending on a relationship (`customer.address`) does not resolve: it
  * names an object, and no operator compares one usefully.
  */
+/** Every root the schema declares, profile and request first. */
+export function rootsOf(schema: ProfileSchema): SchemaRoot[] {
+  const { profile, request, candidate } = schema.roots;
+  return candidate ? [profile, request, candidate] : [profile, request];
+}
+
 /** The root a path addresses, by its first segment. */
 export function rootFor(schema: ProfileSchema, path: string): SchemaRoot | undefined {
   const head = path.split('.')[0];
-  return [schema.roots.profile, schema.roots.request].find((r) => r.alias === head);
+  return rootsOf(schema).find((r) => r.alias === head);
 }
 
 export function resolveField(schema: ProfileSchema, path: string): ResolvedPath | undefined {
@@ -327,8 +346,7 @@ export function listFieldPaths(schema: ProfileSchema): ResolvedPath[] {
     }
   };
 
-  walk(schema.roots.profile.entity, schema.roots.profile.alias, 0);
-  walk(schema.roots.request.entity, schema.roots.request.alias, 0);
+  for (const root of rootsOf(schema)) walk(root.entity, root.alias, 0);
   for (const aggregation of schema.aggregations) {
     out.push({ kind: 'aggregation', path: aggregation.produces, aggregation });
   }
@@ -411,6 +429,13 @@ export function conditionProblems(
     });
   }
 
+  // A value that names a path is checked as a second field, not as a literal.
+  // Before the existence checks, so `exists` with a path value is refused rather
+  // than waved through as taking no value. ADR-017 §2.
+  if (isPathValue(condition.value)) {
+    return [...problems, ...pathValueProblems(schema, condition, resolved)];
+  }
+
   // `exists` and `not_exists` take no value, so nothing below applies to them.
   if (condition.operator === 'exists' || condition.operator === 'not_exists') return problems;
 
@@ -469,6 +494,65 @@ export function conditionProblems(
   return problems;
 }
 
+/** The operators a comparison between two fields can use. ADR-017 §2. */
+const PATH_OPERATORS: readonly PolicyOperator[] = ['eq', 'ne', 'gt', 'gte', 'lt', 'lte'];
+
+/**
+ * Whether two resolved fields can be compared with each other.
+ *
+ * `money` only with `money`, so pence are never compared with a ratio without
+ * anybody noticing — which is why `money` is its own type. `integer` and
+ * `decimal` with each other. Everything else only with its own type, and an
+ * enum only with an enum declaring the same members.
+ */
+function comparable(a: ResolvedPath, b: ResolvedPath): boolean {
+  const ta = typeOf(a);
+  const tb = typeOf(b);
+  const plainNumber = (t: FieldType) => t === 'integer' || t === 'decimal';
+  if (plainNumber(ta) && plainNumber(tb)) return true;
+  if (ta !== tb) return false;
+  if (ta !== 'enum') return true;
+  const members = (r: ResolvedPath) =>
+    JSON.stringify(r.kind === 'field' ? [...(r.field.members ?? [])].sort() : []);
+  return members(a) === members(b);
+}
+
+/** Problems with a condition whose value names another field. ADR-017 §2. */
+function pathValueProblems(
+  schema: ProfileSchema,
+  condition: PolicyCondition,
+  field: ResolvedPath
+): ConditionProblem[] {
+  const problems: ConditionProblem[] = [];
+  const path = (condition.value as { path: string }).path;
+
+  if (!PATH_OPERATORS.includes(condition.operator)) {
+    problems.push({
+      code: 'VALUE_TYPE',
+      message: `'${condition.operator}' cannot compare '${condition.field}' with another field. Use one of: ${PATH_OPERATORS.join(', ')}.`,
+    });
+  }
+
+  const other = resolveField(schema, path);
+  if (!other) {
+    problems.push({
+      code: 'UNKNOWN_FIELD',
+      message:
+        `No field '${path}' in the data model.` +
+        didYouMean(path, listFieldPaths(schema).map((r) => r.path)),
+    });
+    return problems;
+  }
+
+  if (!comparable(field, other)) {
+    problems.push({
+      code: 'VALUE_TYPE',
+      message: `'${condition.field}' is ${typeOf(field)} and '${path}' is ${typeOf(other)}; they cannot be compared.`,
+    });
+  }
+  return problems;
+}
+
 /**
  * Structural problems with the schema itself.
  *
@@ -486,6 +570,45 @@ export function schemaProblems(schema: ProfileSchema): string[] {
   }
   if (schema.roots.profile.alias === schema.roots.request.alias) {
     problems.push(`Both roots are addressed by '${schema.roots.profile.alias}'.`);
+  }
+
+  // The candidate root. ADR-017 §1: the engines recognise a candidate path by
+  // its prefix alone, so the prefix is fixed and no other root may use it.
+  const { candidate } = schema.roots;
+  if (candidate && candidate.alias !== CANDIDATE_ROOT) {
+    problems.push(`The candidate root must be addressed by '${CANDIDATE_ROOT}', not '${candidate.alias}'.`);
+  }
+  for (const [role, root] of [
+    ['profile', schema.roots.profile],
+    ['request', schema.roots.request],
+  ] as const) {
+    if (root.alias === CANDIDATE_ROOT) {
+      problems.push(`The ${role} root is addressed by '${CANDIDATE_ROOT}', which is reserved for the candidate.`);
+    }
+  }
+
+  // A `catalogue` field is a fact about the offer, so it exists only on the
+  // candidate's side of the model, and every field there is one.
+  const candidateSide = new Set<string>();
+  const reach = (name: string) => {
+    if (candidateSide.has(name)) return;
+    candidateSide.add(name);
+    for (const rel of entityByName(schema, name)?.relationships ?? []) {
+      if (rel.cardinality === 'one') reach(rel.entity);
+    }
+  };
+  if (candidate) reach(candidate.entity);
+  for (const entity of schema.entities) {
+    const onCandidate = candidateSide.has(entity.name);
+    for (const field of entity.fields) {
+      if (onCandidate && field.origin !== 'catalogue') {
+        problems.push(
+          `${entity.name}.${field.name} is under the candidate root and declares origin '${field.origin}', not 'catalogue'.`
+        );
+      } else if (!onCandidate && field.origin === 'catalogue') {
+        problems.push(`${entity.name}.${field.name} declares origin 'catalogue' outside the candidate root.`);
+      }
+    }
   }
 
   // A request field the caller cannot be trusted to widen with, or a profile

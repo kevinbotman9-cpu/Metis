@@ -123,8 +123,49 @@ object Engine {
     }
 
     /** All conditions must hold. Separate policies express OR. */
-    private fun policyPasses(policy: TargetingPolicy, input: Map<String, Any?>): Boolean =
-        policy.conditions.all { compare(readPath(input, it.field), it.operator, it.value) }
+    /**
+     * The first segment that marks a path as reading the candidate. ADR-017 §1;
+     * `CANDIDATE_ROOT` in the TypeScript domain. Fixed, because the engine never
+     * sees the schema that declares the root.
+     */
+    private val CANDIDATE_ROOT = "offer"
+
+    /** One side of a condition: the candidate's record for `offer.*`, the request otherwise. */
+    private fun readSide(path: String, input: Map<String, Any?>, candidate: Offer): Any? {
+        val head = path.substringBefore('.')
+        return if (head == CANDIDATE_ROOT && path.length > head.length) {
+            readPath(candidate.raw, path.substring(head.length + 1))
+        } else {
+            readPath(input, path)
+        }
+    }
+
+    /**
+     * The path a condition value names, or null for a literal. Exactly one key,
+     * `path`, holding a string — as `isPathValue` in the TypeScript domain.
+     */
+    private fun pathValue(value: Any?): String? {
+        val map = value as? Map<*, *> ?: return null
+        if (map.size != 1 || !map.containsKey("path")) return null
+        return map["path"] as? String
+    }
+
+    /**
+     * Every condition must hold. A literal is compared as it always was; a path
+     * value is read like the field, and a side that resolves to nothing fails
+     * the condition whatever the operator. ADR-017 §2.
+     */
+    private fun policyPasses(policy: TargetingPolicy, input: Map<String, Any?>, candidate: Offer): Boolean =
+        policy.conditions.all { c ->
+            val actual = readSide(c.field, input, candidate)
+            val other = pathValue(c.value)
+            if (other == null) {
+                compare(actual, c.operator, c.value)
+            } else {
+                val expected = readSide(other, input, candidate)
+                actual != null && expected != null && compare(actual, c.operator, expected)
+            }
+        }
 
     private fun scopeCovers(scope: PolicyScope, p: Offer): Boolean = when (scope.level) {
         "tenant" -> true
@@ -410,7 +451,7 @@ object Engine {
                             if (!p.policyIds.contains(policy.id) && policy.scope.level == "offer") {
                                 return@firstOrNull false
                             }
-                            !policyPasses(policy, request.input)
+                            !policyPasses(policy, request.input, p)
                         }
                         if (failed != null) {
                             denials.add(Denial(p.key, KIND_CODE.getValue(failed.kind), failed.id))

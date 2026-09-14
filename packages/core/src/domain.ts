@@ -256,10 +256,43 @@ export type PolicyOperator =
   | 'exists'
   | 'not_exists';
 
+/**
+ * The root a candidate path starts with. ADR-017 §1.
+ *
+ * Fixed rather than read from the schema, because neither engine receives the
+ * schema: both recognise a path that reads the offer being judged by this
+ * prefix alone, and `schemaProblems` refuses a schema that would disagree.
+ */
+export const CANDIDATE_ROOT = 'offer';
+
+/** A condition value that names another field instead of holding a literal. ADR-017 §2. */
+export interface ConditionPathValue {
+  path: string;
+}
+
+/**
+ * Whether a condition's value names a path.
+ *
+ * Exactly one key, `path`, holding a string. Anything else is a literal, and is
+ * evaluated and hashed exactly as it always was.
+ */
+export function isPathValue(value: unknown): value is ConditionPathValue {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const keys = Object.keys(value);
+  return keys.length === 1 && keys[0] === 'path' && typeof (value as { path: unknown }).path === 'string';
+}
+
+/** Whether a path reads the candidate being judged rather than the request. ADR-017 §1. */
+export const isCandidatePath = (path: string): boolean => path.split('.')[0] === CANDIDATE_ROOT;
+
 export interface PolicyCondition {
-  /** Dotted path into the customer data model, e.g. "customer.age". */
+  /**
+   * Dotted path into the data model, e.g. "customer.age". A path beginning
+   * `offer.` reads the candidate being judged. ADR-017.
+   */
   field: string;
   operator: PolicyOperator;
+  /** A literal, or `{ path }` naming another field to compare with. ADR-017 §2. */
   value: unknown;
 }
 
