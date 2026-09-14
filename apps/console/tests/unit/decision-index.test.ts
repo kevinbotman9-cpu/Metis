@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { REASON_CODES } from '@metis/runtime';
-import { decisions, findTrace, corpusFunnelRows } from '@/mocks/fixtures/decisions';
+import { decisions, findTrace, corpusFunnelRows, corpusVolumeRows } from '@/mocks/fixtures/decisions';
 import { executeAt, DECISION_COUNT } from '@/mocks/fixtures/engine';
 import index from '@/mocks/fixtures/decision-index.json';
 
@@ -21,6 +21,7 @@ import index from '@/mocks/fixtures/decision-index.json';
 
 const rows = index.rows as unknown[][];
 const ruleIds = (index as unknown as { ruleIds: string[] }).ruleIds;
+const nodeIds = (index as unknown as { nodeIds: string[] }).nodeIds;
 
 describe('the committed decision index matches the generator', () => {
   it('has a row for every decision the generator makes', () => {
@@ -69,6 +70,7 @@ describe('the committed decision index matches the generator', () => {
           step.denials.flatMap((denial) => [
             REASON_CODES.indexOf(denial.code),
             denial.ruleId === null ? -1 : ruleIds.indexOf(denial.ruleId),
+            nodeIds.indexOf(step.nodeId),
           ])
         )
       );
@@ -97,8 +99,17 @@ describe('the committed decision index matches the generator', () => {
     expect(findTrace('dec_not_a_real_decision')).toBeUndefined();
   });
 
-  it('names its rule ids once each, sorted, so the file regenerates to the same bytes', () => {
+  it('names its rule ids and step ids once each, sorted, so the file regenerates to the same bytes', () => {
     expect(ruleIds).toEqual([...new Set(ruleIds)].sort());
+    expect(nodeIds.length).toBeGreaterThan(0);
+    expect(nodeIds).toEqual([...new Set(nodeIds)].sort());
+  });
+
+  it('places every seeded removal at a step of the flow that made it, or at the platform’s consent step', () => {
+    // The overlay's figures rest on this: a removal the graph cannot place would
+    // be counted as unplaced, and a node's thickness would stop adding up.
+    const unplaced = corpusVolumeRows().filter((d) => d.unplaced > 0);
+    expect(unplaced.map((d) => d.decisionId)).toEqual([]);
   });
 
   it('accounts for every candidate of every seeded decision: removed once, or the winner', () => {

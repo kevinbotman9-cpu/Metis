@@ -15,9 +15,35 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { FlowNode, type FlowNodeData } from './flow-node';
+import { VolumeEdge, VOLUME_EDGE_MAX, type VolumeEdgeData } from './volume-edge';
+import { volumeScale } from '@/components/volume/geometry';
 import type { FlowNode as FlowNodeModel, FlowEdge } from '@/mocks/fixtures/artifacts';
+import type { FlowVolumeReportDto } from '@/lib/api-client';
 
 const nodeTypes = { dir: FlowNode };
+const edgeTypes = { volume: VolumeEdge };
+
+/**
+ * The graph's edges as volume edges.
+ *
+ * One scale for the whole graph, over its largest crossing, so an edge's
+ * thickness is relative to the flow rather than to itself. An edge the report
+ * does not name — drawn since the decisions ran — carries nothing.
+ */
+export function volumeEdges(
+  edges: readonly FlowEdge[],
+  volume: Pick<FlowVolumeReportDto, 'edges'>
+): Edge<VolumeEdgeData>[] {
+  const crossing = new Map(volume.edges.map((e) => [JSON.stringify([e.from, e.to]), e.volume]));
+  const scale = volumeScale(Math.max(0, ...volume.edges.map((e) => e.volume)), VOLUME_EDGE_MAX);
+  return edges.map((e) => ({
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    type: 'volume',
+    data: { volume: crossing.get(JSON.stringify([e.source, e.target])) ?? 0, scale },
+  }));
+}
 
 interface FlowCanvasProps {
   nodes: FlowNodeModel[];
@@ -34,6 +60,11 @@ interface FlowCanvasProps {
   onMove?: (nodeId: string, position: { x: number; y: number }) => void;
   onConnect?: (edge: { source: string; target: string }) => void;
   onDisconnect?: (edgeId: string) => void;
+  /**
+   * The volume overlay. Present, edges are drawn as thick as the candidates
+   * that crossed them and nodes show what they removed; absent, the plain graph.
+   */
+  volume?: Pick<FlowVolumeReportDto, 'nodes' | 'edges'> | null;
 }
 
 /**
@@ -56,8 +87,14 @@ function Canvas({
   onMove,
   onConnect,
   onDisconnect,
+  volume,
 }: FlowCanvasProps) {
   const editable = Boolean(onMove && onConnect && onDisconnect);
+
+  const removedBy = useMemo(
+    () => new Map((volume?.nodes ?? []).map((n) => [n.nodeId, n.removed])),
+    [volume]
+  );
 
   const flowNodes = useMemo<Node<FlowNodeData>[]>(
     () =>
@@ -72,33 +109,33 @@ function Canvas({
           policyCount: n.policyIds?.length ?? 0,
           hasModel: Boolean(n.model),
           selected: n.id === selectedId,
+          eliminatedHere: volume ? removedBy.get(n.id) || undefined : undefined,
         },
         draggable: editable,
         connectable: editable,
       })),
-    [nodes, selectedId, editable]
+    [nodes, selectedId, editable, volume, removedBy]
   );
 
-  const flowEdges = useMemo<Edge[]>(
-    () =>
-      edges.map((e) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        label: e.label,
-        type: 'smoothstep',
-        style: { stroke: 'rgb(var(--border-strong))', strokeWidth: 1.5 },
-        labelStyle: { fill: 'rgb(var(--text-muted))', fontSize: 'var(--text-label)' },
-        labelBgStyle: { fill: 'rgb(var(--surface))' },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 16,
-          height: 16,
-          color: 'rgb(var(--border-strong))',
-        },
-      })),
-    [edges]
-  );
+  const flowEdges = useMemo<Edge[]>(() => {
+    if (volume) return volumeEdges(edges, volume);
+    return edges.map((e) => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      label: e.label,
+      type: 'smoothstep',
+      style: { stroke: 'rgb(var(--border-strong))', strokeWidth: 1.5 },
+      labelStyle: { fill: 'rgb(var(--text-muted))', fontSize: 'var(--text-label)' },
+      labelBgStyle: { fill: 'rgb(var(--surface))' },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 16,
+        height: 16,
+        color: 'rgb(var(--border-strong))',
+      },
+    }));
+  }, [edges, volume]);
 
   const handleNodeClick = useCallback<NodeMouseHandler>(
     (_event, node) => onSelect(node.id),
@@ -149,6 +186,7 @@ function Canvas({
       nodes={flowNodes}
       edges={flowEdges}
       nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
       onNodeClick={handleNodeClick}
       onPaneClick={() => onSelect(null)}
       onNodesChange={editable ? handleNodesChange : undefined}

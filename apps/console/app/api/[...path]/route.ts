@@ -25,6 +25,7 @@ import {
   findGeneratedDecision,
   toApiTrace,
   corpusFunnelRows,
+  corpusVolumeRows,
 } from '@/mocks/fixtures/decisions';
 import type { GeneratedDecision } from '@/mocks/fixtures/engine';
 import { seededOutcomeMap, seededOutcomesFor } from '@/mocks/fixtures/outcomes';
@@ -41,13 +42,22 @@ import {
   IntegrationError,
   HttpIntegrationGateway,
   MemoryIntegrationCache,
+  topologicalOrder,
 } from '@metis/runtime';
+import { CONSENT_STEP_ID } from '@metis/runtime/deterministic/engine';
 import type { IntegrationGateway } from '@metis/runtime';
 import { RecordedIntegrationGateway } from '@/mocks/gateway';
 import { recorded, listCalls, clearCalls, isEnabled as callLogEnabled } from '@/mocks/call-log';
 import type { DecisionRecord } from '@metis/runtime';
 import type { OutcomeType } from '@metis/ledger';
-import { buildPerformance, buildPolicyFunnel, funnelDecisionOf, type FunnelStageId } from '@metis/ledger';
+import {
+  buildFlowVolume,
+  buildPerformance,
+  buildPolicyFunnel,
+  flowVolumeDecisionOf,
+  funnelDecisionOf,
+  type FunnelStageId,
+} from '@metis/ledger';
 import type {
   ArbitrationConfig,
   Category,
@@ -1505,6 +1515,52 @@ async function handleGet(req: Request, { params }: Ctx) {
       return json({
         ...buildPolicyFunnel(inRange, asked),
         provenance: provenanceOver(inRange.map((d) => d.decisionId)),
+      });
+    }
+
+    // Candidates through one flow, node by node: what the canvas draws as edge
+    // thickness. Proposed (G-127) — no plane serves it; this development API
+    // does, from the seeded corpus's removals column and the ledger.
+    case 'flow-volume': {
+      const tenantId = rest[0];
+      if (!tenantId) return notFound();
+      const flowId = q.get('flowId');
+      if (!flowId) return json({ error: 'bad_request', message: 'flowId is required.' }, 400);
+      const artifact = findCompilation(flowId)?.result.artifact;
+      if (!artifact) return notFound(`No compiled flow named ${flowId}.`);
+      const hours = q.get('hours') === null ? 24 : Number(q.get('hours'));
+      if (!Number.isInteger(hours) || hours < 1 || hours > 8760) {
+        return json({ error: 'bad_request', message: 'hours must be a whole number from 1 to 8760.' }, 400);
+      }
+
+      const corpus = corpusVolumeRows().filter((d) => d.flowId === flowId);
+      const seen = new Set(corpus.map((d) => d.decisionId));
+      const live = (await store.ledger.query({ tenantId, limit: 20000 }))
+        .filter((e) => !seen.has(e.decisionId) && e.flowId === flowId)
+        .map(flowVolumeDecisionOf);
+      const all = [...corpus, ...live];
+
+      // The window ends at the newest decision recorded, not at the clock, so
+      // the same records always give the same figures.
+      const newest = all.reduce<string | null>((m, d) => (m === null || d.occurredAt > m ? d.occurredAt : m), null);
+      const start = newest === null ? null : new Date(Date.parse(newest) - hours * 3_600_000).toISOString();
+      const inWindow = newest === null ? [] : all.filter((d) => d.occurredAt > start! && d.occurredAt <= newest);
+
+      // The engine's own visit order, and the platform's consent step placed
+      // where the engine runs it: immediately before the first arbitrate node.
+      const order = topologicalOrder(artifact);
+      const arbitrate = order.find((n) => n.type === 'arbitrate');
+      const report = buildFlowVolume(inWindow, {
+        nodes: order.map((n) => ({ id: n.id, type: n.type, label: n.label })),
+        edges: artifact.edges,
+        stepsBefore: arbitrate ? { [CONSENT_STEP_ID]: arbitrate.id } : {},
+      });
+
+      return json({
+        flowId,
+        hours,
+        ...report,
+        provenance: provenanceOver(inWindow.map((d) => d.decisionId)),
       });
     }
 

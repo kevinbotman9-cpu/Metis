@@ -4,13 +4,14 @@ import { LoopFlow } from './loop-flow';
 /**
  * Switch theme and density in the toolbar to see all four axes.
  *
- * The wedge between two bars is the point. Five shrinking bars say the last one
- * is small; the wedges say where the rest went, and the largest of them here is
- * not customer behaviour but a channel with no sender.
+ * What falls away between two columns is the point. Five shrinking columns say
+ * the last one is small; the ribbons falling beneath them say where the rest
+ * went, and the largest of them here is not customer behaviour but a channel with
+ * no sender. Drawn with the geometry the canvas's volume overlay uses.
  *
  * A figure, not a control — the rail beside it on `/performance` is what
  * selects a stage. See **Every stage equal**, which is the shape when nothing
- * leaves: no wedges at all, and the diagram correctly says nothing.
+ * leaves: nothing falls away, and the diagram correctly says nothing.
  */
 
 const meta: Meta<typeof LoopFlow> = {

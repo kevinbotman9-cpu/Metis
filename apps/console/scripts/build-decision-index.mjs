@@ -59,10 +59,12 @@ export const COLUMNS = [
   // performance (G-052). A decision's duration is on its trace, measured when
   // the trace is re-executed.
   'chainHash',
-  // Every candidate the decision removed, as flat pairs: an index into
-  // `REASON_CODES`, then an index into the file's `ruleIds`, or -1 where the code
-  // names no rule. What the policy funnel sums, so it can answer over the whole
-  // corpus without re-executing it — 5.5 seconds, measured on 2026-09-13.
+  // Every candidate the decision removed, as flat triples: an index into
+  // `REASON_CODES`, an index into the file's `ruleIds` or -1 where the code names
+  // no rule, and an index into the file's `nodeIds` for the step that removed it.
+  // What the policy funnel and the canvas's volume overlay sum, so both answer
+  // over the whole corpus without re-executing it — 5.5 seconds, measured on
+  // 2026-09-13. The node was added on 2026-09-14 for the overlay (G-127).
   'removals',
 ];
 
@@ -83,26 +85,28 @@ for (let i = 0; i < DECISION_COUNT; i++) {
     d.winnerOfferId,
     d.candidateKeys.length,
     trace.chainHash,
-    d.eliminations.flatMap((step) => step.denials.map((denial) => [denial.code, denial.ruleId ?? null])),
+    d.eliminations.flatMap((step) => step.denials.map((denial) => [denial.code, denial.ruleId ?? null, step.nodeId])),
   ]);
 }
 
 // Newest first, which is the order every screen reads them in.
 rows.sort((a, b) => String(b[5]).localeCompare(String(a[5])));
 
-// Rule ids once, sorted, so each removal is two small numbers rather than a
-// repeated string, and so the file still regenerates to the same bytes.
+// Rule ids and step ids once each, sorted, so each removal is three small numbers
+// rather than repeated strings, and so the file still regenerates to the same bytes.
 const ruleIds = [...new Set(rows.flatMap((row) => row[12].map(([, rule]) => rule).filter((rule) => rule !== null)))].sort();
 const ruleIndex = new Map(ruleIds.map((id, i) => [id, i]));
+const nodeIds = [...new Set(rows.flatMap((row) => row[12].map(([, , node]) => node)))].sort();
+const nodeIndex = new Map(nodeIds.map((id, i) => [id, i]));
 for (const row of rows) {
-  row[12] = row[12].flatMap(([code, rule]) => {
+  row[12] = row[12].flatMap(([code, rule, node]) => {
     const c = REASON_CODES.indexOf(code);
     if (c === -1) throw new Error(`decision ${row[1]} records reason code ${code}, which is not in REASON_CODES`);
-    return [c, rule === null ? -1 : ruleIndex.get(rule)];
+    return [c, rule === null ? -1 : ruleIndex.get(rule), nodeIndex.get(node)];
   });
 }
 
-const next = JSON.stringify({ columns: COLUMNS, ruleIds, rows });
+const next = JSON.stringify({ columns: COLUMNS, ruleIds, nodeIds, rows });
 const prev = existsSync(OUT) ? readFileSync(OUT, 'utf8') : null;
 
 if (prev === next) {

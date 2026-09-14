@@ -65,6 +65,9 @@ import type {
   PerformanceRow as PerformanceRowDto,
   ChannelStages as ChannelStagesDto,
   PolicyFunnelReport as PolicyFunnelReportDto,
+  FlowVolumeReport as FlowVolumeReportDto,
+  FlowVolumeNode as FlowVolumeNodeDto,
+  FlowVolumeEdge as FlowVolumeEdgeDto,
   PolicyFunnelStage as PolicyFunnelStageDto,
   PolicyFunnelRule as PolicyFunnelRuleDto,
   ConformanceReport as ConformanceReportDto,
@@ -549,6 +552,16 @@ export const apiClient = {
   ) => apiCall<PolicyFunnelReportDto>('getPolicyFunnel', { params: { tenantId }, query: filters }),
 
   /**
+   * Candidates through one flow, node by node, over a window ending at the
+   * newest decision — the canvas's volume overlay. Proposed: the development API
+   * serves it (G-127).
+   */
+  getFlowVolume: (
+    query: { flowId: string; hours?: number },
+    tenantId: string = TENANT
+  ) => apiCall<FlowVolumeReportDto>('getFlowVolume', { params: { tenantId }, query }),
+
+  /**
    * The corpora the engines are held to, and the check that holds each. Not
    * whether they agree now — that is asserted where those checks run. Proposed:
    * the development API serves it (G-109).
@@ -714,6 +727,9 @@ export type {
   PerformanceRowDto,
   ChannelStagesDto,
   PolicyFunnelReportDto,
+  FlowVolumeReportDto,
+  FlowVolumeNodeDto,
+  FlowVolumeEdgeDto,
   PolicyFunnelStageDto,
   PolicyFunnelRuleDto,
   ConformanceReportDto,

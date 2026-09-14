@@ -12,7 +12,9 @@
  */
 
 import { REASON_CODES } from '@metis/runtime';
-import type { FunnelDecision, FunnelRemoval } from '@metis/ledger';
+import { CONSENT_STEP_ID } from '@metis/runtime/deterministic/engine';
+import type { FlowVolumeDecision, FunnelDecision, FunnelRemoval } from '@metis/ledger';
+import { findCompilation } from './compiled';
 import { creatives, connectors } from './catalogue';
 import { executeAt, type GeneratedDecision } from './engine';
 import index from './decision-index.json';
@@ -274,7 +276,8 @@ export function corpusFunnelRows(): readonly CorpusFunnelRow[] {
   funnelRows = (index.rows as unknown[][]).map((row) => {
     const flat = row[12] as number[];
     const removals: FunnelRemoval[] = [];
-    for (let i = 0; i < flat.length; i += 2) {
+    // Triples: reason code, rule, and the step that removed it (read by the volume).
+    for (let i = 0; i < flat.length; i += 3) {
       removals.push({ code: REASON_CODES[flat[i]], ruleId: flat[i + 1] === -1 ? null : ruleIds[flat[i + 1]] });
     }
     return {
@@ -288,6 +291,51 @@ export function corpusFunnelRows(): readonly CorpusFunnelRow[] {
     };
   });
   return funnelRows;
+}
+
+/** A seeded decision as the canvas's volume overlay reads it. */
+export type CorpusVolumeRow = FlowVolumeDecision & {
+  flowId: string;
+  /** Removals at a step the flow's compiled graph does not hold, the consent step aside. */
+  unplaced: number;
+};
+
+let volumeRows: CorpusVolumeRow[] | null = null;
+
+/**
+ * Every seeded decision's removals by the step that made them, from the same
+ * `removals` column the funnel reads. G-127.
+ */
+export function corpusVolumeRows(): readonly CorpusVolumeRow[] {
+  if (volumeRows) return volumeRows;
+  const nodeIds = (index as unknown as { nodeIds: string[] }).nodeIds;
+  const graphOf = new Map<string, Set<string>>();
+  volumeRows = (index.rows as unknown[][]).map((row) => {
+    const flowId = row[2] as string;
+    let nodes = graphOf.get(flowId);
+    if (!nodes) {
+      nodes = new Set((findCompilation(flowId)?.result.artifact?.nodes ?? []).map((n) => n.id));
+      graphOf.set(flowId, nodes);
+    }
+    const flat = row[12] as number[];
+    const removedAt: Record<string, number> = {};
+    let unplaced = 0;
+    for (let i = 0; i < flat.length; i += 3) {
+      const step = nodeIds[flat[i + 2]];
+      removedAt[step] = (removedAt[step] ?? 0) + 1;
+      if (!nodes.has(step) && step !== CONSENT_STEP_ID) unplaced += 1;
+    }
+    return {
+      decisionId: row[1] as string,
+      flowId,
+      occurredAt: row[5] as string,
+      winner: row[8] as string | null,
+      candidates: row[10] as number,
+      removedAt,
+      unplaced,
+    };
+  });
+  return volumeRows;
 }
 
 const traceCache = new Map<string, TraceRecord>();

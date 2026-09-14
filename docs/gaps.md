@@ -44,6 +44,27 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-127 — Volume through a flow is a proposed operation, served by the development API only
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found building the volume overlay on the canvas (`METIS_CONSOLE_SPEC.md` §4.2)
+
+The canvas draws each edge as thick as the candidates that crossed it, and each
+node with what it removed, over the flow's last 24 hours of decisions.
+`getFlowVolume` is the operation that answers it, and it is
+`x-metis-status: proposed`: the console's development API serves it, from the
+seeded corpus and the ledger, and no plane does.
+
+The figures are counted from the eliminations each decision recorded, so they
+are only as current as the records. For the 10,400 seeded decisions that means
+the decision index, which carries the node each removal happened at since
+2026-09-14 so the overlay can be summed without re-executing the corpus.
+
+The id is G-127 rather than the next number on `main`: G-123 to G-126 are
+registered on branches not yet merged.
+
+**Done when:** a plane serves `getFlowVolume` over live decision records, and
+the operation is no longer proposed.
+
 ### G-122 — The arbitration weights API still publishes without a change set
 
 **Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found when `/arbitration` moved to raising change sets
