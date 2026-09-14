@@ -20,8 +20,14 @@ const inter = Inter_Tight({
   variable: '--font-inter',
 });
 
+// No `title` here: it is rendered in <head> below. A metadata title belongs to
+// the router's per-route head, which is keyed by route and remounted on every
+// client-side navigation, so the document had no title for 14–37ms each time —
+// long enough for a screen reader to announce nothing and for axe to report
+// `document-title`. The root layout never remounts, so a title rendered here is
+// never removed. Streaming was not the cause: blocking metadata
+// (`htmlLimitedBots`) left the gap exactly as it was. G-130.
 export const metadata: Metadata = {
-  title: 'METIS Console',
   description: 'AI-native decision platform',
 };
 
@@ -40,6 +46,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <title>METIS Console</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta httpEquiv="X-UA-Compatible" content="ie=edge" />
         {/*
