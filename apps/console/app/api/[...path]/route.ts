@@ -106,6 +106,7 @@ import {
   execute as executeDecision,
 } from '@metis/runtime/deterministic/engine';
 import { execArtifacts } from '@/mocks/fixtures/engine';
+import { fibreAddressScenario } from '@/mocks/fixtures/arbitration-scenario';
 import type { ExecArtifact } from '@metis/runtime/deterministic/types';
 import type { DecisionRequest } from '@metis/runtime/deterministic/types';
 
@@ -635,42 +636,23 @@ type DecideOutcome =
   | { kind: 'replay'; record: DecisionRecord }
   | { kind: 'decided'; trace: DecisionRecord };
 
-async function decideAndRecord(
+/**
+ * Everything a decision does except write it down: integrations, rollups,
+ * experiment arms and the engine.
+ *
+ * Separate from `decideAndRecord` so a preview can run the same path a real
+ * decision runs without landing in the ledger — `/arbitration` ranks a scenario
+ * this way. Two copies of this sequence would drift, and a preview that drifted
+ * from the decision path would be a preview of something else.
+ */
+async function resolveAndExecute(
   artifact: ExecArtifact,
   decisionRequest: DecisionRequest,
-  /** The catalogue read the caller already made, so one request is one moment. */
   read?: CatalogueSnapshotRecord
-): Promise<DecideOutcome> {
-  // Idempotency and durability, through the ledger.
-  //
-  // Resolved before execution: executing and then discovering the key was
-  // taken would be wasted work on a retry and, on a conflict, would have
-  // already made a decision the caller must not be given.
-  const resolved = await store.ledger.resolve(decisionRequest);
-
-  if (resolved.kind === 'conflict') {
-    const e = new IdempotencyConflict(
-      decisionRequest.idempotencyKey as string,
-      resolved.storedHash,
-      resolved.attemptedHash
-    );
-    return {
-      kind: 'error',
-      response: json({ error: 'idempotency_conflict', message: e.message }, 409),
-    };
-  }
-
-  if (resolved.kind === 'replay') {
-    // The original decision, not a re-execution that happens to agree.
-    // A catalogue edit between the two calls is all it takes for it not
-    // to agree, and the caller asked one question.
-    return { kind: 'replay', record: resolved.entry.record };
-  }
-
-  // Integrations resolve here, before the deterministic core and after
-  // the idempotency check — a retry that is going to be answered from the
-  // ledger must not pay for a bureau call first.
-  //
+): Promise<
+  | { kind: 'error'; response: Response }
+  | { kind: 'executed'; trace: DecisionRecord; resolvedRequest: DecisionRequest }
+> {
   // One catalogue for the whole decision: the connectors resolution dials, the
   // policies the engine applies, and the hash the record carries all come from
   // the same object. The comment this replaces protected that invariant by
@@ -749,6 +731,206 @@ async function decideAndRecord(
   // Measured, never hashed, and absent from a replay: what the wire cost
   // is not part of what was decided.
   if (resolvedInputs.calls.length > 0) trace.measured.sourceCalls = resolvedInputs.calls;
+
+  return { kind: 'executed', trace, resolvedRequest };
+}
+
+/**
+ * The ranking a scenario reaches, as terms rather than as a decision.
+ *
+ * Runs the scenario down the decision path and returns each candidate that
+ * reached ranking with its five terms, beside the live weights and ranking
+ * function. The weights are the only thing `/arbitration` changes, and they
+ * enter a ranking only at the end, so the screen can rank these terms under any
+ * weights and get the order a decision would — which
+ * `tests/unit/arbitration-agreement.test.ts` holds it to.
+ *
+ * Nothing is recorded: no ledger entry, no shadow, no idempotency claim. A
+ * preview that wrote a decision every time a screen opened would fill the
+ * interaction log with decisions nobody asked for.
+ */
+async function arbitrationScenario(cat: CatalogueSnapshotRecord): Promise<Response> {
+  const scenario = fibreAddressScenario;
+  const placement = cat.placements.find((p) => p.key === scenario.placementKey);
+  if (!placement) return notFound(`No placement ${scenario.placementKey} for the scenario to decide at.`);
+  const artifact = await artifactFor(CONSOLE_TENANT, placement.artifactId);
+  if (!artifact) return notFound(`No flow ${placement.artifactId} answers ${scenario.placementKey}.`);
+
+  const executed = await resolveAndExecute(artifact, scenario.request, cat);
+  if (executed.kind === 'error') return executed.response;
+  const { decision } = executed.trace;
+
+  const names = new Map(cat.offers.map((o) => [o.key, o.name]));
+  const arbitration = snapshotFrom(cat).arbitration;
+  return json({
+    scenario: {
+      id: scenario.id,
+      name: scenario.name,
+      description: scenario.description,
+      placementKey: scenario.placementKey,
+      channel: scenario.request.channel,
+    },
+    flow: { id: decision.artifactId, version: decision.artifactVersion },
+    utility: arbitration.utility,
+    weights: arbitration.weights,
+    candidates: Object.entries(decision.scores)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, s]) => ({
+        key,
+        name: names.get(key) ?? key,
+        terms: { propensity: s.propensity, value: s.value, boost: s.boost, context: s.context, cost: s.cost },
+      })),
+    defaulted: decision.arbitration.missingScore.applied,
+  });
+}
+
+/** The weights a change set may change, as its diff names them. */
+const WEIGHT_FIELDS = ['propensity', 'value', 'boost', 'context'] as const;
+
+/**
+ * Raise a change set: propose, publish nothing.
+ *
+ * `createChangeSet` was in the spec and credited to a write suite whose covering
+ * test only approved a seeded change set, while this route answered 404 — the
+ * defect `contract.spec.ts` describes for `createOffer`, again. It is served
+ * now, for the one change type the console can raise: arbitration weights.
+ *
+ * The server assigns what a proposer does not choose — the id, who asked, when,
+ * the pending status — and checks every `before` against the live weight. A
+ * change set whose `before` is stale describes an edit to a formula that no
+ * longer exists, and approving it would silently revert whatever changed since.
+ */
+async function createChangeSet(
+  req: Request,
+  user: NonNullable<ReturnType<typeof actor>>
+): Promise<Response> {
+  const body = (await req.json().catch(() => null)) as {
+    title?: unknown;
+    description?: unknown;
+    changeType?: unknown;
+    diff?: unknown;
+  } | null;
+  if (!body) return json({ error: 'bad_request', message: 'Request body must be JSON' }, 400);
+
+  if (body.changeType !== 'arbitration_weights') {
+    return json(
+      {
+        error: 'bad_request',
+        message: `The console raises arbitration_weights change sets and nothing else yet, so '${String(body.changeType)}' cannot be raised here.`,
+      },
+      400
+    );
+  }
+  if (!user.permissions.includes('edit:arbitration')) return forbidden('edit:arbitration');
+
+  if (blankString(body.title) || blankString(body.description)) {
+    return json({ error: 'bad_request', message: 'A change set needs a title and a description.' }, 400);
+  }
+
+  const diff = Array.isArray(body.diff) ? (body.diff as { field?: unknown; before?: unknown; after?: unknown }[]) : [];
+  if (diff.length === 0) {
+    return json({ error: 'bad_request', message: 'A change set needs at least one change in its diff.' }, 400);
+  }
+
+  const live = snapshotFrom(await readCatalogue()).arbitration.weights;
+  const seen = new Set<string>();
+  for (const d of diff) {
+    const term = typeof d.field === 'string' ? d.field.replace(/^weights\./, '') : '';
+    if (typeof d.field !== 'string' || !d.field.startsWith('weights.') || !(WEIGHT_FIELDS as readonly string[]).includes(term)) {
+      return json({ error: 'bad_request', message: `'${String(d.field)}' is not an arbitration weight.` }, 400);
+    }
+    if (seen.has(term)) return json({ error: 'bad_request', message: `The diff changes ${d.field} twice.` }, 400);
+    seen.add(term);
+
+    const before = Number(d.before);
+    const after = Number(d.after);
+    if (typeof d.after !== 'string' || !Number.isFinite(after) || after < 0 || after > 2) {
+      return json({ error: 'bad_request', message: `${d.field} must change to a number from 0 to 2.` }, 400);
+    }
+    const current = live[term as (typeof WEIGHT_FIELDS)[number]];
+    if (typeof d.before !== 'string' || !Number.isFinite(before) || before !== current) {
+      return json(
+        {
+          error: 'conflict',
+          message: `The live ${term} weight is ${current}, not ${String(d.before)}. Reload the formula and raise the change against it.`,
+        },
+        409
+      );
+    }
+    if (after === before) {
+      return json({ error: 'bad_request', message: `${d.field} is already ${current}; there is nothing to change.` }, 400);
+    }
+  }
+
+  const changeSet: ChangeSet = {
+    id: `cr_${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`,
+    title: String(body.title),
+    description: String(body.description),
+    status: 'pending',
+    autonomyTier: 1,
+    requestedBy: user.email,
+    requestedAt: new Date().toISOString(),
+    decidedBy: null,
+    decidedAt: null,
+    decisionReason: null,
+    targetScope: { level: 'tenant', targetId: null },
+    changeType: 'arbitration_weights',
+    diff: diff.map((d) => ({ field: String(d.field), before: String(d.before), after: String(d.after) })),
+    simulation: null,
+  };
+
+  await store.governanceReady;
+  await store.governance.open(CONSOLE_TENANT, changeSet);
+  await recordAudit({
+    actor: user.email,
+    actorType: 'human',
+    eventType: 'ChangeSetOpened',
+    scope: 'tenant',
+    summary: `Opened ${changeSet.id}: ${changeSet.title}`,
+    changeSetId: changeSet.id,
+  });
+
+  return json(changeSet, 201);
+}
+
+async function decideAndRecord(
+  artifact: ExecArtifact,
+  decisionRequest: DecisionRequest,
+  /** The catalogue read the caller already made, so one request is one moment. */
+  read?: CatalogueSnapshotRecord
+): Promise<DecideOutcome> {
+  // Idempotency and durability, through the ledger.
+  //
+  // Resolved before execution: executing and then discovering the key was
+  // taken would be wasted work on a retry and, on a conflict, would have
+  // already made a decision the caller must not be given.
+  const resolved = await store.ledger.resolve(decisionRequest);
+
+  if (resolved.kind === 'conflict') {
+    const e = new IdempotencyConflict(
+      decisionRequest.idempotencyKey as string,
+      resolved.storedHash,
+      resolved.attemptedHash
+    );
+    return {
+      kind: 'error',
+      response: json({ error: 'idempotency_conflict', message: e.message }, 409),
+    };
+  }
+
+  if (resolved.kind === 'replay') {
+    // The original decision, not a re-execution that happens to agree.
+    // A catalogue edit between the two calls is all it takes for it not
+    // to agree, and the caller asked one question.
+    return { kind: 'replay', record: resolved.entry.record };
+  }
+
+  // Integrations resolve here, before the deterministic core and after
+  // the idempotency check — a retry that is going to be answered from the
+  // ledger must not pay for a bureau call first.
+  const executed = await resolveAndExecute(artifact, decisionRequest, read);
+  if (executed.kind === 'error') return executed;
+  const { trace, resolvedRequest } = executed;
 
   // Recorded synchronously, before answering. §6 asks for the envelope to
   // be durable before the caller is told what was decided — a decision
@@ -914,6 +1096,8 @@ async function handleGet(req: Request, { params }: Ctx) {
 
     case 'arbitration': {
       const cat = await readCatalogue();
+      // GET /arbitration/{tenant}/scenario
+      if (rest[1] === 'scenario') return arbitrationScenario(cat);
       return json({ config: cat.arbitration, boosts: cat.boosts });
     }
 
@@ -2530,6 +2714,10 @@ async function handlePost(req: Request, { params }: Ctx) {
     case 'change-sets': {
       const user = actor(req);
       if (!user) return json({ error: 'no_session' }, 401);
+
+      // POST /api/change-sets — raise one. Approving and rejecting name one.
+      if (!rest[0]) return createChangeSet(req, user);
+
       if (!user.permissions.includes('approve:changes')) return forbidden('approve:changes');
 
       await store.governanceReady;

@@ -19,6 +19,8 @@ import { OPERATIONS, type OperationId } from '@metis/client';
 import type {
   AgentActivity as AgentActivityDto,
   ArbitrationConfig as ArbitrationConfigDto,
+  ArbitrationScenario as ArbitrationScenarioDto,
+  ChangeSetProposal as ChangeSetProposalDto,
   ArtifactSummary as ArtifactSummaryDto,
   AuditEvent as AuditEventDto,
   AuthUser as AuthUserDto,
@@ -376,6 +378,9 @@ export const apiClient = {
       params: { tenantId },
     }),
 
+  getArbitrationScenario: (tenantId: string = TENANT) =>
+    apiCall<ArbitrationScenarioDto>('getArbitrationScenario', { params: { tenantId } }),
+
   updateArbitration: (
     weights: ArbitrationConfigDto['weights'],
     tenantId: string = TENANT
@@ -430,6 +435,9 @@ export const apiClient = {
     }),
 
   getChangeSet: (id: string) => apiCall<ChangeSetDto>('getChangeSet', { params: { changeSetId: id } }),
+
+  createChangeSet: (body: ChangeSetProposalDto) =>
+    apiCall<ChangeSetDto>('createChangeSet', { body }),
 
   approveChangeSet: (id: string) =>
     apiCall<ChangeSetDto>('approveChangeSet', { params: { changeSetId: id } }),
