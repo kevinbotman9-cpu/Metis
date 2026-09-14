@@ -42,6 +42,36 @@ const OPERATOR_LABEL: Record<string, string> = {
 
 const NEEDS_NO_VALUE = (op: string) => op === 'exists' || op === 'not_exists';
 const IS_LIST = (op: string) => op === 'in' || op === 'not_in';
+/** Operators that can compare a field with another field. `PATH_OPERATORS` in core; ADR-017 §2. */
+const COMPARES_FIELDS = (op: string) => ['eq', 'ne', 'gt', 'gte', 'lt', 'lte'].includes(op);
+
+/**
+ * The field a value names, or undefined for a literal. Exactly one key, `path`,
+ * holding a string — `isPathValue` in `@metis/core/domain`, repeated here so the
+ * editor does not pull the core package into the client bundle.
+ */
+const pathOf = (value: unknown): string | undefined =>
+  value !== null &&
+  typeof value === 'object' &&
+  !Array.isArray(value) &&
+  Object.keys(value).length === 1 &&
+  typeof (value as { path?: unknown }).path === 'string'
+    ? (value as { path: string }).path
+    : undefined;
+
+/**
+ * Whether two fields can be compared — `comparable` in core, so the picker never
+ * offers a pair the server would refuse. Money only with money; integer and
+ * decimal with each other; otherwise the same type, and an enum only with an
+ * enum of the same members.
+ */
+function comparableMeta(a: PathMeta, b: PathMeta): boolean {
+  const plainNumber = (t: string) => t === 'integer' || t === 'decimal';
+  if (plainNumber(a.type) && plainNumber(b.type)) return true;
+  if (a.type !== b.type) return false;
+  if (a.type !== 'enum') return true;
+  return [...a.members].sort().join(',') === [...b.members].sort().join(',');
+}
 const NUMERIC = new Set(['integer', 'decimal', 'money', 'timestamp']);
 const BLANK: RuleCondition = { field: '', operator: 'eq', value: '' };
 
@@ -193,7 +223,14 @@ function ConditionRow({
         <Select
           aria-label={`Operator for condition ${n}`}
           value={condition.operator}
-          onChange={(e) => onChange({ operator: e.target.value })}
+          onChange={(e) =>
+            onChange({
+              operator: e.target.value,
+              // A comparison with another field means nothing to `in`,
+              // `contains` or an existence check, so it is not carried across.
+              ...(pathOf(condition.value) && !COMPARES_FIELDS(e.target.value) ? { value: '' } : {}),
+            })
+          }
           disabled={!meta}
         >
           {operators.map((op) => (
@@ -203,7 +240,14 @@ function ConditionRow({
           ))}
         </Select>
 
-        <ValueControl condition={condition} meta={meta} label={`Value for condition ${n}`} onChange={onChange} />
+        <ValueControl
+          condition={condition}
+          meta={meta}
+          paths={paths}
+          label={`Value for condition ${n}`}
+          compareLabel={`Compare condition ${n} with`}
+          onChange={onChange}
+        />
 
         {meta ? <Badge tone="neutral">{meta.type}</Badge> : null}
         {meta?.unit ? <span className="text-label text-content-muted">{meta.unit}</span> : null}
@@ -229,6 +273,61 @@ function ConditionRow({
 function ValueControl({
   condition,
   meta,
+  paths,
+  label,
+  compareLabel,
+  onChange,
+}: {
+  condition: RuleCondition;
+  meta?: PathMeta;
+  paths: PathMeta[];
+  label: string;
+  compareLabel: string;
+  onChange: (patch: Partial<RuleCondition>) => void;
+}) {
+  if (NEEDS_NO_VALUE(condition.operator)) {
+    return <span className="text-label text-content-muted">no value needed</span>;
+  }
+
+  // A value typed here, or another field. ADR-017 §2. Offered only where the
+  // operator can compare two fields, and only with fields the server accepts —
+  // which is how `offer.financials.price.amount` comes to be compared with
+  // `customer.monthly_spend` and not with a ratio.
+  const others =
+    meta && COMPARES_FIELDS(condition.operator)
+      ? paths.filter((p) => p.path !== meta.path && comparableMeta(meta, p))
+      : [];
+  const comparedWith = pathOf(condition.value);
+
+  const compare =
+    others.length > 0 ? (
+      <Select
+        aria-label={compareLabel}
+        value={comparedWith ?? ''}
+        onChange={(e) => onChange({ value: e.target.value ? { path: e.target.value } : '' })}
+      >
+        <option value="">a value</option>
+        {others.map((p) => (
+          <option key={p.path} value={p.path}>
+            {p.path}
+          </option>
+        ))}
+      </Select>
+    ) : null;
+
+  if (comparedWith && compare) return compare;
+
+  return (
+    <>
+      {compare}
+      <LiteralValue condition={condition} meta={meta} label={label} onChange={onChange} />
+    </>
+  );
+}
+
+function LiteralValue({
+  condition,
+  meta,
   label,
   onChange,
 }: {
@@ -238,10 +337,6 @@ function ValueControl({
   onChange: (patch: Partial<RuleCondition>) => void;
 }) {
   const numeric = Boolean(meta && NUMERIC.has(meta.type));
-
-  if (NEEDS_NO_VALUE(condition.operator)) {
-    return <span className="text-label text-content-muted">no value needed</span>;
-  }
 
   if (meta?.type === 'boolean') {
     return (

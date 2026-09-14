@@ -257,7 +257,10 @@ function DataModelView() {
                     ? 'profile'
                     : e.name === schema.roots.request.entity
                       ? 'request'
-                      : null
+                      : // The offer being judged, once per candidate. ADR-017 §1.
+                        e.name === schema.roots.candidate?.entity
+                        ? 'candidate'
+                        : null
                 }
               />
             ))}

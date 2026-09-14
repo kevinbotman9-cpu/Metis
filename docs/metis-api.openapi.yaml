@@ -359,12 +359,20 @@ components:
       properties:
         field:
           type: string
-          description: Dotted path into the customer data model
+          description: >-
+            Dotted path into the data model. A path beginning offer. reads the
+            candidate being judged, from its record in the catalogue snapshot;
+            every other path reads the request. ADR-017.
           example: customer.age
         operator:
           type: string
           enum: [eq, ne, gt, gte, lt, lte, in, not_in, contains, exists, not_exists]
-        value: {}
+        value:
+          description: >-
+            A literal, or an object with exactly one key, path, naming another
+            field to compare with, for example {"path": "customer.monthly_spend"}.
+            A path value is allowed only with eq, ne, gt, gte, lt and lte, and
+            the two fields must be of comparable types. ADR-017 §2.
 
     SchemaField:
       type: object
@@ -377,7 +385,8 @@ components:
           type: string
           description: >-
             Where the value comes from. ADR-014 §2. One of profile, request,
-            interaction, aggregation, or connector:<id> naming the integration —
+            interaction, aggregation, catalogue (a fact about the candidate,
+            under the candidate root only; ADR-017), or connector:<id> naming the integration —
             which is what lets a trace attribute a value to the system that
             produced it. Required: an undeclared origin is the gap.
         class:
@@ -1028,12 +1037,17 @@ components:
         subject and a request, and they have different lifetimes: the profile is
         held against a customer and written by ingestion; the context is what
         only the caller can know and is never stored. One root called
-        DecisionInput modelled a request body and called it a customer.
+        DecisionInput modelled a request body and called it a customer. A
+        third, optional root, candidate, binds the offer being judged once per
+        candidate; its alias must be offer, because the engines recognise a
+        candidate path by that prefix alone. ADR-017 §1.
       required: [profile, request]
       properties:
         profile:
           $ref: '#/components/schemas/SchemaRoot'
         request:
+          $ref: '#/components/schemas/SchemaRoot'
+        candidate:
           $ref: '#/components/schemas/SchemaRoot'
 
     SchemaFieldPath:

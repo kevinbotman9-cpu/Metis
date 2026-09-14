@@ -73,6 +73,10 @@ class DecisionConformanceTest {
         ValidityWindow(it["startsAt"].asText(), it["endsAt"].takeIf { e -> !e.isNull }?.asText())
     }
 
+    /** The offer's record as plain values, for conditions that read the candidate. ADR-017 §3. */
+    @Suppress("UNCHECKED_CAST")
+    private fun rawOf(n: JsonNode): Map<String, Any?> = plain(n) as Map<String, Any?>
+
     private fun offer(n: JsonNode) = Offer(
         id = n["id"].asText(),
         categoryId = n["categoryId"].asText(),
@@ -92,6 +96,8 @@ class DecisionConformanceTest {
         validity = validity(n["validity"])!!,
         boost = n["boost"].asDouble(),
         policyIds = n["policyIds"].map { it.asText() },
+        // What an `offer.*` condition reads. ADR-017 §3.
+        raw = rawOf(n),
     )
 
     private fun catalogue(n: JsonNode) = CatalogueSnapshot(
