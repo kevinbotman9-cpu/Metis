@@ -104,9 +104,11 @@ import type { DecisionFlowSource } from '@metis/compiler/decision-flow';
 import {
   replay as replayDecision,
   execute as executeDecision,
+  rankByPriority,
 } from '@metis/runtime/deterministic/engine';
 import { execArtifacts } from '@/mocks/fixtures/engine';
 import { fibreAddressScenario } from '@/mocks/fixtures/arbitration-scenario';
+import { inertWeights } from '@/mocks/arbitration-preview';
 import type { ExecArtifact } from '@metis/runtime/deterministic/types';
 import type { DecisionRequest } from '@metis/runtime/deterministic/types';
 
@@ -648,7 +650,9 @@ type DecideOutcome =
 async function resolveAndExecute(
   artifact: ExecArtifact,
   decisionRequest: DecisionRequest,
-  read?: CatalogueSnapshotRecord
+  read?: CatalogueSnapshotRecord,
+  /** Weights a preview proposes, in place of the live ones. */
+  weights?: ArbitrationConfig['weights']
 ): Promise<
   | { kind: 'error'; response: Response }
   | { kind: 'executed'; trace: DecisionRecord; resolvedRequest: DecisionRequest }
@@ -659,7 +663,13 @@ async function resolveAndExecute(
   // reading the fixture in both places, which kept them consistent and kept
   // the console's writes out of both.
   const cat = read ?? (await readCatalogue());
-  const catalogue = snapshotFrom(cat);
+  const snapshot = snapshotFrom(cat);
+  // Proposed weights go on a copy, never through `snapshotFrom`: that registers
+  // a catalogue by hash for replay, and every slider position a preview asked
+  // about would become a catalogue a decision could appear to have used.
+  const catalogue = weights
+    ? { ...snapshot, arbitration: { ...snapshot.arbitration, weights } }
+    : snapshot;
 
   let resolvedInputs;
   try {
@@ -735,33 +745,69 @@ async function resolveAndExecute(
   return { kind: 'executed', trace, resolvedRequest };
 }
 
+/** The weights a change set may change and a preview may propose. */
+const WEIGHT_FIELDS = ['propensity', 'value', 'boost', 'context'] as const;
+
 /**
- * The ranking a scenario reaches, as terms rather than as a decision.
+ * The arbitration scenario ranked by the engine, under the live weights and
+ * under proposed ones. `previewArbitration`, proposed (G-123).
  *
- * Runs the scenario down the decision path and returns each candidate that
- * reached ranking with its five terms, beside the live weights and ranking
- * function. The weights are the only thing `/arbitration` changes, and they
- * enter a ranking only at the end, so the screen can rank these terms under any
- * weights and get the order a decision would — which
- * `tests/unit/arbitration-agreement.test.ts` holds it to.
+ * Every priority returned is one the engine produced: the scenario runs down
+ * the decision path twice, once per set of weights, and each ranking is the
+ * engine's scores ordered by the engine's own comparator (`rankByPriority`).
+ * Until 2026-09-14 the browser ranked the scenario's terms itself with a copy
+ * of the arithmetic; a number the engine did not produce is the one thing a
+ * preview of the engine must not show.
  *
- * Nothing is recorded: no ledger entry, no shadow, no idempotency claim. A
- * preview that wrote a decision every time a screen opened would fill the
- * interaction log with decisions nobody asked for.
+ * Nothing is recorded — no ledger entry, no shadow, no idempotency claim — and
+ * the proposed weights never reach the catalogue registry (`resolveAndExecute`).
+ *
+ * Inert weights are found from the scores, not listed: a weight whose term has
+ * the same value for every offer that reached arbitration scales every
+ * priority alike and so moves no offer. In this tenant that is propensity and
+ * context, because its one flow has no scoring node and both terms are the
+ * flow's declared default of 1 (G-124).
  */
-async function arbitrationScenario(cat: CatalogueSnapshotRecord): Promise<Response> {
+async function arbitrationPreview(req: Request): Promise<Response> {
+  const body = (await req.json().catch(() => null)) as { weights?: Record<string, unknown> } | null;
+  const supplied = body?.weights;
+  const proposed = {} as ArbitrationConfig['weights'];
+  for (const term of WEIGHT_FIELDS) {
+    const v = supplied?.[term];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 2) {
+      return json({ error: 'bad_request', message: `weights.${term} must be a number from 0 to 2.` }, 400);
+    }
+    proposed[term] = v;
+  }
+
+  const cat = await readCatalogue();
   const scenario = fibreAddressScenario;
   const placement = cat.placements.find((p) => p.key === scenario.placementKey);
   if (!placement) return notFound(`No placement ${scenario.placementKey} for the scenario to decide at.`);
   const artifact = await artifactFor(CONSOLE_TENANT, placement.artifactId);
   if (!artifact) return notFound(`No flow ${placement.artifactId} answers ${scenario.placementKey}.`);
 
-  const executed = await resolveAndExecute(artifact, scenario.request, cat);
-  if (executed.kind === 'error') return executed.response;
-  const { decision } = executed.trace;
+  const arbitration = snapshotFrom(cat).arbitration;
+  const [liveRun, proposedRun] = await Promise.all([
+    resolveAndExecute(artifact, scenario.request, cat),
+    resolveAndExecute(artifact, scenario.request, cat, proposed),
+  ]);
+  if (liveRun.kind === 'error') return liveRun.response;
+  if (proposedRun.kind === 'error') return proposedRun.response;
 
   const names = new Map(cat.offers.map((o) => [o.key, o.name]));
-  const arbitration = snapshotFrom(cat).arbitration;
+  const rankingOf = (decision: DecisionRecord['decision'], weights: ArbitrationConfig['weights']) => ({
+    weights,
+    rows: rankByPriority(Object.keys(decision.scores), decision.scores).map((key, i) => ({
+      rank: i + 1,
+      key,
+      name: names.get(key) ?? key,
+      priority: decision.scores[key].priority,
+    })),
+  });
+
+  const live = liveRun.trace.decision;
+
   return json({
     scenario: {
       id: scenario.id,
@@ -770,22 +816,15 @@ async function arbitrationScenario(cat: CatalogueSnapshotRecord): Promise<Respon
       placementKey: scenario.placementKey,
       channel: scenario.request.channel,
     },
-    flow: { id: decision.artifactId, version: decision.artifactVersion },
+    flow: { id: live.artifactId, version: live.artifactVersion },
     utility: arbitration.utility,
-    weights: arbitration.weights,
-    candidates: Object.entries(decision.scores)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, s]) => ({
-        key,
-        name: names.get(key) ?? key,
-        terms: { propensity: s.propensity, value: s.value, boost: s.boost, context: s.context, cost: s.cost },
-      })),
-    defaulted: decision.arbitration.missingScore.applied,
+    live: rankingOf(live, arbitration.weights),
+    proposed: rankingOf(proposedRun.trace.decision, proposed),
+    // From the live run's scores: weights enter only after scoring, so the
+    // terms are the same under any weights.
+    inertWeights: inertWeights(live),
   });
 }
-
-/** The weights a change set may change, as its diff names them. */
-const WEIGHT_FIELDS = ['propensity', 'value', 'boost', 'context'] as const;
 
 /**
  * Raise a change set: propose, publish nothing.
@@ -1096,8 +1135,6 @@ async function handleGet(req: Request, { params }: Ctx) {
 
     case 'arbitration': {
       const cat = await readCatalogue();
-      // GET /arbitration/{tenant}/scenario
-      if (rest[1] === 'scenario') return arbitrationScenario(cat);
       return json({ config: cat.arbitration, boosts: cat.boosts });
     }
 
@@ -2709,6 +2746,13 @@ async function handlePost(req: Request, { params }: Ctx) {
         200,
         outcome.kind === 'replay' ? { 'Idempotent-Replay': 'true' } : undefined
       );
+    }
+
+    case 'arbitration': {
+      // POST /api/arbitration/{tenantId}/preview — proposed (G-123).
+      if (rest[1] !== 'preview') return notFound();
+      if (!actor(req)) return json({ error: 'no_session' }, 401);
+      return arbitrationPreview(req);
     }
 
     case 'change-sets': {

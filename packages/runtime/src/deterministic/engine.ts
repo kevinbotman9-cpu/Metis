@@ -183,6 +183,24 @@ function withinValidity(p: Offer, occurredAt: string): boolean {
  * can attribute the same elimination to different nodes, so the traces differ
  * even though the winner does not.
  */
+/**
+ * The order arbitration ranks in: priority, highest first, then offer key, so
+ * equal priorities never flip between runs.
+ *
+ * Exported so anything that orders candidates the way a decision does calls
+ * this rather than a copy — the arbitration preview does. Two comparators that
+ * agree today are two chances to disagree after somebody edits one of them.
+ */
+export function rankByPriority(
+  keys: readonly string[],
+  scores: Readonly<Record<string, { priority: number }>>
+): string[] {
+  return [...keys].sort((a, b) => {
+    const d = scores[b].priority - scores[a].priority;
+    return d !== 0 ? d : a.localeCompare(b);
+  });
+}
+
 export function topologicalOrder(artifact: ExecArtifact): ExecNode[] {
   const byId = new Map(artifact.nodes.map((n) => [n.id, n]));
   const indegree = new Map(artifact.nodes.map((n) => [n.id, 0]));
@@ -719,13 +737,11 @@ export function execute(
           );
         }
 
-        // Sort by priority, then by key so equal scores never flip between runs.
-        const ranked = candidates
-          .filter((p) => scores[p.key])
-          .sort((a, b) => {
-            const d = scores[b.key].priority - scores[a.key].priority;
-            return d !== 0 ? d : a.key.localeCompare(b.key);
-          });
+        const order = rankByPriority(
+          candidates.filter((p) => scores[p.key]).map((p) => p.key),
+          scores
+        );
+        const ranked = order.map((key) => candidates.find((p) => p.key === key)!);
 
         winner = ranked[0]?.key ?? null;
         runnerUp = ranked[1]?.key ?? null;

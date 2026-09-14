@@ -2,15 +2,17 @@ import { test, expect, type Page } from '@playwright/test';
 import { login, resetStore, ACCOUNTS } from './helpers';
 
 /**
- * Arbitration you can feel: move a weight and the ranking reorders under the
- * hand, with the movement marked, and nothing publishes until a change set is
- * raised.
+ * Arbitration you can feel: move a weight and the engine ranks the scenario
+ * under it, with the movement marked, and nothing publishes until a change set
+ * is raised.
  *
  * `@screen-only`: a signed-in account and the seeded tenant, and everything
- * else reached by clicking. The tie is this tenant's own — FIOS Gigabit, 5G Home
- * Ultimate and Gaming Plus Bundle have the same expected margin and are kept
- * apart only by the boosts on the first two — so dropping the boost weight to
- * zero leaves nothing between them and the engine orders them by key.
+ * else reached by clicking. Every priority on the screen comes from the engine
+ * through `previewArbitration` (G-123).
+ *
+ * Two of the four weights move nothing in this tenant, and the screen says so:
+ * its one flow has no scoring node, so every offer carries the declared default
+ * of 1 for propensity and for context (G-124).
  */
 
 const ranking = (page: Page) => page.getByRole('list', { name: 'Ranking', exact: true });
@@ -21,7 +23,7 @@ test.describe('@screen-only arbitration, live', () => {
     await resetStore(page);
   });
 
-  test('dropping the boost weight reorders the ranking, warns of the tie, and raises a change set that publishes nothing', async ({
+  test('moving boost reorders the ranking, the inert weights say they move nothing, and raising publishes nothing', async ({
     page,
   }) => {
     await login(page, ACCOUNTS.marcus);
@@ -29,38 +31,44 @@ test.describe('@screen-only arbitration, live', () => {
     await nav.getByRole('button', { name: 'Decisioning', exact: true }).click();
     await nav.getByRole('link', { name: 'Arbitration & boosts' }).click();
 
-    // Live: FIOS first on its boost, nothing moved, and no tie to warn about.
+    // Live: FIOS first on its boost, and nothing moved.
     await expect(ranking(page).getByRole('listitem').first()).toContainText('FIOS Gigabit');
     await expect(page.getByText('unchanged from live', { exact: true })).toBeVisible();
-    await expect(page.getByText(/share a priority/)).toHaveCount(0);
 
+    // The two weights that cannot move an offer here are labelled, and only those.
+    await expect(page.getByText(/declared default context of 1/)).toBeVisible();
+    await expect(page.getByText(/declared default propensity of 1/)).toBeVisible();
+    await expect(page.getByText(/^No effect here/)).toHaveCount(2);
+
+    // And moving one moves nothing, as the label says.
+    const context = page.getByRole('slider', { name: 'Context weight', exact: true });
+    await context.focus();
+    await page.keyboard.press('End');
+    await expect(context).toHaveAttribute('aria-valuenow', '2');
+    await expect(page.getByText('unchanged from live', { exact: true })).toBeVisible();
+    await expect(ranking(page).getByRole('listitem').first()).toContainText('FIOS Gigabit');
+    await page.getByRole('button', { name: 'Reset', exact: true }).click();
+    await expect(context).toHaveAttribute('aria-valuenow', '1');
+
+    // Boost does move offers.
     const boost = page.getByRole('slider', { name: 'Boost weight', exact: true });
     await boost.focus();
     await page.keyboard.press('Home');
     await expect(boost).toHaveAttribute('aria-valuenow', '0');
-
-    // Reordered under the hand, with the movement marked.
     await expect(ranking(page).getByRole('listitem').first()).toContainText('5G Home Ultimate');
     await expect(row(page, '5G Home Ultimate')).toContainText('up 1');
     await expect(row(page, 'FIOS Gigabit')).toContainText('down 1');
     await expect(row(page, 'Gaming Plus Bundle')).toContainText('no change');
     await expect(page.getByText('2 offers moved from live', { exact: true })).toBeVisible();
 
-    // The tie, named from the numbers.
-    await expect(
-      page.getByText('3 offers share a priority: 5G Home Ultimate, FIOS Gigabit and Gaming Plus Bundle.', { exact: true })
-    ).toBeVisible();
-
     // Raised, and nothing published.
     await page.getByRole('button', { name: 'Raise a change set', exact: true }).click();
     await expect(page.getByText(/Nothing is published until it is approved/)).toBeVisible();
-    const raised = page.getByRole('link', { name: /^cr_/ });
-    const id = (await raised.textContent())!.trim();
+    const id = (await page.getByRole('link', { name: /^cr_/ }).textContent())!.trim();
 
     await page.reload();
     await expect(page.getByRole('slider', { name: 'Boost weight', exact: true })).toHaveAttribute('aria-valuenow', '1');
     await expect(ranking(page).getByRole('listitem').first()).toContainText('FIOS Gigabit');
-    await expect(page.getByText(/share a priority/)).toHaveCount(0);
 
     // And it waits in the queue for somebody to approve. Approvals is a screen
     // in the Releases group, so the group opens first.
@@ -70,7 +78,6 @@ test.describe('@screen-only arbitration, live', () => {
       .getByRole('listbox', { name: 'Change sets', exact: true })
       .getByRole('option', { name: new RegExp(id) });
     await queued.click();
-    // Pending, from the row itself: "Status: Pending" is part of its name.
     await expect(queued).toHaveAccessibleName(new RegExp(`${id}.*Status: Pending`));
     await expect(
       page.getByRole('heading', { level: 2, name: 'Arbitration weights: boost 1.00 → 0.00', exact: true })

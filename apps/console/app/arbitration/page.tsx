@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { descriptorFor, toFormState, type FormState } from '@metis/ui-metadata';
-import { rankCandidates, movement } from '@metis/core/arbitration';
 import { RequireAuth } from '@/components/require-auth';
 import { useAuth } from '@/components/auth-provider';
 import {
@@ -55,10 +54,6 @@ function ArbitrationView() {
     queryKey: ['arbitration'],
     queryFn: () => apiClient.getArbitration(),
   });
-  const scenario = useQuery({
-    queryKey: ['arbitration', 'scenario'],
-    queryFn: () => apiClient.getArbitrationScenario(),
-  });
 
   const config = data?.config as unknown as Record<string, unknown> | undefined;
   const live = data?.config.weights;
@@ -71,6 +66,18 @@ function ArbitrationView() {
     if (saved) setForm(saved);
   }, [saved]);
 
+  // The ranking comes from the engine, never from arithmetic here: each weight
+  // position is posted and the engine ranks the scenario under it (G-123). The
+  // previous ranking stays on screen while the next one is computed, so moving
+  // a slider does not flash an empty list.
+  const proposedWeights = weightsOf(form);
+  const preview = useQuery({
+    queryKey: ['arbitration', 'preview', proposedWeights],
+    queryFn: () => apiClient.previewArbitration(proposedWeights),
+    enabled: saved !== null,
+    placeholderData: keepPreviousData,
+  });
+
   const changes = live
     ? TERMS.filter((t) => Math.abs(weightOf(form, t.field) - live[t.term]) > 0.001).map((t) => ({
         ...t,
@@ -80,16 +87,19 @@ function ArbitrationView() {
     : [];
   const dirty = changes.length > 0;
 
-  // Ranked here, under the weights as they stand in the form, by the same
-  // function the engine ranks with. The live ranking uses the weights the
-  // scenario was scored under, so "moved" means moved from what decides now.
-  const preview = useMemo(() => {
-    const s = scenario.data;
-    if (!s) return null;
-    const before = rankCandidates(s.candidates, s.weights, s.utility);
-    const after = rankCandidates(s.candidates, weightsOf(form), s.utility);
-    return { rows: after.rows, ties: after.ties, moved: movement(before, after), name: s.scenario.name };
-  }, [scenario.data, form]);
+  // A weight whose term every offer shares moves no offer; the engine's scores
+  // say which, and the slider says so beneath it.
+  const notes = useMemo(
+    () => Object.fromEntries((preview.data?.inertWeights ?? []).map((w) => [`weights.${w.weight}`, w.reason])),
+    [preview.data]
+  );
+
+  const movedCount = (() => {
+    const p = preview.data;
+    if (!p) return 0;
+    const was = new Map(p.live.rows.map((r) => [r.key, r.rank]));
+    return p.proposed.rows.filter((r) => was.get(r.key) !== r.rank).length;
+  })();
 
   const queryClient = useQueryClient();
   const raise = useMutation({
@@ -99,9 +109,8 @@ function ArbitrationView() {
           .map((c) => `${c.term} ${c.before.toFixed(2)} → ${c.after.toFixed(2)}`)
           .join(', ')}`,
         description:
-          `Raised from /arbitration. On ${preview?.name ?? 'the scenario'}, ` +
-          `${preview ? Object.values(preview.moved).filter((m) => m !== 0).length : 0} offer(s) change place` +
-          `${preview && preview.ties.length > 0 ? ', and some offers share a priority, so their order is alphabetical' : ''}. ` +
+          `Raised from /arbitration. On ${preview.data?.scenario.name ?? 'the scenario'}, ` +
+          `${movedCount} offer(s) change place under these weights, as the engine ranks them. ` +
           'Nothing ranks differently until this is approved.',
         changeType: 'arbitration_weights',
         // `before` is the live weight exactly as the server holds it, which the
@@ -198,7 +207,7 @@ function ArbitrationView() {
     <PageBody>
       <PageHeader
         title="Arbitration & boosts"
-        description="How competing offers are ranked. Move a weight and the ranking below reorders; nothing changes how decisions rank until a change set is approved."
+        description="How competing offers are ranked. Move a weight and the engine ranks the scenario below under it; nothing changes how decisions rank until a change set is approved."
       />
 
       <div className="mb-stack">
@@ -269,6 +278,7 @@ function ArbitrationView() {
                 onChange={setForm}
                 editing
                 permissions={permissions}
+                notes={notes}
                 touched={NOTHING_TOUCHED}
                 onTouch={() => undefined}
                 idPrefix="arbitration"
@@ -282,18 +292,23 @@ function ArbitrationView() {
                       <dd className="tnum text-body font-semibold">{weightOf(saved, field.field).toFixed(2)}</dd>
                     </div>
                     {field.help ? <p className="mt-1.5 text-label text-content-muted">{field.help}</p> : null}
+                    {notes[field.field] ? <p className="mt-1.5 text-label text-hold">{notes[field.field]}</p> : null}
                   </div>
                 ))}
               </dl>
             )}
 
             <div className="mt-5 border-t border-border pt-4">
-              {scenario.isLoading ? (
-                <LoadingState label="Ranking the scenario" />
-              ) : scenario.error ? (
-                <ErrorState description={(scenario.error as Error).message} onRetry={() => scenario.refetch()} />
-              ) : preview && preview.rows.length > 0 ? (
-                <RankingPreview scenarioName={preview.name} rows={preview.rows} moved={preview.moved} ties={preview.ties} />
+              {preview.isLoading ? (
+                <LoadingState label="The engine is ranking the scenario" />
+              ) : preview.error ? (
+                <ErrorState description={(preview.error as Error).message} onRetry={() => preview.refetch()} />
+              ) : preview.data && preview.data.proposed.rows.length > 0 ? (
+                <RankingPreview
+                  scenarioName={preview.data.scenario.name}
+                  rows={preview.data.proposed.rows}
+                  live={preview.data.live.rows}
+                />
               ) : (
                 <p className="text-label text-content-muted">Nothing reaches ranking in the scenario, so there is no order to show.</p>
               )}

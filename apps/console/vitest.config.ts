@@ -20,7 +20,6 @@ export default defineConfig({
       // schema files from disk at import time, which no browser or test needs.
       '@metis/core/domain': path.resolve(__dirname, '../../packages/core/src/domain.ts'),
       '@metis/core/utility': path.resolve(__dirname, '../../packages/core/src/utility.ts'),
-      '@metis/core/arbitration': path.resolve(__dirname, '../../packages/core/src/arbitration.ts'),
       '@metis/runtime/deterministic': path.resolve(
         __dirname,
         '../../packages/runtime/src/deterministic'

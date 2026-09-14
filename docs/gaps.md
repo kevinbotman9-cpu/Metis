@@ -44,6 +44,86 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-125 — The design references in `docs/design/` are drafts that predate reading the engine
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found building "Arbitration, live" from `docs/design/metis-three-visualisations.html`
+
+The files in `docs/design/` are layout references, drawn before the engine was
+read. Every behaviour in them is a proposal, not a description of the
+platform, and none of them should be built from without checking it against
+the engine first. They are deliberately untracked: two behaviours in them are
+already known to be wrong, and committing them would make them look
+authoritative.
+
+Three findings from the "Arbitration, live" tab, the first that was built from:
+
+- **Ties.** The mockup hard-coded five offers and their priorities, and drew a
+  tie warning from a hard-coded case. The engine does tie: equal priorities
+  after rounding are broken by offer key (`packages/runtime/src/deterministic/engine.ts`,
+  `rankByPriority`). In this tenant, FIOS Gigabit, 5G Home Ultimate and Gaming
+  Plus Bundle tie when the boost weight is zero. The warning was cut for scope,
+  not because the behaviour is absent.
+- **The weight model.** The mockup's weight model matches the multiplicative
+  ranking function this tenant uses, `P^wP × V^wV × B^wB × C^wC`
+  (`packages/core/src/utility.ts`). Its 0–2 range is a console convention — the
+  ArbitrationConfig descriptor and the change-set check hold it — not an engine
+  rule. A tenant on the expected-value ranking function has no weights at all.
+- **The context slider.** The mockup treated it as meaningful. In this tenant it
+  moves no offer, and neither does propensity (G-124).
+
+**Done when:** nothing in `docs/design/` is built from until the behaviour it
+shows has been checked against the engine, and a finding like these is recorded
+here before the build rather than after.
+
+### G-124 — Two of the four arbitration weights move no offer in this tenant
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found building "Arbitration, live"
+
+The ranking function raises each term to its weight and multiplies. A term
+every offer shares scales every priority by the same factor whatever its
+weight, so that weight can reorder nothing.
+
+`telco-us` runs one flow, `next-best-action`, and it has no scoring node. Every
+offer therefore carries the flow's declared default for propensity and for
+context, both 1 (`apps/console/mocks/fixtures/artifacts.ts`,
+`missingScoreDefault`). The propensity and context sliders on `/arbitration`
+are controls that do nothing here, and the screen says so beneath each.
+
+The label is derived, not written: `previewArbitration` returns every weight
+whose term has the same value for every offer that reached arbitration
+(`apps/console/mocks/arbitration-preview.ts`). It clears on its own.
+
+**Done when:** a flow in the tenant has a scoring node. Propensity and context
+then differ between offers, both weights take effect, and neither is labelled.
+
+### G-123 — The arbitration preview is a proposed operation, served by the development API only
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — asked for on 2026-09-14
+
+`POST /arbitration/{tenantId}/preview` (`previewArbitration`) is in
+`docs/metis-api.openapi.yaml` as `x-metis-status: proposed`. The console's
+development API serves it. It runs the fibre-address scenario down the decision
+path twice, under the live weights and under the proposed ones, records
+nothing, and returns both rankings in the engine's order. Proposed weights are
+applied to a copy of the catalogue and never registered for replay.
+
+It replaced a preview the browser computed: `/arbitration` ranked the
+scenario's terms with a copy of the engine's arithmetic, held to the engine by
+a test. A number the engine did not produce is the one thing a preview of the
+engine cannot show, however well tested the copy. The copy was deleted, and
+the engine's comparator is exported as `rankByPriority` so nothing orders
+candidates with a second one.
+
+What it is not:
+
+- **One scenario, not a population.** It answers "what would this do to this
+  customer at this slot". "What would this do to everyone" is simulation work,
+  and would duplicate version comparison before that exists.
+- **Not on the execution plane.** Nothing outside the console serves it.
+
+**Done when:** the execution plane serves `previewArbitration` and it is marked
+built.
+
 ### G-122 — The arbitration weights API still publishes without a change set
 
 **Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found when `/arbitration` moved to raising change sets
