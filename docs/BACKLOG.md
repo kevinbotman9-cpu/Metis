@@ -1531,6 +1531,22 @@ preference.
 keeping a deliverer — a state one boolean could not express — and switching a
 channel's delivery on changes what the coverage screen measures against.
 `placement-authoring.spec.ts`.
+### W-083 — Every screen has a title of its own
+
+**Registered:** 2026-09-14 · **Stage:** 14 · **Status:** OPEN
+**Check:** none yet
+
+Gate 2 · Gap [G-131](gaps.md)
+
+All 26 page routes are titled "METIS Console", so a screen reader, a browser tab,
+history and an exported PDF cannot tell one screen from another, or one decision
+trace from the next. The title cannot simply move back into per-route
+`metadata`: that is what removed it on every client-side navigation (G-130).
+
+**Done when:** every route's title names its screen and a detail route names the
+thing it shows; no two screens share a title; a check fails for a route with no
+title of its own; and `document-title.spec.ts` still passes.
+
 ### W-082 — A person can set a targeting policy's scope
 
 **Registered:** 2026-09-13 · **Stage:** 14 · **Status:** OPEN
