@@ -2,6 +2,13 @@
 
 import Link from 'next/link';
 import { Badge } from '@/components/ui/primitives';
+import {
+  EvidenceFields,
+  EvidenceLabel,
+  EvidencePick,
+  EvidenceQuote,
+  EvidenceRow as Row,
+} from '@/components/ui/evidence';
 import type {
   PolicySourceDto,
   SourceCallDto,
@@ -17,6 +24,12 @@ import { CODE_MEANING, type DenialGroup, type TraceStage } from '@/components/tr
  * this pane exists to answer the question a regulator actually asks — not "what
  * happened" but "on what basis, and can you show me". Every claim here names
  * its source or says why it has none.
+ *
+ * **Its quote states what the record holds.** The reference drew a quote of the
+ * reason shown to the customer, and there is no such text (below), so the quote
+ * is the reason code's meaning for a rule, the node's own recorded reason for a
+ * stage, and the ranking formula for the decision whole — each a thing the
+ * record carries.
  *
  * **Two of the absences this pane was drawing are now answers.** Both were
  * drawn rather than omitted, which is why they were easy to close:
@@ -38,15 +51,6 @@ import { CODE_MEANING, type DenialGroup, type TraceStage } from '@/components/tr
  * withheld. A regulator asking "what were they told" has no answer today.
  * G-057.
  */
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="border-t border-border py-2">
-      <dt className="text-label text-content-subtle">{label}</dt>
-      <dd className="mt-0.5 text-label text-content">{children}</dd>
-    </div>
-  );
-}
 
 /** An absence, stated with the reason. Never a blank and never a zero. */
 function Absent({ reason }: { reason: React.ReactNode }) {
@@ -112,13 +116,23 @@ export function TraceEvidence({
   if (!stage) {
     return (
       <>
-        <h2 className="text-label font-semibold text-content-subtle">
-          The decision
-        </h2>
-        <p className="mt-1 text-body font-semibold text-content">
-          {trace.winner ? trace.winner : 'No offer'}
-        </p>
-        <dl className="mt-2 flex flex-col">
+        <EvidenceLabel>The decision</EvidenceLabel>
+        <EvidencePick>{trace.winner ? trace.winner : 'No offer'}</EvidencePick>
+        {trace.arbitration?.formula ? (
+          <EvidenceQuote title="How it was ranked" tone="accent">
+            <span className="font-mono">{trace.arbitration.formula}</span>
+            {trace.arbitration.utility ? (
+              <span className="mt-1 block">
+                Ranking function{' '}
+                <span className="font-mono">
+                  {trace.arbitration.utility.id}@{trace.arbitration.utility.version}
+                </span>
+                , recorded with the decision.
+              </span>
+            ) : null}
+          </EvidenceQuote>
+        ) : null}
+        <EvidenceFields>
           <Row label="Customer">
             <span className="font-mono">{trace.customerId}</span>
           </Row>
@@ -158,165 +172,170 @@ export function TraceEvidence({
               <Absent reason="the artifact records no package versions" />
             )}
           </Row>
-        </dl>
+        </EvidenceFields>
+      </>
+    );
+  }
+
+  if (group) {
+    const meanings = group.codes.map((c) => CODE_MEANING[c]).filter(Boolean);
+    const notRanked = group.codes.every((c) => c === 'NOT_RANKED');
+    return (
+      <>
+        <EvidenceLabel>{group.ruleId ?? group.codes[0]}</EvidenceLabel>
+        <EvidencePick>
+          {policy?.name ?? (group.ruleId ? 'Rule not in the catalogue' : 'No rule to name')}
+        </EvidencePick>
+
+        {meanings.length > 0 ? (
+          <EvidenceQuote title="What this code means" tone={notRanked ? 'neutral' : 'hold'}>
+            {meanings.join(' ')}
+          </EvidenceQuote>
+        ) : null}
+
+        <EvidenceFields>
+          <Row label="Reason code">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {group.codes.map((c) => (
+                <Badge key={c} tone={c === 'NOT_RANKED' ? 'neutral' : 'hold'}>
+                  {c}
+                </Badge>
+              ))}
+            </div>
+          </Row>
+
+          <Row label="Rule">
+            {group.ruleId ? (
+              <Link
+                href={`/targeting-policies?policy=${encodeURIComponent(group.ruleId)}`}
+                className="font-mono text-accent underline-offset-2 hover:underline"
+              >
+                {group.ruleId}
+              </Link>
+            ) : (
+              <Absent reason="this code is a property of the candidate, not of a rule" />
+            )}
+          </Row>
+
+          <Row label="Tier">
+            {policy ? (
+              <Badge tone="outline">{policy.kind}</Badge>
+            ) : (
+              <Absent reason="no policy of this id is in the catalogue" />
+            )}
+          </Row>
+
+          <Row label="Field it evaluated">
+            {fields.length > 0 ? (
+              <ul className="flex flex-col gap-0.5">
+                {(policy?.conditions ?? []).map((c, i) => (
+                  <li key={`${c.field}-${i}`} className="font-mono text-label">
+                    {c.field} {c.operator} {String(c.value)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Absent reason="the rule records no conditions" />
+            )}
+          </Row>
+
+          <Row label="Pack that supplied it">
+            {pack ? (
+              <>
+                <span className="font-semibold text-content">{pack.name}</span>{' '}
+                <Badge tone="outline">{pack.version}</Badge>
+                <p className="mt-0.5 font-mono text-label text-content-muted">
+                  {pack.packId}
+                </p>
+              </>
+            ) : policySources === null ? (
+              <Absent reason="the artifact has not loaded" />
+            ) : group.ruleId ? (
+              <Absent reason="no installed pack claims this rule — the tenant authored it" />
+            ) : (
+              <Absent reason="there is no rule to attribute" />
+            )}
+          </Row>
+
+          <Row label="Source system">
+            {bindings.length > 0 ? (
+              <ul className="flex flex-col gap-0.5">
+                {bindings.map((b) => {
+                  const call = calls.find((c) => c.connectorId === b.connectorId);
+                  return (
+                    <li key={`${b.field}-${b.connectorId}`}>
+                      <span className="font-mono text-label">{b.field}</span> from{' '}
+                      <Link
+                        href={`/integrations?connector=${encodeURIComponent(b.connectorId)}`}
+                        className="text-accent underline-offset-2 hover:underline"
+                      >
+                        {b.connectorId}
+                      </Link>
+                      {call ? (
+                        <span className="text-content-muted">
+                          {' '}
+                          · {call.cacheHit ? 'cache hit' : 'live read'} · {call.ms}ms
+                        </span>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <Absent reason="no connector supplied a field this rule reads; the value came from the request" />
+            )}
+          </Row>
+
+          <Row label="When the value was computed">
+            {readCalls.length > 0 ? (
+              <ul className="flex flex-col gap-0.5">
+                {readCalls.map((call) => (
+                  <li key={call.connectorId}>
+                    <span className="font-mono text-label">{call.connectorId}</span>{' '}
+                    {whenComputed(call)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Absent reason="no connector call supplied a field this rule reads" />
+            )}
+          </Row>
+
+          <Row label="What the customer was told">
+            <Absent reason="nothing. No customer-facing refusal text exists in the platform" />
+          </Row>
+        </EvidenceFields>
       </>
     );
   }
 
   return (
     <>
-      <h2 className="text-label font-semibold text-content-subtle">
-        {group ? (group.ruleId ?? group.codes[0]) : stage.label}
-      </h2>
-
-      {group ? (
-        <>
-          <p className="mt-1 text-body font-semibold text-content">
-            {policy?.name ?? (group.ruleId ? 'Rule not in the catalogue' : 'No rule to name')}
-          </p>
-
-          <dl className="mt-2 flex flex-col">
-            <Row label="Reason code">
-              <div className="flex flex-wrap items-center gap-1.5">
-                {group.codes.map((c) => (
-                  <Badge key={c} tone={c === 'NOT_RANKED' ? 'neutral' : 'hold'}>
-                    {c}
-                  </Badge>
-                ))}
-              </div>
-              <p className="mt-1 text-content-muted">
-                {group.codes.map((c) => CODE_MEANING[c]).filter(Boolean).join(' ')}
-              </p>
-            </Row>
-
-            <Row label="Rule">
-              {group.ruleId ? (
-                <Link
-                  href={`/targeting-policies?policy=${encodeURIComponent(group.ruleId)}`}
-                  className="font-mono text-accent underline-offset-2 hover:underline"
-                >
-                  {group.ruleId}
-                </Link>
-              ) : (
-                <Absent reason="this code is a property of the candidate, not of a rule" />
-              )}
-            </Row>
-
-            <Row label="Tier">
-              {policy ? (
-                <Badge tone="outline">{policy.kind}</Badge>
-              ) : (
-                <Absent reason="no policy of this id is in the catalogue" />
-              )}
-            </Row>
-
-            <Row label="Field it evaluated">
-              {fields.length > 0 ? (
-                <ul className="flex flex-col gap-0.5">
-                  {(policy?.conditions ?? []).map((c, i) => (
-                    <li key={`${c.field}-${i}`} className="font-mono text-label">
-                      {c.field} {c.operator} {String(c.value)}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <Absent reason="the rule records no conditions" />
-              )}
-            </Row>
-
-            <Row label="Pack that supplied it">
-              {pack ? (
-                <>
-                  <span className="font-semibold text-content">{pack.name}</span>{' '}
-                  <Badge tone="outline">{pack.version}</Badge>
-                  <p className="mt-0.5 font-mono text-label text-content-muted">
-                    {pack.packId}
-                  </p>
-                </>
-              ) : policySources === null ? (
-                <Absent reason="the artifact has not loaded" />
-              ) : group.ruleId ? (
-                <Absent reason="no installed pack claims this rule — the tenant authored it" />
-              ) : (
-                <Absent reason="there is no rule to attribute" />
-              )}
-            </Row>
-
-            <Row label="Source system">
-              {bindings.length > 0 ? (
-                <ul className="flex flex-col gap-0.5">
-                  {bindings.map((b) => {
-                    const call = calls.find((c) => c.connectorId === b.connectorId);
-                    return (
-                      <li key={`${b.field}-${b.connectorId}`}>
-                        <span className="font-mono text-label">{b.field}</span> from{' '}
-                        <Link
-                          href={`/integrations?connector=${encodeURIComponent(b.connectorId)}`}
-                          className="text-accent underline-offset-2 hover:underline"
-                        >
-                          {b.connectorId}
-                        </Link>
-                        {call ? (
-                          <span className="text-content-muted">
-                            {' '}
-                            · {call.cacheHit ? 'cache hit' : 'live read'} · {call.ms}ms
-                          </span>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <Absent reason="no connector supplied a field this rule reads; the value came from the request" />
-              )}
-            </Row>
-
-            <Row label="When the value was computed">
-              {readCalls.length > 0 ? (
-                <ul className="flex flex-col gap-0.5">
-                  {readCalls.map((call) => (
-                    <li key={call.connectorId}>
-                      <span className="font-mono text-label">{call.connectorId}</span>{' '}
-                      {whenComputed(call)}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <Absent reason="no connector call supplied a field this rule reads" />
-              )}
-            </Row>
-
-            <Row label="What the customer was told">
-              <Absent reason="nothing. No customer-facing refusal text exists in the platform" />
-            </Row>
-          </dl>
-        </>
-      ) : (
-        <>
-          <p className="mt-1 text-body font-semibold text-content">
-            {stage.removed > 0
-              ? `${stage.removed} removed, ${stage.survived} carried on`
-              : `${stage.survived} carried on`}
-          </p>
-          {stage.reason ? (
-            <p className="mt-2 text-label text-content-muted">{stage.reason}</p>
-          ) : null}
-          <dl className="mt-2 flex flex-col">
-            <Row label="Node">
-              <span className="font-mono text-label">{stage.nodeId}</span>{' '}
-              <Badge tone="outline">{stage.nodeType}</Badge>
-            </Row>
-            <Row label="Time in this node">
-              {stage.ms === null ? (
-                <Absent reason="the trace recorded no timing for this node" />
-              ) : (
-                <span className="tnum">{stage.ms}ms</span>
-              )}
-            </Row>
-          </dl>
-          {stage.removed > 0 ? null : <p className="mt-3 text-label text-content-subtle">This node removed nothing.</p>}
-        </>
-      )}
+      <EvidenceLabel>{stage.label}</EvidenceLabel>
+      <EvidencePick>
+        {stage.removed > 0
+          ? `${stage.removed} removed, ${stage.survived} carried on`
+          : `${stage.survived} carried on`}
+      </EvidencePick>
+      {stage.reason ? (
+        <EvidenceQuote title="What the node recorded" tone={stage.removed > 0 ? 'hold' : 'neutral'}>
+          {stage.reason}
+        </EvidenceQuote>
+      ) : null}
+      <EvidenceFields>
+        <Row label="Node">
+          <span className="font-mono text-label">{stage.nodeId}</span>{' '}
+          <Badge tone="outline">{stage.nodeType}</Badge>
+        </Row>
+        <Row label="Time in this node">
+          {stage.ms === null ? (
+            <Absent reason="the trace recorded no timing for this node" />
+          ) : (
+            <span className="tnum">{stage.ms}ms</span>
+          )}
+        </Row>
+      </EvidenceFields>
+      {stage.removed > 0 ? null : <p className="mt-3 text-label text-content-subtle">This node removed nothing.</p>}
     </>
   );
 }
