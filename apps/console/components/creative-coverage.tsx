@@ -14,29 +14,53 @@ import {
   LoadingState,
 } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
-import { FilterBlocks, type FilterBlock } from '@/components/ui/filter-blocks';
+import { CascadeRail } from '@/components/cascade-rail';
+import { CascadePanes } from '@/components/cascade-panes';
+import {
+  EvidenceAction,
+  EvidenceFields,
+  EvidenceLabel,
+  EvidencePick,
+  EvidenceQuote,
+  EvidenceRow,
+} from '@/components/ui/evidence';
+import { useFormat } from '@/components/tenant-format';
+import {
+  CELL,
+  coverageRows,
+  coverageStages,
+  deliveringChannels,
+  fellOutAt,
+  liveRows,
+  undeliverableChannels as undeliverableOf,
+  type CoverageRow,
+  type CoverageStageId,
+} from '@/lib/coverage';
 import type { CreativeDto, OfferDto, PlacementDto } from '@/lib/api-client';
 
 /**
- * What the catalogue can and cannot deliver, offer by channel.
+ * What the catalogue can and cannot deliver, offer by channel — as a Cascade.
  *
  * ADR-012 §B3. The platform had two guards against an offer that cannot be
  * delivered and both were channel-blind, so the state they were meant to
  * prevent was reachable in bulk and visible nowhere: on 2026-09-10, **127 of
  * the 202 active offers had no active web creative**, 200 had nothing for an
- * outbound call, and 38 had nothing on any channel at all. The only surface
- * that said so was the storefront, rendering *"won this slot, and has no web
- * creative for it"* to whoever happened to be watching a demo.
+ * outbound call, and 38 had nothing on any channel at all.
  *
- * This is the same fact addressed to the person who can fix it. It is a join of
- * three reads the console already makes — the taxonomy, the creatives and the
- * placements — and adds no endpoint, because the data was never missing. Only
- * the question was.
+ * **It earns a rail (§4.7) because it has a spine.** Of the offers that can win
+ * a decision, those with content written for a delivering channel, of those the
+ * ones switched on, and of those the ones missing nothing — each a subset of the
+ * one above, and the first question is where it falls off. The arithmetic is
+ * `lib/coverage.ts`. The four filter blocks this replaced were a partition, not
+ * stages: "nothing to send", "partly covered" and "every channel" divided the
+ * active offers, and a rail over them would have claimed a nesting that is not
+ * there.
+ *
+ * **The channels stay in the matrix, not the rail.** They are parallel, and a
+ * reader looks up one offer on one channel.
  *
  * **Channels come from the placements, not from a list here.** A channel this
  * tenant does not serve is not a hole; it is a column that should not exist.
- * Switch a placement off and its channel leaves this table, which is the same
- * rule `offerMayBeActive` and `NO_DELIVERABLE_CREATIVE` now apply.
  */
 
 export interface CreativeCoverageProps {
@@ -46,15 +70,6 @@ export interface CreativeCoverageProps {
   isLoading?: boolean;
 }
 
-/** One offer's content on one channel. The three states have three remedies. */
-type CellState = 'live' | 'off' | 'none';
-
-const CELL: Record<CellState, { label: string; tone: 'pass' | 'hold' | 'block'; means: string }> = {
-  live: { label: 'live', tone: 'pass', means: 'an active creative exists for this channel' },
-  off: { label: 'off', tone: 'hold', means: 'content exists and every copy of it is switched off' },
-  none: { label: 'none', tone: 'block', means: 'nothing is written for this channel' },
-};
-
 const CHANNEL_LABEL: Record<string, string> = {
   email: 'Email',
   sms: 'SMS',
@@ -63,22 +78,16 @@ const CHANNEL_LABEL: Record<string, string> = {
   outbound_call: 'Call',
 };
 
-interface Row {
-  offer: OfferDto;
-  /** Channel → state, over the channels this tenant serves. */
-  cells: Record<string, CellState>;
-  /** Channels served where nothing can be sent. */
-  holes: number;
-  deliverable: boolean;
-}
+/** What falls out at each stage, in the words the legend already uses. */
+const FELL_OUT_BECAUSE: Record<Exclude<CoverageStageId, 'active'>, string> = {
+  written: `On every channel that delivers, ${CELL.none.means}.`,
+  switched_on: `On every channel that delivers, either ${CELL.off.means} or ${CELL.none.means}.`,
+  every_channel: `Live somewhere, and on at least one channel that delivers, ${CELL.off.means} or ${CELL.none.means}.`,
+};
 
-export function CreativeCoverage({
-  offers,
-  creatives,
-  placements,
-  isLoading,
-}: CreativeCoverageProps) {
-  const [lens, setLens] = useState('all');
+export function CreativeCoverage({ offers, creatives, placements, isLoading }: CreativeCoverageProps) {
+  const format = useFormat();
+  const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [channelFilter, setChannelFilter] = useState('');
 
@@ -88,107 +97,25 @@ export function CreativeCoverage({
    * `p.delivery`, not `p.active` — and the difference is the whole correction.
    * Until 2026-09-10 this counted content against every *decidable* slot, which
    * on the seeded tenant meant five channels, four of which have nothing that
-   * sends. It reported 38 offers with "nothing to send" when the number that
-   * can actually reach a customer is 127, and it showed 164 offers as "partly
-   * covered" against holes on channels no message could have left through.
-   *
-   * That is the same shape of error as counting a decision that won a slot as
-   * an impression (G-041): a denominator counting what the platform *decided*
-   * where the question was what it can *deliver*. ADR-013 §2.
+   * sends. ADR-013 §2.
    */
-  const channels = useMemo(
-    () => [...new Set(placements.filter((p) => p.delivery).map((p) => p.channel))].sort(),
-    [placements]
-  );
+  const channels = useMemo(() => deliveringChannels(placements), [placements]);
+  const undeliverableChannels = useMemo(() => undeliverableOf(placements), [placements]);
+  const live = useMemo(() => liveRows(coverageRows(offers, creatives, channels)), [offers, creatives, channels]);
+  const stages = useMemo(() => coverageStages(live, format), [live, format]);
+  const stage = stages.find((s) => s.id === selected) ?? null;
 
-  /** Slots that decide and have nothing to send the result. Named, not hidden. */
-  const undeliverableChannels = useMemo(
-    () =>
-      [
-        ...new Set(
-          placements.filter((p) => p.decidable && !p.delivery).map((p) => p.channel)
-        ),
-      ].sort(),
-    [placements]
-  );
-
-  const rows = useMemo<Row[]>(() => {
-    const byOffer = new Map<string, CreativeDto[]>();
-    for (const c of creatives) {
-      const own = byOffer.get(c.offerId) ?? [];
-      own.push(c);
-      byOffer.set(c.offerId, own);
-    }
-
-    return offers.map((offer) => {
-      const own = byOffer.get(offer.id) ?? [];
-      const cells: Record<string, CellState> = {};
-      for (const ch of channels) {
-        const onChannel = own.filter((c) => c.channel === ch);
-        cells[ch] = onChannel.some((c) => c.active)
-          ? 'live'
-          : onChannel.length > 0
-            ? 'off'
-            : 'none';
-      }
-      const holes = channels.filter((ch) => cells[ch] !== 'live').length;
-      return { offer, cells, holes, deliverable: holes < channels.length };
-    });
-  }, [offers, creatives, channels]);
-
-  // Only active offers can win a decision, so only they can render nothing.
-  // A draft with no content is a draft, not a defect.
-  const live = useMemo(() => rows.filter((r) => r.offer.status === 'active'), [rows]);
-
-  const LENSES: (FilterBlock & { match: (r: Row) => boolean })[] = [
-    {
-      id: 'all',
-      label: 'Active offers',
-      sub: 'that can win a decision',
-      value: live.length,
-      match: () => true,
-    },
-    {
-      id: 'undeliverable',
-      label: 'Nothing to send',
-      sub: 'on any channel served',
-      tone: 'block',
-      value: live.filter((r) => !r.deliverable).length,
-      match: (r) => !r.deliverable,
-    },
-    {
-      id: 'partial',
-      label: 'Partly covered',
-      sub: 'a hole on at least one channel',
-      tone: 'hold',
-      value: live.filter((r) => r.deliverable && r.holes > 0).length,
-      match: (r) => r.deliverable && r.holes > 0,
-    },
-    {
-      id: 'complete',
-      label: 'Every channel',
-      sub: 'nothing missing',
-      tone: 'pass',
-      value: live.filter((r) => r.holes === 0).length,
-      match: (r) => r.holes === 0,
-    },
-  ];
-
-  const filtered = useMemo(() => {
-    const active = LENSES.find((l) => l.id === lens) ?? LENSES[0];
+  const inView = useMemo(() => {
+    const base = stage && stage.id !== 'active' ? fellOutAt(stage.id as CoverageStageId, live) : live;
     const q = search.toLowerCase().trim();
-    return live.filter((r) => {
-      if (!active.match(r)) return false;
+    return base.filter((r) => {
       if (channelFilter && r.cells[channelFilter] === 'live') return false;
       if (!q) return true;
-      return (
-        r.offer.name.toLowerCase().includes(q) || r.offer.key.toLowerCase().includes(q)
-      );
+      return r.offer.name.toLowerCase().includes(q) || r.offer.key.toLowerCase().includes(q);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [live, lens, search, channelFilter]);
+  }, [stage, live, search, channelFilter]);
 
-  const columns: Column<Row>[] = [
+  const columns: Column<CoverageRow>[] = [
     {
       key: 'offer',
       header: 'Offer',
@@ -209,7 +136,7 @@ export function CreativeCoverage({
       ),
     },
     ...channels.map(
-      (ch): Column<Row> => ({
+      (ch): Column<CoverageRow> => ({
         key: ch,
         header: CHANNEL_LABEL[ch] ?? ch,
         width: 'w-24',
@@ -235,9 +162,7 @@ export function CreativeCoverage({
   ];
 
   // `isLoading` first, because "no channel is being served" is a claim about
-  // the tenant and until the placements arrive there is nothing to claim. This
-  // rendered the empty state on every first paint until 2026-09-10, which is a
-  // screen asserting a fact it had not been told yet.
+  // the tenant and until the placements arrive there is nothing to claim.
   if (isLoading) {
     return (
       <Card>
@@ -261,45 +186,11 @@ export function CreativeCoverage({
     );
   }
 
+  const breakStage = stages.find((s) => s.broken);
+  const firstFallen = stage && stage.id !== 'active' ? fellOutAt(stage.id as CoverageStageId, live)[0] : undefined;
+
   return (
     <>
-      <FilterBlocks
-        blocks={LENSES.map(({ match: _match, ...b }) => b)}
-        activeId={lens}
-        onSelect={setLens}
-        label="Filter by coverage"
-        className="mb-stack"
-      />
-
-      <div className="mb-stack flex flex-wrap items-end gap-3">
-        <div className="min-w-[16rem] flex-1">
-          <Field label="Search offers" htmlFor="coverage-search">
-            <Input
-              id="coverage-search"
-              value={search}
-              placeholder="e.g. broadband, or the offer key"
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </Field>
-        </div>
-        <div className="w-56">
-          <Field label="Missing on channel" htmlFor="coverage-channel">
-            <Select
-              id="coverage-channel"
-              value={channelFilter}
-              onChange={(e) => setChannelFilter(e.target.value)}
-            >
-              <option value="">Any channel</option>
-              {channels.map((ch) => (
-                <option key={ch} value={ch}>
-                  {CHANNEL_LABEL[ch] ?? ch}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-      </div>
-
       {undeliverableChannels.length > 0 ? (
         // Stated rather than silently excluded. These channels decide and
         // nothing sends the result, so counting content holes in them would be
@@ -312,14 +203,12 @@ export function CreativeCoverage({
               <div className="min-w-0 flex-1">
                 <p className="text-body font-medium text-content">
                   {undeliverableChannels.length}{' '}
-                  {undeliverableChannels.length === 1 ? 'channel decides' : 'channels decide'} and
-                  nothing delivers the result
+                  {undeliverableChannels.length === 1 ? 'channel decides' : 'channels decide'} and nothing
+                  delivers the result
                 </p>
                 <p className="mt-1 text-body text-content-muted">
-                  {undeliverableChannels
-                    .map((ch) => CHANNEL_LABEL[ch] ?? ch)
-                    .join(', ')}
-                  : content here can&apos;t reach anyone. Coverage below counts deliverable channels only.
+                  {undeliverableChannels.map((ch) => CHANNEL_LABEL[ch] ?? ch).join(', ')}: content here
+                  can&apos;t reach anyone. Coverage below counts deliverable channels only.
                 </p>
               </div>
             </div>
@@ -327,37 +216,143 @@ export function CreativeCoverage({
         </Card>
       ) : null}
 
-      <Card>
-        <CardHeader
-          title="Content coverage"
-        />
-        <DataTable
-          columns={columns}
-          rows={filtered}
-          rowKey={(r) => r.offer.id}
-          isLoading={isLoading}
-          defaultSort={{ key: 'holes', dir: 'desc' }}
-          caption={`${filtered.length} of ${live.length} active offers`}
-          emptyTitle="No offer matches"
-          emptyDescription="Every active offer has live content on every channel this tenant serves."
-        />
-        {/* Legible rather than hoverable. A `title` reaches a mouse and nothing
-            else, which is the defect W-055 already tracks — a three-state cell
-            whose states are explained only on hover would add a fourth site of
-            it. */}
-        <CardBody className="border-t border-border pt-3">
-          <dl className="flex flex-wrap gap-x-6 gap-y-2 text-label">
-            {(['live', 'off', 'none'] as const).map((state) => (
-              <div key={state} className="flex items-center gap-2">
-                <dt>
-                  <Badge tone={CELL[state].tone}>{CELL[state].label}</Badge>
-                </dt>
-                <dd className="text-content-muted">{CELL[state].means}</dd>
-              </div>
-            ))}
-          </dl>
-        </CardBody>
-      </Card>
+      <CascadePanes
+        rail={
+          <CascadeRail
+            label="Coverage, by stage"
+            stages={stages}
+            selected={selected}
+            onSelect={setSelected}
+            foot={
+              <>
+                Counts active offers against the <strong className="font-semibold">channels that deliver</strong>.
+                Each stage is within the one above.
+              </>
+            }
+          />
+        }
+        evidence={
+          stage ? (
+            <>
+              <EvidenceLabel>{stage.label}</EvidenceLabel>
+              <EvidencePick>
+                {format.number(stage.value)} · {stage.note}
+              </EvidencePick>
+              {stage.broken ? (
+                <EvidenceQuote title="Why it breaks here" tone="block">
+                  {stage.broken}
+                </EvidenceQuote>
+              ) : stage.id !== 'active' ? (
+                <EvidenceQuote title="What falls out here" tone="hold">
+                  {FELL_OUT_BECAUSE[stage.id as Exclude<CoverageStageId, 'active'>]}
+                </EvidenceQuote>
+              ) : null}
+              <EvidenceFields>
+                {stage.id !== 'active' ? (
+                  <EvidenceRow label="Fell out at this stage">
+                    <span className="tnum">{format.number(stage.removed ?? 0)}</span>
+                  </EvidenceRow>
+                ) : null}
+                {channels.map((ch) => (
+                  <EvidenceRow key={ch} label={`Live on ${CHANNEL_LABEL[ch] ?? ch}`}>
+                    <span className="tnum">
+                      {format.number(live.filter((r) => r.cells[ch] === 'live').length)}
+                    </span>
+                  </EvidenceRow>
+                ))}
+              </EvidenceFields>
+              {firstFallen ? (
+                <EvidenceAction href={`/offers/${firstFallen.offer.id}`} primary sub="Its content, channel by channel">
+                  Open the first offer that fell out here
+                </EvidenceAction>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <EvidenceLabel>Coverage</EvidenceLabel>
+              <EvidencePick>
+                {format.number(stages.find((s) => s.id === 'switched_on')!.value)} of{' '}
+                {format.number(live.length)} active offers can send something
+              </EvidencePick>
+              {breakStage?.broken ? (
+                <EvidenceQuote title="Where it breaks" tone="block">
+                  {breakStage.broken}
+                </EvidenceQuote>
+              ) : null}
+              <EvidenceFields>
+                {channels.map((ch) => (
+                  <EvidenceRow key={ch} label={`Live on ${CHANNEL_LABEL[ch] ?? ch}`}>
+                    <span className="tnum">
+                      {format.number(live.filter((r) => r.cells[ch] === 'live').length)}
+                    </span>
+                  </EvidenceRow>
+                ))}
+              </EvidenceFields>
+              <p className="mt-3 text-label text-content-subtle">Select a stage to see the offers that fell out there.</p>
+            </>
+          )
+        }
+      >
+        <div className="mb-stack flex flex-wrap items-end gap-3">
+          <div className="min-w-[16rem] flex-1">
+            <Field label="Search offers" htmlFor="coverage-search">
+              <Input
+                id="coverage-search"
+                value={search}
+                placeholder="e.g. broadband, or the offer key"
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </Field>
+          </div>
+          <div className="w-56">
+            <Field label="Missing on channel" htmlFor="coverage-channel">
+              <Select id="coverage-channel" value={channelFilter} onChange={(e) => setChannelFilter(e.target.value)}>
+                <option value="">Any channel</option>
+                {channels.map((ch) => (
+                  <option key={ch} value={ch}>
+                    {CHANNEL_LABEL[ch] ?? ch}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader
+            title="Content coverage"
+            description={
+              stage && stage.id !== 'active'
+                ? `${format.number(stage.removed ?? 0)} active offers reached the stage before ${stage.label.toLowerCase()} and not this one.`
+                : undefined
+            }
+          />
+          <DataTable
+            columns={columns}
+            rows={inView}
+            rowKey={(r) => r.offer.id}
+            isLoading={isLoading}
+            defaultSort={{ key: 'holes', dir: 'desc' }}
+            caption={`${inView.length} of ${live.length} active offers`}
+            emptyTitle="No offer matches"
+            emptyDescription="Every active offer in view has live content on every channel this tenant serves."
+          />
+          {/* Legible rather than hoverable. A `title` reaches a mouse and nothing
+              else, which is the defect W-055 already tracks. */}
+          <CardBody className="border-t border-border pt-3">
+            <dl className="flex flex-wrap gap-x-6 gap-y-2 text-label">
+              {(['live', 'off', 'none'] as const).map((state) => (
+                <div key={state} className="flex items-center gap-2">
+                  <dt>
+                    <Badge tone={CELL[state].tone}>{CELL[state].label}</Badge>
+                  </dt>
+                  <dd className="text-content-muted">{CELL[state].means}</dd>
+                </div>
+              ))}
+            </dl>
+          </CardBody>
+        </Card>
+      </CascadePanes>
     </>
   );
 }
