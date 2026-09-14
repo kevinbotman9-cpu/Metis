@@ -52,7 +52,7 @@ test.describe('@screen-only arbitration, live', () => {
     ).toBeVisible();
 
     // Raised, and nothing published.
-    await page.getByRole('button', { name: 'Raise a change set' }).click();
+    await page.getByRole('button', { name: 'Raise a change set', exact: true }).click();
     await expect(page.getByText(/Nothing is published until it is approved/)).toBeVisible();
     const raised = page.getByRole('link', { name: /^cr_/ });
     const id = (await raised.textContent())!.trim();
@@ -66,7 +66,9 @@ test.describe('@screen-only arbitration, live', () => {
     // in the Releases group, so the group opens first.
     await nav.getByRole('button', { name: 'Releases', exact: true }).click();
     await nav.getByRole('link', { name: 'Approvals' }).click();
-    const queued = page.getByRole('listbox', { name: 'Change sets' }).getByRole('option', { name: new RegExp(id) });
+    const queued = page
+      .getByRole('listbox', { name: 'Change sets', exact: true })
+      .getByRole('option', { name: new RegExp(id) });
     await queued.click();
     // Pending, from the row itself: "Status: Pending" is part of its name.
     await expect(queued).toHaveAccessibleName(new RegExp(`${id}.*Status: Pending`));

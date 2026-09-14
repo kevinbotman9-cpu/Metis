@@ -12,14 +12,14 @@ test.describe('role-based access', () => {
 
     await page.goto('/arbitration');
     await expect(page.getByText('read only', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Raise a change set' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Raise a change set', exact: true })).toHaveCount(0);
   });
 
   test('lets an administrator edit arbitration', async ({ page }) => {
     await login(page, ACCOUNTS.marcus);
     await page.goto('/arbitration');
     await expect(page.getByText('read only', { exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Raise a change set' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Raise a change set', exact: true })).toBeVisible();
   });
 
   // covers: approveChangeSet
@@ -68,7 +68,7 @@ test.describe('writes persist', () => {
     for (let i = 1; i < 7; i++) await page.keyboard.press('ArrowLeft');
     await expect(context).toHaveAttribute('aria-valuenow', '0.65');
 
-    await page.getByRole('button', { name: 'Raise a change set' }).click();
+    await page.getByRole('button', { name: 'Raise a change set', exact: true }).click();
     await expect(page.getByText(/Nothing is published until it is approved/)).toBeVisible();
     const href = await page.getByRole('link', { name: /^cr_/ }).getAttribute('href');
     expect(href).toMatch(/^\/approvals\/cr_/);
