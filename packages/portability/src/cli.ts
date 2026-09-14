@@ -17,6 +17,7 @@
 import { createRegistryStore, ArtifactRegistry } from '@metis/registry';
 import { createLedgerStore, DecisionLedger } from '@metis/ledger';
 import { createCatalogueStore, Catalogue } from '@metis/catalogue';
+import { createGovernanceStore, Governance } from '@metis/governance';
 import { exportTenant } from './export';
 import { verifyBundle } from './verify';
 import { writeBundle, readBundle } from './files';
@@ -64,6 +65,7 @@ async function main(): Promise<number> {
   const registryHandle = await createRegistryStore();
   const ledgerHandle = await createLedgerStore();
   const catalogueHandle = await createCatalogueStore();
+  const governanceHandle = await createGovernanceStore();
 
   try {
     const bundle = await exportTenant(
@@ -71,6 +73,7 @@ async function main(): Promise<number> {
         registry: new ArtifactRegistry(registryHandle.store),
         ledger: new DecisionLedger(ledgerHandle.store),
         catalogue: new Catalogue(catalogueHandle.store),
+        governance: new Governance(governanceHandle.store),
       },
       // The clock, once, here — not inside the export, which stays a pure
       // function of the stores so that two exports of unchanged data are
@@ -102,6 +105,7 @@ async function main(): Promise<number> {
     await registryHandle.close();
     await ledgerHandle.close();
     await catalogueHandle.close();
+    await governanceHandle.close();
   }
 }
 

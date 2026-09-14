@@ -10,7 +10,7 @@
     "apps/*"
   ],
   "scripts": {
-    "test": "npm run test:integration && npm run test:core && npm run test:runtime && npm run test:compiler && npm run test:registry && npm run test:catalogue && npm run test:ui-metadata && npm run test:ledger && npm run test:portability && npm run test:bench && npm run test:console",
+    "test": "npm run test:integration && npm run test:core && npm run test:runtime && npm run test:compiler && npm run test:registry && npm run test:catalogue && npm run test:governance && npm run test:ui-metadata && npm run test:ledger && npm run test:portability && npm run test:bench && npm run test:console",
     "lint": "eslint packages bench tests scripts --ext .ts,.mjs",
     "dev": "docker-compose up",
     "generate": "npm run generate -w @metis/client && npm run generate -w @metis/console",
@@ -34,10 +34,11 @@
     "export": "node --import tsx packages/portability/src/cli.ts",
     "bench:s1": "npm --prefix bench/harness run bench:s1",
     "test:catalogue": "npm --prefix packages/catalogue run test",
+    "test:governance": "npm --prefix packages/governance run test",
     "test:ui-metadata": "npm --prefix packages/ui-metadata run test",
     "gates": "node scripts/gates.mjs",
     "gates:pre-pr": "node scripts/gates.mjs --skip e2e",
-    "gates:quick": "node scripts/gates.mjs typecheck-packages typecheck-console lint-root lint-console test-runtime test-compiler test-core test-catalogue test-portability test-ledger test-registry test-ui-metadata test-integration test-console",
+    "gates:quick": "node scripts/gates.mjs typecheck-packages typecheck-console lint-root lint-console test-runtime test-compiler test-core test-catalogue test-governance test-portability test-ledger test-registry test-ui-metadata test-integration test-console",
     "conformance": "node --import tsx scripts/conformance.mjs"
   },
   "devDependencies": {

@@ -2,6 +2,7 @@ import { hash } from '@metis/runtime/deterministic/canonical';
 import type { ArtifactRegistry } from '@metis/registry';
 import type { DecisionLedger } from '@metis/ledger';
 import type { Catalogue } from '@metis/catalogue';
+import type { Governance } from '@metis/governance';
 import { ENTITIES, EXPORTED_ENTITIES } from './entities';
 import { FORMAT_VERSION, type BundleFile, type TenantBundle } from './types';
 
@@ -17,6 +18,7 @@ export interface ExportSources {
   registry: ArtifactRegistry;
   ledger: DecisionLedger;
   catalogue: Catalogue;
+  governance: Governance;
 }
 
 export interface ExportOptions {
@@ -45,7 +47,7 @@ export async function exportTenant(
   options: ExportOptions
 ): Promise<TenantBundle> {
   const { tenantId } = options;
-  const { registry, ledger, catalogue } = sources;
+  const { registry, ledger, catalogue, governance } = sources;
 
   const flows = await registry.flows(tenantId);
 
@@ -82,6 +84,12 @@ export async function exportTenant(
     .map((event, i) => ({ ...event, seq: i + 1 }));
 
   const drafts = stable(await registry.drafts(tenantId), (d) => d.flowName);
+
+  // Change sets by id; audit events oldest first. The log's order is the order
+  // it was written in, which its timestamps do not always agree with, so an
+  // import appends them in exactly this order and a re-export matches.
+  const changeSets = stable(await governance.changeSets(tenantId), (c) => c.id);
+  const auditEvents = (await governance.events(tenantId)).reverse();
 
   const records = stable(await ledger.query({ tenantId }), (r) => r.decisionId);
 
@@ -123,6 +131,8 @@ export async function exportTenant(
     registry_environments: environments,
     registry_events: events,
     registry_drafts: drafts,
+    governance_change_sets: changeSets,
+    governance_audit_events: auditEvents,
     decision_records: records,
     outcome_events: outcomes,
     delivery_attempts: deliveries,

@@ -1,6 +1,7 @@
 import type { RegistryStore } from '@metis/registry';
 import type { DecisionLedger } from '@metis/ledger';
 import type { Catalogue, CatalogueStore } from '@metis/catalogue';
+import type { GovernanceStore } from '@metis/governance';
 import { verifyBundle } from './verify';
 import { PortabilityError, type TenantBundle } from './types';
 
@@ -31,6 +32,12 @@ export interface ImportTargets {
    * order the bundle holds them, not re-run the authoring conversation.
    */
   catalogueStore: CatalogueStore;
+  /**
+   * Through the store: `Governance` opens change sets pending and assigns
+   * audit ids, and a restore has to land decided change sets and keep the ids
+   * its events are cited by.
+   */
+  governanceStore: GovernanceStore;
 }
 
 export interface ImportSummary {
@@ -51,8 +58,9 @@ async function assertEmpty(bundle: TenantBundle, targets: ImportTargets): Promis
   const decisions = await targets.ledger.query({ tenantId, limit: 1 });
   const catalogue = await targets.catalogue.read(tenantId);
   const hasCatalogue = catalogue.offers.length > 0 || catalogue.objectives.length > 0;
+  const hasGovernance = (await targets.governanceStore.listTenants()).includes(tenantId);
 
-  if (flows.length > 0 || decisions.length > 0 || hasCatalogue) {
+  if (flows.length > 0 || decisions.length > 0 || hasCatalogue || hasGovernance) {
     throw new PortabilityError(
       'TARGET_NOT_EMPTY',
       `Tenant ${tenantId} already exists in the target: ${flows.length} flow(s) ` +
@@ -124,6 +132,15 @@ export async function importTenant(
     await targets.registryStore.putDraft(draft);
   }
 
+  for (const changeSet of bundle.governance_change_sets) {
+    await targets.governanceStore.insertChangeSet(tenantId, changeSet);
+  }
+
+  // Oldest first, as exported, so the target's log is in the same order.
+  for (const event of bundle.governance_audit_events) {
+    await targets.governanceStore.appendAuditEvent(tenantId, event);
+  }
+
   for (const entry of bundle.decision_records) {
     await targets.ledger.record(entry);
   }
@@ -150,6 +167,8 @@ export async function importTenant(
       registry_environments: bundle.registry_environments.length,
       registry_events: bundle.registry_events.length,
       registry_drafts: bundle.registry_drafts.length,
+      governance_change_sets: bundle.governance_change_sets.length,
+      governance_audit_events: bundle.governance_audit_events.length,
       decision_records: bundle.decision_records.length,
       outcome_events: bundle.outcome_events.length,
       delivery_attempts: bundle.delivery_attempts.length,

@@ -1,6 +1,7 @@
 import { ArtifactRegistry, InMemoryRegistryStore, type RegistryStore } from '@metis/registry';
 import { DecisionLedger, InMemoryLedgerStore, subjectHash } from '@metis/ledger';
 import { Catalogue, InMemoryCatalogueStore, type CatalogueStore } from '@metis/catalogue';
+import { Governance, InMemoryGovernanceStore, type GovernanceStore } from '@metis/governance';
 import { execute } from '@metis/runtime/deterministic/engine';
 import type {
   CatalogueSnapshot,
@@ -128,12 +129,17 @@ export interface Instance {
   ledger: DecisionLedger;
   catalogue: Catalogue;
   catalogueStore: CatalogueStore;
+  governance: Governance;
+  governanceStore: GovernanceStore;
 }
 
 export function emptyInstance(): Instance {
   const registryStore = new InMemoryRegistryStore();
   const catalogueStore = new InMemoryCatalogueStore();
+  const governanceStore = new InMemoryGovernanceStore();
   return {
+    governanceStore,
+    governance: new Governance(governanceStore),
     registryStore,
     registry: new ArtifactRegistry(registryStore),
     ledger: new DecisionLedger(new InMemoryLedgerStore()),
@@ -271,6 +277,25 @@ export async function populatedInstance(): Promise<Instance> {
   await inst.registry.startShadow(TENANT, FLOW, '1.1.0', 'production', 'marcus', AT);
   // Work in progress on the next version, which only a draft holds.
   await inst.registry.saveDraft(TENANT, FLOW, source({ version: '1.2.0' }), 'sarah', AT);
+
+  // Governance: one change set decided, one still pending, and the log of
+  // both. The pending one matters as much — a restore that dropped it would
+  // leave a request nobody can decide.
+  const changeSet = {
+    title: 'Raise the weekly cap', description: '', autonomyTier: 1 as const,
+    requestedBy: 'sarah', requestedAt: AT, decidedBy: null, decidedAt: null, decisionReason: null,
+    targetScope: { level: 'tenant', targetId: null }, changeType: 'frequency_edit',
+    diff: [{ field: 'fp1.maxContacts', before: '3', after: '4' }], simulation: null,
+  };
+  await inst.governance.open(TENANT, { ...changeSet, id: 'cr_0001', status: 'pending' });
+  await inst.governance.open(TENANT, { ...changeSet, id: 'cr_0002', status: 'pending', title: 'Lower it again' });
+  await inst.governance.decide(TENANT, 'cr_0001', { status: 'approved', decidedBy: 'priya', decidedAt: AT, reason: 'Fine.' });
+  for (const [eventType, changeSetId] of [['ChangeSetOpened', 'cr_0001'], ['ChangeSetOpened', 'cr_0002'], ['ChangeSetApproved', 'cr_0001']]) {
+    await inst.governance.record(TENANT, {
+      timestamp: AT, actor: 'priya', actorType: 'human', eventType, scope: 'tenant',
+      summary: `${eventType} ${changeSetId}`, changeSetId,
+    });
+  }
 
   for (const id of ['cust_1', 'cust_2', 'cust_3']) {
     const req = request(id);

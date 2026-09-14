@@ -1,7 +1,7 @@
 {
-  "name": "@metis/portability",
+  "name": "@metis/governance",
   "version": "1.0.0",
-  "description": "METIS tenant export, re-import and the round-trip conformance utility",
+  "description": "METIS governance — change sets, their decisions, and the audit log",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
@@ -11,13 +11,11 @@
     "test": "vitest run --config ./vitest.config.ts"
   },
   "dependencies": {
-    "@metis/ledger": "*",
-    "@metis/registry": "*",
-    "@metis/runtime": "*",
-    "@metis/catalogue": "*",
-    "@metis/governance": "*"
+    "@metis/core": "*"
   },
   "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.0",
     "vitest": "^1.0.0"
   }
 }
