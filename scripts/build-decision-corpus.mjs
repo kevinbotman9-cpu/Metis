@@ -979,6 +979,133 @@ const CASES = [
     catalogue: consentScenario().catalogue,
     request: request({ consent: { marketing: false, profiling: true, thirdParty: false } }),
   },
+  {
+    // G-075, ADR-017. The case the language could not express: whether an offer
+    // lowers *this* customer's bill. One suitability policy, one decision, two
+    // retention offers; the offer that would raise the bill is refused and the
+    // one that would lower it survives. Before ADR-017 a policy saw only the
+    // request, so both passed or both failed together.
+    name: 'a condition compares each candidate with the customer, and splits the decision',
+    artifact: artifact({
+      candidateKeys: ['offer_lower', 'offer_higher'],
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source' },
+        { id: 'n2_filter', type: 'filter', label: 'Suitability', policyIds: ['pol_lowers_bill'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n2_filter' },
+        { from: 'n2_filter', to: 'n3_arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({
+      offers: [
+        offer({
+          id: 'p_lower',
+          key: 'offer_lower',
+          financials: { price: money(2500), cost: money(900), expectedMargin: money(1600), termMonths: 12, oneOff: false },
+        }),
+        offer({
+          id: 'p_higher',
+          key: 'offer_higher',
+          financials: { price: money(4500), cost: money(1500), expectedMargin: money(3000), termMonths: 24, oneOff: false },
+        }),
+      ],
+      targetingPolicies: [
+        policy({
+          id: 'pol_lowers_bill',
+          kind: 'suitability',
+          conditions: [
+            { field: 'offer.financials.price.amount', operator: 'lt', value: { path: 'customer.monthly_spend' } },
+          ],
+        }),
+      ],
+    }),
+    request: request({ input: { customer: { monthly_spend: 3500 } } }),
+  },
+  {
+    // An offer field against a literal. The candidate root without a path value,
+    // so a second engine that implemented only one of the two is caught here.
+    name: 'a condition reads a field of the candidate against a literal',
+    artifact: artifact({
+      candidateKeys: threeKeys,
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source' },
+        { id: 'n2_filter', type: 'filter', label: 'Eligibility', policyIds: ['pol_short_term'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n2_filter' },
+        { from: 'n2_filter', to: 'n3_arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({
+      offers: [
+        offer({ id: 'p_a', key: 'offer_a' }),
+        offer({
+          id: 'p_b',
+          key: 'offer_b',
+          financials: { price: money(2000), cost: money(800), expectedMargin: money(1200), termMonths: 12, oneOff: false },
+        }),
+        offer({
+          id: 'p_c',
+          key: 'offer_c',
+          financials: { price: money(1000), cost: money(400), expectedMargin: money(600), termMonths: 0, oneOff: true },
+        }),
+      ],
+      targetingPolicies: [
+        policy({
+          id: 'pol_short_term',
+          conditions: [{ field: 'offer.financials.termMonths', operator: 'lte', value: 12 }],
+        }),
+      ],
+    }),
+    request: request(),
+  },
+  {
+    // The customer side is missing. A path that resolves to nothing fails the
+    // comparison whatever the operator: every candidate is refused, none is let
+    // through for want of a number. `ne`, not `lt`, on purpose — `2500 < undefined`
+    // is false with or without the rule, so an `lt` case would pass in an engine
+    // that forgot it; `2500 !== undefined` is true, so only the rule refuses here.
+    name: 'a path value whose other side is missing fails closed',
+    artifact: artifact({
+      candidateKeys: ['offer_lower', 'offer_higher'],
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source' },
+        { id: 'n2_filter', type: 'filter', label: 'Suitability', policyIds: ['pol_lowers_bill'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n2_filter' },
+        { from: 'n2_filter', to: 'n3_arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({
+      offers: [
+        offer({
+          id: 'p_lower',
+          key: 'offer_lower',
+          financials: { price: money(2500), cost: money(900), expectedMargin: money(1600), termMonths: 12, oneOff: false },
+        }),
+        offer({
+          id: 'p_higher',
+          key: 'offer_higher',
+          financials: { price: money(4500), cost: money(1500), expectedMargin: money(3000), termMonths: 24, oneOff: false },
+        }),
+      ],
+      targetingPolicies: [
+        policy({
+          id: 'pol_lowers_bill',
+          kind: 'suitability',
+          conditions: [
+            { field: 'offer.financials.price.amount', operator: 'ne', value: { path: 'customer.monthly_spend' } },
+          ],
+        }),
+      ],
+    }),
+    request: request({ input: { customer: {} } }),
+  },
 ];
 
 // --- Emit -------------------------------------------------------------------

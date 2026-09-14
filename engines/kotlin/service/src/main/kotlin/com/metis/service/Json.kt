@@ -69,6 +69,10 @@ object Json {
             )
         }
 
+    /** The offer's record as plain values, for conditions that read the candidate. ADR-017 §3. */
+    @Suppress("UNCHECKED_CAST")
+    private fun rawOf(n: JsonNode): Map<String, Any?> = plain(n) as Map<String, Any?>
+
     fun offer(n: JsonNode) = Offer(
         id = req(n["id"], "offer.id").asText(),
         categoryId = req(n["categoryId"], "offer.categoryId").asText(),
@@ -88,6 +92,8 @@ object Json {
         validity = validity(n["validity"]) ?: throw BadRequest("offer.validity is required"),
         boost = req(n["boost"], "offer.boost").asDouble(),
         policyIds = n["policyIds"]?.map { it.asText() } ?: emptyList(),
+        // What an `offer.*` condition reads. ADR-017 §3.
+        raw = rawOf(n),
     )
 
     fun catalogue(n: JsonNode) = CatalogueSnapshot(

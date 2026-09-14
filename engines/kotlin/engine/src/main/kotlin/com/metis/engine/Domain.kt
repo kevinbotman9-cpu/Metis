@@ -41,6 +41,17 @@ data class Offer(
     val validity: ValidityWindow,
     val boost: Double,
     val policyIds: List<String>,
+    /**
+     * The offer's record as the catalogue carries it, for conditions that read
+     * the candidate (`offer.*`). ADR-017 §3.
+     *
+     * The typed fields above are only what the engine itself reads — `price`
+     * is not among them — so a condition reads this rather than them, for the
+     * reason the catalogue hash is computed from the raw tree: a trimmed model
+     * that forgot a field would change a decision for reasons that have nothing
+     * to do with decisioning.
+     */
+    val raw: Map<String, Any?> = emptyMap(),
 )
 
 data class PolicyCondition(val field: String, val operator: String, val value: Any?)

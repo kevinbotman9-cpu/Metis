@@ -44,6 +44,82 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-133 — The first PostgreSQL restart test times out locally on this Windows machine and passes on CI
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — a local-environment failure with no diagnosis; the suite's subject is W-005
+
+**The observation.** `apps/console/tests/unit/console-durable.test.ts` › *keeps
+an edit made through the API across a restart, and decides the next request
+against it* timed out at Vitest's default 5000ms when the file was run alone,
+with the other seven tests passing, on three commits:
+
+| Commit | Alone |
+|---|---|
+| main, `3e49396` | 1 failed (the timeout), 7 passed |
+| #59 before merging main, `b74cc59` | 1 failed (the timeout), 7 passed |
+| #59 with main merged, `017145b` | 1 failed (the timeout), 7 passed |
+
+Inside a full `npm run gates:quick` the same file failed five tests: that one
+timing out, four more with `expected false to be true`. PostgreSQL at
+`localhost:5432` was accepting connections throughout. CI runs the suite against
+its own database and passed it on main at `34c7d7f`.
+
+**What is not known.** Why the first test takes more than five seconds here and
+not on a runner. The likeliest reading — the first test paying the connection,
+schema and seeding cost inside its own timeout — is a reading, not a measurement;
+nor is it known whether the four assertion failures in the full run are the
+same cause or a second one.
+
+**What was done instead.** The #59 and #60 merges of main were pushed with
+`gates:quick` red on this file alone, and CI was left as the gate, by the product
+owner's decision.
+
+**Done when:** the time the first test spends is measured and the cause stated;
+the suite passes locally the way it does on CI, or the reason it cannot is
+written down; and the four assertion failures seen under a full run are either
+shown to be the same cause or registered as their own.
+
+### G-132 — A bundle-budget test can hang in teardown after it has measured, and a retry is what turns it green
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — a harness defect with no diagnosis yet; W-081 owns the budget check's measurement, not its teardown
+
+**The observation.** #62's `verify` job at `1e9c499` (run 34891321276) failed
+`bundle-size.spec.ts` › *`/creatives` is within budget*:
+
+```
+/creatives: 692.4 kB of 780 kB (11 prefetch requests not counted)
+✘ … › /creatives is within budget (1.0m)
+Test timeout of 60000ms exceeded.
+```
+
+The route was measured and was inside its budget. The only statement after the
+line that printed it is a synchronous `expect`, so the sixty seconds went
+somewhere after the measurement — most plausibly in teardown: the spec leaves a
+`page.route('**/*')` handler installed and pushes a `res.body()` promise for
+every `/_next/static/*.js` response, including any that arrive after
+`Promise.all(pending)` has returned, and nothing awaits or removes either before
+the page closes. That is a reading of the code, not a demonstration.
+
+**Why it is not the change.** #62 touched one e2e spec and register prose,
+nothing that ships in a route bundle. The same application code measured
+`/creatives` identically (692.4 kB, 11 prefetch requests aborted) in 1.2s on
+#61's run and 1.1s on main's push run at `34c7d7f`.
+
+**What was done instead of a fix.** The failed job was re-run and #62 merged on
+the result, by the product owner's decision. The re-run passed: `/creatives`
+measured 692.4 kB in 1.1s — with **7** prefetch requests aborted where the failed
+run aborted **11**, from the same build. The byte count matched; what the page
+was doing on the network when the measurement ended did not, which is worth
+knowing when this is diagnosed. The Playwright config's own comment
+says a test that passes only on retry "is a defect to investigate, not a result
+to accept"; this entry is that defect, recorded so the retry is not silent.
+
+**Done when:** the hang is reproduced on demand against a production build — or a
+sustained repeat run is recorded as not producing it — the cause is stated with
+the evidence, and the spec releases what it installs (the route handler, any
+body read still pending) before the page closes, with a check that would fail if
+it stopped doing so.
+
 ### G-131 — Every screen is titled "METIS Console", so nothing outside the page can tell two apart
 
 **Registered:** 2026-09-14 · **Status:** Open · **Work item:** [W-083](BACKLOG.md)
@@ -1857,62 +1933,6 @@ have produced.
 
 ---
 
-### G-075 — Retention suitability is decided per request, not per offer, and in the seed by a coin flip
-
-**Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-026](BACKLOG.md)
-
-**Suitability is not being checked for retention offers.** `pol_afford_retention`
-— *"a retention offer must reduce, not increase, the customer bill"* — sits on
-the suitability tier, the tier that exists for the FCA (G-015 calls it *"the
-FCA-facing tier"*), scoped to the whole retention objective
-(`apps/console/mocks/fixtures/catalogue.ts:913-923`). Its one condition reads
-`offer.monthly_delta`. That is one number per request, not one per offer: the
-engine evaluates every condition against `request.input`
-(`packages/runtime/src/deterministic/engine.ts:431`), so every retention
-candidate in a decision is tested against the same value and they all pass or
-all fail together. Whether a particular offer would raise this customer's bill
-is never asked.
-
-In the seeded corpus the value is a coin flip —
-`offer: { monthly_delta: r('delta') > 0.5 ? -500 : 300 }`
-(`apps/console/mocks/fixtures/engine.ts:275`). Executed over the seed,
-`retention-outbound` — twenty candidates, all of them retention offers — made
-2,378 decisions in which retention offers reached the policy. **None split.** In
-all 1,188 where the coin came up `300`, every one of those offers was refused; in
-all 1,190 where it came up `-500`, none was.
-
-**The trace names a real policy either way.** Each refusal is recorded as
-`SUITABILITY_FAILED` with `ruleId: pol_afford_retention`, which reads as an
-affordability judgement about that offer for that customer. Each pass reads as
-the same judgement going the other way. Neither is one. A compliance officer
-opening either trace is shown a named suitability rule applied, and nothing in
-the record says the rule compared a single request-level number that did not
-come from the offer. Since G-055 closed, the refusal is also attributed to a
-pack: `pol_afford_retention` belongs to *UK Consumer Duty 1.4.0*
-(`catalogue.ts:804-808`), and the trace reader names that pack beside the
-refusal (`apps/console/components/trace-evidence.tsx:24-27`). A coin flip is
-now presented as a Consumer Duty affordability refusal.
-
-**Fixing it is a modelling change, not an edit to the rule.** The profile schema
-has no way to express a per-offer input: `offer.monthly_delta` is declared on an
-entity the request supplies once (`apps/console/mocks/fixtures/profile-schema.ts:255-267`),
-and a condition can read only request paths, never a field of the candidate it
-is judging. The facts a real check needs exist separately — an offer carries
-`financials.price` (`packages/core/src/domain.ts:50-60`), and the billing
-connector resolves `monthlySpend` — and there is no way to write a condition
-that combines them per candidate. Rewording the rule, or supplying a better
-number on the request, leaves it deciding every retention offer at once.
-
-Found while tracing the data spine for
-[ADR-014](adr/ADR-014-the-data-spine.md), which describes it under *Smaller
-breaks found on the way*.
-
-**Done when:** a suitability condition can be evaluated per candidate against
-that candidate's own values, both engines agree, and a corpus case in which one
-retention offer lowers the bill and another raises it records one refused and one
-passed, under the same policy in the same decision.
-
----
 ### G-072 — The decide route injects `experiments` at the input root, which no root declares
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-075](BACKLOG.md)
@@ -2525,6 +2545,74 @@ names, or deleted. Wiring it changes which caps apply at a node, and so what
 decisions do; that makes it a decision rather than a cleanup.
 
 ## Resolved
+
+### G-075 — A condition could read only the request, so no rule could ask about the offer it judged
+
+**Registered:** 2026-09-11 · **Resolved:** 2026-09-14 · **Status:** Resolved · **Work item:** [W-026](BACKLOG.md)
+
+**What was true when this was registered.** `pol_afford_retention` — *"a
+retention offer must reduce, not increase, the customer bill"* — sat on the
+suitability tier, and its one condition read `offer.monthly_delta`, one number
+for the whole request. Every condition was evaluated against `request.input`
+(`packages/runtime/src/deterministic/engine.ts`, `policyPasses`), so every
+retention candidate in a decision passed or failed together; in the seed the
+number was a coin flip, and each refusal was recorded as `SUITABILITY_FAILED`
+under a Consumer Duty pack.
+
+**What had changed by 2026-09-14.** That policy went with the telco-uk
+catalogue, the coin flip went from the seed, and telco-us declares no
+suitability policies (`apps/console/mocks/fixtures/catalogue.ts`, the
+suitability section). No trace showed the defect any more. The defect was still
+in the language: a condition could read only request paths, and the schema had
+no per-candidate scope (ADR-014 §2), so the next affordability rule a tenant
+wrote would have hit it the same way. The product owner ruled that the entry
+was wrong as written and decided the design (ADR-017).
+
+**What closed it.** [ADR-017](adr/ADR-017-conditions-read-the-candidate.md):
+
+- **An `offer` root, bound per candidate.** `SchemaRoots.candidate`, optional,
+  alias fixed as `offer` because neither engine sees the schema. A path
+  beginning `offer.` reads the candidate's record in the catalogue snapshot,
+  which `catalogueSnapshotHash` already covers, so nothing is added to the input
+  or to replay. Fields under it declare `origin: 'catalogue'`.
+- **A value may name a path.** `{ path }` compared with the field, on `eq`,
+  `ne`, `gt`, `gte`, `lt` and `lte` only, between comparable types (money only
+  with money). A side that resolves to nothing fails the condition whatever the
+  operator.
+- **Both engines.** `policyPasses` in the TypeScript engine and in
+  `engines/kotlin/engine/.../Engine.kt`; the Kotlin engine reads the candidate
+  from the offer's raw record, since its typed `Offer` carries no price.
+- **The compiler, the API and the editor.** `conditionProblems` checks both
+  sides, so the compiler and every policy write refuse what the engines cannot
+  evaluate; the conditions field offers a comparison only with fields the server
+  accepts; the telco-us schema declares the candidate root.
+
+**Proven.** Each check was seen to fail with the thing it guards broken, and to pass again restored:
+
+| Break | What went red |
+|---|---|
+| Any two field types comparable | `refuses money compared with a plain number…`, `compares enums only when they declare the same members` |
+| A path value accepted with any operator | `refuses a path value with an operator that has no meaning for two fields` |
+| The candidate root allowed any alias | `refuses a candidate root not addressed by offer…` |
+| Catalogue origins not policed | `refuses a catalogue field outside the candidate, and any other origin inside it` |
+| `rootsOf` ignoring the candidate root | seven tests, from resolving an `offer.` path to the G-075 comparison itself |
+| `isPathValue` accepting extra keys | `treats anything but exactly { path: string } as a literal` |
+| TypeScript engine: an `offer.` path reads the request | the two corpus cases that read the candidate |
+| TypeScript engine: a missing side let through | `a path value whose other side is missing fails closed` |
+| Kotlin engine: an `offer.` path reads the request | `DecisionConformanceTest`: 2 of 40 decisions diverge, the same two cases |
+| Kotlin engine: a missing side let through | `DecisionConformanceTest` |
+| **E2E:** the editor offers no field to compare with | `@screen-only a rule compares each offer with the customer, and keeps the comparison`; restored, 3 of 3 passed on a fresh harness server |
+
+Before the three new corpus cases were added, the 37 existing ones were
+regenerated and compared byte for byte: none moved. The console's seeded
+decisions did move, because the schema pin they carry is a hash of the telco-us
+schema, which gained the candidate root; the decision index is regenerated with
+them.
+
+**What it does not do.** There is no arithmetic: *"costs less than the current
+bill"* is expressible, *"costs at least $5 less"* is not. A declared
+per-candidate derived value is the next decision if a margin is needed
+(ADR-017, *Consequences*).
 
 ### G-130 — Every client-side navigation removed the document's title, and axe caught it when the timing lined up
 

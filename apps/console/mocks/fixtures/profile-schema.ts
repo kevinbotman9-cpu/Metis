@@ -61,6 +61,9 @@ export const profileSchema: ProfileSchema = {
   roots: {
     profile: { alias: 'customer', entity: 'Customer' },
     request: { alias: 'context', entity: 'Context' },
+    // The offer being judged, once per candidate. ADR-017 §1. `offer` is fixed:
+    // the engines read the prefix without ever seeing this schema.
+    candidate: { alias: 'offer', entity: 'Offer' },
   },
   updatedAt: '2026-09-11T00:00:00.000Z',
   updatedBy: 'marcus.webb@telco.example',
@@ -543,6 +546,64 @@ export const profileSchema: ProfileSchema = {
           unit: 'cents',
           description:
             'Change to the monthly bill if accepted. Negative is a saving. One value for the whole request: the schema has no per-candidate scope, which ADR-014 §2 records. The suitability policy that assumed otherwise went with the telco-uk catalogue; this tenant declares no suitability policies at all.',
+        },
+      ],
+    },
+
+    // --- The candidate: the offer being judged. ADR-017 ------------------------
+    //
+    // Read once per candidate from its record in the catalogue snapshot, so a
+    // condition on `offer.*` asks about the offer and every other path asks about
+    // the customer or the request. Only what a condition may compare is declared:
+    // display names, timestamps and `updatedBy` are not decision inputs.
+    {
+      name: 'Offer',
+      description:
+        'The offer being judged, read once per candidate from its record in the catalogue. Not OfferContext, which is one value the caller sends for the whole request.',
+      fields: [
+        {
+          origin: 'catalogue',
+          class: 'attribute',
+          name: 'boost',
+          type: 'decimal',
+          unit: 'ratio',
+          description: 'The offer’s own business boost. 1.0 is neutral.',
+        },
+      ],
+      relationships: [
+        { name: 'financials', entity: 'OfferFinancials', cardinality: 'one', description: 'Price, cost, margin and term.' },
+      ],
+    },
+    {
+      name: 'OfferFinancials',
+      description: 'What the offer costs the customer and what it earns.',
+      fields: [
+        {
+          origin: 'catalogue',
+          class: 'attribute',
+          name: 'termMonths',
+          type: 'integer',
+          unit: 'months',
+          description: 'Commitment length. 0 means no commitment.',
+        },
+      ],
+      relationships: [
+        { name: 'price', entity: 'OfferMoney', cardinality: 'one', description: 'What the customer pays, per month unless one-off.' },
+        { name: 'cost', entity: 'OfferMoney', cardinality: 'one', description: 'Cost to serve, over the same period as the price.' },
+        { name: 'expectedMargin', entity: 'OfferMoney', cardinality: 'one', description: 'Expected margin per accepted offer over the term.' },
+      ],
+    },
+    {
+      name: 'OfferMoney',
+      description: 'An amount on an offer.',
+      fields: [
+        {
+          origin: 'catalogue',
+          class: 'attribute',
+          name: 'amount',
+          type: 'money',
+          unit: 'cents',
+          description: 'In minor units, the same unit as customer.monthly_spend.',
         },
       ],
     },

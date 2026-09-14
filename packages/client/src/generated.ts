@@ -185,16 +185,17 @@ export interface PolicyScope {
 }
 
 export interface PolicyCondition {
-  /** Dotted path into the customer data model */
+  /** Dotted path into the data model. A path beginning offer. reads the candidate being judged, from its record in the catalogue snapshot; every other path reads the request. ADR-017. */
   field: string;
   operator: "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "in" | "not_in" | "contains" | "exists" | "not_exists";
+  /** A literal, or an object with exactly one key, path, naming another field to compare with, for example {"path": "customer.monthly_spend"}. A path value is allowed only with eq, ne, gt, gte, lt and lte, and the two fields must be of comparable types. ADR-017 §2. */
   value: unknown;
 }
 
 export interface SchemaField {
   /** The path segment, e.g. `age` in `customer.age`. */
   name: string;
-  /** Where the value comes from. ADR-014 §2. One of profile, request, interaction, aggregation, or connector:<id> naming the integration — which is what lets a trace attribute a value to the system that produced it. Required: an undeclared origin is the gap. */
+  /** Where the value comes from. ADR-014 §2. One of profile, request, interaction, aggregation, catalogue (a fact about the candidate, under the candidate root only; ADR-017), or connector:<id> naming the integration — which is what lets a trace attribute a value to the system that produced it. Required: an undeclared origin is the gap. */
   origin: string;
   /** What the field is, as opposed to what it holds. Consent is handled by ADR-014 §7 and contact points by §8, and neither rule should have to match on a field name. Declared now; acted on when §7 lands. */
   class: "attribute" | "consent" | "contact_point" | "identifier";
@@ -569,10 +570,11 @@ export interface SchemaRoot {
   entity: string;
 }
 
-/** The two roots a path can start from. ADR-014 §2. A decision reads a subject and a request, and they have different lifetimes: the profile is held against a customer and written by ingestion; the context is what only the caller can know and is never stored. One root called DecisionInput modelled a request body and called it a customer. */
+/** The two roots a path can start from. ADR-014 §2. A decision reads a subject and a request, and they have different lifetimes: the profile is held against a customer and written by ingestion; the context is what only the caller can know and is never stored. One root called DecisionInput modelled a request body and called it a customer. A third, optional root, candidate, binds the offer being judged once per candidate; its alias must be offer, because the engines recognise a candidate path by that prefix alone. ADR-017 §1. */
 export interface SchemaRoots {
   profile: SchemaRoot;
   request: SchemaRoot;
+  candidate?: SchemaRoot;
 }
 
 /** One selectable path, as the policy editor's field picker lists them. */

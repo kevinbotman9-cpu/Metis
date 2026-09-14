@@ -22,6 +22,7 @@ import type {
   PolicyScope,
   SourceBinding,
 } from '@metis/core/domain';
+import { CANDIDATE_ROOT, isCandidatePath, isPathValue } from '@metis/core/domain';
 import {
   resolveUtility,
   evaluateUtility,
@@ -117,8 +118,37 @@ export function compare(actual: unknown, operator: PolicyCondition['operator'], 
 }
 
 /** All conditions must hold. Use separate policies to express OR. */
-function policyPasses(policy: TargetingPolicy, input: Record<string, unknown>): boolean {
-  return policy.conditions.every((c) => compare(readPath(input, c.field), c.operator, c.value));
+/**
+ * Read one side of a condition. ADR-017 §1.
+ *
+ * A path beginning `offer.` reads the candidate being judged, from its record in
+ * the catalogue snapshot; every other path reads the request. The candidate is
+ * already hashed into `catalogueSnapshotHash`, so this adds nothing a decision
+ * depends on and nothing replay needs.
+ */
+function readSide(path: string, input: Record<string, unknown>, candidate: Offer): unknown {
+  return isCandidatePath(path)
+    ? readPath(candidate as unknown as Record<string, unknown>, path.slice(CANDIDATE_ROOT.length + 1))
+    : readPath(input, path);
+}
+
+const isMissing = (v: unknown) => v === undefined || v === null;
+
+/**
+ * Whether a candidate passes a policy: every condition must hold.
+ *
+ * A literal is compared exactly as it always was. A value naming a path is read
+ * like the field and compared with it, and a side that resolves to nothing
+ * fails the condition whatever the operator: two missing values must not pass
+ * `eq`, and a missing one must not pass `ne`. ADR-017 §2.
+ */
+function policyPasses(policy: TargetingPolicy, input: Record<string, unknown>, candidate: Offer): boolean {
+  return policy.conditions.every((c) => {
+    const actual = readSide(c.field, input, candidate);
+    if (!isPathValue(c.value)) return compare(actual, c.operator, c.value);
+    const expected = readSide(c.value.path, input, candidate);
+    return !isMissing(actual) && !isMissing(expected) && compare(actual, c.operator, expected);
+  });
 }
 
 /** Does this scope cover this offer? */
@@ -498,7 +528,7 @@ export function execute(
             if (!p.policyIds.includes(policy.id) && policy.scope.level === 'offer') {
               return false;
             }
-            return !policyPasses(policy, request.input);
+            return !policyPasses(policy, request.input, p);
           });
           if (failed) {
             denials.push({ key: p.key, code: KIND_CODE[failed.kind], ruleId: failed.id });
