@@ -33,7 +33,7 @@ the primary object of the whole catalogue.
 **One correction I had to make to my own finding.** I initially recorded
 `Change level` on `/agentic` as inert too, because clicking it opened no dialog.
 It is not inert: it toggles inline L0–L4 buttons rather than opening anything,
-and `permissions-and-writes.spec.ts:94` proves it persists and audits. My probe
+and `apps/console/tests/e2e/permissions-and-writes.spec.ts` › `changing an autonomy level persists and is audited` proves it persists and audits. My probe
 was looking for the wrong shape. The distinction is recorded because it is the
 difference between "the console cannot do this" and "I looked for the wrong
 widget", and only one of those is a finding.
@@ -257,9 +257,9 @@ packages can configure anything at all.
 
 ### C-1 — Six create/edit affordances are inert · S1 · **PARTLY CLOSED 2026-09-07**
 
-`New offer` (`offers/page.tsx:226`), `New boost` (`arbitration/page.tsx:289`),
-`New scope rule` (`agentic/page.tsx:243`), and `Edit`, `Add creative`,
-`Request change` (`offers/[id]/page.tsx:145,148,190`). All rendered enabled, all
+`New offer` (`apps/console/app/offers/page.tsx` › `New offer` @ `711b7741c`), `New boost` (`apps/console/app/arbitration/page.tsx` › `New boost`),
+`New scope rule` (`apps/console/app/agentic/page.tsx` › `New scope rule`), and `Edit`, `Add creative`,
+`Request change` (`apps/console/app/offers/[id]/page.tsx` › `Edit`, `Add creative`, `Request change` @ `711b7741c`). All rendered enabled, all
 clicked, none does anything. Confirmed handler-less in source.
 
 S1 because `EXPERIENCE_LAYER_STATUS.md` marks these routes BUILT without

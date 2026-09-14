@@ -36,14 +36,14 @@ sms 123.
 
 ### Two guards exist, and both are channel-blind
 
-**`offerMayBeActive`** (`packages/core/src/creative.ts:238`) is
+**`offerMayBeActive`** (`packages/core/src/creative.ts` › `export function offerMayBeActive`) is
 `creatives.some((c) => c.active)`. One active email creative makes an offer
 activatable, and it may then win a web placement. Its own doc comment describes
 the failure it does not prevent: *"an offer could be active, win a decision, and
 have nothing to render — which is exactly what the storefront's 'no creative for
 this channel' state is showing when it appears."*
 
-**`NO_DELIVERABLE_CREATIVE`** (`compile.ts:653`) fires when
+**`NO_DELIVERABLE_CREATIVE`** (`packages/compiler/src/decision-flow/compile.ts` › `p.creativeIds.length === 0` @ `c3ae54498`) fires when
 `p.creativeIds.length === 0` — no creative at all, active or not, on any
 channel. Its own remedy text asks for more than it checks: *"Add at least one
 active creative for a channel this flow serves."* It checks neither `active` nor
@@ -94,7 +94,7 @@ deterministic — a historical decision replays against its recorded snapshot an
 gets the same answer.
 
 **What it costs.** A ninth entry in `REASON_CODES`
-(`packages/runtime/src/deterministic/types.ts:198`), which
+(`packages/runtime/src/deterministic/types.ts` › `REASON_CODES`), which
 `decision-conformance.test.ts` requires the corpus to exercise. And it changes
 what a decision *is*, so **every chain hash in every conformance corpus moves**,
 in both engines. That is the same class of change as the 2026-09-05 rename, and

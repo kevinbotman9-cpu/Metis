@@ -44,6 +44,68 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-126 — Documents cite code by line number, and a line number rots silently
+
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found auditing the register's citations by hand
+
+A hand check of a sample of this register's line-numbered citations found about
+a third landing on the wrong line, clustered in `engine.ts`, `route.ts` and
+`domain.ts`. A register whose citations cannot be spot-checked is one nobody
+spot-checks, and a resolved entry with a rotted citation is exactly what
+someone reads when asking whether a fix was real.
+
+**The convention.** This is a citation style, not an architectural decision, so
+it is recorded here rather than in an ADR. The same mechanical pass that
+applies it can reverse it.
+
+- A document cites code as `` `path` › `symbol` ``: the full repo-relative path,
+  then a text the file contains, such as a function, a constant or a test name.
+  Several symbols in one file are written `` `path` › `a`, `b` ``. A trailing
+  `…` marks a symbol as a prefix.
+- A citation of code that no longer exists is pinned to a commit
+  `main` reaches: `` `path` › `symbol` @ `commit` ``. This is the escape hatch
+  for the four cases where nothing nameable remains at the tip: the file
+  became a layout manifest, the cited lines are past the end of the file, the
+  code was deleted, or the code was rewritten into the fix the entry asked
+  for. A pinned citation resolves too, against the file as it was at that
+  commit.
+- `file.ext:NN` is not a citation. It is refused everywhere outside a fenced
+  code block, including in link targets. A fenced block may carry one because
+  it quotes what a tool printed: a stack trace, lint output.
+
+**Why not line numbers with the quoted text.** The line still drifts when the
+text above it changes and the quoted text stays the same. The citation then
+names the right code at the wrong address, and only a person can tell.
+
+**Why not symbols alone.** A symbol-only citation cannot point at code that has
+been deleted, and the entries that most need their evidence checked are the
+resolved ones, whose evidence usually describes the code before the fix. Left
+unpinned, those either lose the citation or become prose only a person can
+resolve. A citation only a person can resolve is one nobody resolves, and
+verification is the point.
+
+**The check.** `tests/doc-citations.test.ts` reads every markdown file under
+`docs/` and at the root. It fails on a line-numbered citation, on a path that
+does not exist, and on a symbol the file does not contain. A pinned citation
+is read from `git show`, which needs full history; CI's verify job checks out
+with `fetch-depth: 0`. `docs/design/` and `docs/demo/` are skipped because they
+are untracked drafts (G-125).
+
+The check reads citations, not sentences. A line number written in words —
+"ADR-004, lines 88–89", "(line 24)" of `UX_CONTRACT.md` — is not seen. Six
+remain, each pointing into another document rather than into code; the four
+that pointed into code were converted in the same pass.
+
+A symbol is found if its text appears anywhere in the file. A declaration
+renamed or deleted while a call or a comment still names it passes: renaming
+only `export const armPath` in `packages/core/src/experiment.ts` left two calls
+using the old name, and nothing went red. A rename that compiles changes every
+occurrence and is caught. Where the distinction matters, cite the declaration
+itself — `export function bucketOf` rather than `bucketOf`.
+
+**Done when:** every citation in the scanned documents is in this form and
+`tests/doc-citations.test.ts` passes.
+
 ### G-125 — The design references in `docs/design/` are drafts that predate reading the engine
 
 **Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — found building "Arbitration, live" from `docs/design/metis-three-visualisations.html`
@@ -614,7 +676,7 @@ since", and "whether it survives a harness-owned server is unknown". It does.
 **The observation, 2026-09-13.** A full `npm run gates` on the sentence-case
 slice (`fix/sentence-case`, a class-name change touching no route, mock or
 harness file) went red at end-to-end: 393 passed, 34 skipped, 1 failed.
-`traffic.spec.ts` › *does not record reads of itself* failed in its
+`apps/console/tests/e2e/traffic.spec.ts` › `does not record reads of itself` failed in its
 `beforeEach`:
 
 ```
@@ -1191,12 +1253,12 @@ ticket?"* — are answered **no**, three times over:
 
 1. **A descriptor is code, compiled into the console.** The registry is
    TypeScript under `packages/ui-metadata/src/registry/`, imported at build time
-   (`apps/console/components/entity-form-dialog.tsx:11`). Changing one is a
+   (`apps/console/components/entity-form-dialog.tsx` › `from '@metis/ui-metadata'`). Changing one is a
    commit and a deploy. ADR-006 §2 says schemas *"are served through the API"*;
    the OpenAPI spec has no descriptor operation at all.
 2. **An entity cannot gain a field without the vendor.** The drift check refuses
    a descriptor field that the OpenAPI schema lacks
-   (`packages/ui-metadata/tests/descriptors.test.ts:90`), and Offer, Placement,
+   (`packages/ui-metadata/tests/descriptors.test.ts` › `declares no field the schema does not have`), and Offer, Placement,
    Objective and Category have no open field for a tenant to use; Creative's
    only open object is its channel-shaped `content`. Adding a field to an offer
    is an OpenAPI change, a server and store change and a descriptor change —
@@ -1353,7 +1415,7 @@ matched inside one.
 `CLAUDE.md` defines a slice as ten artefacts that must all exist in the same PR,
 and the tenth is *"Docs page generated from the typed contract — `docs/api/`"*.
 `docs/api/` does not exist. There is no generator, no npm script, and no check.
-`CLAUDE.md:56` is the only reference to the path anywhere in the repository.
+`CLAUDE.md` › `Docs page generated from the typed contract` @ `f3b0c4e30` is the only reference to the path anywhere in the repository.
 
 Every slice this repo has shipped has therefore been nine-tenths of a slice, and
 none of them said so — including the one that registered this. The rule directly
@@ -1769,12 +1831,12 @@ test by their `proposed` marker. Nothing serves them.
 
 `score-model` and `score-adaptive` pin a model id and version and produce
 `0.05 + seededUnitInterval(customerId, offerKey, modelKey) * 0.9`
-(`packages/runtime/src/deterministic/engine.ts:490-527`). That is arithmetic
+(`packages/runtime/src/deterministic/engine.ts` › `Deterministic stand-in for a pinned model` @ `1f1e5882d`). That is arithmetic
 over a hash. There is no model entity, no registry, no scoring service, no
 feature store, and no route in the spec matching model, score or feature.
 
 Registered here on 2026-09-09 for a reason that is about this file rather than
-about models. `engine.ts:522` and `apps/console/mocks/fixtures/artifacts.ts:147`
+about models. `packages/runtime/src/deterministic/engine.ts` › `not a trained model (W-029)` and `apps/console/mocks/fixtures/artifacts.ts` › `W-029` @ `1f1e5882d`
 both cite **W-029** to a reader, and `CLAUDE.md` tells a blocked agent to look
 in `docs/gaps.md`. W-029 was only ever in `BACKLOG.md`, so following the
 citation the way the instructions describe found nothing. The work item has not
@@ -1802,17 +1864,17 @@ have produced.
 — *"a retention offer must reduce, not increase, the customer bill"* — sits on
 the suitability tier, the tier that exists for the FCA (G-015 calls it *"the
 FCA-facing tier"*), scoped to the whole retention objective
-(`apps/console/mocks/fixtures/catalogue.ts:913-923`). Its one condition reads
+(`apps/console/mocks/fixtures/catalogue.ts` › `id: 'pol_afford_retention'` @ `eac2fd39b`). Its one condition reads
 `offer.monthly_delta`. That is one number per request, not one per offer: the
 engine evaluates every condition against `request.input`
-(`packages/runtime/src/deterministic/engine.ts:431`), so every retention
+(`packages/runtime/src/deterministic/engine.ts` › `policyPasses(policy, request.input)`), so every retention
 candidate in a decision is tested against the same value and they all pass or
 all fail together. Whether a particular offer would raise this customer's bill
 is never asked.
 
 In the seeded corpus the value is a coin flip —
 `offer: { monthly_delta: r('delta') > 0.5 ? -500 : 300 }`
-(`apps/console/mocks/fixtures/engine.ts:275`). Executed over the seed,
+(`apps/console/mocks/fixtures/engine.ts` › `monthly_delta: r('delta') > 0.5 ? -500 : 300` @ `288b979c7`). Executed over the seed,
 `retention-outbound` — twenty candidates, all of them retention offers — made
 2,378 decisions in which retention offers reached the policy. **None split.** In
 all 1,188 where the coin came up `300`, every one of those offers was refused; in
@@ -1826,16 +1888,16 @@ opening either trace is shown a named suitability rule applied, and nothing in
 the record says the rule compared a single request-level number that did not
 come from the offer. Since G-055 closed, the refusal is also attributed to a
 pack: `pol_afford_retention` belongs to *UK Consumer Duty 1.4.0*
-(`catalogue.ts:804-808`), and the trace reader names that pack beside the
-refusal (`apps/console/components/trace-evidence.tsx:24-27`). A coin flip is
+(`apps/console/mocks/fixtures/catalogue.ts` › `id: 'pack_uk_consumer_duty'` @ `eac2fd39b`), and the trace reader names that pack beside the
+refusal (`apps/console/components/trace-evidence.tsx` › `The pack that supplied the rule`). A coin flip is
 now presented as a Consumer Duty affordability refusal.
 
 **Fixing it is a modelling change, not an edit to the rule.** The profile schema
 has no way to express a per-offer input: `offer.monthly_delta` is declared on an
-entity the request supplies once (`apps/console/mocks/fixtures/profile-schema.ts:255-267`),
+entity the request supplies once (`apps/console/mocks/fixtures/profile-schema.ts` › `name: 'OfferContext'`),
 and a condition can read only request paths, never a field of the candidate it
 is judging. The facts a real check needs exist separately — an offer carries
-`financials.price` (`packages/core/src/domain.ts:50-60`), and the billing
+`financials.price` (`packages/core/src/domain.ts` › `export interface OfferFinancials`), and the billing
 connector resolves `monthlySpend` — and there is no way to write a condition
 that combines them per candidate. Rewording the rule, or supplying a better
 number on the request, leaves it deciding every retention offer at once.
@@ -1921,16 +1983,16 @@ for them.
 
 `decision_records` has a `subject_hash` column so that *"the subject is
 queryable without the ledger holding the identifier in clear"*
-(`packages/ledger/src/types.ts:24-32`). The `record` column beside it holds the
-whole `DecisionRecord` (`types.ts:39-40`; `jsonb` at
-`packages/ledger/migrations/001_ledger.sql:37`), and the hashed half of that
+(`packages/ledger/src/types.ts` › `A one-way hash of the customer reference`). The `record` column beside it holds the
+whole `DecisionRecord` (`packages/ledger/src/types.ts` › `record: DecisionRecord`; `jsonb` at
+`packages/ledger/migrations/001_ledger.sql` › `record        jsonb`), and the hashed half of that
 record carries `customerRef: request.customerId` — the raw identifier
-(`packages/runtime/src/deterministic/engine.ts:659`). Every row holds the
+(`packages/runtime/src/deterministic/engine.ts` › `customerRef: request.customerId`). Every row holds the
 identifier in clear, one column over from the hash that exists to avoid it.
 
 The hash would not be enough on its own either. `subjectHash` is an unkeyed
 sha256 of `tenantId.length:tenantId:customerRef`
-(`packages/ledger/src/ledger.ts:62-64`). Anyone who can list candidate
+(`packages/ledger/src/ledger.ts` › `export function subjectHash`). Anyone who can list candidate
 identifiers can hash them and match: the seeded ids are `cust_` plus a base-36
 counter, and a real telco's account and phone numbers are enumerable the same
 way.
@@ -1938,13 +2000,13 @@ way.
 ADR-004 rests on the opposite. Its rejection of *"tokenise identifiers only"*
 begins *"the ledger already hashes the customer reference per tenant, so the
 subject is pseudonymous rather than identified"*
-(`docs/adr/ADR-004-retention-and-erasure.md:88-89`), and concludes that the
+(`docs/adr/ADR-004-retention-and-erasure.md` › `Tokenise identifiers only`), and concludes that the
 per-subject key is needed for the attributes, the identifier being handled.
 
 **Why now rather than later.** `decision_records` is append-only by trigger
-(`001_ledger.sql:171-174`). The console writes the ledger to PostgreSQL only
+(`packages/ledger/migrations/001_ledger.sql` › `decision_records_append_only`). The console writes the ledger to PostgreSQL only
 when `METIS_DATABASE_URL` is set, and the truth audit found PostgreSQL *"used
-by no service"* (`docs/evaluation/TRUTH_AUDIT.md:78`), so what is in it today is
+by no service"* (`docs/evaluation/TRUTH_AUDIT.md` › `used by no service`), so what is in it today is
 test data. The first real customer id written there cannot be removed by any
 means the design permits. Correcting the shape now means dropping a store that
 holds nothing real; correcting it later means rewriting an append-only table,
@@ -1964,23 +2026,23 @@ hold; and ADR-004 records the correction to its premise.
 
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** none — a correction to `docs/CAPABILITIES.md`, owed by whoever next edits that row
 
-`docs/CAPABILITIES.md:329` — *"Aggregations over history resolved at decision
+`docs/CAPABILITIES.md` › `Aggregations over history resolved at decision time` — *"Aggregations over history resolved at decision
 time"* — names two tests, and neither exercises what the row claims:
 
-- `usage becomes decision input` is `packages/core/tests/volume.test.ts:78`. It
+- `usage becomes decision input` is `packages/core/tests/volume.test.ts` › `usage becomes decision input`. It
   tests `resolveVolume`, a volume-cap module that nothing outside its own test
   imports. The name reads like rollups; the subject is something else.
-- `merging into the input` is `packages/runtime/tests/aggregate.test.ts:179`,
+- `merging into the input` is `packages/runtime/tests/aggregate.test.ts` › `merging into the input`,
   which tests `mergeAggregations` on its own.
 
 The test that does exercise the claim — a rollup computed on the console's
 decision path and changing the decision — exists and is not named: `a rollup
-decides`, `apps/console/tests/unit/aggregation-decision.test.ts:62`.
-`docs/evaluation/TRUTH_AUDIT.md:163` carries the same two names, so the audit
+decides`, `apps/console/tests/unit/aggregation-decision.test.ts` › `a rollup decides`.
+`docs/evaluation/TRUTH_AUDIT.md` › `Aggregations over history resolved at decision time and merged` carries the same two names, so the audit
 copied the citation rather than following it.
 
 And *"over history"* describes nothing. The rollups read collections the caller
-puts in the request (`packages/runtime/src/integration/aggregate.ts:48-69`);
+puts in the request (`packages/runtime/src/integration/aggregate.ts` › `function collectionAt`);
 there is no history for them to read (W-011).
 
 The capability itself is not overstated — its wiring test exists. What is wrong
@@ -1991,7 +2053,7 @@ Found while tracing the data spine for
 [ADR-014](adr/ADR-014-the-data-spine.md).
 
 **Done when:** the row names `a rollup decides`, verified to bite by removing the
-`resolveAggregations` call at `apps/console/app/api/[...path]/route.ts:606`;
+`resolveAggregations` call at `apps/console/app/api/[...path]/route.ts` › `resolveAggregations(`;
 drops `usage becomes decision input`; and says what the rollups read.
 
 ---
@@ -2004,14 +2066,14 @@ drops `usage becomes decision input`; and says what the rollups read.
 each, so that *"this customer has no accounts in arrears"* and *"we never loaded
 their accounts"* — which *"look identical in the input and mean opposite
 things"* — stay distinguishable
-(`packages/runtime/src/integration/aggregate.ts:38-45`). Its only caller
-computes it at `apps/console/app/api/[...path]/route.ts:606` and reads only
-`.values` at `:622`. `unresolved` reaches no record, no trace and no response.
+(`packages/runtime/src/integration/aggregate.ts` › `Aggregations that produced nothing, and why`). Its only caller
+computes it at `apps/console/app/api/[...path]/route.ts` › `resolveAggregations(` and reads only
+`.values` at `apps/console/app/api/[...path]/route.ts` › `rolled.values`. `unresolved` reaches no record, no trace and no response.
 
 The test for this path shows what that costs.
 `suppresses when one child breaches it` and
 `suppresses when the children were never loaded`
-(`apps/console/tests/unit/aggregation-decision.test.ts:91-106`) both end with the
+(`apps/console/tests/unit/aggregation-decision.test.ts` › `suppresses when one child breaches it`, `suppresses when the children were never loaded`) both end with the
 fibre offer denied `ELIGIBILITY_FAILED` on `pol_fibre_available`. One customer
 is 34 days in arrears; the other's accounts were never looked at. The trace
 gives both the same reason code naming the same real policy — the failure
@@ -2022,7 +2084,7 @@ saying why is the defect.
 In the seeded tenant it is every decision. Both declared aggregations read
 `customer.accounts`, which no preset, seed or data source populates, so both are
 unresolved on every decision. The fixture says as much and adds that this is
-*"registered in docs/gaps.md"* (`apps/console/mocks/fixtures/profile-schema.ts:31-32`).
+*"registered in docs/gaps.md"* (`apps/console/mocks/fixtures/profile-schema.ts` › `registered in docs/gaps.md`).
 It was not, until this entry.
 
 Found while tracing the data spine for
@@ -2040,43 +2102,43 @@ record, not an implicit default"* — is this, for rollups.
 **Registered:** 2026-09-11 · **Status:** Open · **Work item:** [W-013](BACKLOG.md) · **Decision:** [ADR-014](adr/ADR-014-the-data-spine.md) §7, Proposed
 
 **A decision request with no `consent` is decided as though marketing and
-profiling consent were given.** `packages/runtime/src/deterministic/engine.ts:302`:
+profiling consent were given.** `packages/runtime/src/deterministic/engine.ts` › `request.consent ?? { marketing: true, profiling: true, thirdParty: false }` @ `7eb765997`:
 
 ```ts
 const consent = request.consent ?? { marketing: true, profiling: true, thirdParty: false };
 ```
 
 The Kotlin engine does the same
-(`engines/kotlin/engine/src/main/kotlin/com/metis/engine/Engine.kt:247`), so the
+(`engines/kotlin/engine/src/main/kotlin/com/metis/engine/Engine.kt` › `request.consent ?: Consent(marketing = true, profiling = true, thirdParty = false)` @ `7eb765997`), so the
 two agree — and the conformance corpus proves they agree on it: 26 of the 27
 cases in `docs/conformance/decision-corpus.json` carry no `consent`.
 
 Three things make it worse than a default:
 
 - **The trace asserts it.** `consentState` is in the hashed decision
-  (`engine.ts:689`) and records the substituted value, so the record of a
+  (`packages/runtime/src/deterministic/engine.ts` › `consentState: consent`) and records the substituted value, so the record of a
   decision nobody consented to says, under a chain hash, that consent was given.
 - **The right source is configured and not read.** `conn_consent_registry` is
   set to fail closed — `defaultValue: false`, *"because assuming consent is the
   one mistake with a regulator attached"*
-  (`apps/console/mocks/fixtures/catalogue.ts:1302-1320`). Its `marketingConsent`
+  (`apps/console/mocks/fixtures/catalogue.ts` › `the one mistake with a regulator attached`). Its `marketingConsent`
   and `profilingConsent` are fetched, hashed into the input snapshot, and read by
   no policy. The engine's consent check reads `request.consent` and nothing else
-  (`engine.ts:460`).
+  (`packages/runtime/src/deterministic/engine.ts` › `request.consent`).
 - **The caller grants it.** In the storefront, consent is three checkboxes the
-  visitor ticks (`apps/console/public/storefront/index.html:441-443`, sent at
-  `:644-648`). A request can grant what the registry withholds.
+  visitor ticks (`apps/console/public/storefront/index.html` › `id="c-marketing"`, sent at
+  `apps/console/public/storefront/index.html` › `marketing: $('#c-marketing').checked`). A request can grant what the registry withholds.
 
 Not G-015. That entry is a flow with no constraint node, where consent is never
 checked. This one is every flow that does check, checking a value that defaults
 to yes. The capability map's consent row gives its limit as *"consent arrives on
-the request"* (`docs/CAPABILITIES.md:259`), which is true and leaves out what
+the request"* (`docs/CAPABILITIES.md` › `consent arrives on the request`), which is true and leaves out what
 happens when it does not arrive.
 
 **Done when:** absent consent is enforced as withheld and recorded as absent,
 distinct from withheld, in both engines, with a corpus case for each; consent is
 taken from the platform's source and the request can only narrow it; and
-restoring the default at `engine.ts:302` turns a named test red.
+restoring the default at `packages/runtime/src/deterministic/engine.ts` › `request.consent ?? { marketing: true, profiling: true, thirdParty: false }` @ `7eb765997` turns a named test red.
 
 **Half landed, 2026-09-13 — ADR-014 §7.1.** Both engines now record consent per
 purpose as `granted`, `withheld` or `absent`, and enforce `absent` exactly as
@@ -3376,8 +3438,8 @@ pattern PostgreSQL is entitled to refuse.
 
 **Two failures, in different packages, neither reproducible afterwards:**
 
-- **CI**, on the merge commit for PR #23: `packages/ledger/tests/postgres.test.ts`
-  › *keeps tenants apart* failed with `40P01`, a deadlock — *"Process 127 waits
+- **CI**, on the merge commit for PR #23: `packages/ledger/tests/postgres.test.ts`, running
+  `packages/ledger/tests/suite.ts` › `keeps tenants apart`, failed with `40P01`, a deadlock — *"Process 127 waits
   for AccessExclusiveLock on relation 17580; blocked by process 129. Process 129
   waits for ShareLock on relation 17603; blocked by process 127."*
 - **Locally**, on the same commit, a different package:
@@ -3650,9 +3712,9 @@ schema is a new file.
 
 **Registered:** 2026-09-11 · **Resolved:** 2026-09-11 · **Status:** Resolved · **Work item:** none — a defect, fixed in the slice that registered it
 
-`packages/registry/migrations/001_registry.sql` adds `registry_versions.tests`
-with `ALTER TABLE IF EXISTS … ADD COLUMN IF NOT EXISTS` at line 68 — **before**
-`CREATE TABLE IF NOT EXISTS registry_versions` at line 71, which does not
+`packages/registry/migrations/001_registry.sql` › `ADD COLUMN IF NOT EXISTS tests`, `CREATE TABLE IF NOT EXISTS registry_versions` @ `e3ea00d53` adds `registry_versions.tests`
+with `ALTER TABLE IF EXISTS … ADD COLUMN IF NOT EXISTS` — **before**
+`CREATE TABLE IF NOT EXISTS registry_versions`, which does not
 declare the column. On a database that has never been migrated, the first run
 skips the `ALTER`, because there is no table yet, and then creates the table
 without the column. The column exists only after a second run.
@@ -4461,7 +4523,7 @@ that, so nothing lints the two trees where every check written this week lives:
 `report-flaky.mjs`.
 
 Found on 2026-09-09 while confirming a new script was clean. `npx eslint .` from
-the root reports an error in `tests/source-hygiene.test.ts:126` —
+the root reports an error in `tests/source-hygiene.test.ts` › `Matching control characters is the job` —
 `no-control-regex`, present since `660e56f` — that the CI step cannot see. The
 capability map's "Lint clean" line was corrected on 2026-09-09 to say so; this
 entry is why the error survived long enough to need correcting.
@@ -4481,12 +4543,12 @@ firing on code that is doing the right thing, which is why both are silenced at
 the site with the reason rather than by turning the rule off or excluding the
 file:
 
-- `scripts/build-conformance-corpus.mjs:63` — `no-loss-of-precision` on
+- `scripts/build-conformance-corpus.mjs` › `no-loss-of-precision` — `no-loss-of-precision` on
   `123456789012345678901234`. The literal loses precision deliberately: that is
   the case. ADR-003 asks what an integer past 2^53 serialises to *after* the
   double has already rounded it, so writing it any other way would test a
   different number.
-- `tests/source-hygiene.test.ts:126` — `no-control-regex` on
+- `tests/source-hygiene.test.ts` › `Matching control characters is the job` — `no-control-regex` on
   `/[\u0000-\u001f\u007f]/`. Matching control characters is the job: it
   renders the bytes around a forbidden one for a person to read, and a raw NUL
   or ESC in that output would corrupt the terminal it is printed to.
@@ -4630,16 +4692,16 @@ a property of the platform rather than of the seeding — see G-042.
 
 **Registered:** 2026-09-08 · **Resolved:** 2026-09-09 · **Status:** Resolved · **Work item:** none
 
-`accessibility.spec.ts › the decision trace has no violations` failed once, in a run that immediately followed `form-descriptors.spec.ts`, `offer-authoring.spec.ts` and `permissions-and-writes.spec.ts` — all of which create offers and creatives by clicking. It passed in isolation and passed again on a clean full sweep (49/49), so **it has not been reproduced on demand and the cause is not established**. The suspicion is store state: `apps/console/mocks/store.ts` is process-wide, the specs above write to it, and the trace test opens whichever decision happens to be first in the grid — so a decision rendered against a catalogue a previous spec mutated is a plausible source of a node the earlier sweep found and the later one did not. `POST /api/_test/reset` re-clones a seed captured at module load, which is the same limitation already recorded two rows above. Recorded rather than fixed because a flake diagnosed by guesswork is a flake twice: the next occurrence should be captured with the axe violation id and the decision id before anything is changed. **Reproduced 2026-09-08**, under exactly the predicted condition: `npm run test:a11y` run immediately after the offer and creative e2e suites failed 1 of 49 on this test, and the same command run on its own passed 49 of 49 minutes later. Two observations, same shape, still no violation id captured — the ordering dependency is now established, the cause is not.
+`apps/console/tests/e2e/accessibility.spec.ts` › `the decision trace has no violations` failed once, in a run that immediately followed `form-descriptors.spec.ts`, `offer-authoring.spec.ts` and `permissions-and-writes.spec.ts` — all of which create offers and creatives by clicking. It passed in isolation and passed again on a clean full sweep (49/49), so **it has not been reproduced on demand and the cause is not established**. The suspicion is store state: `apps/console/mocks/store.ts` is process-wide, the specs above write to it, and the trace test opens whichever decision happens to be first in the grid — so a decision rendered against a catalogue a previous spec mutated is a plausible source of a node the earlier sweep found and the later one did not. `POST /api/_test/reset` re-clones a seed captured at module load, which is the same limitation already recorded two rows above. Recorded rather than fixed because a flake diagnosed by guesswork is a flake twice: the next occurrence should be captured with the axe violation id and the decision id before anything is changed. **Reproduced 2026-09-08**, under exactly the predicted condition: `npm run test:a11y` run immediately after the offer and creative e2e suites failed 1 of 49 on this test, and the same command run on its own passed 49 of 49 minutes later. Two observations, same shape, still no violation id captured — the ordering dependency is now established, the cause is not.
 
 **Widened 2026-09-09, with evidence.** This is not confined to the accessibility
 test, and it is not a flake in the sense of "sometimes slow". Three full runs on
 2026-09-09 produced three different victims, each passing in isolation
 immediately afterwards:
 
-- `app-shell.spec.ts` › `the badge count matches the number of items listed`
-- `form-descriptors.spec.ts` › `locks the channel when editing…` — twice
-- `experiments.spec.ts` › `names the field path an arm reaches policies at` and
+- `apps/console/tests/e2e/app-shell.spec.ts` › `the badge count matches the number of items listed`
+- `apps/console/tests/e2e/form-descriptors.spec.ts` › `locks the channel when editing…` — twice
+- `apps/console/tests/e2e/experiments.spec.ts` › `names the field path an arm reaches policies at` and
   `refuses a key that would collide at the same field path`
 
 The last pair failed on a **stashed, pre-change tree** while
@@ -4757,7 +4819,7 @@ flat shape with `scores`, `eliminations`, `arbitration` and `timestamp` at the
 top level. Two different types share the name and the route returns whichever
 store answered.
 
-`apps/console/app/api/[...path]/route.ts:687-699`. Verified live: the API
+`apps/console/app/api/[...path]/route.ts` › `findTrace(rest[0])`. Verified live: the API
 answers 200 with `{"id":"dec_7d72e92a7a3d2b7d","decision":{...}}` and the page
 throws reading `trace.scores`.
 

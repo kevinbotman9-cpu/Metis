@@ -59,12 +59,12 @@ Each was broken and the named check confirmed red, unless stated.
 |---|---|---|---|---|
 | 1 | Canonical taxonomy | **WEAKER-THAN-CLAIMED** | Added `export type Proposition = Offer; export type Treatment = Creative;` to `packages/core/src/domain.ts` | **Nothing.** Typecheck clean, lint clean, 16 + 205 tests pass. Finding A-2 |
 | 2 | Open contracts | **CONFIRMED** | Covered below and in §3 Q4 | `contract.spec.ts` derives its operation list from the spec itself; `tests/api-paths.test.ts` bites on a hand-written path (verified 2026-09-06, `20f9f66`) |
-| 3 | Versioned catalogue / policy AST | **CONFIRMED** | `registry.ts:~155` — treated every republish as unchanged | `registry` memory **and** PostgreSQL suites, 1 failure each |
-| 4 | Deterministic runtime | **CONFIRMED** | Injected `Math.random()` into the hashed `context` term, `engine.ts:~516` | 13 of 27 decision-corpus cases, plus 2 integration determinism tests |
-| 5 | Decision ledger | **CONFIRMED** | `ledger.ts:73` — returned the existing entry instead of refusing a hash collision | `ledger` memory **and** PostgreSQL suites, 1 failure each |
-| 6 | Replay | **CONFIRMED, with a hole** | `engine.ts:721` — forced `identical = true` | `determinism.test.ts` and `tests/integration/pipeline.test.ts`. **But** disabling the input-snapshot-hash guard at `engine.ts:694` broke nothing — see Finding A-3 |
+| 3 | Versioned catalogue / policy AST | **CONFIRMED** | `packages/registry/src/registry.ts` › `status: 'unchanged'` — treated every republish as unchanged | `registry` memory **and** PostgreSQL suites, 1 failure each |
+| 4 | Deterministic runtime | **CONFIRMED** | Injected `Math.random()` into the hashed `context` term, `packages/runtime/src/deterministic/engine.ts` › `seededUnitInterval(request.channel, p.key, request.placement)` | 13 of 27 decision-corpus cases, plus 2 integration determinism tests |
+| 5 | Decision ledger | **CONFIRMED** | `packages/ledger/src/ledger.ts` › `existing.chainHash === entry.chainHash` — returned the existing entry instead of refusing a hash collision | `ledger` memory **and** PostgreSQL suites, 1 failure each |
+| 6 | Replay | **CONFIRMED, with a hole** | `packages/runtime/src/deterministic/engine.ts` › `const identical = fresh.chainHash === trace.chainHash` — forced `identical = true` | `determinism.test.ts` and `tests/integration/pipeline.test.ts`. **But** disabling the input-snapshot-hash guard at `packages/runtime/src/deterministic/engine.ts` › `const suppliedHash = hash(input)` broke nothing — see Finding A-3 |
 | 7 | Idempotency | **CONFIRMED** | `idempotency/index.ts` — returned `replay` where it should return `conflict` | `runtime/tests/idempotency.test.ts` |
-| 8 | Shadow mode | **CONFIRMED** | `route.ts` — shadowed the active version against itself | `e2e/shadow.spec.ts:119`, the divergence assertion |
+| 8 | Shadow mode | **CONFIRMED** | `route.ts` — shadowed the active version against itself | `apps/console/tests/e2e/shadow.spec.ts` › `decisions made while shadowing are compared and reported`, the divergence assertion |
 
 ## 3. The two exit criteria the brief expects to be unmet
 
@@ -89,7 +89,7 @@ unmeasured. Both bounds are honestly stated. Neither is overclaimed.
 ### Q1 — "Byte-identical across 100 runs of *what*?"
 
 **Of one request, against one artifact and one catalogue.**
-`packages/runtime/tests/determinism.test.ts:129` executes a single fixture 100
+`packages/runtime/tests/determinism.test.ts` › `produces a byte-identical decision across 100 executions` executes a single fixture 100
 times. That proves the absence of per-invocation nondeterminism — an unseeded
 random, a wall clock in the hashed half, a map iteration order that varies
 between calls. It proves nothing about breadth.
@@ -110,10 +110,10 @@ both engines were regenerated and re-run in that commit (`723c085`).
 ### Q3 — Does the reason-code coverage test fail if a ninth code is added unexercised?
 
 **No.** Added `| 'BUDGET_EXHAUSTED'` to the `ReasonCode` union at
-`packages/runtime/src/deterministic/types.ts:201`. Typecheck clean, all 205
+`packages/runtime/src/deterministic/types.ts` › `export type ReasonCode`. Typecheck clean, all 205
 runtime tests pass.
 
-The list at `decision-conformance.test.ts:67` is **hardcoded** — eight string
+The list at `packages/runtime/tests/decision-conformance.test.ts` › `const ALL = [` @ `58d1602c8` is **hardcoded** — eight string
 literals maintained by hand, not derived from the union. The test asserts the
 corpus exercises those eight. It cannot notice a ninth.
 
@@ -124,7 +124,7 @@ in exactly the circumstance it was written for. **Finding A-4.**
 
 ### Q4 — Does `contract.spec.ts` cover all 39 built operations, or a subset?
 
-**All of them, by construction.** `apps/console/tests/e2e/contract.spec.ts:52`
+**All of them, by construction.** `apps/console/tests/e2e/contract.spec.ts` › `Object.entries(spec.paths)`
 walks `spec.paths` and builds its own operation list, filtering
 `x-metis-status: proposed`. It does not maintain a list. An operation added to
 the spec is covered the moment it is added, and one that stops being served
@@ -134,8 +134,8 @@ fails. **CONFIRMED**, and stronger than the brief assumed.
 
 **By attempting it**, in all three stores that have one:
 
-- `packages/registry/tests/postgres.test.ts:80,98` — `DELETE FROM registry_versions`, `UPDATE registry_events`
-- `packages/catalogue/tests/postgres.test.ts:101,103` — `UPDATE` and `DELETE` on `catalogue_events`
+- `packages/registry/tests/postgres.test.ts` › `DELETE FROM registry_versions`, `UPDATE registry_events` — `DELETE FROM registry_versions`, `UPDATE registry_events`
+- `packages/catalogue/tests/postgres.test.ts` › `UPDATE catalogue_events`, `DELETE FROM catalogue_events` — `UPDATE` and `DELETE` on `catalogue_events`
 - `packages/ledger/tests/postgres.test.ts` — same pattern
 
 Each expects a rejection matching `/append-only/`. **CONFIRMED.**
@@ -143,7 +143,7 @@ Each expects a rejection matching `/append-only/`. **CONFIRMED.**
 ### Q6 — Is the shadow-mode divergence assertion still verified to bite?
 
 **Yes.** Pointing the shadow at the active version so the two always agree
-failed `e2e/shadow.spec.ts:119` — "decisions made while shadowing are compared
+failed `apps/console/tests/e2e/shadow.spec.ts` › `decisions made while shadowing are compared and reported` — "decisions made while shadowing are compared
 and reported" — while the other 13 shadow tests passed, which is the correct
 shape: only the divergence assertion should care. **CONFIRMED.**
 
@@ -156,8 +156,8 @@ Severity per brief §6.
 ### A-1 — The E2E suite is not reliably green on a cold full run · S4
 
 Two of 200 tests failed on a cold full-suite run and **both passed on
-re-run**: `integrations.spec.ts:57` ("a compliance officer can read but not
-toggle") and `navigation.spec.ts:32` ("Decision flows resolves to a real
+re-run**: `apps/console/tests/e2e/integrations.spec.ts` › `a compliance officer can read but not toggle` ("a compliance officer can read but not
+toggle") and `apps/console/tests/e2e/navigation.spec.ts` › `resolves to a real page` ("Decision flows resolves to a real
 page"). Both failed with "element(s) not found" waiting for a page landmark —
 `getByRole('navigation', { name: 'Main' })` and an `h1` — rather than on an
 assertion about behaviour.
@@ -195,7 +195,7 @@ test over tracked source, excluding the retained `arbitration` and
 
 ### A-3 — Replay's input-snapshot-hash guard is untested · S2
 
-`packages/runtime/src/deterministic/engine.ts:694` refuses a replay whose
+`packages/runtime/src/deterministic/engine.ts` › `const suppliedHash = hash(input)` refuses a replay whose
 supplied input does not hash to the recorded `inputSnapshotHash`. Disabling it —
 `const suppliedHash = d.inputSnapshotHash;` — passes all 205 runtime tests.
 
@@ -213,8 +213,8 @@ untested now, while the cost of adding a test is one fixture.
 
 ### A-4 — Reason-code coverage cannot see a ninth code · S1
 
-Detailed in Q3. `decision-conformance.test.ts:67` hardcodes the eight codes
-rather than deriving them from the `ReasonCode` union at `types.ts:187–201`.
+Detailed in Q3. `packages/runtime/tests/decision-conformance.test.ts` › `const ALL = [` @ `58d1602c8` hardcodes the eight codes
+rather than deriving them from the `ReasonCode` union at `packages/runtime/src/deterministic/types.ts` › `export type ReasonCode`.
 
 S1 because two engines silently disagreeing about a reason code is a
 conformance hole, and because the check's stated purpose — "so none ships

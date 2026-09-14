@@ -62,7 +62,7 @@ contract in W-017 is the first real design decision.
 `ChangeSetSimulation` exists as a *type* with `populationSize`,
 `projectedMarginDelta` and `biasRatio`, and `/approvals/[id]` renders it. But
 `simulateDecisionFlow` is `x-metis-status: proposed` — nothing serves it
-(`docs/metis-api.openapi.yaml:2646`). The simulation attached to a change set is
+(`docs/metis-api.openapi.yaml` › `simulateDecisionFlow`). The simulation attached to a change set is
 fixture data.
 
 This is the gap most likely to be mistaken for a feature during a demo, because
@@ -134,7 +134,7 @@ limit. `ABSENT` = nothing.
 
 | Line | State | What exists / what blocks it |
 |---|---|---|
-| Eligibility / relevance / suitability as distinct layers | **PRESENT** | `PolicyKind` at `core/src/domain.ts:174`, distinct reason codes, distinct audit lines |
+| Eligibility / relevance / suitability as distinct layers | **PRESENT** | `PolicyKind` at `packages/core/src/domain.ts` › `export type PolicyKind`, distinct reason codes, distinct audit lines |
 | Frequency and suppression policy, caps | **PARTIAL** | Caps and rest-after-decline both enforced, in both engines, since 2026-09-11 — `FREQUENCY_CAP_BREACHED` and `COOLDOWN_ACTIVE` are live and name the rule. The decline arrives on the request; the platform records no rejection of its own, because the outcome funnel is monotone. Outcome-conditioned suppression driven by the platform's own interaction history is still absent (G-086) |
 | Multi-level arbitration | **ABSENT** | One arbitration node. No within-group-then-across-group |
 | Channel- and placement-specific ranking | **ABSENT** | One ranking function per tenant |
@@ -147,7 +147,7 @@ limit. `ABSENT` = nothing.
 
 | Line | State | What exists / what blocks it |
 |---|---|---|
-| Model gateway and registry | **ABSENT** | `score-model` and `score-adaptive` nodes exist and pin a model id and version into the artifact — but the propensity is `seededUnitInterval(customerId, key, modelKey)`, a deterministic stand-in (`engine.ts:484`). The *seam* is real; nothing sits behind it |
+| Model gateway and registry | **ABSENT** | `score-model` and `score-adaptive` nodes exist and pin a model id and version into the artifact — but the propensity is `seededUnitInterval(customerId, key, modelKey)`, a deterministic stand-in (`packages/runtime/src/deterministic/engine.ts` › `const propensity = round(` @ `cc6497bb4`). The *seam* is real; nothing sits behind it |
 | ONNX / PMML import | **ABSENT** | — |
 | Adaptive online learning | **ABSENT** | Outcomes are captured and **nothing consumes them** |
 | Contextual bandits, exploration | **ABSENT** | — |

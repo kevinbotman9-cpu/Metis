@@ -22,7 +22,7 @@ absence.
 propensity = round(0.05 + seededUnitInterval(customerId, offerKey, modelKey) * 0.9, 6)
 ```
 
-at `packages/runtime/src/deterministic/engine.ts:490-527`. That is arithmetic
+at `packages/runtime/src/scoring/index.ts` › `0.05 + seededUnitInterval(customerId, offerKey, modelKey) * 0.9`. That is arithmetic
 over a sha256. Every ranking decision this platform makes is
 `boost × value × context^0.5 × a hash of the customer id`, and arbitration —
 the thing the product is for — rests on it.
@@ -37,7 +37,7 @@ written a false claim — a pinned model id had made one anyway.
 
 *The contract is already there.* The compiler refuses a score node that does not
 name a model, and refuses one whose version is not an exact `x.y.z`:
-*"Without a pin the decision cannot be replayed"* (`compile.ts:559-568`). The
+*"Without a pin the decision cannot be replayed"* (`packages/compiler/src/decision-flow/compile.ts` › `Without a pin the decision cannot be replayed`). The
 artifact carries `modelInvocations` in its cost manifest, and the tenant's
 latency budget is enforced along the critical path — a flow that exceeds it does
 not compile. So the *shape* of a model reference is settled. Only the model is
@@ -270,7 +270,7 @@ show an estimate — the same discipline `/performance` already applies to
 attribution.
 
 **The sentence in the trace changes when this lands, and that is the point.**
-`engine.ts:519-524` currently declares the propensity is not a trained model.
+`packages/runtime/src/deterministic/engine.ts` › `not a trained model (W-029)` currently declares the propensity is not a trained model.
 When it is one, that sentence describes something else, and the comment above it
 already anticipates this.
 

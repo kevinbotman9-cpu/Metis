@@ -165,26 +165,26 @@ behind after a key is destroyed hold nothing that identifies the person.
 
 1. **The hashed decision carries the raw identifier.**
    `customerRef: request.customerId`
-   (`packages/runtime/src/deterministic/engine.ts:659`), and the Kotlin engine
+   (`packages/runtime/src/deterministic/engine.ts` › `customerRef: request.customerId`), and the Kotlin engine
    emits the same field, so it is in every conformance corpus case.
 2. **The ledger stores the record whole, in clear.** `decision_records.record`
-   is `jsonb` (`packages/ledger/migrations/001_ledger.sql:37`,
-   `packages/ledger/src/types.ts:39-40`). Every row holds the identifier one
+   is `jsonb` (`packages/ledger/migrations/001_ledger.sql` › `record        jsonb`,
+   `packages/ledger/src/types.ts` › `record: DecisionRecord`). Every row holds the identifier one
    column from `subject_hash` — and with it, in clear, what the decision says
    about the person: which suitability rule refused them, a propensity per
    candidate (subject data, per ADR-009 §8.3), and `consentState`.
 3. **`subject_hash` separates nothing.** It is an unkeyed sha256 of
-   `tenantId.length:tenantId:customerRef` (`packages/ledger/src/ledger.ts:62-64`).
+   `tenantId.length:tenantId:customerRef` (`packages/ledger/src/ledger.ts` › `export function subjectHash`).
    Anyone with read access and a list of candidate identifiers — account
    numbers, phone numbers, the seeded `cust_` plus a base-36 counter — can
    recompute it and match.
-4. **Every ledger table is append-only by trigger** (`001_ledger.sql:171-184`),
+4. **Every ledger table is append-only by trigger** (`packages/ledger/migrations/001_ledger.sql` › `decision_records_append_only`, `ledger_reject_mutation`),
    and one carries a column with no rule about what goes in it:
    `outcome_events.detail`, free-form `jsonb` *"for whatever the channel
-   reported"* (`types.ts:63`).
+   reported"* (`packages/ledger/src/types.ts` › `Free-form, for whatever the channel reported`).
 5. **None of it holds real data yet.** The console writes the ledger to
    PostgreSQL only when `METIS_DATABASE_URL` is set, and the truth audit found
-   PostgreSQL *"used by no service"* (`docs/evaluation/TRUTH_AUDIT.md:78`).
+   PostgreSQL *"used by no service"* (`docs/evaluation/TRUTH_AUDIT.md` › `used by no service`).
 
 So the identifier was not handled, the attributes were not the only exposure,
 and the index hides nothing. The rejection of "tokenise identifiers only" still

@@ -59,16 +59,16 @@ A logged-in marketer, starting from an empty tenant, can:
 
 | # | Step | State | Where it is, or what stands in its place |
 |---|---|---|---|
-| 1 | Create an objective and a category in the taxonomy | ABSENT | `getTaxonomy` is read-only (`docs/metis-api.openapi.yaml:2144`); `PENDING` in `packages/ui-metadata/src/registry/index.ts` records both as *"no authoring surface at all; the taxonomy is fixture-authored"* |
+| 1 | Create an objective and a category in the taxonomy | ABSENT | `getTaxonomy` is read-only (`docs/metis-api.openapi.yaml` › `/taxonomy/{tenantId}:`); `PENDING` in `packages/ui-metadata/src/registry/index.ts` records both as *"no authoring surface at all; the taxonomy is fixture-authored"* |
 | 2 | Create an offer with properties, from the screen | BUILT | `packages/ui-metadata/src/registry/offer.ts`, rendered generically; `apps/console/tests/e2e/form-descriptors.spec.ts` |
 | 3 | Add a creative for a channel | BUILT, without the channel package | `packages/ui-metadata/src/registry/creative.ts`; `apps/console/tests/e2e/creatives.spec.ts`. The per-channel fields are in the descriptor, not supplied by a channel package — no package system exists (W-038) |
 | 4 | Write an eligibility rule and see it validate | BUILT, hand-written | `apps/console/components/policy-form-dialog.tsx` writes via `createTargetingPolicy` and surfaces field errors; `apps/console/tests/e2e/policy-authoring.spec.ts`. It is a hand-built form, which Rule 8 forbids — `PENDING` admits it |
 | 5 | Set effective dates | ABSENT | The offer descriptor excludes `validity` deliberately: effective dating is the Schedule screen, W-015, which is not built |
 | 6 | Run a distribution simulation over a sample audience | ABSENT | `apps/console/app/simulations/page.tsx` lists simulations attached to change sets and carries a *Not built yet* card for the ad-hoc case. `simulateDecisionFlow` is in the spec and unserved. W-020 |
-| 7 | Raise a change set; a second user approves it | Half BUILT | Approving works: `apps/console/app/approvals/[id]/page.tsx`, `apps/console/tests/e2e/permissions-and-writes.spec.ts`. Raising one from a screen is disabled with its reason (`apps/console/app/offers/[id]/page.tsx:181`) — it needs a diff builder |
+| 7 | Raise a change set; a second user approves it | Half BUILT | Approving works: `apps/console/app/approvals/[id]/page.tsx`, `apps/console/tests/e2e/permissions-and-writes.spec.ts`. Raising one from a screen is disabled with its reason (`apps/console/app/offers/[id]/page.tsx` › `proposing one means building a` @ `876828080`) — it needs a diff builder |
 | 8 | Publish. See it live | BUILT | `apps/console/components/registry-panel.tsx`; `apps/console/tests/e2e/registry.spec.ts` |
 | 9 | Open the trace and see their rule named | BUILT | `apps/console/app/decisions/[id]/page.tsx` renders the elimination cascade naming the policy that removed each candidate; `apps/console/tests/e2e/decisions.spec.ts` |
-| 10 | Roll it back | BUILT | `rollbackVersion` from `registry-panel.tsx:60`; `apps/console/tests/e2e/registry.spec.ts` |
+| 10 | Roll it back | BUILT | `rollbackVersion` from `apps/console/components/registry-panel.tsx` › `const rollback = useMutation`; `apps/console/tests/e2e/registry.spec.ts` |
 
 **Six of ten steps stand up. The four that do not are steps 1, 5, 6 and half of
 7 — and step 1 is the first thing the marketer does.**
@@ -111,7 +111,7 @@ spine.***
 | Step | State | Where it is |
 |---|---|---|
 | Open a flow on the canvas, add and connect nodes | BUILT | `apps/console/app/decision-flows/[id]/page.tsx`, a live palette with drag-to-connect and Save graph; `apps/console/tests/e2e/flow-authoring.spec.ts` |
-| Adjust a business boost | Half BUILT | Weights are editable and saveable on `apps/console/app/arbitration/page.tsx`; *creating* a boost is disabled with its reason at line 296 — boosts are catalogue fixtures |
+| Adjust a business boost | Half BUILT | Weights are editable and saveable on `apps/console/app/arbitration/page.tsx`; *creating* a boost is disabled with its reason (`apps/console/app/arbitration/page.tsx` › `New boost`) — boosts are catalogue fixtures |
 | Edit the ranking function as a named versioned artefact | ABSENT | There is no ranking-function entity anywhere in the codebase. The formula is rendered into the trace as text (`Priority = P^1.0 × V^1.0 × B^1.0 × C^0.5`) and is not an object anyone can version |
 | See simulated impact before saving | ABSENT | Same absence as Spine 1 step 6. W-020 |
 | Diff their version against the live one on a population | ABSENT | W-054. The population half is W-020 again |
@@ -139,7 +139,7 @@ product, with two holes.***
 | Search by **rule** | ABSENT | `searchDecisions` takes `action`, `channel`, `customerId`, `dateFrom`, `dateTo`, `outcome`. There is no rule parameter, so the question *"show me every decision my new rule touched"* cannot be asked |
 | Open one; read the trace in the regulator rendering | BUILT | `apps/console/app/decisions/[id]/page.tsx` — seven nodes, per-candidate scores, per-node timings, consent state, connector provenance, chain hash |
 | Replay it and see byte-identical confirmation | BUILT | Replay shows stored and replayed hashes side by side; `apps/console/tests/e2e/ledger.spec.ts` |
-| Run a bias check on a segment | ABSENT | A bias ratio exists only inside a change-set simulation (`apps/console/app/approvals/[id]/page.tsx:236`). There is no on-demand check on a segment. W-021 |
+| Run a bias check on a segment | ABSENT | A bias ratio exists only inside a change-set simulation (`apps/console/app/approvals/[id]/page.tsx` › `label="Bias ratio"` @ `876828080`). There is no on-demand check on a segment. W-021 |
 | Export evidence | BUILT for JSON, stated for PDF | `apps/console/tests/e2e/evidence-export.spec.ts` reaches a real exported file. Export PDF is disabled and names its reason and its work item, W-053 |
 
 **What is stale.** The coherence review recorded this journey stopping dead at two
@@ -212,7 +212,7 @@ evaluation.***
 | Reorder panels and save a versioned layout | ABSENT | Manifests exist as repository files (`packages/ui-metadata/src/layouts/`, ADR-015) and nothing serves or stores one, so no administrator can reorder anything; ADR-015 §8 defers that to overlays. W-041 |
 | Install a theme package and rebrand | ABSENT | Token sets are files; `apps/console/app/settings/page.tsx` toggles light/dark and density only |
 | Install a node package and use the node on the canvas | ABSENT | No package system anywhere in the tree. W-038 |
-| Scope a role to one objective | ABSENT | Roles are displayed, not scoped (`settings/page.tsx:48`). W-043 |
+| Scope a role to one objective | ABSENT | Roles are displayed, not scoped (`apps/console/app/settings/page.tsx` › `Roles`). W-043 |
 
 **Why this is the largest number.** `docs/CAPABILITIES.md` counts **311 of 314
 capability rows as "Configurable without code? = NO"**. The three that answer YES
@@ -360,8 +360,8 @@ under it, from a screen, and the offer form offers what they created.
 
 Sized against the ten artefacts in `CLAUDE.md`, this starts at artefact 1 and not
 before it. The `Objective` and `Category` schemas exist
-(`docs/metis-api.openapi.yaml:78` and `:99`) and are read-only —
-`getTaxonomy` at `:2144` is the only operation that touches them. So the slice is:
+(`docs/metis-api.openapi.yaml` › `Objective:` and `docs/metis-api.openapi.yaml` › `Category:`) and are read-only —
+`getTaxonomy` at `docs/metis-api.openapi.yaml` › `/taxonomy/{tenantId}:` is the only operation that touches them. So the slice is:
 
 1. `createObjective`, `createCategory`, and their updates, added to the spec and
    the client regenerated. **Not hand-written** — Rule 3.

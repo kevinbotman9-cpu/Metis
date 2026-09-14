@@ -101,7 +101,7 @@ the placement is not part of the hashed decision — is registered in `gaps.md`.
 ### I-2 — The trace names an adaptive model that does not exist · S4 · **CLOSED 2026-09-07**
 
 `score-adaptive` is a node type in the closed set, and
-[`engine.ts:479`](../../packages/runtime/src/deterministic/engine.ts:479)
+`packages/runtime/src/deterministic/engine.ts` › `case 'score-adaptive':`
 computes it identically to `score-model`: a seeded deterministic function of
 customer, offer key and model version.
 
@@ -127,7 +127,7 @@ W-032 fills, and deleting it would only move the question.
 
 ### I-3 — Frequency policy and consent trust the caller · S3
 
-[`engine.ts:415`](../../packages/runtime/src/deterministic/engine.ts:415) reads
+`packages/runtime/src/deterministic/engine.ts` › `request.contactHistory?.withinPeriod` reads
 `request.contactHistory.withinPeriod`, and consent is read from
 `request.consent`. Both are enforced properly once supplied — caps bind to a
 scope, the breached cap is named in the denial, `CONSENT_WITHHELD` has its own
