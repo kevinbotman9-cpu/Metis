@@ -27,6 +27,7 @@ import {
   creatives,
   placements,
 } from './catalogue';
+import type { CatalogueSnapshotRecord } from '@metis/catalogue';
 import { artifacts, type ArtifactSummary } from './artifacts';
 import { profileSchema } from './profile-schema';
 
@@ -74,6 +75,34 @@ export const FIXTURE_SOURCES: CompileSources = {
   creatives,
   placements,
 };
+
+/**
+ * The same sources, from a catalogue as a store holds it.
+ *
+ * Shared by the route and by registry seeding, so a flow published by a person
+ * and a flow seeded at start are judged against one reading of the stored
+ * catalogue. The two nullable parts are refused rather than defaulted: an
+ * empty data model would make every condition look invalid, and a store this
+ * console seeded always holds both.
+ */
+export function compileSourcesFrom(record: CatalogueSnapshotRecord): CompileSources {
+  if (!record.arbitration || !record.profileSchema) {
+    throw new Error(
+      `The tenant has no ${record.arbitration ? 'profile schema' : 'ranking function'} ` +
+        'in its catalogue, so no flow can be compiled against it. A store this console seeded always has one.'
+    );
+  }
+  return {
+    offers: record.offers,
+    targetingPolicies: record.targetingPolicies,
+    frequencyPolicies: record.frequencyPolicies,
+    connectors: record.connectors,
+    arbitration: record.arbitration,
+    profileSchema: record.profileSchema,
+    creatives: record.creatives,
+    placements: record.placements,
+  };
+}
 
 export function compileContextFor(
   flowId: string,

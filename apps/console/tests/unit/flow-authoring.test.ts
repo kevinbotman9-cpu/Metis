@@ -3,6 +3,7 @@ import { GET, POST, PUT } from '@/app/api/[...path]/route';
 import { store, resetStore } from '@/mocks/store';
 import { toSource } from '@/mocks/fixtures/compiled';
 import { readCatalogue } from '@/mocks/catalogue-state';
+import type { ArtifactSummary } from '@/mocks/fixtures/artifacts';
 
 /**
  * Authoring a flow, and the two gaps it closes.
@@ -51,6 +52,10 @@ const call = (
 
 const FLOW = 'next-best-action';
 
+/** The flow as last saved, from the registry that holds drafts. */
+const draftOf = async (): Promise<ArtifactSummary> =>
+  (await store.registry.draft<ArtifactSummary>('telco-us', FLOW))!.draft;
+
 const saveDraft = (patch: Record<string, unknown>, headers = MARCUS()) =>
   call(['artifacts', 'telco-us', FLOW, 'draft'], patch, 'PUT', headers);
 
@@ -93,7 +98,7 @@ async function decide(customerId = 'cust_flow') {
  * `promote` are different authorities and the console keeps them apart.
  */
 async function shipIt(version: string) {
-  const flow = store.artifacts.find((a) => a.id === FLOW)!;
+  const flow = await draftOf();
   const source = toSource({ ...flow, activeVersion: version });
 
   const published = await call(
@@ -119,7 +124,7 @@ describe('saving a graph', () => {
   });
 
   it('saves and reports what the compiler says', async () => {
-    const flow = store.artifacts.find((a) => a.id === FLOW)!;
+    const flow = await draftOf();
     const res = await saveDraft({ nodes: flow.nodes, edges: flow.edges });
     const body = (await res.json()) as {
       artifact: { nodeCount: number };
@@ -133,7 +138,7 @@ describe('saving a graph', () => {
   it('saves a graph that does not compile, and says why', async () => {
     // A half-connected graph is a normal intermediate state, not an error to
     // refuse. Publish is where a broken flow is meant to be stopped.
-    const flow = store.artifacts.find((a) => a.id === FLOW)!;
+    const flow = await draftOf();
     const res = await saveDraft({
       nodes: flow.nodes.filter((n) => n.type !== 'arbitrate'),
       edges: [],
@@ -143,9 +148,7 @@ describe('saving a graph', () => {
     expect(res.status).toBe(200);
     expect(body.compile.diagnostics.map((d) => d.code)).toContain('NO_ARBITRATION');
     // Saved, not discarded.
-    expect(store.artifacts.find((a) => a.id === FLOW)!.nodes.some((n) => n.type === 'arbitrate')).toBe(
-      false
-    );
+    expect((await draftOf()).nodes.some((n) => n.type === 'arbitrate')).toBe(false);
   });
 
   it('refuses an account that cannot author flows', async () => {
@@ -156,7 +159,8 @@ describe('saving a graph', () => {
 
   it('records who edited it', async () => {
     await saveDraft({ candidateKeys: ['netflix'] });
-    expect(store.auditEvents[0].eventType).toBe('DecisionFlowDraftSaved');
+    const [latest] = await store.governance.events('telco-us', { limit: 1 });
+    expect(latest.eventType).toBe('DecisionFlowDraftSaved');
   });
 });
 
@@ -291,7 +295,7 @@ describe('the two gaps close', () => {
 
     expect(await decide()).not.toEqual([]);
 
-    const flow = store.artifacts.find((a) => a.id === FLOW)!;
+    const flow = await draftOf();
     await saveDraft({
       nodes: flow.nodes.map((n) =>
         n.id === 'filter_eligibility'

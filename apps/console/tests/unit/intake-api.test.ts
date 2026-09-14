@@ -273,7 +273,7 @@ describe('activation', () => {
     await validate(id);
     await activate(id);
 
-    const event = store.auditEvents[0];
+    const [event] = await store.governance.events('telco-us', { limit: 1 });
     expect(event.eventType).toBe('DataSourceActivated');
     expect(event.actor).toBe('marcus.webb@telco.example');
   });

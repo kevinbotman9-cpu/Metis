@@ -203,13 +203,13 @@ describe('creating a policy', () => {
   });
 
   it('records who wrote it', async () => {
-    const before = store.auditEvents.length;
+    const before = await store.governance.countEvents('telco-us');
     await call(['targeting-policies', 'telco-us'], policy());
-    // Newest first: `recordAudit` unshifts, so the entry just written is at
-    // the head rather than the tail.
-    const event = store.auditEvents[0];
+    // Newest first: the log reads back in the reverse of the order it was
+    // appended, so the entry just written is at the head.
+    const [event] = await store.governance.events('telco-us', { limit: 1 });
 
-    expect(store.auditEvents.length).toBe(before + 1);
+    expect(await store.governance.countEvents('telco-us')).toBe(before + 1);
     expect(event.eventType).toBe('TargetingPolicyCreated');
     expect(event.actor).toBe('priya.natarajan@telco.example');
   });

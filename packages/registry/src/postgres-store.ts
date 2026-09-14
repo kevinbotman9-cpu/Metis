@@ -1,5 +1,12 @@
 import type { RegistryStore } from './registry';
-import type { Environment, EnvironmentState, PublishedVersion, RegistryEvent } from './types';
+import type {
+  Environment,
+  EnvironmentState,
+  FlowDraft,
+  PublishedVersion,
+  RegistryEvent,
+  ShadowComparisonRecord,
+} from './types';
 
 /**
  * Durable storage for the registry.
@@ -72,6 +79,34 @@ interface EventRow {
  */
 function iso(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+interface DraftRow {
+  tenant_id: string;
+  flow_name: string;
+  draft: unknown;
+  updated_at: Date | string;
+  updated_by: string;
+}
+
+function toDraft(r: DraftRow): FlowDraft {
+  return {
+    tenantId: r.tenant_id,
+    flowName: r.flow_name,
+    draft: r.draft,
+    updatedAt: iso(r.updated_at),
+    updatedBy: r.updated_by,
+  };
+}
+
+interface ShadowComparisonRow {
+  tenant_id: string;
+  flow_name: string;
+  environment: string;
+  active_version: string;
+  shadow_version: string;
+  recorded_at: Date | string;
+  comparison: unknown;
 }
 
 export class PostgresRegistryStore implements RegistryStore {
@@ -271,6 +306,94 @@ export class PostgresRegistryStore implements RegistryStore {
       ...(r.environment ? { environment: r.environment } : {}),
       summary: r.summary,
       ...(r.diagnostics ? { diagnostics: r.diagnostics as RegistryEvent['diagnostics'] } : {}),
+    }));
+  }
+
+  // --- Drafts ---------------------------------------------------------------
+
+  async getDraft(tenantId: string, name: string): Promise<FlowDraft | undefined> {
+    const { rows } = await this.db.query<DraftRow>(
+      `SELECT tenant_id, flow_name, draft, updated_at, updated_by
+         FROM registry_drafts
+        WHERE tenant_id = $1 AND flow_name = $2`,
+      [tenantId, name]
+    );
+    return rows[0] ? toDraft(rows[0]) : undefined;
+  }
+
+  async putDraft(d: FlowDraft): Promise<void> {
+    // The one upsert in this store. A draft is work in progress, so saving it
+    // again replaces it; everything published stays append-only.
+    await this.db.query(
+      `INSERT INTO registry_drafts (tenant_id, flow_name, draft, updated_at, updated_by)
+       VALUES ($1, $2, $3::jsonb, $4, $5)
+       ON CONFLICT (tenant_id, flow_name) DO UPDATE
+          SET draft = EXCLUDED.draft, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by`,
+      [d.tenantId, d.flowName, JSON.stringify(d.draft), d.updatedAt, d.updatedBy]
+    );
+  }
+
+  async listDrafts(tenantId: string): Promise<FlowDraft[]> {
+    const { rows } = await this.db.query<DraftRow>(
+      `SELECT tenant_id, flow_name, draft, updated_at, updated_by
+         FROM registry_drafts
+        WHERE tenant_id = $1
+        ORDER BY flow_name`,
+      [tenantId]
+    );
+    return rows.map(toDraft);
+  }
+
+  // --- Shadow comparisons -----------------------------------------------------
+
+  async appendShadowComparison(c: ShadowComparisonRecord): Promise<void> {
+    await this.db.query(
+      `INSERT INTO registry_shadow_comparisons
+         (tenant_id, flow_name, environment, active_version, shadow_version, recorded_at, comparison)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+      [
+        c.tenantId,
+        c.flowName,
+        c.environment,
+        c.activeVersion,
+        c.shadowVersion,
+        c.recordedAt,
+        JSON.stringify(c.comparison),
+      ]
+    );
+  }
+
+  async listShadowComparisons(filter: {
+    tenantId: string;
+    flowName: string;
+    environment?: Environment;
+    activeVersion?: string;
+    shadowVersion?: string;
+  }): Promise<ShadowComparisonRecord[]> {
+    const { rows } = await this.db.query<ShadowComparisonRow>(
+      `SELECT tenant_id, flow_name, environment, active_version, shadow_version, recorded_at, comparison
+         FROM registry_shadow_comparisons
+        WHERE tenant_id = $1 AND flow_name = $2
+          AND ($3::text IS NULL OR environment = $3)
+          AND ($4::text IS NULL OR active_version = $4)
+          AND ($5::text IS NULL OR shadow_version = $5)
+        ORDER BY seq`,
+      [
+        filter.tenantId,
+        filter.flowName,
+        filter.environment ?? null,
+        filter.activeVersion ?? null,
+        filter.shadowVersion ?? null,
+      ]
+    );
+    return rows.map((r) => ({
+      tenantId: r.tenant_id,
+      flowName: r.flow_name,
+      environment: r.environment as Environment,
+      activeVersion: r.active_version,
+      shadowVersion: r.shadow_version,
+      recordedAt: iso(r.recorded_at),
+      comparison: r.comparison,
     }));
   }
 

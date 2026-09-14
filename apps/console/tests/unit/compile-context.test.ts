@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { compileDecisionFlow } from '@metis/compiler/decision-flow/compile';
 import { artifacts } from '@/mocks/fixtures/artifacts';
-import { compilations, compileContextFor, toSource } from '@/mocks/fixtures/compiled';
+import { compileContextFor, toSource } from '@/mocks/fixtures/compiled';
 import { store } from '@/mocks/store';
+import { GET } from '@/app/api/[...path]/route';
 
 /**
  * One question, one answer: does this flow compile?
@@ -57,17 +58,30 @@ describe('a live flow compiles under the context it was published with', () => {
   });
 
   it('agrees with what the console shows on the flow list', async () => {
-    // The screen reads `compilations`; the registry reads `compileContextFor`.
-    // They are the same call now, and this fails if they stop being.
+    // The screen reads `GET /artifacts`, which compiles each stored draft
+    // against the stored catalogue; a publish compiles with `compileContextFor`.
+    // The same builder, and this fails if they stop agreeing.
     await store.registryReady;
+    const marcus = store.users.find((u) => u.email === 'marcus.webb@telco.example')!;
+    const path = ['artifacts', 'telco-us'];
+    const res = await GET(
+      new Request(`http://localhost/api/${path.join('/')}`, {
+        headers: { authorization: `Bearer metis.${marcus.id}` },
+      }),
+      { params: Promise.resolve({ path }) }
+    );
+    const list = ((await res.json()) as { artifacts: { id: string; compileOk: boolean }[] }).artifacts;
+    expect(list.map((a) => a.id).sort(), 'the flow list shows a different set of flows').toEqual(
+      artifacts.map((a) => a.id).sort()
+    );
 
     for (const a of artifacts) {
-      const shown = compilations.find((c) => c.artifactId === a.id)!.result;
+      const shown = list.find((x) => x.id === a.id)!.compileOk;
       const published = compileDecisionFlow(toSource(a), compileContextFor(a.id));
       expect(
         published.ok,
-        `${a.id}: the flow list says ${shown.ok} and a publish would say ${published.ok}`
-      ).toBe(shown.ok);
+        `${a.id}: the flow list says ${shown} and a publish would say ${published.ok}`
+      ).toBe(shown);
     }
   });
 

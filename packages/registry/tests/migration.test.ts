@@ -136,10 +136,9 @@ if (!reachable) {
     });
 
     it('brings a database at every earlier version to the schema a fresh one has', async () => {
-      // One migration today, so there is no earlier version to build and this
-      // loop has nothing to iterate — said here rather than hidden. It has
-      // teeth from the first 002_*.sql without anybody remembering to add a
-      // case, and the runner's version of it is proved in core with three.
+      // Iterates from `002_drafts.sql`, which arrived on 2026-09-14: a database
+      // left at version 1 must reach the schema a fresh one has. Until then this
+      // loop had nothing to iterate, and said so here.
       const files = readMigrations(MIGRATIONS_DIR);
       const fresh = await emptyDatabase();
       await runMigration(fresh);

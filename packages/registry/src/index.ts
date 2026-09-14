@@ -16,4 +16,6 @@ export {
   type PublishedVersion,
   type RegistryEvent,
   type RegistryEventType,
+  type FlowDraft,
+  type ShadowComparisonRecord,
 } from './types';

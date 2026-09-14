@@ -128,6 +128,40 @@ export interface EnvironmentState {
   promotedBy: string | null;
 }
 
+/**
+ * A flow as a person is editing it, before any of it is published.
+ *
+ * The registry stores a draft and does not interpret it: what a draft carries
+ * is the editor's business, and the registry's rules are about versions. It is
+ * mutable — saving again replaces it — which is the whole difference between a
+ * draft and a version. It becomes a fact when it is published, not before.
+ */
+export interface FlowDraft<T = unknown> {
+  tenantId: string;
+  flowName: string;
+  draft: T;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+/**
+ * One run of a shadow version beside the active one, and how they compared.
+ *
+ * The comparison is the caller's shape and the registry does not interpret it:
+ * the registry deliberately does not depend on the engine that produces it. The
+ * fields beside it are what a report filters on, because a report is about one
+ * pair of versions in one environment.
+ */
+export interface ShadowComparisonRecord<T = unknown> {
+  tenantId: string;
+  flowName: string;
+  environment: Environment;
+  activeVersion: string;
+  shadowVersion: string;
+  recordedAt: string;
+  comparison: T;
+}
+
 export type RegistryEventType =
   | 'ArtifactPublished'
   | 'PublishRejected'

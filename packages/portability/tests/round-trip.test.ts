@@ -35,6 +35,7 @@ describe('a tenant survives being exported and imported', () => {
       ledger: target.ledger,
       catalogue: target.catalogue,
       catalogueStore: target.catalogueStore,
+      governanceStore: target.governanceStore,
     });
 
     const second = await exportTenant(target, { tenantId: TENANT, exportedAt: AT });
@@ -56,6 +57,7 @@ describe('a tenant survives being exported and imported', () => {
       ledger: target.ledger,
       catalogue: target.catalogue,
       catalogueStore: target.catalogueStore,
+      governanceStore: target.governanceStore,
     });
 
     const before = await source.registry.versions(TENANT, FLOW);
@@ -80,6 +82,7 @@ describe('a tenant survives being exported and imported', () => {
       ledger: target.ledger,
       catalogue: target.catalogue,
       catalogueStore: target.catalogueStore,
+      governanceStore: target.governanceStore,
     });
 
     const production = (await target.registry.environments(TENANT, FLOW)).find(
@@ -89,6 +92,10 @@ describe('a tenant survives being exported and imported', () => {
     // A migration in progress is part of what a tenant owns. Dropping it would
     // silently abandon the comparison the customer was mid-way through.
     expect(production?.shadowVersion).toBe('1.1.0');
+    // And what that shadow had found, or the migration arrives with no evidence.
+    const comparisons = await target.registry.shadowComparisons(TENANT, FLOW);
+    expect(comparisons).toEqual(await source.registry.shadowComparisons(TENANT, FLOW));
+    expect(comparisons).toHaveLength(1);
   });
 
   it('keeps the catalogue — what the engine decides from', async () => {
@@ -101,6 +108,7 @@ describe('a tenant survives being exported and imported', () => {
       ledger: target.ledger,
       catalogue: target.catalogue,
       catalogueStore: target.catalogueStore,
+      governanceStore: target.governanceStore,
     });
 
     const before = await source.catalogue.read(TENANT);
@@ -120,6 +128,33 @@ describe('a tenant survives being exported and imported', () => {
     expect(events.length).toBeGreaterThan(0);
   });
 
+  it('keeps change sets as decided, and the audit log in the order it was written', async () => {
+    const source = await populatedInstance();
+    const bundle = await exportTenant(source, { tenantId: TENANT, exportedAt: AT });
+
+    const target = emptyInstance();
+    await importTenant(bundle, {
+      registryStore: target.registryStore,
+      ledger: target.ledger,
+      catalogue: target.catalogue,
+      catalogueStore: target.catalogueStore,
+      governanceStore: target.governanceStore,
+    });
+
+    expect(await target.governance.changeSets(TENANT)).toEqual(await source.governance.changeSets(TENANT));
+    expect(await target.governance.events(TENANT)).toEqual(await source.governance.events(TENANT));
+
+    // The restored approval is still final — approving it again on the new
+    // instance would apply its diff twice — and the pending one can still be
+    // decided, or nobody could ever act on it there.
+    await expect(
+      target.governance.decide(TENANT, 'cr_0001', { status: 'rejected', decidedBy: 'marcus', decidedAt: AT, reason: 'Again.' })
+    ).rejects.toMatchObject({ code: 'ALREADY_DECIDED' });
+    await expect(
+      target.governance.decide(TENANT, 'cr_0002', { status: 'approved', decidedBy: 'marcus', decidedAt: AT, reason: 'Fine.' })
+    ).resolves.toMatchObject({ status: 'approved' });
+  });
+
   it('keeps every ledger record and its outcomes', async () => {
     const source = await populatedInstance();
     const bundle = await exportTenant(source, { tenantId: TENANT, exportedAt: AT });
@@ -130,6 +165,7 @@ describe('a tenant survives being exported and imported', () => {
       ledger: target.ledger,
       catalogue: target.catalogue,
       catalogueStore: target.catalogueStore,
+      governanceStore: target.governanceStore,
     });
 
     const before = await source.ledger.query({ tenantId: TENANT });
@@ -153,6 +189,7 @@ describe('a tenant survives being exported and imported', () => {
       ledger: target.ledger,
       catalogue: target.catalogue,
       catalogueStore: target.catalogueStore,
+      governanceStore: target.governanceStore,
     });
 
     const [entry] = await target.ledger.query({ tenantId: TENANT });
@@ -218,6 +255,7 @@ describe('a bundle that cannot be trusted is refused', () => {
       ledger: target.ledger,
       catalogue: target.catalogue,
       catalogueStore: target.catalogueStore,
+      governanceStore: target.governanceStore,
     })
     ).rejects.toThrow(PortabilityError);
 
@@ -246,6 +284,7 @@ describe('a bundle that cannot be trusted is refused', () => {
       ledger: target.ledger,
       catalogue: target.catalogue,
       catalogueStore: target.catalogueStore,
+      governanceStore: target.governanceStore,
     })
     ).rejects.toThrow(/already exists in the target/);
   });

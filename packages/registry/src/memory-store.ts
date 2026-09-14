@@ -1,5 +1,12 @@
 import type { RegistryStore } from './registry';
-import type { Environment, EnvironmentState, PublishedVersion, RegistryEvent } from './types';
+import type {
+  Environment,
+  EnvironmentState,
+  FlowDraft,
+  PublishedVersion,
+  RegistryEvent,
+  ShadowComparisonRecord,
+} from './types';
 
 /**
  * In-memory storage.
@@ -19,7 +26,11 @@ export class InMemoryRegistryStore implements RegistryStore {
   private environments = new Map<string, EnvironmentState>();
   private events: RegistryEvent[] = [];
   private seq = 0;
+  private drafts = new Map<string, FlowDraft>();
+  /** In the order they were appended, which is the order they happened. */
+  private shadowComparisonLog: ShadowComparisonRecord[] = [];
 
+  private draftKey = (t: string, n: string) => `${t}\u0000${n}`;
   private versionKey = (t: string, n: string, v: string) => `${t}\u0000${n}\u0000${v}`;
   private envKey = (t: string, n: string, e: string) => `${t}\u0000${n}\u0000${e}`;
 
@@ -95,12 +106,55 @@ export class InMemoryRegistryStore implements RegistryStore {
     ];
   }
 
+  /**
+   * Drafts are copied in and out, not frozen. A draft is meant to change — but
+   * only by being saved again, never by a caller editing an object it read,
+   * which PostgreSQL could not honour and memory therefore must not either.
+   */
+  async getDraft(tenantId: string, name: string): Promise<FlowDraft | undefined> {
+    const d = this.drafts.get(this.draftKey(tenantId, name));
+    return d ? structuredClone(d) : undefined;
+  }
+
+  async putDraft(draft: FlowDraft): Promise<void> {
+    this.drafts.set(this.draftKey(draft.tenantId, draft.flowName), structuredClone(draft));
+  }
+
+  async listDrafts(tenantId: string): Promise<FlowDraft[]> {
+    return [...this.drafts.values()].filter((d) => d.tenantId === tenantId).map((d) => structuredClone(d));
+  }
+
+  async appendShadowComparison(record: ShadowComparisonRecord): Promise<void> {
+    this.shadowComparisonLog.push(deepFreeze(structuredClone(record)));
+  }
+
+  async listShadowComparisons(filter: {
+    tenantId: string;
+    flowName: string;
+    environment?: Environment;
+    activeVersion?: string;
+    shadowVersion?: string;
+  }): Promise<ShadowComparisonRecord[]> {
+    return this.shadowComparisonLog
+      .filter(
+        (c) =>
+          c.tenantId === filter.tenantId &&
+          c.flowName === filter.flowName &&
+          (filter.environment === undefined || c.environment === filter.environment) &&
+          (filter.activeVersion === undefined || c.activeVersion === filter.activeVersion) &&
+          (filter.shadowVersion === undefined || c.shadowVersion === filter.shadowVersion)
+      )
+      .map((c) => structuredClone(c));
+  }
+
   /** Test-only: restore an empty registry. */
   reset(): void {
+    this.shadowComparisonLog = [];
     this.versions.clear();
     this.environments.clear();
     this.events = [];
     this.seq = 0;
+    this.drafts.clear();
   }
 }
 

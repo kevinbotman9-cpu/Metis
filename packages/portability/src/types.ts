@@ -1,6 +1,13 @@
-import type { PublishedVersion, EnvironmentState, RegistryEvent } from '@metis/registry';
+import type {
+  PublishedVersion,
+  EnvironmentState,
+  RegistryEvent,
+  FlowDraft,
+  ShadowComparisonRecord,
+} from '@metis/registry';
 import type { DeliveryAttempt, LedgerEntry, OutcomeEvent } from '@metis/ledger';
 import type { CatalogueEvent } from '@metis/catalogue';
+import type { AuditEvent, ChangeSet } from '@metis/governance';
 import type {
   ArbitrationConfig,
   Boost,
@@ -25,7 +32,7 @@ import type { EntityName } from './entities';
  * import the parts it recognises: a half-imported tenant is a worse outcome
  * than a refused one, because the refusal is visible and the half is not.
  */
-export const FORMAT_VERSION = '3.0.0';
+export const FORMAT_VERSION = '4.0.0';
 
 export interface BundleFile {
   entity: EntityName;
@@ -92,6 +99,14 @@ export interface TenantBundle {
   registry_versions: PublishedVersion[];
   registry_environments: BundledEnvironment[];
   registry_events: RegistryEvent[];
+  /** Since format 4.0.0. */
+  registry_drafts: FlowDraft[];
+  /** Since format 4.0.0. By flow, oldest first within each. */
+  registry_shadow_comparisons: ShadowComparisonRecord[];
+  /** Since format 4.0.0. In id order. */
+  governance_change_sets: ChangeSet[];
+  /** Since format 4.0.0. Oldest first, the order the log was written in. */
+  governance_audit_events: AuditEvent[];
   decision_records: LedgerEntry[];
   outcome_events: OutcomeEvent[];
   delivery_attempts: DeliveryAttempt[];

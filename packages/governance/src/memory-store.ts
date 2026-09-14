@@ -1,0 +1,75 @@
+import { GovernanceError, type AuditEvent, type ChangeSet, type GovernanceStore } from './types';
+
+/**
+ * Governance in memory: lost on restart, and otherwise the same contract as
+ * PostgreSQL — copies in and out, a decision written only over a pending
+ * change set, and ids unique per tenant.
+ */
+export class InMemoryGovernanceStore implements GovernanceStore {
+  private changeSets = new Map<string, { tenantId: string; changeSet: ChangeSet }>();
+  private events: { tenantId: string; seq: number; event: AuditEvent }[] = [];
+  private seq = 0;
+
+  private key = (tenantId: string, id: string) => `${tenantId}\u0000${id}`;
+
+  async listTenants(): Promise<string[]> {
+    return [
+      ...new Set([
+        ...[...this.changeSets.values()].map((c) => c.tenantId),
+        ...this.events.map((e) => e.tenantId),
+      ]),
+    ].sort();
+  }
+
+  async getChangeSet(tenantId: string, id: string): Promise<ChangeSet | undefined> {
+    const held = this.changeSets.get(this.key(tenantId, id));
+    return held ? structuredClone(held.changeSet) : undefined;
+  }
+
+  async listChangeSets(tenantId: string): Promise<ChangeSet[]> {
+    return [...this.changeSets.values()]
+      .filter((c) => c.tenantId === tenantId)
+      .map((c) => structuredClone(c.changeSet))
+      .sort(
+        (a, b) =>
+          Date.parse(b.requestedAt) - Date.parse(a.requestedAt) || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0)
+      );
+  }
+
+  async insertChangeSet(tenantId: string, changeSet: ChangeSet): Promise<void> {
+    const key = this.key(tenantId, changeSet.id);
+    if (this.changeSets.has(key)) {
+      throw new GovernanceError('DUPLICATE_CHANGE_SET', `Change set ${changeSet.id} already exists.`);
+    }
+    this.changeSets.set(key, { tenantId, changeSet: structuredClone(changeSet) });
+  }
+
+  async decideChangeSet(tenantId: string, decided: ChangeSet): Promise<boolean> {
+    // Check and write with no await between them, which is what a single
+    // conditional UPDATE is in PostgreSQL.
+    const key = this.key(tenantId, decided.id);
+    const held = this.changeSets.get(key);
+    if (!held || held.changeSet.status !== 'pending') return false;
+    this.changeSets.set(key, { tenantId, changeSet: structuredClone(decided) });
+    return true;
+  }
+
+  async appendAuditEvent(tenantId: string, event: AuditEvent): Promise<void> {
+    if (this.events.some((e) => e.tenantId === tenantId && e.event.id === event.id)) {
+      throw new GovernanceError('DUPLICATE_EVENT', `Audit event ${event.id} already exists.`);
+    }
+    this.events.push({ tenantId, seq: ++this.seq, event: structuredClone(event) });
+  }
+
+  async listAuditEvents(tenantId: string, options?: { limit?: number }): Promise<AuditEvent[]> {
+    const mine = this.events
+      .filter((e) => e.tenantId === tenantId)
+      .sort((a, b) => b.seq - a.seq)
+      .map((e) => structuredClone(e.event));
+    return options?.limit !== undefined ? mine.slice(0, options.limit) : mine;
+  }
+
+  async countAuditEvents(tenantId: string): Promise<number> {
+    return this.events.filter((e) => e.tenantId === tenantId).length;
+  }
+}

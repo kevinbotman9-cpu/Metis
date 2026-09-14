@@ -36,7 +36,8 @@ const del = (path: string[], headers = MARCUS()) =>
     params: Promise.resolve({ path }),
   });
 
-const audited = (eventType: string) => store.auditEvents.some((e) => e.eventType === eventType);
+const audited = async (eventType: string) =>
+  (await store.governance.events(T)).some((e) => e.eventType === eventType);
 
 beforeEach(async () => {
   await resetStore();
@@ -56,7 +57,7 @@ describe('deleting a targeting policy', () => {
     const res = await del(['targeting-policies', T, 'pol_unbound']);
     expect(res.status).toBe(204);
     expect(await held('pol_unbound')).toBe(false);
-    expect(audited('TargetingPolicyDeleted')).toBe(true);
+    expect(await audited('TargetingPolicyDeleted')).toBe(true);
   });
 
   it('refuses one an offer is bound to, names the offer, and says what to do instead', async () => {
@@ -94,7 +95,7 @@ describe('deleting a placement', () => {
     const res = await del(['placements', T, 'doomed_slot']);
     expect(res.status).toBe(204);
     expect(await held('doomed_slot')).toBe(false);
-    expect(audited('PlacementDeleted')).toBe(true);
+    expect(await audited('PlacementDeleted')).toBe(true);
   });
 
   it('refuses one a creative names, and names the creative', async () => {

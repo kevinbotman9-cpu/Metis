@@ -31,6 +31,10 @@ export type EntityName =
   | 'registry_versions'
   | 'registry_environments'
   | 'registry_events'
+  | 'registry_drafts'
+  | 'registry_shadow_comparisons'
+  | 'governance_change_sets'
+  | 'governance_audit_events'
   | 'decision_records'
   | 'outcome_events'
   | 'delivery_attempts';
@@ -79,6 +83,20 @@ export const ENTITIES: EntityDeclaration[] = [
   { table: 'registry_versions', included: true },
   { table: 'registry_environments', included: true },
   { table: 'registry_events', included: true },
+  // The graph a person is editing and has not published. A restore without it
+  // would hold every version a tenant shipped and none of the work in progress
+  // on the next one.
+  { table: 'registry_drafts', included: true },
+  // The evidence behind a migration in progress. The shadow pointer travels in
+  // `registry_environments`; without this a restored tenant would be shadowing
+  // with an agreement rate of nothing.
+  { table: 'registry_shadow_comparisons', included: true },
+
+  // Who asked for a change, who decided it and why, and everything else a
+  // person or an agent did. A restore without them would hold edits nobody can
+  // account for, and pending change sets nobody could decide.
+  { table: 'governance_change_sets', included: true },
+  { table: 'governance_audit_events', included: true },
 
   // History. §9 names decision, interaction and outcome histories explicitly.
   { table: 'decision_records', included: true },

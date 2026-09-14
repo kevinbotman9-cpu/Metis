@@ -82,7 +82,7 @@ describe('changing them', () => {
     // What the next reader sees, not only what this response said.
     expect(await (await call('GET', SETTINGS)).json()).toMatchObject({ locale: 'de-DE', currency: 'EUR' });
 
-    const [latest] = store.auditEvents;
+    const [latest] = await store.governance.events('telco-us', { limit: 1 });
     expect(latest.eventType).toBe('TenantSettingsChanged');
     expect(latest.summary).toContain('en-US');
     expect(latest.summary).toContain('de-DE');
