@@ -60,17 +60,30 @@ async function main() {
     env: { ...process.env, METIS_DATABASE_URL: databaseUrl },
   });
 
-  // An image started without the credential must refuse to start.
-  const bare = spawnSync('docker', ['run', '--rm', '--network', 'host', '-e', `METIS_DATABASE_URL=${databaseUrl}`, image], {
-    encoding: 'utf8',
-    timeout: 60_000,
-  });
-  if (bare.status === 0) throw new Error('the image started without METIS_SERVICE_TOKEN');
+  // Starts an image must refuse: no credential; a credential but no declared
+  // data class (ADR-016 §4.1); and real data in PostgreSQL while the subject is
+  // stored in clear (§4.2).
+  const refuses = (label, env) => {
+    const r = spawnSync('docker', ['run', '--rm', '--network', 'host', ...env.flatMap((e) => ['-e', e]), image], {
+      encoding: 'utf8',
+      timeout: 60_000,
+    });
+    if (r.status === 0) throw new Error(`the image started ${label}`);
+    console.log(`refused to start ${label}: ${(r.stderr || r.stdout).trim().split('\n').pop()}`);
+  };
+  refuses('without METIS_SERVICE_TOKEN', [`METIS_DATABASE_URL=${databaseUrl}`, 'METIS_DATA_CLASS=synthetic']);
+  refuses('without METIS_DATA_CLASS', [`METIS_DATABASE_URL=${databaseUrl}`, `METIS_SERVICE_TOKEN=${token}`]);
+  refuses('with real data while the ledger stores the subject in clear', [
+    `METIS_DATABASE_URL=${databaseUrl}`,
+    `METIS_SERVICE_TOKEN=${token}`,
+    'METIS_DATA_CLASS=real',
+  ]);
 
   run('docker', [
     'run', '-d', '--rm', '--name', name, '--network', 'host',
     '-e', `METIS_DATABASE_URL=${databaseUrl}`,
     '-e', `METIS_SERVICE_TOKEN=${token}`,
+    '-e', 'METIS_DATA_CLASS=synthetic',
     // The fixture connectors point at hosts that do not exist; the cases carry
     // every field those connectors would supply. See planes/execution/src/gateways.ts.
     '-e', 'METIS_INTEGRATIONS=caller-only',
@@ -81,6 +94,7 @@ async function main() {
   try {
     const health = await waitHealthy(90_000);
     if (health.integrations !== 'caller-only') throw new Error(`health reports integrations '${health.integrations}', not caller-only`);
+    if (health.dataClass !== 'synthetic') throw new Error(`health reports data class '${health.dataClass}', not synthetic`);
     console.log(`healthy: ${JSON.stringify(health.tenants.map((t) => ({ tenant: t.tenantId, flows: t.artifacts })))}`);
 
     const unauthorised = await fetch(`http://127.0.0.1:${port}/api/decisions`, {

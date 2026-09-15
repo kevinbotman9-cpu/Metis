@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createLedgerStore } from '../src/create-store';
+import { createLedgerStore, dataClassOf, SUBJECT_PROTECTION } from '../src/create-store';
 import { InMemoryLedgerStore } from '../src/memory-store';
 import { PostgresLedgerStore } from '../src/postgres-store';
 
@@ -29,6 +29,33 @@ describe('choosing a ledger store', () => {
         databaseUrl: 'postgresql://postgres:postgres@127.0.0.1:1/definitely_not_there',
       })
     ).rejects.toThrow(/not reachable/);
+  });
+
+  it('refuses real data in postgres while the subject is stored in clear — ADR-004, G-068', async () => {
+    // ADR-016 §4.2. Before any connection: an unreachable URL is enough, so the
+    // refusal cannot be skipped by a database that happens to be down.
+    const refusal = await createLedgerStore({
+      databaseUrl: 'postgresql://postgres:postgres@127.0.0.1:1/definitely_not_there',
+      dataClass: 'real',
+    }).catch((e: Error) => e);
+    expect(refusal).toBeInstanceOf(Error);
+    expect((refusal as Error).message).toMatch(/ADR-004/);
+    expect((refusal as Error).message).toMatch(/G-068/);
+    expect((refusal as Error).message).not.toMatch(/not reachable/);
+    expect(SUBJECT_PROTECTION).toBe('none');
+  });
+
+  it('allows real data in memory, which keeps nothing', async () => {
+    const handle = await createLedgerStore({ databaseUrl: undefined, dataClass: 'real' });
+    expect(handle.kind).toBe('memory');
+    await handle.close();
+  });
+
+  it('reads the data class from METIS_DATA_CLASS and refuses a value it does not know', () => {
+    expect(dataClassOf(undefined)).toBeUndefined();
+    expect(dataClassOf('synthetic')).toBe('synthetic');
+    expect(dataClassOf('real')).toBe('real');
+    expect(() => dataClassOf('production')).toThrow(/synthetic' or 'real/);
   });
 
   it('uses postgres when one is configured, and redacts the password', async () => {
