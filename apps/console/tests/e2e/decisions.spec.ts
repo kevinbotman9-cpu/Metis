@@ -13,6 +13,13 @@ test.describe('decision search and trace', () => {
     await page.goto('/decisions');
   });
 
+  test('opens on decisions that made an offer, as a filter that can be removed', async ({ page }) => {
+    await expect(page.getByRole('button', { name: 'Remove filter Outcome: Offer made', exact: true })).toBeVisible();
+    const first = page.locator('tr[data-row]').first();
+    await expect(first).toBeVisible();
+    await expect(first.getByText('no offer')).toHaveCount(0);
+  });
+
   test('lists decisions with stable IDs', async ({ page }) => {
     const rows = page.getByRole('row');
     await expect(rows).not.toHaveCount(1); // more than the header

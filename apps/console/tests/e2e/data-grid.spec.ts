@@ -31,7 +31,8 @@ test.describe('virtualised decision grid', () => {
     expect(rendered).toBeGreaterThan(5);
     // The whole point: DOM cost is bounded regardless of result size.
     expect(rendered).toBeLessThan(100);
-    await expect(page.getByText(/of 5,000/)).toBeVisible();
+    // The list opens on offered decisions: 4,688 of the seed's 10,400.
+    await expect(page.getByText(/of 4,688/)).toBeVisible();
   });
 
   test('advances the window when scrolled, keeping the DOM bounded', async ({ page }) => {
@@ -113,9 +114,11 @@ test.describe('smart search', () => {
 
     await expect(page.locator('tr[data-row]').first().getByText('no offer')).toBeVisible();
 
-    // Dismissing restores the full set.
+    // Dismissing leaves no outcome filter at all, so the set widens past the
+    // offered decisions the page opened on.
     await page.getByRole('button', { name: /Remove filter Outcome: Suppressed/ }).click();
-    expect(await totalRows(page)).toBe(totalBefore);
+    await expect(page.getByRole('button', { name: /Remove filter Outcome/ })).toHaveCount(0);
+    expect(await totalRows(page)).toBeGreaterThan(totalBefore);
   });
 
   test('accepts a typed facet query', async ({ page }) => {

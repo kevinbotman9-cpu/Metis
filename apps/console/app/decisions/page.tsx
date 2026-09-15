@@ -66,7 +66,11 @@ function asOutcome(value: string | undefined): 'offered' | 'suppressed' | undefi
 function DecisionsView() {
   const format = useFormat();
   const router = useRouter();
-  const [chips, setChips] = useState<FilterChip[]>([]);
+  // Opens on decisions that made an offer. Newest first, the unfiltered list
+  // led with suppressed decisions, whose traces stop before arbitration — the
+  // part of a trace a first reader most needs to see. A chip, so it says it is
+  // a filter and is removed like any other.
+  const [chips, setChips] = useState<FilterChip[]>([{ facet: 'outcome', value: 'offered' }]);
   const filters = chipsToQuery(chips);
 
   const { data, isLoading, error, refetch } = useQuery({
