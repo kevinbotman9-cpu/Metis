@@ -88,6 +88,7 @@ export function readBundle(dir: string): TenantBundle {
     registry_events: read('registry_events') as TenantBundle['registry_events'],
     registry_drafts: read('registry_drafts') as TenantBundle['registry_drafts'],
     registry_shadow_comparisons: read('registry_shadow_comparisons') as TenantBundle['registry_shadow_comparisons'],
+    registry_models: read('registry_models') as TenantBundle['registry_models'],
     governance_change_sets: read('governance_change_sets') as TenantBundle['governance_change_sets'],
     governance_audit_events: read('governance_audit_events') as TenantBundle['governance_audit_events'],
     decision_records: read('decision_records') as TenantBundle['decision_records'],

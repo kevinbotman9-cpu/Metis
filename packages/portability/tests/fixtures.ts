@@ -288,6 +288,19 @@ export async function populatedInstance(): Promise<Instance> {
   });
   // Work in progress on the next version, which only a draft holds.
   await inst.registry.saveDraft(TENANT, FLOW, source({ version: '1.2.0' }), 'sarah', AT);
+  // A scorer the next version could pin. Exported whether or not anything pins
+  // it yet, so it is here unpinned — the case an export keyed on flows would drop.
+  await inst.registry.publishModel(
+    TENANT,
+    {
+      id: 'propensity_accept', version: '4.2.0', name: 'Accept propensity', description: '',
+      kind: 'propensity', features: [{ path: 'customer.tenureMonths', type: 'integer' }],
+      declaredP95Ms: 6, owner: 'data-science@telco.example', weightsHash: 'b'.repeat(64),
+      trainedThrough: '2026-08-31',
+    },
+    'sarah',
+    AT
+  );
 
   // Governance: one change set decided, one still pending, and the log of
   // both. The pending one matters as much — a restore that dropped it would

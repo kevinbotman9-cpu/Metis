@@ -1,4 +1,6 @@
 import type { RegistryStore } from './registry';
+import type { ModelVersion } from '@metis/core/domain';
+import { modelContentHash } from './models';
 import type {
   Environment,
   EnvironmentState,
@@ -107,6 +109,17 @@ interface ShadowComparisonRow {
   shadow_version: string;
   recorded_at: Date | string;
   comparison: unknown;
+}
+
+interface ModelRow {
+  body: unknown;
+  published_at: Date | string;
+  published_by: string;
+}
+
+/** The columns are the authority for who and when; the body carries the rest. */
+function toModel(r: ModelRow): ModelVersion {
+  return { ...(r.body as ModelVersion), publishedAt: iso(r.published_at), publishedBy: r.published_by };
 }
 
 export class PostgresRegistryStore implements RegistryStore {
@@ -395,6 +408,40 @@ export class PostgresRegistryStore implements RegistryStore {
       recordedAt: iso(r.recorded_at),
       comparison: r.comparison,
     }));
+  }
+
+  // --- Models ----------------------------------------------------------------
+
+  async getModelVersion(tenantId: string, modelId: string, version: string): Promise<ModelVersion | undefined> {
+    const { rows } = await this.db.query<ModelRow>(
+      `SELECT body, published_at, published_by
+         FROM registry_models
+        WHERE tenant_id = $1 AND model_id = $2 AND version = $3`,
+      [tenantId, modelId, version]
+    );
+    return rows[0] ? toModel(rows[0]) : undefined;
+  }
+
+  async listModelVersions(tenantId: string, modelId?: string): Promise<ModelVersion[]> {
+    const { rows } = await this.db.query<ModelRow>(
+      `SELECT body, published_at, published_by
+         FROM registry_models
+        WHERE tenant_id = $1 AND ($2::text IS NULL OR model_id = $2)
+        ORDER BY model_id, published_at DESC, version DESC`,
+      [tenantId, modelId ?? null]
+    );
+    return rows.map(toModel);
+  }
+
+  async putModelVersion(v: ModelVersion): Promise<void> {
+    // No ON CONFLICT, for the reason `putVersion` gives, and the trigger refuses
+    // an UPDATE regardless.
+    await this.db.query(
+      `INSERT INTO registry_models
+         (tenant_id, model_id, version, body, content_hash, published_at, published_by)
+       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)`,
+      [v.tenantId, v.id, v.version, JSON.stringify(v), modelContentHash(v), v.publishedAt, v.publishedBy]
+    );
   }
 
   // --- Flows -----------------------------------------------------------

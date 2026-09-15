@@ -1,4 +1,5 @@
 import type { RegistryStore } from './registry';
+import type { ModelVersion } from '@metis/core/domain';
 import type {
   Environment,
   EnvironmentState,
@@ -29,6 +30,7 @@ export class InMemoryRegistryStore implements RegistryStore {
   private drafts = new Map<string, FlowDraft>();
   /** In the order they were appended, which is the order they happened. */
   private shadowComparisonLog: ShadowComparisonRecord[] = [];
+  private modelVersions = new Map<string, ModelVersion>();
 
   private draftKey = (t: string, n: string) => `${t}\u0000${n}`;
   private versionKey = (t: string, n: string, v: string) => `${t}\u0000${n}\u0000${v}`;
@@ -147,6 +149,25 @@ export class InMemoryRegistryStore implements RegistryStore {
       .map((c) => structuredClone(c));
   }
 
+  async getModelVersion(tenantId: string, modelId: string, version: string): Promise<ModelVersion | undefined> {
+    return this.modelVersions.get(this.versionKey(tenantId, modelId, version));
+  }
+
+  async listModelVersions(tenantId: string, modelId?: string): Promise<ModelVersion[]> {
+    return [...this.modelVersions.values()].filter(
+      (m) => m.tenantId === tenantId && (modelId === undefined || m.id === modelId)
+    );
+  }
+
+  async putModelVersion(v: ModelVersion): Promise<void> {
+    const key = this.versionKey(v.tenantId, v.id, v.version);
+    if (this.modelVersions.has(key)) {
+      // As for a flow version: reaching here means a caller went around the registry.
+      throw new Error(`Model version already published: ${v.id} ${v.version}`);
+    }
+    this.modelVersions.set(key, deepFreeze(structuredClone(v)));
+  }
+
   /** Test-only: restore an empty registry. */
   reset(): void {
     this.shadowComparisonLog = [];
@@ -155,6 +176,7 @@ export class InMemoryRegistryStore implements RegistryStore {
     this.events = [];
     this.seq = 0;
     this.drafts.clear();
+    this.modelVersions.clear();
   }
 }
 

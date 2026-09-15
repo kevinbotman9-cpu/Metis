@@ -9,6 +9,8 @@
  * channel creatives.
  */
 
+import type { FieldType } from './profile-schema';
+
 // ---------------------------------------------------------------------------
 // Offer hierarchy
 // ---------------------------------------------------------------------------
@@ -630,6 +632,87 @@ export interface Connector {
   active: boolean;
   updatedAt: string;
   updatedBy: string;
+}
+
+// ---------------------------------------------------------------------------
+// Models — ADR-009 §4
+//
+// A model is a registry object, versioned like a flow. A score node pins one
+// as `{ id, version }` and has done since the compiler first refused an
+// unpinned one; until 2026-09-15 nothing held the thing a pin named, so the pin
+// was a well-formed string about nothing.
+//
+// What a version declares is what a real scorer will be held to: the features
+// it reads, as paths into the tenant's data model (§5), and the p95 it promises,
+// which joins the critical path exactly as a connector's does. The platform
+// trains nothing (§1), so the weights are named by their hash and the date of
+// the data they were trained on is declared, not verified (§8).
+//
+// **There is still no model behind any of this.** Scoring is the seeded
+// function behind `resolveScores`, and a version published here changes no
+// score. What changes is that a flow pinning a model that does not exist, or
+// cannot fit the budget, stops compiling.
+// ---------------------------------------------------------------------------
+
+/**
+ * What a model's output means. ADR-009 §4.
+ *
+ * `propensity` is the only kind a `score-model` node reads today: its output is
+ * the P term, a probability in [0, 1]. The other two are declared so a version
+ * can say what it is honestly rather than be filed as the nearest thing.
+ */
+export type ModelKind = 'propensity' | 'value' | 'ranking';
+
+/** One input a model reads, as a path into the tenant's data model. ADR-009 §5. */
+export interface ModelFeature {
+  /** A dotted path the profile schema resolves, e.g. `customer.tenureMonths`. */
+  path: string;
+  /** The type the model expects there. A path of another type is refused. */
+  type: FieldType;
+}
+
+export interface ModelVersion {
+  tenantId: string;
+  /** Stable across versions, and what a score node's `model.id` names. */
+  id: string;
+  /** An exact `x.y.z`. A floating version would change the answer on replay. */
+  version: string;
+  name: string;
+  description: string;
+  kind: ModelKind;
+  /**
+   * Every input, declared. No implicit features: a model that can read anything
+   * cannot be latency-budgeted, and makes the erasure question in §8
+   * unanswerable. Empty is allowed and means the model reads nothing a person
+   * could be erased from.
+   */
+  features: ModelFeature[];
+  /**
+   * Declared, not measured, in milliseconds. The compiler adds it to the
+   * critical path, so a model a flow cannot afford is refused at compile time
+   * rather than discovered at p99. If the declaration is optimistic the p99 gate
+   * is where that shows, and it should name the model (ADR-009, Consequences).
+   */
+  declaredP95Ms: number;
+  /** Who answers for this scorer. Erasure obligations attach to whoever trained it (§8). */
+  owner: string;
+  /**
+   * sha256 of the serialised weights, 64 lower-case hex characters.
+   *
+   * The platform never interprets a model's internals (§6), so this is the whole
+   * of what it can say about which weights a version is.
+   */
+  weightsHash: string;
+  /**
+   * The last date of the data the model was trained on, `YYYY-MM-DD`.
+   *
+   * Declared at publish and not verified — the platform cannot verify it. It is
+   * what makes an erasure request answerable: a subject erased after this date
+   * may be in versions trained after it, and the tenant can be told which (§8).
+   */
+  trainedThrough: string;
+  publishedAt: string;
+  publishedBy: string;
 }
 
 /**

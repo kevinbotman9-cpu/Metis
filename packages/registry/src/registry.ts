@@ -13,6 +13,15 @@ import type {
   ShadowComparisonRecord,
 } from './types';
 import { RegistryError } from './types';
+import type { ModelVersion } from '@metis/core/domain';
+import {
+  compareVersions,
+  modelContentHash,
+  modelProblems,
+  modelVersionOf,
+  type ModelDeclaration,
+  type ModelPublishOutcome,
+} from './models';
 
 /**
  * The artifact registry.
@@ -53,6 +62,12 @@ export interface RegistryStore {
   }): Promise<RegistryEvent[]>;
 
   listFlows(tenantId: string): Promise<string[]>;
+
+  getModelVersion(tenantId: string, modelId: string, version: string): Promise<ModelVersion | undefined>;
+  /** Every version of every model the tenant has, or of the one named. */
+  listModelVersions(tenantId: string, modelId?: string): Promise<ModelVersion[]>;
+  /** Append-only. The registry checks for an existing version before calling. */
+  putModelVersion(version: ModelVersion): Promise<void>;
 
   getDraft(tenantId: string, name: string): Promise<FlowDraft | undefined>;
   /** Replaces the flow's draft. The one write here that is not append-only. */
@@ -472,6 +487,69 @@ export class ArtifactRegistry {
 
   async flows(tenantId: string): Promise<string[]> {
     return [...(await this.store.listFlows(tenantId))].sort();
+  }
+
+  // --- Models ----------------------------------------------------------------
+
+  /**
+   * Publish a model version. ADR-009 §4.
+   *
+   * The rules a flow version follows, with the compiler's place taken by
+   * `modelProblems`: a declaration with a problem stores nothing, identical
+   * content under a published version is a no-op, and different content under
+   * one is refused. Publishing is not activating here either — a version becomes
+   * something a flow can pin, and changes no decision until a flow pinning it is
+   * published and promoted.
+   *
+   * Recorded on the version itself (who, when) and in the caller's audit log,
+   * not in the registry's event log: that log is keyed by flow, and a model is
+   * not one.
+   */
+  async publishModel(
+    tenantId: string,
+    declaration: ModelDeclaration,
+    actor: string,
+    occurredAt: string
+  ): Promise<ModelPublishOutcome> {
+    const problems = modelProblems(declaration);
+    if (problems.length > 0) return { status: 'rejected', reason: 'invalid', problems };
+
+    const attemptedHash = modelContentHash(declaration);
+    const existing = await this.store.getModelVersion(tenantId, declaration.id, declaration.version);
+    if (existing) {
+      const existingHash = modelContentHash(existing);
+      // Idempotent, as a flow's is: a retried publish is not a second publish.
+      if (existingHash === attemptedHash) return { status: 'unchanged', model: existing };
+      return {
+        status: 'rejected',
+        reason: 'immutable',
+        existingHash,
+        attemptedHash,
+        problems: [
+          {
+            field: 'version',
+            message:
+              `${declaration.id} ${declaration.version} is already published and declares something else. ` +
+              'A pinned version has to mean one thing, so publish the change as a new version.',
+          },
+        ],
+      };
+    }
+
+    await this.store.putModelVersion(modelVersionOf(declaration, tenantId, actor, occurredAt));
+    // Read back, for the reason `publish` gives: what is handed out is what was stored.
+    const stored = (await this.store.getModelVersion(tenantId, declaration.id, declaration.version))!;
+    return { status: 'published', model: stored };
+  }
+
+  /** Every version of every model, by model id and then newest version first. */
+  async models(tenantId: string): Promise<ModelVersion[]> {
+    const all = await this.store.listModelVersions(tenantId);
+    return [...all].sort((a, b) => a.id.localeCompare(b.id) || compareVersions(b.version, a.version));
+  }
+
+  async modelVersion(tenantId: string, modelId: string, version: string): Promise<ModelVersion | null> {
+    return (await this.store.getModelVersion(tenantId, modelId, version)) ?? null;
   }
 
   // --- Drafts ----------------------------------------------------------------

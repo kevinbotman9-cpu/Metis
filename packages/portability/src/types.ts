@@ -15,6 +15,7 @@ import type {
   Connector,
   Creative,
   FrequencyPolicy,
+  ModelVersion,
   Objective,
   Offer,
   Placement,
@@ -32,7 +33,7 @@ import type { EntityName } from './entities';
  * import the parts it recognises: a half-imported tenant is a worse outcome
  * than a refused one, because the refusal is visible and the half is not.
  */
-export const FORMAT_VERSION = '4.0.0';
+export const FORMAT_VERSION = '5.0.0';
 
 export interface BundleFile {
   entity: EntityName;
@@ -103,6 +104,8 @@ export interface TenantBundle {
   registry_drafts: FlowDraft[];
   /** Since format 4.0.0. By flow, oldest first within each. */
   registry_shadow_comparisons: ShadowComparisonRecord[];
+  /** Since format 5.0.0. By model id, then newest version first. */
+  registry_models: ModelVersion[];
   /** Since format 4.0.0. In id order. */
   governance_change_sets: ChangeSet[];
   /** Since format 4.0.0. Oldest first, the order the log was written in. */
