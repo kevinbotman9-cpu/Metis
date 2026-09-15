@@ -25,6 +25,15 @@ const config: StorybookConfig = {
   docs: { autodocs: 'tag' },
   staticDirs: ['../public'],
   viteFinal: async (viteConfig) => {
+    // lib/api-client.ts reads NEXT_PUBLIC_API_BASE at module scope. Next inlines
+    // it at build time; Vite has no `process` in the browser, so every story
+    // importing the client threw "process is not defined" and rendered nothing.
+    // `build-storybook` still succeeds, which is why it went unseen. Undefined
+    // here, so the client falls back to '/api' exactly as it does unset in Next.
+    viteConfig.define = {
+      ...(viteConfig.define ?? {}),
+      'process.env.NEXT_PUBLIC_API_BASE': 'undefined',
+    };
     viteConfig.resolve = viteConfig.resolve ?? {};
     viteConfig.resolve.alias = {
       ...(viteConfig.resolve.alias ?? {}),

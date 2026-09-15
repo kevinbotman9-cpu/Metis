@@ -112,11 +112,52 @@ test.describe("the architect's Overview is the change pipeline @screen-only", ()
     await expect(rail(page)).toHaveCount(0);
   });
 
+  test('every panel leads with a figure, not a sentence', async ({ page }) => {
+    for (const title of PANELS) {
+      const figure = panel(page, title).locator('[data-lead] .text-figure').first();
+      await expect(figure, `${title}: a figure`).toBeVisible();
+      await expect(figure, `${title}: a number`).toHaveText(/^[\d,]+( of [\d,]+)?$/);
+    }
+    // Set tight, as the drafts set it: body's 1.5 left a 12px gap above every figure.
+    const { size, leading } = await panel(page, 'Proposed')
+      .locator('[data-lead] .text-figure')
+      .first()
+      .evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { size: parseFloat(s.fontSize), leading: parseFloat(s.lineHeight) };
+      });
+    expect(leading / size).toBeLessThan(1.25);
+  });
+
+  test('the bias ratio heading sits on one line', async ({ page }) => {
+    const heading = panel(page, 'Simulated').getByRole('columnheader', { name: 'Bias ratio', exact: true });
+    await expect(heading).toBeVisible();
+    const lines = await heading.evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return new Set(Array.from(range.getClientRects()).map((r) => Math.round(r.top))).size;
+    });
+    expect(lines).toBe(1);
+  });
+
+  test('cards sit at the drafts\' density: 14px padding, 10px headers, 12px apart', async ({ page }) => {
+    const header = panel(page, 'Proposed').locator('header').first();
+    await expect(header).toBeVisible();
+    const pad = await header.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { top: s.paddingTop, left: s.paddingLeft };
+    });
+    expect(pad).toEqual({ top: '10px', left: '14px' });
+    const gap = await panel(page, 'Proposed').locator('xpath=..').evaluate((el) => getComputedStyle(el).rowGap);
+    expect(gap).toBe('12px');
+  });
+
   test('every panel says the window it covers and links to the screen that owns it', async ({ page }) => {
     for (const title of PANELS) {
       const card = panel(page, title);
-      // The window sits under the title, in the card's header.
-      await expect(card.locator('header p').first(), `${title}: a window`).not.toBeEmpty();
+      // The window sits under the title, in the card's header, and says what the
+      // panel covers: "Open now" and "Now" were fragments, not windows.
+      await expect(card.locator('header p').first(), `${title}: a window`).toHaveText(/^\S+(\s+\S+){3,}/);
       const owner = card.locator('header a').first();
       await expect(owner, `${title}: a link`).toBeVisible();
       expect(await owner.getAttribute('href'), `${title}: to a screen`).toMatch(/^\/[a-z-]+$/);
@@ -136,7 +177,7 @@ test.describe("the architect's Overview is the change pipeline @screen-only", ()
   });
 
   test('says who can approve in words, and reads each bias ratio against its limit', async ({ page }) => {
-    await expect(panel(page, 'Proposed').getByText(/waiting for someone who can approve changes\.$/)).toBeVisible();
+    await expect(panel(page, 'Proposed').getByText('for someone who can approve changes', { exact: true })).toBeVisible();
     await expect(page.getByText(/approve:changes/)).toHaveCount(0);
     // cr_0039's simulation failed on bias, and its scope resolves the tenant's 1.20.
     const failed = panel(page, 'Simulated').getByRole('row').filter({ hasText: 'failed' });

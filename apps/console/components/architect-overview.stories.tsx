@@ -1,7 +1,23 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Card, CardHeader } from '@/components/ui/primitives';
-import { ConformanceSummary, FlowsPanel, ProposedPanel, ReleasedPanel, SimulatedPanel } from './architect-overview';
-import type { ArtifactSummaryDto, ChangeSetDto, ConformanceReportDto, RegistryEventDto } from '@/lib/api-client';
+import {
+  ArchitectOverview,
+  ConformanceSummary,
+  FlowsPanel,
+  ProposedPanel,
+  ReleasedPanel,
+  SimulatedPanel,
+} from './architect-overview';
+import type {
+  ArtifactSummaryDto,
+  AutonomySettingDto,
+  ChangeSetDto,
+  ConformanceReportDto,
+  RegistryEventDto,
+  TaxonomyDto,
+} from '@/lib/api-client';
 
 /**
  * The panels of the decision architect's Overview — `/` for an architect.
@@ -111,6 +127,38 @@ export const ReleasedNothingPromoted: Story = {
 /** A draft that will not compile, and so cannot be promoted. */
 export const Flows: Story = {
   render: () => inCard('Flows', 'Now', <FlowsPanel artifacts={ARTIFACTS} />),
+};
+
+/**
+ * The whole page, as `/` draws it for an architect: the panels in their grid,
+ * at the page's density, from the same component the route renders. The cache
+ * is filled rather than the API mocked, so nothing fetches.
+ */
+function WholePage() {
+  const [client] = useState(() => {
+    const c = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
+    // Every change set is tenant-wide here, so each ratio reads against the tenant's limit.
+    const changeSets = CHANGE_SETS.map((cr) => ({ ...cr, targetScope: { level: 'tenant', targetId: null } }));
+    c.setQueryData(['change-sets'], { changeSets });
+    c.setQueryData(['registry-events', 'all'], { events: EVENTS });
+    c.setQueryData(['artifacts'], { artifacts: ARTIFACTS });
+    c.setQueryData(['conformance'], CONFORMANCE);
+    c.setQueryData(['autonomy'], {
+      settings: [{ id: 'aut_tenant', scope: { level: 'tenant', targetId: null }, guardrails: { biasGateThreshold: 1.2 } }] as unknown as AutonomySettingDto[],
+    });
+    c.setQueryData(['taxonomy'], { objectives: [], categories: [], offers: [] } as unknown as TaxonomyDto);
+    return c;
+  });
+  return (
+    <QueryClientProvider client={client}>
+      <ArchitectOverview />
+    </QueryClientProvider>
+  );
+}
+
+export const WholePageArchitectHome: Story = {
+  parameters: { layout: 'fullscreen' },
+  render: () => <WholePage />,
 };
 
 /** Names what holds each engine to the corpora, and does not claim the checks passed. */

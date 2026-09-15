@@ -77,6 +77,38 @@ function PanelSkeleton() {
   );
 }
 
+/**
+ * A panel's lead: figures with short labels, the way the drafts lead a stage —
+ * "2 waiting", "1 live · 1 draft" — rather than a sentence. At 600, the heaviest
+ * weight the type scale allows. What qualifies the figures goes beneath them,
+ * smaller, so the number is read first.
+ */
+function Lead({
+  figures,
+  note,
+  flush,
+}: {
+  figures: { value: ReactNode; label: string }[];
+  note?: ReactNode;
+  /** No padding of its own, inside a body that already has it. */
+  flush?: boolean;
+}) {
+  return (
+    <div className={flush ? undefined : 'px-card pt-3'}>
+      <p data-lead className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        {figures.map((f, i) => (
+          <span key={f.label} className="flex items-baseline gap-1.5">
+            {i > 0 ? ' ' : null}
+            <span className="tnum text-figure font-semibold text-content">{f.value}</span>{' '}
+            <span className="text-label text-content-muted">{f.label}</span>
+          </span>
+        ))}
+      </p>
+      {note ? <p className="mt-0.5 text-label text-content-subtle">{note}</p> : null}
+    </div>
+  );
+}
+
 const proposedBy = (cr: ChangeSetDto) => (cr.requestedBy.startsWith('agent-') ? 'an agent' : 'a person');
 
 /** Exported for its story; the page passes it the change sets it fetched. */
@@ -84,11 +116,10 @@ export function ProposedPanel({ changeSets }: { changeSets: ChangeSetDto[] }) {
   const pending = changeSets.filter((c) => c.status === 'pending');
   return (
     <CardBody className="p-0">
-      <p className="px-card pt-3 text-body text-content">
-        {pending.length === 0
-          ? 'Nothing is waiting for a person.'
-          : `${pending.length} waiting for someone who can approve changes.`}
-      </p>
+      <Lead
+        figures={[{ value: pending.length, label: 'waiting' }]}
+        note={pending.length === 0 ? 'Nothing is waiting for a person.' : 'for someone who can approve changes'}
+      />
       {pending.length > 0 ? (
         <ul className="mt-2 divide-y divide-border border-t border-border">
           {pending.map((cr) => (
@@ -139,10 +170,14 @@ export function SimulatedPanel({
 
   return (
     <CardBody className="p-0">
-      <p className="px-card pt-3 text-body text-content">
-        {simulated.length - failed} of {simulated.length} simulations passed
-        {failed > 0 ? `; ${failed} failed and ${failed === 1 ? 'its change was' : 'their changes were'} not shipped` : ''}.
-      </p>
+      <Lead
+        figures={[{ value: `${simulated.length - failed} of ${simulated.length}`, label: 'passed' }]}
+        note={
+          failed > 0
+            ? `${failed} failed, and ${failed === 1 ? 'its change was' : 'their changes were'} not shipped`
+            : undefined
+        }
+      />
       <div className="mt-2 overflow-x-auto">
         <table className="w-full">
           <caption className="sr-only">Simulations of change sets</caption>
@@ -150,7 +185,7 @@ export function SimulatedPanel({
             <tr className="border-y border-border">
               <th className="px-cell py-2 text-left text-label font-semibold text-content-subtle">Change set</th>
               <th className="px-cell py-2 text-right text-label font-semibold text-content-subtle">Population</th>
-              <th className="px-cell py-2 text-right text-label font-semibold text-content-subtle">Bias ratio</th>
+              <th className="whitespace-nowrap px-cell py-2 text-right text-label font-semibold text-content-subtle">Bias ratio</th>
               <th className="px-cell py-2 text-right text-label font-semibold text-content-subtle">Result</th>
             </tr>
           </thead>
@@ -205,19 +240,23 @@ export function ReleasedPanel({ events }: { events: RegistryEventDto[] }) {
   const format = useFormat();
   const newest = [...events].sort((a, b) => b.seq - a.seq);
   const lastPromotion = newest.find((e) => e.type === 'VersionPromoted');
+  const promoted = events.filter((e) => e.type === 'VersionPromoted').length;
 
   return (
     <CardBody className="p-0">
-      <p className="px-card pt-3 text-body text-content">
-        {lastPromotion ? (
-          <>
-            <span className="font-mono">{lastPromotion.flowName}</span> {lastPromotion.version} in{' '}
-            {lastPromotion.environment ?? 'an environment'} since {format.date(lastPromotion.at)}.
-          </>
-        ) : (
-          'Nothing has been promoted.'
-        )}
-      </p>
+      <Lead
+        figures={[{ value: promoted, label: 'promoted' }]}
+        note={
+          lastPromotion ? (
+            <>
+              <span className="font-mono">{lastPromotion.flowName}</span> {lastPromotion.version} in{' '}
+              {lastPromotion.environment ?? 'an environment'} since {format.date(lastPromotion.at)}
+            </>
+          ) : (
+            'Nothing has been promoted.'
+          )
+        }
+      />
       {newest.length > 0 ? (
         <ul className="mt-2 divide-y divide-border border-t border-border">
           {newest.slice(0, 6).map((e) => (
@@ -259,10 +298,13 @@ export function FlowsPanel({ artifacts }: { artifacts: ArtifactSummaryDto[] }) {
 
   return (
     <CardBody className="p-0">
-      <p className="px-card pt-3 text-body text-content">
-        {live} live, {drafts} {drafts === 1 ? 'draft' : 'drafts'}
-        {broken > 0 ? `; ${broken} will not compile, so cannot be promoted` : ''}.
-      </p>
+      <Lead
+        figures={[
+          { value: live, label: 'live' },
+          { value: drafts, label: drafts === 1 ? 'draft' : 'drafts' },
+        ]}
+        note={broken > 0 ? `${broken} will not compile, so cannot be promoted` : undefined}
+      />
       <ul className="mt-2 divide-y divide-border border-t border-border">
         {artifacts.map((a) => {
           const state = compileState(a);
@@ -307,9 +349,11 @@ export function ConformanceSummary({ report }: { report: ConformanceReportDto })
 
   return (
     <CardBody>
-      <p className="text-body text-content">
-        {format.number(total)} cases pin what a chain hash means, whichever engine produced it.
-      </p>
+      <Lead
+        flush
+        figures={[{ value: format.number(total), label: 'conformance cases' }]}
+        note="Each pins what a chain hash means, whichever engine produced it."
+      />
       <div className="mt-3 grid gap-stack lg:grid-cols-2">
         <dl className="flex flex-col text-label">
           {report.corpora.map((c) => (
@@ -365,7 +409,7 @@ export function ArchitectOverview() {
       {/* A panel is as tall as what it holds. Stretched to its row, two
           proposals sat over the empty height of the simulation table beside them. */}
       <div className="grid items-start gap-stack lg:grid-cols-12">
-        <Panel title="Proposed" window="Open now" href="/approvals" linkLabel="Approvals">
+        <Panel title="Proposed" window="Change sets waiting for someone to approve or reject them" href="/approvals" linkLabel="Approvals">
           {failed(changeSets, 'the change sets') ??
             (changeSets.data ? <ProposedPanel changeSets={changeSets.data.changeSets} /> : <PanelSkeleton />)}
         </Panel>
@@ -377,17 +421,17 @@ export function ArchitectOverview() {
             (changeSets.data ? <SimulatedPanel changeSets={changeSets.data.changeSets} gateFor={gateFor} /> : <PanelSkeleton />)}
         </Panel>
 
-        <Panel title="Released" window="Every registry event" href="/decision-flows" linkLabel="Decision flows">
+        <Panel title="Released" window="Every publish, promotion and rollback in the registry" href="/decision-flows" linkLabel="Decision flows">
           {failed(events, 'the registry events') ??
             (events.data ? <ReleasedPanel events={events.data.events} /> : <PanelSkeleton />)}
         </Panel>
 
-        <Panel title="Flows" window="Now" href="/decision-flows" linkLabel="Decision flows">
+        <Panel title="Flows" window="Every decision flow, live or draft, and whether it compiles" href="/decision-flows" linkLabel="Decision flows">
           {failed(artifacts, 'the flows') ??
             (artifacts.data ? <FlowsPanel artifacts={artifacts.data.artifacts} /> : <PanelSkeleton />)}
         </Panel>
 
-        <Panel title="What the engines are held to" window="As committed" href="/decisions" linkLabel="Replay a decision" wide>
+        <Panel title="What the engines are held to" window="The corpora each engine is checked against, as committed" href="/decisions" linkLabel="Replay a decision" wide>
           <ConformancePanel />
         </Panel>
       </div>
