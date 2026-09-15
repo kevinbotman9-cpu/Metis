@@ -29,6 +29,7 @@ import {
 } from '@/mocks/fixtures/decisions';
 import type { GeneratedDecision } from '@/mocks/fixtures/engine';
 import { seededOutcomeMap, seededOutcomesFor } from '@/mocks/fixtures/outcomes';
+import { deliveryFor } from '@/mocks/delivery-state';
 import { provenanceFor, provenanceOver } from '@/mocks/provenance';
 import {
   IdempotencyConflict,
@@ -49,7 +50,7 @@ import type { IntegrationGateway } from '@metis/runtime';
 import { RecordedIntegrationGateway } from '@/mocks/gateway';
 import { recorded, listCalls, clearCalls, isEnabled as callLogEnabled } from '@/mocks/call-log';
 import type { DecisionRecord } from '@metis/runtime';
-import type { OutcomeType } from '@metis/ledger';
+import type { OutcomeEvent, OutcomeType } from '@metis/ledger';
 import {
   buildFlowVolume,
   buildPerformance,
@@ -563,11 +564,8 @@ async function recordDeliveryFor(
   decisionId: string,
   tenantId: string
 ): Promise<void> {
-  const suppressed = !placement.delivery
-    ? 'no_adapter'
-    : placement.delivery.mode === 'adapter'
-      ? 'adapter_not_built'
-      : null;
+  // One rule for what a delivery records, shared with the seed job (ADR-018 §5.3).
+  const delivery = deliveryFor(placement);
 
   try {
     await store.ledger.recordDelivery({
@@ -575,9 +573,9 @@ async function recordDeliveryFor(
       decisionId,
       placementKey: placement.key,
       channel: placement.channel,
-      state: suppressed ? 'suppressed' : 'dispatched',
+      state: delivery.state,
       at: new Date().toISOString(),
-      reason: suppressed,
+      reason: delivery.reason,
       permanent: null,
       providerRef: null,
     });
@@ -1203,7 +1201,10 @@ async function handleGet(req: Request, { params }: Ctx) {
       // what happened to one decision.
       const seededTrace = decisions.find((d) => d.id === decisionId);
       const recorded = await store.ledger.outcomesFor(tenantId, decisionId);
-      const seededEvents = seededTrace ? seededOutcomesFor(seededTrace) : [];
+      // When this process seeded the ledger, the corpus's outcomes are already
+      // ledger rows, and adding the projection would list each of them twice.
+      // ADR-018 §6, corrected in slice 2a.
+      const seededEvents = seededTrace && !store.ledgerSeed ? seededOutcomesFor(seededTrace) : [];
       return json({
         outcomes: [...seededEvents, ...recorded],
         provenance:
@@ -1221,12 +1222,12 @@ async function handleGet(req: Request, { params }: Ctx) {
         Boolean(findTrace(decisionId)) || Boolean(await store.ledger.get(tenantId, decisionId));
       if (!known) return notFound(`No decision with id ${decisionId}`);
 
-      // Recorded only, and no seeded projection beside it. The seeded corpus
-      // predates the ledger and nothing ever attempted to deliver those
-      // decisions; inventing a `suppressed` row for each would be the platform
-      // asserting it tried, which is the opposite of what this record is for.
-      // What the corpus *cannot* deliver is a property of its placements and is
-      // shown on the coverage screen, not fabricated here.
+      // Recorded only, never projected. When this process seeded its ledger
+      // (ADR-018), each seeded decision carries the delivery its placement
+      // records — the same rule a live placement decision writes
+      // (`deliveryFor`), stamped with the decision's own time — and it is
+      // synthetic like the rest of that history. Without the seed, a seeded
+      // decision has no delivery row, and none is invented here.
       return json({ deliveries: await store.ledger.deliveriesFor(tenantId, decisionId) });
     }
 
@@ -1261,6 +1262,9 @@ async function handleGet(req: Request, { params }: Ctx) {
         // started, which is exactly the server the suite must not measure.
         // G-035.
         run: process.env.METIS_E2E_RUN ?? null,
+        // What the in-memory ledger seed wrote and how long it took, for the
+        // e2e warm-up's threshold (ADR-018, the e2e-database alternative).
+        ledgerSeed: store.ledgerSeed,
         // What this process actually seeded, hashed per part.
         //
         // Computed from the modules *this server* has loaded, which is the
@@ -1409,11 +1413,17 @@ async function handleGet(req: Request, { params }: Ctx) {
       // decision that has both — a seeded decision somebody then clicked in the
       // console — gets both, because the ledger event is a fact and the seeded
       // one is the history it happened against.
-      const outcomes = seededOutcomeMap(
-        all
-          .filter((e) => seededIds.has(e.decisionId))
-          .map((e) => decisionById.get(e.decisionId)!)
-      );
+      // The projection only where the ledger does not already hold the corpus's
+      // outcomes. When this process seeded the ledger it does, and the merge
+      // below would add the same 1,654 events a second time — the doubling
+      // ADR-018 §6 first missed, caught in slice 2a before the index came out.
+      const outcomes = store.ledgerSeed
+        ? new Map<string, OutcomeEvent[]>()
+        : seededOutcomeMap(
+            all
+              .filter((e) => seededIds.has(e.decisionId))
+              .map((e) => decisionById.get(e.decisionId)!)
+          );
       for (const entry of all) {
         const events = await store.ledger.outcomesFor(tenantId, entry.decisionId);
         if (events.length === 0) continue;
