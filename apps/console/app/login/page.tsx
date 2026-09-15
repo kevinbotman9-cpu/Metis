@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Input, Field } from '@/components/ui/primitives';
-import { cn } from '@/lib/cn';
 
 /**
  * Split sign-in: form on the left, brand panel on the right.
@@ -44,27 +43,6 @@ const PILLARS = [
     icon: (
       <path d="M8 3h8l4 4v14H4V3h4Zm0 0v5h8M8 13h8M8 17h5" strokeLinecap="round" strokeLinejoin="round" />
     ),
-  },
-];
-
-const DEMO_ACCOUNTS = [
-  {
-    email: 'sarah.chen@telco.example',
-    name: 'Sarah Chen',
-    role: 'Decision Architect',
-    can: 'Authors offers and flows. Cannot approve.',
-  },
-  {
-    email: 'priya.natarajan@telco.example',
-    name: 'Priya Natarajan',
-    role: 'Compliance Officer',
-    can: 'Approves changes and sets autonomy. Cannot author offers.',
-  },
-  {
-    email: 'marcus.webb@telco.example',
-    name: 'Marcus Webb',
-    role: 'Administrator',
-    can: 'Everything, including arbitration weights.',
   },
 ];
 
@@ -129,7 +107,7 @@ function LoginForm() {
               />
             </Field>
 
-            <Field label="Password" htmlFor="password" hint="Demo password for every account: demo">
+            <Field label="Password" htmlFor="password">
               <Input
                 id="password"
                 type="password"
@@ -160,37 +138,9 @@ function LoginForm() {
             </Button>
           </form>
 
-          {/* Roles change what the console shows, so make switching easy. */}
-          <div className="mt-8">
-            <p className="mb-2 text-label text-content-subtle">
-              Demo accounts
-            </p>
-            <ul className="space-y-1.5">
-              {DEMO_ACCOUNTS.map((acct) => (
-                <li key={acct.email}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEmail(acct.email);
-                      setPassword('demo');
-                    }}
-                    className={cn(
-                      'w-full rounded border border-border bg-surface px-3 py-2 text-left transition-colors',
-                      'hover:border-accent hover:bg-accent-subtle',
-                      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
-                    )}
-                  >
-                    <span className="flex items-baseline justify-between gap-2">
-                      <span className="text-body font-medium text-content">{acct.name}</span>
-                      <span className="text-label text-accent">{acct.role}</span>
-                    </span>
-                    <span className="mt-0.5 block text-label text-content-muted">{acct.can}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-
+          {/* No demo password and no account cards: the page is shown to people
+              who will not sign in themselves, and a printed password reads as
+              the product's security posture (docs/DIRECTIVE.md, 2026-09-15). */}
           <p className="mt-6 flex items-center justify-center gap-1.5 text-label text-content-subtle">
             <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-pass" />
             Development environment · fixture data

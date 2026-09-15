@@ -247,13 +247,11 @@ test.describe('sign-in page', () => {
     await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
   });
 
-  test('fills the form from a demo account and signs in', async ({ page }) => {
+  test('prints no demo password and no demo accounts', async ({ page }) => {
     await page.goto('/login');
-    await page.getByRole('button', { name: /Priya Natarajan/ }).click();
-
-    await expect(page.getByLabel('Email', { exact: true })).toHaveValue('priya.natarajan@telco.example');
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-
-    await expect(page.getByRole('navigation', { name: 'Main', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
+    await expect(page.getByText(/Demo password/)).toHaveCount(0);
+    await expect(page.getByText('Demo accounts', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Priya Natarajan|Sarah Chen|Marcus Webb/ })).toHaveCount(0);
   });
 });
