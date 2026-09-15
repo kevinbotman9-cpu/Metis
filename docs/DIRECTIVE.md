@@ -1,46 +1,55 @@
 # Current directive
 
 **Issued:** Tuesday 15 September 2026, by the product owner.
-**Amended:** Tuesday 15 September 2026, by the product owner, twice: first the work in scope became the design system read-back, and everything previously in scope moved out of scope; then the Architect home (`/`) was added, because it is on Friday's path and had not been examined.
+**Amended:** Tuesday 15 September 2026, by the product owner, three times. The design system read-back and the diagnosis of the Architect home (`/`) were delivered that day. The third amendment put the fixes they found in scope, in a fixed order, and brought the rehearsal back.
 **Expires:** Monday 21 September 2026. After that date this directive is not in force, and work is chosen as `CLAUDE.md` says: from `docs/JOURNEY_SPINES.md` in order, or from what the product owner has picked.
 **Supersedes:** the build order in [ADR-016](adr/ADR-016-deployment-operations-and-scale.md), until it expires.
 **Why:** an internal demo to Cognizant leadership and sales on Friday 18 September 2026. The audience will not use the console themselves. Nothing structural ships this week, and a half-built capability is worse for Friday than a declared gap.
 
 This file exists so these constraints live in the repository rather than in a chat message.
 
+## Friday's path
+
+1. Sign in.
+2. `/`, the Overview.
+3. `/approvals/[id]`, a change set opened from the Overview.
+4. `/decisions`, the decision list.
+5. `/decisions/[id]`, the trace of the seeded decision `dec_c483550c88b04db0`: an offer made, four candidates ranked.
+6. Replay that decision and see an identical result.
+
 ## In scope
 
-Read-only work that changes nothing in the console until the product owner picks from what it finds.
+Each item is its own pull request, in this order, with `npm run gates:quick` before the push and CI as the gate. If an item grows past its estimate, stop and ask rather than carry it into Thursday.
 
-### The design system read-back
+### Tuesday 15 September
 
-The drafts in `docs/design/` are drafts, not a specification (`docs/design/README.md`); layout, weight and density are the only things taken from them. The read-back answers five questions:
+1. This amendment.
+2. The Architect home (`/`), inside its current layout:
+   - the Proposed panel no longer stretches to the height of the panel beside it;
+   - the permission identifier in "waiting for someone with approve:changes" is replaced with plain wording;
+   - the Simulated panel's heading says what it covers, so the pending change sets it repeats from Proposed read as intended;
+   - the bias ratio is shown against the bias gate threshold of the autonomy setting that resolves for the change set's scope.
+3. The environment badge reads "Demo" on the server that runs Friday's demo (`NEXT_PUBLIC_ENV_LABEL=Demo`).
 
-1. The drafts' shared token block: which of its names map onto a token the console already has, and which would need a new one.
-2. If it is a value swap onto existing names, what breaks: the `tokens-only` conformance check, Storybook's four theme axes, contrast (`scripts/check-contrast.mjs` and the axe sweep), and the route bundle budgets.
-3. What loading the drafts' two typefaces would cost against the bundle budgets, and whether a fallback gets most of the way.
-4. Whether the console's top bar is one component or drawn per screen.
-5. The smallest change that alters what is seen on the decision trace screen (`/decisions/[id]`), and whether it can land before the freeze.
+### Wednesday 16 September
 
-### The Architect home (`/`)
+4. The Cascade rail's stage figure, from 29px to 34px (`--text-figure-rail`).
+5. `/decisions` opens filtered to "Offer made", with the tests that assume the old default updated.
+6. The "approve:changes required" badge on `/approvals/[id]` reworded, with its end-to-end assertion.
+7. The sign-in page no longer shows the demo password or the demo account cards.
+8. `docs/DEMO_CLAIMS.md` regenerated (`npm run demo:claims`), so it reflects pull request #74 onward.
 
-The decision architect's Overview (`apps/console/components/architect-overview.tsx`), diagnosed read-only:
+### Thursday 17 September: the freeze
 
-1. Why the Proposed panel is stretched to the height of the Simulated panel beside it, the smallest fix, and which screens share that container.
-2. Where the permission identifier in "waiting for someone with approve:changes" comes from, and what else renders permission identifiers to the screen.
-3. Whether pending change sets appearing in both the Proposed and Simulated panels is intended, and what each panel means to show.
-4. Whether the bias gate threshold is available to the screen, so a bias ratio can be read against it.
-5. Whether fixing any of these needs a layout manifest for `/`, which would make it structural.
-
-Then every other screen on Friday's path, one line each: what a first-time viewer would see wrong, and the cost to fix, ranked by visible difference per hour.
+9. The rehearsal: Friday's path walked twice from a clean start.
+10. The regression pass.
 
 ## Out of scope this period
 
-- Everything that was in scope before the first amendment:
-  - the three decision trace fixes, already merged in pull request #74;
-  - regenerating `docs/DEMO_CLAIMS.md` (`npm run demo:claims`) and `bench/results/S1.json` (`npm run bench:s1`);
-  - read-only audits and walks of the demo path;
-  - the rehearsal on the freeze day, and its regression pass.
+If either of the first two turns out to be needed for Friday, stop and say so.
+
+- The pattern decision for the architect's `/` and any renderer it needs. The specification and ADR-015 assign it Dashboard, the draft draws a Cascade, and §4.7 of `docs/METIS_CONSOLE_SPEC.md` refuses a rail whose stages are not subsets.
+- Anything that regenerates seeds, which moves every chain hash: the seeded decisions' dates and their recorded timings.
 - Spine 1 and Spine 2. A fix that would also advance either is noted for after expiry, not made.
 - Anything structural.
 - The shared cascade rail's "removed" wording, which reaches five screens and three end-to-end specs.
@@ -60,7 +69,7 @@ If one of these seems required for Friday, stop and say so rather than starting 
 
 ## Fixed points
 
-- **Thursday 17 September 2026 is the freeze.** No fixes after the second clean run, unless that run itself fails.
+- **Thursday 17 September 2026 is the freeze.** Rehearsal and the regression pass only. No fixes after the second clean run, unless that run itself fails.
 - **Friday 18 September 2026 is the demo.**
 
 ## Ceilings
