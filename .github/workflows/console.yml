@@ -169,6 +169,12 @@ jobs:
         run: npm run test:integration
         working-directory: .
 
+      # The decision service as a caller meets it: over HTTP, from the stores,
+      # reproducing the 60 service cases byte for byte. ADR-016, Build first.
+      - name: Decision service
+        run: npm run test:execution
+        working-directory: .
+
       - name: Unit tests
         run: npm test
 
@@ -403,6 +409,46 @@ jobs:
       - name: Conformance (Kotlin engine and service)
         run: ./gradlew test --no-daemon
         working-directory: engines/kotlin
+
+  # The decision service image, built from this commit and held to the reference
+  # engine over HTTP (ADR-016, Build first). A job of its own because it needs
+  # Docker, which a developer machine may not have: tests/gates-parity.test.ts
+  # declares it outside `npm run gates`, and the service itself is a gate there.
+  execution-image:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: metis_execution_image
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # The image a release ships, from this commit (ADR-016 §1).
+      - name: Build the decision service image
+        run: docker build -f planes/execution/Dockerfile -t metis-execution:${{ github.sha }} .
+
+      # Seeds an empty database from the service bundle, refuses a start with no
+      # credential and a request with none, then sends the 60 service cases to
+      # the running container.
+      - name: The built image reproduces the reference engine
+        run: node planes/execution/scripts/check-image.mjs metis-execution:${{ github.sha }} postgres://postgres:postgres@127.0.0.1:5432/metis_execution_image
 
   # ---------------------------------------------------------------------------
   # The flake hunt.

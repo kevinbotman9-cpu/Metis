@@ -1,16 +1,21 @@
-# Only `postgres` is connected to by anything. It backs the artifact registry
-# when METIS_DATABASE_URL is set; without that the registry runs in memory.
+# Compose holds what is connected. ADR-016 §6.
 #
-# `eventstore`, `redis` and `clickhouse` are declared and unused — no code
-# opens a connection to any of them. They are kept as a statement of intent
-# rather than deleted, but do not read their presence as evidence that event
-# sourcing, an online feature cache or an analytics store exist. They do not.
+# `postgres` backs the catalogue, the artifact registry, the decision ledger
+# and governance when METIS_DATABASE_URL points at it; without that variable
+# every store runs in memory and says so.
+#
+# EventStoreDB, Redis and ClickHouse were declared here, unused, until
+# 2026-09-14. They are removed rather than kept as intent: a deployment is
+# written by reading this file, and each unused service it copies is a
+# stateful thing to patch, back up and reach with erasure. Append-only audit is
+# Postgres triggers; Redis and ClickHouse each enter only when a measurement
+# says so (ADR-016 §6.3, §6.4; ADR-014 §3; ADR-008 §3).
 version: '3.8'
 
 services:
   # Backs packages/registry. Schema: packages/registry/migrations/001_registry.sql
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15.8-alpine
     environment:
       POSTGRES_DB: metis
       POSTGRES_USER: metis
@@ -25,55 +30,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # Phase 1: EventStoreDB for append-only audit log
-  eventstore:
-    image: eventstore/eventstore:latest
-    environment:
-      EVENTSTORE_CLUSTER_SIZE: 1
-      EVENTSTORE_RUN_PROJECTIONS: All
-      EVENTSTORE_START_STANDARD_PROJECTIONS: "true"
-    ports:
-      - "1113:1113"
-      - "2113:2113"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:2113/health/live"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # Phase 1: Redis for online feature store
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-    volumes:
-      - redis_data:/data
-
-  # Phase 3: ClickHouse for offline analytics
-  clickhouse:
-    image: clickhouse/clickhouse-server:latest
-    environment:
-      CLICKHOUSE_DB: metis
-    ports:
-      - "8123:8123"
-      - "9000:9000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8123/ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    volumes:
-      - clickhouse_data:/var/lib/clickhouse
 
 volumes:
   postgres_data:
-  redis_data:
-  clickhouse_data:
 
 networks:
   default:

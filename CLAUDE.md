@@ -110,7 +110,7 @@ nine of these exist **in the same PR**:
 |---|---|---|
 | 1 | Typed contract (a hand-authored spec is a bug) | `docs/metis-api.openapi.yaml` |
 | 2 | Engine or service implementation | `packages/*`, `engines/*` |
-| 3 | Public API endpoint | `apps/console/app/api/[...path]/route.ts` today — the console's development API, reading `apps/console/mocks/store.ts`. `planes/execution` has no tracked files; decision operations move there with the first unit of [ADR-016](docs/adr/ADR-016-deployment-operations-and-scale.md) §1 |
+| 3 | Public API endpoint | Decision operations — `POST /api/decisions` and the placement decision — in `planes/execution`, the decision service ([ADR-016](docs/adr/ADR-016-deployment-operations-and-scale.md) §1), reading the catalogue, registry and ledger stores. Every other operation is still `apps/console/app/api/[...path]/route.ts`, the console's development API over `apps/console/mocks/store.ts`, which also still answers the decision operations until the console calls the service |
 | 4 | Generated client method (never a hand-rolled `fetch`) | `packages/client`, via `npm run generate` |
 | 5 | A route in the console the persona can reach from nav | `apps/console/app/...` |
 | 6 | Form descriptor / screen configurability metadata (Rule 8) | `packages/ui-metadata/src/registry` |

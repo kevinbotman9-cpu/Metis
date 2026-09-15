@@ -51,6 +51,8 @@ const OUT_OF_SCOPE: Record<string, string> = {
   'kotlin-conformance':
     'a second engine behind a JVM toolchain. Worth running and not worth making every console change wait for Gradle; it is a required check on the PR',
   'flake-hunt': 'the nightly four-pass hunt, deliberately not part of a per-change gate',
+  'execution-image':
+    'builds the decision service image and replays the service cases against it, which needs Docker a developer machine may not have. The service itself is a gate (test-execution); this job proves the image built from it (ADR-016, Build first)',
 };
 
 interface Step {

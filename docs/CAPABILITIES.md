@@ -126,8 +126,10 @@ The OpenAPI spec validates at **51 paths, 62 operations (58 built, 4 proposed),
 
 The repository is **38,971 source lines** across 182 tracked files, excluding
 tests, the generated client and stories. `apps/console` is 22,381 of them; the
-ten packages are 11,602; `engines/kotlin` is 2,075; `planes/execution` is **0**.
-Counted in `docs/evaluation/TRUTH_AUDIT.md`.
+ten packages are 11,602; `engines/kotlin` is 2,075; `planes/execution` was **0**.
+Counted in `docs/evaluation/TRUTH_AUDIT.md`. Since 2026-09-15 `planes/execution/src`
+is 575 lines, the decision service (ADR-016 §1); the totals above are the audit's
+and have not been recounted.
 
 ---
 
@@ -400,6 +402,8 @@ Added by E3.
 | Capability | Status | Screen? | Config? | Evidence |
 |---|---|---|---|---|
 | A decision API answering for a customer in a named placement | BUILT | NO | NO | Taxonomy 11.1 `TABLE-STAKES`. Tests `POST /api/placements/{tenantId}/{key}/decisions`, `GET /api/placements/{tenantId}`. Served by `apps/console/app/api/[...path]/route.ts`; **`planes/execution` contains zero tracked files**, so there is no deployable API plane |
+| A decision service, separate from the console, serving decisions from the stores | BUILT | NO | NO | ADR-016 §1. `planes/execution` loads each tenant's catalogue and active artifacts from the catalogue and registry stores once, at start, and serves `POST /api/decisions` and the placement decision behind the configured credential, with `GET /health`. Tests `every one of the service cases, byte for byte` (60 service cases over HTTP, `planes/execution/tests/service-conformance.test.ts`) and `the decision service` (`planes/execution/tests/service.test.ts`), gate `test-execution`. Not yet called by the console, which still decides for itself |
+| The decision service as a container image, held to the reference engine | BUILT | NO | NO | ADR-016, *Build first*. `planes/execution/Dockerfile`; CI job `execution-image` builds the image from the commit, seeds Postgres from the service bundle, requires the image to refuse a start and a request without a credential, and requires the 60 service cases to reproduce over HTTP (`planes/execution/scripts/check-image.mjs`). Not a required check until the branch ruleset lists it |
 | Five channels modelled end to end in the catalogue and the trace | BUILT | YES — `/creatives` | NO | Taxonomy 11.2 `TABLE-STAKES`. `packages/core/src/domain.ts:101` — email, SMS, web, push, outbound call. Modelled, not delivered |
 | Inbound traffic recorded with both payloads, caller attribution and refusals | BUILT | YES — `/integrations/traffic` | NO | `apps/console/mocks/call-log.ts`; tests `the traffic recorder`, `caller attribution`, `body capture`, `inbound traffic`. Registered limit in [`gaps.md`](gaps.md): recorded at the edge, not by the platform |
 | Outbound delivery of any kind — a message reaching a person | ABSENT | NO | NO | Taxonomy 11.8, 11.14 `TABLE-STAKES`. Searched `send`, `deliver`, `SMTP`, `provider`, `dispatch`, `queue`, `throttle`, `bounce`. The platform decides what should be delivered and records that it decided. Nothing delivers |

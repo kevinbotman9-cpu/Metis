@@ -44,6 +44,48 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-134 — The lockfile lists fifteen packages that no longer exist, so `npm install` fails and no workspace can be added
+
+**Registered:** 2026-09-15 · **Status:** Open · **Work item:** none — found building the decision service (ADR-016); a repository-hygiene fix with a CI install behind it
+
+**What was seen.** `npm install` at the root fails:
+
+```
+npm error 404 Not Found - GET https://registry.npmjs.org/@metis%2ftrace
+npm error 404  '@metis/trace@*' is not in this registry.
+```
+
+No `package.json` in the repository depends on `@metis/trace`. The committed
+`package-lock.json` does. It still carries workspace entries for fifteen
+directories that are not on disk:
+
+- **packages:** `adaptive-models`, `canvas`, `compliance`, `i18n`,
+  `packages-system`, `panel-host`, `panel-sdk`, `sdk`, `simulation`, `themes`,
+  `trace`, `trace-ui`, `types`, `ui-kit`;
+- **planes:** `authoring`;
+- **links:** `node_modules/@metis/types → packages/types`, also missing.
+
+It also carries a `planes/execution` entry named `@metis/execution-plane`, with
+`express` and `uuid` as dependencies, all marked extraneous: the untracked
+`dist/` ADR-016's context describes, from 2026-09-04.
+
+**Why CI is green anyway.** `npm ci` installs exactly what the lockfile says and
+prunes what nothing needs; it does not re-resolve. `npm install` re-resolves,
+reaches an entry whose dependency exists nowhere, and stops.
+
+**What it costs.**
+- Nobody can add a dependency or a workspace. Doing either means regenerating the
+  lockfile, and regenerating it is the command that fails.
+- The decision service was built as a plain directory rather than an npm
+  workspace for exactly this reason: `planes/execution` resolves `@metis/*`
+  through the root `node_modules` links, and its image runs a root `npm ci`.
+  That works, and it is a workaround.
+
+**Done when:** the stale entries are gone from `package-lock.json`, `npm install`
+at the root succeeds from a clean clone, `npm ci` in CI is unchanged in what it
+installs, and a check fails when the lockfile names a workspace directory that is
+not on disk.
+
 ### G-133 — The first PostgreSQL restart test times out locally on this Windows machine and passes on CI
 
 **Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — a local-environment failure with no diagnosis; the suite's subject is W-005
