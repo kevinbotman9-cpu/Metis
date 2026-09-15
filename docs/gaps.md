@@ -2078,6 +2078,15 @@ which is the operation ADR-004 exists to forbid.
 Found while tracing the data spine for
 [ADR-014](adr/ADR-014-the-data-spine.md) §6.
 
+**2026-09-15: the constraint is now a refusal, not a sentence.** ADR-016 §4
+landed: `createLedgerStore` refuses to start when `METIS_DATA_CLASS` is `real`,
+a database is configured and `SUBJECT_PROTECTION` is `none`, and the decision
+service refuses to start without a declared data class. That stops the first
+real customer reference reaching `decision_records` by accident. It does not
+close this entry: the record still holds `customerRef` in clear, and the
+refusal lifts only when the change above makes `SUBJECT_PROTECTION` something
+other than `none`.
+
 **Done when:** a test records a decision and asserts the raw `customerId`
 appears in no column of `decision_records` in clear; the subject column cannot
 be recomputed from a candidate identifier without a key the ledger does not

@@ -1,7 +1,8 @@
 import { createCatalogueStore } from '@metis/catalogue';
 import { createLedgerStore, DecisionLedger } from '@metis/ledger';
 import { ArtifactRegistry, createRegistryStore } from '@metis/registry';
-import { gatewayFor, integrationModeOf } from './gateways';
+import { gatewayFor } from './gateways';
+import { configFrom, ConfigRefused } from './config';
 import { createService } from './server';
 import { loadTenants, type LoadResult } from './state';
 
@@ -21,19 +22,24 @@ import { loadTenants, type LoadResult } from './state';
  * - `PORT` — 8080 by default.
  */
 async function main(): Promise<void> {
-  const token = process.env.METIS_SERVICE_TOKEN;
-  if (!token) {
-    console.error('METIS_SERVICE_TOKEN is not set. The decision service refuses to start without a credential to check.');
-    process.exit(1);
+  let config;
+  try {
+    config = configFrom(process.env);
+  } catch (e) {
+    if (e instanceof ConfigRefused) {
+      console.error(e.message);
+      process.exit(1);
+    }
+    throw e;
   }
-  const environment = process.env.METIS_ENVIRONMENT ?? 'production';
-  const port = Number(process.env.PORT ?? 8080);
-  const integrations = integrationModeOf(process.env.METIS_INTEGRATIONS);
+  const { token, dataClass, environment, port, integrations } = config;
 
   const [catalogue, registry, ledger] = await Promise.all([
     createCatalogueStore(),
     createRegistryStore(),
-    createLedgerStore(),
+    // The factory refuses real data in PostgreSQL while the subject is stored
+    // in clear (ADR-016 §4.2); the data class is passed rather than re-read.
+    createLedgerStore({ dataClass }),
   ]);
 
   let loaded: LoadResult | null = null;
@@ -43,6 +49,7 @@ async function main(): Promise<void> {
     ledger: new DecisionLedger(ledger.store),
     gateway: gatewayFor(integrations),
     integrations,
+    dataClass,
     now: () => new Date().toISOString(),
   });
 

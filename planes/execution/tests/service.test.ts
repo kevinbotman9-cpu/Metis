@@ -38,6 +38,7 @@ beforeAll(async () => {
     ledger: new DecisionLedger(ledgerStore),
     gateway: wrongAnswers,
     integrations: 'live',
+    dataClass: 'synthetic',
     now: () => '2026-09-14T12:00:00.000Z',
   });
   await new Promise<void>((resolve) => server.listen(0, resolve));

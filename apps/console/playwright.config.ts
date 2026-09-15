@@ -93,6 +93,8 @@ export default defineConfig({
       // committed so a run does not dirty the tree.
       NEXT_DIST_DIR: '.next/e2e',
       METIS_E2E_RUN: process.env.METIS_E2E_RUN!,
+      // Declared, never defaulted (ADR-016 §4.1): the harness serves fixtures.
+      METIS_DATA_CLASS: 'synthetic',
     },
     timeout: 120_000,
   },

@@ -18,6 +18,8 @@ export interface ServiceOptions extends DecideDeps {
   loaded: () => LoadResult | null;
   /** Reported on `/health`, so a caller-only deployment cannot pass for a live one. */
   integrations: IntegrationMode;
+  /** Reported on `/health`: what kind of data this deployment declared it holds. ADR-016 §4. */
+  dataClass: 'synthetic' | 'real';
 }
 
 /** The largest request body read. A decision request is small; a large one is a mistake or an attack. */
@@ -98,11 +100,12 @@ export function createService(options: ServiceOptions): Server {
 
     if (req.method === 'GET' && url.pathname === '/health') {
       const loaded = options.loaded();
-      if (!loaded) return send(res, 503, { status: 'loading', engine: 'typescript', integrations: options.integrations });
+      if (!loaded) return send(res, 503, { status: 'loading', engine: 'typescript', integrations: options.integrations, dataClass: options.dataClass });
       return send(res, 200, {
         status: 'ok',
         engine: 'typescript',
         integrations: options.integrations,
+        dataClass: options.dataClass,
         tenants: [...loaded.tenants.values()].map((t) => ({
           tenantId: t.tenantId,
           catalogueSnapshotHash: t.catalogueSnapshotHash,
