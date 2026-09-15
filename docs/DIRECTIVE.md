@@ -1,25 +1,30 @@
 # Current directive
 
 **Issued:** Tuesday 15 September 2026, by the product owner.
+**Amended:** Tuesday 15 September 2026, by the product owner: the work in scope became the design system read-back, and everything previously in scope moved out of scope.
 **Expires:** Monday 21 September 2026. After that date this directive is not in force, and work is chosen as `CLAUDE.md` says: from `docs/JOURNEY_SPINES.md` in order, or from what the product owner has picked.
 **Supersedes:** the build order in [ADR-016](adr/ADR-016-deployment-operations-and-scale.md), until it expires.
-**Why:** an internal demo to Cognizant leadership and sales on Friday 18 September. The audience will not use the console themselves. Nothing structural ships this week, and a half-built capability is worse for Friday than a declared gap.
+**Why:** an internal demo to Cognizant leadership and sales on Friday 18 September 2026. The audience will not use the console themselves. Nothing structural ships this week, and a half-built capability is worse for Friday than a declared gap.
 
 This file exists so these constraints live in the repository rather than in a chat message.
 
 ## In scope
 
-- Three fixes on the decision trace screen (`/decisions/[id]`), confirmed by the product owner on 15 September from the audit of the demo path, and merged in pull request #74:
-  - the Candidates card reads "entered the flow", not "entered arbitration";
-  - the arbitrate stage in the elimination funnel is labelled "Offered", not "Ranked" — the label only, in `apps/console/components/trace-cascade.ts`;
-  - selecting candidates beaten on priority (`NOT_RANKED`) no longer draws the rule-shaped evidence rows, which could only ever read as absences.
-- Writing this file.
-- Regenerating the generated documents: `npm run demo:claims` (`docs/DEMO_CLAIMS.md`) and `npm run bench:s1` (`bench/results/S1.json`).
-- Read-only audits and walks of the demo path: open a decision, read its trace (eliminations, the node that filtered each action, arbitration), replay it, see an identical result.
-- The rehearsal on the freeze day, and its regression pass.
+Design system only: a read-back, which changes nothing in the console. The drafts in `docs/design/` are drafts, not a specification (`docs/design/README.md`); layout, weight and density are the only things taken from them. The read-back answers five questions:
+
+1. The drafts' shared token block: which of its names map onto a token the console already has, and which would need a new one.
+2. If it is a value swap onto existing names, what breaks: the `tokens-only` conformance check, Storybook's four theme axes, contrast (`scripts/check-contrast.mjs` and the axe sweep), and the route bundle budgets.
+3. What loading the drafts' two typefaces would cost against the bundle budgets, and whether a fallback gets most of the way.
+4. Whether the console's top bar is one component or drawn per screen.
+5. The smallest change that alters what is seen on the decision trace screen (`/decisions/[id]`), and whether it can land before the freeze.
 
 ## Out of scope this period
 
+- Everything that was in scope before the amendment:
+  - the three decision trace fixes, already merged in pull request #74;
+  - regenerating `docs/DEMO_CLAIMS.md` (`npm run demo:claims`) and `bench/results/S1.json` (`npm run bench:s1`);
+  - read-only audits and walks of the demo path;
+  - the rehearsal on the freeze day, and its regression pass.
 - Spine 1 and Spine 2. A fix that would also advance either is noted for after expiry, not made.
 - Anything structural.
 - The shared cascade rail's "removed" wording, which reaches five screens and three end-to-end specs.
@@ -39,8 +44,8 @@ If one of these seems required for Friday, stop and say so rather than starting 
 
 ## Fixed points
 
-- **Thursday 17 September 2026 is the freeze.** Rehearsal and regression only. No fixes after the second clean run, unless that run itself fails.
-- **Friday 18 September 2026** is the demo.
+- **Thursday 17 September 2026 is the freeze.** No fixes after the second clean run, unless that run itself fails.
+- **Friday 18 September 2026 is the demo.**
 
 ## Ceilings
 
