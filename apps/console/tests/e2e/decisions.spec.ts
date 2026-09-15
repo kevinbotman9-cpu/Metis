@@ -37,6 +37,35 @@ test.describe('decision search and trace', () => {
     await expect(page.getByText('entered the flow', { exact: true })).toBeVisible();
   });
 
+  test('heads the trace with one identity line, not a row of metric cards', async ({ page }) => {
+    await page.locator('tr[data-row]').first().click();
+    const heading = page.getByRole('heading', { level: 1 });
+    await expect(heading).toContainText(/^Decision\s*dec_/);
+    const identity = page.locator('[data-identity]');
+    await expect(identity).toContainText(/\d+(\.\d)? ms of a 50 ms SLA/);
+    await expect(identity).toContainText('entered the flow');
+    // The line sits under the heading, not a card row further down.
+    const h = (await heading.boundingBox())!;
+    const i = (await identity.boundingBox())!;
+    expect(i.y - (h.y + h.height)).toBeLessThan(16);
+    await expect(page.getByText('SLA 50ms', { exact: true })).toHaveCount(0);
+  });
+
+  test('draws the rail figure at the drafts\' size', async ({ page }) => {
+    await page.locator('tr[data-row]').first().click();
+    const figure = page.getByRole('navigation', { name: 'Elimination funnel', exact: true }).locator('strong').first();
+    await expect(figure).toBeVisible();
+    expect(await figure.evaluate((el) => getComputedStyle(el).fontSize)).toBe('34px');
+    expect(await figure.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('600');
+
+    // The selected stage heads the middle pane at title size, not body size.
+    await page.getByRole('navigation', { name: 'Elimination funnel', exact: true }).getByRole('button').first().click();
+    const stageHeading = page.getByRole('heading', { level: 2, name: /removed/ }).first();
+    await expect(stageHeading).toBeVisible();
+    const size = await stageHeading.evaluate((el) => getComputedStyle(el.firstElementChild ?? el).fontSize);
+    expect(size).toBe('18px');
+  });
+
   test('renders a different trace for a different decision', async ({ page }) => {
     const readTrace = async (rowIndex: number) => {
       await page.goto('/decisions');
