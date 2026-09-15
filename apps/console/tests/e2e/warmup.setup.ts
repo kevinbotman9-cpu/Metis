@@ -62,10 +62,33 @@ function routeUrls(): string[] {
   return [...new Set(urls)].sort();
 }
 
-test('every route is compiled before the suite starts', async ({ page, request }) => {
+/**
+ * ADR-018's threshold for the deferred alternative: seed a PostgreSQL service in
+ * CI instead of executing the history in memory. Measured at 11.9 s on a
+ * development machine on 2026-09-15; forty-five seconds allows a runner nearly
+ * four times slower. Over it, move the seed — do not raise the number.
+ */
+const SEED_THRESHOLD_MS = 45_000;
+
+// One test, on purpose: tests/e2e-sharding.test.ts holds this project to exactly
+// one per shard, so every runner warms up once. The seed threshold is its first
+// step rather than a second test.
+test('every route is compiled before the suite starts, over a ledger seeded under ADR-018’s threshold', async ({ page, request }) => {
   // Compiling ~18 App Router pages from cold is the single slowest thing the
   // suite does. It is one cost, paid here, where it is visible and named.
   test.setTimeout(5 * 60_000);
+
+  await test.step('the in-memory ledger seed stays under ADR-018’s threshold', async () => {
+    const res = await request.get('/api/_test/uptime');
+    expect(res.ok(), 'the uptime endpoint did not answer').toBe(true);
+    const { ledgerSeed } = (await res.json()) as { ledgerSeed: { ms: number; decisions: number; executed: boolean } | null };
+    expect(ledgerSeed, 'the e2e server did not seed its ledger; is METIS_SEED_LEDGER set in playwright.config.ts?').not.toBeNull();
+    expect(ledgerSeed!.decisions).toBe(10_400);
+    expect(
+      ledgerSeed!.ms,
+      `the in-memory seed took ${ledgerSeed!.ms}ms, over ADR-018's ${SEED_THRESHOLD_MS}ms threshold: seed a PostgreSQL service in CI instead (ADR-018, alternatives)`
+    ).toBeLessThanOrEqual(SEED_THRESHOLD_MS);
+  });
 
   const urls = routeUrls();
   expect(urls.length, 'no routes found — the app directory layout has changed').toBeGreaterThan(10);
