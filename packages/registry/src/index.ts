@@ -4,6 +4,7 @@ export { PostgresRegistryStore, type Queryable } from './postgres-store';
 export {
   createRegistryStore,
   MIGRATIONS_DIR,
+  runMigration,
   type StoreHandle,
   type CreateStoreOptions,
 } from './create-store';

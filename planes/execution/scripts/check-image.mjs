@@ -5,7 +5,10 @@
  *
  *   node planes/execution/scripts/check-image.mjs <image> <database url>
  *
- * Seeds an empty database from the service bundle, starts the image against it
+ * Starts the image against an empty database and requires it to refuse — a
+ * service verifies the schema and never migrates it (ADR-016 §3.1) — then runs
+ * the migration job from the image, twice, requiring the second run to apply
+ * nothing (§3.2). Then seeds the database from the service bundle, starts the image against it
  * with a throwaway credential, waits for `/health`, sends all 60 service cases,
  * and fails naming every decision whose chain hash differs. Then checks the two
  * refusals an image must make: a request with no credential, and a start with
@@ -54,10 +57,47 @@ async function waitHealthy(deadlineMs) {
   throw new Error(`the image did not become healthy within ${deadlineMs / 1000}s`);
 }
 
+/** The migration job, from the image under test. Its output is what an operator reads. */
+function migrationJob(label) {
+  const r = spawnSync(
+    'docker',
+    ['run', '--rm', '--network', 'host', '-e', `METIS_DATABASE_URL=${databaseUrl}`, image, 'node', '--import', 'tsx', 'src/migrate-job.ts'],
+    { encoding: 'utf8', timeout: 120_000 }
+  );
+  const output = `${r.stdout}${r.stderr}`.trim();
+  console.log(`migration job, ${label} (exit ${r.status}):\n${output}`);
+  if (r.status !== 0) throw new Error(`the migration job failed ${label}`);
+  return output;
+}
+
 async function main() {
+  // An image never migrates on start: against a database no migration job has
+  // touched, the service must refuse and name what has not run.
+  const unmigrated = spawnSync(
+    'docker',
+    ['run', '--rm', '--network', 'host',
+      '-e', `METIS_DATABASE_URL=${databaseUrl}`, '-e', `METIS_SERVICE_TOKEN=${token}`, '-e', 'METIS_DATA_CLASS=synthetic',
+      image],
+    { encoding: 'utf8', timeout: 60_000 }
+  );
+  const refusal = `${unmigrated.stdout}${unmigrated.stderr}`;
+  if (unmigrated.status === 0 || !/BEHIND|has not run/.test(refusal)) {
+    throw new Error(`the image did not refuse an unmigrated database:\n${refusal}`);
+  }
+  console.log(`refused to start against an unmigrated database: ${refusal.trim().split('\n').pop()}`);
+
+  const first = migrationJob('against an empty database');
+  if (!/applied/.test(first)) throw new Error('the first migration job applied nothing to an empty database');
+  const second = migrationJob('again, which must change nothing');
+  if (/applied /.test(second) || (second.match(/nothing to apply/g) ?? []).length !== 4) {
+    throw new Error('the second migration job was not a no-op for all four stores');
+  }
+
+  // Seeded after the job and in verify mode, so the seed proves the schema is
+  // the release's rather than creating it.
   run('node', ['--import', 'tsx', 'planes/execution/scripts/seed-from-bundle.ts'], {
     cwd: root,
-    env: { ...process.env, METIS_DATABASE_URL: databaseUrl },
+    env: { ...process.env, METIS_DATABASE_URL: databaseUrl, METIS_MIGRATIONS: 'verify' },
   });
 
   // Starts an image must refuse: no credential; a credential but no declared
