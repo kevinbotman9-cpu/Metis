@@ -16,8 +16,8 @@ FROM node:20-alpine
 WORKDIR /repo
 
 # The repository and its dependencies, from the committed lockfile, exactly as
-# CI installs them. The service is not an npm workspace: the lockfile cannot be
-# regenerated while it lists packages that no longer exist (G-134). It resolves
+# CI installs them. The service is not an npm workspace (it was built while the
+# lockfile could not be regenerated, G-134, since resolved). It resolves
 # @metis/* through the root node_modules links that npm ci creates for every
 # workspace package. `.dockerignore` keeps the host's node_modules and build
 # output out of the copy.

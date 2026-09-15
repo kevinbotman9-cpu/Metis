@@ -4,8 +4,10 @@
  *
  * **Nothing imports this package.** The engine implements node behaviour in
  * `packages/runtime/src/deterministic/engine.ts` and the compiler holds its own
- * `FlowNodeType` union; these classes are executed by no code path, and the
- * package declares a dependency on `@metis/types`, which does not exist.
+ * `FlowNodeType` union; these classes are executed by no code path. Its
+ * declared dependency on `@metis/types`, which does not exist, was removed
+ * with G-134: it was the one live reason `npm install` still reached the
+ * registry for a package nobody publishes.
  *
  * It is kept rather than deleted because the *name* is load-bearing elsewhere:
  * `@metis/nodes-core` is the package id every flow pins a version of, and every
