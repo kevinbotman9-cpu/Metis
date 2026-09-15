@@ -55,7 +55,9 @@ export function ChangeSetDecision({ record, recordId, context }: PanelProps) {
             </Button>
           </>
         ) : (
-          <Badge tone="outline">approve:changes required</Badge>
+          // In words: a permission identifier is not copy. The server's refusal
+          // still names the permission, for whoever reads the response.
+          <Badge tone="outline">Needs someone who can approve changes</Badge>
         )
       ) : null}
       {decided ? (
