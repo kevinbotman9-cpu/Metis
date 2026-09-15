@@ -14,7 +14,6 @@ import {
   CardHeader,
   CardBody,
   Badge,
-  Metric,
   LoadingState,
   ErrorState,
   EmptyState,
@@ -184,13 +183,38 @@ function TraceView({ decisionId }: { decisionId: string }) {
           />
         }
         title={
-          <span className="flex items-center gap-2">
-            <span className="font-mono text-title">{trace.id}</span>
+          // The identity line: what this is, which one, and what it came to —
+          // the drafts' "Decision dec_… · when · flow · ms" rather than a mono
+          // id standing alone over a row of four metric cards.
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>Decision</span>
+            <span className="font-mono text-body font-normal text-content-muted">{trace.id}</span>
             {trace.winner ? (
               <Badge tone="pass">{trace.winner}</Badge>
             ) : (
               <Badge tone="block">no offer</Badge>
             )}
+          </span>
+        }
+        description={
+          <span data-identity className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-label text-content-subtle">
+            <span>{format.dateTime(trace.timestamp)}</span>
+            <span>
+              <span className="font-mono text-content">{trace.artifactId}</span> {trace.artifactVersion}
+            </span>
+            <span>
+              <strong className={cn('tnum font-semibold', trace.totalMs > 20 ? 'text-hold' : 'text-pass')}>
+                {trace.totalMs.toFixed(1)} ms
+              </strong>{' '}
+              of a 50 ms SLA
+            </span>
+            <span>
+              <strong className="tnum font-semibold text-content">{trace.candidateCount}</strong> candidates{' '}
+              <span>entered the flow</span>
+            </span>
+            <span>
+              {trace.channel.replace('_', ' ')} · <span className="font-mono">{trace.placement}</span>
+            </span>
           </span>
         }
         actions={
@@ -260,18 +284,6 @@ function TraceView({ decisionId }: { decisionId: string }) {
         </span>
       </div>
 
-      <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Metric
-          label="Latency"
-          value={`${trace.totalMs.toFixed(1)}ms`}
-          tone={trace.totalMs > 20 ? 'hold' : 'pass'}
-          sub="SLA 50ms"
-        />
-        <Metric label="Candidates" value={trace.candidateCount} sub="entered the flow" />
-        <Metric label="Channel" value={trace.channel.replace('_', ' ')} sub={trace.placement} />
-        <Metric label="Artifact" value={trace.artifactVersion} sub={trace.artifactId} />
-      </div>
-
       {/*
         The elimination funnel as a Cascade — METIS_CONSOLE_SPEC.md §4.7.
 
@@ -323,9 +335,13 @@ function TraceView({ decisionId }: { decisionId: string }) {
             <Card>
               <CardHeader
                 title={
-                  selectedStage.removed > 0
-                    ? `${selectedStage.label} removed ${selectedStage.removed}`
-                    : `${selectedStage.label} removed nothing`
+                  // At title size: the selected stage is the subject of this pane,
+                  // as the drafts head it, not one more card among several.
+                  <span className="text-title">
+                    {selectedStage.removed > 0
+                      ? `${selectedStage.label} removed ${selectedStage.removed}`
+                      : `${selectedStage.label} removed nothing`}
+                  </span>
                 }
                 description={
                   selectedStage.removed > 0
@@ -403,7 +419,11 @@ function TraceView({ decisionId }: { decisionId: string }) {
           ) : (
             <Card>
               <CardHeader
-                title={`${trace.candidateCount} candidates, ${trace.winner ? 'one offered' : 'none offered'}`}
+                title={
+                  <span className="text-title">
+                    {`${trace.candidateCount} candidates, ${trace.winner ? 'one offered' : 'none offered'}`}
+                  </span>
+                }
               />
               <CardBody>
                 <ol className="flex flex-col gap-1.5">

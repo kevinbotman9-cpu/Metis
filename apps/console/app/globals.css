@@ -204,8 +204,10 @@
   --text-title: 1.125rem;
   --text-figure: 1.5rem;
   /* A stage figure on the Cascade rail (§4.7): the figure is the stage, so it
-     is the largest number on the screen. 29px comfortable, 24px compact. */
-  --text-figure-rail: 1.8125rem;
+     is the largest number on the screen. 34px comfortable, 28px compact —
+     raised from 29 and 24 on 2026-09-15 to the drafts' size, at the 600 the
+     type scale allows rather than their 800. */
+  --text-figure-rail: 2.125rem;
   /* The rail's open width. 240px comfortable, 200px compact, per the console
      spec; collapsed it is the 48px icon rail, which is w-12 and needs no token. */
   --rail-w: 15rem;
@@ -239,7 +241,7 @@
   --text-label: 0.6875rem;
   --text-title: 1rem;
   --text-figure: 1.25rem;
-  --text-figure-rail: 1.5rem;
+  --text-figure-rail: 1.75rem;
   --rail-w: 12.5rem;
 }
 
