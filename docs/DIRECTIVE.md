@@ -1,7 +1,7 @@
 # Current directive
 
 **Issued:** Tuesday 15 September 2026, by the product owner.
-**Amended:** Tuesday 15 September 2026, by the product owner: the work in scope became the design system read-back, and everything previously in scope moved out of scope.
+**Amended:** Tuesday 15 September 2026, by the product owner, twice: first the work in scope became the design system read-back, and everything previously in scope moved out of scope; then the Architect home (`/`) was added, because it is on Friday's path and had not been examined.
 **Expires:** Monday 21 September 2026. After that date this directive is not in force, and work is chosen as `CLAUDE.md` says: from `docs/JOURNEY_SPINES.md` in order, or from what the product owner has picked.
 **Supersedes:** the build order in [ADR-016](adr/ADR-016-deployment-operations-and-scale.md), until it expires.
 **Why:** an internal demo to Cognizant leadership and sales on Friday 18 September 2026. The audience will not use the console themselves. Nothing structural ships this week, and a half-built capability is worse for Friday than a declared gap.
@@ -10,7 +10,11 @@ This file exists so these constraints live in the repository rather than in a ch
 
 ## In scope
 
-Design system only: a read-back, which changes nothing in the console. The drafts in `docs/design/` are drafts, not a specification (`docs/design/README.md`); layout, weight and density are the only things taken from them. The read-back answers five questions:
+Read-only work that changes nothing in the console until the product owner picks from what it finds.
+
+### The design system read-back
+
+The drafts in `docs/design/` are drafts, not a specification (`docs/design/README.md`); layout, weight and density are the only things taken from them. The read-back answers five questions:
 
 1. The drafts' shared token block: which of its names map onto a token the console already has, and which would need a new one.
 2. If it is a value swap onto existing names, what breaks: the `tokens-only` conformance check, Storybook's four theme axes, contrast (`scripts/check-contrast.mjs` and the axe sweep), and the route bundle budgets.
@@ -18,9 +22,21 @@ Design system only: a read-back, which changes nothing in the console. The draft
 4. Whether the console's top bar is one component or drawn per screen.
 5. The smallest change that alters what is seen on the decision trace screen (`/decisions/[id]`), and whether it can land before the freeze.
 
+### The Architect home (`/`)
+
+The decision architect's Overview (`apps/console/components/architect-overview.tsx`), diagnosed read-only:
+
+1. Why the Proposed panel is stretched to the height of the Simulated panel beside it, the smallest fix, and which screens share that container.
+2. Where the permission identifier in "waiting for someone with approve:changes" comes from, and what else renders permission identifiers to the screen.
+3. Whether pending change sets appearing in both the Proposed and Simulated panels is intended, and what each panel means to show.
+4. Whether the bias gate threshold is available to the screen, so a bias ratio can be read against it.
+5. Whether fixing any of these needs a layout manifest for `/`, which would make it structural.
+
+Then every other screen on Friday's path, one line each: what a first-time viewer would see wrong, and the cost to fix, ranked by visible difference per hour.
+
 ## Out of scope this period
 
-- Everything that was in scope before the amendment:
+- Everything that was in scope before the first amendment:
   - the three decision trace fixes, already merged in pull request #74;
   - regenerating `docs/DEMO_CLAIMS.md` (`npm run demo:claims`) and `bench/results/S1.json` (`npm run bench:s1`);
   - read-only audits and walks of the demo path;
