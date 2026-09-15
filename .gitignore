@@ -58,7 +58,8 @@ temp/
 scratch/
 
 # Docker
-.dockerignore
+# `.dockerignore` is committed: a build context filter only works if every
+# build has the same one (planes/execution/Dockerfile relies on it).
 docker-compose.override.yml
 
 # Kubernetes

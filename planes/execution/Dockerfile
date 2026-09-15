@@ -1,10 +1,9 @@
 # The decision service. ADR-016 §1.
 #
-# Built from the repository root, because the service is a workspace that reads
-# its sibling packages from source (every package is imported through the
-# exports map in its package.json; nothing is emitted to dist). One release tag
-# builds this image from one commit, so the engine it runs is the engine that
-# commit's corpora were generated from.
+# Built from the repository root. The service reads its sibling packages from
+# source (each is imported through the exports map in its package.json; nothing
+# is emitted to dist). One release tag builds this image from one commit, so the
+# engine it runs is the engine that commit's corpora were generated from.
 #
 #   docker build -f planes/execution/Dockerfile -t metis-execution .
 #
@@ -16,17 +15,12 @@ FROM node:20-alpine
 
 WORKDIR /repo
 
-# The whole repository's dependencies, from the committed lockfile, exactly as
-# CI installs them. The service is not an npm workspace — the lockfile cannot
-# be regenerated while it lists packages that no longer exist (see the register)
-# — so it resolves @metis/* through the root node_modules links, which Unknown command: "ci"
-
-
-Did you mean this?
-  npm ci # Clean install a project
-To see a list of supported npm commands, run:
-  npm help
-# creates for every workspace package it imports.
+# The repository and its dependencies, from the committed lockfile, exactly as
+# CI installs them. The service is not an npm workspace: the lockfile cannot be
+# regenerated while it lists packages that no longer exist (G-134). It resolves
+# @metis/* through the root node_modules links that npm ci creates for every
+# workspace package. `.dockerignore` keeps the host's node_modules and build
+# output out of the copy.
 COPY . .
 RUN npm ci
 

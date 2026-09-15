@@ -1,0 +1,15 @@
+# What a Docker build of this repository must not copy in. The decision service
+# image (planes/execution/Dockerfile) copies the repository and runs `npm ci`
+# inside the image, so anything installed or built on the host is noise at best
+# and a different platform's native binaries at worst.
+**/node_modules
+**/dist
+**/.next
+**/test-results
+**/playwright-report
+**/storybook-static
+**/build
+.git
+engines/kotlin/.gradle
+docs/demo
+docs/evaluation
