@@ -75,7 +75,7 @@ const NODE_LABELS: [RegExp, string][] = [
   [/afford/i, 'Suitability'],
   [/frequen|contact|cap/i, 'Frequency & suppression'],
   [/consent/i, 'Consent'],
-  [/arbitrat|rank/i, 'Ranked'],
+  [/arbitrat|rank/i, 'Offered'],
   [/score|propensity|model/i, 'Scoring'],
   // Not "Candidates entered": that is the synthesised first stage, and a
   // source node landing on the same label put the words twice in one rail with
@@ -104,7 +104,10 @@ const TYPE_LABELS: Record<string, string> = {
   source: 'Customer data loaded',
   'score-model': 'Scoring',
   'score-adaptive': 'Scoring',
-  arbitrate: 'Ranked',
+  // What survives arbitration is what was offered. "Ranked" beside "3 removed
+  // here" contradicted the score table, which ranks every candidate that got
+  // this far (decision-trace audit, D12, 2026-09-15).
+  arbitrate: 'Offered',
   switch: 'Routing',
   // Not a node in the flow: the platform's consent step, recorded on every
   // decision whatever the flow declares (G-015).

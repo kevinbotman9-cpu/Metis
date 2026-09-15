@@ -77,7 +77,7 @@ describe('the rail is the flow that ran', () => {
     // A source node is not a tier and never will be, and its type names it
     // exactly. The id patterns are left for what neither can name.
     expect(labelFor('anything', 'source')).toBe('Customer data loaded');
-    expect(labelFor('anything', 'arbitrate')).toBe('Ranked');
+    expect(labelFor('anything', 'arbitrate')).toBe('Offered');
     expect(labelFor('filter_suitability', 'constraint')).toBe('Suitability');
     expect(labelFor('constraint_contact', 'constraint')).toBe('Frequency & suppression');
   });
@@ -103,7 +103,7 @@ describe('the rail is the flow that ran', () => {
         ],
       } as Partial<TraceDto>)
     );
-    expect(stages.map((s) => s.label)).toEqual(['Candidates entered', 'Customer data loaded', 'Consent', 'Ranked']);
+    expect(stages.map((s) => s.label)).toEqual(['Candidates entered', 'Customer data loaded', 'Consent', 'Offered']);
     expect(stages[2].removed).toBe(2);
   });
 
