@@ -35,6 +35,7 @@
     "test:portability": "npm --prefix packages/portability run test",
     "export": "node --import tsx packages/portability/src/cli.ts",
     "bench:s1": "npm --prefix bench/harness run bench:s1",
+    "demo:claims": "node scripts/generate-demo-claims.mjs",
     "test:catalogue": "npm --prefix packages/catalogue run test",
     "test:governance": "npm --prefix packages/governance run test",
     "test:ui-metadata": "npm --prefix packages/ui-metadata run test",
