@@ -32,6 +32,9 @@
     "packages/*/tests/**/*.ts",
     "bench/*/src/**/*.ts",
     "bench/*/tests/**/*.ts",
+    "planes/*/src/**/*.ts",
+    "planes/*/tests/**/*.ts",
+    "planes/*/scripts/**/*.ts",
     "tests/**/*.ts",
     "scripts/**/*.ts"
   ],

@@ -1,0 +1,21 @@
+{
+  "name": "@metis/execution",
+  "version": "0.0.1",
+  "private": true,
+  "description": "METIS execution plane - the decision service (ADR-016 §1)",
+  "type": "module",
+  "scripts": {
+    "start": "node --import tsx src/main.ts",
+    "test": "vitest run --config ./vitest.config.ts"
+  },
+  "dependencies": {
+    "@metis/catalogue": "*",
+    "@metis/core": "*",
+    "@metis/ledger": "*",
+    "@metis/registry": "*",
+    "@metis/runtime": "*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

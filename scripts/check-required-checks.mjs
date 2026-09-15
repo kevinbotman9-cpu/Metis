@@ -61,6 +61,10 @@ export const NOT_REQUIRED = {
   'flake-hunt':
     'runs on the nightly schedule and on manual dispatch only. On a pull request it is ' +
     'skipped, and a required check that is always skipped gates nothing',
+  'execution-image':
+    'added with the decision service (ADR-016, Build first). Held here between its merge and ' +
+    'the ruleset change that requires it, as this list says a new job must be; delete this entry ' +
+    'once the ruleset requires `execution-image`',
 };
 
 /**

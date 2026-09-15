@@ -97,6 +97,10 @@ export const GATES = [
     command: 'npm run test:ui-metadata',
   },
   { id: 'test-integration', label: 'Integration', cwd: '.', command: 'npm run test:integration' },
+  // The decision service over HTTP, from the stores, reproducing the 60 service
+  // cases byte for byte (ADR-016, Build first). The image built from it is
+  // checked by the `execution-image` job, which needs Docker.
+  { id: 'test-execution', label: 'Decision service', cwd: '.', command: 'npm run test:execution' },
   { id: 'test-console', label: 'Unit tests (console)', cwd: 'apps/console', command: 'npm test' },
   {
     // CLAUDE.md requires a story for every new component and a Storybook
