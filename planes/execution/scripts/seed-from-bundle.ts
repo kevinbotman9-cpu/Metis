@@ -15,6 +15,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createCatalogueStore } from '@metis/catalogue';
 import { createRegistryStore } from '@metis/registry';
+import { hash } from '@metis/runtime/deterministic/canonical';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const bundle = JSON.parse(readFileSync(path.join(root, 'docs/conformance/service-bundle.json'), 'utf8'));
@@ -32,6 +33,10 @@ async function main(): Promise<void> {
     }
 
     const c = bundle.catalogue;
+    // Parents first: the store's foreign keys require a category's objective and
+    // an offer's category to exist before the child is written.
+    for (const o of bundle.objectives ?? []) await catalogue.store.putObjective(tenantId, o);
+    for (const g of bundle.categories ?? []) await catalogue.store.putCategory(tenantId, g);
     for (const o of c.offers) await catalogue.store.putOffer(tenantId, o);
     for (const p of c.targetingPolicies) await catalogue.store.putTargetingPolicy(tenantId, p);
     for (const f of c.frequencyPolicies) await catalogue.store.putFrequencyPolicy(tenantId, f);
@@ -48,7 +53,13 @@ async function main(): Promise<void> {
         tenantId,
         flowName: a.id,
         version: a.version,
-        artifact: a,
+        // The registry stores a compiled flow, whose `artifactHash` is a
+        // required column. The bundle carries the engine's artifact, which has
+        // none, so this seed gives it the canonical hash of exactly what is
+        // stored. Test tooling for a throwaway database: the compiler's own hash
+        // is over the compiled flow, a different object, and the service never
+        // reads this field.
+        artifact: { ...a, artifactHash: hash(a) },
         publishedAt: at,
         publishedBy: 'fixture',
         warnings: [],

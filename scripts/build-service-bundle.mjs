@@ -26,7 +26,7 @@ import {
   executeAt,
   DECISION_COUNT,
 } from '../apps/console/mocks/fixtures/engine.ts';
-import { placements } from '../apps/console/mocks/fixtures/catalogue.ts';
+import { categories, objectives, placements } from '../apps/console/mocks/fixtures/catalogue.ts';
 import { experiments } from '../apps/console/mocks/fixtures/experiments.ts';
 import { profileSchema } from '../apps/console/mocks/fixtures/profile-schema.ts';
 import { requestHash } from '../packages/runtime/src/idempotency/index.ts';
@@ -47,6 +47,11 @@ const bundle = {
   // (ADR-016 §1): the slots a placement decision is asked for, the model its
   // rollups resolve through, and the experiments whose arms enter the input.
   // The Kotlin service reads only `artifacts` and `catalogue` and ignores these.
+  // Objectives and categories are not decision inputs; they are here because the
+  // catalogue store's foreign keys require an offer's category, and a category's
+  // objective, to exist before the offer can be written.
+  objectives,
+  categories,
   placements,
   profileSchema,
   experiments,

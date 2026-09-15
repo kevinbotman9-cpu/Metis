@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { InMemoryCatalogueStore } from '@metis/catalogue';
 import { ArtifactRegistry, InMemoryRegistryStore } from '@metis/registry';
+import { hash } from '@metis/runtime/deterministic/canonical';
 
 /**
  * The console's flows and catalogue, loaded into in-memory stores the way the
@@ -40,6 +41,8 @@ interface Bundle {
     connectors?: unknown[];
     arbitration: unknown;
   };
+  objectives?: unknown[];
+  categories?: unknown[];
   placements?: unknown[];
   profileSchema?: unknown;
   experiments?: unknown[];
@@ -57,7 +60,11 @@ export async function seedFromBundle(bundle: Bundle = readBundle()) {
   const c = bundle.catalogue;
 
   // The store's own writes, not `Catalogue`'s authoring rules: this is loading
-  // a catalogue that already exists, not authoring one.
+  // a catalogue that already exists, not authoring one. Parents first, in the
+  // order the Postgres store's foreign keys require, so this seed cannot pass in
+  // memory and fail against the database the image uses.
+  for (const o of bundle.objectives ?? []) await catalogueStore.putObjective(tenantId, o as never);
+  for (const g of bundle.categories ?? []) await catalogueStore.putCategory(tenantId, g as never);
   for (const o of c.offers) await catalogueStore.putOffer(tenantId, o as never);
   for (const p of c.targetingPolicies) await catalogueStore.putTargetingPolicy(tenantId, p as never);
   for (const f of c.frequencyPolicies) await catalogueStore.putFrequencyPolicy(tenantId, f as never);
@@ -75,7 +82,10 @@ export async function seedFromBundle(bundle: Bundle = readBundle()) {
       tenantId,
       flowName: a.id,
       version: a.version,
-      artifact: a as never,
+      // As `scripts/seed-from-bundle.ts` does: the Postgres registry requires
+      // `artifactHash`, and the in-memory one should not accept what Postgres
+      // refuses. The canonical hash of what is stored.
+      artifact: { ...a, artifactHash: hash(a) } as never,
       publishedAt: PUBLISHED_AT,
       publishedBy: 'fixture',
       warnings: [],

@@ -1011,6 +1011,48 @@
       }
     ]
   },
+  "objectives": [
+    {
+      "id": "iss_acquisition",
+      "name": "Acquisition",
+      "key": "acquisition",
+      "description": "Win the broadband line at the service address.",
+      "sortOrder": 1,
+      "createdAt": "2026-08-02T09:00:00.000Z",
+      "updatedAt": "2026-08-30T09:00:00.000Z"
+    },
+    {
+      "id": "iss_crosssell",
+      "name": "Cross-Sell",
+      "key": "cross-sell",
+      "description": "Attach gaming and streaming to a line that already has broadband.",
+      "sortOrder": 2,
+      "createdAt": "2026-08-02T09:00:00.000Z",
+      "updatedAt": "2026-08-30T09:00:00.000Z"
+    }
+  ],
+  "categories": [
+    {
+      "id": "grp_broadband",
+      "objectiveId": "iss_acquisition",
+      "name": "Broadband",
+      "key": "broadband",
+      "description": "Fiber and fixed-wireless internet at a service address.",
+      "sortOrder": 1,
+      "createdAt": "2026-08-03T05:00:00.000Z",
+      "updatedAt": "2026-08-30T09:00:00.000Z"
+    },
+    {
+      "id": "grp_entertainment",
+      "objectiveId": "iss_crosssell",
+      "name": "Entertainment",
+      "key": "entertainment",
+      "description": "Gaming and streaming, sold onto an existing broadband line.",
+      "sortOrder": 2,
+      "createdAt": "2026-08-03T05:00:00.000Z",
+      "updatedAt": "2026-08-30T09:00:00.000Z"
+    }
+  ],
   "placements": [
     {
       "id": "plc_homepage_hero",
