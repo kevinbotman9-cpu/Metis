@@ -97,11 +97,29 @@ async function bootConsole() {
   vi.resetModules();
   const route = await import('@/app/api/[...path]/route');
   const { store } = await import('@/mocks/store');
-  await store.catalogueReady;
-  await store.ledgerReady;
-  await store.registryReady;
+  // Every store the console opens, governance included. The store opens
+  // governance independently of the other three, and this waited for those
+  // three only: a test reading governanceKind() or governanceSeeded() straight
+  // after a boot raced the seed (G-133).
+  await Promise.all([store.catalogueReady, store.ledgerReady, store.registryReady, store.governanceReady]);
   return { route, store };
 }
+
+/**
+ * The budgets, measured on 2026-09-15 (G-133).
+ *
+ * The first import of the console's API route and store took 10.3–12.4s: every
+ * module transformed and the fixtures built. It happened inside the first
+ * restart test, under Vitest's 5-second default, so that test always failed
+ * locally and the whole file failed on a busy machine. It is paid once now, in
+ * `beforeAll`, under a hook budget with room for a loaded machine.
+ *
+ * After it, a boot took 0.9–1.3s and the slowest test, three boots, 4.1–4.6s:
+ * inside 5 seconds by under one. Twenty gives that test about four times what
+ * it measured.
+ */
+const WARM_IMPORT_TIMEOUT_MS = 60_000;
+const RESTART_TIMEOUT_MS = 20_000;
 
 type Booted = Awaited<ReturnType<typeof bootConsole>>;
 
@@ -123,20 +141,26 @@ if (!reachable) {
   it.skip(`postgres at ${URL.replace(/:[^:@]*@/, ':***@')} is not reachable`, () => {});
 } else {
   beforeAll(async () => {
+    // The one cold import, paid here rather than by whichever test boots first.
+    // A vi.resetModules() in bootConsole re-evaluates modules; it does not
+    // transform them again, so every later boot is the warm figure.
+    await import('@/app/api/[...path]/route');
+    await import('@/mocks/store');
+    delete (globalThis as Record<symbol, unknown>)[Symbol.for('metis.dev.store')];
     await runMigration(pool);
     // The registry's migrations, through the same entry point the console uses.
     const registry = await createRegistryStore({ databaseUrl: URL });
     await registry.close();
     const governance = await createGovernanceStore({ databaseUrl: URL });
     await governance.close();
-  });
+  }, WARM_IMPORT_TIMEOUT_MS);
 
   afterAll(async () => {
     delete process.env.METIS_DATABASE_URL;
     await pool.end();
   });
 
-  describe('opening the console tenant in a database', () => {
+  describe('opening the console tenant in a database', { timeout: RESTART_TIMEOUT_MS }, () => {
     it('gives an empty database the seeded tenant, which reads back as exactly the fixture catalogue', async () => {
       await truncate();
       const opened = await openCatalogue(new PostgresCatalogueStore(pool));
@@ -180,7 +204,32 @@ if (!reachable) {
     });
   });
 
-  describe('the console over PostgreSQL', () => {
+  describe('the console over PostgreSQL', { timeout: RESTART_TIMEOUT_MS }, () => {
+    it('waits for every store before a restarted console is used, however long one takes to open', async () => {
+      // Governance made slow on purpose, so the wait is shown rather than
+      // assumed: without it this reads the store while governance is still
+      // opening, on any machine, not only a busy one.
+      await truncate();
+      process.env.METIS_DATABASE_URL = URL;
+      vi.doMock('@metis/governance', async (importOriginal) => {
+        const actual = await importOriginal<typeof import('@metis/governance')>();
+        return {
+          ...actual,
+          createGovernanceStore: async (...args: Parameters<typeof actual.createGovernanceStore>) => {
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+            return actual.createGovernanceStore(...args);
+          },
+        };
+      });
+      try {
+        const booted = await bootConsole();
+        expect(booted.store.governanceKind(), 'the boot returned before governance had opened').toBe('postgres');
+        expect(booted.store.governanceSeeded(), 'the boot returned before governance had seeded').toBe(true);
+      } finally {
+        vi.doUnmock('@metis/governance');
+      }
+    });
+
     it('keeps an edit made through the API across a restart, and decides the next request against it', async () => {
       await truncate();
       process.env.METIS_DATABASE_URL = URL;

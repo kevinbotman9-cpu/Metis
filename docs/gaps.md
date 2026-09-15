@@ -76,41 +76,6 @@ set a second person approves, a score node's pin is chosen on the canvas from th
 published versions, and an `@screen-only` test reaches one of the compiler's
 model refusals by clicking.
 
-### G-133 — The first PostgreSQL restart test times out locally on this Windows machine and passes on CI
-
-**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — a local-environment failure with no diagnosis; the suite's subject is W-005
-
-**The observation.** `apps/console/tests/unit/console-durable.test.ts` › *keeps
-an edit made through the API across a restart, and decides the next request
-against it* timed out at Vitest's default 5000ms when the file was run alone,
-with the other seven tests passing, on three commits:
-
-| Commit | Alone |
-|---|---|
-| main, `3e49396` | 1 failed (the timeout), 7 passed |
-| #59 before merging main, `b74cc59` | 1 failed (the timeout), 7 passed |
-| #59 with main merged, `017145b` | 1 failed (the timeout), 7 passed |
-
-Inside a full `npm run gates:quick` the same file failed five tests: that one
-timing out, four more with `expected false to be true`. PostgreSQL at
-`localhost:5432` was accepting connections throughout. CI runs the suite against
-its own database and passed it on main at `34c7d7f`.
-
-**What is not known.** Why the first test takes more than five seconds here and
-not on a runner. The likeliest reading — the first test paying the connection,
-schema and seeding cost inside its own timeout — is a reading, not a measurement;
-nor is it known whether the four assertion failures in the full run are the
-same cause or a second one.
-
-**What was done instead.** The #59 and #60 merges of main were pushed with
-`gates:quick` red on this file alone, and CI was left as the gate, by the product
-owner's decision.
-
-**Done when:** the time the first test spends is measured and the cause stated;
-the suite passes locally the way it does on CI, or the reason it cannot is
-written down; and the four assertion failures seen under a full run are either
-shown to be the same cause or registered as their own.
-
 ### G-132 — A bundle-budget test can hang in teardown after it has measured, and a retry is what turns it green
 
 **Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — a harness defect with no diagnosis yet; W-081 owns the budget check's measurement, not its teardown
@@ -2586,6 +2551,69 @@ names, or deleted. Wiring it changes which caps apply at a node, and so what
 decisions do; that makes it a decision rather than a cleanup.
 
 ## Resolved
+
+### G-133 — The PostgreSQL restart tests timed out locally: the console's cold import was paid inside the first test's five seconds
+
+**Registered:** 2026-09-14 · **Resolved:** 2026-09-15 · **Status:** Resolved · **Work item:** none — a local-environment failure with no diagnosis; the suite's subject is W-005
+
+**The observation.** `apps/console/tests/unit/console-durable.test.ts` › *keeps
+an edit made through the API across a restart, and decides the next request
+against it* timed out at Vitest's default 5000ms when the file was run alone,
+with the other seven tests passing, on three commits:
+
+| Commit | Alone |
+|---|---|
+| main, `3e49396` | 1 failed (the timeout), 7 passed |
+| #59 before merging main, `b74cc59` | 1 failed (the timeout), 7 passed |
+| #59 with main merged, `017145b` | 1 failed (the timeout), 7 passed |
+
+Inside a full `npm run gates:quick` the same file failed five tests: that one
+timing out, four more with `expected false to be true`. PostgreSQL at
+`localhost:5432` was accepting connections throughout. CI runs the suite against
+its own database and passed it on main at `34c7d7f`.
+
+**What is not known.** Why the first test takes more than five seconds here and
+not on a runner. The likeliest reading — the first test paying the connection,
+schema and seeding cost inside its own timeout — is a reading, not a measurement;
+nor is it known whether the four assertion failures in the full run are the
+same cause or a second one.
+
+**What was done instead.** The #59 and #60 merges of main were pushed with
+`gates:quick` red on this file alone, and CI was left as the gate, by the product
+owner's decision.
+
+**Done when:** the time the first test spends is measured and the cause stated;
+the suite passes locally the way it does on CI, or the reason it cannot is
+written down; and the four assertion failures seen under a full run are either
+shown to be the same cause or registered as their own.
+
+**What was measured.** On 2026-09-15, `console-durable.test.ts` was run
+alone three times from an instrumented copy that timed every boot phase, with
+a 120-second timeout so nothing was cut short. The first boot's import of
+`app/api/[...path]/route` and `mocks/store` took 10.3s, 11.1s and 12.4s:
+every module transformed and the fixtures built. Every later boot, all four
+stores ready, took 0.9–1.3s. The first restart test took 11.8–14.0s; the test
+that boots three times took 4.1–4.6s; `TRUNCATE` took 150–490ms.
+
+**The cause.** The fixed 5-second default was too tight, for a specific
+reason: the cold import happened inside whichever test booted first, so that
+test failed on every local run, and the three-boot test had under a second of
+headroom, so a busy machine took the rest of the file with it. Two other
+readings were checked and ruled out as the cause of these failures. A shared
+database: the gates runner runs suites one at a time, this is the only console
+file that opens the database, and the dev server had no `.env.local`. A
+missing wait: `bootConsole` did not await `governanceReady`, which is a real
+race, but in every measured boot governance was ready within a millisecond of
+the registry. The earlier `expected false to be true` failures are what a
+timed-out test leaves behind: Vitest does not cancel it, so its boot goes on
+seeding while the next test truncates.
+
+**What was done.** The cold import is paid once in `beforeAll`, under a
+60-second hook budget. `bootConsole` awaits all four stores, and a test makes
+governance open 1.5 seconds late and asserts the boot waited, seen to fail with
+the wait removed. The two describe blocks run under 20 seconds, about four times
+the slowest test measured warm. After the fix, run alone three times, the first restart test took 2.7–2.9s and the three-boot test 4.4–4.5s, and the file passed inside the console unit gate, 531 tests.
+
 
 ### G-134 — The lockfile lists fifteen packages that no longer exist, so `npm install` fails and no workspace can be added
 
