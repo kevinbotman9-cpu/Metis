@@ -32,6 +32,9 @@ test.describe('decision search and trace', () => {
 
     await expect(page).toHaveURL(new RegExp(`/decisions/${id}$`));
     await expect(page.getByRole('heading', { level: 1 })).toContainText(id);
+    // The candidate count is what entered the flow. It said "entered
+    // arbitration" beside a funnel showing fewer reaching ranking (D2).
+    await expect(page.getByText('entered the flow', { exact: true })).toBeVisible();
   });
 
   test('renders a different trace for a different decision', async ({ page }) => {

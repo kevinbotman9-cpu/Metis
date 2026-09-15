@@ -204,6 +204,13 @@ export function TraceEvidence({
             </div>
           </Row>
 
+          {/* A candidate beaten on priority was not refused by anything, so
+              the rows below — the rule, its tier, the field it read, the pack
+              and source behind it, what the customer was told — have nothing
+              to describe. Drawn anyway they were six "no …" lines in a row,
+              which read as missing evidence rather than as none being due. */}
+          {notRanked ? null : (
+          <>
           <Row label="Rule">
             {group.ruleId ? (
               <Link
@@ -304,6 +311,8 @@ export function TraceEvidence({
           <Row label="What the customer was told">
             <Absent reason="nothing. No customer-facing refusal text exists in the platform" />
           </Row>
+          </>
+          )}
         </EvidenceFields>
       </>
     );

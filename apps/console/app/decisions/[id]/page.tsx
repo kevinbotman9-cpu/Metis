@@ -267,7 +267,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
           tone={trace.totalMs > 20 ? 'hold' : 'pass'}
           sub="SLA 50ms"
         />
-        <Metric label="Candidates" value={trace.candidateCount} sub="entered arbitration" />
+        <Metric label="Candidates" value={trace.candidateCount} sub="entered the flow" />
         <Metric label="Channel" value={trace.channel.replace('_', ' ')} sub={trace.placement} />
         <Metric label="Artifact" value={trace.artifactVersion} sub={trace.artifactId} />
       </div>
