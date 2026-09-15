@@ -26,7 +26,8 @@ test.describe('role-based access', () => {
   test('gates approval on the permission, not just the UI', async ({ page }) => {
     await login(page, ACCOUNTS.sarah);
     await page.goto('/approvals/cr_0042');
-    await expect(page.getByText('approve:changes required', { exact: true })).toBeVisible();
+    await expect(page.getByText('Needs someone who can approve changes', { exact: true })).toBeVisible();
+    await expect(page.getByText(/approve:changes/)).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Approve', exact: true })).toHaveCount(0);
 
     // The server must refuse too, not merely the hidden button. page.request
