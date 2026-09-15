@@ -306,6 +306,11 @@ These are high-touch and need product/design review before code.
 
 ## Session Discipline
 
+- **Run the loop.** A session with no hand-written directive runs the review
+  and development loop in `docs/CONTINUOUS_LOOP.md`: a status read first, then
+  selection, confirmation by tier, build, proof and a report in its fixed shape.
+  Where it and this file disagree, this file wins (its §0). Adopted by the
+  product owner on 2026-09-16.
 - **Work slices in batches of three: one branch and one pull request per batch.**
   Decided by the product owner on 2026-09-13. A slice goes alone only when it has
   to land before the next can start. `git fetch` and verify local `main` matches
