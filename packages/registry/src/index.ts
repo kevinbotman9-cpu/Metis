@@ -19,3 +19,11 @@ export {
   type FlowDraft,
   type ShadowComparisonRecord,
 } from './types';
+export {
+  modelProblems,
+  modelContentHash,
+  compareVersions,
+  type ModelDeclaration,
+  type ModelProblem,
+  type ModelPublishOutcome,
+} from './models';

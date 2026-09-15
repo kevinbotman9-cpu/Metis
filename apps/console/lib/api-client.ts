@@ -45,6 +45,8 @@ import type {
   OfferDetail as OfferDetailDto,
   ReplayResult as ReplayResultDto,
   Connector as ConnectorDto,
+  Model as ModelDto,
+  ModelPublishOutcome as ModelPublishOutcomeDto,
   PublishedVersion as PublishedVersionDto,
   EnvironmentState as EnvironmentStateDto,
   PublishOutcome as PublishOutcomeDto,
@@ -327,6 +329,13 @@ export const apiClient = {
   /** Proposed (G-110). Refused while a creative names the slot. */
   deletePlacement: (placementKey: string, tenantId: string = TENANT) =>
     apiCall<void>('deletePlacement', { params: { tenantId, placementKey } }),
+
+  // Model versions — ADR-009 §4. Published, never edited: a change is a new version.
+  listModels: (tenantId: string = TENANT) =>
+    apiCall<{ models: ModelDto[] }>('listModels', { params: { tenantId } }),
+
+  publishModel: (model: Partial<ModelDto>, tenantId: string = TENANT) =>
+    apiCall<ModelPublishOutcomeDto>('publishModel', { params: { tenantId }, body: model }),
 
   /**
    * What the platform did about delivering one decision — ADR-013 §1.
@@ -706,6 +715,8 @@ export type {
   TaxonomyDto,
   CreativeDto,
   PlacementDto,
+  ModelDto,
+  ModelPublishOutcomeDto,
   TenantSettingsDto,
   DeliveryAttemptDto,
   ConnectorDto,

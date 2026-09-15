@@ -14,6 +14,7 @@ import {
 } from '@metis/ui-metadata';
 import { Field, Input, Select } from '@/components/ui/primitives';
 import { ConditionsField } from '@/components/ui/conditions-field';
+import { FeaturesField } from '@/components/ui/features-field';
 import { cn } from '@/lib/cn';
 
 /**
@@ -144,7 +145,8 @@ function rowsOf(problems: Record<string, string>, field: string): Record<number,
   const rows: Record<number, string> = {};
   for (const [key, message] of Object.entries(problems)) {
     const rest = key.startsWith(`${field}.`) ? key.slice(field.length + 1) : '';
-    if (/^\d+$/.test(rest)) rows[Number(rest)] = message;
+    const row = /^(\d+)(?:\.|$)/.exec(rest);
+    if (row && rows[Number(row[1])] === undefined) rows[Number(row[1])] = message;
   }
   return rows;
 }
@@ -172,6 +174,24 @@ function FormField({
     return (
       <div className="sm:col-span-3">
         <ConditionsField
+          id={id}
+          label={field.label}
+          help={field.help}
+          value={value}
+          onChange={onChange}
+          options={options}
+          enabled={enabled}
+          problem={problem}
+          rowProblems={rowProblems}
+        />
+      </div>
+    );
+  }
+
+  if (field.type === 'features') {
+    return (
+      <div className="sm:col-span-3">
+        <FeaturesField
           id={id}
           label={field.label}
           help={field.help}

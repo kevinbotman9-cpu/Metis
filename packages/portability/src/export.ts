@@ -91,6 +91,11 @@ export async function exportTenant(
     await Promise.all(flows.map((f) => registry.shadowComparisons(tenantId, f)))
   ).flat();
 
+  // Every version, including ones no flow pins any more: a version is a fact
+  // about what could have been pinned, and a flow version that did pin it is
+  // exported beside it.
+  const models = await registry.models(tenantId);
+
   // Change sets by id; audit events oldest first. The log's order is the order
   // it was written in, which its timestamps do not always agree with, so an
   // import appends them in exactly this order and a re-export matches.
@@ -138,6 +143,7 @@ export async function exportTenant(
     registry_events: events,
     registry_drafts: drafts,
     registry_shadow_comparisons: shadowComparisons,
+    registry_models: models,
     governance_change_sets: changeSets,
     governance_audit_events: auditEvents,
     decision_records: records,

@@ -44,6 +44,38 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-135 — A model version is published and never promoted, approved or pinned from the canvas
+
+**Registered:** 2026-09-15 · **Status:** Open · **Work item:** [W-029](BACKLOG.md) — ADR-009 §4 names both halves; step two built the object and not its path to production
+
+**What was built.** ADR-009 step two: a model version is a registry object with
+a schema, a store, an export and a screen, and the compiler refuses a score
+node whose pin names nothing, a kind it cannot read, or a declared p95 it cannot
+afford (`packages/registry/src/models.ts`, `modelPinProblems` in
+`packages/compiler/src/decision-flow/compile.ts`, `/models`).
+
+**What is not, and what it costs.**
+- **No promotion.** ADR-009 §4: *"A model is promoted between environments
+  through the same change set and approval path as a flow."* A version here is
+  published and nothing more. There is no environment pointer and no change
+  set, so "who approved this scorer" has no answer — the publisher is
+  recorded, an approver is not. Today that costs nothing, because no model
+  runs; the day a scorer is real it is a decision-changing object with no
+  approval path, which is the objection ADR-009 §7 raises against adaptive
+  models.
+- **No pin from the canvas.** A score node's `model` is set wherever the flow
+  source is written; the canvas offers no picker over the published versions.
+  So the compiler's refusals are reachable from a flow draft, and no screen
+  lets a person choose a version to pin.
+- **No screen shows a refusal.** No console flow has a score node, so
+  `UNKNOWN_MODEL` and its siblings are proven by the compiler's tests and have
+  never been read by anybody on a screen.
+
+**Done when:** a model version is promoted to an environment through a change
+set a second person approves, a score node's pin is chosen on the canvas from the
+published versions, and an `@screen-only` test reaches one of the compiler's
+model refusals by clicking.
+
 ### G-134 — The lockfile lists fifteen packages that no longer exist, so `npm install` fails and no workspace can be added
 
 **Registered:** 2026-09-15 · **Status:** Open · **Work item:** none — found building the decision service (ADR-016); a repository-hygiene fix with a CI install behind it

@@ -55,12 +55,13 @@ export interface ImportSummary {
 async function assertEmpty(bundle: TenantBundle, targets: ImportTargets): Promise<void> {
   const { tenantId } = bundle.manifest;
   const flows = await targets.registryStore.listFlows(tenantId);
+  const models = await targets.registryStore.listModelVersions(tenantId);
   const decisions = await targets.ledger.query({ tenantId, limit: 1 });
   const catalogue = await targets.catalogue.read(tenantId);
   const hasCatalogue = catalogue.offers.length > 0 || catalogue.objectives.length > 0;
   const hasGovernance = (await targets.governanceStore.listTenants()).includes(tenantId);
 
-  if (flows.length > 0 || decisions.length > 0 || hasCatalogue || hasGovernance) {
+  if (flows.length > 0 || models.length > 0 || decisions.length > 0 || hasCatalogue || hasGovernance) {
     throw new PortabilityError(
       'TARGET_NOT_EMPTY',
       `Tenant ${tenantId} already exists in the target: ${flows.length} flow(s) ` +
@@ -137,6 +138,10 @@ export async function importTenant(
     await targets.registryStore.appendShadowComparison(comparison);
   }
 
+  for (const model of bundle.registry_models) {
+    await targets.registryStore.putModelVersion(model);
+  }
+
   for (const changeSet of bundle.governance_change_sets) {
     await targets.governanceStore.insertChangeSet(tenantId, changeSet);
   }
@@ -173,6 +178,7 @@ export async function importTenant(
       registry_events: bundle.registry_events.length,
       registry_drafts: bundle.registry_drafts.length,
       registry_shadow_comparisons: bundle.registry_shadow_comparisons.length,
+      registry_models: bundle.registry_models.length,
       governance_change_sets: bundle.governance_change_sets.length,
       governance_audit_events: bundle.governance_audit_events.length,
       decision_records: bundle.decision_records.length,

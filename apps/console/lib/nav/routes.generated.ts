@@ -24,6 +24,7 @@ export const ROUTES: readonly string[] = [
   '/frequency-policy',
   '/integrations',
   '/integrations/traffic',
+  '/models',
   '/objectives',
   '/offers',
   '/performance',

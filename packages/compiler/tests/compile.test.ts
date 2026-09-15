@@ -17,7 +17,7 @@ import {
   type CompileResult,
 } from '../src/decision-flow/compile';
 import { suggest, didYouMean } from '../src/decision-flow/diagnostics';
-import type { Creative, Offer, TargetingPolicy, FrequencyPolicy } from '@metis/core/domain';
+import type { Creative, Offer, TargetingPolicy, FrequencyPolicy, ModelVersion } from '@metis/core/domain';
 import type { ProfileSchema } from '@metis/core/profile-schema';
 
 const gbp = (amount: number) => ({ amount, currency: 'GBP' as const });
@@ -998,5 +998,139 @@ describe('what compilation works out about a node', () => {
     expect(asSuitability.nodes.find((n) => n.id === 'money')?.tier).toBe('suitability');
     expect(asRelevance.nodes.find((n) => n.id === 'money')?.tier).toBe('relevance');
     expect(asSuitability.artifactHash).not.toBe(asRelevance.artifactHash);
+  });
+});
+
+/**
+ * A score node's pin, resolved against the registry. ADR-009 §4, step two.
+ *
+ * `valid` has pinned `adm@4.2.0` since the compiler first refused an unpinned
+ * score node, and until 2026-09-15 nothing held `adm`: the pin was checked for
+ * shape and compiled whether or not the model existed, and whatever it cost was
+ * budgeted as nothing.
+ */
+describe('model pins against the registry', () => {
+  const model = (over: Partial<ModelVersion> = {}): ModelVersion => ({
+    tenantId: 'telco-us',
+    id: 'adm',
+    version: '4.2.0',
+    name: 'Adaptive propensity',
+    description: '',
+    kind: 'propensity',
+    features: [],
+    declaredP95Ms: 5,
+    owner: 'data-science@telco.example',
+    weightsHash: 'c'.repeat(64),
+    trainedThrough: '2026-08-31',
+    publishedAt: '2026-09-01T00:00:00Z',
+    publishedBy: 'test',
+    ...over,
+  });
+
+  const errors = (r: CompileResult) => r.diagnostics.filter((d) => d.severity === 'error');
+
+  it('compiles a pin to a published version, and budgets what it declares', () => {
+    const without = compileDecisionFlow(valid, ctx);
+    const r = compileDecisionFlow(valid, { ...ctx, models: [model()] });
+
+    expect(errors(r)).toEqual([]);
+    // 4 + 1 + 3 + 2 along the path, and the model's declared 5 on top.
+    expect(without.artifact!.costManifest.criticalPathMs).toBe(10);
+    expect(r.artifact!.costManifest.criticalPathMs).toBe(15);
+  });
+
+  it('checks the pin for shape only when no registry is supplied, as before', () => {
+    // A caller with no registry to ask must not see every scoring flow go red.
+    expect(codes(compileDecisionFlow(valid, ctx))).not.toContain('UNKNOWN_MODEL');
+  });
+
+  it('refuses a pin to a model the registry does not hold, and offers the near miss', () => {
+    const r = compileDecisionFlow(valid, { ...ctx, models: [model({ id: 'admm' })] });
+    const diag = r.diagnostics.find((x) => x.code === 'UNKNOWN_MODEL');
+
+    expect(r.ok).toBe(false);
+    expect(diag?.message).toContain("'adm'");
+    expect(diag?.message).toContain('admm');
+    expect(diag?.at).toBe('score');
+  });
+
+  it('refuses a version that was never published, and names the ones that were', () => {
+    const r = compileDecisionFlow(valid, { ...ctx, models: [model({ version: '4.1.0' }), model({ version: '4.3.0' })] });
+    const diag = r.diagnostics.find((x) => x.code === 'UNKNOWN_MODEL_VERSION');
+
+    expect(r.ok).toBe(false);
+    expect(diag?.message).toContain('4.1.0, 4.3.0');
+    expect(codes(r)).not.toContain('UNKNOWN_MODEL');
+  });
+
+  it('refuses a model whose output a score node cannot read as a propensity', () => {
+    const r = compileDecisionFlow(valid, { ...ctx, models: [model({ kind: 'value' })] });
+    expect(r.ok).toBe(false);
+    expect(codes(r)).toContain('MODEL_KIND_MISMATCH');
+  });
+
+  it('refuses a model whose declared p95 alone exceeds the budget, and names the model', () => {
+    const r = compileDecisionFlow(valid, { ...ctx, models: [model({ declaredP95Ms: 80 })] });
+    const diag = r.diagnostics.find((x) => x.code === 'MODEL_EXCEEDS_BUDGET');
+
+    expect(r.ok).toBe(false);
+    expect(diag?.message).toContain('adm 4.2.0');
+    expect(diag?.message).toContain('80ms');
+  });
+
+  it('refuses a flow the model makes unaffordable, though the model fits on its own', () => {
+    // 41 fits a 50ms budget alone; on a path already costing 10 it does not.
+    const r = compileDecisionFlow(valid, { ...ctx, models: [model({ declaredP95Ms: 41 })] });
+
+    expect(codes(r)).not.toContain('MODEL_EXCEEDS_BUDGET');
+    expect(codes(r)).toContain('LATENCY_BUDGET_EXCEEDED');
+  });
+
+  describe('features against the data model', () => {
+    const schema: ProfileSchema = {
+      id: 's',
+      tenantId: 't',
+      version: '1.0.0',
+      roots: {
+        profile: { alias: 'customer', entity: 'Customer' },
+        request: { alias: 'context', entity: 'Context' },
+      },
+      updatedAt: '2026-01-01T00:00:00Z',
+      updatedBy: 'test',
+      entities: [
+        { name: 'Context', description: '', fields: [] },
+        {
+          name: 'Customer',
+          description: '',
+          fields: [{ origin: 'profile', class: 'attribute', name: 'age', type: 'integer', description: '' }],
+        },
+      ],
+      aggregations: [],
+    };
+
+    const withFeatures = (features: ModelVersion['features']) =>
+      compileDecisionFlow(valid, { ...ctx, profileSchema: schema, models: [model({ features })] });
+
+    it('compiles a model reading a field the data model defines as that type', () => {
+      expect(errors(withFeatures([{ path: 'customer.age', type: 'integer' }]))).toEqual([]);
+    });
+
+    it('refuses a feature the data model does not define, and offers the near miss', () => {
+      const r = withFeatures([{ path: 'customer.ag', type: 'integer' }]);
+      const diag = r.diagnostics.find((x) => x.code === 'UNKNOWN_MODEL_FEATURE');
+
+      expect(r.ok).toBe(false);
+      expect(diag?.message).toContain("'customer.ag'");
+      expect(diag?.message).toContain('customer.age');
+    });
+
+    it('refuses a feature the data model defines as another type', () => {
+      const r = withFeatures([{ path: 'customer.age', type: 'string' }]);
+      const diag = r.diagnostics.find((x) => x.code === 'MODEL_FEATURE_TYPE');
+
+      expect(r.ok).toBe(false);
+      expect(diag?.message).toContain('as string');
+      expect(diag?.message).toContain('as integer');
+    });
   });
 });

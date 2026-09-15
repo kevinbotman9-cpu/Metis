@@ -65,6 +65,7 @@ const REGISTRY_TABLES = [
   'registry_versions',
   'registry_events',
   'registry_drafts',
+  'registry_models',
 ];
 
 const GOVERNANCE_TABLES = ['governance_change_sets', 'governance_audit_events'];

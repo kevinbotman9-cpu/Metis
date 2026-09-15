@@ -33,6 +33,7 @@ export type EntityName =
   | 'registry_events'
   | 'registry_drafts'
   | 'registry_shadow_comparisons'
+  | 'registry_models'
   | 'governance_change_sets'
   | 'governance_audit_events'
   | 'decision_records'
@@ -91,6 +92,11 @@ export const ENTITIES: EntityDeclaration[] = [
   // `registry_environments`; without this a restored tenant would be shadowing
   // with an agreement rate of nothing.
   { table: 'registry_shadow_comparisons', included: true },
+  // The scorers a flow's score nodes pin (ADR-009 §4). A restore without them
+  // would hold flows whose pins name nothing, and the compiler refuses a pin to
+  // a model the registry does not hold — so every flow that scores would stop
+  // being publishable on the instance it was moved to.
+  { table: 'registry_models', included: true },
 
   // Who asked for a change, who decided it and why, and everything else a
   // person or an agent did. A restore without them would hold edits nobody can

@@ -7,6 +7,7 @@ import {
   type ObjectiveDto,
   type OfferDto,
   type PlacementDto,
+  type ModelDto,
   type TargetingPolicyDto,
   type TaxonomyDto,
 } from '@/lib/api-client';
@@ -60,6 +61,14 @@ export const LIST_SOURCES: Record<string, Source> = {
     queryKey: ['placements'],
     queryFn: () => apiClient.listPlacements(),
     select: (data) => (data as { placements: PlacementDto[] }).placements as unknown as Row[],
+  },
+  // Every published version of every model. How many features each reads is
+  // derived here, because a count of an array is not a field of the version.
+  models: {
+    queryKey: ['models'],
+    queryFn: () => apiClient.listModels(),
+    select: (data) =>
+      (data as { models: ModelDto[] }).models.map((m) => ({ ...m, featureCount: m.features.length }) as unknown as Row),
   },
   // There is no listObjectives or listCategories: getTaxonomy returns both,
   // and the engine reads the taxonomy as one snapshot.
@@ -225,6 +234,22 @@ export const ENTITY_BINDINGS: Record<string, EntityBinding> = {
     // The coverage screen's denominator is the set of channels with a delivery
     // mode, so changing one here changes what that screen measures.
     invalidate: [['placements'], ['creatives'], ['offers']],
+  },
+  Model: {
+    // A version, not a model: two versions of one scorer are two rows.
+    identity: (row) => `${String(row.id)}@${String(row.version)}`,
+    // Whoever can ship a flow ships what it scores with (ADR-009 §4).
+    permission: 'publish:flows',
+    defaults: () => ({ kind: 'propensity' }),
+    // Publishing never edits. From an open version, what is saved is published
+    // under the version the form names, keeping the model id the form does not
+    // resend because it cannot change.
+    save: async (body, existing) => {
+      const declaration = existing ? { ...(body as Partial<ModelDto>), id: String(existing.id) } : (body as Partial<ModelDto>);
+      const outcome = await apiClient.publishModel(declaration);
+      return (outcome.model ?? declaration) as unknown as Row;
+    },
+    invalidate: [['models']],
   },
   Offer: {
     identity: (row) => String(row.id),

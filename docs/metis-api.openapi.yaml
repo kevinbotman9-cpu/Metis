@@ -2436,6 +2436,129 @@ components:
         updatedBy:
           type: string
 
+    ModelFeature:
+      type: object
+      description: |
+        One input a model reads, as a path into the tenant's data model. ADR-009 §5.
+      required: [path, type]
+      properties:
+        path:
+          type: string
+          description: |
+            A dotted path the profile schema resolves, such as
+            `customer.tenureMonths`.
+        type:
+          type: string
+          enum: [string, integer, decimal, boolean, timestamp, enum, money]
+          description: |
+            The type the model expects there. A path the data model defines as
+            another type is refused when a flow pinning the model compiles.
+
+    Model:
+      type: object
+      description: |
+        One published version of a scorer that a flow's score nodes can pin.
+        ADR-009 §4.
+
+        Versioned like a flow: a version is bound to its content, republishing
+        identical content is a no-op, and different content under a published
+        version is refused. The platform trains nothing, so the weights are
+        named by their hash and the training date is declared, not verified.
+
+        No model runs behind a version yet — scoring is the seeded function.
+        What a version changes is compilation: a flow pinning a model the
+        registry does not hold, reading a feature the data model lacks, or
+        unable to afford the declared p95, is refused.
+
+        On publish, `tenantId`, `publishedAt` and `publishedBy` are stamped
+        by the server and anything sent for them is ignored.
+      required:
+        [tenantId, id, version, name, description, kind, features, declaredP95Ms,
+         owner, weightsHash, trainedThrough, publishedAt, publishedBy]
+      properties:
+        tenantId:
+          type: string
+        id:
+          type: string
+          description: What a score node's `model.id` names. Stable across versions.
+        version:
+          type: string
+          description: An exact `x.y.z`. A floating version would change the answer on replay.
+        name:
+          type: string
+        description:
+          type: string
+        kind:
+          type: string
+          enum: [propensity, value, ranking]
+          description: |
+            What the output means. A score node reads a propensity, and pinning
+            another kind is refused.
+        features:
+          type: array
+          description: |
+            Every input the model reads. Empty means it reads nothing a person
+            could be erased from.
+          items:
+            $ref: '#/components/schemas/ModelFeature'
+        declaredP95Ms:
+          type: number
+          description: |
+            Declared, not measured, in milliseconds. The compiler adds it to the
+            critical path, so a flow that cannot afford the model does not
+            compile.
+        owner:
+          type: string
+          description: |
+            Who answers for this scorer. Erasure obligations attach to whoever
+            trained it.
+        weightsHash:
+          type: string
+          description: sha256 of the serialised weights, as 64 lower-case hexadecimal characters.
+        trainedThrough:
+          type: string
+          format: date
+          description: |
+            The last date of the training data. Declared and not verified; it is
+            what makes an erasure request answerable.
+        publishedAt:
+          type: string
+          format: date-time
+        publishedBy:
+          type: string
+
+    ModelPublishOutcome:
+      type: object
+      description: |
+        What publishing a model version did. Nothing is stored on a refusal of
+        either kind.
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [published, unchanged, rejected]
+        reason:
+          type: string
+          enum: [invalid, immutable]
+          description: Present on a refusal.
+        model:
+          $ref: '#/components/schemas/Model'
+        problems:
+          type: array
+          description: Each problem on the field it is about, such as `features.1.path`.
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+        existingHash:
+          type: string
+        attemptedHash:
+          type: string
+
     TenantSettings:
       type: object
       description: |
@@ -4896,6 +5019,76 @@ paths:
                 $ref: '#/components/schemas/Connector'
         '403':
           description: Caller lacks edit:integrations
+
+  /models/{tenantId}:
+    get:
+      summary: Published model versions
+      operationId: listModels
+      description: |
+        Every version of every model the tenant has published, by model id and
+        then newest version first. ADR-009 §4.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Model versions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [models]
+                properties:
+                  models:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Model'
+
+    post:
+      summary: Publish a model version
+      operationId: publishModel
+      description: |
+        Declares a scorer a flow can pin: what it reads, what it costs, who
+        answers for it and which weights it is. ADR-009 §4.
+
+        A score node has pinned `{ id, version }` since the compiler first
+        refused an unpinned one, and until this operation nothing held what the
+        pin named. Publishing is not activating: a version changes no decision
+        until a flow that pins it is published and promoted.
+
+        Republishing identical content under a published version is a no-op and
+        answers `unchanged`. Different content under one is refused, because a
+        pinned version has to mean one thing.
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Model'
+      responses:
+        '201':
+          description: Published, or unchanged if identical content was already published under this version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelPublishOutcome'
+        '400':
+          description: The declaration has problems, each named on its field. Nothing was stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelPublishOutcome'
+        '401':
+          description: No session
+        '403':
+          description: Caller lacks publish:flows
+        '409':
+          description: The version is already published and declares something else
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelPublishOutcome'
 
   # ---------------------------------------------------------------------------
   # Flows as the console reads them

@@ -28,9 +28,13 @@ import type {
   PackManifest,
   PolicySource,
   Connector,
+  ModelVersion,
 } from '@metis/core/domain';
 import {
   conditionProblems,
+  listFieldPaths,
+  resolveField,
+  typeOf,
   type ProfileSchema,
   type SchemaPin,
 } from '@metis/core/profile-schema';
@@ -190,6 +194,21 @@ export interface CompileContext {
    * naming a connector is then rejected rather than assumed to be fine.
    */
   connectors?: Connector[];
+  /**
+   * The tenant's published model versions. ADR-009 §4.
+   *
+   * Supplied, every score node's pin has to name one of them: a pin to a model
+   * the registry does not hold is refused, as is one whose kind a score node
+   * cannot read, one whose declared p95 alone exceeds the budget, and — when a
+   * `profileSchema` is supplied too — one reading a feature the data model does
+   * not define or defines as another type. The declared p95 joins the critical
+   * path the way a connector's does.
+   *
+   * Omitted, a pin is checked for shape only, as every flow was before the
+   * registry held models — so a caller that has no registry to ask compiles
+   * exactly as before rather than every scoring flow turning red.
+   */
+  models?: ModelVersion[];
   /**
    * Fields the caller guarantees on every request, e.g. the channel and
    * placement an inbound integration always sends.
@@ -386,24 +405,36 @@ function hasCycle(source: DecisionFlowSource, g: Graph): boolean {
  * connectors entirely would let a 180ms bureau call through a 50ms budget and
  * fail in production instead.
  */
-function nodeCost(node: FlowNode | undefined, connectors: Map<string, Connector>): number {
+function nodeCost(
+  node: FlowNode | undefined,
+  connectors: Map<string, Connector>,
+  models: Map<string, ModelVersion> = new Map()
+): number {
   if (!node) return 0;
   const own = node.estimatedMs ?? 0;
+  // A score is resolved after the inputs it may read and before the core runs
+  // (ADR-009 §2), so a node waits for its model on top of its connectors.
+  const scored = node.model ? (models.get(`${node.model.id}@${node.model.version}`)?.declaredP95Ms ?? 0) : 0;
   const attached = (node.connectorIds ?? [])
     .map((id) => connectors.get(id))
     .filter((c): c is Connector => Boolean(c) && c!.active)
     .map((c) => c.declaredP95Ms);
-  return own + (attached.length > 0 ? Math.max(...attached) : 0);
+  return own + (attached.length > 0 ? Math.max(...attached) : 0) + scored;
 }
 
-function criticalPath(source: DecisionFlowSource, g: Graph, connectors: Map<string, Connector>): number {
+function criticalPath(
+  source: DecisionFlowSource,
+  g: Graph,
+  connectors: Map<string, Connector>,
+  models: Map<string, ModelVersion>
+): number {
   const memo = new Map<string, number>();
   const cost = (id: string): number => {
     const cached = memo.get(id);
     if (cached !== undefined) return cached;
     // Guard against being called on a cyclic graph.
     memo.set(id, 0);
-    const self = nodeCost(g.byId.get(id), connectors);
+    const self = nodeCost(g.byId.get(id), connectors, models);
     const next = g.outgoing.get(id) ?? [];
     const total = self + (next.length > 0 ? Math.max(...next.map(cost)) : 0);
     memo.set(id, total);
@@ -469,6 +500,96 @@ export function resolveRange(range: string, available: string[]): string | null 
 // ---------------------------------------------------------------------------
 
 const SCORE_TYPES: FlowNodeType[] = ['score-model', 'score-adaptive'];
+
+/**
+ * What is wrong with a score node's pin, given the models the registry holds.
+ * ADR-009 §4 and §5.
+ *
+ * The shape of a pin was already checked: an exact version, or nothing got
+ * here. What this adds is whether the pin names anything, whether a score node
+ * can read what it names, and whether the flow can afford it.
+ */
+function modelPinProblems(
+  node: FlowNode,
+  pin: { id: string; version: string },
+  ctx: CompileContext
+): Diagnostic[] {
+  const models = ctx.models ?? [];
+  const found = models.find((m) => m.id === pin.id && m.version === pin.version);
+
+  if (!found) {
+    const versions = models.filter((m) => m.id === pin.id).map((m) => m.version);
+    if (versions.length > 0) {
+      return [
+        error(
+          'UNKNOWN_MODEL_VERSION',
+          `Score node '${node.id}' pins ${pin.id} ${pin.version}, which was never published. Published: ${versions.join(', ')}.`,
+          'Pin a published version, or publish this one first. A pin to nothing cannot be replayed against anything.',
+          node.id
+        ),
+      ];
+    }
+    return [
+      error(
+        'UNKNOWN_MODEL',
+        `Score node '${node.id}' pins model '${pin.id}', which the registry does not hold.` +
+          didYouMean(pin.id, new Set(models.map((m) => m.id))),
+        'Publish the model version on /models first, or pin one that exists.',
+        node.id
+      ),
+    ];
+  }
+
+  const problems: Diagnostic[] = [];
+  if (found.kind !== 'propensity') {
+    problems.push(
+      error(
+        'MODEL_KIND_MISMATCH',
+        `Score node '${node.id}' pins ${pin.id} ${pin.version}, a ${found.kind} model. A score node reads a propensity.`,
+        'Pin a propensity model. The ranking function reads a score node as its P term, and a value or ranking output there would be multiplied as if it were a probability.',
+        node.id
+      )
+    );
+  }
+  if (found.declaredP95Ms > ctx.tenant.latencyBudgetMs) {
+    problems.push(
+      error(
+        'MODEL_EXCEEDS_BUDGET',
+        `Model ${pin.id} ${pin.version} declares a p95 of ${found.declaredP95Ms}ms, which alone exceeds the ${ctx.tenant.latencyBudgetMs}ms budget.`,
+        'No flow can call this scorer synchronously and stay inside the budget. Publish a faster version, or raise the budget.',
+        node.id
+      )
+    );
+  }
+  if (ctx.profileSchema) {
+    const schema = ctx.profileSchema;
+    const paths = new Set(listFieldPaths(schema).map((p) => p.path));
+    for (const feature of found.features) {
+      const resolved = resolveField(schema, feature.path);
+      if (!resolved) {
+        problems.push(
+          error(
+            'UNKNOWN_MODEL_FEATURE',
+            `Model ${pin.id} ${pin.version} reads '${feature.path}', which the data model does not define.` +
+              didYouMean(feature.path, paths),
+            'A feature the data model does not define arrives empty at every decision. Add the field to the data model, or publish a version that reads one it has.',
+            node.id
+          )
+        );
+      } else if (typeOf(resolved) !== feature.type) {
+        problems.push(
+          error(
+            'MODEL_FEATURE_TYPE',
+            `Model ${pin.id} ${pin.version} reads '${feature.path}' as ${feature.type}; the data model defines it as ${typeOf(resolved)}.`,
+            'A scorer given a value of the wrong type scores something other than what it was trained on. Publish a version whose declaration matches the data model.',
+            node.id
+          )
+        );
+      }
+    }
+  }
+  return problems;
+}
 
 /**
  * Why this offer cannot be delivered, in the words the diagnostic will use, or
@@ -788,6 +909,8 @@ export function compileDecisionFlow(
             n.id
           )
         );
+      } else if (ctx.models) {
+        d.push(...modelPinProblems(n, n.model, ctx));
       }
     }
   }
@@ -1027,9 +1150,10 @@ export function compileDecisionFlow(
   // --- Cost --------------------------------------------------------------
 
   const connectorById = new Map((ctx.connectors ?? []).map((c) => [c.id, c]));
-  const pathMs = cyclic ? 0 : Number(criticalPath(source, g, connectorById).toFixed(3));
+  const modelByPin = new Map((ctx.models ?? []).map((m) => [`${m.id}@${m.version}`, m]));
+  const pathMs = cyclic ? 0 : Number(criticalPath(source, g, connectorById, modelByPin).toFixed(3));
   const worstCaseMs = Number(
-    source.nodes.reduce((sum, n) => sum + nodeCost(n, connectorById), 0).toFixed(3)
+    source.nodes.reduce((sum, n) => sum + nodeCost(n, connectorById, modelByPin), 0).toFixed(3)
   );
   const modelInvocations = source.nodes
     .filter((n) => SCORE_TYPES.includes(n.type) && n.model)

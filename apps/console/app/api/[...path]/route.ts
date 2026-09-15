@@ -284,7 +284,13 @@ async function currentCompileContext(artifactId?: string) {
   // this existed until 2026-09-11 and two of them disagreed, which is how a
   // flow came to be live and shown as broken at the same time (G-071).
   // Registry seeding reads the stored catalogue through the same builder.
-  return compileContextFor(artifactId ?? '', compileSourcesFrom(await readCatalogue()));
+  await store.registryReady;
+  return {
+    ...compileContextFor(artifactId ?? '', compileSourcesFrom(await readCatalogue())),
+    // A score node's pin is resolved against what the registry holds, and the
+    // version's declared p95 joins the critical path. ADR-009 §4.
+    models: await store.registry.models(CONSOLE_TENANT),
+  };
 }
 
 /**
@@ -1303,6 +1309,13 @@ async function handleGet(req: Request, { params }: Ctx) {
       return json({ placements: (await readCatalogue()).placements });
     }
 
+    // GET /api/models/{tenantId} — every published model version. ADR-009 §4.
+    case 'models': {
+      if (!rest[0]) return notFound();
+      await store.registryReady;
+      return json({ models: await store.registry.models(CONSOLE_TENANT) });
+    }
+
     case 'data-sources': {
       if (!rest[0]) return notFound();
       return json({ sources: store.dataSources });
@@ -1745,9 +1758,10 @@ async function handleGet(req: Request, { params }: Ctx) {
         return json({ ...artifact, compilation });
       }
       const sources = compileSourcesFrom(await readCatalogue());
+      const models = await store.registry.models(CONSOLE_TENANT);
       return json({
         artifacts: (await flowDrafts()).map((a) => {
-          const result = compileDecisionFlow(toSource(a), compileContextFor(a.id, sources));
+          const result = compileDecisionFlow(toSource(a), { ...compileContextFor(a.id, sources), models });
           return {
             ...a,
             compileOk: result.ok,
@@ -2585,6 +2599,51 @@ async function handlePost(req: Request, { params }: Ctx) {
       });
 
       return json(policy, 201);
+    }
+
+    case 'models': {
+      // POST /api/models/{tenantId} — publish a model version. ADR-009 §4.
+      //
+      // publish:flows rather than a permission of its own: flows pin a version,
+      // and a pinned version changes what they are budgeted for, so whoever can
+      // ship a flow is whoever can ship what it scores with.
+      await store.registryReady;
+      const user = actor(req);
+      if (!user) return json({ error: 'no_session' }, 401);
+      if (!user.permissions.includes('publish:flows')) return forbidden('publish:flows');
+      const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+      if (!body) return json({ error: 'bad_request', message: 'Request body must be JSON' }, 400);
+
+      const outcome = await store.registry.publishModel(
+        CONSOLE_TENANT,
+        body as never,
+        user.email,
+        new Date().toISOString()
+      );
+      if (outcome.status === 'rejected') {
+        // Each problem on the field it is about, so the form puts it against its
+        // input. 400 for a declaration that cannot be published; 409 for a
+        // version that exists and declares something else.
+        const conflict = outcome.reason === 'immutable';
+        return json(
+          {
+            ...outcome,
+            error: conflict ? 'conflict' : 'bad_request',
+            message: outcome.problems.map((p) => p.message).join(' '),
+          },
+          conflict ? 409 : 400
+        );
+      }
+      if (outcome.status === 'published') {
+        await recordAudit({
+          actor: user.email,
+          actorType: 'human',
+          eventType: 'ModelPublished',
+          scope: `model:${outcome.model.id}`,
+          summary: `Published model ${outcome.model.id} ${outcome.model.version} (${outcome.model.kind}, declared p95 ${outcome.model.declaredP95Ms}ms).`,
+        });
+      }
+      return json(outcome, 201);
     }
 
     case 'placements': {

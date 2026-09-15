@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import type { CompileContext, DecisionFlowSource } from '@metis/compiler/decision-flow';
 import { ArtifactRegistry, type RegistryStore } from '../src/registry';
 import { RegistryError } from '../src/types';
+import { modelVersionTests } from './models';
 
 /**
  * One behaviour suite, run against every store.
@@ -126,6 +127,10 @@ export function describeRegistry(label: string, harness: StoreHarness): void {
         },
         ctx
       );
+
+    // --- Model versions (ADR-009 §4) ----------------------------------------
+
+    modelVersionTests(() => registry);
 
     // --- Publishing compiles first -----------------------------------------
 

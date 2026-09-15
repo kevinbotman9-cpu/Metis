@@ -49,7 +49,7 @@ if (!reachable) {
       // itself worth knowing — the append-only guarantee is about rows, not
       // about a deliberate administrative reset.
       await pool.query(
-        'TRUNCATE registry_shadow_comparisons, registry_environments, registry_versions, registry_events, registry_drafts RESTART IDENTITY'
+        'TRUNCATE registry_shadow_comparisons, registry_models, registry_environments, registry_versions, registry_events, registry_drafts RESTART IDENTITY'
       );
       return new PostgresRegistryStore(pool);
     },
@@ -57,6 +57,16 @@ if (!reachable) {
       await pool.end();
     },
     extra(getRegistry) {
+      it('the database refuses to update or delete a published model version', async () => {
+        const registry = getRegistry();
+        const { declaration } = await import('./models');
+        const out = await registry.publishModel('telco-us', declaration(), 'sarah', '2026-06-01T12:00:00.000Z');
+        expect(out.status).toBe('published');
+
+        await expect(pool.query("UPDATE registry_models SET published_by = 'forged'")).rejects.toThrow(/append-only/);
+        await expect(pool.query('DELETE FROM registry_models')).rejects.toThrow(/append-only/);
+      });
+
       it('the database refuses to update a published version', async () => {
         // Immutability enforced in application code is a convention that lasts
         // until somebody writes an admin query. This is the other half.

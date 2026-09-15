@@ -171,6 +171,13 @@ every corpus hash byte-identical. **The seam a model plugs into now exists.** Th
 spine's steps are unchanged; what changed is that the first one is no longer a
 research question.
 
+**And since 2026-09-15, its step two.** A model version is a registry object with a
+schema, a store and a screen: `/models` publishes one, and the compiler refuses a
+flow whose score node pins a version the registry does not hold, a kind it cannot
+read, or a declared p95 it cannot afford. Still no model runs — the propensity is
+the same seeded function — and no data-scientist account exists, so the persona
+this spine names still cannot sign in to do it.
+
 Read ADR-009 before opening this spine; it names what to build first and what to
 defer, and this file should not repeat it.
 
