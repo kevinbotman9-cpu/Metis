@@ -62,6 +62,28 @@ describe('S1', () => {
     }
   });
 
+  it('opens with a header that says it is in-process and is not M1 or M2', () => {
+    // The limits travel inside the artifact, first, so a figure cannot be
+    // lifted out of it without them (demo week, 2026-09-16).
+    expect(Object.keys(report)[1]).toBe('header');
+    const h = report.header;
+    expect(h.scope).toMatch(/^In-process engine execution only/);
+    for (const excluded of [/HTTP/, /ledger write/, /connector calls/, /network/]) {
+      expect(h.excludedFromTiming.join(' ')).toMatch(excluded);
+    }
+    expect(h.notM1OrM2).toMatch(/NOT M1 or M2/);
+    expect(h.notM1OrM2).toMatch(/30 minutes/);
+    expect(h.notM1OrM2).toMatch(/10M and 100M/);
+    expect(h.machine).toMatch(/cores/);
+    expect(h.tenant).toMatch(/^'bench'/);
+    expect(h.dataset).toMatch(/50,000 distinct generated customer ids/);
+    expect(h.requestMix.length).toBeGreaterThan(2);
+    expect(h.cacheStates).toHaveLength(2);
+    expect(h.sampleSize).toMatch(/3,000 timed decisions per variant/);
+    expect(h.generalisesTo).toMatch(/^Only this/);
+    expect(h.reproduce).toBe('npm run bench:s1');
+  });
+
   it('says what it does not measure, and why', () => {
     // The half of a benchmark that gets dropped in the retelling. Carrying it
     // in the artifact is the only version of this that survives.
