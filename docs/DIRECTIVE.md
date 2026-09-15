@@ -17,6 +17,27 @@ This file exists so these constraints live in the repository rather than in a ch
    5. The order, in slices, with an honest estimate and the parts that cannot be sized yet.
 3. Then stop. The product owner picks the first slice from the survey.
 
+## The data-layer order
+
+Delivered on 2026-09-15 by the survey and amended the same day. Each slice is its own pull request. The product owner picks the next; estimates are in working days, and "unsized" means the slice waits on a decision that fixes its size.
+
+| # | Slice | Estimate | State |
+|---|---|---|---|
+| 1 | ADR-018: the seeded corpus becomes ledger rows, and screens read only the ledger | 0.5 | Accepted 2026-09-15 |
+| 2 | The seed job, the in-memory seed for development and e2e, and decision search on the ledger, with its index migration (ADR-018 clauses 2, 3, 5 and 6) | 1–1.5 | Next |
+| 3 | Performance, the policy funnel, flow volume and outcomes read the ledger alone; the committed index and the projection's read path deleted | 1–2 | |
+| 4 | The console calls the decision service for decisions; the e2e harness starts the service | 1–2 | |
+| 5 | Trace, replay, outcomes and deliveries served by the decision service (ADR-016 §1) | 1–2 | |
+| 6 | ADR: identity, closing G-115 | 0.5–1 to write | |
+| 7 | Tenant provisioning (ADR-016 §2): control-plane store, `tenants`, `metis tenant create`, tenant settings moved, refusals | 2–3 | |
+| 8 | Users and sessions, as slice 6 decides | unsized | |
+| 9 | Autonomy settings into the governance store, audited | 0.5–1 | |
+| 10 | Protect the subject in the ledger: a keyed subject hash and per-subject encryption (G-068, ADR-004 clauses 1–3), after the key store is chosen. It follows tenant provisioning, because keys live in the tenant's namespace, and precedes the profile store, which ADR-004's protection has to cover | unsized until the key store is chosen | |
+| 11 | The profile store and durable intake (ADR-014 §3 and §5) | 3–5 | |
+| 12 | Simulation over ledger history, with a bias metric decided by ADR | unsized | |
+| 13 | A durable connector call log | 0.5–1 | |
+| 14 | Agent activity | out until an agent runtime exists | |
+
 ## Do not touch
 
 Nothing, except what the survey shows has to come first. Those items go here, named, once the survey is delivered.

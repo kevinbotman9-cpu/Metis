@@ -1,11 +1,21 @@
 # ADR-018: The seeded corpus becomes ledger rows, and screens read only the ledger
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-09-15 (proposed)
-**Owner:** The product owner, who picks the data-layer slices from the survey of 2026-09-15.
-**Decision needed by:** before slice 2 of the data-layer order starts. Slice 2 builds the seed job and moves decision search onto the ledger, and every clause below is a choice slice 2 would otherwise make by accident.
+**Decided:** 2026-09-15
+**Deciders:** the product owner
+**Owner:** the product owner, who picks the data-layer slices in `docs/DIRECTIVE.md`
+**Decision needed by:** — decided
 **Constrains:** `apps/console/mocks/fixtures/engine.ts`, `outcomes.ts`, `decisions.ts` and `decision-index.json`; `apps/console/scripts/build-decision-index.mjs`; `apps/console/mocks/provenance.ts`; the decision search, trace, outcomes, performance, policy funnel and flow volume handlers in `apps/console/app/api/[...path]/route.ts`; `packages/ledger`; `scripts/build-service-bundle.mjs`; the e2e harness (`apps/console/playwright.config.ts`); and every test that pins the committed index.
-**Arises from:** the data-layer survey of 2026-09-15, under the directive of the same date. Related: [G-118](../gaps.md), [G-068](../gaps.md), [ADR-008](ADR-008-closing-the-outcome-loop.md) §6, [ADR-013](ADR-013-delivery.md), [ADR-016](ADR-016-deployment-operations-and-scale.md).
+**Arises from:** the data-layer survey of 2026-09-15, under the directive of the same date. Related: [G-118](../gaps.md), [G-068](../gaps.md), [ADR-004](ADR-004-retention-and-erasure.md), [ADR-008](ADR-008-closing-the-outcome-loop.md) §6, [ADR-013](ADR-013-delivery.md), [ADR-016](ADR-016-deployment-operations-and-scale.md).
+
+**Amended at acceptance, 2026-09-15.** The product owner accepted this ADR with four amendments, each made where it belongs rather than appended:
+1. Clause 5 fixes the outcome count the seed job must produce, and makes it a test in slice 2.
+2. Clause 3 gains a reset path, and says who may use it.
+3. Clause 8 is new, on G-068: until the subject hash is keyed no ledger can be `real`, so no figure can be labelled recorded. It places that work in the data-layer order.
+4. The deferred e2e-database alternative gains a threshold that triggers on its own.
+
+Writing the amendments surfaced one more constraint, recorded in clause 3: the e2e suite resets the store between specs, so the in-memory seed has to survive a reset without executing again.
 
 ## Context
 
@@ -85,6 +95,15 @@ Decision search, a trace, outcomes, deliveries, performance, the policy funnel a
   - **Who sets it:** the development script and the e2e harness.
   - **Who does not:** unit test files that import the store. Twelve seconds per file is the cost G-133 showed a suite cannot absorb.
   - **A unit test that needs seeded decisions** seeds a small, declared count itself.
+  - **Executed once per process.** The e2e suite calls `POST /api/_test/reset` between specs (`resetStore` in `apps/console/tests/e2e/helpers.ts`), and a reset rebuilds the in-memory ledger. The seed keeps the entries, deliveries and outcomes it executed at start, and a reset writes those back into the fresh ledger without executing anything. Re-executing on every reset would put twelve seconds between specs.
+
+**Resetting a tenant that already holds decisions.** Without this, one decision made before the seed leaves a tenant unseedable. Only this path exists:
+
+1. **An operator runs `npm run seed:ledger -- --reset --tenant <id>`** against the database. It is never an API operation: not in the console's development API, not in the decision service. `POST /api/_test/reset` already refuses a PostgreSQL store (`ResetRefused`, `apps/console/mocks/store.ts`), and that refusal stands.
+2. **It refuses unless the ledger's data class is `synthetic`.** A `real` ledger is evidence, and no command clears evidence. A `real` ledger cannot exist today anyway (clause 8), but the refusal is written for the day one can.
+3. **It refuses unless the ledger holds no tenant other than the one named.** The triggers in `packages/ledger/migrations/001_ledger.sql` reject every row-level `UPDATE` and `DELETE` on `decision_records`, `outcome_events` and `delivery_attempts`. ADR-004 clause 2 says those triggers are never bypassed, and this ADR does not add a bypass. The only way to clear rows without one is `TRUNCATE`, which clears every tenant in a table at once. So a database holding two synthetic tenants cannot be reset per tenant, and the command says so and names the other tenants.
+4. **Then, in one transaction, it truncates** `delivery_attempts`, `outcome_events`, `idempotency_keys` and `decision_records`, in that order, because the first three reference the last. It seeds as above, and records a `LedgerReset` event in the governance audit log naming who ran it (`--by`, required), the tenant, and the counts removed and written.
+5. **Who may do it:** whoever holds database credentials that can truncate the ledger's tables. Today that is the single role every service connects with. Separating it into the role that runs the migration job (ADR-016 §3), which the services do not hold, belongs to the identity ADR (G-115). Until then, the data-class refusal, the single-tenant refusal and the audit event are the controls, and they are not access control.
 
 ### 4. What stays reproducible, and what does not
 
@@ -117,6 +136,15 @@ The chain hash already covers only the reproducible part of a record, so writing
    - **What that includes:** a decision a person makes in the seeded tenant afterwards is labelled synthetic too. That is correct, because the tenant is synthetic.
    - **What cannot happen:** a `real` ledger refuses the job (clause 3), so a real tenant can never hold seeded rows.
 
+5. **Exactly the projection's outcomes, and a test that says so.** Seeding the generator's 10,400 decisions must write exactly **1,654 outcome events across 1,228 decisions**: 1,228 impressions, 278 clicks, 80 rejections, 44 acceptances and 24 conversions, as `seededOutcomesFor` produced them on 2026-09-15. Slice 2 carries a test that compares the two decision by decision: for every decision, the events the seeded ledger holds equal the events the projection generates, in type, time and value. Totals alone could balance two errors.
+
+**Why the counts can differ, and why the test must run before the index is deleted.** Rule 3's gate and the projection's rule are equivalent only under a condition.
+- **The projection's rule is per channel.** A channel counts as deliverable if any placement on it has a `delivery` value (`deliverableChannels`, `outcomes.ts`). It counts an adapter-mode placement as deliverable.
+- **The gate is per placement.** It reads the delivery recorded for the decision's own placement, and `recordDeliveryFor` records an adapter-mode placement as `suppressed: adapter_not_built`.
+- **They agree when** every placement on a channel shares one delivery value and none is in adapter mode. The fixtures meet that today: every web placement is `caller`, and every email, sms and push placement is `null` (`apps/console/mocks/fixtures/catalogue.ts`).
+
+A placement added or changed so that the condition fails makes the per-decision test fail in slice 2, while the index still exists to compare against. If it fails, the fix is decided then: either the gate stands and the figures move with an explanation, or the fixture changes. Slice 3 deletes the index only once the test passes.
+
 **The honest reading:** the numbers on screen are the same before and after this ADR. What becomes real is the path. Reports join decisions, deliveries and outcomes the way they will for a real tenant, and the invented behaviour is confined to one model that runs once.
 
 ### 6. The transition: no screen empties
@@ -144,10 +172,26 @@ Each of these stays authored in a fixture, keeps its synthetic label, and is not
   - **What it needs:** real calls, which need connector secrets (ADR-007, W-051) and endpoints to call. The seed job does not record calls, because none were made.
 - **The history itself.** The customers are generated, the dates are two years before 2026-09-04, and the outcomes are clause 5's model. After this ADR they are ledger rows. They are still not evidence of anything, and every screen and export keeps saying so.
 
+### 8. Until the subject hash is keyed, no ledger is `real`, and nothing is labelled recorded
+
+**Plainly: after clause 5.4, no figure on any screen can be labelled recorded.**
+- **Why:** provenance comes from the ledger's data class, and `createLedgerStore` refuses `real` while `SUBJECT_PROTECTION` is `none` (`packages/ledger/src/create-store.ts`, ADR-016 §4.2). So every ledger is `synthetic`, and every decision, delivery and outcome it holds is labelled synthetic.
+- **What is lost:** today's "recorded" label for a decision a person made in development. That label claimed more than the ledger could stand behind.
+
+**Why the refusal stands.** G-068: the subject hash is an unkeyed sha256 of the tenant and the customer reference, and the stored record carries the customer reference in clear. A `real` ledger would hold identifiable subjects with no erasure path, which ADR-004 exists to prevent. Loosening the refusal to recover the label would trade a truthful "synthetic" for an untruthful "recorded".
+
+**What changes it:** keying the subject hash and encrypting the subject's fields under a per-subject key, ADR-004 clauses 1 to 3. That is **its own slice in the data-layer order in `docs/DIRECTIVE.md`, "Protect the subject in the ledger"**.
+- **Where it sits:** after tenant provisioning, because per-subject keys live in the tenant's key namespace (ADR-016 §2). Before the profile store, because the profile store holds attributes under the same protection (ADR-014 §3) and cannot be built on a hash that protects nothing.
+- **What it needs first:** a decision ADR-004 leaves open, the key store implementation. That decision is part of the slice and cannot be sized until it is made.
+
+When that slice lands, a `real` ledger becomes possible, and "recorded" means a decision in one.
+
 ## Consequences
 
 - **The e2e server and the database-less console start about 12 seconds slower**, spent executing 10,400 decisions. The e2e harness already allows its server 120 seconds and runs a warm-up project first. A developer notices on `npm run dev`, and the knob is `METIS_SEED_LEDGER`.
-- **A seeded PostgreSQL tenant gains 10,400 decision records, 10,400 delivery attempts and about 1,654 outcome events**, written once in about 36 seconds.
+- **A seeded PostgreSQL tenant gains 10,400 decision records, 10,400 delivery attempts and exactly 1,654 outcome events**, written once in about 36 seconds.
+- **A tenant can be reset only while it is the ledger's only tenant** (clause 3). That lockout is real for any database holding two synthetic tenants, and it is the price of not bypassing ADR-004's triggers.
+- **"Recorded" disappears from every screen until the subject is protected** (clause 8). Anyone showing the console will see "synthetic" on figures they made themselves, and the answer is the slice named there.
 - **The meaning of "recorded" changes.**
   - **Before:** it meant "not in the committed index".
   - **After:** it means "written to a `real` ledger", and no ledger can be `real` today (G-068).
@@ -168,7 +212,12 @@ Each of these stays authored in a fixture, keeps its synthetic label, and is not
 
 The boot cost it saves is a development inconvenience, not a correctness problem.
 
-**Give the e2e job a PostgreSQL service and seed once in global setup.** This is the most realistic option: e2e would run against the store a deployment uses, and the 12-second in-memory seed would disappear from the e2e server. It is deferred, not rejected. It changes the harness, which has cost re-runs before, and all four e2e shards need a database service. Revisit it if the boot cost shows up in e2e timings, or when the console stops holding a ledger in memory at all.
+**Give the e2e job a PostgreSQL service and seed once in global setup.** This is the most realistic option: e2e would run against the store a deployment uses, and the 12-second in-memory seed would disappear from the e2e server. It is deferred, not rejected. It changes the harness, which has cost re-runs before, and all four e2e shards need a database service.
+
+**The threshold is 45 seconds of in-memory seeding in any CI e2e shard.** Measured locally on 2026-09-15 at 11.9 seconds, so 45 allows a CI runner nearly four times slower before it trips.
+- **How it triggers on its own:** slice 2 has the store log the seed's duration and the e2e warm-up project read it. Over 45 seconds, the warm-up fails, naming this alternative.
+- **What happens then:** the seed moves to a PostgreSQL service in CI and global setup, instead of anyone raising the number.
+- **The other trigger:** the console stops holding a ledger in memory at all.
 
 **Commit a pre-executed ledger instead of executing at seed time.** No execution cost. It loses on size: the full traces serialise to about 80 MB (`engine.ts`, the comment on `executeAt`). It would also be a second copy of the generator's output that can go stale, the problem the index already has.
 
