@@ -11,6 +11,7 @@
   "dependencies": {
     "@metis/catalogue": "*",
     "@metis/core": "*",
+    "@metis/governance": "*",
     "@metis/ledger": "*",
     "@metis/registry": "*",
     "@metis/runtime": "*"
