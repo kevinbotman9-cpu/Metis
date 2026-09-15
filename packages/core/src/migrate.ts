@@ -65,6 +65,7 @@ export type MigrationErrorCode =
   | 'CHANGED'
   | 'MISSING'
   | 'UNVERSIONED'
+  | 'BEHIND'
   | 'FAILED';
 
 export class MigrationError extends Error {
@@ -278,7 +279,7 @@ export async function migrate(pool: Connectable, options: MigrateOptions): Promi
                 'and no record of running it. It was built by the schema before G-077, which ' +
                 're-applied one file at every start and recorded nothing. No database of that kind ' +
                 'holds data that has to survive, and adopting one would carry its drift forward, so ' +
-                `it is refused rather than adopted. Drop it and let it be recreated: DROP DATABASE ${db[0]?.name};`
+                `it is refused rather than adopted. If — and only if — this is a development database, drop it and let it be recreated: DROP DATABASE ${db[0]?.name}; Never a database whose data has to survive, and never from a pipeline: the migration job stops here and acts on none of this (ADR-016 §3.5).`
             );
           }
           throw new MigrationError(
@@ -297,4 +298,111 @@ export async function migrate(pool: Connectable, options: MigrateOptions): Promi
   } finally {
     client.release();
   }
+}
+
+/** What a service does about migrations when it creates a store. ADR-016 §3.1. */
+export type MigrationMode = 'apply' | 'verify';
+
+/**
+ * The mode a process runs in, from its environment.
+ *
+ * `METIS_MIGRATIONS` says so explicitly. Unset, a production build verifies and
+ * anything else applies: a built image runs with `NODE_ENV=production` and must
+ * never change a schema on start, while a developer's console and every test
+ * suite keep creating their own databases as they always have. Any other value
+ * is refused, because a misspelt `verify` that fell back to `apply` would be the
+ * one mistake this mode exists to prevent.
+ */
+export function migrationModeOf(env: Record<string, string | undefined>): MigrationMode {
+  const explicit = env.METIS_MIGRATIONS;
+  if (explicit === 'apply' || explicit === 'verify') return explicit;
+  if (explicit !== undefined && explicit !== '') {
+    throw new Error(`METIS_MIGRATIONS must be 'apply' or 'verify', not '${explicit}'.`);
+  }
+  return env.NODE_ENV === 'production' ? 'verify' : 'apply';
+}
+
+/** A pool that answers a query; verifying needs no dedicated connection. */
+export interface Queryable {
+  query(text: string, values?: unknown[]): Promise<unknown>;
+}
+
+export interface VerifyResult {
+  /** The highest version this database has run. */
+  version: number;
+  /** The highest version this code carries. */
+  known: number;
+  /**
+   * Versions the database has run that this code does not carry. Allowed,
+   * because every migration is expand-only against the release before it
+   * (ADR-016 §3.3): release N−1 runs against schema N during a rollout and for
+   * as long as a rollback lasts.
+   */
+  ahead: number;
+}
+
+/**
+ * Check a database against the migrations in `dir`, changing nothing.
+ * ADR-016 §3.1.
+ *
+ * A service calls this instead of `migrate()` outside development. It takes no
+ * lock and creates nothing — not even the version table — so a service can
+ * never be the process that changes a schema, however it was started.
+ *
+ * Refuses, before the service becomes ready:
+ * - **a database behind the code** (`BEHIND`), naming the files it has not run
+ *   — the migration job has not run for this release;
+ * - **an applied file that has changed or gone** (`CHANGED`, `MISSING`), for
+ *   the reasons `migrate()` refuses them.
+ *
+ * Allows a database ahead of the code, and says by how much.
+ */
+export async function verifyMigrations(
+  pool: Queryable,
+  options: Pick<MigrateOptions, 'component' | 'dir'>
+): Promise<VerifyResult> {
+  const { component, dir } = options;
+  if (!/^[a-z][a-z0-9_]*$/.test(component)) {
+    throw new Error(`'${component}' is not a usable store name; it becomes part of a table name.`);
+  }
+  const files = readMigrations(dir);
+  const table = `${component}_schema_migrations`;
+  const query = async <R>(text: string, values?: unknown[]) => (await pool.query(text, values)) as { rows: R[] };
+
+  const { rows: exists } = await query<{ present: string | null }>('SELECT to_regclass($1)::text AS present', [table]);
+  const rows = exists[0]?.present
+    ? (await query<AppliedRow>(`SELECT version, name, checksum, applied_at FROM ${table} ORDER BY version`)).rows
+    : [];
+
+  rows.forEach((row, i) => {
+    if (row.version !== i + 1) {
+      throw new MigrationError(
+        'MISSING',
+        `${component}: this database's record skips to version ${row.version} after ${i}. ` +
+          'Its migration record has been edited; nothing a release ships can be trusted against it.'
+      );
+    }
+    const file = files[row.version - 1];
+    if (!file) return; // ahead: a later release ran it
+    if (file.checksum !== row.checksum || file.name !== row.name) {
+      throw new MigrationError(
+        'CHANGED',
+        `${component}: ${file.name} has changed since this database ran it as ${row.name} ` +
+          `(recorded sha256 ${row.checksum.slice(0, 12)}…, file now ${file.checksum.slice(0, 12)}…). ` +
+          'An applied migration never changes. This release cannot be verified against this database.'
+      );
+    }
+  });
+
+  if (rows.length < files.length) {
+    const pending = files.slice(rows.length).map((f) => f.name);
+    throw new MigrationError(
+      'BEHIND',
+      `${component}: this database is at version ${rows.length} and this release carries ` +
+        `${files.length}; it has not run ${pending.join(', ')}. Run the migration job for this ` +
+        'release before rolling out a service. A service never migrates on start (ADR-016 §3).'
+    );
+  }
+
+  return { version: rows.length, known: files.length, ahead: rows.length - files.length };
 }

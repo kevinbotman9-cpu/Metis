@@ -7,7 +7,8 @@
     "packages/*",
     "infrastructure/*",
     "bench/*",
-    "apps/*"
+    "apps/*",
+    "planes/*"
   ],
   "scripts": {
     "test": "npm run test:integration && npm run test:core && npm run test:runtime && npm run test:compiler && npm run test:registry && npm run test:catalogue && npm run test:governance && npm run test:ui-metadata && npm run test:ledger && npm run test:portability && npm run test:bench && npm run test:console",

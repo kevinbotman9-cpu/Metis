@@ -1,6 +1,14 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { migrate, type Connectable, type MigrateResult } from '@metis/core/migrate';
+import {
+  migrate,
+  migrationModeOf,
+  verifyMigrations,
+  type Connectable,
+  type MigrateResult,
+  type MigrationMode,
+  type VerifyResult,
+} from '@metis/core/migrate';
 import type { GovernanceStore } from './types';
 import { InMemoryGovernanceStore } from './memory-store';
 import { PostgresGovernanceStore, type Queryable } from './postgres-store';
@@ -25,6 +33,13 @@ export interface CreateGovernanceOptions {
   databaseUrl?: string;
   /** Apply any migration this database has not run before returning. */
   migrate?: boolean;
+  /**
+   * Apply migrations, or only verify the database is at this code's version
+   * and refuse if it is behind. ADR-016 §3.1. Defaults to `METIS_MIGRATIONS`,
+   * then to verify in a production build and apply anywhere else. Ignored when
+   * `migrate` is false.
+   */
+  migrations?: MigrationMode;
 }
 
 export async function createGovernanceStore(
@@ -57,7 +72,17 @@ export async function createGovernanceStore(
   }
 
   if (options.migrate !== false) {
-    await runMigration(pool);
+    const mode = options.migrations ?? migrationModeOf(process.env);
+    try {
+      // A service outside development never changes a schema on start: the
+      // migration job does that once per release, and a service only checks it
+      // ran (ADR-016 §3).
+      if (mode === 'verify') await verifySchema(pool as unknown as Parameters<typeof verifySchema>[0]);
+      else await runMigration(pool);
+    } catch (e) {
+      await pool.end().catch(() => {});
+      throw e;
+    }
   }
 
   return {
@@ -78,6 +103,14 @@ export const MIGRATIONS_DIR = path.resolve(
 
 /** Distinct from the other stores' keys, so they do not queue behind each other. */
 const MIGRATION_LOCK_KEY = 0x676f7672; // 'govr'
+
+/**
+ * Check this store's schema against the migrations this code carries, changing
+ * nothing, and refuse if the database is behind. ADR-016 §3.1.
+ */
+export function verifySchema(pool: { query(text: string, values?: unknown[]): Promise<unknown> }): Promise<VerifyResult> {
+  return verifyMigrations(pool, { component: 'governance', dir: MIGRATIONS_DIR });
+}
 
 export function runMigration(
   pool: Connectable,

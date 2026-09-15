@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Pool } from 'pg';
-import { migrate, readMigrations, checksumOf } from '../src/migrate';
+import { migrate, readMigrations, checksumOf, verifyMigrations, migrationModeOf } from '../src/migrate';
 
 /**
  * The migration runner — G-077.
@@ -90,6 +90,25 @@ describe('reading a migration directory', () => {
     // Every store's baseline has a trigger function. A rule that refused them
     // would be switched off within a week.
     expect(() => readMigrations(dirWith({ '001_widgets.sql': V1, '002_colour.sql': V2, '003_events.sql': V3 }))).not.toThrow();
+  });
+});
+
+describe('which mode a process migrates in (ADR-016 §3.1)', () => {
+  it('verifies in a production build and applies anywhere else', () => {
+    expect(migrationModeOf({ NODE_ENV: 'production' })).toBe('verify');
+    expect(migrationModeOf({ NODE_ENV: 'development' })).toBe('apply');
+    expect(migrationModeOf({ NODE_ENV: 'test' })).toBe('apply');
+    expect(migrationModeOf({})).toBe('apply');
+  });
+
+  it('takes METIS_MIGRATIONS over the build, in either direction', () => {
+    expect(migrationModeOf({ NODE_ENV: 'production', METIS_MIGRATIONS: 'apply' })).toBe('apply');
+    expect(migrationModeOf({ NODE_ENV: 'development', METIS_MIGRATIONS: 'verify' })).toBe('verify');
+  });
+
+  it('refuses a value it does not know rather than falling back to applying', () => {
+    // A misspelt `verify` that quietly applied would be the one mistake the mode exists to prevent.
+    expect(() => migrationModeOf({ NODE_ENV: 'production', METIS_MIGRATIONS: 'verfiy' })).toThrow(/'apply' or 'verify'/);
   });
 });
 
@@ -290,6 +309,54 @@ if (!reachable) {
       await expect(attempt).rejects.toEqual(refusal('UNVERSIONED'));
       await expect(attempt).rejects.toThrow(/refused rather than adopted/);
       await expect(attempt).rejects.toThrow(/DROP DATABASE metis_migrate_check_/);
+      await expect(attempt).rejects.toThrow(/only if — this is a development database/);
+    });
+
+    // --- Verifying, as a service does outside development (ADR-016 §3.1) ----
+
+    it('verifies a database at the code’s version, and changes nothing', async () => {
+      const { pool } = await emptyDatabase();
+      const dir = dirWith(SEQUENCE);
+      await migrate(pool, options(dir));
+      const before = await stateOf(pool);
+
+      await expect(verifyMigrations(pool, options(dir))).resolves.toEqual({ version: 3, known: 3, ahead: 0 });
+      expect(await stateOf(pool)).toEqual(before);
+    });
+
+    it('refuses a database behind the code, names what it has not run, and creates nothing', async () => {
+      const { pool } = await emptyDatabase();
+      const dir = dirWith(SEQUENCE);
+      await migrate(pool, options(dir, 1));
+
+      const behind = verifyMigrations(pool, options(dir));
+      await expect(behind).rejects.toThrow(refusal('BEHIND'));
+      await expect(verifyMigrations(pool, options(dir))).rejects.toThrow(/002_colour\.sql, 003_events\.sql/);
+      expect(await exists(pool, 'widget_events')).toBe(false);
+    });
+
+    it('refuses an empty database without creating the version table', async () => {
+      // A service that created even the runner's own table would be a service
+      // that changes a schema on start, which is the thing verify-only forbids.
+      const { pool } = await emptyDatabase();
+      await expect(verifyMigrations(pool, options(dirWith(SEQUENCE)))).rejects.toThrow(refusal('BEHIND'));
+      expect(await exists(pool, 'widget_schema_migrations')).toBe(false);
+    });
+
+    it('allows a database ahead of the code, because every migration is expand-only against the release before', async () => {
+      const { pool } = await emptyDatabase();
+      await migrate(pool, options(dirWith(SEQUENCE)));
+
+      // Release N−1 carries two of the three files that release N applied.
+      const older = dirWith({ '001_widgets.sql': V1, '002_colour.sql': V2 });
+      await expect(verifyMigrations(pool, options(older))).resolves.toEqual({ version: 3, known: 2, ahead: 1 });
+    });
+
+    it('refuses an applied file that has changed, as the runner does', async () => {
+      const { pool } = await emptyDatabase();
+      await migrate(pool, options(dirWith(SEQUENCE)));
+      const edited = dirWith({ ...SEQUENCE, '002_colour.sql': V2 + '-- edited after it ran\n' });
+      await expect(verifyMigrations(pool, options(edited))).rejects.toThrow(refusal('CHANGED'));
     });
 
     it('applies each file once when two instances start together', async () => {
