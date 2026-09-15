@@ -1,6 +1,14 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { migrate, type Connectable, type MigrateResult } from '@metis/core/migrate';
+import {
+  migrate,
+  migrationModeOf,
+  verifyMigrations,
+  type Connectable,
+  type MigrateResult,
+  type MigrationMode,
+  type VerifyResult,
+} from '@metis/core/migrate';
 import type { RegistryStore } from './registry';
 import { InMemoryRegistryStore } from './memory-store';
 import { PostgresRegistryStore, type Queryable } from './postgres-store';
@@ -35,6 +43,13 @@ export interface CreateStoreOptions {
    * is refused rather than patched.
    */
   migrate?: boolean;
+  /**
+   * Apply migrations, or only verify the database is at this code's version
+   * and refuse if it is behind. ADR-016 §3.1. Defaults to `METIS_MIGRATIONS`,
+   * then to verify in a production build and apply anywhere else. Ignored when
+   * `migrate` is false.
+   */
+  migrations?: MigrationMode;
 }
 
 export async function createRegistryStore(
@@ -70,7 +85,17 @@ export async function createRegistryStore(
   }
 
   if (options.migrate !== false) {
-    await runMigration(pool);
+    const mode = options.migrations ?? migrationModeOf(process.env);
+    try {
+      // A service outside development never changes a schema on start: the
+      // migration job does that once per release, and a service only checks it
+      // ran (ADR-016 §3).
+      if (mode === 'verify') await verifySchema(pool as unknown as Parameters<typeof verifySchema>[0]);
+      else await runMigration(pool);
+    } catch (e) {
+      await pool.end().catch(() => {});
+      throw e;
+    }
   }
 
   return {
@@ -100,6 +125,14 @@ export const MIGRATIONS_DIR = path.resolve(
  * other for no reason.
  */
 const MIGRATION_LOCK_KEY = 0x6d657469; // 'meti'
+
+/**
+ * Check this store's schema against the migrations this code carries, changing
+ * nothing, and refuse if the database is behind. ADR-016 §3.1.
+ */
+export function verifySchema(pool: { query(text: string, values?: unknown[]): Promise<unknown> }): Promise<VerifyResult> {
+  return verifyMigrations(pool, { component: 'registry', dir: MIGRATIONS_DIR });
+}
 
 /**
  * Bring the database up to this store's migrations. `@metis/core/migrate` says
