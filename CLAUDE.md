@@ -97,6 +97,17 @@ These are non-negotiable. Every PR must enforce them.
     recovery was the same every time — write it to a file. Decided by the
     product owner on 2026-09-13.
 
+11. **Check what an instruction says about this repository against the
+    repository.** Instructions from the product owner may describe the
+    repository incorrectly: a file name, an API, a count, the queue order, what
+    an ADR decided. An instruction decides what to do. It is not evidence of
+    what exists. Before acting on a factual claim, read the file, the ADR or the
+    check that would confirm it. When the claim does not hold, say so plainly —
+    what was claimed, what is actually there, and where — before doing anything
+    that depends on it. This happened seven times in four days, and every
+    instance was caught by looking rather than by trusting the sentence.
+    Decided by the product owner on 2026-09-15.
+
 ---
 
 ## The Unit of Work: Vertical Slices
