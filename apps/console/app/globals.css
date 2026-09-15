@@ -188,11 +188,14 @@
   --l4-subtle: 251 237 236;
 
   /* Density: comfortable is the default */
+  /* Tightened on 2026-09-15 to the drafts' rhythm: 9px cells, 14px card
+     padding, 12px between cards. The console ran at 10, 20 and 20, which read
+     as a website beside the instrument the drafts draw. Type sizes unchanged. */
   --row-h: 2.75rem;
-  --cell-y: 0.625rem;
+  --cell-y: 0.5625rem;
   --cell-x: 0.875rem;
-  --card-p: 1.25rem;
-  --stack: 1.25rem;
+  --card-p: 0.875rem;
+  --stack: 0.75rem;
   --text-body: 0.875rem;
   --text-label: 0.75rem;
   /* The screen title and the one number on a panel. Proposed in the console
@@ -230,8 +233,8 @@
   --row-h: 2.125rem;
   --cell-y: 0.3125rem;
   --cell-x: 0.625rem;
-  --card-p: 0.875rem;
-  --stack: 0.75rem;
+  --card-p: 0.625rem;
+  --stack: 0.5rem;
   --text-body: 0.8125rem;
   --text-label: 0.6875rem;
   --text-title: 1rem;

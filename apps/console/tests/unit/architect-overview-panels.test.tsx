@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup, within } from '@testing-library/react';
-import { ProposedPanel, SimulatedPanel } from '@/components/architect-overview';
+import { FlowsPanel, ProposedPanel, SimulatedPanel } from '@/components/architect-overview';
 import { StaticFormatProvider } from '@/components/tenant-format';
-import type { ChangeSetDto } from '@/lib/api-client';
+import type { ArtifactSummaryDto, ChangeSetDto } from '@/lib/api-client';
 
 /**
  * Two panels of the architect's Overview, as a first-time viewer reads them.
@@ -36,15 +36,42 @@ const withFormat = (ui: React.ReactNode) =>
 
 const row = (title: string) => screen.getByRole('link', { name: title }).closest('tr')!;
 
+/** The lead line's text, figures and labels together, as a reader takes it in. */
+const lead = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll('[data-lead]')).map((p) => p.textContent?.replace(/\s+/g, ' ').trim());
+
+/** A figure is set as a figure, not as body text. */
+const isFigure = (el: HTMLElement) => el.className.includes('text-figure') && el.className.includes('font-semibold');
+
 describe('the Proposed panel', () => {
-  it('says who can approve in words, not as a permission identifier', () => {
-    withFormat(<ProposedPanel changeSets={CHANGE_SETS} />);
-    expect(screen.getByText('2 waiting for someone who can approve changes.')).toBeTruthy();
+  it('leads with a figure and says who can approve in words, not as a permission identifier', () => {
+    const { container } = withFormat(<ProposedPanel changeSets={CHANGE_SETS} />);
+    expect(lead(container)).toEqual(['2 waiting']);
+    expect(isFigure(screen.getByText('2', { exact: true }))).toBe(true);
+    expect(screen.getByText('for someone who can approve changes')).toBeTruthy();
     expect(screen.queryByText(/approve:changes/)).toBeNull();
   });
 });
 
+describe('the Flows panel', () => {
+  it('leads with two figures, live and draft, rather than a sentence', () => {
+    const artifacts = [
+      { id: 'a', name: 'A', status: 'active', activeVersion: '1.0.0', compileOk: true },
+      { id: 'b', name: 'B', status: 'draft', activeVersion: '0.1.0', compileOk: false, errorCount: 1 },
+    ] as unknown as ArtifactSummaryDto[];
+    const { container } = withFormat(<FlowsPanel artifacts={artifacts} />);
+    expect(lead(container)).toEqual(['1 live 1 draft']);
+    expect(screen.getByText('1 will not compile, so cannot be promoted')).toBeTruthy();
+  });
+});
+
 describe('the Simulated panel', () => {
+  it('leads with how many passed, as a figure', () => {
+    const { container } = withFormat(<SimulatedPanel changeSets={CHANGE_SETS} />);
+    expect(lead(container)).toEqual(['2 of 3 passed']);
+    expect(screen.getByText('1 failed, and its change was not shipped')).toBeTruthy();
+  });
+
   it('reads each bias ratio against the limit that applies to it', () => {
     withFormat(<SimulatedPanel changeSets={CHANGE_SETS} gateFor={() => 1.2} />);
     const failed = within(row('Offer the gaming bundle'));

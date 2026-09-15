@@ -109,7 +109,9 @@ module.exports = {
         body: 'var(--text-body)',
         label: 'var(--text-label)',
         title: 'var(--text-title)',
-        figure: 'var(--text-figure)',
+        // Tight, like figure-rail: a large number sits on its label with no
+        // leading above it. Body's 1.5 opened a 12px gap over every figure.
+        figure: ['var(--text-figure)', { lineHeight: '1.15' }],
         // Its own line height: a stage figure sits on its label and bar with no
         // leading above or below it, and the scale sets line height on the token.
         'figure-rail': ['var(--text-figure-rail)', { lineHeight: '1' }],

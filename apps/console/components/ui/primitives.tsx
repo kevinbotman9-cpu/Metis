@@ -204,7 +204,7 @@ export function CardHeader({
 }) {
   const heading = <h2 className="text-body font-semibold tracking-tight text-content">{title}</h2>;
   return (
-    <header className="flex items-start justify-between gap-4 border-b border-border px-card py-3.5">
+    <header className="flex items-start justify-between gap-4 border-b border-border px-card py-2.5">
       <div className="min-w-0">
         {tip ? (
           <div className="flex items-center gap-1.5">
@@ -262,7 +262,7 @@ export function PageHeader({
 
 /** Consistent page gutter and max width for every route. */
 export function PageBody({ children }: { children: ReactNode }) {
-  return <div className="mx-auto w-full max-w-[1500px] px-7 py-6">{children}</div>;
+  return <div className="mx-auto w-full max-w-[1500px] px-5 py-4">{children}</div>;
 }
 
 // --- Metric ----------------------------------------------------------------
