@@ -81,7 +81,23 @@ export const ProposedNothingWaiting: Story = {
 
 /** One simulation failed on bias and one change set carried none: both said. */
 export const Simulated: Story = {
-  render: () => inCard('Simulated', 'Every change set', <SimulatedPanel changeSets={CHANGE_SETS} />),
+  render: () =>
+    inCard('Simulated', 'Every change set that ran one, waiting or decided', <SimulatedPanel changeSets={CHANGE_SETS} gateFor={() => 1.2} />),
+};
+
+/** One scope resolves no autonomy setting, so its ratio says there is no limit rather than showing none. */
+export const SimulatedNoLimitResolves: Story = {
+  render: () =>
+    inCard(
+      'Simulated',
+      'Every change set that ran one, waiting or decided',
+      <SimulatedPanel changeSets={CHANGE_SETS} gateFor={(cr) => (cr.id === 'cr_0041' ? null : 1.2)} />
+    ),
+};
+
+/** While the autonomy settings load: the ratio alone. */
+export const SimulatedLimitsLoading: Story = {
+  render: () => inCard('Simulated', 'Every change set that ran one, waiting or decided', <SimulatedPanel changeSets={CHANGE_SETS} />),
 };
 
 export const Released: Story = {

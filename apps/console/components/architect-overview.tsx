@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PageBody, PageHeader, Badge, Card, CardBody, CardHeader, ErrorState } from '@/components/ui/primitives';
 import { useFormat } from '@/components/tenant-format';
+import { biasGateFor } from '@/lib/bias-gate';
 import {
   apiClient,
   type ArtifactSummaryDto,
@@ -86,7 +87,7 @@ export function ProposedPanel({ changeSets }: { changeSets: ChangeSetDto[] }) {
       <p className="px-card pt-3 text-body text-content">
         {pending.length === 0
           ? 'Nothing is waiting for a person.'
-          : `${pending.length} waiting for someone with approve:changes.`}
+          : `${pending.length} waiting for someone who can approve changes.`}
       </p>
       {pending.length > 0 ? (
         <ul className="mt-2 divide-y divide-border border-t border-border">
@@ -106,7 +107,31 @@ export function ProposedPanel({ changeSets }: { changeSets: ChangeSetDto[] }) {
   );
 }
 
-export function SimulatedPanel({ changeSets }: { changeSets: ChangeSetDto[] }) {
+/** The limit under a bias ratio: the gate it was held to, or a plain statement that none resolves. */
+function GateLine({ gate }: { gate: number | null }) {
+  const format = useFormat();
+  return (
+    <span className="block text-label text-content-subtle">
+      {gate === null
+        ? 'no limit resolves'
+        : `limit ${format.number(gate, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+    </span>
+  );
+}
+
+/**
+ * `gateFor` is the bias gate that applies to a change set, or null when no
+ * autonomy setting resolves for its scope (`lib/bias-gate.ts`). Absent while
+ * the settings load, and the column then shows the ratio alone rather than a
+ * limit it has not got.
+ */
+export function SimulatedPanel({
+  changeSets,
+  gateFor,
+}: {
+  changeSets: ChangeSetDto[];
+  gateFor?: (cr: ChangeSetDto) => number | null;
+}) {
   const format = useFormat();
   const simulated = changeSets.filter((c) => c.simulation?.ran);
   const failed = simulated.filter((c) => !c.simulation!.passed).length;
@@ -143,6 +168,7 @@ export function SimulatedPanel({ changeSets }: { changeSets: ChangeSetDto[] }) {
                 </td>
                 <td className="tnum px-cell py-cell-y text-right text-body text-content-muted">
                   {format.number(cr.simulation!.biasRatio, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {gateFor ? <GateLine gate={gateFor(cr)} /> : null}
                 </td>
                 <td className="px-cell py-cell-y text-right">
                   <Badge tone={cr.simulation!.passed ? 'pass' : 'block'}>{cr.simulation!.passed ? 'passed' : 'failed'}</Badge>
@@ -319,6 +345,15 @@ export function ArchitectOverview() {
   const changeSets = useQuery({ queryKey: ['change-sets'], queryFn: () => apiClient.listChangeSets() });
   const events = useQuery({ queryKey: ['registry-events', 'all'], queryFn: () => apiClient.listRegistryEvents({ limit: 60 }) });
   const artifacts = useQuery({ queryKey: ['artifacts'], queryFn: () => apiClient.listArtifacts() });
+  // A simulation carries its bias ratio and not the limit it was held to. The
+  // limit is on the autonomy setting for the change set's scope, and the
+  // catalogue places that scope in the hierarchy.
+  const autonomy = useQuery({ queryKey: ['autonomy'], queryFn: () => apiClient.listAutonomySettings() });
+  const taxonomy = useQuery({ queryKey: ['taxonomy'], queryFn: () => apiClient.getTaxonomy() });
+  const settings = autonomy.data?.settings;
+  const catalogue = taxonomy.data;
+  const gateFor =
+    settings && catalogue ? (cr: ChangeSetDto) => biasGateFor(cr.targetScope, settings, catalogue) : undefined;
 
   const failed = (q: { isError: boolean; refetch: () => unknown }, what: string) =>
     q.isError ? <ErrorState description={`Could not load ${what}.`} onRetry={() => void q.refetch()} /> : null;
@@ -327,15 +362,19 @@ export function ArchitectOverview() {
     <PageBody>
       <PageHeader title="The change pipeline" description="From proposal to production, and what the engines are held to." />
 
-      <div className="grid gap-stack lg:grid-cols-12">
+      {/* A panel is as tall as what it holds. Stretched to its row, two
+          proposals sat over the empty height of the simulation table beside them. */}
+      <div className="grid items-start gap-stack lg:grid-cols-12">
         <Panel title="Proposed" window="Open now" href="/approvals" linkLabel="Approvals">
           {failed(changeSets, 'the change sets') ??
             (changeSets.data ? <ProposedPanel changeSets={changeSets.data.changeSets} /> : <PanelSkeleton />)}
         </Panel>
 
-        <Panel title="Simulated" window="Every change set" href="/simulations" linkLabel="Simulations">
+        {/* Every simulation, not only the open ones: the two waiting in Proposed
+            appear here too, with their status under the title. */}
+        <Panel title="Simulated" window="Every change set that ran one, waiting or decided" href="/simulations" linkLabel="Simulations">
           {failed(changeSets, 'the change sets') ??
-            (changeSets.data ? <SimulatedPanel changeSets={changeSets.data.changeSets} /> : <PanelSkeleton />)}
+            (changeSets.data ? <SimulatedPanel changeSets={changeSets.data.changeSets} gateFor={gateFor} /> : <PanelSkeleton />)}
         </Panel>
 
         <Panel title="Released" window="Every registry event" href="/decision-flows" linkLabel="Decision flows">

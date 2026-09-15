@@ -123,6 +123,27 @@ test.describe("the architect's Overview is the change pipeline @screen-only", ()
     }
   });
 
+  test('a panel is as tall as what it holds, not as tall as the panel beside it', async ({ page }) => {
+    const proposed = panel(page, 'Proposed');
+    const simulated = panel(page, 'Simulated');
+    await expect(proposed.locator('a[href^="/approvals/cr_"]').first()).toBeVisible();
+    await expect(simulated.getByRole('row').nth(1)).toBeVisible();
+    const p = (await proposed.boundingBox())!;
+    const s = (await simulated.boundingBox())!;
+    // Side by side, and the simulation table is the longer of the two.
+    expect(Math.abs(p.y - s.y)).toBeLessThan(2);
+    expect(p.height).toBeLessThan(s.height - 40);
+  });
+
+  test('says who can approve in words, and reads each bias ratio against its limit', async ({ page }) => {
+    await expect(panel(page, 'Proposed').getByText(/waiting for someone who can approve changes\.$/)).toBeVisible();
+    await expect(page.getByText(/approve:changes/)).toHaveCount(0);
+    // cr_0039's simulation failed on bias, and its scope resolves the tenant's 1.20.
+    const failed = panel(page, 'Simulated').getByRole('row').filter({ hasText: 'failed' });
+    await expect(failed).toContainText('1.38');
+    await expect(failed).toContainText('limit 1.20');
+  });
+
   test('a proposal opens onto the change set a person approves', async ({ page }) => {
     const first = panel(page, 'Proposed').locator('a[href^="/approvals/cr_"]').first();
     await expect(first).toBeVisible();
