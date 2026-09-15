@@ -12,6 +12,7 @@ import { placementsLayout } from './placements';
 import { objectivesLayout } from './objectives';
 import { offersLayout } from './offers';
 import { approvalsLayout } from './approvals';
+import { modelsLayout } from './models';
 
 export * from './types';
 export { declaredScreen } from './page';
@@ -111,6 +112,7 @@ export const LAYOUTS: Record<string, LayoutManifest> = {
   [objectivesLayout.id]: objectivesLayout,
   [offersLayout.id]: offersLayout,
   [approvalsLayout.id]: approvalsLayout,
+  [modelsLayout.id]: modelsLayout,
 };
 
 export function layoutFor(id: string): LayoutManifest {
@@ -326,4 +328,4 @@ export function validateLayout(
   return problems;
 }
 
-export { placementsLayout, objectivesLayout, offersLayout, approvalsLayout };
+export { placementsLayout, objectivesLayout, offersLayout, approvalsLayout, modelsLayout };

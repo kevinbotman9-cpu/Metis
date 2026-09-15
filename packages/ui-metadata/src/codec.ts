@@ -1,4 +1,4 @@
-import type { Condition, EntityDescriptor, FieldDescriptor, Option, RuleCondition } from './types';
+import type { Condition, EntityDescriptor, FieldDescriptor, Option, RuleCondition, ModelFeatureValue } from './types';
 
 /**
  * The pure half of the renderer: entity ⇄ form state, and which fields apply.
@@ -122,6 +122,8 @@ function fieldToString(field: FieldDescriptor, value: unknown): string {
       return value ? 'true' : '';
     case 'conditions':
       return writeConditions(Array.isArray(value) ? (value as RuleCondition[]) : []);
+    case 'features':
+      return writeFeatures(Array.isArray(value) ? (value as ModelFeatureValue[]) : []);
     default:
       return String(value);
   }
@@ -146,6 +148,23 @@ export function readConditions(raw: string): RuleCondition[] {
 
 export const writeConditions = (conditions: readonly RuleCondition[]): string =>
   conditions.length === 0 ? '' : JSON.stringify(conditions);
+
+/**
+ * A `features` field's form state as the list it holds. Anything that is not a
+ * JSON array reads as no features, as for conditions.
+ */
+export function readFeatures(raw: string): ModelFeatureValue[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as ModelFeatureValue[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export const writeFeatures = (features: readonly ModelFeatureValue[]): string =>
+  features.length === 0 ? '' : JSON.stringify(features);
 
 /** An existing entity as form state, or the blank state for a new one. */
 export function toFormState(
@@ -226,6 +245,16 @@ export function toPayload(
         break;
       case 'conditions':
         setPath(body, field.field, readConditions(raw));
+        break;
+      case 'features':
+        // A row somebody added and never chose a path for is not a feature.
+        setPath(
+          body,
+          field.field,
+          readFeatures(raw)
+            .filter((f) => f.path)
+            .map((f) => ({ path: f.path, type: f.type }))
+        );
         break;
       default:
         setPath(body, field.field, raw.trim());

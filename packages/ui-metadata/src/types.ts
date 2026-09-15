@@ -36,7 +36,15 @@ export type FieldType =
    * create one (ADR-006, amended). Carried through form state as JSON; its
    * options are the data model's selectable paths, from a named source.
    */
-  | 'conditions';
+  | 'conditions'
+  /**
+   * A list of data-model paths, each with the data model's type — the inputs a
+   * model reads (ADR-009 §5). Added 2026-09-15 with the Model descriptor: a
+   * feature typed by hand could disagree with the data model, which the
+   * compiler refuses, so the type is taken from the path chosen. Carried
+   * through form state as JSON; its options are the data model's paths.
+   */
+  | 'features';
 
 /** One condition of a `conditions` field, as the API holds it. */
 export interface RuleCondition {
@@ -44,6 +52,14 @@ export interface RuleCondition {
   field: string;
   operator: string;
   value: unknown;
+}
+
+/** One row of a `features` field, as the API holds it. */
+export interface ModelFeatureValue {
+  /** A dotted path into the customer data model. */
+  path: string;
+  /** The data model's type for that path. */
+  type: string;
 }
 
 /**

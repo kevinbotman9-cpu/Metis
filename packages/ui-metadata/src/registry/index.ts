@@ -8,6 +8,7 @@ import { tenantSettingsDescriptor } from './tenant-settings';
 import { targetingPolicyDescriptor } from './targeting-policy';
 import { arbitrationConfigDescriptor } from './arbitration-config';
 import { changeSetDescriptor } from './change-set';
+import { modelDescriptor } from './model';
 
 /**
  * The metadata registry.
@@ -35,6 +36,7 @@ export const REGISTRY: Record<string, EntityDescriptor> = {
   TargetingPolicy: targetingPolicyDescriptor,
   ArbitrationConfig: arbitrationConfigDescriptor,
   ChangeSet: changeSetDescriptor,
+  Model: modelDescriptor,
 };
 
 /**
@@ -83,7 +85,6 @@ export const PENDING: Record<string, string> = {
   DecisionFlow: 'Authored on the canvas, not in a form. Needs a descriptor for its metadata only.',
   FrequencyPolicy: 'Read-only screen today; no write endpoint is served.',
   Audience: 'No schema in the spec and no screen. Declared in the console spec only.',
-  Model: 'Gate 2. No schema, no screen.',
   Channel: 'Supplied by a channel package rather than authored in the console.',
   Theme: 'Token sets are files today; the Themes screen is in the console spec, not built.',
   Layout:
@@ -110,4 +111,5 @@ export {
   targetingPolicyDescriptor,
   arbitrationConfigDescriptor,
   changeSetDescriptor,
+  modelDescriptor,
 };

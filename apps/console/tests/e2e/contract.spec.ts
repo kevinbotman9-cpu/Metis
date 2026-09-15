@@ -208,6 +208,9 @@ const COVERED_BY_WRITE_SUITES: Record<string, string> = {
   // whether anybody can reach it.
   createPlacement: 'placement-authoring.spec.ts',
   updatePlacement: 'placement-authoring.spec.ts',
+  // Published by clicking, and a changed version refused under the same
+  // number — the rule a speculative call could not show anybody reaching.
+  publishModel: 'model-publishing.spec.ts',
   // G-092. Switched through the TenantSettings form, then read on two other screens.
   updateTenantSettings: 'tenant-locale.spec.ts',
   createObjective: 'taxonomy-authoring.spec.ts',

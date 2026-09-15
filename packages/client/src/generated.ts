@@ -1261,6 +1261,87 @@ rather than failing in production.
   updatedBy: string;
 }
 
+/** One input a model reads, as a path into the tenant's data model. ADR-009 §5.
+ */
+export interface ModelFeature {
+  /** A dotted path the profile schema resolves, such as
+`customer.tenureMonths`.
+ */
+  path: string;
+  /** The type the model expects there. A path the data model defines as
+another type is refused when a flow pinning the model compiles.
+ */
+  type: "string" | "integer" | "decimal" | "boolean" | "timestamp" | "enum" | "money";
+}
+
+/** One published version of a scorer that a flow's score nodes can pin.
+ADR-009 §4.
+
+Versioned like a flow: a version is bound to its content, republishing
+identical content is a no-op, and different content under a published
+version is refused. The platform trains nothing, so the weights are
+named by their hash and the training date is declared, not verified.
+
+No model runs behind a version yet — scoring is the seeded function.
+What a version changes is compilation: a flow pinning a model the
+registry does not hold, reading a feature the data model lacks, or
+unable to afford the declared p95, is refused.
+
+On publish, `tenantId`, `publishedAt` and `publishedBy` are stamped
+by the server and anything sent for them is ignored.
+ */
+export interface Model {
+  tenantId: string;
+  /** What a score node's `model.id` names. Stable across versions. */
+  id: string;
+  /** An exact `x.y.z`. A floating version would change the answer on replay. */
+  version: string;
+  name: string;
+  description: string;
+  /** What the output means. A score node reads a propensity, and pinning
+another kind is refused.
+ */
+  kind: "propensity" | "value" | "ranking";
+  /** Every input the model reads. Empty means it reads nothing a person
+could be erased from.
+ */
+  features: ModelFeature[];
+  /** Declared, not measured, in milliseconds. The compiler adds it to the
+critical path, so a flow that cannot afford the model does not
+compile.
+ */
+  declaredP95Ms: number;
+  /** Who answers for this scorer. Erasure obligations attach to whoever
+trained it.
+ */
+  owner: string;
+  /** sha256 of the serialised weights, as 64 lower-case hexadecimal characters. */
+  weightsHash: string;
+  /** The last date of the training data. Declared and not verified; it is
+what makes an erasure request answerable.
+ */
+  trainedThrough: string;
+  publishedAt: string;
+  publishedBy: string;
+}
+
+/** What publishing a model version did. Nothing is stored on a refusal of
+either kind.
+ */
+export interface ModelPublishOutcome {
+  status: "published" | "unchanged" | "rejected";
+  /** Present on a refusal. */
+  reason?: "invalid" | "immutable";
+  model?: Model;
+  /** Each problem on the field it is about, such as `features.1.path`. */
+  problems?: {
+    field: string;
+    message: string;
+  }[];
+  existingHash?: string;
+  attemptedHash?: string;
+}
+
 /** How a tenant presents itself: the locale every date, count and amount in
 the console is formatted in, and the currency of an amount that carries
 none of its own.
@@ -1846,6 +1927,13 @@ export const OPERATIONS = {
     queryParams: ['limit'],
     statuses: ['200'],
   },
+  listModels: {
+    method: 'GET',
+    path: '/models/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['200'],
+  },
   listOffers: {
     method: 'GET',
     path: '/offers/{tenantId}',
@@ -1908,6 +1996,13 @@ export const OPERATIONS = {
     pathParams: ['tenantId', 'flowName'],
     queryParams: [],
     statuses: ['201', '403', '409'],
+  },
+  publishModel: {
+    method: 'POST',
+    path: '/models/{tenantId}',
+    pathParams: ['tenantId'],
+    queryParams: [],
+    statuses: ['201', '400', '401', '403', '409'],
   },
   recordOutcome: {
     method: 'POST',
@@ -2343,6 +2438,11 @@ export type ListInboundCallsResponse = {
   calls: InboundCall[];
 };
 
+/** Published model versions */
+export type ListModelsResponse = {
+  models: Model[];
+};
+
 /** List offers, filtered */
 export type ListOffersResponse = {
   offers: Offer[];
@@ -2398,6 +2498,10 @@ export type PublishArtifactRequest = {
   /** The flow as authored, before compilation. */
   source: Record<string, unknown>;
 };
+
+/** Publish a model version */
+export type PublishModelResponse = ModelPublishOutcome;
+export type PublishModelRequest = Model;
 
 /** Record what happened to a decision */
 export type RecordOutcomeResponse = OutcomeEvent;
@@ -2577,6 +2681,7 @@ export interface ResponseOf {
   listExperiments: ListExperimentsResponse;
   listFrequencyPolicies: ListFrequencyPoliciesResponse;
   listInboundCalls: ListInboundCallsResponse;
+  listModels: ListModelsResponse;
   listOffers: ListOffersResponse;
   listOutcomes: ListOutcomesResponse;
   listPlacements: ListPlacementsResponse;
@@ -2586,6 +2691,7 @@ export interface ResponseOf {
   login: LoginResponse;
   promoteVersion: PromoteVersionResponse;
   publishArtifact: PublishArtifactResponse;
+  publishModel: PublishModelResponse;
   recordOutcome: RecordOutcomeResponse;
   rejectChangeSet: RejectChangeSetResponse;
   replayDecision: ReplayDecisionResponse;

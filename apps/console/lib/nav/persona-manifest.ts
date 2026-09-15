@@ -155,7 +155,9 @@ export const PERSONA_MANIFEST: readonly GroupNode[] = [
     icon: 'intelligence',
     personas: ['analyst'],
     children: [
-      { label: 'Models', href: '/models' },
+      // The permission a flow needs to be seen, because a model version is only
+      // ever read as something a flow pins.
+      { label: 'Models', href: '/models', permission: 'view:flows' },
       { label: 'Adaptive models', href: '/adaptive-models' },
       {
         label: 'Features',
