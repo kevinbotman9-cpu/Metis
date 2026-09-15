@@ -29,7 +29,7 @@ Each item is its own pull request, in this order, with `npm run gates:quick` bef
    - the permission identifier in "waiting for someone with approve:changes" is replaced with plain wording;
    - the Simulated panel's heading says what it covers, so the pending change sets it repeats from Proposed read as intended;
    - the bias ratio is shown against the bias gate threshold of the autonomy setting that resolves for the change set's scope.
-3. The environment badge reads "Demo" on the server that runs Friday's demo (`NEXT_PUBLIC_ENV_LABEL=Demo`).
+3. The environment badge reads "Demo" on Friday's console. Decided 15 September: set on the machine, not committed, and recorded under Fixed points.
 
 ### Wednesday 16 September
 
@@ -71,6 +71,7 @@ If one of these seems required for Friday, stop and say so rather than starting 
 
 - **Thursday 17 September 2026 is the freeze.** Rehearsal and the regression pass only. No fixes after the second clean run, unless that run itself fails.
 - **Friday 18 September 2026 is the demo.**
+- **The machine that builds and serves Friday's console sets `NEXT_PUBLIC_ENV_LABEL=Demo` before the build.** Next inlines the variable at build time, so setting it afterwards changes nothing. It is not committed: the repository has no demo server, and a committed value would label every development console "Demo".
 
 ## Ceilings
 
