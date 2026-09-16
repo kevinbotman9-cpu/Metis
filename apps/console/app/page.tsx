@@ -18,7 +18,6 @@ import {
   LoadingState,
   AutonomyBadge,
 } from '@/components/ui/primitives';
-import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import { CascadeRail } from '@/components/cascade-rail';
 import { CascadePanes } from '@/components/cascade-panes';
 import {
@@ -241,23 +240,16 @@ function OverviewView() {
     <PageBody>
       <PageHeader
         title="The loop"
-        description="Decisions, delivery and outcomes, under the changes proposed to them."
+        description={
+          <>
+            Decisions, delivery and outcomes, under the changes proposed to them.{' '}
+            <InfoTip label="About the stages">
+              Each stage counts distinct decisions and is a subset of the one above: an offer cannot be seen that
+              was never deliverable, and a decision counts once however many times a channel reports it.
+            </InfoTip>
+          </>
+        }
       />
-
-      <section aria-labelledby="thesis" className="mb-stack">
-        <h2 id="thesis" className="mb-1 text-label font-semibold text-content-subtle">
-          Agents author, people approve, simulation gates it
-        </h2>
-        <p className="mb-3 max-w-3xl text-label text-content-muted">
-          L2: nothing publishes until someone with <code className="font-mono">approve:changes</code> approves
-          it. L3: changes inside the scope&apos;s guardrails publish immediately, roll back on a breach, and are
-          reviewed afterwards.
-        </p>
-        <div className="grid gap-stack lg:grid-cols-2">
-          <Proposals />
-          <Activity />
-        </div>
-      </section>
 
       {report.isLoading ? (
         <LoadingState label="Joining outcomes to decisions" />
@@ -270,17 +262,6 @@ function OverviewView() {
         />
       ) : (
         <section aria-label="The loop">
-          <ProvenanceBanner provenance={report.data.provenance} />
-          <p className="mb-stack flex items-center gap-1.5 text-label text-content-subtle">
-            {report.data.from && report.data.to
-              ? `Decisions from ${format.date(report.data.from)} to ${format.date(report.data.to)}.`
-              : ''}
-            <InfoTip label="About the stages">
-              Each stage counts distinct decisions and is a subset of the one above: an offer cannot be seen that
-              was never deliverable, and a decision counts once however many times a channel reports it.
-            </InfoTip>
-          </p>
-
           <LoopInversions loop={loop} />
 
           <CascadePanes
@@ -303,6 +284,21 @@ function OverviewView() {
           </CascadePanes>
         </section>
       )}
+
+      <section aria-labelledby="thesis" className="mb-stack">
+        <h2 id="thesis" className="mb-1 text-label font-semibold text-content-subtle">
+          Agents author, people approve, simulation gates it
+        </h2>
+        <p className="mb-3 max-w-3xl text-label text-content-muted">
+          L2: nothing publishes until someone with <code className="font-mono">approve:changes</code> approves
+          it. L3: changes inside the scope&apos;s guardrails publish immediately, roll back on a breach, and are
+          reviewed afterwards.
+        </p>
+        <div className="grid gap-stack lg:grid-cols-2">
+          <Proposals />
+          <Activity />
+        </div>
+      </section>
     </PageBody>
   );
 }

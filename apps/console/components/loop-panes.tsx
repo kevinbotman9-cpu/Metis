@@ -111,11 +111,25 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
 
   return (
     <>
+      {/*
+        One accent on the page, on one figure.
+
+        Realised value is what the loop is for: the other two cards are a bound
+        and a loss, and every stage in the rail below exists to move this
+        number. Until 2026-09-17 it was `text-content` like everything else, so
+        the screen had no focal point at all — greys throughout, with colour
+        only where something had gone wrong.
+
+        The token is the console's existing `--accent`, which already holds the
+        design drafts' value exactly (#2563C7 light, #63A8E8 dark). Nothing was
+        added to the token layer for this, and the accent goes nowhere else on
+        the screen: two accents is no accent.
+      */}
       <div className="mb-stack grid gap-3 sm:grid-cols-3">
-        <Card>
+        <Card className="border-accent/40 bg-accent-subtle">
           <CardBody>
             <p className="text-label text-content-subtle">Realised value</p>
-            <p className="tnum mt-1 text-figure font-semibold text-content">{money(loop.realised, format)}</p>
+            <p className="tnum mt-1 text-figure font-semibold text-accent">{money(loop.realised, format)}</p>
             <p className="mt-1 text-label text-content-subtle">from {format.number(data.acted)} acted on</p>
           </CardBody>
         </Card>
