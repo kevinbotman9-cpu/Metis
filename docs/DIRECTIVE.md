@@ -24,6 +24,43 @@ Delivered on 2026-09-15 by the survey, amended the same day, and **re-ordered on
 Completed slices keep their original numbers. Everything after slice 3 was
 renumbered by the re-order; nothing outside this file referred to those numbers.
 
+### ADR-019 is accepted and mostly unbuilt
+
+Parked on 2026-09-16, deliberately, so that a part-built state does not read as
+a finished one later.
+
+**What is built.** Clause 8 only: the tie-break is the artifact's declared order
+rather than the candidate's name, in both engines, and a scored candidate the
+artifact never declared is a refusal rather than a silent first place (#98). It
+went first because it makes the rename in the rest of the split unable to move
+a decision, and because it was provably free — measured over all 10,400 seeded
+decisions, no decision turns on the tie-break, and the diff after the change
+showed 0 ids moved, 0 winners, and every figure identical.
+
+**What is accepted and not built.** Clauses 1 to 6 — the model. One offer to
+many actions; what an action carries and what it inherits; the record storing
+both the action key and the offer id; `PolicyScope` gaining an action level and
+what "cap this offer" then means; creatives hanging off the action; experiment
+arms attaching to actions. Nothing in the tree implements any of it: an offer
+still carries the `key` used as the action, and `docs/CAPABILITIES.md` still
+reads PARTIAL for that row, which is the honest state.
+
+**Why it paused.** The surface was measured before starting rather than
+discovered during: 28 files reference `CatalogueSnapshot`, 91 reference
+creatives or `offerId`, `catalogue_creatives` carries an `offer_id` foreign key
+that needs an expand-only migration, and the spec, the generated client, the
+Kotlin domain and the console screens all move together. That is the 2–4 days
+the estimate says, and it is more than one sitting — so it stopped at the clause
+that stands alone rather than leaving the model half-applied, which is the state
+this note exists to prevent.
+
+**What clause 7 costs when it resumes.** Every decision id moves, because the id
+is the chain hash: 10,400 ids and every foreign key with them, the outcome model
+re-rolling because its draws are keyed on the id, and every pinned figure
+re-pinned deliberately with the old and new both recorded. Clause 9's control
+group — `canonical-corpus.json` byte-identical and `inputSnapshotHash`
+unchanged on all 40 cases — is what says the change went where it was meant to.
+
 ### Why the order changed
 
 Four findings from slices 2b and 3, each checked against the tree rather than
@@ -78,7 +115,7 @@ ran is worse than an empty screen.
 | 2b | Ledger query fields and their index migration; decision search on the ledger, customer by subject hash; `npm run seed:ledger` over PostgreSQL with `--reset`, refused unless the ledger is synthetic and `--tenant` names the tenant | 1–1.5 | Merged, #91 |
 | 3 | Performance, the policy funnel, flow volume and outcomes read the ledger alone; the committed index and the projection's read path deleted | 1–2 | Merged, #93 |
 | 4 | A change set carries a simulation only when one has run: `simulation` optional in the contract, the authored `passed`, `populationSize`, `projectedMarginDelta` and `biasRatio` removed from the fixtures and the three screens that render them, and `/simulations` saying plainly that none has run (ADR-018 §7) | 0.5–1.5 | |
-| 5 | The `offer`/`action` split ([W-014](BACKLOG.md)): the taxonomy in `CLAUDE.md`, the spec, the creative hung off the action. Every chain hash moves — predict which, diff them, and regenerate the conformance corpora and the seeded history deliberately (ADR-018 §4) | 2–4 | |
+| 5 | The `offer`/`action` split ([W-014](BACKLOG.md)), decided by [ADR-019](adr/ADR-019-an-action-is-an-offer-made-decidable.md). **Clause 8 shipped in #98; clauses 1–6 are accepted and unbuilt — see the note below.** | 2–4 | Part built |
 | 6 | Interaction rollups read per subject (ADR-014 §10): declared with `origin: interaction`, windows relative to `request.occurredAt`, contacts counting deliveries, read in resolution and hashed into the snapshot; `request.contactHistory` becomes additive | 2–3 | |
 | 7 | Frequency and suppression caps over those rollups ([W-012](BACKLOG.md)): the platform's own counts, a stable reason code per suppression, both engines agreeing | 1–2 | |
 | 8 | ADR: identity, closing G-115 — who may call the decision service, and for which tenant | 0.5–1 to write | |

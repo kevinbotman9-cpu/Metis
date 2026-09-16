@@ -40,6 +40,44 @@ export async function openAccountPanel(page: Page, name: string | RegExp) {
   await expect(page.getByRole('group', { name: 'Colour scheme', exact: true })).toBeVisible();
 }
 
+/**
+ * The newest decision from inside the seeded corpus, and its trace page.
+ *
+ * `/decisions` is the ledger newest-first since ADR-018, so "the first row" is
+ * whichever decision anything made last — this suite, or the storefront demo a
+ * moment earlier. Two specs assumed the top row was seeded and one of them
+ * replayed it; a decision a channel made is proven unchanged by its chain hash
+ * and cannot be re-executed, because its inputs were never kept. The same
+ * assumption broke `contract.spec.ts` on #91.
+ *
+ * Use this wherever a test needs a decision the *generator* holds: replay, or
+ * anything asserting corpus-specific content. Where a test only needs some
+ * decision — a row opens its trace, a page has a title, an axe scan — the first
+ * row is right and simpler, and this helper would only hide what it depends on.
+ *
+ * The list has no date facet, so the choice is made through the API. The corpus
+ * ends at 2026-09-04T23:08:35Z; anything the platform decides carries the time
+ * it happened, which is later.
+ */
+export const SEEDED_THROUGH = '2026-09-05T00:00:00.000Z';
+
+export async function seededDecisionId(page: Page): Promise<string> {
+  const res = await page.request.get(
+    `/api/decisions/search?limit=1&dateTo=${SEEDED_THROUGH}`
+  );
+  expect(res.ok(), `decision search: HTTP ${res.status()}`).toBe(true);
+  const id = (await res.json()).decisions[0]?.id as string | undefined;
+  expect(id, 'no decision came back from inside the seeded corpus').toBeTruthy();
+  return id!;
+}
+
+/** Open the trace of a decision the generator holds. */
+export async function openSeededDecision(page: Page): Promise<string> {
+  const id = await seededDecisionId(page);
+  await page.goto(`/decisions/${id}`);
+  return id;
+}
+
 /** Restore seed data. The store is process-wide, so writes leak between specs. */
 export async function resetStore(page: Page) {
   const res = await page.request.post('/api/_test/reset');

@@ -1175,6 +1175,31 @@ async function handleGet(req: Request, { params }: Ctx) {
       }
 
       if (rest[1] === 'trace') {
+        /**
+         * Whether the platform can re-execute this decision.
+         *
+         * Not the same question as whether it is intact. The chain hash proves
+         * the record has not been altered, for every decision; replay runs the
+         * engine again over the same inputs, and a decision record holds
+         * `inputSnapshotHash` and never the values (ADR-004). So the answer is
+         * whether the platform can still produce the inputs, which today means
+         * the generator holds this decision.
+         *
+         * The same lookup the replay endpoint makes, so the two cannot
+         * disagree — a button that offers what the endpoint refuses is worse
+         * than no button.
+         *
+         * It costs a slot map over the generator. Free where the process seeded
+         * its own ledger, because `executeAt` is already memoised; about six
+         * seconds once, on the first trace opened, where the ledger was seeded
+         * into PostgreSQL by `npm run seed:ledger` in some other process. That
+         * is the cost replay itself would have paid on the first click anyway.
+         */
+        const replayOf = (id: string) =>
+          findGeneratedDecision(id)
+            ? { possible: true, reason: null }
+            : { possible: false, reason: 'inputs_not_kept' };
+
         // One source since slice 3. The seeded corpus used to be answered from
         // the committed index and everything else from the ledger, which meant
         // a decision could be in the list and not in the history the platform
@@ -1193,6 +1218,7 @@ async function handleGet(req: Request, { params }: Ctx) {
           return json({
             ...toApiTrace(entry.record as unknown as GeneratedDecision['trace']),
             provenance: provenanceFor(rest[0]),
+            replay: replayOf(rest[0]),
           });
         }
         return notFound(`No decision with id ${rest[0]}`);

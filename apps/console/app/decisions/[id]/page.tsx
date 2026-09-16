@@ -87,6 +87,11 @@ function TraceView({ decisionId }: { decisionId: string }) {
     enabled: Boolean(trace?.artifactId),
   });
 
+  // Declared beside the mutation so the button and the sentence above it read
+  // the same fact. `undefined` on a trace served before this field existed is
+  // treated as "cannot", which errs towards the honest half.
+  const canReplay = trace?.replay?.possible === true;
+
   const replay = useMutation({
     mutationFn: () => apiClient.replayDecision(decisionId),
   });
@@ -562,14 +567,27 @@ function TraceView({ decisionId }: { decisionId: string }) {
               description="Re-execute against the stored artifact version."
             />
             <CardBody>
+              {/*
+                Two claims, and the card says which one this decision supports.
+                The chain hash above proves the record is unaltered whatever
+                happens here. Replay is the stronger claim and needs the inputs,
+                which the platform deliberately does not keep — so a decision a
+                channel made can be proven unchanged and cannot be re-executed.
+                The button used to offer it anyway and fail with a 422.
+              */}
+              <p className="mb-3 text-label text-content-muted">
+                {canReplay
+                  ? 'Proven unchanged by its chain hash, and re-executable: the platform can still produce the inputs it was made from.'
+                  : 'Proven unchanged by its chain hash, and not re-executable: this decision’s inputs were never kept. The record holds a hash of them and never the values, so replaying it means handing back the input it was made with.'}
+              </p>
               <Button
                 variant="primary"
                 size="lg"
                 className="w-full"
                 onClick={() => replay.mutate()}
-                disabled={replay.isPending}
+                disabled={replay.isPending || !canReplay}
               >
-                {replay.isPending ? 'Replaying…' : 'Replay this decision'}
+                {replay.isPending ? 'Replaying…' : canReplay ? 'Replay this decision' : 'Cannot be re-executed here'}
               </Button>
 
               {replay.isError && (

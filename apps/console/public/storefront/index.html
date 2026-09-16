@@ -11,6 +11,16 @@
   in its placements. It is deliberately outside the console's design system: it
   is meant to look like somebody else's site, so it uses its own colours and
   none of the token layer. Everything it displays about an offer comes from the
+  Served by Next from `public/`, at `/storefront/index.html`, on the console's
+  own origin - which is why `/api` needs no host, no token and no CORS.
+
+  One thing to know about that shared origin: with `NEXT_PUBLIC_USE_MSW=true`
+  the console registers the MSW worker at scope `/`, and a service worker
+  controls every page under its scope. This page never asks for it and cannot
+  see it, but its fetches are answered from `mocks/handlers.ts` rather than by
+  the route handlers reading the ledger. The flag is off by default; when it is
+  on, what you are demonstrating is the mock.
+
   API - `POST /api/decisions` for what to show, `GET /api/offers/...` for the
   creative. Nothing about an offer is written into this file.
 
