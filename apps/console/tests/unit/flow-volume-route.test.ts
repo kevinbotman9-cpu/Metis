@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { GET } from '@/app/api/[...path]/route';
 import { store, resetStore } from '@/mocks/store';
-import { corpusVolumeRows } from '@/mocks/fixtures/decisions';
+import { seedLedger } from '@/mocks/seed-ledger';
 import { findCompilation } from '@/mocks/fixtures/compiled';
 import { topologicalOrder } from '@metis/runtime';
 import type { FlowVolumeReportDto } from '@/lib/api-client';
@@ -12,6 +12,10 @@ import type { FlowVolumeReportDto } from '@/lib/api-client';
  * The arithmetic is the ledger's and is tested in `packages/ledger`. These cover
  * what the route decides: which decisions are in the window, which graph and
  * order they are summed over, and what it refuses.
+ *
+ * They seed a history first: since slice 3 the overlay reads the ledger alone,
+ * so a store nobody seeded draws an empty canvas — correctly, and with nothing
+ * to assert about.
  */
 
 const FLOW = 'next-best-action';
@@ -34,22 +38,27 @@ const report = async (query: string) => {
   return (await res.json()) as FlowVolumeReportDto;
 };
 
+/** Every decision the ledger holds for this flow, newest first. */
+const ledgerRows = () =>
+  store.ledger
+    .query({ tenantId: 'telco-us', limit: 20000 })
+    .then((rows) => rows.filter((e) => e.flowId === FLOW));
+
 /** The decisions a window should hold, counted without the route. */
 const expectedInWindow = async (to: string, hours: number) => {
   const start = Date.parse(to) - hours * HOUR;
-  const corpus = corpusVolumeRows().filter((d) => d.flowId === FLOW);
-  const seen = new Set(corpus.map((d) => d.decisionId));
-  const live = (await store.ledger.query({ tenantId: 'telco-us', limit: 20000 })).filter(
-    (e) => !seen.has(e.decisionId) && e.flowId === FLOW
-  );
-  return [...corpus.map((d) => d.occurredAt), ...live.map((e) => e.occurredAt)].filter(
-    (at) => Date.parse(at) > start && at <= to
-  ).length;
+  return (await ledgerRows()).filter((e) => Date.parse(e.occurredAt) > start && e.occurredAt <= to)
+    .length;
 };
 
 describe('GET /api/flow-volume/{tenant}', () => {
   beforeEach(async () => {
     await resetStore();
+    await store.ledgerReady;
+    // Two thousand: the default window is 24 hours ending at the newest
+    // decision, and the corpus spreads 10,400 over two years, so a smaller
+    // history can leave that window holding one decision or none.
+    await seedLedger(store.ledger, { count: 2000 });
   });
 
   it('refuses a request that names no flow, or a flow nothing compiled', async () => {
@@ -65,9 +74,7 @@ describe('GET /api/flow-volume/{tenant}', () => {
 
   it('defaults to 24 hours ending at the newest decision recorded, not at the clock', async () => {
     const r = await report(`?flowId=${FLOW}`);
-    const newest = corpusVolumeRows()
-      .filter((d) => d.flowId === FLOW)
-      .reduce((m, d) => (d.occurredAt > m ? d.occurredAt : m), '');
+    const newest = (await ledgerRows()).reduce((m, e) => (e.occurredAt > m ? e.occurredAt : m), '');
 
     expect(r.hours).toBe(24);
     expect(r.to! >= newest).toBe(true);

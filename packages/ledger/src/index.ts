@@ -9,6 +9,7 @@ export {
   MIGRATIONS_DIR,
   runMigration,
   SUBJECT_PROTECTION,
+  effectiveDataClass,
   type DataClass,
 } from './create-store';
 export type { LedgerHandle, CreateLedgerOptions } from './create-store';

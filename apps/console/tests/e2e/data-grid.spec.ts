@@ -1,16 +1,20 @@
 import { test, expect } from '@playwright/test';
 import { login, ACCOUNTS } from './helpers';
-import { decisions } from '@/mocks/fixtures/decisions';
+import { DECISION_COUNT } from '@/mocks/fixtures/engine';
 
 /**
- * The corpus size, taken from the fixture rather than written down.
+ * The corpus size, taken from the generator rather than written down.
  *
  * These assertions exist to catch the grid reporting a page size instead of a
  * real total — they once caught it showing the query limit of 200. Naming the
  * number meant editing two tests every time the seeded tenant grew, and a
  * stale literal is a test that fails for the wrong reason.
+ *
+ * It came from the committed index until slice 3. The index is deleted; the
+ * seed writes `DECISION_COUNT` decisions into the ledger the grid reads
+ * (ADR-018 §2), and the e2e server seeds at start.
  */
-const CORPUS = decisions.length;
+const CORPUS = DECISION_COUNT;
 
 /**
  * The console has to stay usable at the volume the gap register assumes
@@ -31,7 +35,9 @@ test.describe('virtualised decision grid', () => {
     expect(rendered).toBeGreaterThan(5);
     // The whole point: DOM cost is bounded regardless of result size.
     expect(rendered).toBeLessThan(100);
-    // The list opens on offered decisions: 4,688 of the seed's 10,400.
+    // The list opens on offered decisions: 4,688 of the seed's 10,400. Read
+    // from the ledger since slice 3, and the same 4,688 — which is what the
+    // deletion was gated on (ADR-018 §6).
     await expect(page.getByText(/of 4,688/)).toBeVisible();
   });
 

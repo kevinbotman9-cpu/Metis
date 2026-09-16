@@ -1136,9 +1136,10 @@ export const placements: Placement[] = [
 
   // The three slots the corpus decides for and the registry had never heard of.
   //
-  // Every one of these appears in `decision-index.json` as a `placement` on
-  // thousands of decisions — `triggered_outbound` 2,097 times, `retention_queue`
-  // 2,061, `app_inbox` 2,055 — and none of them existed here. `decidePlacement`
+  // Every one of these is a `placement` on thousands of the corpus's decisions
+  // — `triggered_outbound` 2,097 times, `retention_queue` 2,061, `app_inbox`
+  // 2,055, counted from the committed index before ADR-018 §6 deleted it — and
+  // none of them existed here. `decidePlacement`
   // would have answered 404 for all three. Nothing checked, because nothing
   // joined the corpus back to this list; `tests/unit/fixtures.test.ts` does now.
   {

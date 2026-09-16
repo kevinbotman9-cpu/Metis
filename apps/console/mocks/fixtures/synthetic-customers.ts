@@ -264,24 +264,18 @@ export function outcomesFor(d: DecisionRecord, gate: { dispatched: boolean }): O
   return events;
 }
 
-/** The projection: the model under the channel rule. Read path only, until slice 3. */
-export function seededOutcomesFor(d: DecisionRecord): OutcomeEvent[] {
-  return outcomesFor(d, { dispatched: deliversOnChannel(d.channel) });
-}
-
-/**
- * Every seeded outcome, keyed by decision id, for the decisions given.
+/*
+ * The projection's read path was here: `seededOutcomesFor`, the model under the
+ * channel rule, and `seededOutcomeMap`, which a report built per request over
+ * the rows it was about. Both were deleted in slice 3 (ADR-018 §6).
  *
- * Built per request over the rows the report is about rather than cached: the
- * whole corpus is 10,400 calls of pure arithmetic and measures under 40ms,
- * which is cheaper than the cache invalidation question it would otherwise
- * raise the first time a filter narrows the set.
+ * They existed because the corpus was not in the ledger, so a report had to
+ * invent its outcomes at read time from a fixed seed. The seed job writes those
+ * events once, through `recordOutcome`, and the reports read them — which is
+ * why the same 1,654 events can no longer be counted twice, and why an outcome
+ * on a screen now has a row behind it.
+ *
+ * `deliversOnChannel` stays: it is the channel rule itself, which
+ * `seeded-ledger.test.ts` still compares the delivery record's gate against,
+ * decision by decision.
  */
-export function seededOutcomeMap(rows: DecisionRecord[]): Map<string, OutcomeEvent[]> {
-  const map = new Map<string, OutcomeEvent[]>();
-  for (const row of rows) {
-    const events = seededOutcomesFor(row);
-    if (events.length > 0) map.set(row.id, events);
-  }
-  return map;
-}

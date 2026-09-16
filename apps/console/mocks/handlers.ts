@@ -20,7 +20,7 @@ import {
   agentActivity,
   users,
 } from './fixtures/catalogue';
-import { decisions, findTrace } from './fixtures/decisions';
+import { sampleTraces, findTrace } from './fixtures/decisions';
 import { changeSets, auditEvents } from './fixtures/governance';
 
 const API = '*/api';
@@ -170,6 +170,9 @@ export const handlers = [
   // Decisions
   // -------------------------------------------------------------------------
 
+  // A sample, generated on first use. The committed index of 10,400 rows was
+  // deleted with ADR-018 §6: the console's own history is the ledger, and a
+  // Storybook story wants a list to render rather than a corpus to measure.
   http.get(`${API}/decisions/search`, ({ request }) => {
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
@@ -180,7 +183,8 @@ export const handlers = [
     const outcome = url.searchParams.get('outcome');
     const limit = Number(url.searchParams.get('limit') || 50);
 
-    let result = decisions;
+    let result: { id: string; customerId: string; channel: string; winner: string | null; timestamp: string }[] =
+      sampleTraces(200);
     if (action) result = result.filter((d) => d.winner === action);
     if (channel) result = result.filter((d) => d.channel === channel);
     if (customerId)

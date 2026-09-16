@@ -25,8 +25,8 @@ Delivered on 2026-09-15 by the survey and amended the same day. Each slice is it
 |---|---|---|---|
 | 1 | ADR-018: the seeded corpus becomes ledger rows, and screens read only the ledger | 0.5 | Accepted 2026-09-15 |
 | 2a | The seed job; the in-memory seed for development and e2e, restored on reset; the 45-second warm-up threshold; the per-decision tests for decisions, the delivery gate and outcomes; the outcome reads corrected so the ledger's events are not counted twice (ADR-018 §2, §3, §5, §6) | 1–1.5 | Merged, #90 |
-| 2b | Ledger query fields and their index migration; decision search on the ledger, customer by subject hash; `npm run seed:ledger` over PostgreSQL with `--reset`, refused unless the ledger is synthetic and `--tenant` names the tenant | 1–1.5 | In progress |
-| 3 | Performance, the policy funnel, flow volume and outcomes read the ledger alone; the committed index and the projection's read path deleted | 1–2 | |
+| 2b | Ledger query fields and their index migration; decision search on the ledger, customer by subject hash; `npm run seed:ledger` over PostgreSQL with `--reset`, refused unless the ledger is synthetic and `--tenant` names the tenant | 1–1.5 | Merged, #91 |
+| 3 | Performance, the policy funnel, flow volume and outcomes read the ledger alone; the committed index and the projection's read path deleted | 1–2 | In progress |
 | 4 | The console calls the decision service for decisions; the e2e harness starts the service | 1–2 | |
 | 5 | Trace, replay, outcomes and deliveries served by the decision service (ADR-016 §1) | 1–2 | |
 | 6 | ADR: identity, closing G-115 | 0.5–1 to write | |

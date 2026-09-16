@@ -416,11 +416,13 @@ export const DECISION_COUNT = 10_400;
  * costs more still: the full traces serialise to 80 MB, because each carries
  * its elimination cascade and a score line per candidate.
  *
- * So the flat rows the grid, the search and the charts read are generated once
- * by `scripts/build-decision-index.mjs` and committed (1.5 MB), and a full
- * trace is re-executed here the moment somebody opens one. That costs about
- * 0.6ms, which is imperceptible, and it is the same execution that produced
- * the committed row — the cascade shown is still one that really happened.
+ * That was answered with a committed index of flat rows (1.5 MB) until
+ * ADR-018 §6. It is answered now by executing the corpus once, at start, into
+ * the ledger: the grid, the search, the charts and the trace all read those
+ * rows, so what a screen shows and what the platform recorded cannot differ.
+ * The seed costs about 3.2 seconds on a CI runner and is bounded by a check
+ * (`tests/e2e/warmup.setup.ts`); a console that does not set
+ * `METIS_SEED_LEDGER` pays nothing and shows nothing.
  *
  * Memoised, because the trace reader, the replay endpoint and the audit view
  * all ask for the same decision within a page load.

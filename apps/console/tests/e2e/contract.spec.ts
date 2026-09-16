@@ -434,8 +434,14 @@ test.describe('the contract holds for a decision nobody seeded', () => {
     expect(body).not.toHaveProperty('decision');
     expect(body.id).toBe(decisionId);
 
-    // A decision nobody seeded is recorded, not synthetic, and says so.
-    expect(body.provenance?.source).toBe('recorded');
+    // A decision nobody seeded still says synthetic, and that is the point of
+    // ADR-018 §8: provenance is the ledger's data class, and a ledger holding
+    // customer references in clear with no erasure path cannot be `real`
+    // (G-068). Until slice 3 this read `recorded`, which meant only "not in the
+    // committed index" — a label that claimed more than the store could stand
+    // behind. It becomes a real distinction again when the subject is
+    // protected.
+    expect(body.provenance?.source).toBe('synthetic');
 
     await api.dispose();
   });
@@ -473,8 +479,12 @@ test.describe('the contract holds for a decision nobody seeded', () => {
         true
       );
     }
+    // Both, for the same reason: one ledger, one data class (ADR-018 §8).
+    // What this test is about is the shape, and the shape is the same whether
+    // the decision was seeded or made a moment ago — which is what having one
+    // history means.
     expect(seeded.provenance.source).toBe('synthetic');
-    expect(live.provenance.source).toBe('recorded');
+    expect(live.provenance.source).toBe('synthetic');
 
     await api.dispose();
   });

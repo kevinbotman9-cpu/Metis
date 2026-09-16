@@ -18,7 +18,18 @@ import {
   placements,
   connectors,
 } from '@/mocks/fixtures/catalogue';
-import { decisions, sampleTraces, findTrace } from '@/mocks/fixtures/decisions';
+import { sampleTraces, findTrace } from '@/mocks/fixtures/decisions';
+import { seededHistory, rowOfEntry } from '@/mocks/seed-ledger';
+
+/**
+ * The corpus, as the rows the seed writes into the ledger.
+ *
+ * It was a committed index of 10,400 flat rows until slice 3 (ADR-018 §6).
+ * Building it here executes the generator once for the file, which is the cost
+ * the index existed to avoid and is now paid by the console's own seed at
+ * start.
+ */
+const decisions = seededHistory().history.entries.map(rowOfEntry);
 
 /**
  * A fixed slice of the corpus, executed once for this file.

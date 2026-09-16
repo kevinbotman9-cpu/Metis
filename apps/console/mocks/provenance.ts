@@ -1,11 +1,11 @@
 import type { Provenance } from '@metis/client';
-import { decisions } from './fixtures/decisions';
+import { effectiveDataClass } from '@metis/ledger';
 
 /**
  * Whether the numbers in a response came from a customer or from a seed.
  *
  * On 2026-09-09 the seeded `demo-telco-us` tenant crossed from obviously-fake
- * to indistinguishable. 10,400 decisions, 416 measured outcomes, click rates
+ * to indistinguishable. 10,400 decisions, 1,228 measured outcomes, click rates
  * between 16% and 35%, realised value in pounds that differs plausibly from
  * expected, and a genuine-looking underperformer — every figure derived from
  * `seededUnitInterval` and none of it from a person. The only thing separating
@@ -17,18 +17,20 @@ import { decisions } from './fixtures/decisions';
  * interface is not a marker.** It has to survive a `curl`, an exported file and
  * a screenshot, because those are the three ways a number leaves the building.
  *
- * There is no clever inference here. A decision id is either in the committed
- * seed index or it is not, and that is the whole test — which is deliberate,
- * because a heuristic for "does this look synthetic" is exactly the kind of
- * thing that answers wrongly on the day it matters.
+ * **Where the answer comes from, since ADR-018 §8.** The ledger's data class,
+ * not a membership test. Until slice 3 a decision was synthetic if its id was
+ * in the committed index and recorded if it was not, which made "recorded" mean
+ * "not in a file" — and the file has been deleted. `effectiveDataClass` answers
+ * `synthetic` for every ledger while the subject is unprotected, so every
+ * figure on every screen reads synthetic, including one a reviewer produced by
+ * clicking. That is a truthful label for a ledger holding customer references
+ * in clear with no erasure path (G-068); the slice that changes it is
+ * "Protect the subject in the ledger" in `docs/DIRECTIVE.md`.
+ *
+ * **`mixed` is therefore unreachable** and nothing constructs it. It was the
+ * normal state of a demo tenant somebody had clicked in, when two stores each
+ * carried their own kind of history. There is one store now, and one class.
  */
-
-const SEEDED = new Set(decisions.map((d) => d.id));
-
-/** Is this decision one the seed generated, rather than one somebody made? */
-export function isSeededDecision(decisionId: string): boolean {
-  return SEEDED.has(decisionId);
-}
 
 const SYNTHETIC_NOTE =
   'Synthetic. Every figure here is generated from a fixed seed for the demo tenant ' +
@@ -38,46 +40,33 @@ const SYNTHETIC_NOTE =
 const RECORDED_NOTE =
   'Recorded. Every figure here derives from a decision this platform actually made.';
 
+const NOTE = { synthetic: SYNTHETIC_NOTE, real: RECORDED_NOTE } as const;
+const SOURCE = { synthetic: 'synthetic', real: 'recorded' } as const;
+
 /** Provenance for a single record. */
-export function provenanceFor(decisionId: string): Provenance {
-  return isSeededDecision(decisionId)
-    ? { source: 'synthetic', syntheticCount: 1, recordedCount: 0, note: SYNTHETIC_NOTE }
-    : { source: 'recorded', syntheticCount: 0, recordedCount: 1, note: RECORDED_NOTE };
+export function provenanceFor(_decisionId: string): Provenance {
+  return provenanceOf(1);
 }
 
 /**
  * Provenance for a set.
  *
- * `mixed` is the normal state of a demo tenant somebody has clicked in, and it
- * is the answer most worth stating plainly: a report that joins 416 seeded
- * outcomes to the four a reviewer just produced is not evidence, and neither is
- * it a pure fixture. The counts are carried so a reader can see the ratio
- * rather than take the word for it.
+ * The counts are carried so a reader can see the ratio rather than take the
+ * word for it — the whole set shares the ledger's class, so one of the two is
+ * always zero.
  */
 export function provenanceOver(decisionIds: Iterable<string>): Provenance {
-  let synthetic = 0;
-  let recorded = 0;
-  for (const id of decisionIds) {
-    if (SEEDED.has(id)) synthetic += 1;
-    else recorded += 1;
-  }
-  if (synthetic === 0 && recorded === 0) {
-    return { source: 'recorded', syntheticCount: 0, recordedCount: 0, note: RECORDED_NOTE };
-  }
-  if (recorded === 0) {
-    return { source: 'synthetic', syntheticCount: synthetic, recordedCount: 0, note: SYNTHETIC_NOTE };
-  }
-  if (synthetic === 0) {
-    return { source: 'recorded', syntheticCount: 0, recordedCount: recorded, note: RECORDED_NOTE };
-  }
+  let n = 0;
+  for (const _ of decisionIds) n += 1;
+  return provenanceOf(n);
+}
+
+function provenanceOf(count: number): Provenance {
+  const dataClass = effectiveDataClass();
   return {
-    source: 'mixed',
-    syntheticCount: synthetic,
-    recordedCount: recorded,
-    note:
-      `Mixed. ${synthetic.toLocaleString('en-GB')} of ` +
-      `${(synthetic + recorded).toLocaleString('en-GB')} records here are generated from a ` +
-      'fixed seed for the demo tenant demo-telco-us and describe no real customer; the rest ' +
-      'derive from decisions this platform actually made. Not evidence of anything.',
+    source: SOURCE[dataClass],
+    syntheticCount: dataClass === 'synthetic' ? count : 0,
+    recordedCount: dataClass === 'real' ? count : 0,
+    note: NOTE[dataClass],
   };
 }

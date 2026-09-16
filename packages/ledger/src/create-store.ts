@@ -53,6 +53,23 @@ export type DataClass = 'synthetic' | 'real';
 export const SUBJECT_PROTECTION: 'none' | 'per-subject-key' = 'none';
 
 /**
+ * What a ledger in this process may hold — ADR-018 §8.
+ *
+ * `real` is unreachable while the subject is unprotected: `createLedgerStore`
+ * refuses it for a database, and a memory ledger keeps nothing after the
+ * process ends. So this answers `synthetic` for every ledger today, and a
+ * figure read from one cannot honestly be labelled recorded (G-068).
+ *
+ * The declaration is deliberately not `'synthetic'`: this is the one place the
+ * refusal is expressed as a value rather than a thrown error, and it becomes
+ * a real question the day the subject-protection slice lands.
+ */
+export function effectiveDataClass(env: NodeJS.ProcessEnv = process.env): DataClass {
+  if (SUBJECT_PROTECTION === 'none') return 'synthetic';
+  return dataClassOf(env.METIS_DATA_CLASS) ?? 'synthetic';
+}
+
+/**
  * Read `METIS_DATA_CLASS`, refusing anything but the two declared values.
  *
  * `undefined` when the variable is unset. The ledger's refusal treats that as

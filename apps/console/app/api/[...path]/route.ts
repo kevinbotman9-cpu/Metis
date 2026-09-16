@@ -19,16 +19,8 @@ import { readFileSync } from 'node:fs';
 import * as nodePath from 'node:path';
 import { store, resetStore, recordAudit, ResetRefused } from '@/mocks/store';
 import type { TenantSettings } from '@metis/core/domain';
-import {
-  findTrace,
-  decisions,
-  findGeneratedDecision,
-  toApiTrace,
-  corpusFunnelRows,
-  corpusVolumeRows,
-} from '@/mocks/fixtures/decisions';
+import { findGeneratedDecision, toApiTrace } from '@/mocks/fixtures/decisions';
 import type { GeneratedDecision } from '@/mocks/fixtures/engine';
-import { seededOutcomeMap, seededOutcomesFor } from '@/mocks/fixtures/outcomes';
 import { deliveryFor } from '@/mocks/delivery-state';
 import { rowOfEntry } from '@/mocks/seed-ledger';
 import { subjectHash } from '@metis/ledger';
@@ -1142,23 +1134,18 @@ async function handleGet(req: Request, { params }: Ctx) {
         // from the caller's session rather than a constant.
         const tenantId = 'telco-us';
 
-        // ADR-018 clause 1: the ledger is the decision history a screen reads.
-        // A decision the platform made could be opened by id and never appeared
-        // in this list, because the list read the committed index and the index
-        // holds only what the generator produced.
+        // ADR-018 clause 1: the ledger is the decision history a screen reads,
+        // and since slice 3 it is the only one. A console with an empty ledger
+        // shows an empty list, which is the truth about that console; the seed
+        // is how it gets a history (METIS_SEED_LEDGER, `npm run seed:ledger`).
         //
-        // The fallback below is transitional and goes with the index in slice 3:
-        // a ledger holding nothing for this tenant — a console started without
-        // METIS_SEED_LEDGER, and every unit test that boots the store — would
-        // otherwise show an empty list where the index had 10,400 rows.
-        const seededHistoryPresent = (await store.ledger.count({ tenantId })) > 0;
         // Annotated rather than inferred: `outcome` is `string | null` off the
         // query string, and comparing a string to a literal narrows to string,
         // not to the literal the ledger's query declares.
         const outcomeFilter: 'offered' | 'suppressed' | undefined =
           outcome === 'offered' ? 'offered' : outcome === 'suppressed' ? 'suppressed' : undefined;
 
-        if (seededHistoryPresent) {
+        {
           const query = {
             tenantId,
             channel: channel || undefined,
@@ -1185,35 +1172,17 @@ async function handleGet(req: Request, { params }: Ctx) {
             provenance: provenanceOver(page.map((d) => d.id)),
           });
         }
-
-        let result = decisions;
-        if (action) result = result.filter((d) => d.winner === action);
-        if (channel) result = result.filter((d) => d.channel === channel);
-        if (customerId) result = result.filter((d) => d.customerId === customerId);
-        if (outcome === 'suppressed') result = result.filter((d) => d.winner === null);
-        if (outcome === 'offered') result = result.filter((d) => d.winner !== null);
-        if (dateFrom) result = result.filter((d) => d.timestamp >= dateFrom);
-        if (dateTo) result = result.filter((d) => d.timestamp <= dateTo);
-
-        const sorted = [...result].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-        const page = sorted.slice(0, limit);
-        return json({
-          decisions: page,
-          total: sorted.length,
-          provenance: provenanceOver(page.map((d) => d.id)),
-        });
       }
 
       if (rest[1] === 'trace') {
-        const trace = findTrace(rest[0]);
-        if (trace) return json({ ...trace, provenance: provenanceFor(rest[0]) });
-        // Seeded decisions are the console's flattened display shape; anything
-        // executed since is in the ledger as real engine output. Before the
-        // ledger existed, POST /decisions returned an id this endpoint then
-        // said did not exist.
-        // The development store is single-tenant, and the trace route
-        // carries no tenant segment. A multi-tenant deployment resolves this
-        // from the caller's session rather than a constant.
+        // One source since slice 3. The seeded corpus used to be answered from
+        // the committed index and everything else from the ledger, which meant
+        // a decision could be in the list and not in the history the platform
+        // claims to keep.
+        //
+        // The development store is single-tenant, and the trace route carries
+        // no tenant segment. A multi-tenant deployment resolves this from the
+        // caller's session rather than a constant.
         const entry = await store.ledger.get('telco-us', rest[0]);
         // Projected, not returned raw. `entry.record` is the *runtime*
         // `DecisionRecord` — `{ id, decision: {...} }` — and the spec declares
@@ -1235,28 +1204,19 @@ async function handleGet(req: Request, { params }: Ctx) {
       // GET /api/outcomes/{tenantId}/{decisionId}
       const [tenantId, decisionId] = rest;
       if (!tenantId || !decisionId) return notFound();
-      // Existence is the same question the trace route asks: seeded decisions
-      // are real to this console even though they predate the ledger. A
-      // decision with no outcomes yet is an empty list, not a 404 — "nothing
+      // Existence is the ledger's answer, the same one the trace route gives.
+      // A decision with no outcomes yet is an empty list, not a 404 — "nothing
       // happened" and "no such decision" are different answers.
-      const known =
-        Boolean(findTrace(decisionId)) || Boolean(await store.ledger.get(tenantId, decisionId));
-      if (!known) return notFound(`No decision with id ${decisionId}`);
-      // Seeded first, then anything recorded against it — same merge and same
-      // reason as the report, so the trace and the rate cannot disagree about
-      // what happened to one decision.
-      const seededTrace = decisions.find((d) => d.id === decisionId);
-      const recorded = await store.ledger.outcomesFor(tenantId, decisionId);
-      // When this process seeded the ledger, the corpus's outcomes are already
-      // ledger rows, and adding the projection would list each of them twice.
-      // ADR-018 §6, corrected in slice 2a.
-      const seededEvents = seededTrace && !store.ledgerSeed ? seededOutcomesFor(seededTrace) : [];
+      if (!(await store.ledger.get(tenantId, decisionId))) {
+        return notFound(`No decision with id ${decisionId}`);
+      }
+      // One list, from the ledger. Until slice 3 this merged the projection's
+      // events for a seeded decision with the ledger's for the same one, which
+      // is why clause 6 had to be corrected mid-flight when the seed made both
+      // hold the same 1,654 events.
       return json({
-        outcomes: [...seededEvents, ...recorded],
-        provenance:
-          seededEvents.length > 0 && recorded.length > 0
-            ? provenanceOver([decisionId, 'live'])
-            : provenanceFor(decisionId),
+        outcomes: await store.ledger.outcomesFor(tenantId, decisionId),
+        provenance: provenanceFor(decisionId),
       });
     }
 
@@ -1264,9 +1224,9 @@ async function handleGet(req: Request, { params }: Ctx) {
       // GET /api/deliveries/{tenantId}/{decisionId} — ADR-013 §1.
       const [tenantId, decisionId] = rest;
       if (!tenantId || !decisionId) return notFound();
-      const known =
-        Boolean(findTrace(decisionId)) || Boolean(await store.ledger.get(tenantId, decisionId));
-      if (!known) return notFound(`No decision with id ${decisionId}`);
+      if (!(await store.ledger.get(tenantId, decisionId))) {
+        return notFound(`No decision with id ${decisionId}`);
+      }
 
       // Recorded only, never projected. When this process seeded its ledger
       // (ADR-018), each seeded decision carries the delivery its placement
@@ -1389,13 +1349,12 @@ async function handleGet(req: Request, { params }: Ctx) {
     // them, so the platform could say what it decided and never whether it
     // worked.
     //
-    // Read over the same corpus `/decisions` lists, not over the ledger alone.
-    // The console has two decision stores — the generated corpus it displays,
-    // and the ledger that runtime decisions land in — and `POST /outcomes`
-    // deliberately accepts either, because a seeded decision is real to this
-    // console even though it predates the ledger. A report that covered only
-    // the ledger would say "0 decisions" on a console showing five thousand,
-    // which is a worse answer than a slow one.
+    // Read over the ledger, which since slice 3 is the only decision history
+    // there is. The console used to hold two — the generated corpus it
+    // displayed and the ledger runtime decisions landed in — and every report
+    // merged them and deduplicated by id. The seed made that merge a
+    // double count waiting to happen (ADR-018 §6), and one source is what
+    // stops the trace and the rate disagreeing about the same decision.
     case 'performance': {
       const tenantId = rest[0];
       if (!tenantId) return notFound();
@@ -1408,44 +1367,12 @@ async function handleGet(req: Request, { params }: Ctx) {
       // number that looks like a complete one. An explicit ?limit still caps it.
       const limit = Math.min(Number(q.get('limit') || 20000), 20000);
 
-      // The corpus, in the shape the read model takes. Only the fields it
-      // reads are filled: this is a projection for counting, not a second copy
-      // of the ledger pretending to be one.
-      // Built from the committed decision index rather than from 10,400
-      // re-executions. `buildPerformance` reads `winner` and `channel`, and the
-      // arm join below reads `customerRef` — all three are columns in the
-      // index, so nothing here needs a full trace and nothing pays to make one.
-      const fromCorpus = decisions.map((d) => ({
-        tenantId,
-        decisionId: d.id,
-        subjectHash: '',
-        occurredAt: d.timestamp,
-        flowId: d.artifactId,
-        flowVersion: d.artifactVersion,
-        chainHash: '',
-        record: {
-          decision: {
-            winner: d.winner,
-            channel: d.channel,
-            customerRef: d.customerId,
-          },
-        } as unknown as DecisionRecord,
-      }));
-
-      // The corpus rows by id, so the seeded outcome projection can be built
-      // for exactly the decisions this report covers rather than for all
-      // 10,400 every time a filter narrows it.
-      const decisionById = new Map(decisions.map((d) => [d.id, d]));
-      const seededIds = new Set(decisionById.keys());
-
-      // Runtime decisions too, deduped by id — a decision made through the API
-      // is in the ledger and not in the corpus.
-      const seen = new Set(fromCorpus.map((e) => e.decisionId));
-      const fromLedger = (await store.ledger.query({ tenantId, limit })).filter(
-        (e) => !seen.has(e.decisionId)
-      );
-
-      const all = [...fromCorpus, ...fromLedger]
+      // Every decision the ledger holds for this tenant, newest first, in
+      // the store's own order. `buildPerformance` reads `winner` and
+      // `channel`, and the arm join below reads `customerRef`; a ledger record
+      // carries all three, so no projection is built and nothing is filled in
+      // with a blank to stand in for a field the corpus never had.
+      const all = (await store.ledger.query({ tenantId, limit }))
         .filter((e) => (flowId ? e.flowId === flowId : true))
         .filter((e) => (channel ? e.record.decision.channel === channel : true))
         .slice(0, limit);
@@ -1453,27 +1380,15 @@ async function handleGet(req: Request, { params }: Ctx) {
       // One fetch per decision. Correct and slow, and the right shape to
       // replace with a join when there is a store that can do one — an
       // approximation would have been a number nobody could check.
-      // Two sources, and the merge is the point. The seeded corpus carries
-      // outcomes as a projection (ADR-008 phase two) because its decisions are
-      // not ledger rows; a decision made through the API carries real ones. A
-      // decision that has both — a seeded decision somebody then clicked in the
-      // console — gets both, because the ledger event is a fact and the seeded
-      // one is the history it happened against.
-      // The projection only where the ledger does not already hold the corpus's
-      // outcomes. When this process seeded the ledger it does, and the merge
-      // below would add the same 1,654 events a second time — the doubling
-      // ADR-018 §6 first missed, caught in slice 2a before the index came out.
-      const outcomes = store.ledgerSeed
-        ? new Map<string, OutcomeEvent[]>()
-        : seededOutcomeMap(
-            all
-              .filter((e) => seededIds.has(e.decisionId))
-              .map((e) => decisionById.get(e.decisionId)!)
-          );
+      //
+      // One source. The corpus's outcomes are ledger rows since slice 2a, so
+      // there is no projection left to merge and no way for the same event to
+      // be counted twice.
+      const outcomes = new Map<string, OutcomeEvent[]>();
       for (const entry of all) {
         const events = await store.ledger.outcomesFor(tenantId, entry.decisionId);
         if (events.length === 0) continue;
-        outcomes.set(entry.decisionId, [...(outcomes.get(entry.decisionId) ?? []), ...events]);
+        outcomes.set(entry.decisionId, events);
       }
 
       // The channels something actually delivers on — ADR-013. Passed rather
@@ -1532,9 +1447,10 @@ async function handleGet(req: Request, { params }: Ctx) {
         );
 
       // Where these numbers came from, in the payload rather than in the
-      // interface. A report that joins 416 seeded outcomes to the four a
-      // reviewer just produced is not evidence, and a badge in the nav rail
-      // does not survive an export or a screenshot.
+      // interface: a badge in the nav rail does not survive an export or a
+      // screenshot. Since slice 3 the answer is the ledger's data class, and
+      // while the subject is unprotected that is `synthetic` for every figure
+      // (ADR-018 §8, G-068).
       return json({
         ...report,
         arms: armRows,
@@ -1544,8 +1460,7 @@ async function handleGet(req: Request, { params }: Ctx) {
 
     // Where candidates fall out of decisions: the trace reader's cascade, summed
     // over every decision in range. Proposed (G-107) — no plane serves it; this
-    // development API does, from the same two sources the performance report
-    // reads.
+    // development API does, from the ledger the performance report reads.
     case 'policy-funnel': {
       const tenantId = rest[0];
       if (!tenantId) return notFound();
@@ -1553,16 +1468,15 @@ async function handleGet(req: Request, { params }: Ctx) {
       const channel = q.get('channel');
       const inScope = (flow: string, ch: string) => (flowId ? flow === flowId : true) && (channel ? ch === channel : true);
 
-      // The seeded corpus from the index's `removals` column, not from 10,400
-      // re-executions (5.5 seconds). Decisions made through the API come from
-      // the ledger, whose records carry their eliminations whole, deduped by id
-      // the way the performance report dedupes them.
-      const corpus = corpusFunnelRows().filter((d) => inScope(d.flowId, d.channel));
-      const seen = new Set(corpus.map((d) => d.decisionId));
-      const live = (await store.ledger.query({ tenantId, limit: 20000 })).filter(
-        (e) => !seen.has(e.decisionId) && inScope(e.flowId, e.record.decision.channel)
+      // From the ledger, whose records carry their eliminations whole. The
+      // corpus used to arrive as a `removals` column decoded out of the
+      // committed index and merged with the ledger by id; the column was a
+      // second encoding of what a record already holds, and it could only ever
+      // agree with the record by being tested against it.
+      const entries = (await store.ledger.query({ tenantId, limit: 20000 })).filter((e) =>
+        inScope(e.flowId, e.record.decision.channel)
       );
-      const inRange = [...corpus, ...live.map(funnelDecisionOf)];
+      const inRange = entries.map(funnelDecisionOf);
 
       // Which questions the flows in range ask, from their compiled nodes. A
       // targeting tier is the one the node's declared policies share. The source
@@ -1571,7 +1485,7 @@ async function handleGet(req: Request, { params }: Ctx) {
       // node is where a candidate loses on priority. Consent is asked of every
       // decision by the platform, whatever the flow's nodes (G-015).
       const asked = new Set<FunnelStageId>();
-      for (const id of new Set([...corpus.map((d) => d.flowId), ...live.map((e) => e.flowId)])) {
+      for (const id of new Set(entries.map((e) => e.flowId))) {
         asked.add('consent');
         for (const node of findCompilation(id)?.result.artifact?.nodes ?? []) {
           if (node.tier === 'eligibility' || node.tier === 'relevance' || node.tier === 'suitability') asked.add(node.tier);
@@ -1589,7 +1503,7 @@ async function handleGet(req: Request, { params }: Ctx) {
 
     // Candidates through one flow, node by node: what the canvas draws as edge
     // thickness. Proposed (G-127) — no plane serves it; this development API
-    // does, from the seeded corpus's removals column and the ledger.
+    // does, from the ledger.
     case 'flow-volume': {
       const tenantId = rest[0];
       if (!tenantId) return notFound();
@@ -1602,12 +1516,9 @@ async function handleGet(req: Request, { params }: Ctx) {
         return json({ error: 'bad_request', message: 'hours must be a whole number from 1 to 8760.' }, 400);
       }
 
-      const corpus = corpusVolumeRows().filter((d) => d.flowId === flowId);
-      const seen = new Set(corpus.map((d) => d.decisionId));
-      const live = (await store.ledger.query({ tenantId, limit: 20000 }))
-        .filter((e) => !seen.has(e.decisionId) && e.flowId === flowId)
+      const all = (await store.ledger.query({ tenantId, limit: 20000 }))
+        .filter((e) => e.flowId === flowId)
         .map(flowVolumeDecisionOf);
-      const all = [...corpus, ...live];
 
       // The window ends at the newest decision recorded, not at the clock, so
       // the same records always give the same figures.
@@ -1906,23 +1817,13 @@ async function handlePost(req: Request, { params }: Ctx) {
         ...(body.detail ? { detail: body.detail } : {}),
       };
 
-      // A seeded decision is real to this console even though it predates the
-      // ledger — `GET /outcomes` has always said so. The POST did not, so the
-      // five thousand decisions the console displays could be read for
-      // outcomes and never given one, and the measurement loop could not be
-      // exercised against any of them.
-      //
-      // Materialised on first outcome rather than seeded at startup: the
-      // ledger's invariant is that an outcome always joins to a decision, and
-      // writing the decision first keeps that true without paying for five
-      // thousand inserts nobody may ever measure.
-      if (!(await store.ledger.get(tenantId, decisionId))) {
-        const seeded = findGeneratedDecision(decisionId);
-        if (seeded) {
-          await store.ledger.record(store.ledger.entryFor(seeded.trace, tenantId));
-        }
-      }
-
+      // No decision is materialised here any more. The corpus used to live
+      // outside the ledger, so an outcome against a seeded decision had to
+      // write the decision first to keep the ledger's invariant — an outcome
+      // always joins to a decision. Since the seed writes all 10,400 (ADR-018
+      // §2), the decision is already there, and an id the ledger does not hold
+      // is what it has always looked like: a mis-routed event or a mis-typed
+      // id, refused below rather than given a row to live in.
       try {
         await store.ledger.recordOutcome(event);
       } catch (e) {

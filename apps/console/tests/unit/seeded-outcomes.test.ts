@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { decisions } from '../../mocks/fixtures/decisions';
-import { seededOutcomesFor, POOR_PERFORMER } from '../../mocks/fixtures/outcomes';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { POOR_PERFORMER } from '../../mocks/fixtures/synthetic-customers';
 import { decisionIndexOf, inChurnCohort } from '../../mocks/fixtures/engine';
 import { creatives, offers, placements } from '../../mocks/fixtures/catalogue';
+import { seededHistory, buildSeededHistory, rowOfEntry } from '../../mocks/seed-ledger';
+import type { DecisionRecord } from '../../mocks/fixtures/decisions';
 import type { OutcomeEvent } from '@metis/ledger';
 
 /**
@@ -13,25 +14,46 @@ import type { OutcomeEvent } from '@metis/ledger';
  * because the properties that matter here are the ones a sample would miss. A
  * funnel that inverts on nineteen decisions out of ten thousand is still a
  * corpus that can teach somebody the wrong thing.
+ *
+ * **What they read, since slice 3.** The history the seed job writes into the
+ * ledger, not the projection a report used to compute at read time. The model
+ * is the same one; the difference is that these are the rows the screens show,
+ * so a property held here is a property of what a person sees. Building the
+ * history executes all 10,400 decisions, which is why this file carries its
+ * own budget (G-133).
  */
 
+const BUDGET_MS = 180_000;
+
 /** Whether an offer had live content on the channel that won. */
-const couldRenderOn = (d: (typeof decisions)[number]) =>
+const couldRenderOn = (d: DecisionRecord) =>
   creatives.some((c) => c.active && c.offerId === d.winnerOfferId && c.channel === d.channel);
 
-const ALL = decisions.map((d) => ({ d, events: seededOutcomesFor(d) }));
-const WITH = ALL.filter((x) => x.events.length > 0);
+let rows: DecisionRecord[];
+let ALL: { d: DecisionRecord; events: OutcomeEvent[] }[];
+let WITH: { d: DecisionRecord; events: OutcomeEvent[] }[];
+
+beforeAll(() => {
+  const history = seededHistory().history;
+  rows = history.entries.map(rowOfEntry);
+  const byDecision = new Map<string, OutcomeEvent[]>();
+  for (const e of history.outcomes) byDecision.set(e.decisionId, [...(byDecision.get(e.decisionId) ?? []), e]);
+  ALL = rows.map((d) => ({ d, events: byDecision.get(d.id) ?? [] }));
+  WITH = ALL.filter((x) => x.events.length > 0);
+}, BUDGET_MS);
+
 const has = (events: OutcomeEvent[], type: string) => events.some((e) => e.type === type);
 const count = (type: string) => WITH.filter((x) => has(x.events, type)).length;
 
 describe('the seeded outcomes have a shape a marketer can read', () => {
   it('covers the corpus, not a corner of it', () => {
-    expect(decisions.length).toBeGreaterThan(10_000);
-    // 416 on 2026-09-10, down from 887 and from 2,101 before that. Two rules
-    // took it there and neither is a loss of coverage: an offer must have a
-    // creative on the winning channel, and something must deliver that channel.
-    // The corpus is thin because the platform delivers on one channel of five,
-    // which is the fact it is now reporting rather than obscuring.
+    expect(rows.length).toBeGreaterThan(10_000);
+    // 1,228 decisions carry events, from 416 measured on 2026-09-10 and 887
+    // and 2,101 before that. Two rules set the shape and neither is a loss of
+    // coverage: an offer must have a creative on the winning channel, and
+    // something must deliver that channel. The corpus is thin because the
+    // platform delivers on one channel of five, which is the fact it is now
+    // reporting rather than obscuring.
     expect(WITH.length, 'a corpus with no outcomes is the state this replaced').toBeGreaterThan(
       300
     );
@@ -243,9 +265,13 @@ describe('the seeded outcomes have a shape a marketer can read', () => {
     expect(outOfOrder).toEqual([]);
   });
 
-  it('is reproducible', () => {
-    // The whole point. Two calls, same bytes, no clock and no Math.random.
-    const sample = decisions.slice(0, 400);
-    expect(sample.map(seededOutcomesFor)).toEqual(sample.map(seededOutcomesFor));
+  it('is the same answer every time it is built', () => {
+    // Two independent builds, not two reads of the memo: `seededHistory` hands
+    // back one object per process, so comparing it to itself would pass on a
+    // generator that had stopped being deterministic.
+    const first = buildSeededHistory(200);
+    const second = buildSeededHistory(200);
+    expect(second.outcomes).toEqual(first.outcomes);
+    expect(second.entries.map((e) => e.chainHash)).toEqual(first.entries.map((e) => e.chainHash));
   });
 });
