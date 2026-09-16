@@ -43,7 +43,17 @@ test.describe("the marketer's Overview is the loop @screen-only", () => {
     await expect(page.getByRole('heading', { level: 1, name: 'The loop', exact: true })).toBeVisible();
   });
 
-  test('puts what agents proposed above the loop they would change', async ({ page }) => {
+  /**
+   * The order was the other way until 2026-09-17, and the test asserted it:
+   * the proposals and the agent feed came first, and the rail, the funnel and
+   * the value cards — the strongest content on the screen — began below the
+   * fold at 1680x1000. A landing page that opens on what is being *proposed*
+   * about the loop, before the loop, buries its own subject.
+   *
+   * What the proposals must not do is leave. They are the second thing read,
+   * not a thing removed.
+   */
+  test('leads with the loop, and keeps the proposals under it', async ({ page }) => {
     const proposals = page.getByRole('heading', { name: 'Proposed changes', exact: true });
     const activity = page.getByRole('heading', { name: 'Agent activity', exact: true });
     await expect(proposals).toBeVisible();
@@ -51,8 +61,15 @@ test.describe("the marketer's Overview is the loop @screen-only", () => {
     await expect(rail(page)).toBeVisible();
 
     const railTop = (await rail(page).boundingBox())!.y;
-    expect((await proposals.boundingBox())!.y).toBeLessThan(railTop);
-    expect((await activity.boundingBox())!.y).toBeLessThan(railTop);
+    expect((await proposals.boundingBox())!.y).toBeGreaterThan(railTop);
+    expect((await activity.boundingBox())!.y).toBeGreaterThan(railTop);
+
+    // The loop's own first figure is reachable without scrolling, which is the
+    // point of the reorder rather than a side effect of it.
+    const realised = page.getByText('Realised value', { exact: true });
+    await expect(realised).toBeVisible();
+    const viewport = page.viewportSize()!.height;
+    expect((await realised.boundingBox())!.y).toBeLessThan(viewport);
 
     // And the four doughnuts it replaced are gone rather than moved.
     await expect(page.getByText('Flow compilation', { exact: true })).toHaveCount(0);
