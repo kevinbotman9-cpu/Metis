@@ -1,9 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { GET, POST } from '@/app/api/[...path]/route';
 import { store, resetStore } from '@/mocks/store';
-import { executeAt, DECISION_COUNT } from '@/mocks/fixtures/engine';
-import { decisions } from '../../mocks/fixtures/decisions';
-import { seededOutcomesFor } from '../../mocks/fixtures/outcomes';
+import { seedLedger } from '@/mocks/seed-ledger';
 
 /**
  * The performance surface over HTTP.
@@ -11,6 +9,12 @@ import { seededOutcomesFor } from '../../mocks/fixtures/outcomes';
  * The arithmetic is covered in `packages/ledger`. What is covered here is that
  * the join reaches real recorded outcomes — the thing that had never happened,
  * because `POST /outcomes` wrote to a store nothing read.
+ *
+ * Since slice 3 the report reads the ledger alone, so these seed one: three
+ * hundred decisions, enough for both denominators and for a bucket to have
+ * measured something already. The corpus used to arrive from a committed file
+ * whether or not the ledger held it, which is what made a report possible on a
+ * console that could not show the trace behind a single figure in it.
  */
 
 const MARCUS = () => {
@@ -50,51 +54,44 @@ const report = async (query = '') => {
 };
 
 /**
- * The first seeded decision that actually offered something.
+ * A seeded decision that offered something and has no outcome of its own.
  *
- * From the corpus the console displays, not the ledger: the ledger starts empty
- * and only holds decisions made at runtime, while `POST /outcomes` accepts
- * either — a seeded decision is real to this console even though it predates
- * the ledger.
+ * Out of the ledger, which is the only decision history there is. Picking one
+ * the seed already measured would have this test assert that an outcome against
+ * an already-measured decision raises `measured` — which it must not, because
+ * the count is of decisions and not of events.
  */
-function anOfferedDecision() {
-  // The first decision that produced a winner **and has no seeded outcome of
-  // its own**. Since ADR-008 phase two the corpus reports back on roughly six
-  // decisions in ten, and picking one of those would have this test assert
-  // that recording an outcome against an already-measured decision raises the
-  // measured count — which it must not, because the count is of decisions and
-  // not of events.
-  let found: ReturnType<typeof executeAt> | undefined;
-  for (let i = 0; i < DECISION_COUNT && !found; i++) {
-    const made = executeAt(i);
-    if (!made.trace.decision.winner) continue;
-    const row = decisions.find((d) => d.id === made.trace.id);
-    if (row && seededOutcomesFor(row).length > 0) continue;
-    found = made;
+async function anOfferedDecision() {
+  for (const entry of await store.ledger.query({ tenantId: 'telco-us', limit: 5000 })) {
+    const d = entry.record.decision;
+    if (!d.winner) continue;
+    if ((await store.ledger.outcomesFor('telco-us', entry.decisionId)).length > 0) continue;
+    return {
+      decisionId: entry.decisionId,
+      winner: d.winner,
+      // A row is a bucket of (action, channel, flow), not of action alone. With
+      // 251 offers across four flows the same action wins on several channels,
+      // so matching on the action picks whichever bucket sorted first — which
+      // was a different decision's, and reported nothing.
+      channel: d.channel,
+      flowId: d.artifactId,
+    };
   }
-  if (!found) throw new Error('no seeded decision offered anything');
-  return {
-    decisionId: found.trace.id,
-    winner: found.trace.decision.winner!,
-    // A row is a bucket of (action, channel, flow), not of action alone. With
-    // 251 offers across four flows the same action wins on several channels,
-    // so matching on the action picks whichever bucket sorted first — which
-    // was a different decision's, and reported nothing.
-    channel: found.trace.decision.channel,
-    flowId: found.trace.decision.artifactId,
-  };
+  throw new Error('no seeded decision offered anything without already being measured');
 }
 
 describe('the report reaches real outcomes', () => {
   beforeEach(async () => {
     await resetStore();
+    await store.ledgerReady;
+    await seedLedger(store.ledger, { count: 300 });
   });
 
   it('counts the seeded decisions and separates suppression', () => {
-    // Guard on the fixture: a report over nothing would make every assertion
+    // Guard on the seed: a report over nothing would make every assertion
     // below pass vacuously.
     return report().then((r) => {
-      expect(r.decisions).toBeGreaterThan(100);
+      expect(r.decisions).toBe(300);
       expect(r.offered + r.suppressed).toBe(r.decisions);
       expect(r.rows.length).toBeGreaterThan(0);
     });
@@ -113,7 +110,7 @@ describe('the report reaches real outcomes', () => {
   });
 
   it('picks up an outcome once one is recorded', async () => {
-    const decision = anOfferedDecision();
+    const decision = await anOfferedDecision();
     const before = await report();
 
     const recorded = await call(
@@ -149,7 +146,7 @@ describe('the report reaches real outcomes', () => {
 
   it('does not let a repeated outcome inflate the count', async () => {
     // A channel that fires twice must report once, or a rate can exceed 1.
-    const decision = anOfferedDecision();
+    const decision = await anOfferedDecision();
     const before = await report();
     for (const at of ['2026-09-05T10:00:00.000Z', '2026-09-05T10:00:01.000Z']) {
       await call(

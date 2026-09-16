@@ -371,11 +371,14 @@ jobs:
       # packages/client is generated from the spec and committed. If these
       # disagree, someone hand-edited the client or changed the spec without
       # regenerating - either way the types the console compiles against are
-      # no longer the contract. The decision index and the route list come out
-      # of the same `npm run generate` and are held to the same bytes; the
-      # index could not be until it stopped carrying a stopwatch reading (G-052).
+      # no longer the contract. The route list comes out of the same
+      # `npm run generate` and is held to the same bytes.
+      #
+      # The decision index was the third file here. It was deleted with
+      # ADR-018 §6: the corpus is ledger rows now, written by a seed job, so
+      # there is no generated corpus file whose bytes could drift (G-037).
       - name: Generated files match their sources
-        run: node scripts/check-regenerated.mjs generate packages/client/src/generated.ts apps/console/mocks/fixtures/decision-index.json apps/console/lib/nav/routes.generated.ts
+        run: node scripts/check-regenerated.mjs generate packages/client/src/generated.ts apps/console/lib/nav/routes.generated.ts
 
       # Which checks a pull request must pass lives in a ruleset in GitHub's
       # settings, not in this file, and nothing held the two together: a new

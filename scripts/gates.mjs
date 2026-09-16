@@ -132,13 +132,17 @@ export const GATES = [
     command: 'node scripts/check-regenerated.mjs corpus docs/conformance/',
   },
   {
-    // Every tracked file `npm run generate` writes, not only the client. The
-    // decision index was regenerated here and never compared, because it could
-    // not be: it carried a stopwatch reading and changed on every run (G-052).
+    // Every tracked file `npm run generate` writes, not only the client.
+    //
+    // The decision index was the third file here. It was regenerated and never
+    // compared, because it could not be: it carried a stopwatch reading and
+    // changed on every run (G-052). ADR-018 §6 deleted it — the corpus is
+    // ledger rows written by a seed job — so there is no generated corpus file
+    // left to compare.
     id: 'client',
     label: 'Generated files match their sources',
     cwd: '.',
-    command: 'node scripts/check-regenerated.mjs generate packages/client/src/generated.ts apps/console/mocks/fixtures/decision-index.json apps/console/lib/nav/routes.generated.ts',
+    command: 'node scripts/check-regenerated.mjs generate packages/client/src/generated.ts apps/console/lib/nav/routes.generated.ts',
   },
   {
     id: 'required-checks',

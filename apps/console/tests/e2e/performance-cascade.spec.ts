@@ -190,15 +190,15 @@ test.describe('performance reads as a cascade @screen-only', () => {
 
     // Right: the evidence. The per-channel breakdown has to sum to the stage,
     // or the two panes are describing different things.
-    // `exact` because the middle pane's own heading is "416 were seen", and a
-    // substring match on "Seen" finds both panes.
+    // `exact` because the middle pane's own heading is "1,228 were seen", and
+    // a substring match on "Seen" finds both panes.
     const evidence = page
       .getByRole('heading', { level: 2, name: 'Seen', exact: true })
       .locator('..');
     // The definition list's values, not every number in the pane: filtering the
     // pane's digits by "not equal to the stage total" silently drops the
     // channel that happens to carry all of it, which on this tenant is web and
-    // is every one of the 416.
+    // is every one of the 1,228.
     const perChannel = (await evidence.locator('dd').allInnerTexts()).map((t) =>
       Number(t.replace(/[^0-9]/g, ''))
     );

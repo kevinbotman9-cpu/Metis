@@ -1,17 +1,20 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { GET } from '@/app/api/[...path]/route';
 import { store } from '@/mocks/store';
-import { decisions } from '@/mocks/fixtures/decisions';
 import { buildSeededHistory } from '@/mocks/seed-ledger';
 
 /**
  * Decision search reads the ledger — ADR-018 clause 1, slice 2b.
  *
- * Until this slice the list read the committed index and never the ledger, so a
+ * Until slice 2b the list read the committed index and never the ledger, so a
  * decision the platform actually made could be opened by id and did not appear
  * in `/decisions`. These hold the move: the same rows, the same totals, and a
  * customer matched exactly through the subject hash rather than by a substring
  * of the identifier the ledger stores in clear (G-068).
+ *
+ * The fallback to the index, which answered while a ledger was empty, was
+ * deleted with the index in slice 3. What an empty ledger answers now — an
+ * empty list, and a report of zero — is `seeded-ledger.test.ts`'s subject.
  *
  * A history of 300 decisions, not all 10,400: these assert the query, and the
  * seeded ledger's equality with the corpus is `seeded-ledger.test.ts`'s subject.
@@ -35,13 +38,13 @@ async function search(query: Record<string, string> = {}) {
   }>;
 }
 
-describe('search falls back to the committed index while the ledger is empty', () => {
-  it('answers from the index, as it did before the ledger held anything', async () => {
+describe('an empty ledger is an empty list', () => {
+  it('answers nothing, rather than a corpus the ledger does not hold', async () => {
     await store.ledgerReady;
     expect(await store.ledger.count({ tenantId: TENANT }), 'this file expects an unseeded store').toBe(0);
     const body = await search({ limit: '25' });
-    expect(body.total).toBe(decisions.length);
-    expect(body.decisions.length).toBe(25);
+    expect(body.total).toBe(0);
+    expect(body.decisions).toEqual([]);
     expect(body.provenance.source).toBe('synthetic');
   });
 });

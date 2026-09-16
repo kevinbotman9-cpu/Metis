@@ -3,14 +3,15 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { GET as ROUTE_GET, POST as ROUTE_POST } from '@/app/api/[...path]/route';
 import { store, resetStore } from '@/mocks/store';
-import { decisions } from '../../mocks/fixtures/decisions';
-import { provenanceFor, provenanceOver, isSeededDecision } from '../../mocks/provenance';
+import { seedLedger } from '@/mocks/seed-ledger';
+import { provenanceFor, provenanceOver } from '../../mocks/provenance';
+import { effectiveDataClass, SUBJECT_PROTECTION } from '@metis/ledger';
 
 /**
  * A synthetic number says so, wherever it goes.
  *
  * The seeded `demo-telco-us` tenant became indistinguishable from real
- * reporting on 2026-09-09. 10,400 decisions, 416 measured outcomes, click
+ * reporting on 2026-09-09. 10,400 decisions, 1,228 measured outcomes, click
  * rates between 16% and 35%, realised value in pounds that differs plausibly
  * from expected, and a genuine-looking underperformer — every figure derived
  * from `seededUnitInterval` and none from a customer. The only marker was a
@@ -21,7 +22,20 @@ import { provenanceFor, provenanceOver, isSeededDecision } from '../../mocks/pro
  * The rule these hold is that **a marker living only in the interface is not a
  * marker.** A number leaves this building three ways — an API call, an export,
  * and a screenshot — and it has to be marked on all three.
+ *
+ * **What decides the label, since ADR-018 §8.** The ledger's data class. Until
+ * slice 3 a decision was synthetic if its id was in the committed index and
+ * recorded if it was not, so "recorded" meant "not in a file" — and a reviewer
+ * who made a decision in the console turned the performance report `mixed`.
+ * The index is deleted, `effectiveDataClass` answers `synthetic` for every
+ * ledger while the subject is unprotected (G-068), and so every figure reads
+ * synthetic, including one the reviewer just made. That is a truthful label
+ * for a store holding customer references in clear with no erasure path, and
+ * the slice that changes it is "Protect the subject in the ledger".
  */
+
+/** A seeded decision to ask about, written the way the console's own seed does. */
+let seededId: string;
 
 
 const MARCUS = () => {
@@ -62,19 +76,21 @@ async function POST(path: string[], body: unknown): Promise<any> {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-describe('provenance is decided by the seed index, not by a guess', () => {
-  it('calls a seeded decision synthetic and an unknown one recorded', () => {
-    expect(isSeededDecision(decisions[0].id)).toBe(true);
-    expect(isSeededDecision('dec_definitely_not_seeded')).toBe(false);
-    expect(provenanceFor(decisions[0].id).source).toBe('synthetic');
-    expect(provenanceFor('dec_live_one').source).toBe('recorded');
+describe('provenance is the ledger’s data class, not a membership test', () => {
+  it('calls every decision synthetic, the ones nobody seeded included', () => {
+    // The change ADR-018 §8 warned would surprise whoever wrote the old tests:
+    // an id the seed never produced is synthetic too, because the ledger it
+    // would be written to cannot be real.
+    expect(provenanceFor(seededId).source).toBe('synthetic');
+    expect(provenanceFor('dec_definitely_not_seeded').source).toBe('synthetic');
+    expect(provenanceFor('dec_live_one').source).toBe('synthetic');
   });
 
-  it('calls a set that joins both mixed, and carries the ratio', () => {
-    const p = provenanceOver([decisions[0].id, decisions[1].id, 'dec_live_one']);
-    expect(p.source).toBe('mixed');
-    expect(p.syntheticCount).toBe(2);
-    expect(p.recordedCount).toBe(1);
+  it('carries the count, and nothing is recorded while the subject is unprotected', () => {
+    const p = provenanceOver([seededId, 'dec_live_one', 'dec_another']);
+    expect(p.source).toBe('synthetic');
+    expect(p.syntheticCount).toBe(3);
+    expect(p.recordedCount).toBe(0);
     // The note has to stand alone in a file somebody opens months later.
     expect(p.note).toMatch(/demo-telco-us/);
     expect(p.note).toMatch(/[Nn]ot evidence/);
@@ -85,11 +101,29 @@ describe('provenance is decided by the seed index, not by a guess', () => {
     expect(p.syntheticCount).toBe(0);
     expect(p.recordedCount).toBe(0);
   });
+
+  it('is the refusal G-068 describes, not a constant somebody typed', () => {
+    // If this ever reads 'per-subject-key', the data class becomes a real
+    // question again and `mixed` may come back — which is the point of
+    // deriving the label rather than hard-coding it.
+    expect(SUBJECT_PROTECTION).toBe('none');
+    expect(effectiveDataClass()).toBe('synthetic');
+    expect(effectiveDataClass({ ...process.env, METIS_DATA_CLASS: 'real' })).toBe('synthetic');
+  });
 });
 
 describe('every response derived from the seed carries its provenance', () => {
   beforeEach(async () => {
     await resetStore();
+    // A history to ask about. The reports read the ledger alone now, so a
+    // store that never seeded has nothing to be synthetic about — which is
+    // its own test, in `seeded-ledger.test.ts`.
+    await store.ledgerReady;
+    // Three hundred, not forty: outcomes land on about an eighth of the
+    // decisions that deliver, and a history too small to contain one cannot
+    // show that an outcome carries its provenance.
+    await seedLedger(store.ledger, { count: 300 });
+    seededId = (await store.ledger.query({ tenantId: 'telco-us', limit: 1 }))[0].decisionId;
   });
 
   it('marks the decision search', async () => {
@@ -100,18 +134,19 @@ describe('every response derived from the seed carries its provenance', () => {
   });
 
   it('marks a seeded trace', async () => {
-    const body = await GET(['decisions', decisions[0].id, 'trace']);
+    const body = await GET(['decisions', seededId, 'trace']);
     expect(body.provenance.source).toBe('synthetic');
   });
 
-  it('marks the performance report, and says it is mixed once somebody clicks', async () => {
+  it('marks the performance report, and keeps saying synthetic after somebody clicks', async () => {
     const before = await GET(['performance', 'telco-us']);
     expect(before.provenance.source).toBe('synthetic');
-    expect(before.provenance.syntheticCount).toBeGreaterThan(10_000);
+    expect(before.provenance.syntheticCount).toBe(300);
 
-    // A live decision through the API, then a real outcome against it. This is
-    // exactly what a reviewer clicking the storefront produces, and the report
-    // must stop calling itself purely synthetic the moment it happens.
+    // A live decision through the API — exactly what a reviewer clicking the
+    // storefront produces. It joins the same ledger and carries the same
+    // label: the report counts one more decision and stays synthetic, because
+    // the store it landed in cannot be real (ADR-018 §8).
     const made = await POST(['decisions'], {
       artifactId: 'next-best-action',
       request: liveRequest(),
@@ -119,15 +154,26 @@ describe('every response derived from the seed carries its provenance', () => {
     expect(made.decision?.id ?? made.id, JSON.stringify(made).slice(0, 200)).toBeTruthy();
 
     const after = await GET(['performance', 'telco-us']);
-    expect(after.provenance.source).toBe('mixed');
-    expect(after.provenance.recordedCount).toBeGreaterThan(0);
-    expect(after.provenance.note).toMatch(/Mixed/);
+    expect(after.provenance.source).toBe('synthetic');
+    expect(after.provenance.syntheticCount).toBe(301);
+    expect(after.provenance.recordedCount).toBe(0);
+    expect(after.provenance.note).not.toMatch(/Mixed/);
   });
 
-  it('marks the outcomes of a seeded decision', async () => {
-    const withOutcomes = decisions.find((d) => d.winner);
-    const body = await GET(['outcomes', 'telco-us', withOutcomes!.id]);
-    expect(body.provenance).toBeDefined();
+  it('marks the outcomes of a seeded decision that has some', async () => {
+    // A real loop: `find` with an async predicate matches the first element
+    // whatever it holds, because a promise is truthy.
+    let withOutcomes: string | undefined;
+    for (const e of await store.ledger.query({ tenantId: 'telco-us', limit: 5000 })) {
+      if ((await store.ledger.outcomesFor('telco-us', e.decisionId)).length > 0) {
+        withOutcomes = e.decisionId;
+        break;
+      }
+    }
+    expect(withOutcomes, 'the seeded history gave nobody an outcome').toBeDefined();
+
+    const body = await GET(['outcomes', 'telco-us', withOutcomes!]);
+    expect(body.outcomes.length).toBeGreaterThan(0);
     expect(body.provenance.source).toBe('synthetic');
   });
 });

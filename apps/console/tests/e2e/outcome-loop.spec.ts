@@ -201,7 +201,8 @@ test.describe('the seeded corpus reports back @screen-only', () => {
     // describing. That sentence is the feature, not a caveat.
     await expect(page.getByText(/offers have no outcome recorded/)).toBeVisible();
 
-    // 416 on 2026-09-10, from 887 and before that 2,101. Two rules took it
+    // 1,228 decisions carry outcomes, from 416 measured on 2026-09-10, 887
+    // before that and 2,101 before that. Two rules took it
     // there: an offer must have a creative on the winning channel (G-041), and
     // something must deliver that channel (G-046). The bound is here to catch
     // the state this screen replaced — two rows, from one reviewer's clicks —

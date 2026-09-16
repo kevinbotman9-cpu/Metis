@@ -3,6 +3,7 @@ import { GET, POST, PUT } from '@/app/api/[...path]/route';
 import { store, resetStore } from '@/mocks/store';
 import { assignArm } from '@metis/core/experiment';
 import { readCatalogue } from '@/mocks/catalogue-state';
+import { seedLedger } from '@/mocks/seed-ledger';
 
 /**
  * Experiments over HTTP, and the property that makes them worth having.
@@ -289,6 +290,11 @@ describe('a running experiment is frozen', () => {
 describe('performance by arm', () => {
   beforeEach(async () => {
     await resetStore();
+    // A history for the report to split. Since slice 3 the arms are computed
+    // over the ledger's decisions, and an unseeded store has none — which is
+    // the honest answer for that console and no use to this test (ADR-018 §6).
+    await store.ledgerReady;
+    await seedLedger(store.ledger, { count: 2000 });
   });
 
   it('splits the corpus across the arms it declares', async () => {
