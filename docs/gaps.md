@@ -44,6 +44,139 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-142 — The storefront panel test races the panel's own re-render, and fails at a different line each time
+
+**Registered:** 2026-09-16 · **Status:** Open · **Work item:** none
+
+`apps/console/tests/e2e/storefront-panel.spec.ts` opens the first decision's
+`<details>` and asserts its way down the fact list. It fails intermittently, on
+`main` as well as on a branch, and never twice in the same place.
+
+**Measured on 2026-09-16**, ten runs of the spec alone on one machine:
+
+| Tree | Runs | Failures | Line it failed at |
+|---|---|---|---|
+| `fix/trace-page-one-grid` | 6 | 3 | 36, 43, 65 |
+| `main`, the same spec | 4 | 1 | — |
+
+The three failures are three different depths of the same subtree:
+`.detail` hidden after 23 retries (line 36); `dl.facts` hidden (line 43); and
+`decision` reading `""` while `chain hash`, `input snapshot` and `catalogue`
+beside it in the same `<dl>` all matched their 64-hex patterns (line 65). A
+feature that is missing is missing at the same line every time. This one is not
+missing — it is being replaced while the test reads it.
+
+**The leading suspect, not yet proven.** `decideAll` resolves placements one by
+one, and each one calls `renderPanel()` when it lands
+(`apps/console/public/storefront/index.html`, the end of the per-placement
+path). That replaces the panel's DOM. A `<details>` the test has just opened
+closes when the element it was opened on is thrown away, and an `innerText`
+read against a node being detached mid-call returns `""` — which is exactly the
+line-65 symptom, on a `<dd>` whose siblings were fine a millisecond earlier.
+Whether the panel *should* discard what a person has opened is the other half
+of the question: a re-render that collapses the explanation someone is reading
+is a defect in the page, not only in the test.
+
+**Why it matters more than one flaky test.** This is the `@screen-only` test for
+the storefront panel, written in
+[#99](https://github.com/kevinbotman9-cpu/Metis/pull/99) precisely because four
+days of demos ran against a panel that explained nothing and no test opened it.
+A check that passes three times in four is not the guard that failure deserved.
+
+**Done when:** the panel preserves the open state of a decision across a
+re-render — or renders each placement's card without replacing the others — and
+the spec waits for every placement to settle before it clicks. The check that it
+bites: the spec passes twenty consecutive runs.
+
+### G-141 — The integrations screen shows the latency someone typed in, and never the latency that was measured
+
+**Registered:** 2026-09-16 · **Status:** Open · **Work item:** none — a screen that has the data it needs one join away
+
+`/integrations` ranks every connector against a 50ms tenant budget, marks the
+ones over it, and refuses to compile a flow that names one. Every one of those
+judgements is made against `declaredP95Ms` — a number whoever configured the
+integration typed into a form. The screen says so itself: *"Latency is declared
+by whoever configured the integration, and the compiler adds it to the critical
+path. If the declaration is wrong, the budget is wrong."*
+
+**The measurement exists.** `packages/runtime/src/integration/resolve.ts` stamps
+every call with `ms`, `fetchedAt`, `cacheHit` and — for a cache hit — the
+`observedAt` of the value it served, and all four land in the decision record.
+A trace renders them: `apps/console/components/trace-evidence.tsx` shows the
+connector id with its timing beneath, and the trace's own source-bindings card
+shows the outcome with `{ms}ms cached` beneath it. So the observed number is in
+the ledger for every decision, per connector, and the one screen whose job is to
+say whether a connector is fast enough reads none of it.
+
+**What that costs.** A connector that declares 20ms and returns 180ms is green
+on this screen forever. Nothing reconciles the two, so the budget is a statement
+about the configuration form rather than about production.
+
+**Why it is registered rather than fixed.** Found while checking the two-line
+value-with-provenance shape across the console, which is a layout slice.
+Showing observed latency needs a rollup over the ledger by connector — the same
+shape of read as [ADR-014](adr/ADR-014-the-data-spine.md) §10's
+interaction rollups, and it belongs with them, not in a layout change.
+
+**Done when:** each connector row shows its observed p95 beside the declared
+one, over a named window, and a check fails when a connector's observed p95
+exceeds its declaration by more than the budget.
+
+### G-140 — The flow detail page draws two grids to make one two-column layout, and neither fills both columns
+
+**Registered:** 2026-09-16 · **Status:** Open · **Work item:** none
+
+At 1680 wide, `/decision-flows/next-best-action` renders two sibling grids, both
+declaring `1fr 340px` with a 12px gap:
+
+| Grid | Left | Right |
+|---|---|---|
+| `flow-editor.tsx:142` | 1,037px wide, 548px of graph | 340px wide, **nothing**, stretched to 549px |
+| `page.tsx:198` | 1,037px wide, **nothing**, stretched to 1,267px | 340px wide, 1,267px of provenance |
+
+The empty cells are not incidental. The editor's right column holds the node
+inspector, which renders only when `editing && selected` — so on every read-only
+visit it is a 340px void. The page below it then repeats the same track
+definition with a literal `<div />` in the first cell, whose only purpose is to
+push the provenance rail under the column the inspector would have used.
+
+**This is the same symptom as G-139
+and as the Architect home in
+[#95](https://github.com/kevinbotman9-cpu/Metis/pull/95), and a different
+cause.** There the grid's cells are both filled and the taller one drags the
+shorter to its height, which `items-start` fixes. Here `items-start` would
+change nothing visible, because what is stretched holds no content to sit at the
+top of. The fix is one grid whose right column holds the inspector when there is
+one and the provenance rail otherwise — or always the rail, with the inspector
+somewhere that does not fight it.
+
+**Done when:** the page declares its tracks once, no cell is rendered empty, and
+the provenance rail sits beside the graph rather than 549px below it.
+
+### G-139 — The agentic screen stretches an empty column to 1,339px, and 89% of it is nothing
+
+**Registered:** 2026-09-16 · **Status:** Open · **Work item:** none
+
+`apps/console/app/agentic/page.tsx:325` is `grid gap-stack lg:grid-cols-[1fr_1fr]`
+with no `items-start`. Measured at 1680 wide: tracks 688.667px and 688.667px,
+`align-items: normal`, both children 1,339px tall. The left column holds 1,339px
+of scope cards. The right column — agent activity, with its outcome filter —
+holds 150px. The remaining 1,189px is blank surface, 89% of the column.
+
+**The same defect as the Architect home in
+[#95](https://github.com/kevinbotman9-cpu/Metis/pull/95) and as
+`/decisions/[id]`**, and the same one-word fix: a grid row defaults to
+`stretch`, so the taller cell sets the height of every cell beside it, and a
+pane becomes as tall as its loudest neighbour rather than as tall as what it
+holds. `items-start` on the row is the whole change.
+
+**Not fixed here** because this slice is `/decisions/[id]`, and a layout change
+to a screen nobody measured during it is a change nobody watched land.
+
+**Done when:** the row carries `items-start` and the activity column's height is
+its content's height, verified in a browser at 1680 rather than by reading the
+class list.
+
 ### G-138 — The mock-banner rule reads a route file's words, so honest prose about seeded data fails it
 
 **Registered:** 2026-09-16 · **Status:** Open · **Work item:** none — a check that needs a better question, owed by whoever next trips it

@@ -147,11 +147,16 @@ export function TraceEvidence({
               fields (monthlySpend), so the two never meet. G-069. */}
           <Row label="Values fetched">
             {calls.length > 0 ? (
-              <ul className="flex flex-col gap-0.5">
+              /* Two lines by design rather than one that wraps. The name is
+                 mono and long, the timing sentence is long, and together they
+                 do not fit the evidence column at any width this page gives
+                 it — so the break is put where it means something instead of
+                 falling after the separator. */
+              <ul className="flex flex-col gap-1.5">
                 {calls.map((call) => (
-                  <li key={call.connectorId}>
-                    <span className="font-mono text-label">{call.connectorId}</span>{' '}
-                    {whenComputed(call)}
+                  <li key={call.connectorId} className="flex flex-col">
+                    <span className="font-mono text-label">{call.connectorId}</span>
+                    <span className="text-label">{whenComputed(call)}</span>
                   </li>
                 ))}
               </ul>

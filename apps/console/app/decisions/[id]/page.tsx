@@ -141,6 +141,20 @@ function TraceView({ decisionId }: { decisionId: string }) {
   const maxPriority = ranked[0]?.[1].priority ?? 1;
   const show = (...keys: AudienceKey[]) => keys.includes(audience);
 
+  /**
+   * Whether anything renders in the lower-left column.
+   *
+   * Score composition and execution timings are the only cards there, and the
+   * second audience set is a subset of the first — so this one call decides it.
+   *
+   * Customer and Regulator show neither, and on 2026-09-16 that left eight of
+   * twelve columns blank beside a 1,710px ribbon of evidence cards. The
+   * measurement that found it was looking for the opposite: a right column too
+   * empty at four tracks. It is the left that empties, and only for two of the
+   * five.
+   */
+  const hasScoringColumn = show('analyst', 'business', 'engineer');
+
   // --- the cascade -------------------------------------------------------
   // The compiled nodes carry the tier each node implements, so the rail reads
   // it instead of inferring one from the node id (G-058).
@@ -223,8 +237,16 @@ function TraceView({ decisionId }: { decisionId: string }) {
           </span>
         }
         actions={
-          <>
-            {/* The regulator-ready pack is a document, not a serialisation: it
+          // Beside the title rather than on a band of its own. The page spent
+          // three full-width rows — breadcrumb and title, provenance, then the
+          // audience row — before the cascade began; the selector is a control
+          // and belongs with the other controls.
+          //
+          // The provenance banner keeps its own row: it has to survive a
+          // screenshot of what is under it, which a control strip does not.
+          <div className="flex flex-col items-end gap-1.5">
+            <div className="flex items-center gap-2">
+              {/* The regulator-ready pack is a document, not a serialisation: it
                 needs a renderer, pagination and the hash verification page
                 §7.5 of the experience plan describes. None of that exists, and
                 `window.print()` dressed as "Export PDF" would be a promise
@@ -251,43 +273,44 @@ function TraceView({ decisionId }: { decisionId: string }) {
                   ...trace,
                 })
               }
-            >
-              Export JSON
-            </Button>
-          </>
+              >
+                Export JSON
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-1">
+              <span className="mr-1 text-label text-content-subtle">Explain for</span>
+              <div className="flex flex-wrap gap-1" role="group" aria-label="Trace audience">
+                {AUDIENCES.map((a) => (
+                  <button
+                    key={a.key}
+                    onClick={() => setAudience(a.key)}
+                    aria-pressed={audience === a.key}
+                    className={cn(
+                      'rounded border px-2 py-1 text-label font-medium transition-colors',
+                      audience === a.key
+                        ? 'border-accent bg-accent text-on-accent'
+                        : 'border-border text-content-muted hover:bg-surface-sunken'
+                    )}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* What the selected audience shows. It followed the buttons on the
+                old row and follows them here. */}
+            <span className="text-label text-content-subtle">
+              {AUDIENCES.find((a) => a.key === audience)?.blurb}
+            </span>
+          </div>
         }
       />
 
       {/* Between the header and the trace, so a screenshot of the cascade or
           of the score table carries it. */}
       <ProvenanceBanner provenance={trace.provenance} />
-
-      {/* Audience selector */}
-      <div className="mb-stack flex flex-wrap items-center gap-2">
-        <span className="text-label text-content-subtle">
-          Explain for
-        </span>
-        <div className="flex flex-wrap gap-1" role="group" aria-label="Trace audience">
-          {AUDIENCES.map((a) => (
-            <button
-              key={a.key}
-              onClick={() => setAudience(a.key)}
-              aria-pressed={audience === a.key}
-              className={cn(
-                'rounded border px-2 py-1 text-label font-medium transition-colors',
-                audience === a.key
-                  ? 'border-accent bg-accent text-on-accent'
-                  : 'border-border text-content-muted hover:bg-surface-sunken'
-              )}
-            >
-              {a.label}
-            </button>
-          ))}
-        </div>
-        <span className="text-label text-content-subtle">
-          {AUDIENCES.find((a) => a.key === audience)?.blurb}
-        </span>
-      </div>
 
       {/*
         The elimination funnel as a Cascade — METIS_CONSOLE_SPEC.md §4.7.
@@ -308,6 +331,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
       <CascadePanes
         className="mb-stack"
         wide
+        twelve
         rail={
           <CascadeRail
             label="Elimination funnel"
@@ -449,8 +473,24 @@ function TraceView({ decisionId }: { decisionId: string }) {
           )}
       </CascadePanes>
 
-      <div className="grid gap-stack lg:grid-cols-[1.4fr_1fr]">
-        <div className="space-y-stack">
+      {/*
+        The same twelve tracks the cascade runs on: 3 + 5 under the rail and
+        the middle pane, 4 under the evidence. Until 2026-09-16 this row was
+        `1.4fr 1fr`, which put its seam at a column boundary nothing above it
+        shared — so the page changed rhythm halfway down, and the second half
+        is the taller of the two.
+
+        `items-start` for the same reason the Architect home's panels carry it
+        (#95): a pane is as tall as what it holds. Inside the cascade above,
+        equal height is correct — it is one card — and here it is not.
+      */}
+      <div className="grid items-start gap-y-stack lg:grid-cols-12">
+        <div
+          className={cn(
+            'space-y-stack',
+            hasScoringColumn ? 'lg:col-span-8 lg:pr-stack' : 'hidden'
+          )}
+        >
           {/* Scores */}
           {show('analyst', 'business', 'engineer') && (
             <Card>
@@ -559,8 +599,19 @@ function TraceView({ decisionId }: { decisionId: string }) {
           )}
         </div>
 
-        {/* Right rail */}
-        <div className="space-y-stack">
+        {/*
+          Under the evidence column, four of twelve — and the full width when
+          nothing shares the row with it, laid three across rather than stacked
+          into a ribbon. `items-start` inside for the same reason it is on the
+          row: a card is as tall as what it holds.
+        */}
+        <div
+          className={cn(
+            hasScoringColumn
+              ? 'space-y-stack lg:col-span-4'
+              : 'lg:col-span-12 lg:grid lg:grid-cols-3 lg:items-start lg:gap-stack lg:space-y-0 space-y-stack'
+          )}
+        >
           <Card>
             <CardHeader
               title="Determinism"
