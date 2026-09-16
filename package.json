@@ -30,6 +30,7 @@
     "test:bench": "npm --prefix bench/harness run test",
     "bench": "npm --prefix bench/harness run bench",
     "test:e2e": "npm run test:e2e --prefix apps/console",
+    "test:e2e:empty": "npm run test:e2e:empty --prefix apps/console",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json && npm run typecheck --prefix apps/console",
     "test:bundle": "npm run test:bundle --prefix apps/console",
     "test:portability": "npm --prefix packages/portability run test",
@@ -41,7 +42,7 @@
     "test:governance": "npm --prefix packages/governance run test",
     "test:ui-metadata": "npm --prefix packages/ui-metadata run test",
     "gates": "node scripts/gates.mjs",
-    "gates:pre-pr": "node scripts/gates.mjs --skip e2e",
+    "gates:pre-pr": "node scripts/gates.mjs --skip e2e --skip e2e-empty",
     "gates:quick": "node scripts/gates.mjs typecheck-packages typecheck-console lint-root lint-console test-runtime test-compiler test-core test-catalogue test-governance test-portability test-ledger test-registry test-ui-metadata test-integration test-execution test-console",
     "conformance": "node --import tsx scripts/conformance.mjs"
   },

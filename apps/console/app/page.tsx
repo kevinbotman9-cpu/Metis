@@ -13,7 +13,6 @@ import {
   CardBody,
   CardHeader,
   Badge,
-  EmptyState,
   ErrorState,
   LoadingState,
   AutonomyBadge,
@@ -32,6 +31,7 @@ import { buildLoop } from '@/lib/loop';
 import { useFormat } from '@/components/tenant-format';
 import { useAuth } from '@/components/auth-provider';
 import { ArchitectOverview } from '@/components/architect-overview';
+import { NoDecisionsYet } from '@/components/no-decisions-yet';
 import { useOverviewPersona } from '@/lib/persona';
 
 /**
@@ -256,9 +256,15 @@ function OverviewView() {
       ) : report.isError || !report.data || !loop ? (
         <ErrorState description="Could not build the loop." onRetry={() => void report.refetch()} />
       ) : report.data.decisions === 0 ? (
-        <EmptyState
-          title="Nothing has been decided yet"
-          description="The loop starts at a decision. Until a flow answers a request there is nothing to follow."
+        // Unfiltered: this screen reads the whole tenant, so no history and no
+        // match are the same thing here and the new-tenant sentence is always
+        // the right one.
+        <NoDecisionsYet
+          shows={[
+            'The loop: how many decisions were made, offered an offer, could be delivered, were seen, and were acted on',
+            'Realised value against the ceiling the delivered offers set',
+            'Where the loop breaks — the stage losing the most, and the rule that did it',
+          ]}
         />
       ) : (
         <section aria-label="The loop">

@@ -13,6 +13,7 @@ import {
   Select,
   Field,
 } from '@/components/ui/primitives';
+import { NoDecisionsYet, useEmptyReason } from '@/components/no-decisions-yet';
 import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import { CascadeRail } from '@/components/cascade-rail';
 import { CascadePanes } from '@/components/cascade-panes';
@@ -61,6 +62,8 @@ import { useFormat } from '@/components/tenant-format';
  */
 
 function PerformanceView() {
+  // Which of the two blanks this screen is showing, when it shows one.
+  const emptyReason = useEmptyReason();
   const format = useFormat();
   const router = useRouter();
   const pathname = usePathname();
@@ -150,10 +153,23 @@ function PerformanceView() {
       </div>
 
       {data.decisions === 0 ? (
-        <EmptyState
-          title="Nothing has been decided in this window"
-          description="The loop starts at a decision. Narrow the filters or widen the window."
-        />
+        // Filtered, so the blank has two meanings and the screen has to say
+        // which: a window that matched nothing is the reader's to fix, and a
+        // tenant with no history is not.
+        emptyReason === 'new-tenant' ? (
+          <NoDecisionsYet
+            shows={[
+              'Decisions, offers, deliveries and outcomes over the window and flow you choose',
+              'Conversion and acceptance rates, and the value realised against the ceiling',
+              'The stage of the loop losing the most volume, with the rule responsible',
+            ]}
+          />
+        ) : (
+          <EmptyState
+            title="Nothing has been decided in this window"
+            description="This tenant has a decision history; none of it is in this window. Narrow the filters or widen the window."
+          />
+        )
       ) : (
         <>
           <LoopInversions loop={loop} />

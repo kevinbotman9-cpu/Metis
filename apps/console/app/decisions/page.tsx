@@ -13,6 +13,7 @@ import {
   Metric,
   ErrorState,
 } from '@/components/ui/primitives';
+import { NoDecisionsYet, useEmptyReason } from '@/components/no-decisions-yet';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import {
@@ -66,6 +67,8 @@ function asOutcome(value: string | undefined): 'offered' | 'suppressed' | undefi
 }
 
 function DecisionsView() {
+  // Which of the two blanks this screen is showing, when it shows one.
+  const emptyReason = useEmptyReason();
   const format = useFormat();
   const router = useRouter();
   // Opens on decisions that made an offer. Newest first, the unfiltered list
@@ -215,6 +218,14 @@ function DecisionsView() {
             <ErrorState
               description={(error as Error).message}
               onRetry={() => refetch()}
+            />
+          ) : !isLoading && rows.length === 0 && emptyReason === 'new-tenant' ? (
+            <NoDecisionsYet
+              shows={[
+                'Every decision this tenant has made, newest first, with the offer that won and the channel that asked',
+                'Filters by customer, channel, outcome, action and date',
+                'A row opens the trace: the candidates, what removed each one, and the hash over the record',
+              ]}
             />
           ) : (
             <DataTable

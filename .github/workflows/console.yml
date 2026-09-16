@@ -282,6 +282,41 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  # The console on a tenant that has never decided anything.
+  #
+  # Unsharded and its own job, because it is its own *world*: the seeded suite
+  # runs against a server holding 10,400 decisions and this one against a server
+  # holding none. They cannot share a server, and putting the empty run inside
+  # the sharded job would mean either a second `next dev` in each of the four
+  # shards or a warm-up that tolerated both — and that warm-up's hard
+  # `toBe(10_400)` is the thing keeping the seeded runs honest.
+  #
+  # Nine tests, about half a minute. The seven screens that read the ledger had
+  # never been seen empty by any check before this job existed, and empty is the
+  # state every new tenant starts in.
+  e2e-empty:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/console
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+        working-directory: .
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: The console with an empty ledger
+        run: npx playwright test --config playwright.empty.config.ts
+
   # One report over all four shards, and the gate.
   #
   # `needs` with `if: always()` so this runs even when a shard failed — that is

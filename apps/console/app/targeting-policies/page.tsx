@@ -16,6 +16,7 @@ import {
   LoadingState,
   Select,
 } from '@/components/ui/primitives';
+import { NoDecisionsYet, useEmptyReason } from '@/components/no-decisions-yet';
 import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import { CascadeRail } from '@/components/cascade-rail';
 import { CascadePanes } from '@/components/cascade-panes';
@@ -76,6 +77,8 @@ const KINDS = [
  * layout manifest and a Cascade with no renderer to give it one.
  */
 function PolicyFunnel() {
+  // Which of the two blanks this screen is showing, when it shows one.
+  const emptyReason = useEmptyReason();
   const format = useFormat();
   const router = useRouter();
   const pathname = usePathname();
@@ -129,10 +132,20 @@ function PolicyFunnel() {
       </div>
 
       {data.decisions === 0 ? (
-        <EmptyState
-          title="Nothing has been decided in this window"
-          description="The funnel starts at a decision. Choose another flow."
-        />
+        emptyReason === 'new-tenant' ? (
+          <NoDecisionsYet
+            shows={[
+              'The qualification funnel: how many candidates each tier removed, and which rule removed them',
+              'Eligibility, relevance and suitability as three stages with volumes between them',
+              'Every removal traceable to the offer it removed and the policy that named it',
+            ]}
+          />
+        ) : (
+          <EmptyState
+            title="Nothing has been decided in this window"
+            description="This tenant has a decision history; this flow has no part of it. Choose another flow."
+          />
+        )
       ) : (
         <>
           <FunnelUnaccounted report={data} />

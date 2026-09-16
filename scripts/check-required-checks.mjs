@@ -61,6 +61,11 @@ export const NOT_REQUIRED = {
   'flake-hunt':
     'runs on the nightly schedule and on manual dispatch only. On a pull request it is ' +
     'skipped, and a required check that is always skipped gates nothing',
+  'e2e-empty':
+    'the console on a tenant with no decision history, added 2026-09-17. The seven screens that ' +
+    'read the ledger had never been seen empty by any check, which is the state every new tenant ' +
+    'starts in. Held here between its merge and the ruleset change that requires it, as this list ' +
+    'says a new job must be; delete this entry once the ruleset requires `e2e-empty`',
   'execution-image':
     'added with the decision service (ADR-016, Build first). Held here between its merge and ' +
     'the ruleset change that requires it, as this list says a new job must be; delete this entry ' +

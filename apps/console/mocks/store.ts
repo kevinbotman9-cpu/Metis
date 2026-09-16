@@ -60,6 +60,36 @@ import {
 } from '@metis/governance';
 import { openGovernance } from './governance-source';
 
+/**
+ * What `METIS_SEED_LEDGER` asks for: a seed plan, or `null` for no seed.
+ *
+ * **Off has to mean off.** Until 2026-09-17 the call site was
+ * `if (process.env.METIS_SEED_LEDGER)`, and an environment variable is a
+ * string — so `METIS_SEED_LEDGER=0` took the branch, because `"0"` is truthy.
+ * It then parsed to `0`, failed the `> 1` test that selects a partial seed,
+ * and fell through to `undefined`, which means *the whole corpus*. The one
+ * value a person reaches for to turn seeding off seeded all 10,400 decisions,
+ * and did it silently — the startup line says what was seeded, and nothing
+ * says it was not asked for.
+ *
+ * The words are accepted because the same person reaches for them next.
+ *
+ * @param raw `process.env.METIS_SEED_LEDGER`, which may be `undefined`.
+ * @returns `null` to seed nothing, or the plan — a `count` of `undefined`
+ *          meaning the whole history.
+ */
+export function seedPlanFromEnv(raw: string | undefined): { count?: number } | null {
+  if (raw === undefined) return null;
+  const v = raw.trim().toLowerCase();
+  if (v === '' || v === '0' || v === 'false' || v === 'no' || v === 'off') return null;
+
+  // A count, or the whole history: `METIS_SEED_LEDGER=300` seeds three hundred
+  // decisions, which is what a test wants; anything else, `1` included, seeds
+  // them all.
+  const asked = Number(v);
+  return { count: Number.isInteger(asked) && asked > 1 ? asked : undefined };
+}
+
 type Store = {
   /**
    * The catalogue: taxonomy, offers, creatives, targeting and frequency
@@ -126,7 +156,7 @@ type Store = {
   /**
    * What the in-memory seed wrote at start or restored on reset, or null when
    * nothing was seeded: a database is configured, or `METIS_SEED_LEDGER` is
-   * unset. ADR-018 §3. Read by the reports to know the corpus's outcomes are
+   * unset or turns it off (`seedPlanFromEnv`). ADR-018 §3. Read by the reports to know the corpus's outcomes are
    * ledger rows, and by the e2e warm-up for the seed's duration.
    */
   ledgerSeed: LedgerSeedReport | null;
@@ -301,14 +331,9 @@ function seed(): Store {
       // ADR-018 §3: a console without a database seeds its in-memory ledger
       // when asked, before `ledgerReady` resolves, so no request sees a partial
       // history. Every handler awaits `ledgerReady` before it dispatches.
-      if (process.env.METIS_SEED_LEDGER) {
-        // A count, or the whole history: `METIS_SEED_LEDGER=300` seeds three
-        // hundred decisions, which is what a test wants; anything else, `1`
-        // included, seeds them all.
-        const asked = Number(process.env.METIS_SEED_LEDGER);
-        built.ledgerSeed = await seedLedger(built.ledger, {
-          count: Number.isInteger(asked) && asked > 1 ? asked : undefined,
-        });
+      const plan = seedPlanFromEnv(process.env.METIS_SEED_LEDGER);
+      if (plan) {
+        built.ledgerSeed = await seedLedger(built.ledger, { count: plan.count });
         // eslint-disable-next-line no-console
         console.log(
           `[metis] decision ledger: seeded ${built.ledgerSeed.decisions} decisions, ` +

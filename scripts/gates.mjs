@@ -123,6 +123,15 @@ export const GATES = [
     command: 'npx playwright test',
     ci: 'npx playwright test --shard=${{ matrix.shard }}/4 --reporter=blob',
   },
+  {
+    // Its own config, its own server, its own port: the console on a tenant
+    // with no decision history. Unsharded in CI too, so there is no `ci` form
+    // to declare — the two run the same command.
+    id: 'e2e-empty',
+    label: 'End-to-end on an empty ledger',
+    cwd: 'apps/console',
+    command: 'npx playwright test --config playwright.empty.config.ts',
+  },
   { id: 'bundle', label: 'Route bundle budgets', cwd: 'apps/console', command: 'npm run test:bundle' },
   { id: 'spec', label: 'Validate the OpenAPI spec', cwd: '.', command: 'node scripts/validate-spec.mjs' },
   {

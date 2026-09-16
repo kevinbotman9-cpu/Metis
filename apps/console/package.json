@@ -13,6 +13,7 @@
     "test": "vitest run --config ./vitest.config.ts",
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test",
+    "test:e2e:empty": "playwright test --config playwright.empty.config.ts",
     "test:watch": "vitest --config ./vitest.config.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:a11y": "playwright test tests/e2e/accessibility.spec.ts",
