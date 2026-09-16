@@ -129,16 +129,15 @@ test.describe("the architect's Overview is the change pipeline @screen-only", ()
     expect(leading / size).toBeLessThan(1.25);
   });
 
-  test('the bias ratio heading sits on one line', async ({ page }) => {
-    const heading = panel(page, 'Simulated').getByRole('columnheader', { name: 'Bias ratio', exact: true });
-    await expect(heading).toBeVisible();
-    const lines = await heading.evaluate((el) => {
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      return new Set(Array.from(range.getClientRects()).map((r) => Math.round(r.top))).size;
-    });
-    expect(lines).toBe(1);
-  });
+  /*
+   * 'the bias ratio heading sits on one line' was here, and went with its
+   * subject on 2026-09-16: the Simulated panel has no table while nothing
+   * simulates, so there is no column header to wrap. It measured line boxes
+   * with `getClientRects`, which needs a browser, so it could not move down to
+   * the component tests the way the gate-line assertions did. The wrapping rule
+   * comes back with the table, and is worth rewriting then rather than keeping
+   * a test here that asserts the absence of a heading nobody renders.
+   */
 
   test('cards sit at the drafts\' density: 14px padding, 10px headers, 12px apart', async ({ page }) => {
     const header = panel(page, 'Proposed').locator('header').first();
@@ -165,24 +164,48 @@ test.describe("the architect's Overview is the change pipeline @screen-only", ()
   });
 
   test('a panel is as tall as what it holds, not as tall as the panel beside it', async ({ page }) => {
+    // The mechanism, not the consequence. This asserted that the simulation
+    // table was the taller of the two panels, which was true only while the
+    // change sets carried authored simulations; removing them on 2026-09-16
+    // turned a layout check into a content check that failed. A test coupling
+    // two panels' relative heights breaks on the next content change in
+    // either, so what is asserted now is the grid rule that makes the property
+    // hold whatever either panel holds.
     const proposed = panel(page, 'Proposed');
     const simulated = panel(page, 'Simulated');
-    await expect(proposed.locator('a[href^="/approvals/cr_"]').first()).toBeVisible();
-    await expect(simulated.getByRole('row').nth(1)).toBeVisible();
+    await expect(proposed).toBeVisible();
+    await expect(simulated).toBeVisible();
+
+    const row = await proposed.locator('xpath=..').evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { align: s.alignItems, display: s.display };
+    });
+    expect(row.display).toContain('grid');
+    // `stretch` is what pulls a short panel down to its neighbour's height.
+    expect(row.align).not.toBe('stretch');
+
+    // Side by side, so the rule is about two panels on one row.
     const p = (await proposed.boundingBox())!;
     const s = (await simulated.boundingBox())!;
-    // Side by side, and the simulation table is the longer of the two.
     expect(Math.abs(p.y - s.y)).toBeLessThan(2);
-    expect(p.height).toBeLessThan(s.height - 40);
   });
 
-  test('says who can approve in words, and reads each bias ratio against its limit', async ({ page }) => {
+  test('says who can approve in words', async ({ page }) => {
     await expect(panel(page, 'Proposed').getByText('for someone who can approve changes', { exact: true })).toBeVisible();
     await expect(page.getByText(/approve:changes/)).toHaveCount(0);
-    // cr_0039's simulation failed on bias, and its scope resolves the tenant's 1.20.
-    const failed = panel(page, 'Simulated').getByRole('row').filter({ hasText: 'failed' });
-    await expect(failed).toContainText('1.38');
-    await expect(failed).toContainText('limit 1.20');
+  });
+
+  test('says no simulation has run, rather than nothing or a table of empty columns', async ({ page }) => {
+    // What replaced the bias-ratio assertions. Nothing simulates, so the panel
+    // has no ratio to read against a limit; the reading of a ratio against the
+    // autonomy limit that applies to it is covered where it can be exercised,
+    // in `tests/unit/architect-overview-panels.test.tsx`.
+    const simulated = panel(page, 'Simulated');
+    await expect(simulated.getByText(/No simulation has run against/)).toBeVisible();
+    await expect(simulated.getByText(/needs the profile store/)).toBeVisible();
+    // The figures that were here are gone, not merely hidden behind a caption.
+    await expect(simulated.getByRole('columnheader', { name: 'Bias ratio', exact: true })).toHaveCount(0);
+    await expect(simulated.getByText('1.38')).toHaveCount(0);
   });
 
   test('a proposal opens onto the change set a person approves', async ({ page }) => {

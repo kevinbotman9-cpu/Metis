@@ -111,6 +111,21 @@ export const SimulatedNoLimitResolves: Story = {
     ),
 };
 
+/**
+ * What the product shows today: nothing simulates, so no change set carries a
+ * simulation. The stories above keep the table's states because the component
+ * has to render them when simulation is built (ADR-018 §7) — they are the only
+ * place those states exist now that the seeded change sets carry `null`.
+ */
+export const SimulatedNoneHasRun: Story = {
+  render: () =>
+    inCard(
+      'Simulated',
+      'Every change set that ran one, waiting or decided',
+      <SimulatedPanel changeSets={CHANGE_SETS.map((c) => ({ ...c, simulation: null }))} gateFor={() => 1.2} />
+    ),
+};
+
 /** While the autonomy settings load: the ratio alone. */
 export const SimulatedLimitsLoading: Story = {
   render: () => inCard('Simulated', 'Every change set that ran one, waiting or decided', <SimulatedPanel changeSets={CHANGE_SETS} />),

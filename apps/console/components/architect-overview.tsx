@@ -168,6 +168,32 @@ export function SimulatedPanel({
   const failed = simulated.filter((c) => !c.simulation!.passed).length;
   const without = changeSets.length - simulated.length;
 
+  // Nothing has been simulated, which is every change set today: no simulation
+  // runs anywhere in this platform, and the figures that used to fill this
+  // table were authored in a fixture (ADR-018 §7). A table of column headers
+  // over no rows, under "0 of 0 passed", reads as though simulations ran and
+  // found nothing — so the panel says what is true instead.
+  if (simulated.length === 0) {
+    return (
+      <CardBody>
+        {/*
+          Leading with the figure, like every other panel here, and the figure
+          is `0 of n` rather than the `0 of 0` the table used to show: none of
+          the change sets carries a simulation, which is a different statement
+          from "no simulations failed".
+        */}
+        <Lead figures={[{ value: `0 of ${format.number(changeSets.length)}`, label: 'simulated' }]} />
+        <p className="mt-2 text-body text-content">
+          No simulation has run against {without === 1 ? 'this change set' : 'these change sets'}.
+        </p>
+        <p className="mt-1 text-label text-content-muted">
+          Simulation is specified and not built. A bias ratio compares outcomes across protected groups, and no
+          protected attribute exists in this platform yet — it needs the profile store.
+        </p>
+      </CardBody>
+    );
+  }
+
   return (
     <CardBody className="p-0">
       <Lead

@@ -41,19 +41,23 @@ function SimulationsView() {
     <PageBody>
       <PageHeader
         title="Simulations"
-        description="A failed bias gate blocks the change regardless of its commercial upside."
+        description="A bias gate is meant to block a change regardless of its commercial upside. Nothing simulates yet, so nothing is gated."
       />
 
-      <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {/*
+        Three counts, not four. The fourth was "Bias gate 1.20", a string
+        literal in this file presented as the tenant's limit — the same defect
+        as the authored figures removed on 2026-09-16, on the same screen. The
+        Architect home resolves the gate that applies to a change set through
+        `biasGateFor` from the autonomy settings, and this screen resolved
+        nothing. It is not resolved properly here either: a limit displayed
+        beside nothing to compare against it is a number with no purpose. It
+        comes back with the simulation that reads against it.
+      */}
+      <div className="mb-stack grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Metric label="Simulations run" value={withSim.length} />
         <Metric label="Passed" value={passed} tone="pass" />
         <Metric label="Failed" value={failed} tone={failed > 0 ? 'block' : 'neutral'} />
-        <Metric
-          label="Bias gate"
-          value="1.20"
-          sub="max disparity ratio"
-          tone="accent"
-        />
       </div>
 
       {/* Honest scope note — ad-hoc simulation is specified, not built. */}
@@ -63,10 +67,13 @@ function SimulationsView() {
             <Badge tone="hold">Not built yet</Badge>
             <div className="min-w-0 flex-1">
               <p className="text-body font-medium text-content">
-                Ad-hoc simulation is specified but not implemented
+                Simulation is specified and not implemented
               </p>
               <p className="mt-1 text-body text-content-muted">
-                On-demand simulation isn&apos;t available; this lists the simulations run for change sets.
+                Nothing simulates: not on demand, and not for a change set. Until 2026-09-16 the change sets below
+                carried a population, a margin impact and a bias ratio, every one of them written by hand into the
+                seeded data. A bias ratio compares outcomes across protected groups and no protected attribute exists
+                here yet, so the figures were removed rather than labelled.
               </p>
               <p className="mt-1.5 text-label text-content-subtle">
                 Tracked in docs/gaps.md.
