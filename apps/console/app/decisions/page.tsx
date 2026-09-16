@@ -31,7 +31,9 @@ import { useFormat } from '@/components/tenant-format';
  * offering a filter the backend ignores would be worse than offering none.
  */
 const FACETS: Facet[] = [
-  { key: 'customerId', label: 'Customer', hint: 'partial id match' },
+  // Exact, not a substring: the ledger finds a customer through the subject
+  // hash, so "every decision about this customer" is the question it answers.
+  { key: 'customerId', label: 'Customer', hint: 'exact id' },
   {
     key: 'channel',
     label: 'Channel',
@@ -200,7 +202,7 @@ function DecisionsView() {
           facets={FACETS}
           chips={chips}
           onChange={setChips}
-          placeholder="Search by customer, or filter by channel, outcome or action"
+          placeholder="Filter by customer id, channel, outcome or action"
         />
       </div>
 

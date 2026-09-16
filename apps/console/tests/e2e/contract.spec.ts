@@ -449,8 +449,13 @@ test.describe('the contract holds for a decision nobody seeded', () => {
       extraHTTPHeaders: { authorization: `Bearer ${token}` },
     });
 
-    const search = await api.get('/api/decisions/search?limit=1');
+    // A decision from the seeded history, asked for by time rather than taken
+    // from the top of the list. Search reads the ledger since ADR-018 clause 1,
+    // so the newest row is whichever decision this suite made last — this test
+    // read one of those on #91 and failed expecting it to be synthetic.
+    const search = await api.get(`/api/decisions/search?limit=1&dateTo=${SEEDED_THROUGH}`);
     const seededId = (await search.json()).decisions[0].id;
+    expect(seededId, 'no decision came back from inside the seeded corpus').toBeTruthy();
     const seeded = await (await api.get(`/api/decisions/${seededId}/trace`)).json();
 
     const made = await api.post('/api/decisions', {
@@ -496,6 +501,15 @@ const REQUIRED_TRACE_FIELDS = [
   'inputSnapshotHash',
 ];
 
+/**
+ * The corpus's own clock. The seeded history runs from 2024-09-05 to
+ * 2026-09-04T23:08:35Z; every decision this file makes happens at `LIVE_AT`,
+ * after it. A window ending at `SEEDED_THROUGH` therefore holds the corpus and
+ * nothing this suite wrote.
+ */
+const SEEDED_THROUGH = '2026-09-05T00:00:00.000Z';
+const LIVE_AT = '2026-09-05T12:00:00.000Z';
+
 function liveRequest() {
   return {
     tenantId: 'telco-us',
@@ -505,7 +519,7 @@ function liveRequest() {
     // `placement`, which the spec marks required — the API accepted the
     // malformed request rather than refusing it, which is its own small gap.
     placement: 'homepage_hero',
-    occurredAt: '2026-09-05T12:00:00.000Z',
+    occurredAt: LIVE_AT,
     input: {
       customer: {
         age: 40,

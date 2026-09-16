@@ -36,6 +36,7 @@
     "export": "node --import tsx packages/portability/src/cli.ts",
     "bench:s1": "npm --prefix bench/harness run bench:s1",
     "demo:claims": "node scripts/generate-demo-claims.mjs",
+    "seed:ledger": "cd apps/console && node --import tsx scripts/seed-ledger.ts",
     "test:catalogue": "npm --prefix packages/catalogue run test",
     "test:governance": "npm --prefix packages/governance run test",
     "test:ui-metadata": "npm --prefix packages/ui-metadata run test",

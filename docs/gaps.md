@@ -76,6 +76,32 @@ set a second person approves, a score node's pin is chosen on the canvas from th
 published versions, and an `@screen-only` test reaches one of the compiler's
 model refusals by clicking.
 
+### G-136 — One end-to-end shard runs half again as long as the others, and the threshold that was added measures something else
+
+**Registered:** 2026-09-16 · **Status:** Open · **Work item:** none — an observation with one run behind it, recorded so the next few runs are compared rather than remembered
+
+**What was seen.** On #90, the first run with the in-memory ledger seeded
+(ADR-018 slice 2a), the four end-to-end shards took 6m52s, 5m43s, **9m21s** and
+5m48s. Before that slice the four ran within about a minute of each other. One
+run is not a pattern, and shard 3's contents differ from the others', so this is
+an observation rather than a diagnosis.
+
+**Why it might be the seed.** Each e2e server seeds its ledger once at start —
+3.4s on #90's runner — and every `POST /api/_test/reset` between specs rewrites
+that history into a fresh in-memory ledger. The specs are not spread evenly
+across shards: a shard that resets more often pays more.
+
+**What the existing check does not cover.** The warm-up asserts the seed at
+start stays under 45 seconds (ADR-018, the deferred e2e-database alternative).
+It says nothing about the restores between specs, which is the cost that would
+grow with the number of specs on a shard. A threshold that measures the cheap
+half is a threshold that will not fire.
+
+**Done when:** the shard timings from the next few runs on `main` are compared
+against #90's; if shard 3 stays slow, the restore cost per reset is measured and
+either the threshold covers it or the seed moves to a PostgreSQL service in CI,
+which is the alternative ADR-018 already names.
+
 ### G-132 — A bundle-budget test can hang in teardown after it has measured, and a retry is what turns it green
 
 **Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — a harness defect with no diagnosis yet; W-081 owns the budget check's measurement, not its teardown

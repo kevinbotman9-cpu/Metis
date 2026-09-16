@@ -147,8 +147,14 @@ test.describe('the decision ledger', () => {
   test('the seeded decisions still resolve, so the ledger did not replace them', async ({
     request,
   }) => {
-    const list = await (await request.get('/api/decisions/search?limit=1')).json();
+    // Bounded to the corpus: the list is the ledger now, and the newest row
+    // is a decision this file made, which would let this test pass without
+    // ever touching a seeded one. The corpus ends at 2026-09-04T23:08:35Z.
+    const list = await (
+      await request.get('/api/decisions/search?limit=1&dateTo=2026-09-05T00:00:00.000Z')
+    ).json();
     const id = list.decisions[0].id;
+    expect(id, 'no decision came back from inside the seeded corpus').toBeTruthy();
     const res = await request.get(`/api/decisions/${id}/trace`);
     expect(res.status()).toBe(200);
   });
