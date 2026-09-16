@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, ACCOUNTS } from './helpers';
+import { login, ACCOUNTS, openSeededDecision } from './helpers';
 
 /**
  * @screen-only
@@ -26,10 +26,11 @@ const rail = (page: Page) => page.getByRole('navigation', { name: 'Elimination f
 /** Open the trace of a decision that actually eliminated something. */
 async function openRichTrace(page: Page) {
   // `next-best-action` is the flow with all three targeting tiers; the web flow
-  // has one filter and would exercise a third of the rail. Reached by clicking
-  // a row, not by a hardcoded id — ids are generated.
-  await page.goto('/decisions');
-  await page.locator('tr[data-row]').first().click();
+  // has one filter and would exercise a third of the rail. From inside the
+  // seeded corpus rather than from the top of the list, because this file's
+  // replay test would otherwise click a button disabled on a decision a channel
+  // made — see `openSeededDecision`.
+  await openSeededDecision(page);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(rail(page)).toBeVisible({ timeout: 20_000 });
 }

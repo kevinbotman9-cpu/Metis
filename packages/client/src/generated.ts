@@ -882,6 +882,16 @@ export interface DecisionRecord {
   customerId: string;
   timestamp: string;
   provenance?: Provenance;
+  /** Whether this decision can be re-executed, and why not when it cannot.
+Two claims live on a decision and only one of them is about replay. The chain hash proves the record has not been altered, and it proves that for every decision whatever this field says. Replay is the stronger claim — run the engine again over the same inputs and compare — and it needs the inputs, which a decision record does not carry: it holds `inputSnapshotHash` and never the values, so a trace can be kept for as long as an audit needs without keeping the customer data behind it (ADR-004).
+So a decision is re-executable only where the platform can still produce the inputs it was made from, which today means the seeded generator holds it. A decision a channel made is proven unchanged and not re-executable, and a caller who kept the inputs can still replay it by supplying them.
+ */
+  replay?: {
+    possible: boolean;
+    /** Null when `possible` is true. `inputs_not_kept` when the platform did not keep the values behind `inputSnapshotHash`.
+ */
+    reason?: string | null;
+  };
   channel: string;
   placement: string;
   winner: string | null;

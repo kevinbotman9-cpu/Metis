@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, ACCOUNTS } from './helpers';
+import { login, ACCOUNTS, openSeededDecision } from './helpers';
 
 /**
  * The core regression: the trace page once ignored its route param and rendered
@@ -93,7 +93,19 @@ test.describe('decision search and trace', () => {
   });
 
   test('replays a decision and reports it identical', async ({ page }) => {
-    await page.locator('tr[data-row]').first().click();
+    // A decision from the seeded corpus, asked for by time rather than taken
+    // from the top of the list. `/decisions` is the ledger newest-first since
+    // ADR-018, so the first row is whichever decision this suite — or the
+    // storefront — made last, and a decision the platform recorded can be
+    // proven unchanged but not re-executed: its inputs were never kept. The
+    // same assumption broke `contract.spec.ts` on #91, and here it would have
+    // held until the day something decided before this test ran.
+    //
+    // `openSeededDecision` is the shared form of this: the list has no date
+    // facet, so the choice is made through the API and the trace opened by id —
+    // which is what this test is about, the page rendering the decision its
+    // route names.
+    await openSeededDecision(page);
 
     // The chain hash shown on the trace is what a replay has to reproduce.
     const storedHash = (await page.getByText(/^[0-9a-f]{64}$/).first().innerText()).trim();
@@ -107,6 +119,32 @@ test.describe('decision search and trace', () => {
     await expect(page.getByText('Replayed hash', { exact: true })).toBeVisible();
     const hashes = await page.getByText(new RegExp(`^${storedHash}$`)).count();
     expect(hashes).toBeGreaterThanOrEqual(2);
+  });
+
+  test('will not offer to re-execute a decision whose inputs were never kept', async ({ page }) => {
+    // What the storefront demo produces: a decision a channel made. It is
+    // proven unchanged by its chain hash and cannot be replayed, because the
+    // platform keeps the snapshot hash and never the values (ADR-004). The
+    // button offered it anyway until 2026-09-16 and failed with a 422 — on
+    // exactly the decisions a demo has just created.
+    const made = await page.request.post('/api/placements/telco-us/account_dashboard_hero/decisions', {
+      data: { request: liveRequest() },
+    });
+    expect(made.status(), await made.text()).toBeLessThan(300);
+    const body = await made.json();
+    const decisionId = body.decisionId ?? body.decisions?.[0]?.decisionId;
+    expect(decisionId, JSON.stringify(body).slice(0, 200)).toBeTruthy();
+
+    await page.goto(`/decisions/${decisionId}`);
+    const button = page.getByRole('button', { name: 'Cannot be re-executed here', exact: true });
+    await expect(button).toBeVisible();
+    await expect(button).toBeDisabled();
+
+    // The distinction is on the trace, not only on the button, and it says the
+    // reason rather than naming a document.
+    await expect(page.getByText(/Proven unchanged by its chain hash, and not re-executable/)).toBeVisible();
+    await expect(page.getByText(/holds a hash of them and never the values/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Replay this decision', exact: true })).toHaveCount(0);
   });
 
   test('shows the chain hash as the evidence behind the decision id', async ({ page }) => {
@@ -151,3 +189,39 @@ test.describe('decision search and trace', () => {
     await expect(page.getByText('Every candidate was removed before arbitration.', { exact: true })).toBeVisible();
   });
 });
+
+/**
+ * A decision a channel makes, in the shape the storefront sends.
+ *
+ * Kept here rather than imported from the storefront's page: this is the
+ * request the console has to cope with, and a copy that drifts from the demo is
+ * a test that stops describing it — which is worth knowing when it happens.
+ */
+function liveRequest() {
+  return {
+    tenantId: 'telco-us',
+    customerId: 'cust_decisions_probe',
+    channel: 'web',
+    placement: 'account_dashboard_hero',
+    occurredAt: '2026-09-05T12:00:00.000Z',
+    input: {
+      customer: {
+        age: 40,
+        credit_status: 'pass',
+        account_status: 'active',
+        current_plan: 'sim_only',
+        bill_to_income_ratio: 0.02,
+        arrears_count_12mo: 0,
+        credit_band: 'A',
+        address: { fiber_available: true },
+        usage: { pct_of_allowance_3mo_avg: 0.5, months_of_history: 12 },
+        contract: { days_to_end: 200 },
+        events: { pac_requested_within_days: 999 },
+        device: { residual_value: 0 },
+      },
+      context: { offer: { monthly_delta: 300 } },
+    },
+    consent: { marketing: true, profiling: true, thirdParty: false },
+    contactHistory: { channel: 'web', withinPeriod: { day: 0, week: 0, month: 0 } },
+  };
+}
