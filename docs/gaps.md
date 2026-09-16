@@ -97,14 +97,22 @@ It says nothing about the restores between specs, which is the cost that would
 grow with the number of specs on a shard. A threshold that measures the cheap
 half is a threshold that will not fire.
 
+**The next run.** #91, 2026-09-16: 5m29s, 6m51s, 5m58s and 6m55s. Shard 3, the
+9m21s outlier, came back at 5m58s and was the second fastest of the four. One
+run either way is not a pattern; the watch continues.
+
 **Done when:** the shard timings from the next few runs on `main` are compared
 against #90's; if shard 3 stays slow, the restore cost per reset is measured and
 either the threshold covers it or the seed moves to a PostgreSQL service in CI,
 which is the alternative ADR-018 already names.
 
-### G-132 — A bundle-budget test can hang in teardown after it has measured, and a retry is what turns it green
+### G-132 — A bundle-budget test can hang inside the measurement, and a retry is what turns it green
 
-**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — a harness defect with no diagnosis yet; W-081 owns the budget check's measurement, not its teardown
+**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — a harness defect; measured to the test body on 2026-09-16, with the wait that held it still unnamed. W-081 owns the budget check's measurement
+
+The title said teardown until 2026-09-16, and the reading below with it. Both
+are kept, with what disproved them, because a wrong diagnosis that was acted on
+twice is part of the record.
 
 **The observation.** #62's `verify` job at `1e9c499` (run 34891321276) failed
 `bundle-size.spec.ts` › *`/creatives` is within budget*:
@@ -128,6 +136,46 @@ nothing that ships in a route bundle. The same application code measured
 `/creatives` identically (692.4 kB, 11 prefetch requests aborted) in 1.2s on
 #61's run and 1.1s on main's push run at `34c7d7f`.
 
+**Measured on 2026-09-16, and the reading above is wrong.** Four measurements,
+in the order they were taken.
+
+*The sixty seconds are inside the test body, not after it.* The failing job's
+own timestamps: `/offers` printed its measurement at 20:14:31.7 and
+`/creatives` printed its at 20:15:31.8 — sixty seconds later — and the five
+tests after it printed at 20:15:33.4, :34.4, :35.6, :36.6 and :37.6, a second
+apart. The only thing after that line is a synchronous assertion, so the sixty seconds
+were spent before it printed. Teardown, which comes after both, cannot be what
+took the time.
+
+*The page had loaded and every byte had been read.* The failing run's artifact
+is still on the run (`bundle-budget-report`, one `error-context.md`). Its page
+snapshot shows `/creatives` fully rendered — the level-one heading, the ten
+creatives, the nav — and the total the test printed, 692.4 kB, is the passing
+re-run's number to the tenth of a kilobyte. Whatever the wait was, it was not
+waiting for the page to draw or for a chunk to go uncounted.
+
+*A route handler running at teardown does not hold the page.* The reading above
+was tested directly: a probe installed `page.route('**/*')` with a handler that
+sleeps twenty seconds, ended the body while it slept, and the test finished in
+1.6s. Playwright closed the page without waiting for it.
+
+*It does not reproduce here.* Fifty-four runs — every route six times against
+one production build, 2026-09-16 — produced no run over 3.5s, and the time
+outside each body was a steady ~110ms.
+
+**What is left.** Two waits in the body had no ceiling: the quiet window
+(`waitUntil: 'networkidle'`) and the `Promise.all` over one body read per chunk.
+Both are consistent with the evidence and the run cannot distinguish them,
+because a bare `Test timeout of 60000ms exceeded.` names neither. They are now
+bounded at twenty seconds each, with messages naming the route, the wait and
+what was outstanding (`tests/bundle/settle.ts`, checked in
+`tests/unit/bundle-settle.test.ts`). The quiet window closes in 560–910ms per
+route on a development machine and in 553–705ms on the runner that gates this
+repository (#92's `verify`), so the ceiling has around thirty times the cost on
+the machine the failure happened on. The measurement is unchanged: all nine
+routes report the same kilobytes as before the change, on both machines, to the
+tenth.
+
 **What was done instead of a fix.** The failed job was re-run and #62 merged on
 the result, by the product owner's decision. The re-run passed: `/creatives`
 measured 692.4 kB in 1.1s — with **7** prefetch requests aborted where the failed
@@ -137,11 +185,11 @@ knowing when this is diagnosed. The Playwright config's own comment
 says a test that passes only on retry "is a defect to investigate, not a result
 to accept"; this entry is that defect, recorded so the retry is not silent.
 
-**Done when:** the hang is reproduced on demand against a production build — or a
-sustained repeat run is recorded as not producing it — the cause is stated with
-the evidence, and the spec releases what it installs (the route handler, any
-body read still pending) before the page closes, with a check that would fail if
-it stopped doing so.
+**Done when:** a recurrence names the wait that held it — which the ceilings now
+do, in the run's own output — and that wait is fixed, or a season of runs passes
+without one and this is closed as unreproducible. The spec releases its route
+handler before the page closes as of 2026-09-16, which is worth doing and was
+not the cause.
 
 ### G-131 — Every screen is titled "METIS Console", so nothing outside the page can tell two apart
 
