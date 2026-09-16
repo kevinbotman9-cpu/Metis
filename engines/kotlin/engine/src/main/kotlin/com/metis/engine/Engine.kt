@@ -628,13 +628,24 @@ object Engine {
                         )
                     }
 
-                    // Sort by priority, then by key, so equal scores never flip
-                    // between runs or between engines.
+                    // Sort by priority, then by the order the flow declared its
+                    // candidates in, so equal scores never flip between runs or
+                    // between engines — and so that renaming a candidate cannot
+                    // move a winner (ADR-019 §8). The TypeScript engine carries
+                    // the same rule and the same refusal.
+                    val declaredAt = artifact.candidateKeys.withIndex().associate { (at, key) -> key to at }
+                    fun positionOf(key: String): Int =
+                        declaredAt[key]
+                            ?: throw IllegalStateException(
+                                "${artifact.id}@${artifact.version} scored the candidate \"$key\", which is not in its " +
+                                    "candidateKeys. A scored candidate the artifact never declared is a defect in " +
+                                    "whatever built them, not a tie to break."
+                            )
                     val ranked = candidates
                         .filter { scores.containsKey(it.key) }
                         .sortedWith(
                             compareByDescending<Offer> { scores.getValue(it.key).priority }
-                                .thenBy { it.key }
+                                .thenBy { positionOf(it.key) }
                         )
 
                     winner = ranked.getOrNull(0)?.key

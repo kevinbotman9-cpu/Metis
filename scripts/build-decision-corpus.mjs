@@ -283,9 +283,15 @@ const CASES = [
     request: request(),
   },
   {
-    name: 'tie on priority breaks by key',
+    name: 'tie on priority breaks by the order the flow declared',
     // Two identical offers differing only in key. Sort stability is not
     // guaranteed across languages, so the engine breaks ties explicitly.
+    //
+    // It broke by key until ADR-019 §8, which is why the keys here are `z`
+    // before `a`: the winner was `offer_a` on the strength of its name, and a
+    // rename could hand the decision to the other one. The tie-break is the
+    // artifact's declared order now, so `offer_z` wins by being named first,
+    // and this case is what holds both engines to it.
     artifact: artifact({ candidateKeys: ['offer_z', 'offer_a'] }),
     catalogue: catalogue({
       offers: [

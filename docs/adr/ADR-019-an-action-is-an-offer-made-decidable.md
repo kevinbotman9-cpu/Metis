@@ -1,13 +1,16 @@
 # ADR-019: An action is an offer made decidable, and the decision names both
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-09-16 (proposed)
-**Owner:** Product owner
-**Decision needed by:** 2026-09-23. After that the interaction rollups of
-[ADR-014](ADR-014-the-data-spine.md) §10 — the next slice but one in the
-data-layer order — start keying contacts and last-outcome per action, against an
-identity this ADR has not settled. Doing that keying twice costs the blast
-radius in clause 7 twice.
+**Decided:** 2026-09-16
+**Deciders:** Product owner
+**Accepted with two amendments**, both made here: clause 8's unreachable
+fallback became a refusal, and clause 7 states plainly that there is no
+migration for a tenant whose history matters.
+**Decision needed by:** — decided. It had been 2026-09-23, after which the
+interaction rollups of [ADR-014](ADR-014-the-data-spine.md) §10 would have
+started keying contacts and last-outcome per action against an identity this
+ADR had not settled.
 **Constrains:** `packages/core/src/domain.ts`; the engine's ranking and record
 (`packages/runtime/src/deterministic/engine.ts`); `packages/catalogue`;
 `docs/metis-api.openapi.yaml` (`Offer`, `Creative`, `PolicyScope`,
@@ -175,6 +178,29 @@ Every decision id changes. Nothing migrates; the history is regenerated.
   the tenant is named (ADR-018 §3). A tenant holding decisions made before this
   ADR keeps ids that no longer correspond to any action key; that is a
   demonstration database, and the reset is the supported answer.
+
+**There is no migration for a tenant whose decision history matters, and this
+ADR does not provide one.** Reset destroys the history. It is the answer for a
+database of generated decisions and it is not an answer for a database of real
+ones, where the records are evidence and the point of keeping them is that
+nobody can rewrite them (ADR-004's append-only triggers exist to make that
+true).
+
+A real tenant would need one of two things, neither of which is built and
+neither of which this ADR decides: decisions made before the split keep their
+old ids and their old keys, with the catalogue holding the retired offer keys
+alongside the action keys so an old record still resolves; or the history is
+re-signed under a recorded migration, which means a chain of hashes with a
+documented break in it and a check that the break is exactly where the migration
+says. Both are real work.
+
+**This is stated now because it costs nothing now.** No tenant holds a history
+that matters — `METIS_DATA_CLASS=real` is refused everywhere while the subject
+is unprotected (G-068), so every ledger in existence is synthetic and
+regenerable. The first tenant whose history is evidence is the last moment this
+is cheap, and by then the decision will be somebody's emergency. If a schema
+change of this shape is needed after that point, it needs its own ADR and its
+own slice, and "reset the tenant" is not available to it.
 - **What proves nothing was orphaned**, asserted after the reseed: every
   `outcome_events.decision_id` and every `delivery_attempts.decision_id`
   resolves to a `decision_records` row; the three counts are 10,400, 10,400 and
@@ -210,9 +236,17 @@ exact pair the split introduces.
 **So the rule changes: priority, then a stable order that a rename cannot
 move.** `a.key.localeCompare(b.key)` is replaced by the candidate's position in
 the artifact's `candidateKeys`, which is the flow author's declared order and is
-already part of the hashed decision. Where that does not separate them — it
-always does, since keys are unique within an artifact — the key comparison
-remains as the final fallback.
+already part of the hashed decision.
+
+**There is no further fallback, and the absent case refuses.** Keys are unique
+within an artifact, so position always separates two candidates: a comparison
+that never runs is a branch nobody will watch fail, and keeping the key
+comparison underneath would leave the thing this clause removes sitting in the
+code, reachable only by the bug that would make it wrong. A scored candidate
+that is not in `candidateKeys` is that bug — an artifact and a score map that
+disagree about what was decidable — and the engine throws naming the artifact
+and the key rather than ranking it first, which is what `indexOf` returning
+`-1` would otherwise do silently.
 
 **Why this belongs in this ADR rather than a later one:** a rename that can move
 a winner is a defect whatever the corpus says today, and the corpus will stop

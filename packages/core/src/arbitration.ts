@@ -85,11 +85,18 @@ export function rankCandidates(
     priority: round(evaluateUtility(fn, c.terms, weights), PRIORITY_DECIMAL_PLACES),
   }));
 
-  // The engine's order: priority, then key when the priorities are equal.
-  scored.sort((a, b) => {
-    const d = b.priority - a.priority;
-    return d !== 0 ? d : a.key.localeCompare(b.key);
-  });
+  // The engine's order: priority, and then the order the candidates arrived
+  // in, which is the order the flow declared them (ADR-019 §8). It was
+  // priority then key until then, and the engine's tie-break moved because a
+  // rename should not be able to move a winner — a preview that still broke
+  // ties by name would disagree with the decision it is previewing the moment
+  // two candidates scored the same.
+  //
+  // `Array.prototype.sort` is stable, so equal priorities keep their input
+  // order and there is nothing further to compare. **Callers pass candidates in
+  // the artifact's declared order**: the console builds them from the decision's
+  // own `scores`, which the engine fills candidate by candidate in that order.
+  scored.sort((a, b) => b.priority - a.priority);
 
   const byPriority = new Map<number, string[]>();
   for (const s of scored) {

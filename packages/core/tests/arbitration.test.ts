@@ -33,7 +33,7 @@ describe('ranking candidates under weights', () => {
     expect(rows[0].priority).toBe(0.3);
   });
 
-  it('reports a tie only where the weights make one, and orders it by key', () => {
+  it('reports a tie only where the weights make one, and leaves it in the order it was given', () => {
     // Same value, different boosts: the boost separates them — until its
     // weight is zero, and then nothing does.
     const offers = [candidate('zeta', { boost: 1.1 }), candidate('alpha', { boost: 1.05 }), candidate('mu', { boost: 1 })];
@@ -43,22 +43,29 @@ describe('ranking candidates under weights', () => {
     expect(weighted.rows.map((r) => r.key)).toEqual(['zeta', 'alpha', 'mu']);
 
     const unweighted = rankCandidates(offers, { ...NEUTRAL, boost: 0 }, MULTIPLICATIVE);
-    expect(unweighted.ties).toEqual([['alpha', 'mu', 'zeta']]);
-    // Alphabetical, which is exactly the problem: nobody decided zeta is last.
-    expect(unweighted.rows.map((r) => r.key)).toEqual(['alpha', 'mu', 'zeta']);
-    expect(unweighted.rows.find((r) => r.key === 'mu')!.tiedWith).toEqual(['alpha', 'zeta']);
+
+    // The order they arrived in, which is the order the flow declared them
+    // (ADR-019 §8). Until 2026-09-16 this read `['alpha', 'mu', 'zeta']` and
+    // the comment beside it said *"alphabetical, which is exactly the problem:
+    // nobody decided zeta is last"*. Nobody had. The engine's tie-break moved
+    // to the declared order, and this preview moved with it, because a preview
+    // that disagrees with the decision it previews is worse than none.
+    expect(unweighted.ties).toEqual([['zeta', 'alpha', 'mu']]);
+    expect(unweighted.rows.map((r) => r.key)).toEqual(['zeta', 'alpha', 'mu']);
+    expect(unweighted.rows.find((r) => r.key === 'mu')!.tiedWith).toEqual(['zeta', 'alpha']);
   });
 
   it('compares priorities as the engine records them, rounded to eight places', () => {
     // 0.2 and 0.2 + 1e-10 are different numbers and the same recorded
-    // priority, so the engine orders them by key. A difference at the eighth
-    // place is a real difference and decides the order.
+    // priority, so the engine leaves them in the order it was given them. A
+    // difference at the eighth place is a real difference and decides the
+    // order.
     const rounded = rankCandidates(
       [candidate('b', { value: 0.2 + 1e-10 }), candidate('a', { value: 0.2 })],
       NEUTRAL,
       MULTIPLICATIVE
     );
-    expect(rounded.ties).toEqual([['a', 'b']]);
+    expect(rounded.ties).toEqual([['b', 'a']]);
 
     const distinct = rankCandidates(
       [candidate('a', { value: 0.2 }), candidate('b', { value: 0.20000001 })],
@@ -81,9 +88,11 @@ describe('ranking candidates under weights', () => {
       NEUTRAL,
       MULTIPLICATIVE
     );
+    // Each tie in the order its members arrived, and the ties themselves by
+    // priority: the 0.3 pair before the 0.1 pair.
     expect(ties).toEqual([
-      ['a', 'b'],
-      ['c', 'd'],
+      ['b', 'a'],
+      ['d', 'c'],
     ]);
   });
 
