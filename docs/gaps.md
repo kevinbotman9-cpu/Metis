@@ -44,6 +44,46 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-137 — A money delta is a display string in the contract, where no formatter can reach it
+
+**Registered:** 2026-09-16 · **Status:** Open · **Work item:** none — a modelling correction owed by whoever builds simulation (W-020), or by the slice that removes the field, whichever comes first
+
+`ChangeSetSimulation.projectedMarginDelta` is declared `type: string`
+(`docs/metis-api.openapi.yaml`, `ChangeSetSimulation`), and the four seeded
+change sets carry values like `'+$43,200 / month'`
+(`apps/console/mocks/fixtures/governance.ts`). A dollar sign, a thousands
+separator and a period, baked into the payload.
+
+**Why it is not [G-092](gaps.md).** That entry is Resolved and its fix stands:
+`apps/console/lib/format.ts` is the only file that calls the platform
+formatters, and a call site says *what* it shows while the tenant's locale
+decides *how*. This value defeats that by arriving pre-formatted — there is no
+call site left to fix, because the string is the data. `/simulations` renders
+it verbatim, so a US tenant and a UK one see the same dollars, and the one place
+that knows the tenant's currency is never asked.
+
+It is also the one thing `Money` exists to prevent: an amount with no currency
+code and no minor units, which cannot be converted, compared or summed, and
+whose sign is parsed back out of the text to colour it
+(`apps/console/app/simulations/page.tsx`, `startsWith('-')`).
+
+**Scope.** One field. A scan of `*.ts`, `*.tsx` and the spec for a quoted
+currency symbol followed by a digit finds nothing else outside test expectations
+and comments.
+
+**The accepted order removes the values, not the modelling.** The next slice
+makes `simulation` present only when one has run and drops the authored
+figures, so no such string will be served. The declaration survives it, and
+whenever simulation is built the field will be filled again unless this is
+decided first.
+
+**Done when:** the field is either removed with the rest of the unrun
+simulation's figures, or redeclared as `Money` — an amount in minor units with
+a currency — with the console formatting it through `useFormat()`; and a check
+fails on a quoted currency symbol followed by a digit in a fixture or a schema,
+the way `tests/vocabulary.test.ts` scans for the words this platform renamed
+away from.
+
 ### G-135 — A model version is published and never promoted, approved or pinned from the canvas
 
 **Registered:** 2026-09-15 · **Status:** Open · **Work item:** [W-029](BACKLOG.md) — ADR-009 §4 names both halves; step two built the object and not its path to production

@@ -328,10 +328,19 @@ These are high-touch and need product/design review before code.
   habit wearing the new rule's name.
 
   Run the full `npm run gates` locally only with a reason to think end-to-end
-  will fail: a change to the harness, the fixtures, or a screen's structure.
+  will fail: a change to the harness, the fixtures, a screen's structure, **a
+  label a screen or a response carries, or where a screen's data comes from.**
   A red local end-to-end run on a loaded machine is not evidence of a defect.
   On 2026-09-13 three of them cost three re-runs and disproved nothing (G-104,
   G-105).
+
+  The last two were added on 2026-09-16. Slice 3 moved every report onto the
+  ledger and changed what provenance means; reading the code found the tests
+  that pinned the old counts, and missed two that pinned the old *label* —
+  `contract.spec.ts` expected `recorded` on a decision the suite had just
+  made. The local run found them in 25 minutes. A label and a data source are
+  exactly the changes whose blast radius is invisible in a diff, because the
+  assertion that breaks names neither.
 - **Report gates by running the script, never by naming individual commands,
   and say which script ran.** `npm run gates` runs exactly what CI runs, in CI's
   order, and `tests/gates-parity.test.ts` fails if the two ever drift;
@@ -357,6 +366,16 @@ These are high-touch and need product/design review before code.
   the count from 23 to 27 (ADR-015 §5.3, amended). A check that starts to see
   what it could not is recorded in the baseline in the same commit, with the
   owner's decision cited; a change that breaks the contract never is.
+- **A slice that deletes something shared costs the deletion plus everything
+  that pins it, and the second number is the larger one.** Size it by finding
+  the references first, not by the size of the thing being deleted. Slice 3
+  removed one committed fixture and its builder, estimated at one to two days;
+  what it actually touched was nine test files, four `CAPABILITIES.md` rows,
+  a CI step, the gate runner's own list, an `npm run generate` script and two
+  source comments — and it left one route with no check over the real corpus
+  until that was noticed and replaced. None of that is optional work: a deleted
+  export takes its callers with it, and a check that pins a figure pins the
+  source of that figure too. Decided from slice 3, 2026-09-16.
 - If you are more than 60% through context and slice artefacts 5–9 are not done,
   stop, commit nothing, and report what remains.
 - Do not proceed past a red gate — a red local run of any gate script, or a red
