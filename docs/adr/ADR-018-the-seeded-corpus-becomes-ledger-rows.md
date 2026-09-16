@@ -149,15 +149,22 @@ A placement added or changed so that the condition fails makes the per-decision 
 
 ### 6. The transition: no screen empties
 
-**Slice 2** builds the seed job and moves decision search onto the ledger.
-- **Memory seeding:** the development script and the e2e harness seed the in-memory ledger in the same slice. Search therefore has the same 10,400 rows the index had, and `/decisions` totals stay the same, including the e2e assertion "of 4,688".
-- **Performance, the policy funnel and flow volume** still merge the index with the ledger in slice 2. Both now hold the same ids, so the existing id deduplication keeps their counts unchanged. Slice 2 carries a test that fails if they move.
+Slice 2 was split in two when it was started, on 2026-09-15.
+
+**Slice 2a** builds the seed job, and the development script and the e2e harness seed the in-memory ledger.
+- **Decisions are not counted twice.** Performance, the policy funnel and flow volume still merge the index with the ledger, and they deduplicate by decision id, so a seeded decision counts once.
+- **Outcomes would have been, and this clause first said they would not.** As written at acceptance, this clause claimed the id deduplication kept every count unchanged. It does not cover outcomes. `getPerformance` and `GET /outcomes` take the projection's events for every seeded decision, then add the ledger's events for the same decision ("A decision that has both … gets both", `route.ts`). With the seed writing those events into the ledger, all 1,654 would have been counted twice, silently, in exactly the report this ADR exists to make trustworthy.
+- **Corrected in slice 2a:** when the process seeded its ledger (`store.ledgerSeed`), both reads take the corpus's outcomes from the ledger alone. `tests/unit/seeded-ledger.test.ts` computes performance and every outcome list with the seed and without it, and requires them equal. A doubled count fails there.
+
+**Slice 2b** moves decision search onto the ledger, with its index migration, and adds `npm run seed:ledger` over PostgreSQL with the reset path of clause 3.
+- **Search:** `/decisions` reads the same 10,400 rows the index had, so its totals stay the same, including the e2e assertion "of 4,688".
+- **Customer search** is an exact match through the subject hash: "every decision about this customer". The product owner decided this on 2026-09-15, rather than build a substring search on the plaintext reference G-068 describes.
 
 **Slice 3** points performance, the policy funnel, flow volume and outcomes at the ledger alone.
 - **Before deleting anything**, a test computes each report both ways and requires equality.
 - **Then it deletes** the index, its builder, the projection's read path, provenance by membership and the materialise-on-outcome branch.
 
-**Between slice 2 and slice 3 both sources exist and hold the same decisions.** The comparison test in clause 4 is what stops them drifting.
+**Between slice 2a and slice 3 both sources exist and hold the same decisions.** The comparison test in clause 4 is what stops them drifting.
 
 ### 7. What cannot be real yet
 

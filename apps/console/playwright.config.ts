@@ -95,6 +95,8 @@ export default defineConfig({
       METIS_E2E_RUN: process.env.METIS_E2E_RUN!,
       // Declared, never defaulted (ADR-016 §4.1): the harness serves fixtures.
       METIS_DATA_CLASS: 'synthetic',
+      // The seeded history, in memory, before the first request (ADR-018 §3).
+      METIS_SEED_LEDGER: '1',
     },
     timeout: 120_000,
   },

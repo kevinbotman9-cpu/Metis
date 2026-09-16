@@ -13,6 +13,7 @@
  */
 
 import { DecisionLedger, InMemoryLedgerStore, createLedgerStore } from '@metis/ledger';
+import { seedLedger, type LedgerSeedReport } from './seed-ledger';
 import {
   Catalogue,
   InMemoryCatalogueStore,
@@ -122,6 +123,13 @@ type Store = {
   ledgerKind: () => 'memory' | 'postgres';
   /** The in-memory store, when there is one, so the test reset can clear it. */
   ledgerStore: InMemoryLedgerStore;
+  /**
+   * What the in-memory seed wrote at start or restored on reset, or null when
+   * nothing was seeded: a database is configured, or `METIS_SEED_LEDGER` is
+   * unset. ADR-018 §3. Read by the reports to know the corpus's outcomes are
+   * ledger rows, and by the e2e warm-up for the seed's duration.
+   */
+  ledgerSeed: LedgerSeedReport | null;
   /**
    * Shadow runs not yet finished.
    *
@@ -237,6 +245,7 @@ function seed(): Store {
     ledgerReady: Promise.resolve(),
     ledgerKind: () => kind,
     ledgerStore,
+    ledgerSeed: null,
     shadowInFlight: new Set(),
     autonomy: clone(seedAutonomy),
     activity: clone(seedActivity),
@@ -281,12 +290,25 @@ function seed(): Store {
   // be reached is an error, never a silent fall back to storage that forgets.
   // For the ledger that means losing the audit record of what was decided.
   built.ledgerReady = createLedgerStore()
-    .then((handle) => {
+    .then(async (handle) => {
       kind = handle.kind;
       if (handle.kind === 'postgres') {
         built.ledger = new DecisionLedger(handle.store);
         // eslint-disable-next-line no-console
         console.log(`[metis] decision ledger: ${handle.description}`);
+        return;
+      }
+      // ADR-018 §3: a console without a database seeds its in-memory ledger
+      // when asked, before `ledgerReady` resolves, so no request sees a partial
+      // history. Every handler awaits `ledgerReady` before it dispatches.
+      if (process.env.METIS_SEED_LEDGER) {
+        built.ledgerSeed = await seedLedger(built.ledger);
+        // eslint-disable-next-line no-console
+        console.log(
+          `[metis] decision ledger: seeded ${built.ledgerSeed.decisions} decisions, ` +
+            `${built.ledgerSeed.deliveries} deliveries and ${built.ledgerSeed.outcomes} outcomes in memory, ` +
+            `${built.ledgerSeed.executed ? 'executed' : 'restored'} in ${built.ledgerSeed.ms}ms`
+        );
       }
     })
     .catch((e: Error) => {
