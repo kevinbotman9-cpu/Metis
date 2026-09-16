@@ -169,10 +169,12 @@ Both are consistent with the evidence and the run cannot distinguish them,
 because a bare `Test timeout of 60000ms exceeded.` names neither. They are now
 bounded at twenty seconds each, with messages naming the route, the wait and
 what was outstanding (`tests/bundle/settle.ts`, checked in
-`tests/unit/bundle-settle.test.ts`) — against 560–910ms of real quiet time per
-route, so the ceiling is more than twenty times the cost. The measurement is
-unchanged: all nine routes report the same kilobytes as before the change, to
-the tenth.
+`tests/unit/bundle-settle.test.ts`). The quiet window closes in 560–910ms per
+route on a development machine and in 553–705ms on the runner that gates this
+repository (#92's `verify`), so the ceiling has around thirty times the cost on
+the machine the failure happened on. The measurement is unchanged: all nine
+routes report the same kilobytes as before the change, on both machines, to the
+tenth.
 
 **What was done instead of a fix.** The failed job was re-run and #62 merged on
 the result, by the product owner's decision. The re-run passed: `/creatives`
