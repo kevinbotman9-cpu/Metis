@@ -40,12 +40,26 @@ export class InMemoryLedgerStore implements LedgerStore {
     this.entries.set(key, entry);
   }
 
-  async query(q: DecisionQuery): Promise<LedgerEntry[]> {
+  /** Every filter in one place, so `query` and `count` cannot answer differently. */
+  private matching(q: DecisionQuery): LedgerEntry[] {
     let rows = [...this.entries.values()].filter((e) => e.tenantId === q.tenantId);
     if (q.subjectHash) rows = rows.filter((e) => e.subjectHash === q.subjectHash);
     if (q.flowId) rows = rows.filter((e) => e.flowId === q.flowId);
+    if (q.channel) rows = rows.filter((e) => e.record.decision.channel === q.channel);
+    if (q.action) rows = rows.filter((e) => e.record.decision.winner === q.action);
+    if (q.outcome === 'offered') rows = rows.filter((e) => e.record.decision.winner !== null);
+    if (q.outcome === 'suppressed') rows = rows.filter((e) => e.record.decision.winner === null);
     if (q.from) rows = rows.filter((e) => e.occurredAt >= q.from!);
     if (q.to) rows = rows.filter((e) => e.occurredAt <= q.to!);
+    return rows;
+  }
+
+  async count(q: DecisionQuery): Promise<number> {
+    return this.matching(q).length;
+  }
+
+  async query(q: DecisionQuery): Promise<LedgerEntry[]> {
+    const rows = this.matching(q);
     // Newest first, then by id so equal timestamps never reorder between calls.
     rows.sort((a, b) =>
       a.occurredAt === b.occurredAt

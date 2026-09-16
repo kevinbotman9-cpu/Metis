@@ -34,6 +34,18 @@ export interface DecisionQuery {
   /** Hash, not the raw reference — the caller hashes with `subjectHash`. */
   subjectHash?: string;
   flowId?: string;
+  /** The channel the decision was made for. */
+  channel?: string;
+  /** The winning action's key. A decision that offered nothing matches nothing. */
+  action?: string;
+  /**
+   * Whether an offer was made.
+   *
+   * `offered` is a winner, `suppressed` is none. Kept apart from `action`
+   * because "anything won" and "this won" are different questions, and a screen
+   * asks the first far more often.
+   */
+  outcome?: 'offered' | 'suppressed';
   /** Inclusive. */
   from?: string;
   /** Inclusive. */
@@ -45,6 +57,8 @@ export interface LedgerStore {
   get(tenantId: string, decisionId: string): Promise<LedgerEntry | undefined>;
   put(entry: LedgerEntry): Promise<void>;
   query(q: DecisionQuery): Promise<LedgerEntry[]>;
+  /** How many decisions match, ignoring `limit`: a page needs its total. */
+  count(q: DecisionQuery): Promise<number>;
   appendOutcome(event: OutcomeEvent): Promise<void>;
   outcomesFor(tenantId: string, decisionId: string): Promise<OutcomeEvent[]>;
   appendDelivery(attempt: DeliveryAttempt): Promise<void>;
@@ -109,6 +123,17 @@ export class DecisionLedger {
 
   query(q: DecisionQuery): Promise<LedgerEntry[]> {
     return this.store.query(q);
+  }
+
+  /**
+   * How many decisions match, before `limit`.
+   *
+   * A screen that counted its page would report the page size as the total, and
+   * a reader cannot tell the two apart — which `/decisions` did twice before
+   * the search moved here.
+   */
+  count(q: DecisionQuery): Promise<number> {
+    return this.store.count(q);
   }
 
   /**

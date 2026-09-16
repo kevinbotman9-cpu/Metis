@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
-import type { OutcomeEvent } from '@metis/ledger';
+import { DecisionLedger, InMemoryLedgerStore, type OutcomeEvent } from '@metis/ledger';
 import { decisions } from '@/mocks/fixtures/decisions';
 import { placements } from '@/mocks/fixtures/catalogue';
 import { seededOutcomesFor } from '@/mocks/fixtures/outcomes';
 import { outcomesFor, deliversOnChannel } from '@/mocks/fixtures/synthetic-customers';
 import { deliveryFor } from '@/mocks/delivery-state';
-import { seededHistory, type SeededHistory } from '@/mocks/seed-ledger';
+import { seededHistory, seedLedger, type SeededHistory } from '@/mocks/seed-ledger';
 import index from '@/mocks/fixtures/decision-index.json';
 
 /**
@@ -34,6 +34,28 @@ beforeAll(() => {
 
 const placementByKey = new Map(placements.map((p) => [p.key, p]));
 const eventKey = (e: OutcomeEvent) => [e.decisionId, e.type, e.occurredAt, e.valueMinor ?? 'null'].join('|');
+
+describe('the seed writes the tenant it was asked for', () => {
+  it('writes every row under the named tenant, and none under the generator default', async () => {
+    // Found on 2026-09-16, exercising `npm run seed:ledger` against a real
+    // database: the command planned against `--tenant` but the seed wrote the
+    // generator's own tenant, so a second run seeded again instead of leaving
+    // what it found, and a reset refused because of rows it had just written
+    // itself. Nothing in the suite looked at which tenant the rows landed
+    // under, because every caller until the command used the default.
+    const ledger = new DecisionLedger(new InMemoryLedgerStore());
+    const report = await seedLedger(ledger, { count: 20, tenantId: 'a-named-tenant' });
+
+    expect(report.decisions).toBe(20);
+    expect(await ledger.count({ tenantId: 'a-named-tenant' })).toBe(20);
+    expect(await ledger.count({ tenantId: TENANT })).toBe(0);
+
+    // The rows joined to the decisions carry it too: a delivery or an outcome
+    // written under a different tenant is a row the screens never see.
+    const [entry] = await ledger.query({ tenantId: 'a-named-tenant' });
+    expect((await ledger.deliveriesFor('a-named-tenant', entry.record.id)).length).toBe(1);
+  });
+});
 
 describe('the seeded decisions are the committed index', () => {
   it('holds every row of the index, and nothing else', () => {

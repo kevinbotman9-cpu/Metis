@@ -5,6 +5,7 @@ import {
   type LedgerEntry,
   type OutcomeEvent,
 } from '@metis/ledger';
+import type { DecisionRecord as EngineRecord } from '@metis/runtime';
 import { DECISION_COUNT, executeAt } from './fixtures/engine';
 import { placements } from './fixtures/catalogue';
 import type { DecisionRecord } from './fixtures/decisions';
@@ -44,8 +45,14 @@ export interface LedgerSeedReport {
 
 const TENANT = 'telco-us';
 
-/** The flat row the synthetic-customer model reads, taken from the engine's own record. */
-export function rowOf(trace: ReturnType<typeof executeAt>['trace'], tenantId = TENANT): DecisionRecord {
+/**
+ * The flat row a screen reads, taken from the engine's own record.
+ *
+ * One projection, used by the synthetic-customer model when the history is
+ * built and by decision search when it reads a ledger entry back — so a row in
+ * the list and the row the model judged are the same shape by construction.
+ */
+export function rowOf(trace: EngineRecord, tenantId = TENANT): DecisionRecord {
   const d = trace.decision;
   return {
     id: trace.id,
@@ -60,6 +67,11 @@ export function rowOf(trace: ReturnType<typeof executeAt>['trace'], tenantId = T
     winnerOfferId: d.winnerOfferId,
     candidateCount: d.candidateKeys.length,
   };
+}
+
+/** The same row, from what the ledger stored. */
+export function rowOfEntry(entry: { tenantId: string; record: EngineRecord }): DecisionRecord {
+  return rowOf(entry.record, entry.tenantId);
 }
 
 const placementByKey = new Map(placements.map((p) => [p.key, p]));
@@ -99,13 +111,24 @@ export function buildSeededHistory(count: number = DECISION_COUNT, tenantId: str
   return { tenantId, entries, deliveries, outcomes };
 }
 
-let built: SeededHistory | null = null;
+/**
+ * Keyed by count: a test seeding three hundred decisions and a console seeding
+ * all of them are different histories, and one memo for both would hand back
+ * whichever was asked for first.
+ */
+const built = new Map<string, SeededHistory>();
 
 /** The history for this process, built on first use and kept for every reset after. */
-export function seededHistory(): { history: SeededHistory; executed: boolean } {
-  if (built) return { history: built, executed: false };
-  built = buildSeededHistory();
-  return { history: built, executed: true };
+export function seededHistory(
+  count: number = DECISION_COUNT,
+  tenantId: string = TENANT
+): { history: SeededHistory; executed: boolean } {
+  const key = `${tenantId.length}:${tenantId}:${count}`;
+  const hit = built.get(key);
+  if (hit) return { history: hit, executed: false };
+  const history = buildSeededHistory(count, tenantId);
+  built.set(key, history);
+  return { history, executed: true };
 }
 
 /** Write a history through the ledger's operations, in the order their invariants need. */
@@ -116,9 +139,17 @@ export async function writeSeededHistory(ledger: DecisionLedger, history: Seeded
 }
 
 /** Seed a ledger for this process: build once, then write. Timed, for the e2e threshold (ADR-018). */
-export async function seedLedger(ledger: DecisionLedger): Promise<LedgerSeedReport> {
+export async function seedLedger(
+  ledger: DecisionLedger,
+  options: { count?: number; tenantId?: string } = {}
+): Promise<LedgerSeedReport> {
   const started = performance.now();
-  const { history, executed } = seededHistory();
+  // The tenant the history is written under. It is not decoration: the command
+  // plans against `--tenant` and would otherwise write every row under the
+  // generator's own tenant, so a second run would seed again instead of
+  // leaving what it found, and a reset would refuse because of rows it had
+  // just written itself. Found exercising the command on 2026-09-16.
+  const { history, executed } = seededHistory(options.count ?? DECISION_COUNT, options.tenantId ?? TENANT);
   await writeSeededHistory(ledger, history);
   return {
     decisions: history.entries.length,

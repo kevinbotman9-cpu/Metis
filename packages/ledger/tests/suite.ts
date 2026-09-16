@@ -21,6 +21,8 @@ export function decisionRecord(over: {
   customerRef?: string;
   occurredAt?: string;
   artifactId?: string;
+  channel?: string;
+  winner?: string | null;
 } = {}): DecisionRecord {
   const id = over.id ?? 'dec_0000000000000001';
   return {
@@ -32,7 +34,7 @@ export function decisionRecord(over: {
       artifactVersion: '1.0.0',
       customerRef: over.customerRef ?? 'cust_1',
       occurredAt: over.occurredAt ?? AT,
-      channel: 'email',
+      channel: over.channel ?? 'email',
       placement: 'weekly_offers',
       inputSnapshotHash: 'a'.repeat(64),
       catalogueSnapshotHash: 'b'.repeat(64),
@@ -49,8 +51,8 @@ export function decisionRecord(over: {
       },
       constraintsApplied: [],
       consentState: { marketing: 'granted', profiling: 'granted', thirdParty: 'withheld' },
-      winner: 'offer_a',
-      winnerOfferId: 'p_a',
+      winner: over.winner === undefined ? 'offer_a' : over.winner,
+      winnerOfferId: over.winner === null ? null : 'p_a',
     },
     measured: { timingsByNode: {}, totalMs: 1, executedAt: AT },
   } as unknown as DecisionRecord;
@@ -182,6 +184,42 @@ export function describeLedger(label: string, harness: StoreHarness): void {
           to: '2026-06-02T10:00:00.000Z',
         });
         expect(rows.map((r) => r.decisionId)).toEqual(['dec_b', 'dec_a']);
+      });
+
+      it('filters by channel, by the action that won, and by whether anything was offered', async () => {
+        // The three filters /decisions sends. dec_d is a web decision that
+        // offered nothing; the other three are email decisions that offered one.
+        await ledger.record(
+          ledger.entryFor(
+            decisionRecord({
+              id: 'dec_d',
+              customerRef: 'c3',
+              occurredAt: '2026-06-04T10:00:00.000Z',
+              channel: 'web',
+              winner: null,
+            }),
+            T
+          )
+        );
+
+        expect((await ledger.query({ tenantId: T, channel: 'web' })).map((r) => r.decisionId)).toEqual(['dec_d']);
+        expect((await ledger.query({ tenantId: T, action: 'offer_a' })).map((r) => r.decisionId)).toEqual([
+          'dec_c',
+          'dec_b',
+          'dec_a',
+        ]);
+        expect((await ledger.query({ tenantId: T, outcome: 'suppressed' })).map((r) => r.decisionId)).toEqual(['dec_d']);
+        expect((await ledger.query({ tenantId: T, outcome: 'offered' })).length).toBe(3);
+      });
+
+      it('counts what matched, not what a page returned', async () => {
+        // The defect this exists to prevent: a screen reporting its page size as
+        // the total. Three decisions match; the page asks for two.
+        expect(await ledger.count({ tenantId: T })).toBe(3);
+        expect((await ledger.query({ tenantId: T, limit: 2 })).length).toBe(2);
+        expect(await ledger.count({ tenantId: T, limit: 2 })).toBe(3);
+        expect(await ledger.count({ tenantId: T, flowId: 'inbound-web-offers' })).toBe(1);
+        expect(await ledger.count({ tenantId: T, subjectHash: subjectHash(T, 'c1') })).toBe(2);
       });
 
       it('limits without changing the order', async () => {

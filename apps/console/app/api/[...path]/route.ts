@@ -30,6 +30,8 @@ import {
 import type { GeneratedDecision } from '@/mocks/fixtures/engine';
 import { seededOutcomeMap, seededOutcomesFor } from '@/mocks/fixtures/outcomes';
 import { deliveryFor } from '@/mocks/delivery-state';
+import { rowOfEntry } from '@/mocks/seed-ledger';
+import { subjectHash } from '@metis/ledger';
 import { provenanceFor, provenanceOver } from '@/mocks/provenance';
 import {
   IdempotencyConflict,
@@ -1136,14 +1138,58 @@ async function handleGet(req: Request, { params }: Ctx) {
         const dateFrom = q.get('dateFrom');
         const dateTo = q.get('dateTo');
         const limit = Number(q.get('limit') || 50);
+        // The development store is single-tenant; a deployment resolves this
+        // from the caller's session rather than a constant.
+        const tenantId = 'telco-us';
+
+        // ADR-018 clause 1: the ledger is the decision history a screen reads.
+        // A decision the platform made could be opened by id and never appeared
+        // in this list, because the list read the committed index and the index
+        // holds only what the generator produced.
+        //
+        // The fallback below is transitional and goes with the index in slice 3:
+        // a ledger holding nothing for this tenant — a console started without
+        // METIS_SEED_LEDGER, and every unit test that boots the store — would
+        // otherwise show an empty list where the index had 10,400 rows.
+        const seededHistoryPresent = (await store.ledger.count({ tenantId })) > 0;
+        // Annotated rather than inferred: `outcome` is `string | null` off the
+        // query string, and comparing a string to a literal narrows to string,
+        // not to the literal the ledger's query declares.
+        const outcomeFilter: 'offered' | 'suppressed' | undefined =
+          outcome === 'offered' ? 'offered' : outcome === 'suppressed' ? 'suppressed' : undefined;
+
+        if (seededHistoryPresent) {
+          const query = {
+            tenantId,
+            channel: channel || undefined,
+            action: action || undefined,
+            outcome: outcomeFilter,
+            // Exact, through the subject hash: "every decision about this
+            // customer". Matching part of an identifier would mean reading the
+            // raw reference out of the stored record, which is the plaintext
+            // copy G-068 is about, and building a feature on it. Decided by the
+            // product owner on 2026-09-15.
+            subjectHash: customerId ? subjectHash(tenantId, customerId) : undefined,
+            from: dateFrom || undefined,
+            to: dateTo || undefined,
+          };
+          const [entries, total] = await Promise.all([
+            store.ledger.query({ ...query, limit }),
+            // What the filter matched, never the page: the ledger counts it.
+            store.ledger.count(query),
+          ]);
+          const page = entries.map(rowOfEntry);
+          return json({
+            decisions: page,
+            total,
+            provenance: provenanceOver(page.map((d) => d.id)),
+          });
+        }
 
         let result = decisions;
         if (action) result = result.filter((d) => d.winner === action);
         if (channel) result = result.filter((d) => d.channel === channel);
-        if (customerId)
-          result = result.filter((d) =>
-            d.customerId.toLowerCase().includes(customerId.toLowerCase())
-          );
+        if (customerId) result = result.filter((d) => d.customerId === customerId);
         if (outcome === 'suppressed') result = result.filter((d) => d.winner === null);
         if (outcome === 'offered') result = result.filter((d) => d.winner !== null);
         if (dateFrom) result = result.filter((d) => d.timestamp >= dateFrom);

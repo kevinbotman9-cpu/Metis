@@ -302,7 +302,13 @@ function seed(): Store {
       // when asked, before `ledgerReady` resolves, so no request sees a partial
       // history. Every handler awaits `ledgerReady` before it dispatches.
       if (process.env.METIS_SEED_LEDGER) {
-        built.ledgerSeed = await seedLedger(built.ledger);
+        // A count, or the whole history: `METIS_SEED_LEDGER=300` seeds three
+        // hundred decisions, which is what a test wants; anything else, `1`
+        // included, seeds them all.
+        const asked = Number(process.env.METIS_SEED_LEDGER);
+        built.ledgerSeed = await seedLedger(built.ledger, {
+          count: Number.isInteger(asked) && asked > 1 ? asked : undefined,
+        });
         // eslint-disable-next-line no-console
         console.log(
           `[metis] decision ledger: seeded ${built.ledgerSeed.decisions} decisions, ` +

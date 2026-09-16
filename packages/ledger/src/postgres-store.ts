@@ -152,7 +152,15 @@ export class PostgresLedgerStore implements LedgerStore {
     );
   }
 
-  async query(q: DecisionQuery): Promise<LedgerEntry[]> {
+  /**
+   * The filters, built once for `query` and `count`.
+   *
+   * Channel and winner are read out of the stored record rather than copied
+   * into columns: the record is the decision, and a column beside it would be a
+   * second copy to keep true. `002_decision_search.sql` indexes the same two
+   * expressions, so these reads use an index rather than every row.
+   */
+  private filters(q: DecisionQuery): { where: string[]; values: unknown[] } {
     const values: unknown[] = [q.tenantId];
     const where = ['tenant_id = $1'];
     const add = (clause: string, value: unknown) => {
@@ -161,8 +169,26 @@ export class PostgresLedgerStore implements LedgerStore {
     };
     if (q.subjectHash) add('subject_hash = $?', q.subjectHash);
     if (q.flowId) add('flow_id = $?', q.flowId);
+    if (q.channel) add("(record->'decision'->>'channel') = $?", q.channel);
+    if (q.action) add("(record->'decision'->>'winner') = $?", q.action);
+    if (q.outcome === 'offered') where.push("(record->'decision'->>'winner') IS NOT NULL");
+    if (q.outcome === 'suppressed') where.push("(record->'decision'->>'winner') IS NULL");
     if (q.from) add('occurred_at >= $?', q.from);
     if (q.to) add('occurred_at <= $?', q.to);
+    return { where, values };
+  }
+
+  async count(q: DecisionQuery): Promise<number> {
+    const { where, values } = this.filters(q);
+    const { rows } = await this.db.query<{ n: string }>(
+      `SELECT count(*)::text AS n FROM decision_records WHERE ${where.join(' AND ')}`,
+      values
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+
+  async query(q: DecisionQuery): Promise<LedgerEntry[]> {
+    const { where, values } = this.filters(q);
 
     let sql =
       `SELECT tenant_id, decision_id, subject_hash, occurred_at, flow_id, flow_version,
