@@ -36,14 +36,16 @@ export const changeSets: ChangeSetRecord[] = [
         after: '0.7',
       },
     ],
-    simulation: {
-      ran: true,
-      passed: true,
-      populationSize: 240000,
-      projectedMarginDelta: '+$43,200 / month',
-      biasRatio: 1.04,
-      notes: 'No material disparity across age, region or tenure cohorts.',
-    },
+    // No simulation has run against any of these.
+    //
+    // Until 2026-09-16 each carried `ran: true` with a population, a margin
+    // delta and a bias ratio, all authored here — a fabricated verdict on
+    // fairness, beside figures that now have ledger rows behind them. A bias
+    // ratio compares outcomes across protected groups, no protected attribute
+    // exists anywhere, and the profile store that would hold one is unbuilt
+    // (ADR-018 §7). The contract has always allowed `null`, which is what "none
+    // has run" looks like.
+    simulation: null,
   },
   {
     id: 'cr_0041',
@@ -60,14 +62,16 @@ export const changeSets: ChangeSetRecord[] = [
     targetScope: { level: 'tenant', targetId: null },
     changeType: 'arbitration_weights',
     diff: [{ field: 'weights.context', before: '1.0', after: '0.65' }],
-    simulation: {
-      ran: true,
-      passed: true,
-      populationSize: 1200000,
-      projectedMarginDelta: '+$18,900 / month',
-      biasRatio: 1.01,
-      notes: 'Winner changed in 2.2% of replays; all changes were between commercial offers of similar value.',
-    },
+    // No simulation has run against any of these.
+    //
+    // Until 2026-09-16 each carried `ran: true` with a population, a margin
+    // delta and a bias ratio, all authored here — a fabricated verdict on
+    // fairness, beside figures that now have ledger rows behind them. A bias
+    // ratio compares outcomes across protected groups, no protected attribute
+    // exists anywhere, and the profile store that would hold one is unbuilt
+    // (ADR-018 §7). The contract has always allowed `null`, which is what "none
+    // has run" looks like.
+    simulation: null,
   },
   {
     id: 'cr_0040',
@@ -85,14 +89,16 @@ export const changeSets: ChangeSetRecord[] = [
     targetScope: { level: 'objective', targetId: 'iss_crosssell' },
     changeType: 'boost_adjust',
     diff: [{ field: 'lev_line_before_addon.value', before: '1.00', after: '1.05' }],
-    simulation: {
-      ran: true,
-      passed: true,
-      populationSize: 480000,
-      projectedMarginDelta: '+$9,400 / month',
-      biasRatio: 1.02,
-      notes: 'Rank two and three swap in 100% of tied slates; no other position moves.',
-    },
+    // No simulation has run against any of these.
+    //
+    // Until 2026-09-16 each carried `ran: true` with a population, a margin
+    // delta and a bias ratio, all authored here — a fabricated verdict on
+    // fairness, beside figures that now have ledger rows behind them. A bias
+    // ratio compares outcomes across protected groups, no protected attribute
+    // exists anywhere, and the profile store that would hold one is unbuilt
+    // (ADR-018 §7). The contract has always allowed `null`, which is what "none
+    // has run" looks like.
+    simulation: null,
   },
   {
     id: 'cr_0039',
@@ -112,15 +118,16 @@ export const changeSets: ChangeSetRecord[] = [
     diff: [
       { field: 'pol_has_broadband.active', before: 'true', after: 'false' },
     ],
-    simulation: {
-      ran: true,
-      passed: false,
-      populationSize: 320000,
-      projectedMarginDelta: '+$71,000 / month',
-      biasRatio: 1.38,
-      notes:
-        'FAILED bias gate: 1.38 disparity ratio. Households in the lowest-income cohort were 38% more likely to be targeted.',
-    },
+    // No simulation has run against any of these.
+    //
+    // Until 2026-09-16 each carried `ran: true` with a population, a margin
+    // delta and a bias ratio, all authored here — a fabricated verdict on
+    // fairness, beside figures that now have ledger rows behind them. A bias
+    // ratio compares outcomes across protected groups, no protected attribute
+    // exists anywhere, and the profile store that would hold one is unbuilt
+    // (ADR-018 §7). The contract has always allowed `null`, which is what "none
+    // has run" looks like.
+    simulation: null,
   },
   {
     id: 'cr_0038',
