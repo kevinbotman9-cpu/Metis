@@ -1,7 +1,8 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Route } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { login, ACCOUNTS } from '../e2e/helpers';
+import { waitForQuietNetwork, settleAll } from './settle';
 
 /**
  * Route bundle budgets.
@@ -19,6 +20,13 @@ import { login, ACCOUNTS } from '../e2e/helpers';
  *
  * Runs against `next start`, not `next dev`: dev serves unminified modules
  * with HMR attached, so its numbers are meaningless as a budget.
+ *
+ * Both waits here have a ceiling (`settle.ts`). `waitUntil: 'networkidle'` and
+ * a bare `Promise.all` over the body reads have none, and on 2026-09-14 one of
+ * them held `/creatives` for the full sixty seconds and failed with nothing but
+ * the timeout — G-132, which is still open because that run cannot say which
+ * one it was. The ceilings are well above what a route costs (a second or two
+ * here, under four on a runner) and exist so the next stall names itself.
  */
 
 interface Budgets {
@@ -74,18 +82,36 @@ test.describe('route bundle budgets', () => {
       // requests are counted, so a measurement that stopped seeing prefetch at
       // all would be visible rather than silently cheaper.
       let prefetchesAborted = 0;
-      await page.route('**/*', (r) => {
+      const routeHandler = (r: Route) => {
         const prefetch = Object.keys(r.request().headers()).some((k) => k.toLowerCase().includes('prefetch'));
         if (!prefetch) return r.continue();
         prefetchesAborted += 1;
         return r.abort();
-      });
+      };
+      await page.route('**/*', routeHandler);
 
       jsBytes = 0;
       pending.length = 0;
-      await page.goto(route, { waitUntil: 'networkidle' });
+      // `commit` and then our own quiet window, rather than
+      // `waitUntil: 'networkidle'`: the rule is the same — nothing requested for
+      // 500ms — and this one has a ceiling and says what it was waiting for.
+      await page.goto(route, { waitUntil: 'commit' });
+      const quiet = await waitForQuietNetwork(
+        (listener) => {
+          page.on('request', listener);
+          return () => page.off('request', listener);
+        },
+        { label: route }
+      );
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-      await Promise.all(pending);
+      await settleAll(pending, { label: route });
+
+      // Released before the page closes. This was the first reading of G-132 —
+      // a handler still running when the test ends — and it is wrong: a probe
+      // on 2026-09-16 left a handler asleep for twenty seconds at the end of a
+      // test and the page still closed in 1.6s. It is released anyway, because
+      // a test that installs something should take it back.
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
 
       // A route that ships no JavaScript at all is not a pass, it is a broken
       // measurement — which is precisely how this check first shipped.
@@ -97,7 +123,10 @@ test.describe('route bundle budgets', () => {
       // Reported on every run, pass or fail: a budget nobody sees the headroom
       // on is a budget that gets raised in a hurry the first time it trips.
       // eslint-disable-next-line no-console
-      console.log(`${route}: ${actual} kB of ${budget} kB (${prefetchesAborted} prefetch requests not counted)`);
+      console.log(
+        `${route}: ${actual} kB of ${budget} kB (${prefetchesAborted} prefetch requests not counted, ` +
+          `quiet after ${quiet.waitedMs}ms over ${quiet.requests} requests)`
+      );
 
       expect(
         actual,
