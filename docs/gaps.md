@@ -44,6 +44,40 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-138 — The mock-banner rule reads a route file's words, so honest prose about seeded data fails it
+
+**Registered:** 2026-09-16 · **Status:** Open · **Work item:** none — a check that needs a better question, owed by whoever next trips it
+
+`scripts/conformance.mjs` fails a route file that mentions
+`mock`, `MOCK`, `fixture`, `sampleData`, `stubData` or `placeholderData` and
+renders no `MockModeBanner`: *"A screen that lies about being wired is worse
+than no screen."* The subject is right. The question it asks is a word search
+over the file, including its comments and its visible prose.
+
+**The case.** On 2026-09-16 `/simulations` gained a sentence explaining that the
+simulation figures it used to show had been *"authored in a fixture"* and were
+removed. The screen reads its change sets through the generated client, as it
+always has. Nothing about it changed except an honest sentence about what is no
+longer there — and the count rose from 23 to 24.
+
+**The fix was the sentence, not the check**, and that was the right call *in this
+instance*: the screen is wired, so a `MockModeBanner` would have asserted
+something false, and the rule would have been weakened for the case it exists
+for. The sentence now says "written by hand into the seeded data", which means
+the same thing and does not trip the scan.
+
+**Why it is registered anyway.** Rewording to satisfy a lexical check is one
+keystroke from gaming one, and the next occurrence may need the opposite call: a
+screen that really is unwired, whose author deletes the word rather than adding
+the banner, passes a check that was written to catch exactly that screen. The
+rule cannot tell the two apart, because it never asks what the file reads.
+
+**Done when:** the rule decides from the file's imports and calls — whether it
+reaches the generated client, or reads a fixture module directly — rather than
+from whether a word appears anywhere in it; and a check proves both halves by
+biting on an unwired screen that never says "fixture", and staying quiet on a
+wired screen that does.
+
 ### G-137 — A money delta is a display string in the contract, where no formatter can reach it
 
 **Registered:** 2026-09-16 · **Status:** Open · **Work item:** none — a modelling correction owed by whoever builds simulation (W-020), or by the slice that removes the field, whichever comes first
@@ -137,9 +171,40 @@ It says nothing about the restores between specs, which is the cost that would
 grow with the number of specs on a shard. A threshold that measures the cheap
 half is a threshold that will not fire.
 
-**The next run.** #91, 2026-09-16: 5m29s, 6m51s, 5m58s and 6m55s. Shard 3, the
-9m21s outlier, came back at 5m58s and was the second fastest of the four. One
-run either way is not a pattern; the watch continues.
+**Seven runs, 2026-09-16.** Each row is one workflow run, in shard order. #92
+ran twice because a second commit was pushed to the branch.
+
+| Run | 1 | 2 | 3 | 4 |
+| --- | --- | --- | --- | --- |
+| #90 | 6m52s | 5m43s | **9m21s** | 5m48s |
+| #91 | 5m29s | 6m51s | 5m58s | 6m55s |
+| #92 (first) | 6m43s | 7m12s | 6m40s | 4m38s |
+| #92 (second) | 6m31s | 6m20s | **7m57s** | 5m18s |
+| #93 | 7m13s | 6m24s | 5m31s | 5m27s |
+| #94 | 5m39s | 4m28s | **8m5s** | 6m54s |
+| #95 | 6m50s | 6m43s | **8m1s** | 5m31s |
+
+Means: shard 1 **6m28s**, shard 2 **6m14s**, shard 3 **7m22s**, shard 4
+**5m47s**. Shard 3 is the slowest of its run in four of the seven, and its
+ceiling — 9m21s — is higher than any other shard has reached (7m13s, 7m12s,
+6m55s).
+
+**A correction.** After #94 this entry was read as "every shard varies by about
+a factor of two, so there is no shard-3 effect". That was too quick, on five
+runs, and two more moved it: the variance is real and wide on every shard, and
+shard 3 is also consistently at the top of the range. Both things are true, and
+the second one is what this entry is about.
+
+**What the runs cannot settle.** #94 was documentation only and #95 changed one
+component and three tests, so neither run's shard 3 was carrying new work. That
+rules out "the slice made it slow" and rules in nothing: the cost could be the
+specs that happen to sit on shard 3, the restores between them, or the runner.
+
+**What the threshold still does not measure.** The warm-up asserts the seed at
+start stays under 45 seconds. It says nothing about `POST /api/_test/reset`
+between specs, which rewrites the whole history and is the cost that grows with
+a shard's spec count — so whichever of the two explains shard 3, the check in
+place cannot see it.
 
 **Done when:** the shard timings from the next few runs on `main` are compared
 against #90's; if shard 3 stays slow, the restore cost per reset is measured and
