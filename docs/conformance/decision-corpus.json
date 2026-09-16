@@ -1800,7 +1800,7 @@
       }
     },
     {
-      "name": "tie on priority breaks by key",
+      "name": "tie on priority breaks by the order the flow declared",
       "artifact": {
         "id": "art_fixture",
         "version": "1.0.0",
@@ -1944,8 +1944,8 @@
         }
       },
       "expected": {
-        "id": "dec_98144a22d0007624",
-        "chainHash": "98144a22d00076247e666465f5bf3d4c8d9d27237d797278a10f7f65712ce148",
+        "id": "dec_910f999ce02b1fc7",
+        "chainHash": "910f999ce02b1fc7608dda4056366ff4dc1d47cb6af92f714dab332e1bd65212",
         "inputSnapshotHash": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
         "catalogueSnapshotHash": "cc5fddd18c1487dab9fc8e823a6d02f773d95407c34385a35361c6160333fa36",
         "decision": {
@@ -1991,16 +1991,16 @@
             {
               "nodeId": "n3_arbitrate",
               "nodeType": "arbitrate",
-              "reason": "Ranked 2 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_a.",
+              "reason": "Ranked 2 finalist(s) by P^wP x V^wV x B^wB x C^wC. Winner: offer_z.",
               "denials": [
                 {
-                  "key": "offer_z",
+                  "key": "offer_a",
                   "code": "NOT_RANKED",
                   "ruleId": null
                 }
               ],
               "survived": [
-                "offer_a"
+                "offer_z"
               ]
             }
           ],
@@ -2035,8 +2035,8 @@
               ],
               "approved": null
             },
-            "winner": "offer_a",
-            "runnerUp": "offer_z"
+            "winner": "offer_z",
+            "runnerUp": "offer_a"
           },
           "constraintsApplied": [],
           "consentState": {
@@ -2044,8 +2044,8 @@
             "profiling": "granted",
             "thirdParty": "withheld"
           },
-          "winner": "offer_a",
-          "winnerOfferId": "p_a2"
+          "winner": "offer_z",
+          "winnerOfferId": "p_z"
         }
       }
     },

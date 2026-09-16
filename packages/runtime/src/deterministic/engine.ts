@@ -292,6 +292,52 @@ function catalogueHash(catalogue: CatalogueSnapshot): string {
   return computed;
 }
 
+/**
+ * Rank candidates: priority first, then the order the flow declared them in.
+ *
+ * The tie-break was `a.key.localeCompare(b.key)` until ADR-019 §8, so a
+ * candidate's *name* could decide which of two equally-ranked candidates won.
+ * No decision in the seeded corpus turns on it — measured over all 10,400 on
+ * 2026-09-16, the closest the winner and runner-up come is a priority gap of
+ * 0.00833 — but the `offer`/`action` split is what makes ties reachable: two
+ * actions instancing one offer inherit the same margin and can carry the same
+ * boosts and the same propensity, which is three of the ranking function's four
+ * terms identical by construction. A rename would then be enough to move a
+ * winner, and a decision record is evidence.
+ *
+ * Exported because the refusal below cannot be reached through `execute`, which
+ * ranks exactly what the artifact declares. A guard nobody can watch fail is
+ * the thing this clause removed, so the test drives this directly.
+ */
+export function orderCandidates<T extends { key: string }>(
+  candidates: readonly T[],
+  scores: Record<string, { priority: number }>,
+  artifact: { id: string; version: string; candidateKeys: readonly string[] }
+): T[] {
+  const declaredAt = new Map(artifact.candidateKeys.map((key, at) => [key, at]));
+  const positionOf = (key: string): number => {
+    const at = declaredAt.get(key);
+    if (at === undefined) {
+      // Not a tie: an artifact and a score map that disagree about what was
+      // decidable. Ranking it first is what `indexOf` returning -1 would do,
+      // silently, so this refuses instead.
+      throw new Error(
+        `${artifact.id}@${artifact.version} scored the candidate "${key}", which is not in its candidateKeys. ` +
+          'A scored candidate the artifact never declared is a defect in whatever built them, not a tie to break.'
+      );
+    }
+    return at;
+  };
+
+  return candidates
+    .filter((p) => scores[p.key])
+    .slice()
+    .sort((a, b) => {
+      const d = scores[b.key].priority - scores[a.key].priority;
+      return d !== 0 ? d : positionOf(a.key) - positionOf(b.key);
+    });
+}
+
 const KIND_LABEL = {
   eligibility: 'Eligibility',
   relevance: 'Relevance',
@@ -749,13 +795,9 @@ export function execute(
           );
         }
 
-        // Sort by priority, then by key so equal scores never flip between runs.
-        const ranked = candidates
-          .filter((p) => scores[p.key])
-          .sort((a, b) => {
-            const d = scores[b.key].priority - scores[a.key].priority;
-            return d !== 0 ? d : a.key.localeCompare(b.key);
-          });
+        // Priority, then the order the flow declared its candidates in
+        // (ADR-019 §8, `rankCandidates`).
+        const ranked = orderCandidates(candidates, scores, artifact);
 
         winner = ranked[0]?.key ?? null;
         runnerUp = ranked[1]?.key ?? null;

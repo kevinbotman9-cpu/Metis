@@ -83,11 +83,18 @@ describe('the preview ranks as the engine does', () => {
     expect(rankCandidates(terms, catalogueSnapshot.arbitration.weights, utility).ties).toEqual([]);
 
     const unboosted = rankCandidates(terms, { ...catalogueSnapshot.arbitration.weights, boost: 0 }, utility);
-    expect(unboosted.ties).toEqual([['5g_home_ultimate', 'fios_gigabit', 'gaming_plus_bundle']]);
-    // And the engine, deciding for real, picks the first of them by key.
+
+    // In the order the flow declares them, which is the tie-break since
+    // ADR-019 §8. It was alphabetical until 2026-09-16 — the group read
+    // `['5g_home_ultimate', 'fios_gigabit', 'gaming_plus_bundle']` and the
+    // winner was `5g_home_ultimate` on the strength of its name. The artifact
+    // declares `fios_gigabit` first, so it wins the tie now, and a rename can
+    // no longer hand the decision to another candidate.
+    expect(unboosted.ties).toEqual([['fios_gigabit', '5g_home_ultimate', 'gaming_plus_bundle']]);
+    // And the engine, deciding for real, picks the first of them as declared.
     const decision = engineUnder({ ...catalogueSnapshot.arbitration.weights, boost: 0 });
-    expect(decision.arbitration.winner).toBe('5g_home_ultimate');
-    expect(unboosted.rows[0].key).toBe('5g_home_ultimate');
+    expect(decision.arbitration.winner).toBe('fios_gigabit');
+    expect(unboosted.rows[0].key).toBe('fios_gigabit');
   });
 });
 
