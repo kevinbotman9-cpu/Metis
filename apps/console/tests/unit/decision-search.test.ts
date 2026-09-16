@@ -115,4 +115,37 @@ describe('search reads the ledger once it holds decisions', () => {
     const expected = sorted.filter((d) => d.occurredAt >= from).length;
     expect((await search({ dateFrom: from, limit: '5000' })).total).toBe(expected);
   });
+
+  // Last in the file deliberately: it writes a row, and every total above is
+  // the history's own size.
+  it('puts a decision made live ahead of the seeded corpus, which is still reachable behind it', async () => {
+    // The whole point of the move, and the thing that broke an end-to-end test
+    // on #91: a decision the platform actually made is in `/decisions` now,
+    // where before the list was a fixed corpus and a live decision could only
+    // be opened by id. The corpus is dated before its T0 and a live decision
+    // carries the time it happened, so the live one sorts first.
+    const seededNewest = rows()
+      .map((d) => d.occurredAt)
+      .sort((a, b) => b.localeCompare(a))[0];
+    const first = history.entries[0].record;
+    const live = store.ledger.entryFor(
+      {
+        ...first,
+        id: 'dec_live_probe',
+        decision: { ...first.decision, occurredAt: '2026-09-05T12:00:00.000Z' },
+      },
+      TENANT
+    );
+    await store.ledger.record(live);
+
+    const newest = await search({ limit: '1' });
+    expect(newest.decisions[0].id).toBe('dec_live_probe');
+    expect(newest.total).toBe(HISTORY + 1);
+
+    // And a caller that wants the seeded history asks for it by time rather
+    // than by hoping it is at the top.
+    const seeded = await search({ dateTo: seededNewest, limit: '1' });
+    expect(seeded.decisions[0].id).not.toBe('dec_live_probe');
+    expect(seeded.total).toBe(HISTORY);
+  });
 });
