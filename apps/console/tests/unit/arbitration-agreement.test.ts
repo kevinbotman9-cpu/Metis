@@ -18,7 +18,8 @@ import { store, resetStore } from '@/mocks/store';
  * The tie the screen warns about is asserted from the numbers: three of this
  * tenant's offers have the same expected margin and are separated only by the
  * boosts on two of them, so with the boost weight at zero nothing separates
- * them and the engine orders them by key.
+ * them and the engine orders them as the flow declared them (ADR-019 §8; by key
+ * until then).
  */
 
 const artifact = findExecArtifact('next-best-action')!;

@@ -1,15 +1,15 @@
 # ADR-020: A slate is recorded as it was shown
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-09-17 (proposed)
+**Decided:** 2026-09-17
+**Deciders:** Product owner
 **Owner:** Product owner
-**Decision needed by:** 2026-09-24, and in any case before ADR-019's mechanical
-slice regenerates the seeded corpus. That reseed moves every decision id once
-(ADR-019 §7). Clause 1 below moves every id too, so it costs nothing extra if it
-lands in the same reseed. After that date it costs a second full identity move:
-every decision regenerated again, and every pinned figure re-pinned again. The
-queued "loses most" work and the frequency-cap slices wait on this ADR,
-because both read eliminations and deliveries whose meaning it changes.
+**Decision needed by:** — decided. It had been 2026-09-24, and in any case
+before ADR-019's mechanical slice regenerates the seeded corpus, because clause 1
+moves every decision id and costs nothing extra only inside that reseed.
+**Accepted as proposed.** Clause 6 landed with the acceptance; clauses 1 to 5
+land with ADR-019's reseed.
 **Constrains:** `packages/runtime/src/slate.ts`;
 `packages/runtime/src/shadow/index.ts`; the engine's arbitrate node
 (`packages/runtime/src/deterministic/engine.ts`) and the Kotlin engine's;
@@ -139,7 +139,7 @@ from the other without any check noticing.
 **What each option costs in hashes:**
 
 - **An ordered slate beside `winner` (chosen).** Every decision id moves once:
-  all 10,400 seeded decisions and all 40 decision-corpus cases in each engine.
+  all 10,400 seeded decisions and all 41 decision-corpus cases in each engine.
   A single-slot record also gains the two fields. That is the same move ADR-019
   §7 already makes, so landing both in one reseed adds no identity move.
   `inputSnapshotHash` does not move (clause 2), so ADR-019 §9's control still
@@ -278,18 +278,56 @@ In the same commit:
 
 `selectSlate` and `shadow/index.ts`'s `ranking()` both call
 `orderCandidates` with the decision's own recorded `candidateKeys`. That order
-is already in the hashed decision, so neither needs the artifact. One
-comparator, not four.
+is already in the hashed decision, so neither needs the artifact. They call the
+engine's comparator, not a copy of it.
 
-The slice moves no hash, changes 0 of the 10,400 seeded slates (measured), and
-can land before this ADR is accepted. Its checks: a slate over two
-equal-priority finalists follows declared order where that differs from
-alphabetical; a shadow comparison over the same tie does not report a
-divergence. Each check is bitten by restoring `localeCompare`.
+The slice moves no hash and changes 0 of the 10,400 seeded slates (measured).
+It landed with this ADR's acceptance, on 2026-09-17.
 
 A rename must not be able to change what a customer sees, just as it must not
 change a winner. That was the reason for ADR-019 §8, and #98 applied it to only
 two of the four places it had to reach.
+
+**How #98 missed two of four, for whoever changes a ranking rule next.** #98
+did not search for ranking implementations. It found the second one it fixed,
+`rankCandidates` in `@metis/core/arbitration`, because
+`apps/console/tests/unit/arbitration-agreement.test.ts` runs that preview
+against the engine, and the engine's change turned it red. `slate.ts` and
+`shadow/index.ts` each had a tie test, and each pinned its own alphabetical
+order. Neither was ever compared with the engine, so changing the engine left
+both green. Their comments did not help. `slate.ts` calls itself "not a second
+decision" and "a projection" of one. `shadow/index.ts` says its tie-break is
+"Same tie-break as the engine". Both read as code that could not disagree with
+the engine, and both did.
+
+The lesson is not "search harder". A ranking outside the engine is caught when
+it is compared with the engine, and not otherwise. So the slice adds that
+comparison as a standing check rather than relying on the next search:
+
+- `packages/runtime/tests/slate-conformance.test.ts` reads
+  `docs/conformance/decision-corpus.json`, the record both engines must
+  reproduce byte for byte. On every case with more than one finalist, at every
+  slot count, it checks that the slate's first two entries are the recorded
+  winner and runner-up. It also checks that the slate's full order, and the
+  shadow ranking's, follow the engine's rule, stated independently (priority,
+  then position in `candidateKeys`) rather than by calling `orderCandidates`,
+  which both now use.
+- **A new corpus case**, *a tie below the runner-up breaks by the order the flow
+  declared*. The third and fourth finalists tie, and they are declared in the
+  opposite of alphabetical order. Neither `winner` nor `runnerUp` sees that
+  pair, and only a slate of three or more shows it. Both engines run the case:
+  swapping the pair in its input fails `decision-conformance` in TypeScript and
+  `DecisionConformanceTest` in Kotlin. The 40 existing cases are
+  byte-identical.
+
+Each was bitten. With the slate breaking ties by name again, 5 checks go red.
+With the shadow comparison doing so, 4 do.
+
+**What this is not yet.** While the slate is drawn from the record, two engines
+that agree on the record agree on the slate, and that is what the corpus check
+covers. The case that holds both engines to a slate *they wrote* needs clause 1,
+because no engine takes a slot count until then. It lands with the reseed, in
+the Consequences below.
 
 ## Consequences
 
@@ -297,10 +335,12 @@ two of the four places it had to reach.
   stores a decision id (ADR-019, Consequences).
 - **Both engines change**, and the Kotlin engine's arbitrate node has to write
   the same slate. `decision-conformance` catches a disagreement only if a
-  corpus case has more than one slot. **No case can today**, because the engine
-  takes no slot count. The regenerated corpus needs at least one multi-slot case
-  where the slot count separates `survived` from `NOT_RANKED`. Without one, the
-  check has never been shown the thing it guards.
+  corpus case has more than one slot. **No case can have one until clause 1**,
+  because no engine takes a slot count until then. The regenerated corpus needs
+  at least one multi-slot case where the slot count separates `survived` from
+  `NOT_RANKED`. Without one, the check has never been shown the thing it guards.
+  Until then, clause 6's corpus check holds the slate drawn from the record to
+  the engine's ranking.
 - **`recordOutcome` breaks existing callers** of a multi-entry decision. Any
   client that sends an outcome without `action` gets a 422 on a grid. The
   storefront is the only HTTP caller outside the tests. `e2e/ledger.spec.ts`

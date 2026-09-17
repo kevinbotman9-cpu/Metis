@@ -1,4 +1,5 @@
 import type { DecisionRecord } from '../deterministic/types';
+import { orderCandidates } from '../deterministic/engine';
 
 /**
  * Comparing a shadow decision against the one that was actually returned.
@@ -48,14 +49,24 @@ export interface ShadowComparison {
   shadowMs: number;
 }
 
-/** Candidate keys in the order the flow ranked them, best first. */
-function ranking(record: DecisionRecord): string[] {
-  const scores = record.decision.scores;
-  return Object.keys(scores).sort((a, b) => {
-    const d = scores[b].priority - scores[a].priority;
-    // Same tie-break as the engine, so a tie does not read as a divergence.
-    return d !== 0 ? d : a.localeCompare(b);
-  });
+/**
+ * Candidate keys in the order the flow ranked them, best first.
+ *
+ * Each record ranked by the engine's own `orderCandidates` over that record's
+ * declared `candidateKeys`, so a tie does not read as a divergence — and a tie
+ * that two versions declare in different orders, which the engine breaks
+ * differently, does.
+ *
+ * It broke ties by key until ADR-020 §6, under a comment saying that was the
+ * engine's tie-break. It had stopped being the engine's at ADR-019 §8.
+ */
+export function ranking(record: DecisionRecord): string[] {
+  const { decision } = record;
+  return orderCandidates(
+    Object.keys(decision.scores).map((key) => ({ key })),
+    decision.scores,
+    { id: decision.artifactId, version: decision.artifactVersion, candidateKeys: decision.candidateKeys }
+  ).map((c) => c.key);
 }
 
 /** Every denial, as `key:CODE`, sorted so two runs compare as sets. */

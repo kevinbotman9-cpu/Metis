@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compareShadow, buildShadowReport, type ShadowComparison } from '../src/shadow';
+import { compareShadow, buildShadowReport, ranking, type ShadowComparison } from '../src/shadow';
 import type { DecisionRecord } from '../src/deterministic/types';
 
 const V = { activeVersion: '1.0.0', shadowVersion: '2.0.0' };
@@ -8,6 +8,8 @@ function record(over: {
   id?: string;
   winner?: string | null;
   scores?: Record<string, number>;
+  /** The flow's declared order. Defaults to the keys sorted, so it is neutral. */
+  candidateKeys?: string[];
   denials?: { key: string; code: string }[];
 } = {}): DecisionRecord {
   const scores = over.scores ?? { offer_a: 0.9, offer_b: 0.4 };
@@ -15,6 +17,9 @@ function record(over: {
     id: over.id ?? 'dec_1',
     chainHash: 'h'.repeat(64),
     decision: {
+      artifactId: 'flow_shadow',
+      artifactVersion: '1.0.0',
+      candidateKeys: over.candidateKeys ?? Object.keys(scores).sort(),
       winner: over.winner === undefined ? 'offer_a' : over.winner,
       scores: Object.fromEntries(
         Object.entries(scores).map(([k, priority]) => [
@@ -76,15 +81,34 @@ describe('comparing a shadow against what was returned', () => {
   });
 
   it('does not read a tie as a divergence', () => {
-    // Equal priorities break by key in the engine, so both sides order them
-    // the same way and this must not be reported as a change.
+    // Equal priorities break by the order the flow declared (ADR-019 §8), so
+    // both sides order them the same way however their scores were inserted,
+    // and this must not be reported as a change.
     const c = compareShadow(
-      record({ scores: { b: 0.5, a: 0.5 } }),
-      record({ id: 'dec_2', scores: { a: 0.5, b: 0.5 } }),
+      record({ scores: { b: 0.5, a: 0.5 }, candidateKeys: ['b', 'a'] }),
+      record({ id: 'dec_2', scores: { a: 0.5, b: 0.5 }, candidateKeys: ['b', 'a'] }),
       V,
       1
     );
     expect(c.agrees).toBe(true);
+  });
+
+  it('ranks a tie in declared order, not by name', () => {
+    // It ranked by name until ADR-020 §6, under a comment saying that was the
+    // engine's rule. `b` declared first is ranked first.
+    expect(ranking(record({ scores: { a: 0.5, b: 0.5 }, candidateKeys: ['b', 'a'] }))).toEqual(['b', 'a']);
+  });
+
+  it('reads a tie two versions declare differently as the divergence it is', () => {
+    // The engine breaks this tie differently in each version, so the order a
+    // customer would see differs, and a shadow report must say so.
+    const c = compareShadow(
+      record({ scores: { a: 0.5, b: 0.5 }, candidateKeys: ['a', 'b'] }),
+      record({ id: 'dec_2', scores: { a: 0.5, b: 0.5 }, candidateKeys: ['b', 'a'] }),
+      V,
+      1
+    );
+    expect(c.divergences.map((d) => d.kind)).toContain('ranking');
   });
 
   it('catches a reason that changed while the outcome did not', () => {
