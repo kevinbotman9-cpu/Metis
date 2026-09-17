@@ -169,6 +169,18 @@ neutral value in only one engine broke 13.
 npm run dev --prefix apps/console
 ```
 
+It starts with the tenant's catalogue — offers, placements, creatives, policies,
+flows, change sets — and **no decision history**. Every screen that reads the
+ledger is empty until a flow answers a request, and says what will appear. The
+storefront demo at `/storefront/index.html` makes decisions by being used.
+
+For the generated history instead — 10,400 decisions with their deliveries and
+outcomes, slower to start while they execute:
+
+```bash
+npm run dev:seeded --prefix apps/console
+```
+
 It reads through [`packages/client`](../packages/client), which is **generated**
 from [`docs/metis-api.openapi.yaml`](metis-api.openapi.yaml). Do not hand-edit
 it; add the operation to the spec and run `npm run generate`. The console then

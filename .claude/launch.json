@@ -8,6 +8,12 @@
       "port": 3000
     },
     {
+      "name": "console-seeded",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:seeded", "-w", "@metis/console"],
+      "port": 3000
+    },
+    {
       "name": "storybook",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "storybook", "-w", "@metis/console", "--", "--ci", "--no-open"],
