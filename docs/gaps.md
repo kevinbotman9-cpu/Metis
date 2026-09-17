@@ -44,9 +44,73 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-153 — The documents say a decline cannot be reported, and the platform accepts, stores, seeds and counts `rejection`; the cooldown reads none of it
+
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — the documents are corrected when this closes; whether the cooldown reads the ledger needs a decision shaped like ADR-021
+
+**What the documents say.** Three places, in the same words:
+
+- `docs/metis-api.openapi.yaml`, `ContactHistory`: *"**A decline is not an
+  outcome.** `OutcomeType` is a monotone funnel — conversion ⊆ acceptance ⊆
+  click ⊆ impression — with no negative event in it, so a rejection has nowhere
+  to live in the interaction log"*;
+- `apps/console/public/storefront/index.html`, beside `rejects` in `decide`:
+  *"a decline is not an outcome … so there is nowhere to report a 'no' to and
+  nothing to read it back from"*;
+- ADR-021, Consequences: *"The cooldown after a decline still reads the caller's
+  `rejects`, because a decline is not an outcome (G-086)."*
+
+**What is there.**
+
+- **Declared.** The same spec's outcome enum is `[impression, click, acceptance,
+  rejection, conversion]` (`recordOutcome`), and ADR-008 lists five types.
+- **Accepted.** `POST /api/outcomes/{tenantId}/{decisionId}` with `type:
+  rejection` answered 201 on a placement decision, measured in-process on
+  2026-09-17.
+- **Stored.** `OutcomeType` in `packages/ledger/src/types.ts` includes it, and
+  `outcome_events`' CHECK constraint names it.
+- **Seeded.** The seeded ledger holds **80** rejection events, pinned in
+  `apps/console/tests/unit/seeded-ledger.test.ts`. *(The instruction that
+  registered this said 27. That was the corpus of 2026-09-10 (G-047), and the
+  figure was repeated from there into this session's closing report without
+  being re-measured.)*
+- **Counted.** `buildPerformance` reports `rejections` per action and channel.
+
+The funnel description is right that a rejection is not a stage the rates nest
+through. It is wrong that one has nowhere to live.
+
+**Also found.** The console's outcome route and the ledger check only that
+`type` is present. The same probe recorded `decline` and `banana` with 201 on the
+in-memory store. PostgreSQL's CHECK would refuse both, and the route answers any
+ledger error as 404 `not_found`. That path is not exercised by any test here.
+
+**Which: the documents are wrong, and the cooldown should use it — but not
+without a decision.** The platform can hold "she said no", so documents saying
+it cannot are false and should be corrected whatever else happens. Using it in
+the cooldown is ADR-021's argument again: a rest period that depends on each
+caller remembering a decline, as the storefront does in an in-memory `Map` that
+a page reload empties, is a customer protection held by whoever is least able
+to keep it. Three things stop it being a patch:
+
+- **A rejection names a decision, not an offer.** On a single-slot decision the
+  declined offer is the winner. On a slate it is ambiguous, which is ADR-020 §4,
+  the same limit the storefront's Accept observes.
+- **The two sources mean different things.** The seed writes a rejection for *a
+  click that went nowhere*, three hours after it. The storefront's "Not
+  interested" is a refusal without a click. Whether both start a 30-day rest is a
+  product rule nothing has decided.
+- **A read changes the record.** Read from the ledger, it would be added to the
+  caller's `rejects` and recorded on the decision like `contactsRead`: hashed,
+  on placement decisions only, and so widening G-150's asymmetry until slice 9.
+
+**Done when:** the spec, the storefront and ADR-021 stop saying a decline cannot
+be reported; the outcome route refuses a type outside the enum on every store;
+and either the cooldown reads recorded rejections, under a decision covering
+the three points above, or a decision records why it does not.
+
 ### G-152 — A decision names a connector as the source of a field the caller sent, in both engines and in its hash
 
-**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — a change to the hashed record in both engines, so it needs a decision and a corpus regeneration, not a patch
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — a change to the hashed record in both engines, so it needs a decision and a corpus regeneration, not a patch · **Decision:** [ADR-022](adr/ADR-022-a-decision-records-where-each-value-came-from.md), Proposed
 
 **What the record says.** Every storefront decision lists
 `customer.address.fios_serviceable ← conn_serviceability` under "Where the inputs
