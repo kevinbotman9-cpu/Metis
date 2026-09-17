@@ -44,6 +44,47 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-145 — Decision search returns `provenance` the contract never declared, and `/decisions` renders the banner from it
+
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none
+
+`GET /decisions/search` (`searchDecisions`) is declared in
+`docs/metis-api.openapi.yaml` with a response of `decisions` and `total`, and
+nothing else. Since 2026-09-09 (`1f1e588`, *"a synthetic number says so, wherever
+it goes"*) the development route has also returned `provenance`, and
+`apps/console/app/decisions/page.tsx` renders `<ProvenanceBanner
+provenance={data?.provenance} />` from it. The console depends on a field the
+contract does not have.
+
+**This is the shape of defect the spec exists to prevent.** `CLAUDE.md` rule 2:
+*"If an endpoint is not in the spec, it does not exist."* A field is the same
+claim at smaller scale. The decision service in `planes/execution` implements the
+contract, not the development route, so a console pointed at it would lose the
+banner on its most-read synthetic surface — silently, because an absent
+`provenance` is exactly what the banner treats as "nothing to say".
+
+**Why nothing caught it, three ways.**
+
+- **The type is hand-written.** `apps/console/lib/api-client.ts` declares the call
+  as `apiCall<{ decisions: DecisionDto[]; total: number; provenance?: ProvenanceDto }>`.
+  The field's type comes from that line, not from `packages/client`, so the
+  typecheck agrees with the route and neither consults the spec.
+- **The contract test accepts extra keys.** `apps/console/tests/e2e/contract.spec.ts`
+  validates each response with Ajv against the declared schema, and this schema
+  leaves `additionalProperties` unset, which JSON Schema reads as allowed. A
+  declared field that is missing fails; an undeclared field that is present
+  passes. Measured on 2026-09-17: the response schema's properties are
+  `decisions,total` and `additionalProperties` is undefined.
+- **The other three reports declare it.** `PerformanceReport`,
+  `PolicyFunnelReport` and `FlowVolumeReport` each have an optional `provenance`,
+  so the field looks declared from any screen but this one.
+
+**Done when:** `searchDecisions`'s response declares `provenance` (optional, as the
+other three do, since an empty result carries none), the client type for it is
+generated rather than written, and a check fails on an undeclared top-level key
+in a response the console reads — proved by biting on this one before the
+declaration is added.
+
 ### G-144 — On a tenant with no history, `/decisions` opens filtered and shows three zero tiles above the sentence saying nothing was decided
 
 **Registered:** 2026-09-17 · **Status:** Open · **Work item:** none
@@ -292,6 +333,28 @@ instance*: the screen is wired, so a `MockModeBanner` would have asserted
 something false, and the rule would have been weakened for the case it exists
 for. The sentence now says "written by hand into the seeded data", which means
 the same thing and does not trip the scan.
+
+**The second occurrence, 2026-09-17.** The empty-ledger provenance slice changed
+the note in the flow page's Export DIR to name the tenant's *"fixture
+catalogue"*. `apps/console/app/decision-flows/[id]/page.tsx` reads the generated
+client, as it did before and after; the only change was one noun in a string.
+The count rose from 23 to 24, and the fix was again the sentence — it says
+*"demonstration catalogue"* now.
+
+**Two firings in two slices, and the honest fix was the sentence both times.**
+Both files were wired correctly. Both were flagged for a word in prose. Both were
+cleared by changing the word, which is the correct call when the screen is wired
+and a `MockModeBanner` would be false — and is also, keystroke for keystroke,
+what gaming the check looks like.
+
+**Why that is not reassuring.** A rule that reads prose instead of imports is
+answering a different question from the one it names. It will eventually be
+right for the wrong reason: an unwired screen flagged only because it happens to
+say *mock*, and quietly cleared the day someone rewords the comment. Or wrong when
+someone needs it to be right: an unwired screen that never uses one of the six
+words passes, and a check written to catch exactly that screen says nothing. Each
+rewording so far has been honest. The rule has no way to know that, and neither
+does the next person who meets it.
 
 **Why it is registered anyway.** Rewording to satisfy a lexical check is one
 keystroke from gaming one, and the next occurrence may need the opposite call: a
