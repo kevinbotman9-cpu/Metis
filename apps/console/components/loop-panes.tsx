@@ -478,6 +478,18 @@ export function LoopStageEvidence({ data, loop, stage }: { data: LoopReport; loo
             {breakStage.broken}
           </EvidenceQuote>
         ) : null}
+        {/* Neutral, beside the red: drop-off is not a defect. `lib/loop.ts` says when it speaks. */}
+        {loop.losesMost.kind !== 'nothing' ? (
+          <EvidenceQuote title="Where it loses most" tone="neutral">
+            {loop.losesMost.sentence}
+            {loop.losesMost.kind === 'stage' && loop.losesMost.unreported ? <> {loop.losesMost.unreported}</> : null}
+          </EvidenceQuote>
+        ) : null}
+        {loop.offeredNothing ? (
+          <EvidenceQuote title="Why the rest offered nothing" tone="neutral">
+            {loop.offeredNothing}
+          </EvidenceQuote>
+        ) : null}
         <EvidenceFields>
           {data.channels.map((c) => (
             <EvidenceRow key={c.channel} label={channelLabel(c.channel)}>
@@ -513,6 +525,10 @@ export function LoopStageEvidence({ data, loop, stage }: { data: LoopReport; loo
         <EvidenceQuote title="Why it breaks here" tone="block">
           {selected.broken}
         </EvidenceQuote>
+      ) : selected.id === 'offered' && loop.offeredNothing ? (
+        <EvidenceQuote title="Why the rest offered nothing" tone="neutral">
+          {loop.offeredNothing}
+        </EvidenceQuote>
       ) : measuredBelow ? (
         <EvidenceQuote title="What these rates describe" tone="hold">
           Rates are over decisions measured on {loop.population}, not decisions made.
@@ -530,6 +546,11 @@ export function LoopStageEvidence({ data, loop, stage }: { data: LoopReport; loo
       {selected.id === 'deliverable' ? (
         <EvidenceAction href="/creatives?view=coverage" primary sub="Every offer against the channels that deliver it">
           Open the coverage matrix
+        </EvidenceAction>
+      ) : null}
+      {selected.id === 'offered' && loop.offeredNothing ? (
+        <EvidenceAction href="/targeting-policies" sub="Which rule removed the candidates, by stage">
+          Open the policy funnel
         </EvidenceAction>
       ) : null}
       {selected.id === 'acted' ? (

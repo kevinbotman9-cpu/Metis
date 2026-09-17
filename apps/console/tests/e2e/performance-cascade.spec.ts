@@ -92,6 +92,40 @@ test.describe('performance reads as a cascade @screen-only', () => {
     expect(label).toMatch(/SMS|Email|Push|Outbound call/);
   });
 
+  test('says where it loses most, beside the break, and why the rest offered nothing', async ({ page }) => {
+    await open(page);
+
+    const decisions = await stage(page, 'Decisions made');
+    const offered = await stage(page, 'Offered something');
+    const deliverable = await stage(page, 'Deliverable');
+    const seen = await stage(page, 'Seen');
+    const acted = await stage(page, 'Acted on');
+
+    // The stage it should name, worked out from the rail rather than written
+    // down: the lowest share of the stage above, Deliverable never, and a tie to
+    // the earlier stage. The seeded corpus is far over the floor and reports
+    // actions, so both guards stand aside here; the unit tests hold them.
+    const shares: [string, number][] = [
+      ['Offered something', offered / decisions],
+      ['Seen', seen / deliverable],
+      ['Acted on', acted / seen],
+    ];
+    const [expected] = shares.reduce((a, b) => (b[1] < a[1] ? b : a));
+
+    await expect(page.getByText('Where it loses most', { exact: true })).toBeVisible();
+    await expect(page.getByText(new RegExp(`^It loses most at ${expected}: `))).toBeVisible();
+    // Neutral, and apart from the red: the break's own quote still says its own thing.
+    await expect(page.getByText('Where the loop breaks', { exact: true })).toBeVisible();
+
+    // Item 11 of the 2026-09-17 walk-through: the drop to "offered something"
+    // was drawn and never explained on this screen.
+    const nothing = decisions - offered;
+    await expect(page.getByText('Why the rest offered nothing', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(new RegExp(`^${nothing.toLocaleString('en-GB')} decisions offered nothing: [\\d,]+ at `))
+    ).toBeVisible();
+  });
+
   test('every rate below the break says which channel it describes', async ({ page }) => {
     await open(page);
 

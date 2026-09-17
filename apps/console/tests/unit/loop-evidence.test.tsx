@@ -89,6 +89,37 @@ describe('the loop evidence quote', () => {
     expect(screen.getByText(/measured on Web only, not decisions made/)).toBeTruthy();
   });
 
+  it('says where it loses most beside the break, neutrally, and why the rest offered nothing', () => {
+    const data = report({
+      suppressed: 55,
+      suppressedBy: [{ stage: 'consent', decisions: 55, sampleDecisionId: 'dec_a' }],
+    });
+    pane(data, null);
+    expect(screen.getByText('Where the loop breaks')).toBeTruthy();
+    expect(screen.getByText('Where it loses most')).toBeTruthy();
+    expect(screen.getByText('It loses most at Acted on: 20.0% of seen decisions were acted on, and 16 were not.')).toBeTruthy();
+    expect(screen.getByText('Why the rest offered nothing')).toBeTruthy();
+    expect(screen.getByText('55 decisions offered nothing: 55 at Consent.')).toBeTruthy();
+  });
+
+  it('says why the rest offered nothing on the offered stage, and opens the funnel', () => {
+    pane(report({ suppressed: 55, suppressedBy: [{ stage: 'consent', decisions: 55, sampleDecisionId: 'dec_a' }] }), 'offered');
+    expect(screen.getByText('55 decisions offered nothing: 55 at Consent.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /^Open the policy funnel/ }).getAttribute('href')).toBe('/targeting-policies');
+  });
+
+  it('says there are too few rather than naming a stage at two decisions', () => {
+    pane(
+      report({
+        decisions: 2, offered: 2, deliverable: 2, measured: 2, acted: 0,
+        channels: [{ channel: 'web', decisions: 2, offered: 2, deliverable: 2, seen: 2, acted: 0, delivers: true }],
+      }),
+      null
+    );
+    expect(screen.getByText(/^Too few decisions to say where the loop loses most/)).toBeTruthy();
+    expect(screen.queryByText(/^It loses most at/)).toBeNull();
+  });
+
   it('quotes nothing for a stage with nothing to add', () => {
     pane(report(), 'decisions');
     expect(screen.queryByText('Why it breaks here')).toBeNull();

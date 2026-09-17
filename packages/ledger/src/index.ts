@@ -22,12 +22,13 @@ export type {
   OutcomeType,
 } from './types';
 
-export { buildPerformance, OUTCOME_TYPES } from './performance';
+export { buildPerformance, OUTCOME_TYPES, suppressionStageOf } from './performance';
 export type {
   PerformanceReport,
   PerformanceRow,
   ChannelStages,
   LoopDay,
+  SuppressionReason,
 } from './performance';
 
 export { buildPolicyFunnel, funnelDecisionOf, FUNNEL_STAGES } from './policy-funnel';
