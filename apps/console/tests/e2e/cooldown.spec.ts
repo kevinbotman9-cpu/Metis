@@ -25,8 +25,8 @@ const heroOffer = (page: import('@playwright/test').Page) =>
 test.describe('@screen-only a declined offer stops being offered', () => {
   test('declining the hero offer replaces it, and clearing brings it back', async ({ page }) => {
     // A day of its own, for the reason `brief-scenarios.spec.ts` gives: the
-    // platform caps each customer's web slots per day, and the preset customers
-    // are shared by every storefront spec.
+    // platform caps each customer's web slots per day, and the presets' one
+    // customer is shared by every storefront spec.
     await page.goto(`${STOREFRONT}?day=210`);
 
     // Whatever the catalogue happens to rank first. The test never names an

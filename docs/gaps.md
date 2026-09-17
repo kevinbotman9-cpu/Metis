@@ -44,6 +44,50 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-152 — A decision names a connector as the source of a field the caller sent, in both engines and in its hash
+
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — a change to the hashed record in both engines, so it needs a decision and a corpus regeneration, not a patch
+
+**What the record says.** Every storefront decision lists
+`customer.address.fios_serviceable ← conn_serviceability` under "Where the inputs
+came from", and the trace carries the same `sourceBindings`. **The value came
+from the storefront**, which sends `customer.address` in every preset. Measured
+on 2026-09-17 by deciding `homepage_grid` for each preset in-process: all eleven
+fields the flow's five connectors provide were attributed to a connector,
+**including the seven the preset itself sent** — both address fields, the open
+order, both affinities and both partner availabilities. The refusals followed
+the values the presets sent: under one customer id the recorded connector answers
+every preset alike, and fiber was still offered to one and refused to the other.
+
+**Why.** Two steps disagree about what a binding is.
+
+- `resolveInputs` (`packages/runtime/src/integration/resolve.ts`) skips a
+  connector's value when the request already carries the field — *"The request
+  wins"* — and returns bindings only for what it wrote.
+- The engine ignores those. Its source node
+  (`packages/runtime/src/deterministic/engine.ts`, `case 'source'`) records a
+  binding for every field a configured connector provides **that is present in
+  the input**, whoever put it there. `engines/kotlin/engine/.../Engine.kt` does
+  the same, and `sourceBindings` is in the canonical form both hash (`Canon.kt`).
+
+So a trace that exists to say *which system supplied the evidence* says it for
+evidence no system supplied. `STOREFRONT_DEMO.md` built the headline scenario on
+it: *"The refused field arrives from `conn_serviceability`, so the trace names
+the system that supplied the evidence"* — corrected in the same change as this
+entry.
+
+**Why it is not fixed here.** The binding is hashed in both engines. Recording
+only what a connector actually supplied changes the identity of every decision
+whose request carries a connector's field — the service cases among them, whose
+requests carry every field (G-008) — and needs the
+engine to be told which fields resolution wrote, since it cannot see that from
+`input` alone. That is a change to what the decision record means.
+
+**Done when:** a decision's `sourceBindings` names a connector only for a value
+that connector supplied, in both engines; the decision and service corpora are
+regenerated with it; and a caller-supplied field reads as supplied by the request
+on the trace and in the storefront panel.
+
 ### G-150 — Only the console's placement decision holds caps to the ledger; `POST /api/decisions` and both services use the caller's counts
 
 **Registered:** 2026-09-17 · **Status:** Open · **Work item:** [W-012](BACKLOG.md) · **Decision:** [ADR-021](adr/ADR-021-frequency-caps-count-the-ledger.md) §7
@@ -196,11 +240,17 @@ Three things, from what the code does:
   reports `impression` and `click` only, so an acceptance can never arrive from
   it. Forty-two reported decisions and no acceptances reads as "nobody accepted";
   the truth is "no channel reports acceptance". The loop already draws this line
-  for realised value (a dash, not $0.00); this rate does not.
+  for realised value (a dash, not $0.00); this rate does not. *(Since 2026-09-17
+  the storefront's single-slot placements have an Accept control, so an
+  acceptance can arrive; the rate is still a measured zero whenever nobody has
+  pressed it, which is the same defect with a narrower cause.)*
 - **A 50/50 split reads 42 / 0.** The arm is a function of the customer
   reference, and a hand-made history has three references — the storefront's three
   presets — which all fall into one arm. Correct arithmetic; unreadable without
-  knowing it. A tenant driven by hand can never populate a control.
+  knowing it. A tenant driven by hand can never populate a control. *(Since
+  2026-09-17 the three presets send one customer id, so a hand-made history has
+  one reference, not three. The conclusion stands and is stronger: one customer
+  is always one arm.)*
 
 **Done when:** an experiment counts only decisions made while it was running; a
 rate over an outcome type no channel has reported is a dash with that reason; and
@@ -367,6 +417,28 @@ was an inference from the first and did not survive the second measurement.
 **Why it is registered rather than fixed.** Nothing measured here is a defect. It
 is what an honest empty tenant looks like on day one, and the empty-by-default
 setting is to be decided with it in view.
+
+**Since registered (2026-09-17).** What a person can now reach by hand, and what
+has not been re-measured:
+
+- **A frequency refusal, and a decision that offered nothing.** Caps count the
+  platform's own contacts (ADR-021), so a second home-page load in one visit day
+  leaves the grid `FREQUENCY_CAP_BREACHED`, and a third offers nothing at all.
+- **Realised value.** The storefront has an **Accept** control on its single-slot
+  placements, which reports a click and an acceptance carrying the value typed in
+  its panel. Not on the grid, whose outcomes cannot say which card they were for
+  (ADR-020 §4).
+- **Offered without deliverable.** **Email this offer** asks for her weekly email,
+  which nothing sends, so the loop's Deliverable drops below Offered and the rail
+  draws the break naming Email.
+- **The loop at this volume.** A stage that cannot drop — Deliverable, when every
+  channel that offered something delivers it — is drawn as a pass-through that
+  says why; the flow diagram draws a run of equal stages as one column; and
+  "where it loses most" does not count an unreported stage as a loss (#112).
+
+`tests/e2e-empty/loop-by-hand.spec.ts` drives the last three from the
+storefront on an empty tenant and reads them on `/performance`. The six-pass
+measurement above has not been repeated, so this entry stays open until it is.
 
 **Done when:** a person starting from an empty tenant can reach an acted-on
 outcome, a decision that offered nothing, and a frequency refusal by using the
@@ -4089,6 +4161,14 @@ all three, every field under `customer`, and
 `brief-scenarios.spec.ts` asserts the fibre and no-fibre slates are *not* equal
 and that the second lacks what the first led with. `applyPreset` read the same
 flat paths for its account widgets and was corrected with them.
+
+**Corrected 2026-09-17: the one customer id was not true.** The scenarios that
+replaced them each sent their own from the commit that resolved this entry
+(`13ad4a8`) — `cust_eva_fibre`, `cust_eva_no_fibre`, `cust_eva_accepted`, later
+spelt `fiber` — while this entry, the storefront's comment above them and
+`STOREFRONT_DEMO.md` all said one. The field-level fix held; the identity did not,
+and nothing checked it. The presets now send `cust_eva`, and
+`tests/unit/storefront.test.ts` holds all three to one id.
 
 ### G-087 — The storefront's explanation panel rendered nothing, because the trace endpoint under-served and the panel read the wrong envelope
 

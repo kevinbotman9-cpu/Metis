@@ -187,11 +187,12 @@ correction in its own right, registered and resolved as [G-151](../gaps.md).
   and the grid for the selected preset's customer, the grid's read already
   counting the hero. So a day holds one full decide per customer: on the second,
   the hero is offered and the grid is `FREQUENCY_CAP_BREACHED`, and from the third
-  nothing is, for 24 hours or until an in-memory console restarts. (Each preset is
-  its own customer id — `cust_eva_fiber`, `cust_eva_no_fiber`,
-  `cust_eva_accepted` — so switching preset starts another customer's count; an
-  earlier draft of this clause said the three were one customer, which the ids do
-  not bear out.) That is the cap doing what it declares. To keep
+  nothing is, for 24 hours or until an in-memory console restarts. (The three
+  presets are one customer, `cust_eva`, so switching preset does not start
+  another count. When this ADR was accepted each preset sent its own id and this
+  clause said so; the ids were joined later the same day, because the demo's
+  claim is one customer a field apart — see G-094's correction.) That is the cap
+  doing what it declares. To keep
   the page usable without changing the cap, its panel has a **Next day** control
   that moves the visit a day forward, so yesterday's contacts leave the day's
   window — which demonstrates the rolling window rather than avoiding the cap.

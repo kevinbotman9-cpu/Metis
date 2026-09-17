@@ -65,6 +65,19 @@ export interface CascadeStage {
    * one above it does not get one, or the emphasis stops meaning anything.
    */
   broken?: string;
+  /**
+   * This stage cannot lose anything, by construction, and this says why.
+   *
+   * Drawn as a pass-through, with no bar and no sparkline: a full bar reads as
+   * a result, and a stage that could not have dropped has no result to show. A
+   * stage that *could* have dropped and did not keeps its bar, because that is
+   * a result. Decided by the product owner on 2026-09-17, over collapsing a
+   * funnel of equal stages into a sentence, which would take the stages away
+   * at exactly the volume where someone is learning what they are.
+   *
+   * Never alongside `broken`: a stage that broke has dropped.
+   */
+  passThrough?: string;
 }
 
 export type CascadeTone = 'neutral' | 'accent' | 'ok' | 'attention';
@@ -126,6 +139,8 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
                   stage.removed ? `, ${format.number(stage.removed)} removed here` : ''
                 }${
                   stage.broken ? `. ${stage.broken}` : ''
+                }${
+                  stage.passThrough ? `. ${stage.passThrough}` : ''
                 }`}
                 onClick={() => onSelect(current ? null : stage.id)}
                 className={cn(
@@ -156,14 +171,26 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
                   <span className="tnum text-label text-rail-dim">{stage.note}</span>
                 </span>
 
-                <span aria-hidden className="mt-2 block h-1 overflow-hidden rounded-sm bg-rail-hover/10">
+                {stage.passThrough ? (
+                  // A line straight through where the bar would be: what reached
+                  // this stage passes on, and nothing here measured it.
                   <span
-                    className={cn('block h-full rounded-sm', TONE_FILL[tone])}
-                    style={{ width: `${Math.max(stage.pct, 0.6)}%` }}
+                    aria-hidden
+                    data-part="pass-through"
+                    className="mt-2 block h-1 border-t border-dashed border-rail-dim"
                   />
-                </span>
+                ) : (
+                  <span aria-hidden data-part="bar" className="mt-2 block h-1 overflow-hidden rounded-sm bg-rail-hover/10">
+                    <span
+                      className={cn('block h-full rounded-sm', TONE_FILL[tone])}
+                      style={{ width: `${Math.max(stage.pct, 0.6)}%` }}
+                    />
+                  </span>
+                )}
 
-                {stage.series ? (
+                {stage.passThrough ? (
+                  <span className="mt-1.5 block text-label text-rail-dim">{stage.passThrough}</span>
+                ) : stage.series ? (
                   <span className="mt-2 block">
                     <Sparkline
                       values={stage.series}
