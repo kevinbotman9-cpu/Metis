@@ -299,6 +299,7 @@ export async function resolveInputs(
             cacheHit: false,
             outcome: 'skipped' as const,
             fields: [],
+            overridden: [],
             detail: 'Connector is not active',
             fetchedAt: new Date().toISOString(),
           },
@@ -368,7 +369,10 @@ export async function resolveInputs(
           ms: Date.now() - started,
           cacheHit,
           outcome,
+          // Split below, against the request, once it is known which of these
+          // answers were used (ADR-022 §5).
           fields: Object.keys(values).sort(),
+          overridden: [],
           ...(detail ? { detail } : {}),
           fetchedAt: new Date(started).toISOString(),
           // A call that went to the connector computed its value as it
@@ -380,16 +384,25 @@ export async function resolveInputs(
   );
 
   for (const r of results) {
-    calls.push(r.call);
+    const used: string[] = [];
+    const overridden: string[] = [];
     for (const field of Object.keys(r.values).sort()) {
       // The request wins: a caller that already has the value should not have
       // it overwritten by a slower, staler copy. Compared by path, because a
       // field is a path now — `field in request.input` asked whether the input
       // had a key called `customer.credit_band`, which it never does.
-      if (readAt(request.input, field) !== undefined) continue;
+      if (readAt(request.input, field) !== undefined) {
+        overridden.push(field);
+        continue;
+      }
+      used.push(field);
       writeAt(fetched, field, r.values[field]);
       bindings.push({ field, connectorId: r.connector.id, nodeId: r.nodeId });
     }
+    // What the call contributed, and what it answered that was not used: the
+    // measured record of a call must not credit it with a value the request
+    // supplied (ADR-022 §5).
+    calls.push({ ...r.call, fields: used, overridden });
   }
 
   bindings.sort(

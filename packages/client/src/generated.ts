@@ -1633,7 +1633,16 @@ export interface SourceCall {
   ms: number;
   cacheHit: boolean;
   outcome: "ok" | "timeout" | "error" | "skipped";
+  /** Fields this call's value was used for: it answered them and the
+request did not carry them. Until 2026-09-17 this listed every field
+the call answered, crediting the connector with values the request
+supplied (ADR-022 §5).
+ */
   fields: string[];
+  /** Fields this call answered that the request already carried, so its
+answer was discarded and the request's value used.
+ */
+  overridden: string[];
   detail?: string;
   /** When this decision asked for the value. ms says how long the answer
 took; a duration on its own cannot place a call in time.

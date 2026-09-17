@@ -160,6 +160,27 @@ describe('integration resolution', () => {
     expect(resolved.input.creditScore).toBe(810);
     // Nothing was bound, because nothing was taken from the connector.
     expect(resolved.bindings).toEqual([]);
+    // And the measured call says so: it answered, and its answer was not used.
+    // It listed `creditScore` as a field it contributed until 2026-09-17
+    // (ADR-022 §5).
+    expect(resolved.calls[0]).toMatchObject({ connectorId: 'conn_bureau', fields: [], overridden: ['creditScore'] });
+  });
+
+  it('splits a call’s fields into what it contributed and what the request overrode', async () => {
+    const both = connector({
+      provides: [
+        { field: 'creditScore', path: 'score.value', type: 'number' },
+        { field: 'creditBand', path: 'score.band', type: 'string' },
+      ],
+    });
+    const resolved = await resolveInputs(
+      artifact,
+      [both],
+      { ...request, input: { creditBand: 'A' } },
+      gateway({ score: { value: 720, band: 'C' } })
+    );
+    expect(resolved.calls[0]).toMatchObject({ fields: ['creditScore'], overridden: ['creditBand'] });
+    expect(resolved.bindings.map((b) => b.field)).toEqual(['creditScore']);
   });
 
   it('fails the decision when a required connector fails', async () => {

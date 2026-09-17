@@ -2982,7 +2982,7 @@ components:
     SourceCall:
       type: object
       description: What an integration actually did. Measured; never hashed, absent on replay.
-      required: [connectorId, ms, cacheHit, outcome, fields, fetchedAt]
+      required: [connectorId, ms, cacheHit, outcome, fields, overridden, fetchedAt]
       properties:
         connectorId:
           type: string
@@ -2997,6 +2997,18 @@ components:
           type: array
           items:
             type: string
+          description: |
+            Fields this call's value was used for: it answered them and the
+            request did not carry them. Until 2026-09-17 this listed every field
+            the call answered, crediting the connector with values the request
+            supplied (ADR-022 §5).
+        overridden:
+          type: array
+          items:
+            type: string
+          description: |
+            Fields this call answered that the request already carried, so its
+            answer was discarded and the request's value used.
         detail:
           type: string
         fetchedAt:
