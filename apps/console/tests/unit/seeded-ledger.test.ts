@@ -247,7 +247,8 @@ describe('the in-memory store seeds once per process, and the reports read it al
       source: 'synthetic',
       syntheticCount: 10_400,
       recordedCount: 0,
-      note: expect.stringContaining('Synthetic.'),
+      // The tenant the report was asked for, not a name typed into the note.
+      note: expect.stringContaining('Synthetic, for tenant telco-us.'),
     });
   });
 

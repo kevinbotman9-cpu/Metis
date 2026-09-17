@@ -30,9 +30,9 @@ export const Synthetic: Story = {
       syntheticCount: 10_400,
       recordedCount: 0,
       note:
-        'Synthetic. Every figure here is generated from a fixed seed for the demo tenant ' +
-        'demo-telco-us and describes no real customer, decision or outcome. Reproducible, ' +
-        'and not evidence of anything.',
+        'Synthetic, for tenant telco-us. The decisions behind these figures were generated ' +
+        'from a fixed seed or made by using the demo; they describe no real customer, decision ' +
+        'or outcome, and are not evidence of anything.',
     },
   },
 };
@@ -44,9 +44,9 @@ export const Mixed: Story = {
       syntheticCount: 10_400,
       recordedCount: 4,
       note:
-        'Mixed. 10,400 of 10,404 records here are generated from a fixed seed for the demo ' +
-        'tenant demo-telco-us and describe no real customer; the rest derive from decisions ' +
-        'this platform actually made. Not evidence of anything.',
+        'Mixed, for tenant telco-us. 10,400 of 10,404 records here are generated from a ' +
+        'fixed seed and describe no real customer; the rest derive from decisions this ' +
+        'platform actually made. Not evidence of anything.',
     },
   },
 };

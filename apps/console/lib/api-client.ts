@@ -218,7 +218,13 @@ async function apiCall<T>(
   return response.json() as Promise<T>;
 }
 
-const TENANT = 'telco-us';
+/**
+ * The tenant every call defaults to, exported so a screen that has to *name*
+ * the tenant names this one rather than typing its own. A typed name is how
+ * `demo-telco-us` outlived the tenant it named by five days, on a banner and in
+ * an export, beneath a switcher that said `telco-us`.
+ */
+export const TENANT = 'telco-us';
 
 export const apiClient = {
   // --- Auth ---------------------------------------------------------------
