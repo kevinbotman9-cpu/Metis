@@ -15,8 +15,16 @@ import type { LedgerEntry, OutcomeEvent } from '../src/types';
 // `channel` is not a `LedgerEntry` field — it lives inside the recorded
 // decision, and these tests set it often enough to be worth naming here rather
 // than casting at every call site.
+type Step = { nodeType?: string; denials: { key: string; code: string }[]; survived: string[] };
+
 const entry = (
-  over: Partial<LedgerEntry> & { winner: string | null; id: string; channel?: string }
+  over: Partial<LedgerEntry> & {
+    winner: string | null;
+    id: string;
+    channel?: string;
+    candidateKeys?: string[];
+    steps?: Step[];
+  }
 ): LedgerEntry =>
   ({
     tenantId: 't',
@@ -30,6 +38,14 @@ const entry = (
       decision: {
         winner: over.winner,
         channel: over.channel ?? 'web',
+        candidateKeys: over.candidateKeys ?? ['a', 'b'],
+        eliminations: (over.steps ?? []).map((s, i) => ({
+          nodeId: `n${i}`,
+          nodeType: s.nodeType ?? 'filter',
+          reason: '',
+          denials: s.denials.map((d) => ({ ...d, ruleId: null })),
+          survived: s.survived,
+        })),
       },
     },
   }) as unknown as LedgerEntry;
@@ -160,6 +176,73 @@ describe('what the numbers refuse to say', () => {
     expect(report.offered).toBe(1);
     expect(report.suppressed).toBe(2);
     expect(report.rows[0].offered).toBe(1);
+  });
+
+  it('says why each suppressed decision offered nothing, and the groups add up', () => {
+    // The loop showed the drop to "offered something" and never said why; the
+    // cause was a screen away, on the policy funnel. Each decision is counted
+    // once, at the stage that removed its last candidate.
+    const report = buildPerformance(
+      [
+        entry({ id: 'offered', winner: 'a' }),
+        // Relevance removed one, consent the last: consent emptied it.
+        entry({
+          id: 'consent-1',
+          winner: null,
+          steps: [
+            { denials: [{ key: 'a', code: 'RELEVANCE_FAILED' }], survived: ['b'] },
+            { denials: [{ key: 'b', code: 'CONSENT_WITHHELD' }], survived: [] },
+          ],
+        }),
+        entry({
+          id: 'consent-2',
+          winner: null,
+          steps: [{ denials: [{ key: 'a', code: 'CONSENT_WITHHELD' }, { key: 'b', code: 'CONSENT_WITHHELD' }], survived: [] }],
+        }),
+        // Two reasons at the step that emptied it: the one that removed more.
+        entry({
+          id: 'frequency',
+          winner: null,
+          candidateKeys: ['a', 'b', 'c'],
+          steps: [
+            {
+              denials: [
+                { key: 'a', code: 'ELIGIBILITY_FAILED' },
+                { key: 'b', code: 'FREQUENCY_CAP_BREACHED' },
+                { key: 'c', code: 'COOLDOWN_ACTIVE' },
+              ],
+              survived: [],
+            },
+          ],
+        }),
+        entry({ id: 'nothing-to-consider', winner: null, candidateKeys: [] }),
+        // A record that never says what emptied it is counted, not guessed.
+        entry({ id: 'silent', winner: null, steps: [{ denials: [], survived: ['a'] }] }),
+      ],
+      map([])
+    );
+
+    expect(report.suppressed).toBe(5);
+    expect(report.suppressedBy).toEqual([
+      { stage: 'consent', decisions: 2, sampleDecisionId: 'consent-1' },
+      { stage: 'no_candidates', decisions: 1, sampleDecisionId: 'nothing-to-consider' },
+      { stage: 'frequency', decisions: 1, sampleDecisionId: 'frequency' },
+      { stage: 'unaccounted', decisions: 1, sampleDecisionId: 'silent' },
+    ]);
+    expect(report.suppressedBy.reduce((n, r) => n + r.decisions, 0)).toBe(report.suppressed);
+  });
+
+  it('breaks a tie at the emptying step by the stage a decision meets first, not by denial order', () => {
+    const tie = (id: string, codes: [string, string]) =>
+      entry({
+        id,
+        winner: null,
+        steps: [{ denials: [{ key: 'a', code: codes[0] }, { key: 'b', code: codes[1] }], survived: [] }],
+      });
+    const a = buildPerformance([tie('x', ['CONSENT_WITHHELD', 'ELIGIBILITY_FAILED'])], map([]));
+    const b = buildPerformance([tie('x', ['ELIGIBILITY_FAILED', 'CONSENT_WITHHELD'])], map([]));
+    expect(a.suppressedBy[0].stage).toBe('eligibility');
+    expect(b.suppressedBy[0].stage).toBe('eligibility');
   });
 
   it('reports no value rather than zero when nothing carried one', () => {

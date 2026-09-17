@@ -1,6 +1,9 @@
 import type { CascadeStage } from '@/components/cascade-rail';
-import type { apiClient, ChannelStagesDto, PerformanceRowDto } from '@/lib/api-client';
+import type { apiClient, ChannelStagesDto, PerformanceRowDto, SuppressionReasonDto } from '@/lib/api-client';
 import type { Formatter } from '@/lib/format';
+// A cycle — `policy-funnel` imports `pct` from here — and a safe one: each side
+// reads the other's export only when called, never while the module loads.
+import { STAGE_LABEL } from '@/lib/policy-funnel';
 
 /**
  * The loop, as a model: decisions → offered → deliverable → seen → acted.
@@ -97,6 +100,121 @@ export interface Loop {
    * different populations and the screen is lying. Empty when the loop is sound.
    */
   inversions: { stage: string; value: number; above: string; aboveValue: number }[];
+  /**
+   * Where the loop loses most, as a neutral statement beside the red break.
+   *
+   * The break is kept for what cannot happen — an offer on a channel with no
+   * sender. Ordinary drop-off is not a defect, and colouring it red would teach
+   * a reader to ignore the red; so it is said separately, and only when it
+   * means something. Decided by the product owner on 2026-09-17, with both
+   * guards:
+   *
+   * - **A floor.** A share over fewer than `LOSES_MOST_FLOOR` at the stage above
+   *   is not compared: at two decisions every stage is 0% or 100%.
+   * - **Unreported is not lost.** A stage no channel has reported anything for
+   *   is not a loss. The storefront sends no acceptance, and a person who never
+   *   presses a call to action sends no click, so "acted on" would otherwise
+   *   lose most on every hand-made history.
+   *
+   * Deliverable is never named: it is either whole or the break, which has its
+   * own statement.
+   */
+  losesMost: LosesMost;
+  /**
+   * Why the decisions that offered nothing offered nothing, from the stage that
+   * removed each one's last candidate. Null when every decision offered
+   * something. The rail showed the drop and the pane never said why; the cause
+   * was only on the policy funnel.
+   */
+  offeredNothing: string | null;
+}
+
+/** Below this many at the stage above, a share is not named as the largest loss. */
+export const LOSES_MOST_FLOOR = 20;
+
+export type LosesMost =
+  /** Nothing decided; `closure` already says so. */
+  | { kind: 'nothing' }
+  | { kind: 'too_few'; sentence: string }
+  | { kind: 'unreported'; sentence: string }
+  /** Every stage over the floor kept all of what reached it. */
+  | { kind: 'whole'; sentence: string }
+  | { kind: 'stage'; stage: 'offered' | 'seen' | 'acted'; sentence: string; unreported: string | null };
+
+/** The words the policy funnel uses, plus the two groups that are not a stage. */
+function suppressionLabel(stage: SuppressionReasonDto['stage']): string {
+  if (stage === 'no_candidates') return 'nothing to consider';
+  if (stage === 'unaccounted') return 'a record that does not say';
+  return STAGE_LABEL[stage];
+}
+
+function offeredNothingSentence(data: LoopReport, format: Formatter): string | null {
+  if (!(data.suppressed > 0)) return null;
+  const groups = (data.suppressedBy ?? []).map(
+    (g) => `${format.number(g.decisions)} at ${suppressionLabel(g.stage)}`
+  );
+  const n = format.number(data.suppressed);
+  const head = `${n} ${data.suppressed === 1 ? 'decision' : 'decisions'} offered nothing`;
+  return groups.length === 0 ? `${head}.` : `${head}: ${groups.join(', ')}.`;
+}
+
+function losesMostOf(data: LoopReport, deliverable: number, format: Formatter): LosesMost {
+  if (data.decisions === 0) return { kind: 'nothing' };
+
+  const noOutcome = 'No channel has reported an outcome yet, so nothing below Deliverable is counted as a loss.';
+  const noAction = 'No channel has reported an action yet, so Acted on is not counted as a loss.';
+
+  const candidates = [
+    {
+      stage: 'offered' as const,
+      value: data.offered,
+      above: data.decisions,
+      // The ledger's own count of what it decided: never waiting on a channel.
+      unreported: null,
+      sentence: () =>
+        `It loses most at Offered something: ${pct(data.offered, data.decisions, format)} of decisions offered anything.`,
+    },
+    {
+      stage: 'seen' as const,
+      value: data.measured,
+      above: deliverable,
+      unreported: data.measured === 0 ? noOutcome : null,
+      sentence: () =>
+        `It loses most at Seen: ${pct(data.measured, deliverable, format)} of deliverable decisions were reported seen, and ${format.number(deliverable - data.measured)} were not.`,
+    },
+    {
+      stage: 'acted' as const,
+      value: data.acted,
+      above: data.measured,
+      // Nothing seen means nothing to act on, which the stage above already says.
+      unreported: data.measured > 0 && data.acted === 0 ? noAction : null,
+      sentence: () =>
+        `It loses most at Acted on: ${pct(data.acted, data.measured, format)} of seen decisions were acted on, and ${format.number(data.measured - data.acted)} were not.`,
+    },
+  ];
+
+  const aboveFloor = candidates.filter((c) => c.above >= LOSES_MOST_FLOOR);
+  const unreported = aboveFloor.find((c) => c.unreported)?.unreported ?? null;
+  const measurable = aboveFloor.filter((c) => !c.unreported && !(c.stage === 'acted' && data.measured === 0));
+  // A stage that kept everything that reached it lost nothing, and naming it
+  // "where it loses most" at 100% would be a sentence with nothing in it.
+  const eligible = measurable.filter((c) => c.value < c.above);
+
+  if (eligible.length === 0) {
+    if (unreported) return { kind: 'unreported', sentence: unreported };
+    if (measurable.length > 0) {
+      return { kind: 'whole', sentence: 'Every stage it can measure kept everything that reached it.' };
+    }
+    return {
+      kind: 'too_few',
+      sentence: `Too few decisions to say where the loop loses most: it names a stage once ${LOSES_MOST_FLOOR} have reached the stage above it.`,
+    };
+  }
+
+  // Lowest share of the stage above; a tie goes to the earlier stage, where the
+  // volume went first.
+  const worst = eligible.reduce((a, b) => (b.value / b.above < a.value / a.above ? b : a));
+  return { kind: 'stage', stage: worst.stage, sentence: worst.sentence(), unreported };
 }
 
 export function buildLoop(
@@ -206,5 +324,7 @@ export function buildLoop(
     expectedDelivered: ceiling(data.rows.filter(delivers)),
     expectedUndelivered: ceiling(data.rows.filter((r) => !delivers(r))),
     inversions,
+    losesMost: losesMostOf(data, deliverable, format),
+    offeredNothing: offeredNothingSentence(data, format),
   };
 }

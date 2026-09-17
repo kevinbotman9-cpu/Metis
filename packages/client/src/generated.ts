@@ -378,6 +378,8 @@ export interface PerformanceReport {
   offered: number;
   /** Decisions that offered nothing. Reported beside the rest rather than hidden - on a platform whose suitability tier exists to refuse profitable offers, suppression is a result, not a shortfall. */
   suppressed: number;
+  /** What `suppressed` is made of, largest first: each suppressed decision counted once, at the policy-funnel stage that removed its last candidate. The groups sum to `suppressed`. */
+  suppressedBy: SuppressionReason[];
   /** Decisions with at least one outcome recorded against them. */
   measured: number;
   /** Offered decisions on a channel something actually delivers.
@@ -403,6 +405,23 @@ the first.
   provenance?: Provenance;
   /** Per-arm counts for every running or stopped experiment, recomputed from each decision's customer reference rather than read from a stored assignment. */
   arms?: ArmPerformance[];
+}
+
+/** Why a group of decisions offered nothing.
+
+`stage` is the policy-funnel stage whose step left the decision with no
+candidate — where one step removed candidates for several reasons, the
+stage that removed the most of them there, ties going to the stage a
+decision meets first. `no_candidates` is a flow with nothing to
+consider; `unaccounted` is a record that does not say, zero on a correct
+engine and counted rather than guessed.
+ */
+export interface SuppressionReason {
+  stage: "no_candidates" | "not_live" | "eligibility" | "relevance" | "suitability" | "consent" | "frequency" | "not_ranked" | "unaccounted";
+  /** Distinct decisions. */
+  decisions: number;
+  /** The first such decision, so the number links to a trace. */
+  sampleDecisionId: string;
 }
 
 /** One channel's path through the loop.

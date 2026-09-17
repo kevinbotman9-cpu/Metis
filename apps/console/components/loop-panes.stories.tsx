@@ -18,6 +18,12 @@ const F = formatterFor({ locale: 'en-US', currency: 'USD' });
 const REPORT = {
   decisions: 120,
   offered: 54,
+  suppressed: 66,
+  suppressedBy: [
+    { stage: 'relevance', decisions: 48, sampleDecisionId: 'dec_story_relevance' },
+    { stage: 'consent', decisions: 11, sampleDecisionId: 'dec_story_consent' },
+    { stage: 'frequency', decisions: 7, sampleDecisionId: 'dec_story_frequency' },
+  ],
   deliverable: 36,
   measured: 22,
   acted: 5,
@@ -77,9 +83,32 @@ export const ActedOnSelected: Story = {
   render: () => <LoopStageDetail data={REPORT} loop={LOOP} stage="acted" />,
 };
 
-/** Evidence with nothing selected: which channels close the loop. */
+/** Evidence with nothing selected: which channels close the loop, where it loses most, and why the rest offered nothing. */
 export const EvidenceWhole: Story = {
   render: () => <LoopStageEvidence data={REPORT} loop={LOOP} stage={null} />,
+};
+
+/** "Offered something", selected: why the rest offered nothing, and the way to the policy funnel. */
+export const EvidenceOffered: Story = {
+  render: () => <LoopStageEvidence data={REPORT} loop={LOOP} stage="offered" />,
+};
+
+/** Two decisions: too few to name where it loses most, and it says so rather than naming a stage. */
+export const EvidenceTooFew: Story = {
+  render: () => {
+    const two = {
+      ...REPORT,
+      decisions: 2,
+      offered: 2,
+      suppressed: 0,
+      suppressedBy: [],
+      deliverable: 2,
+      measured: 2,
+      acted: 0,
+      channels: [{ channel: 'web', decisions: 2, offered: 2, deliverable: 2, seen: 2, acted: 0, delivers: true }],
+    } as unknown as LoopReport;
+    return <LoopStageEvidence data={two} loop={buildLoop(two, MARGINS, F)} stage={null} />;
+  },
 };
 
 /** A stage larger than the one above it: the screen says it is wrong instead of drawing it. */

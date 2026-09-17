@@ -697,8 +697,8 @@ components:
     PerformanceReport:
       type: object
       required:
-        [rows, decisions, offered, suppressed, measured, deliverable, acted,
-         channels, series]
+        [rows, decisions, offered, suppressed, suppressedBy, measured,
+         deliverable, acted, channels, series]
       properties:
         rows:
           type: array
@@ -711,6 +711,13 @@ components:
             Decisions that offered nothing. Reported beside the rest rather than
             hidden - on a platform whose suitability tier exists to refuse
             profitable offers, suppression is a result, not a shortfall.
+        suppressedBy:
+          type: array
+          items: { $ref: '#/components/schemas/SuppressionReason' }
+          description: >-
+            What `suppressed` is made of, largest first: each suppressed decision
+            counted once, at the policy-funnel stage that removed its last
+            candidate. The groups sum to `suppressed`.
         measured:
           type: integer
           description: Decisions with at least one outcome recorded against them.
@@ -753,6 +760,29 @@ components:
             Per-arm counts for every running or stopped experiment, recomputed
             from each decision's customer reference rather than read from a
             stored assignment.
+
+    SuppressionReason:
+      type: object
+      description: |
+        Why a group of decisions offered nothing.
+
+        `stage` is the policy-funnel stage whose step left the decision with no
+        candidate — where one step removed candidates for several reasons, the
+        stage that removed the most of them there, ties going to the stage a
+        decision meets first. `no_candidates` is a flow with nothing to
+        consider; `unaccounted` is a record that does not say, zero on a correct
+        engine and counted rather than guessed.
+      required: [stage, decisions, sampleDecisionId]
+      properties:
+        stage:
+          type: string
+          enum: [no_candidates, not_live, eligibility, relevance, suitability, consent, frequency, not_ranked, unaccounted]
+        decisions:
+          type: integer
+          description: Distinct decisions.
+        sampleDecisionId:
+          type: string
+          description: The first such decision, so the number links to a trace.
 
     ChannelStages:
       type: object

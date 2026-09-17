@@ -33,6 +33,25 @@
  */
 
 import type { LedgerEntry, OutcomeEvent, OutcomeType } from './types';
+import { FUNNEL_STAGES, type FunnelStageId } from './policy-funnel';
+
+/**
+ * Why a group of decisions offered nothing: the policy-funnel stage that removed
+ * each one's last candidate.
+ *
+ * `no_candidates` is a decision whose flow had nothing to consider.
+ * `unaccounted` is one whose record does not say — no step left it empty,
+ * or the step that did carries no code in the closed set. Zero on a correct
+ * engine, and counted rather than folded into a stage, for the reason
+ * `PolicyFunnelReport.unaccounted` gives.
+ */
+export interface SuppressionReason {
+  stage: FunnelStageId | 'no_candidates' | 'unaccounted';
+  /** Distinct decisions. They sum to `suppressed`. */
+  decisions: number;
+  /** The first such decision in input order, so the number links to a trace. */
+  sampleDecisionId: string;
+}
 
 export interface PerformanceRow {
   /** The offer key that won. */
@@ -115,6 +134,16 @@ export interface PerformanceReport {
    * result, not a shortfall.
    */
   suppressed: number;
+  /**
+   * What `suppressed` is made of, largest first.
+   *
+   * The loop showed the drop from decisions to "offered something" and never
+   * said why; the cause — consent, frequency, a policy — was only on the policy
+   * funnel, a screen away. This is that cause, per decision: the stage that
+   * removed its last candidate, so the groups sum to `suppressed`. The funnel
+   * counts candidates; this counts the decisions they emptied.
+   */
+  suppressedBy: SuppressionReason[];
   /** Decisions with at least one outcome recorded against them. */
   measured: number;
   /**
@@ -141,6 +170,34 @@ export interface PerformanceReport {
 }
 
 const TYPES: OutcomeType[] = ['impression', 'click', 'acceptance', 'rejection', 'conversion'];
+
+const STAGE_INDEX = new Map<string, number>(
+  FUNNEL_STAGES.flatMap((stage, i) => stage.codes.map((code) => [code, i] as const))
+);
+
+/**
+ * The stage that removed a suppressed decision's last candidate.
+ *
+ * The first step that leaves nothing standing, in the order the flow ran. A step
+ * can remove candidates for more than one reason; the stage that removed the
+ * most of them there is the one named, and a tie goes to the stage a decision
+ * meets first, so the answer does not depend on the order denials were written.
+ */
+export function suppressionStageOf(entry: LedgerEntry): SuppressionReason['stage'] {
+  const d = entry.record.decision;
+  if (d.candidateKeys.length === 0) return 'no_candidates';
+  const emptied = d.eliminations.find((step) => step.survived.length === 0);
+  if (!emptied) return 'unaccounted';
+
+  const removed = new Map<number, number>();
+  for (const denial of emptied.denials) {
+    const i = STAGE_INDEX.get(denial.code);
+    if (i !== undefined) removed.set(i, (removed.get(i) ?? 0) + 1);
+  }
+  if (removed.size === 0) return 'unaccounted';
+  const [top] = [...removed.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+  return FUNNEL_STAGES[top[0]].id;
+}
 
 /** Percentage as a fraction, or null when the denominator is zero. */
 function rate(numerator: number, denominator: number): number | null {
@@ -182,6 +239,7 @@ export function buildPerformance(
   const buckets = new Map<string, Bucket>();
   let offered = 0;
   let suppressed = 0;
+  const suppression = new Map<SuppressionReason['stage'], SuppressionReason>();
   let measured = 0;
   let acted = 0;
   let deliverable = 0;
@@ -246,6 +304,10 @@ export function buildPerformance(
     const winner = entry.record.decision.winner;
     if (!winner) {
       suppressed += 1;
+      const stage = suppressionStageOf(entry);
+      const reason = suppression.get(stage);
+      if (reason) reason.decisions += 1;
+      else suppression.set(stage, { stage, decisions: 1, sampleDecisionId: entry.decisionId });
       continue;
     }
     offered += 1;
@@ -318,6 +380,13 @@ export function buildPerformance(
     decisions: entries.length,
     offered,
     suppressed,
+    // Largest first; then the order a decision meets the stages, so equal
+    // groups do not reorder between refreshes.
+    suppressedBy: [...suppression.values()].sort((a, b) => {
+      const order = (s: SuppressionReason['stage']) =>
+        s === 'no_candidates' ? -1 : s === 'unaccounted' ? FUNNEL_STAGES.length : FUNNEL_STAGES.findIndex((f) => f.id === s);
+      return b.decisions - a.decisions || order(a.stage) - order(b.stage);
+    }),
     measured,
     deliverable: delivers ? deliverable : null,
     acted,

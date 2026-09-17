@@ -234,6 +234,15 @@ describe('the in-memory store seeds once per process, and the reports read it al
       measured: 1_228,
       acted: 278,
     });
+    // Why the 5,712 offered nothing, each counted once at the stage that removed
+    // its last candidate. Added 2026-09-17; they sum to `suppressed`.
+    const suppressedBy = seeded.performance.suppressedBy as { stage: string; decisions: number }[];
+    expect(suppressedBy.map(({ stage, decisions }) => [stage, decisions])).toEqual([
+      ['relevance', 4_320],
+      ['consent', 810],
+      ['eligibility', 326],
+      ['frequency', 256],
+    ]);
     expect(seeded.performance.channels).toEqual([
       { channel: 'web', delivers: true, decisions: 3_499, offered: 1_686, deliverable: 1_686, seen: 1_228, acted: 278 },
       { channel: 'email', delivers: false, decisions: 3_466, offered: 1_394, deliverable: 0, seen: 0, acted: 0 },
