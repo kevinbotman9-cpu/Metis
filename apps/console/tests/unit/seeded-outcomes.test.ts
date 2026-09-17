@@ -203,13 +203,13 @@ describe('the seeded outcomes have a shape a marketer can read', () => {
         .filter((e) => e.type === 'conversion')
         .map((e) => [e.valueMinor ?? 0, margin.get(x.d.winner!) ?? 0] as const)
     );
-    // **4 conversions in the whole corpus** on 2026-09-10, from 20 and before
-    // that 49. The guard exists so the ratio below is not computed over an
-    // empty set, and at four it barely guards anything — which is worth stating
-    // rather than hiding behind a lower number. The corpus is this thin because
-    // the platform delivers on one channel of five; the demo's realised-versus-
-    // expected story now rests on four data points, and that is a fact about
-    // the product rather than about this generator. G-047.
+    // **24 conversions in the seeded ledger** on 2026-09-17 (4 on 2026-09-10,
+    // from 20 and before that 49). The guard exists so the ratio below is not
+    // computed over an empty set, and at a few dozen it guards little — which is
+    // worth stating rather than hiding behind a lower number. The corpus is this
+    // thin because only web delivers; the demo's realised-versus-expected story
+    // rests on those few dozen, and moves by about a fifth whenever the
+    // decision ids change. G-047, ADR-023.
     expect(pairs.length).toBeGreaterThan(2);
     expect(pairs.filter(([got, want]) => got !== want).length / pairs.length).toBeGreaterThan(0.9);
   });

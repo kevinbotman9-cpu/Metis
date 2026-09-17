@@ -3330,23 +3330,40 @@ check built on `git ls-files`.
 **Done when:** the scan reads tracked files **and** the working tree's untracked
 ones, so a new file is checked in the session that writes it.
 
-### G-047 — The seeded corpus has four conversions
+### G-047 — The seeded corpus's realised value rests on 24 conversions, and moves by a fifth whenever ids change
 
-**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-017](BACKLOG.md)
+**Registered:** 2026-09-10 · **Status:** Open · **Work item:** [W-017](BACKLOG.md) · **Proposal:** [ADR-023](adr/ADR-023-realised-value-states-what-it-rests-on.md)
 
 A consequence of G-046 rather than a defect in it, and worth its own entry
-because it is now the demo's binding constraint.
+because it is the demo's binding constraint.
 
-The corrected corpus holds **416 impressions, 79 clicks, 6 acceptances, 27
-rejections and 4 conversions** across two years and 10,400 decisions. The
-realised-versus-expected value story on `/performance` — one of the things the
-demo exists to show — now rests on four data points, and
-`seeded-outcomes.test.ts` says so where it guards the ratio.
+**Now (2026-09-17).** The seeded ledger holds **1,654 outcome events across 1,228
+decisions: 1,228 impressions, 278 clicks, 80 rejections, 44 acceptances and 24
+conversions** (`apps/console/tests/unit/seeded-ledger.test.ts`, pinned). Only a
+conversion carries a value in the outcome model, so realised value on
+`/performance` and the Overview — **$2,279.09, the accented figure on both** —
+is the sum of 24 events, under a card reading "from 278 acted on".
 
-Nothing here is wrong. The platform delivers on one channel of five, and the
-numbers are what that looks like when reported honestly. But a reviewer opening
-`/performance` sees a product that decided 10,400 times and converted four, and
-the reason is W-017 rather than anything about the decisions.
+**It is unstable in a measured way.** Re-rolling the outcome model's draws 200
+times over the same 10,400 decisions (what a reseed does) gives realised value a
+coefficient of variation of **17.7%**, against 5.7% for acted on and 1.4% for
+seen, with a 5th–95th percentile range of $2,480.91 to $4,584.57. The spread
+comes from the count of conversions (17.8%), not their values (3.8%). The corpus
+as seeded is a low draw: 24 conversions, below the model's 5th percentile of 25
+and its mean of 35.8. Under ADR-022's counterfactual the figure moved 40%, to
+$3,201.10, with no behavioural difference. ADR-023 proposes what the screens
+should say about it.
+
+**What this entry said before.** Registered as *"The seeded corpus has four
+conversions"*: 416 impressions, 79 clicks, 6 acceptances, 27 rejections and 4
+conversions, the corpus of 2026-09-10. The corpus has been regenerated since,
+the entry was not, and its figures were quoted as current as late as
+2026-09-17. Retitled and restated on 2026-09-17.
+
+Nothing here is wrong. The platform delivers on one channel of three in the
+corpus, and the numbers are what that looks like when reported honestly. But a
+reviewer opening `/performance` sees a product that decided 10,400 times and
+converted 24, and the reason is W-017 rather than anything about the decisions.
 
 Raising the coverage constants to make the funnel look fuller would be inventing
 reach the platform does not have, and is the wrong fix. The right one is an
