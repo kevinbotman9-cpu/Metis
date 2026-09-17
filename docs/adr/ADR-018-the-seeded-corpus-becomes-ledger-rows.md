@@ -92,7 +92,8 @@ Decision search, a trace, outcomes, deliveries, performance, the policy funnel a
 
   A seed judged against a catalogue somebody edited would record decisions that catalogue could not have made.
 - **In memory** (a console with no database, and every e2e server), the store runs the job at start when `METIS_SEED_LEDGER` is set, and `ledgerReady` resolves only after it has finished.
-  - **Who sets it:** the development script and the e2e harness.
+  - **Who sets it:** the seeded e2e suite (`playwright.config.ts`) and `npm run dev:seeded`.
+  - **Not `npm run dev`, since 2026-09-17** (amended; product owner's decision). `.env.development` sets it to `0`, so a developer's console starts with the tenant's catalogue and no decision history — the state every new tenant starts in. Change sets, releases and approvals are authoring artifacts, not decision history, and are unaffected. The empty-ledger suite (`playwright.empty.config.ts`) sets it off explicitly and asserts the ledger holds nothing.
   - **Who does not:** unit test files that import the store. Twelve seconds per file is the cost G-133 showed a suite cannot absorb.
   - **A unit test that needs seeded decisions** seeds a small, declared count itself.
   - **Executed once per process.** The e2e suite calls `POST /api/_test/reset` between specs (`resetStore` in `apps/console/tests/e2e/helpers.ts`), and a reset rebuilds the in-memory ledger. The seed keeps the entries, deliveries and outcomes it executed at start, and a reset writes those back into the fresh ledger without executing anything. Re-executing on every reset would put twelve seconds between specs.
@@ -166,6 +167,8 @@ Slice 2 was split in two when it was started, on 2026-09-15.
 
 **Between slice 2a and slice 3 both sources exist and hold the same decisions.** The comparison test in clause 4 is what stops them drifting.
 
+**Amended 2026-09-17: "no screen empties" was a guarantee about the transition, not about the product.** It promised that moving the corpus from the committed index into ledger rows would not drop a figure from any screen, and slice 3 kept it. It never meant a screen may not be empty — and since 2026-09-17 the development console is, by default (clause 3, amended). What makes that acceptable rather than a regression was built first and proved before the default changed: every one of the seven screens that read the ledger says what will appear once decisions exist; a tenant with no history carries no provenance claim, in the payload or on screen; and `tests/e2e-empty` holds both, as its own CI job. The seeded corpus is unchanged and one command away (`npm run dev:seeded`), and the e2e suite still seeds it and still fails unless it holds exactly 10,400 decisions.
+
 ### 7. What cannot be real yet
 
 Each of these stays authored in a fixture, keeps its synthetic label, and is not made to look computed:
@@ -195,7 +198,7 @@ When that slice lands, a `real` ledger becomes possible, and "recorded" means a 
 
 ## Consequences
 
-- **The e2e server and the database-less console start about 12 seconds slower**, spent executing 10,400 decisions. The e2e harness already allows its server 120 seconds and runs a warm-up project first. A developer notices on `npm run dev`, and the knob is `METIS_SEED_LEDGER`.
+- **The e2e server and the database-less console start about 12 seconds slower**, spent executing 10,400 decisions. The e2e harness already allows its server 120 seconds and runs a warm-up project first. A developer who wants the history pays it on `npm run dev:seeded`; since 2026-09-17 `npm run dev` does not seed (clause 3, amended), and the knob is still `METIS_SEED_LEDGER`.
 - **A seeded PostgreSQL tenant gains 10,400 decision records, 10,400 delivery attempts and exactly 1,654 outcome events**, written once in about 36 seconds.
 - **A tenant can be reset only while it is the ledger's only tenant** (clause 3). That lockout is real for any database holding two synthetic tenants, and it is the price of not bypassing ADR-004's triggers.
 - **"Recorded" disappears from every screen until the subject is protected** (clause 8). Anyone showing the console will see "synthetic" on figures they made themselves, and the answer is the slice named there.

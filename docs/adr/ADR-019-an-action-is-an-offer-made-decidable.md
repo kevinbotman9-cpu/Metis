@@ -173,6 +173,15 @@ Every decision id changes. Nothing migrates; the history is regenerated.
   and an outcome carry the decision id that the same run produced. There is no
   window in which an old outcome points at a new decision, because no row
   survives the run.
+- **Where no corpus was seeded there is nothing to regenerate** (added
+  2026-09-17). A development console has started with an empty ledger since
+  then (ADR-018 §3, amended), so its history is whatever someone made by using
+  it. An identity change moves the ids of decisions made after it and leaves the
+  ones before it as they were — and unlike the seeded corpus, those cannot be
+  executed again to produce matching ids, because nothing generated them. The
+  reset below still clears such a tenant, and what it clears is gone: a history
+  made by hand is not regenerable, which is the smaller version of the limit
+  this clause states for a real one.
 - **A PostgreSQL tenant is reset, not patched**: `npm run seed:ledger -- --reset
   --tenant <id> --by <who>`, which refuses unless the ledger is synthetic and
   the tenant is named (ADR-018 §3). A tenant holding decisions made before this

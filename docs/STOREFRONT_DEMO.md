@@ -10,6 +10,12 @@ npm run dev -w @metis/console
 
 Then open **http://localhost:3000/storefront/index.html**.
 
+The console starts with no decision history, so the first decisions anywhere in
+it are the ones this page makes. Expect every slot to render and the loop to
+show nothing acted on until someone presses a call to action — that is the loop
+working, not broken (G-143). For the generated history behind the page, start the
+console with `npm run dev:seeded -w @metis/console` instead.
+
 The whole thing is one file — `apps/console/public/storefront/index.html` — and
 it is deliberately not part of the console. It uses none of the token layer and
 none of the console's components, because it is standing in for somebody else's
