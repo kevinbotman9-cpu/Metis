@@ -97,6 +97,13 @@ export default defineConfig({
       METIS_DATA_CLASS: 'synthetic',
       // The seeded history, in memory, before the first request (ADR-018 §3).
       METIS_SEED_LEDGER: '1',
+      // Memory, whatever `.env.local` says. A person makes their console
+      // durable by setting this there, and `next dev` loads that file here too:
+      // resets would be refused, the warm-up would find no seeded history, and
+      // the suite would write into their history. `@next/env` applies a file's
+      // value only where the key is undefined, so `''` wins, and every store
+      // reads it as unset. `tests/unit/e2e-harness-memory.test.ts`.
+      METIS_DATABASE_URL: '',
     },
     timeout: 120_000,
   },

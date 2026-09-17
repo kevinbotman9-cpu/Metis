@@ -67,11 +67,15 @@ export default defineConfig({
       NEXT_DIST_DIR: '.next/e2e-empty',
       METIS_E2E_RUN: process.env.METIS_E2E_RUN!,
       METIS_DATA_CLASS: 'synthetic',
-      // The point of this config. `''` rather than unset because `env` here is
-      // the whole environment the server gets, and an explicit empty string
-      // says the value was chosen — `seedPlanFromEnv` reads both as off, and
-      // `'0'` too since 2026-09-17.
+      // The point of this config. `''` rather than unset because Playwright
+      // starts the server with `{ ...process.env, ...env }`: leaving the key
+      // out would let a value from the caller's shell or from `.env.local`
+      // through, and an explicit empty string says the value was chosen.
+      // `seedPlanFromEnv` reads `''` and `'0'` as off.
       METIS_SEED_LEDGER: '',
+      // Memory, whatever `.env.local` says — the reason is in
+      // `playwright.config.ts`, the check in `tests/unit/e2e-harness-memory.test.ts`.
+      METIS_DATABASE_URL: '',
     },
     timeout: 120_000,
   },
