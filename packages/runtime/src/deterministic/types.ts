@@ -180,6 +180,13 @@ export interface DecisionRequest {
     rejects?: Record<string, string>;
   };
   /**
+   * What the platform read from its ledger, set by the service resolving the
+   * request and never taken from a caller's body. Added to `contactHistory`'s
+   * counts, never instead of them: a caller may add contacts the platform did
+   * not make and cannot remove any (ADR-014 §10). Recorded on the decision.
+   */
+  contactsRead?: ContactsRead;
+  /**
    * What the caller asserts, per purpose. A purpose left out, or null, was not
    * stated: it is recorded as absent and enforced as withheld (ADR-014 §7.1).
    */
@@ -243,6 +250,15 @@ export const REASON_CODES = [
   'SUITABILITY_FAILED',
   /** Marketing consent withheld, and the offer is not service-exempt. */
   'CONSENT_WITHHELD',
+  /**
+   * A frequency cap covers this candidate, and the platform could not read how
+   * often the customer has been contacted. ADR-021 §4.
+   *
+   * Suppressed rather than offered, because an unreadable count is not a count
+   * of zero: reading it as zero would contact a customer whose cap is already
+   * spent. The cap that covered the candidate is the `ruleId`.
+   */
+  'CONTACT_HISTORY_UNAVAILABLE',
   /**
    * A frequency cap was already spent: we have contacted them too much.
    *
@@ -387,9 +403,39 @@ export interface DeterministicDecision {
   constraintsApplied: string[];
   /** Per purpose: granted, withheld, or absent — never a substitute for what was not stated. */
   consentState: import('./consent').ConsentState;
+  /**
+   * What the platform read from its own ledger about this customer's contacts,
+   * before deciding. ADR-021 §5.
+   *
+   * **Absent means the platform did not read** — no cap applied on this
+   * channel, or the decision was made somewhere that does not read (the seeded
+   * generator, a conformance case, a caller of the engine as a function). A
+   * present field with every count zero means it read and found nothing. The
+   * two must never render the same way: one says the caps saw only what a
+   * caller sent, the other that the platform looked and the customer is clear.
+   *
+   * Hashed, so the counts a cap was held to are part of what was decided, and a
+   * replay reads them from here rather than from a ledger that has since moved
+   * on. Added only when present, so no decision that never read the ledger
+   * changes identity.
+   */
+  contactsRead?: ContactsRead;
   winner: string | null;
   winnerOfferId: string | null;
 }
+
+/**
+ * The platform's read of a customer's contacts on the decision's channel.
+ *
+ * `read`: distinct decisions handed over or delivered to this customer on this
+ * channel, per rolling window back from `occurredAt` (ADR-021 §2, §3).
+ * `unavailable`: the ledger could not be read; every candidate a cap covers is
+ * suppressed with `CONTACT_HISTORY_UNAVAILABLE` (§4). Why it could not be read
+ * is operational and is not in the hash.
+ */
+export type ContactsRead =
+  | { status: 'read'; channel: string; withinPeriod: { day: number; week: number; month: number } }
+  | { status: 'unavailable'; channel: string };
 
 /** The measured half. Observability only - never hashed, never replayed. */
 export interface Measurements {

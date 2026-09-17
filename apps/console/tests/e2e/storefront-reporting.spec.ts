@@ -25,6 +25,13 @@ import { test, expect, type Page, type Route } from '@playwright/test';
  */
 
 const OUTCOMES = '**/api/outcomes/**';
+
+/**
+ * Each test on a day of its own: the platform caps each customer's web slots
+ * per day (ADR-021), every storefront spec opens on the same preset customer,
+ * and tests sharing a day would find each other's contacts and render nothing.
+ */
+const storefrontOn = (day: number) => `/storefront/index.html?day=${day}`;
 const DECISIONS = '**/api/placements/*/*/decisions';
 
 /** Every outcome the page reported, in order. */
@@ -63,7 +70,7 @@ test.describe('the storefront reports an impression of an offer, not of a win', 
 
     const reported = await recordOutcomes(page);
 
-    await page.goto('/storefront/index.html');
+    await page.goto(storefrontOn(310));
 
     // The branch under test, reached: an offer won and there was nothing to
     // render it with. Without this the test could pass on a page that simply
@@ -97,7 +104,7 @@ test.describe('the storefront reports an impression of an offer, not of a win', 
     // The other half, so the fix cannot be "never report anything".
     const reported = await recordOutcomes(page);
 
-    await page.goto('/storefront/index.html');
+    await page.goto(storefrontOn(320));
     await expect(page.locator('.cta').first()).toBeVisible({ timeout: 20_000 });
     await expect
       .poll(() => reported.filter((r) => r.startsWith('impression:')).length, {
@@ -111,7 +118,7 @@ test.describe('a slot stops advertising a decision the moment it stops showing i
   test('a re-decide clears the previous decision id before the new one arrives', async ({
     page,
   }) => {
-    await page.goto('/storefront/index.html');
+    await page.goto(storefrontOn(330));
 
     // Addressed by its own id, not by the attribute under test. A locator of
     // `[data-decision-id]` would stop matching the moment the fix works, and

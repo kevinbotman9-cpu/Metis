@@ -24,6 +24,38 @@ import { test, expect, type Page } from '@playwright/test';
 const STOREFRONT = '/storefront/index.html';
 
 /**
+ * The storefront on a day of this test's own.
+ *
+ * The platform counts each preset customer's contacts against
+ * `cpol_web_daily` — three web slots a day — and a page load decides two, the
+ * grid's read counting the hero's (ADR-021). Tests sharing a day would spend each other's cap, so each starts
+ * on its own day, ten apart, and moves a day forward with the panel's Next day
+ * when it needs more than a day holds. Advancing time rather than resetting the
+ * store: the cap is part of what the page does, not something to clear away.
+ */
+const onDay = (day: number) => `${STOREFRONT}?day=${day}`;
+
+/** The grid's current decision id, from the panel. */
+const gridDecision = (page: Page) =>
+  page
+    .locator('#decisions details.decision', { hasText: 'homepage_grid' })
+    .first()
+    .locator('dl.facts dt:text-is("decision") + dd')
+    .textContent()
+    .catch(() => null);
+
+/** The panel's Next day, and the re-decision it causes. */
+async function nextDay(page: Page) {
+  const panel = page.locator('#panel');
+  if (!(await panel.evaluate((el) => el.classList.contains('open')))) {
+    await page.getByRole('button', { name: 'Decided by METIS', exact: true }).click();
+  }
+  const before = await gridDecision(page);
+  await page.getByRole('button', { name: 'Next day', exact: true }).click();
+  await expect.poll(() => gridDecision(page), { message: 'Next day did not re-decide' }).not.toBe(before);
+}
+
+/**
  * The slate as the panel shows it: each rank, its offer key and its priority.
  *
  * Parsed a line at a time rather than by scanning for a pattern. Scanning went
@@ -94,11 +126,17 @@ async function choose(page: Page, label: string) {
     page.locator('#decisions details.decision', { hasText: 'homepage_grid' }).first()
   ).toBeVisible();
   await expect.poll(decisionId, { message: 'the grid never re-decided' }).not.toBe(before);
+
+  // Then a day on, and read that. A home-page load decides the hero and the
+  // grid, and the grid's read already counts the hero, so a day holds one
+  // full decide: the choice above lands capped, and the next day decides the
+  // chosen preset on a day it has not used (ADR-021).
+  await nextDay(page);
 }
 
 test.describe('@screen-only the brief’s three scenarios', () => {
   test('fiber at her address: FIOS, 5G Home, Gaming Plus', async ({ page }) => {
-    await page.goto(STOREFRONT);
+    await page.goto(onDay(110));
     await choose(page, 'Eva — fiber available at her address');
 
     expect(await ranked(page)).toEqual([
@@ -118,7 +156,7 @@ test.describe('@screen-only the brief’s three scenarios', () => {
   });
 
   test('no fiber at the new address: FIOS is refused by name, 5G Home leads', async ({ page }) => {
-    await page.goto(STOREFRONT);
+    await page.goto(onDay(120));
     await choose(page, 'Eva — moved, no fiber at the new address');
 
     expect(await ranked(page)).toEqual([
@@ -142,7 +180,7 @@ test.describe('@screen-only the brief’s three scenarios', () => {
   test('after accepting 5G Home: both broadband offers go, the cross-sell opens', async ({
     page,
   }) => {
-    await page.goto(STOREFRONT);
+    await page.goto(onDay(130));
     await choose(page, 'Eva — after accepting 5G Home');
 
     expect(await ranked(page)).toEqual(['gaming_plus_bundle', 'disney_plus', 'netflix']);
@@ -162,7 +200,7 @@ test.describe('@screen-only the brief’s three scenarios', () => {
     // calling it one — which is what it did until 2026-09-12, when every
     // preset carried its own id and the address sat one level too flat to be
     // read at all (G-094).
-    await page.goto(STOREFRONT);
+    await page.goto(onDay(140));
 
     await choose(page, 'Eva — fiber available at her address');
     const withFiber = await ranked(page);

@@ -13,8 +13,12 @@ export {
   type DataClass,
 } from './create-store';
 export type { LedgerHandle, CreateLedgerOptions } from './create-store';
-export { LedgerError } from './types';
+export { LedgerError, CONTACT_STATES, CONTACT_WINDOW_MS } from './types';
+export { capsApply, readContacts } from './contacts';
 export type {
+  ContactCounts,
+  ContactPeriod,
+  ContactQuery,
   DeliveryAttempt,
   DeliveryState,
   LedgerEntry,

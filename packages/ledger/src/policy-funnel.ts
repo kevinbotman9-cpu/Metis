@@ -50,7 +50,9 @@ export const FUNNEL_STAGES = [
   { id: 'relevance', codes: ['RELEVANCE_FAILED'] },
   { id: 'suitability', codes: ['SUITABILITY_FAILED'] },
   { id: 'consent', codes: ['CONSENT_WITHHELD'] },
-  { id: 'frequency', codes: ['FREQUENCY_CAP_BREACHED', 'COOLDOWN_ACTIVE'] },
+  // An unreadable contact history suppresses by the cap that covers the
+  // candidate, so it is the cap's stage (ADR-021 §4).
+  { id: 'frequency', codes: ['CONTACT_HISTORY_UNAVAILABLE', 'FREQUENCY_CAP_BREACHED', 'COOLDOWN_ACTIVE'] },
   { id: 'not_ranked', codes: ['NOT_RANKED'] },
 ] as const satisfies readonly { id: string; codes: readonly ReasonCode[] }[];
 

@@ -207,6 +207,18 @@ class DecisionConformanceTest {
                 it["thirdParty"]?.takeIf { v -> !v.isNull }?.asBoolean(),
             )
         },
+        // ADR-021. Set by a resolving service in production; a corpus case
+        // carries it on the request so both engines are held to what they
+        // record and suppress with it.
+        contactsRead = n["contactsRead"]?.takeIf { !it.isNull }?.let {
+            ContactsRead(
+                it["status"].asText(),
+                it["channel"].asText(),
+                it["withinPeriod"]?.takeIf { w -> !w.isNull }?.let { w ->
+                    ContactCounts(w["day"].asLong(), w["week"].asLong(), w["month"].asLong())
+                },
+            )
+        },
     )
 
     // --- The test -------------------------------------------------------------

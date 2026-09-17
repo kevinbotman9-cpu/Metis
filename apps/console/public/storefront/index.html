@@ -28,9 +28,11 @@
   properties under `--brand-*` below and the wordmark in the header; nothing
   else in the page assumes a brand.
 
-  Not built, and not faked here: there is no embed SDK and no impression
-  capture (W-016), so this page calls the decision API directly and records
-  nothing when a placement renders. A real integration would do both.
+  Not built, and not faked here: there is no embed SDK (W-016), so this page
+  calls the decision API directly and reports its own impressions and clicks to
+  `POST /outcomes`. A real integration would do that through the SDK. (This
+  said the page recorded nothing when a placement rendered; it has reported
+  impressions since 2026-09-09.)
 -->
 <style>
   :root {
@@ -466,7 +468,10 @@
       <label class="switch"><input type="checkbox" id="c-third"> Third party</label>
     </div>
 
-    <h3>Contacts already made</h3>
+    <h3>Contacts made elsewhere</h3>
+    <!-- ADR-021: the platform counts what it sent this customer itself, and adds
+         these. A contact this page caused is already in its count. -->
+    <p class="preset-note">Added to the contacts the platform recorded itself.</p>
     <div class="row">
       <div>
         <label for="h-day">Today</label>
@@ -491,6 +496,15 @@
     <div class="actions">
       <button id="decide">Decide again</button>
       <button id="outline" class="secondary">Show placements</button>
+    </div>
+
+    <h3>When she visits</h3>
+    <!-- ADR-021: caps count contacts over rolling windows back from the visit,
+         so moving the visit forward is how yesterday's contacts leave today's.
+         `?day=N` starts N days ahead, for a check that needs a day of its own. -->
+    <p class="preset-note" id="visit-note"></p>
+    <div class="actions">
+      <button id="next-day" class="secondary">Next day</button>
     </div>
 
     <h3>Decisions on this page</h3>
@@ -661,6 +675,24 @@ const offerCache = new Map();
 /** offer key -> when the customer declined it, ISO-8601. Sent as `rejects`. */
 const declines = new Map();
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * How many days ahead of today this visit is.
+ *
+ * The platform counts a customer's contacts back from each decision's own time
+ * (ADR-021), and `cpol_web_daily` allows three web slots a day — a page load
+ * decides two. Without this the page offered nothing from its second load until
+ * tomorrow. "Next day" moves the visit forward, so the day before drops out of
+ * the day's window: the cap working, not the cap avoided. `?day=N` starts N
+ * days ahead, so a check can take a day nothing else has used.
+ */
+let visitDay = (() => {
+  const n = Number(new URLSearchParams(location.search).get('day'));
+  return Number.isInteger(n) && n >= 0 ? n : 0;
+})();
+/** Now, on the visit's day. Every time this page sends is read from here. */
+const visitNow = () => new Date(Date.now() + visitDay * DAY_MS).toISOString();
+
 const $ = (sel) => document.querySelector(sel);
 const el = (html) => {
   const t = document.createElement('template');
@@ -678,8 +710,9 @@ async function decide(placement) {
       tenantId: TENANT,
       customerId: preset.customerId,
       channel: 'web',
-      // An input, never the clock on the server: the caller says when.
-      occurredAt: new Date().toISOString(),
+      // An input, never the clock on the server: the caller says when — on the
+      // day the visit is set to.
+      occurredAt: visitNow(),
       input: preset.input,
       consent: {
         marketing: $('#c-marketing').checked,
@@ -756,7 +789,7 @@ async function reportOutcome(decisionId, type) {
       // An input, never the clock on the server — the same rule the decision
       // itself follows. It does not make this page's decisions replayable:
       // their input values are not kept (G-009).
-      body: JSON.stringify({ type, occurredAt: new Date().toISOString() }),
+      body: JSON.stringify({ type, occurredAt: visitNow() }),
     });
     return res.ok;
   } catch {
@@ -1197,7 +1230,8 @@ function renderDeclines() {
 document.addEventListener('click', (e) => {
   const btn = e.target.closest?.('.decline');
   if (!btn) return;
-  declines.set(btn.dataset.offerKey, new Date().toISOString());
+  // On the visit's clock, so the rest period runs from the day she said no.
+  declines.set(btn.dataset.offerKey, visitNow());
   renderDeclines();
   decideAll();
 });
@@ -1205,6 +1239,20 @@ document.addEventListener('click', (e) => {
 $('#clear-declines').addEventListener('click', () => {
   declines.clear();
   renderDeclines();
+  decideAll();
+});
+
+function renderVisit() {
+  const date = new Date(visitNow()).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  $('#visit-note').textContent =
+    visitDay === 0
+      ? `Today, ${date}. The platform counts what it has already shown her against its caps.`
+      : `${date} — ${visitDay} ${visitDay === 1 ? 'day' : 'days'} ahead. Contacts from before the last 24 hours no longer count against a daily cap.`;
+}
+
+$('#next-day').addEventListener('click', () => {
+  visitDay += 1;
+  renderVisit();
   decideAll();
 });
 
@@ -1217,6 +1265,7 @@ for (const id of ['c-marketing', 'c-profiling', 'c-third', 'h-day', 'h-week', 'h
 }
 
 applyPreset();
+renderVisit();
 decideAll();
 </script>
 </body>

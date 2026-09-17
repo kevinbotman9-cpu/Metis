@@ -1,6 +1,14 @@
 import { InMemoryIdempotencyStore, type IdempotencyStore } from '@metis/runtime';
 import type { DecisionQuery, LedgerStore } from './ledger';
-import type { DeliveryAttempt, LedgerEntry, OutcomeEvent } from './types';
+import {
+  CONTACT_STATES,
+  CONTACT_WINDOW_MS,
+  type ContactCounts,
+  type ContactQuery,
+  type DeliveryAttempt,
+  type LedgerEntry,
+  type OutcomeEvent,
+} from './types';
 
 /**
  * In-memory ledger.
@@ -17,7 +25,8 @@ import type { DeliveryAttempt, LedgerEntry, OutcomeEvent } from './types';
 export class InMemoryLedgerStore implements LedgerStore {
   private readonly entries = new Map<string, LedgerEntry>();
   private readonly outcomes: OutcomeEvent[] = [];
-  private readonly deliveries: DeliveryAttempt[] = [];
+  private readonly deliveries: { attempt: DeliveryAttempt; subjectHash: string }[] = [];
+  private readonly bySubject = new Map<string, { attempt: DeliveryAttempt; subjectHash: string }[]>();
   readonly idempotency: IdempotencyStore = new InMemoryIdempotencyStore();
 
   // Length-prefixed, like the idempotency store: a tenant id containing the
@@ -73,14 +82,45 @@ export class InMemoryLedgerStore implements LedgerStore {
     this.outcomes.push(event);
   }
 
-  async appendDelivery(attempt: DeliveryAttempt): Promise<void> {
-    this.deliveries.push(attempt);
+  async appendDelivery(attempt: DeliveryAttempt, subjectHash: string): Promise<void> {
+    const row = { attempt, subjectHash };
+    this.deliveries.push(row);
+    // The in-memory counterpart of `delivery_attempts_by_subject`: a cap reads
+    // one customer's attempts on one channel, and a scan of every attempt was
+    // most of the read's 5ms budget over a corpus-sized history.
+    const key = this.subjectKey(attempt.tenantId, subjectHash, attempt.channel);
+    const bucket = this.bySubject.get(key);
+    if (bucket) bucket.push(row);
+    else this.bySubject.set(key, [row]);
+  }
+
+  private subjectKey(tenantId: string, subjectHash: string, channel: string) {
+    return `${tenantId.length}:${tenantId}:${subjectHash}:${channel}`;
   }
 
   async deliveriesFor(tenantId: string, decisionId: string): Promise<DeliveryAttempt[]> {
-    return this.deliveries.filter(
-      (d) => d.tenantId === tenantId && d.decisionId === decisionId
-    );
+    return this.deliveries
+      .filter(({ attempt: d }) => d.tenantId === tenantId && d.decisionId === decisionId)
+      .map(({ attempt }) => attempt);
+  }
+
+  async countContacts(q: ContactQuery): Promise<ContactCounts> {
+    // The same rule as the SQL in `postgres-store.ts`, written the same way, so
+    // the suite that runs against both can tell if they part company.
+    const until = Date.parse(q.until);
+    const firstContact = new Map<string, number>();
+    for (const { attempt: a } of this.bySubject.get(this.subjectKey(q.tenantId, q.subjectHash, q.channel)) ?? []) {
+      if (!CONTACT_STATES.includes(a.state)) continue;
+      const at = Date.parse(a.at);
+      if (at > until) continue;
+      const decision = this.entries.get(this.id(a.tenantId, a.decisionId));
+      if (!decision || decision.record.decision.winner === null) continue;
+      const seen = firstContact.get(a.decisionId);
+      if (seen === undefined || at < seen) firstContact.set(a.decisionId, at);
+    }
+    const within = (period: keyof ContactCounts) =>
+      [...firstContact.values()].filter((at) => at > until - CONTACT_WINDOW_MS[period]).length;
+    return { day: within('day'), week: within('week'), month: within('month') };
   }
 
   async outcomesFor(tenantId: string, decisionId: string): Promise<OutcomeEvent[]> {
@@ -92,6 +132,7 @@ export class InMemoryLedgerStore implements LedgerStore {
     this.entries.clear();
     this.outcomes.length = 0;
     this.deliveries.length = 0;
+    this.bySubject.clear();
     (this.idempotency as InMemoryIdempotencyStore).clear();
   }
 

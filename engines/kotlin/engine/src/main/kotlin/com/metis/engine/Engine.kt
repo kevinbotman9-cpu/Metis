@@ -461,7 +461,17 @@ object Engine {
 
                     if (node.type == "constraint") {
                         consentApplied = true
-                        val used = request.contactHistory?.withinPeriod ?: emptyMap()
+                        // What the caller sent, plus what the platform read from
+                        // its ledger — added, never replacing (ADR-021).
+                        val read = request.contactsRead
+                        val used: Map<String, Double> = (request.contactHistory?.withinPeriod ?: emptyMap()).toMutableMap().also { m ->
+                            val w = read?.withinPeriod
+                            if (read?.status == "read" && w != null) {
+                                for ((period, n) in listOf("day" to w.day, "week" to w.week, "month" to w.month)) {
+                                    m[period] = (m[period] ?: 0.0) + n.toDouble()
+                                }
+                            }
+                        }
                         val rejects = request.contactHistory?.rejects ?: emptyMap()
                         val decidedAt = instantOf(request.occurredAt, "request.occurredAt")
 
@@ -501,6 +511,13 @@ object Engine {
                         } else {
                             candidates.filter { p ->
                                 val relevant = relevantTo(p)
+                                // A count the platform could not read is not a
+                                // count of zero: what a cap covers is held back,
+                                // naming the cap (ADR-021 §4).
+                                if (read?.status == "unavailable" && relevant.isNotEmpty()) {
+                                    denials.add(Denial(p.key, "CONTACT_HISTORY_UNAVAILABLE", relevant.first().id))
+                                    return@filter false
+                                }
                                 // The first breached cap, in catalogue order.
                                 // Naming which one is the difference between
                                 // "contacted too much" and a policy someone can
@@ -714,10 +731,30 @@ object Engine {
             consentState = consent,
             winner = winner,
             winnerOfferId = winnerOffer?.id,
+            contactsRead = request.contactsRead?.let { recordedContacts(it, request.channel) },
         )
 
         // One hash, used twice: the id is a prefix of the chain hash.
         val chainHash = Canonical.hash(Canon.decision(decision))
         return DecisionRecord(id = "dec_${chainHash.take(16)}", decision = decision, chainHash = chainHash)
+    }
+
+    /**
+     * The contact read as it enters the decision, refused when it describes
+     * another channel or a count that is not a count — the same refusals the
+     * TypeScript engine's `recordedContacts` makes.
+     */
+    private fun recordedContacts(read: ContactsRead, channel: String): ContactsRead {
+        require(read.channel == channel) {
+            "contactsRead describes channel \"${read.channel}\" and the decision is on \"$channel\". " +
+                "Counts read for one channel cannot be held against another channel's caps."
+        }
+        if (read.status == "unavailable") return ContactsRead("unavailable", channel, null)
+        require(read.status == "read") { "contactsRead.status must be read or unavailable, got \"${read.status}\"" }
+        val w = requireNotNull(read.withinPeriod) { "contactsRead.withinPeriod is required when status is read" }
+        for ((period, n) in listOf("day" to w.day, "week" to w.week, "month" to w.month)) {
+            require(n >= 0) { "contactsRead.withinPeriod.$period must be a whole number of contacts, got $n" }
+        }
+        return ContactsRead("read", channel, ContactCounts(w.day, w.week, w.month))
     }
 }

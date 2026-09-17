@@ -24,7 +24,10 @@ const heroOffer = (page: import('@playwright/test').Page) =>
 
 test.describe('@screen-only a declined offer stops being offered', () => {
   test('declining the hero offer replaces it, and clearing brings it back', async ({ page }) => {
-    await page.goto(STOREFRONT);
+    // A day of its own, for the reason `brief-scenarios.spec.ts` gives: the
+    // platform caps each customer's web slots per day, and the preset customers
+    // are shared by every storefront spec.
+    await page.goto(`${STOREFRONT}?day=210`);
 
     // Whatever the catalogue happens to rank first. The test never names an
     // offer: pinning one here would make a catalogue edit look like a cooldown
@@ -56,6 +59,20 @@ test.describe('@screen-only a declined offer stops being offered', () => {
     // And it is a rest, not a deletion: clear the decline and the offer is
     // eligible again. A cooldown that never lifts is a different bug wearing
     // the same clothes, and nothing else here would tell the two apart.
+    // A day on first. The load and the decline have spent her day's web cap,
+    // so clearing on the same day would find the offer capped rather than
+    // cooling. A day later the rest period still holds it — it is thirty days.
+    await page.getByRole('button', { name: 'Next day', exact: true }).click();
+    await expect(page.locator('#visit-note')).toContainText('211 days ahead');
+    await expect
+      .poll(
+        async () =>
+          (await page.locator('#slot-homepage_hero .decline').first().getAttribute('data-offer-key').catch(() => null)) ??
+          'nothing offered',
+        { message: `${declined} came back a day later, inside its rest period` }
+      )
+      .not.toBe(declined);
+
     await page.getByRole('button', { name: 'Clear declines', exact: true }).click();
     await expect
       .poll(

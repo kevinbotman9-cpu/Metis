@@ -216,7 +216,29 @@ data class DecisionRequest(
     val idempotencyKey: String? = null,
     /** Tracing id, echoed into the measured half. Never hashed. */
     val correlationId: String? = null,
+    /**
+     * What the platform read from its own ledger, set by the service resolving
+     * the request and never taken from a caller. Added to [contactHistory]'s
+     * counts, never instead of them. See the TypeScript `ContactsRead` (ADR-021).
+     */
+    val contactsRead: ContactsRead? = null,
 )
+
+/**
+ * The platform's read of a customer's contacts on the decision's channel.
+ *
+ * [status] is `read`, with [withinPeriod] the distinct decisions handed over or
+ * delivered per rolling window back from `occurredAt`; or `unavailable`, with
+ * [withinPeriod] null, and every candidate a cap covers is suppressed with
+ * `CONTACT_HISTORY_UNAVAILABLE` rather than read as zero (ADR-021 §4).
+ */
+data class ContactsRead(
+    val status: String,
+    val channel: String,
+    val withinPeriod: ContactCounts? = null,
+)
+
+data class ContactCounts(val day: Long, val week: Long, val month: Long)
 
 // --- Trace -------------------------------------------------------------------
 
@@ -294,6 +316,12 @@ data class DeterministicDecision(
     val consentState: ConsentState,
     val winner: String?,
     val winnerOfferId: String?,
+    /**
+     * Absent when the platform did not read its ledger; present, possibly with
+     * every count zero, when it did. The two are different facts and hash
+     * differently: absent is dropped from the canonical form, not written null.
+     */
+    val contactsRead: ContactsRead? = null,
 )
 
 data class DecisionRecord(

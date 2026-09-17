@@ -44,6 +44,67 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-150 — Only the console's placement decision holds caps to the ledger; `POST /api/decisions` and both services use the caller's counts
+
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** [W-012](BACKLOG.md) · **Decision:** [ADR-021](adr/ADR-021-frequency-caps-count-the-ledger.md) §7
+
+A deliberate asymmetry, with a known end state and a date it stops being
+acceptable.
+
+Since ADR-021 **the console's placement decision** — the operation the storefront
+calls — reads a customer's contacts from its ledger before deciding (`capsApply`
+and `readContacts` in `packages/ledger/src/contacts.ts`, called from
+`resolveAndExecute` in `apps/console/app/api/[...path]/route.ts` with
+`readContacts: true`) and records the read on the decision as `contactsRead`.
+Three things do not, and hold a cap to whatever `contactHistory` the caller sent,
+as the whole platform did before:
+
+- the console's own `POST /api/decisions`;
+- the decision service (`planes/execution/src/decide.ts`), on both operations;
+- the JVM service (`engines/kotlin/service`).
+
+So the same request, for a customer the platform has already contacted, can be
+suppressed by a placement decision and offered by any of the three.
+
+**Why it was left.** `POST /api/decisions` is the operation the JVM service
+serves, and `apps/console/tests/e2e/contract.spec.ts` holds the console to the
+JVM service's hashes exactly. When the console read on it, 44 of the 60 cases
+diverged: the same winners, and chain hashes the JVM service — which keeps no
+delivery history — cannot produce. **The exact-hash check between the console and
+the JVM service is worth more than reading on an operation the storefront does
+not use.** The decision service stays on caller counts for the same reason: it is
+held to the same 60 cases (`docs/conformance/service-cases.json`). Both decided by
+the product owner on 2026-09-17.
+
+**The end state.** Every decision operation reads, in every service: the console's
+`POST /api/decisions` and the decision service through the same two functions,
+and the JVM service once it has a delivery store and the same query. The service
+cases then model the read, and `contract.spec.ts` compares hashes that include it.
+
+**When it stops being acceptable: slice 9 of the data-layer order**
+(`docs/DIRECTIVE.md`), where the console decides and reads through the decision
+service. From then the service is the only path, and a service that does not read
+means the caps the console enforces today stop being enforced. That slice cannot
+land with this entry open. *(The instruction that registered this named "slices 4
+and 5" as the point the console starts calling the service; in the directive's
+order that is slice 9. Slice 4 is simulations, slice 5 the `offer`/`action`
+split.)*
+
+**A pattern, not a note.** This is the second recorded asymmetry between the two
+services. The first is in [G-008](#g-008--integrations-resolve-and-cannot-authenticate):
+the JVM service does not resolve connectors, so a request that omits a
+connector-supplied field decides differently there, and the corpus cannot see it
+because its requests carry every field. This one also splits the console's own
+two decision operations. Both live in the resolution step, outside
+the deterministic core, which is exactly where "either service, same answer" is
+least checked. A third belongs in the same place and should be read as a trend.
+
+**Done when:** the console's `POST /api/decisions` and the decision service read
+the ledger through `readContacts`, the JVM service reads its own delivery store,
+the service cases carry `contactsRead`, and `ServiceConformanceTest`,
+`planes/execution/tests/service.test.ts` and `contract.spec.ts` agree on every
+capped case.
+
 ### G-149 — A console on a database keeps some fixture edits and drops others, and only a startup log line says which
 
 **Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — found setting up a durable local console
@@ -2257,7 +2318,7 @@ Four gaps remain, and none is worked around in code.
 |---|---|
 | **No connector can authenticate** | `Connector` has no credential field and the gateway sends no headers. That is [ADR-007](adr/ADR-007-secrets-and-connector-authentication.md), which is **Proposed**: a secret in connector configuration is a secret in an append-only audit log and in every export made from it, so the shape has to be decided before the field exists. Until then, integrations work against internal and unauthenticated endpoints and fail against a real bureau. |
 | **`feature-store` connectors cannot be read** | There is no feature service (W-009). Two of the five fixture connectors declare that kind, and in live mode the gateway names W-009 rather than attempting a `featurestore://` URL that was never going to resolve. |
-| **The JVM service does not resolve** | The console does; `engines/kotlin` takes `input` as given. `service-cases.json` carries every field in its requests, so the 60 conformance cases still agree exactly — but the two are not interchangeable for a request that *omits* a connector-supplied field, and the corpus cannot see the difference. Resolution is outside the deterministic core, so this is a plane-level asymmetry rather than an engine divergence; it is recorded here because "either service, same answer" is a claim the project makes. |
+| **The JVM service does not resolve** | The console does; `engines/kotlin` takes `input` as given. `service-cases.json` carries every field in its requests, so the 60 conformance cases still agree exactly — but the two are not interchangeable for a request that *omits* a connector-supplied field, and the corpus cannot see the difference. Resolution is outside the deterministic core, so this is a plane-level asymmetry rather than an engine divergence; it is recorded here because "either service, same answer" is a claim the project makes. The second asymmetry of this kind, also in resolution, is G-150: the console's placement decision reads a customer's contacts from its ledger, and `POST /api/decisions` and the services do not. |
 | **The console's connector toggle still reaches neither** | Resolution reads `catalogueSnapshot.connectors`, deliberately, so provenance and resolution cannot disagree about whether a connector was active. `/integrations` writes to `store.connectors`, which neither reads. Same root cause as the entry above, and it resolves with W-005's second half rather than separately. |
 
 ---
@@ -3181,6 +3242,33 @@ names, or deleted. Wiring it changes which caps apply at a node, and so what
 decisions do; that makes it a decision rather than a cleanup.
 
 ## Resolved
+
+### G-151 — A delivery was timed by the wall clock while its decision was timed by `occurredAt`
+
+**Registered:** 2026-09-17 · **Resolved:** 2026-09-17 · **Status:** Resolved · **Work item:** none — found building ADR-021, and cleanly separable from it
+
+A placement decision records what the platform did about delivering it, in the
+same request (ADR-013 §1). The console stamped that attempt `new Date()`
+(`recordDeliveryFor` in `apps/console/app/api/[...path]/route.ts`) and the
+decision service `options.now()` (`planes/execution/src/server.ts`), while the
+decision itself is timed by the caller's `occurredAt`, never the clock. The seed
+job stamped the attempt at `occurredAt` (`apps/console/mocks/seed-ledger.ts`,
+ADR-018 §2), so the three disagreed.
+
+On anything backdated or dated ahead the two times differ, and harmlessly
+until something read the delivery's time against the decision's. ADR-021 does:
+a cap counts contacts back from the decision's `occurredAt`, so a decision dated
+two days back left its contact stamped "today", where the next decision two days
+back never saw it, and a storefront advancing its visit date a day could not
+accumulate contacts at all.
+
+**Resolved** by stamping the hand-over made with the decision at the decision's
+`occurredAt`, in both services, as the seed does. A later attempt by an adapter
+— a retry, a confirmation — carries the time of that attempt. Checks:
+`stamps a delivery with when its decision happened, so a backdated decision
+counts in its own window` (`apps/console/tests/unit/caps-read-ledger.test.ts`)
+and `stamps a placement’s delivery with when the decision happened, not the
+clock` (`planes/execution/tests/service.test.ts`).
 
 ### G-133 — The PostgreSQL restart tests timed out locally: the console's cold import was paid inside the first test's five seconds
 

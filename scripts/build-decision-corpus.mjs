@@ -666,6 +666,84 @@ const CASES = [
     }),
     request: request({ contactHistory: { channel: 'web', withinPeriod: { week: 2 } } }),
   },
+  // ADR-021. Contacts the platform read from its own ledger, recorded on the
+  // decision as `contactsRead`. The three states a trace must tell apart are:
+  // not read (every case above), read and found some, read and found none —
+  // and a fourth, could not read, which suppresses rather than counting zero.
+  {
+    // The caller reports one contact this week and the ledger holds two: three
+    // against a cap of three is breached. Neither alone would breach it, so a
+    // pass here means an engine replaced one count with the other.
+    name: 'contacts read from the ledger add to the caller’s and breach the cap',
+    artifact: artifact({
+      candidateKeys: threeKeys,
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source' },
+        { id: 'n2_constraint', type: 'constraint', label: 'Frequency policy', frequencyPolicyIds: ['cp_1'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n2_constraint' },
+        { from: 'n2_constraint', to: 'n3_arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({ offers: three, frequencyPolicies: [frequencyPolicy()] }),
+    request: request({
+      contactHistory: { channel: 'web', withinPeriod: { week: 1 } },
+      contactsRead: { status: 'read', channel: 'web', withinPeriod: { day: 1, week: 2, month: 5 } },
+    }),
+  },
+  {
+    // Read, and nothing found: every offer passes, and the record still says
+    // the platform looked. Its chain hash differs from the same request with no
+    // read at all, which is the difference the trace has to show.
+    name: 'a read that found no contacts is recorded, and nothing is suppressed',
+    artifact: artifact({
+      candidateKeys: threeKeys,
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source' },
+        { id: 'n2_constraint', type: 'constraint', label: 'Frequency policy', frequencyPolicyIds: ['cp_1'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n2_constraint' },
+        { from: 'n2_constraint', to: 'n3_arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({ offers: three, frequencyPolicies: [frequencyPolicy()] }),
+    request: request({
+      contactsRead: { status: 'read', channel: 'web', withinPeriod: { day: 0, week: 0, month: 0 } },
+    }),
+  },
+  {
+    // The ledger could not be read. The cap covers grp_2 only: offer_b and
+    // offer_c are held back naming it, and offer_a, which no cap covers, is
+    // offered — an unreadable count suppresses what it governs and nothing else.
+    name: 'an unreadable contact history suppresses what a cap covers, and nothing else',
+    artifact: artifact({
+      candidateKeys: threeKeys,
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source' },
+        { id: 'n2_constraint', type: 'constraint', label: 'Frequency policy', frequencyPolicyIds: ['cp_grp'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n2_constraint' },
+        { from: 'n2_constraint', to: 'n3_arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({
+      offers: [
+        offer({ id: 'p_a', key: 'offer_a', categoryId: 'grp_1' }),
+        offer({ id: 'p_b', key: 'offer_b', categoryId: 'grp_2' }),
+        offer({ id: 'p_c', key: 'offer_c', categoryId: 'grp_2' }),
+      ],
+      frequencyPolicies: [
+        frequencyPolicy({ id: 'cp_grp', maxContacts: 5, scope: { level: 'category', targetId: 'grp_2' } }),
+      ],
+    }),
+    request: request({ contactsRead: { status: 'unavailable', channel: 'web' } }),
+  },
   {
     name: 'withheld consent leaves only service-exempt scopes',
     ...consentScenario(),
