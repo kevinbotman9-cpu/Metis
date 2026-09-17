@@ -23,11 +23,21 @@ export default meta;
 
 type Story = StoryObj<typeof LoopFlow>;
 
-const stage = (id: string, label: string, value: number, broken = false) => ({
+/** The loop's five stages carry the rail's tones, so both draw one object. */
+const TONE = {
+  decisions: 'neutral',
+  offered: 'accent',
+  deliverable: 'accent',
+  seen: 'attention',
+  acted: 'ok',
+} as const;
+
+const stage = (id: keyof typeof TONE, label: string, value: number, broken = false) => ({
   id,
   label,
   value,
   broken,
+  tone: TONE[id],
 });
 
 export const TheSeededLoop: Story = {

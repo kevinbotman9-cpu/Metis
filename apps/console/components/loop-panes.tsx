@@ -176,7 +176,9 @@ export function LoopFirstPaint({
   ));
 
   return (
-    <>
+    // Dense: a full-height column, so the funnel below the cards takes the
+    // height they leave instead of the pane stretching around a fixed drawing.
+    <div className={cn(dense && 'flex h-full min-h-0 flex-col')}>
       {/*
         At most one accent on the page, on one figure.
 
@@ -242,8 +244,10 @@ export function LoopFirstPaint({
         {dense ? trends : null}
       </div>
 
-      {/* Last on the dense page, so it carries no bottom margin there. */}
-      <Card className={cn(!dense && 'mb-stack')}>
+      {/* Last on the dense page, so it carries no bottom margin — and it takes
+          the height the cards above it leave, rather than sitting at a fixed
+          height inside a card that stretched around it. */}
+      <Card className={cn(dense ? 'flex min-h-0 flex-1 flex-col' : 'mb-stack')}>
         <CardHeader
           title="From decision to outcome"
           // The tip said "bar height is volume; the wedge is what left the loop
@@ -257,9 +261,16 @@ export function LoopFirstPaint({
             )
           }
         />
-        <CardBody>
+        <CardBody className={cn(dense && 'relative min-h-0 flex-1')}>
           <LoopFlow
-            stages={loop.stages.map((s) => ({ id: s.id, label: s.label, value: s.value, broken: Boolean(s.broken) }))}
+            stages={loop.stages.map((s) => ({
+              id: s.id,
+              label: s.label,
+              value: s.value,
+              broken: Boolean(s.broken),
+              // The rail's own tone for the stage, so the two are one object.
+              tone: s.tone ?? 'neutral',
+            }))}
             dense={dense}
           />
         </CardBody>
@@ -306,7 +317,7 @@ export function LoopFirstPaint({
           </CardBody>
         </Card>
       ) : null}
-    </>
+    </div>
   );
 }
 
