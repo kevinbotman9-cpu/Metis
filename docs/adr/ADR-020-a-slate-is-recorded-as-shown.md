@@ -139,7 +139,9 @@ from the other without any check noticing.
 **What each option costs in hashes:**
 
 - **An ordered slate beside `winner` (chosen).** Every decision id moves once:
-  all 10,400 seeded decisions and all 41 decision-corpus cases in each engine.
+  all 10,400 seeded decisions and every decision-corpus case in each engine —
+  45 before the reseed. *(This said 41, the corpus's size when written; corrected
+  2026-09-17, after ADR-021 took it to 44 and ADR-021 §9 to 45.)*
   A single-slot record also gains the two fields. That is the same move ADR-019
   §7 already makes, so landing both in one reseed adds no identity move.
   `inputSnapshotHash` does not move (clause 2), so ADR-019 §9's control still

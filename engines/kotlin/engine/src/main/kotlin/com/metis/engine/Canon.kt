@@ -84,17 +84,22 @@ object Canon {
         "contactsRead" to (d.contactsRead?.let { contacts(it) } ?: Value.Absent),
     )
 
+    private fun window(w: ContactCounts): Value = obj(
+        "day" to num(w.day.toDouble()),
+        "week" to num(w.week.toDouble()),
+        "month" to num(w.month.toDouble()),
+    )
+
     private fun contacts(r: ContactsRead): Value {
         val w = r.withinPeriod
         return if (r.status == "read" && w != null) {
             obj(
                 "status" to str("read"),
                 "channel" to str(r.channel),
-                "withinPeriod" to obj(
-                    "day" to num(w.day.toDouble()),
-                    "week" to num(w.week.toDouble()),
-                    "month" to num(w.month.toDouble()),
-                ),
+                "withinPeriod" to window(w),
+                // Absent when no cap on the channel is scoped, as the TypeScript
+                // omits the key, so such a read keeps its identity (ADR-021 §9).
+                "scoped" to (r.scoped?.let { s -> obj(*s.toSortedMap().map { (id, c) -> id to window(c) }.toTypedArray()) } ?: Value.Absent),
             )
         } else {
             obj("status" to str(r.status), "channel" to str(r.channel))

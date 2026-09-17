@@ -837,6 +837,22 @@ export interface ContactsRead {
     week: number;
     month: number;
   };
+  /** For each active frequency policy on this channel whose scope is
+narrower than the tenant, keyed by its id: the contacts *about that
+scope*, meaning decisions whose recorded offer the scope covers, per
+the same windows. A scoped cap is held to its own count, not the
+channel's (ADR-021 §9).
+
+Present only when `status` is `read` and such a cap exists, so a read
+on a channel with none keeps its identity. A read that omits a scoped
+cap, or names one the channel does not have, is refused by both
+engines.
+ */
+  scoped?: Record<string, {
+    day: number;
+    week: number;
+    month: number;
+  }>;
 }
 
 /** One step's verdict on the candidate set, in execution order. Consent is

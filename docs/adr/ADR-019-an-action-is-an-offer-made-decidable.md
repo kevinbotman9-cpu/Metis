@@ -271,13 +271,19 @@ corpora are regenerated:
   canonicalisation algorithm over literal values (67 cases) and knows nothing
   about catalogues. A change here means the split reached the encoding, which it
   has no business touching.
-- **`inputSnapshotHash` is unchanged on all 40 decision-corpus cases.** It
-  hashes the request input, which names no offer and no action. A change here
-  means the split reached the request contract.
+- **`inputSnapshotHash` is unchanged on every decision-corpus case that exists
+  before the reseed — 45 of them.** It hashes the request input, which names no
+  offer and no action. A change here means the split reached the request
+  contract.
 
-`catalogueSnapshotHash` **does** move, on all 40 cases and every decision:
+`catalogueSnapshotHash` **does** move, on all 45 cases and every decision:
 offers are in the hashed snapshot and their shape changes. That is expected and
 is not a control.
+
+*(Corrected 2026-09-17: this clause said 40 cases, the size of the corpus when
+it was written. The corpus reached 44 with ADR-021 and 45 with ADR-021 §9. Cases
+the reseed itself adds have no earlier hash to compare against, so the control
+is over the 45 that exist before it.)*
 
 ## Consequences
 

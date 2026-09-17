@@ -1,4 +1,4 @@
-import type { CatalogueSnapshot, ContactsRead, ExecArtifact } from '@metis/runtime';
+import { scopeCovers, scopedCapsOn, type CatalogueSnapshot, type ContactsRead, type ExecArtifact } from '@metis/runtime';
 import type { DecisionLedger } from './ledger';
 
 /**
@@ -38,17 +38,40 @@ export function capsApply(artifact: Pick<ExecArtifact, 'nodes'>, catalogue: Pick
  */
 export async function readContacts(
   ledger: Pick<DecisionLedger, 'contactsFor'>,
-  q: { tenantId: string; customerRef: string; channel: string; occurredAt: string },
+  q: {
+    tenantId: string;
+    customerRef: string;
+    channel: string;
+    occurredAt: string;
+    /**
+     * The catalogue the decision runs against. Its scoped caps on this channel
+     * each get a count of the contacts about their scope (ADR-021 §9). Omitted,
+     * none are read, and the engine refuses the read if the catalogue has any.
+     */
+    catalogue?: Pick<CatalogueSnapshot, 'frequencyPolicies' | 'offers'>;
+  },
   onUnavailable: (error: unknown) => void = () => {}
 ): Promise<ContactsRead> {
+  const base = { tenantId: q.tenantId, customerRef: q.customerRef, channel: q.channel, until: q.occurredAt };
   try {
-    const withinPeriod = await ledger.contactsFor({
-      tenantId: q.tenantId,
-      customerRef: q.customerRef,
+    const scoped = q.catalogue ? scopedCapsOn(q.catalogue, q.channel) : [];
+    const [withinPeriod, ...perCap] = await Promise.all([
+      ledger.contactsFor(base),
+      // About the offers the engine will hold this cap to, and no others: the
+      // same `scopeCovers` the constraint node uses, over the same snapshot.
+      ...scoped.map((c) =>
+        ledger.contactsFor({
+          ...base,
+          offerIds: q.catalogue!.offers.filter((o) => scopeCovers(c.scope, o)).map((o) => o.id),
+        })
+      ),
+    ]);
+    return {
+      status: 'read',
       channel: q.channel,
-      until: q.occurredAt,
-    });
-    return { status: 'read', channel: q.channel, withinPeriod };
+      withinPeriod,
+      ...(scoped.length > 0 ? { scoped: Object.fromEntries(scoped.map((c, i) => [c.id, perCap[i]])) } : {}),
+    };
   } catch (e) {
     onUnavailable(e);
     return { status: 'unavailable', channel: q.channel };

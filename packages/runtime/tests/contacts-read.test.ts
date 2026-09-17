@@ -81,6 +81,42 @@ describe('contacts the platform read', () => {
     ).toThrow(/withinPeriod.day must be a whole number/);
   });
 
+  describe('a cap scoped narrower than the tenant (ADR-021 §9)', () => {
+    const SCOPED = 'a cap scoped to an offer counts the contacts about that offer, not the channel’s';
+
+    it('is held to the contacts about its scope, not the channel’s', () => {
+      const c = named(SCOPED);
+      const made = execute(c.artifact, c.catalogue, c.request);
+      const denials = made.decision.eliminations.flatMap((e) => e.denials);
+      expect(denials).toContainEqual({ key: 'offer_b', code: 'FREQUENCY_CAP_BREACHED', ruleId: 'cp_offer_b' });
+      // Three contacts on the channel, none about offer_c: its cap of one holds.
+      expect(denials.find((d) => d.key === 'offer_c')?.code).not.toBe('FREQUENCY_CAP_BREACHED');
+    });
+
+    it('refuses a read that leaves a scoped cap without its own count, or names one the channel does not have', () => {
+      const c = named(SCOPED);
+      const read = c.request.contactsRead as { status: 'read'; channel: string; withinPeriod: never; scoped: Record<string, never> };
+      const { cp_offer_c: _, ...missing } = read.scoped;
+      expect(() => execute(c.artifact, c.catalogue, { ...c.request, contactsRead: { ...read, scoped: missing } })).toThrow(
+        /scoped names \[cp_offer_b\] and the scoped caps on "web" are \[cp_offer_b, cp_offer_c\]/
+      );
+      const { scoped: __, ...unscoped } = read;
+      expect(() => execute(c.artifact, c.catalogue, { ...c.request, contactsRead: unscoped })).toThrow(/scoped caps on "web"/);
+      expect(() =>
+        execute(c.artifact, c.catalogue, {
+          ...c.request,
+          contactsRead: { ...read, scoped: { ...read.scoped, cp_nowhere: { day: 0, week: 0, month: 0 } } },
+        })
+      ).toThrow(/cp_nowhere/);
+    });
+
+    it('replays against the scoped counts in the record', () => {
+      const c = named(SCOPED);
+      const record = { id: c.expected.id, chainHash: c.expected.chainHash, decision: c.expected.decision } as never;
+      expect(replay(c.artifact, c.catalogue, record, c.request.input, c.request.contactHistory).identical).toBe(true);
+    });
+  });
+
   it('records exactly its declared fields, whatever else a resolver carried along', () => {
     const c = named(NONE);
     const noisy = execute(c.artifact, c.catalogue, {

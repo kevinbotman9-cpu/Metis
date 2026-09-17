@@ -285,9 +285,20 @@ export class PostgresLedgerStore implements LedgerStore {
               AND a.state = ANY($8::text[])
               AND a.at <= $4
               AND (r.record->'decision'->>'winner') IS NOT NULL
+              AND ($9::text[] IS NULL OR (r.record->'decision'->>'winnerOfferId') = ANY($9::text[]))
             GROUP BY a.decision_id
          ) contacts`,
-      [q.tenantId, q.subjectHash, q.channel, q.until, since('day'), since('week'), since('month'), [...CONTACT_STATES]]
+      [
+        q.tenantId,
+        q.subjectHash,
+        q.channel,
+        q.until,
+        since('day'),
+        since('week'),
+        since('month'),
+        [...CONTACT_STATES],
+        q.offerIds ? [...q.offerIds] : null,
+      ]
     );
     const r = rows[0];
     return { day: Number(r?.day ?? 0), week: Number(r?.week ?? 0), month: Number(r?.month ?? 0) };

@@ -160,6 +160,13 @@ export interface ContactQuery {
   channel: string;
   /** The decision's `occurredAt`. Inclusive; each window runs back from it, exclusive. */
   until: string;
+  /**
+   * Only decisions whose recorded offer (`winnerOfferId`) is one of these: the
+   * contacts about a scoped cap's scope (ADR-021 §9). Omitted, every contact on
+   * the channel counts. An empty list counts nothing, because a scope that
+   * covers no offer has had no contact about it.
+   */
+  offerIds?: readonly string[];
 }
 
 /** Distinct decisions that were a contact, per rolling window. */

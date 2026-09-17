@@ -433,10 +433,24 @@ export interface DeterministicDecision {
  * `unavailable`: the ledger could not be read; every candidate a cap covers is
  * suppressed with `CONTACT_HISTORY_UNAVAILABLE` (§4). Why it could not be read
  * is operational and is not in the hash.
+ *
+ * `scoped`: for each active cap on this channel whose scope is narrower than the
+ * tenant, the contacts *about that scope* — decisions whose recorded offer the
+ * scope covers — keyed by the cap's id. A scope that did not narrow what is
+ * counted would not be a scope (ADR-021 §9, amending §1). Present only when such
+ * a cap exists, so a read with none keeps its identity.
  */
 export type ContactsRead =
-  | { status: 'read'; channel: string; withinPeriod: { day: number; week: number; month: number } }
+  | {
+      status: 'read';
+      channel: string;
+      withinPeriod: ContactWindow;
+      scoped?: Record<string, ContactWindow>;
+    }
   | { status: 'unavailable'; channel: string };
+
+/** Contacts per rolling window back from the decision. */
+export type ContactWindow = { day: number; week: number; month: number };
 
 /** The measured half. Observability only - never hashed, never replayed. */
 export interface Measurements {

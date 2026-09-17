@@ -42,6 +42,7 @@ import type {
   ExecNode,
   CatalogueSnapshot,
   ContactsRead,
+  ContactWindow,
   DecisionRequest,
   DecisionRecord,
   DeterministicDecision,
@@ -152,8 +153,13 @@ function policyPasses(policy: TargetingPolicy, input: Record<string, unknown>, c
   });
 }
 
-/** Does this scope cover this offer? */
-function scopeCovers(scope: PolicyScope, p: Offer): boolean {
+/**
+ * Does this scope cover this offer?
+ *
+ * Exported because a service reading the ledger for a scoped cap must count the
+ * contacts about exactly the offers the engine will hold to that cap (ADR-021 §9).
+ */
+export function scopeCovers(scope: PolicyScope, p: Pick<Offer, 'id' | 'objectiveId' | 'categoryId'>): boolean {
   switch (scope.level) {
     case 'tenant':
       return true;
@@ -300,7 +306,7 @@ function catalogueHash(catalogue: CatalogueSnapshot): string {
  * one channel held against another channel's caps is a defect in whatever read
  * them, not a decision to record.
  */
-function recordedContacts(read: ContactsRead, channel: string): ContactsRead {
+function recordedContacts(read: ContactsRead, channel: string, catalogue: CatalogueSnapshot): ContactsRead {
   if (read.channel !== channel) {
     throw new Error(
       `contactsRead describes channel "${read.channel}" and the decision is on "${channel}". ` +
@@ -308,13 +314,47 @@ function recordedContacts(read: ContactsRead, channel: string): ContactsRead {
     );
   }
   if (read.status === 'unavailable') return { status: 'unavailable', channel };
-  const { day, week, month } = read.withinPeriod;
-  for (const [period, n] of Object.entries({ day, week, month })) {
-    if (!Number.isInteger(n) || n < 0) {
-      throw new Error(`contactsRead.withinPeriod.${period} must be a whole number of contacts, got ${JSON.stringify(n)}`);
+  const window = (at: string, w: ContactWindow): ContactWindow => {
+    const { day, week, month } = w;
+    for (const [period, n] of Object.entries({ day, week, month })) {
+      if (!Number.isInteger(n) || n < 0) {
+        throw new Error(`${at}.${period} must be a whole number of contacts, got ${JSON.stringify(n)}`);
+      }
     }
+    return { day, week, month };
+  };
+
+  // Exactly the scoped caps this channel has: one missing would hold that cap to
+  // the channel's count, which is the defect this field exists to end, and an
+  // extra one is a count nothing here asked for (ADR-021 §9).
+  const needed = scopedCapsOn(catalogue, channel).map((c) => c.id).sort();
+  const given = Object.keys(read.scoped ?? {}).sort();
+  if (JSON.stringify(needed) !== JSON.stringify(given)) {
+    throw new Error(
+      `contactsRead.scoped names [${given.join(', ')}] and the scoped caps on "${channel}" are [${needed.join(', ')}]. ` +
+        'A scoped cap is held to the contacts about its scope, so each needs its own count.'
+    );
   }
-  return { status: 'read', channel, withinPeriod: { day, week, month } };
+  const withinPeriod = window('contactsRead.withinPeriod', read.withinPeriod);
+  if (needed.length === 0) return { status: 'read', channel, withinPeriod };
+  return {
+    status: 'read',
+    channel,
+    withinPeriod,
+    scoped: Object.fromEntries(needed.map((id) => [id, window(`contactsRead.scoped.${id}`, read.scoped![id])])),
+  };
+}
+
+/**
+ * Active frequency policies on this channel whose scope is narrower than the
+ * tenant: the caps that count contacts about their scope rather than every
+ * contact on the channel. Exported because the service that reads the ledger
+ * must ask for exactly these.
+ */
+export function scopedCapsOn(catalogue: Pick<CatalogueSnapshot, 'frequencyPolicies'>, channel: string) {
+  return catalogue.frequencyPolicies.filter(
+    (c) => c.active && (!c.channel || c.channel === channel) && c.scope.level !== 'tenant'
+  );
 }
 
 /**
@@ -615,11 +655,29 @@ export function execute(
           // What the caller sent, plus what the platform read from its own
           // ledger — added, never replacing: a caller may report contacts the
           // platform did not make and cannot remove any (ADR-014 §10, ADR-021).
-          const read = request.contactsRead;
-          const used: Record<string, number> = { ...(request.contactHistory?.withinPeriod ?? {}) };
-          if (read?.status === 'read') {
-            for (const [period, n] of Object.entries(read.withinPeriod)) used[period] = (used[period] ?? 0) + n;
-          }
+          //
+          // Validated before the loop, so a read missing a scoped cap's count is
+          // refused rather than quietly holding that cap to the channel's.
+          const read = request.contactsRead
+            ? recordedContacts(request.contactsRead, request.channel, catalogue)
+            : undefined;
+          const callerCounts = request.contactHistory?.withinPeriod ?? {};
+          /**
+           * The contacts this cap is held to, in one period.
+           *
+           * The platform's count is about the cap's scope: every contact on the
+           * channel for a tenant cap, only contacts about the covered offers for a
+           * narrower one (ADR-021 §9). The caller's count names no offer, so it is
+           * added to every cap: a contact that cannot be attributed might be about
+           * this offer, and a cap that under-counts is a protection failing open
+           * (ADR-021 §3).
+           */
+          const usedBy = (c: (typeof catalogue.frequencyPolicies)[number], period: string): number => {
+            const caller = callerCounts[period] ?? 0;
+            if (read?.status !== 'read') return caller;
+            const platform = c.scope.level === 'tenant' ? read.withinPeriod : read.scoped![c.id];
+            return caller + (platform[period as keyof typeof platform] ?? 0);
+          };
           const rejects = request.contactHistory?.rejects ?? {};
           const decidedAt = Date.parse(request.occurredAt);
 
@@ -683,7 +741,7 @@ export function execute(
                 denials.push({ key: p.key, code: 'CONTACT_HISTORY_UNAVAILABLE', ruleId: relevant[0].id });
                 return false;
               }
-              const breached = relevant.filter((c) => (used[c.period] ?? 0) >= c.maxContacts);
+              const breached = relevant.filter((c) => usedBy(c, c.period) >= c.maxContacts);
               if (breached.length > 0) {
                 // The first breached cap, in catalogue order. Naming which one
                 // is the difference between "we contacted them too much" and a
@@ -918,7 +976,7 @@ export function execute(
     constraintsApplied: [...new Set(constraintsApplied)].sort(),
     // Only when the platform read: absent and "read, and found none" are
     // different facts, and a decision that never read keeps its identity.
-    ...(request.contactsRead ? { contactsRead: recordedContacts(request.contactsRead, request.channel) } : {}),
+    ...(request.contactsRead ? { contactsRead: recordedContacts(request.contactsRead, request.channel, catalogue) } : {}),
     consentState: consent,
     winner,
     winnerOfferId: winnerOffer?.id ?? null,
