@@ -9,7 +9,7 @@ import {
   useCallback,
 } from 'react';
 import { cn } from '@/lib/cn';
-import { LoadingState, EmptyState } from './primitives';
+import { LoadingState } from './primitives';
 import { useFormat } from '@/components/tenant-format';
 
 export interface Column<T> {
@@ -34,6 +34,18 @@ interface DataTableProps<T> {
   /** Makes the whole row activatable. */
   onRowClick?: (row: T) => void;
   isLoading?: boolean;
+  /**
+   * What the body says when there are no rows. **The table itself stays.**
+   *
+   * *Data can be zero; structure cannot vanish* — the product owner's rule,
+   * 2026-09-17. Until then an empty table returned an `EmptyState` in its
+   * place, header row and all, so a reader saw a sentence where the columns
+   * they were about to fill should have been. It was opt-in for a day, on
+   * `/decisions` and a loop stage only; the eight other tables — arbitration,
+   * audit, creatives, decision flows, frequency policy, integrations, the
+   * policies list and creative coverage — were then looked at and given the
+   * same rule, so there is no longer an option to turn it off.
+   */
   emptyTitle?: string;
   emptyDescription?: string;
   defaultSort?: { key: string; dir: 'asc' | 'desc' };
@@ -142,8 +154,6 @@ export function DataTable<T>({
   }
 
   if (isLoading) return <LoadingState />;
-  if (rows.length === 0)
-    return <EmptyState title={emptyTitle} description={emptyDescription} />;
 
   return (
     <>
@@ -196,6 +206,17 @@ export function DataTable<T>({
           <tbody ref={bodyRef}>
             {/* Spacers stand in for the rows outside the window, so the
                 scrollbar reflects the whole set. */}
+            {rows.length === 0 ? (
+              <tr data-empty>
+                <td colSpan={columns.length} className="px-cell py-8 text-center">
+                  <p className="text-body font-medium text-content">{emptyTitle}</p>
+                  {emptyDescription ? (
+                    <p className="mt-1 text-label text-content-muted">{emptyDescription}</p>
+                  ) : null}
+                </td>
+              </tr>
+            ) : null}
+
             {padTop > 0 && (
               <tr aria-hidden style={{ height: padTop }}>
                 <td colSpan={columns.length} />

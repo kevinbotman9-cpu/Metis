@@ -1510,8 +1510,21 @@ async function handleGet(req: Request, { params }: Ctx) {
       // constraint node enforces frequency whatever its tier, and the arbitrate
       // node is where a candidate loses on priority. Consent is asked of every
       // decision by the platform, whatever the flow's nodes (G-015).
+      //
+      // **Which flows are "in range" when nothing is.** The flows used to come
+      // only from the decisions in range, so with no decisions no flow was in
+      // scope, nothing was asked, and every stage of a funnel drawn at zero read
+      // *"Not asked by these flows"* — a claim about the flow that was false:
+      // the flow asks those questions, and nothing has passed through it yet.
+      // With no decisions, the flows in scope are the one selected, or every
+      // flow the tenant has. A flow that does not compile adds only consent,
+      // which the platform asks whatever the nodes.
+      const flowsInScope =
+        entries.length > 0
+          ? new Set(entries.map((e) => e.flowId))
+          : new Set(flowId ? [flowId] : (await flowDrafts()).map((d) => d.id));
       const asked = new Set<FunnelStageId>();
-      for (const id of new Set(entries.map((e) => e.flowId))) {
+      for (const id of flowsInScope) {
         asked.add('consent');
         for (const node of findCompilation(id)?.result.artifact?.nodes ?? []) {
           if (node.tier === 'eligibility' || node.tier === 'relevance' || node.tier === 'suitability') asked.add(node.tier);

@@ -16,7 +16,7 @@ import {
   Input,
   Field,
 } from '@/components/ui/primitives';
-import { NoDecisionsYet, useEmptyReason } from '@/components/no-decisions-yet';
+import { EmptyLedgerNote, useEmptyReason } from '@/components/no-decisions-yet';
 import { Button } from '@/components/ui/button';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { useAuth } from '@/components/auth-provider';
@@ -182,18 +182,10 @@ function ExperimentsView() {
           description="An experiment splits traffic between arms of a decision flow. None is declared in this tenant's catalogue."
         />
       ) : emptyReason === 'new-tenant' ? (
-        // The experiments themselves are catalogue rows and are listed above;
-        // every figure under them is a count over the ledger, so on a tenant
-        // with no history the page renders in full with a zero in every cell.
-        // A screen that looks populated and is entirely zeroes is the worst of
-        // the two blanks: nothing about it says the reason.
-        <NoDecisionsYet
-          shows={[
-            'Exposures per arm: how many decisions each variant actually took',
-            'Conversions and the rate between them, per arm',
-            'Whether the split the experiment declares is the split the ledger recorded',
-          ]}
-        />
+        // The experiments are catalogue rows and render below regardless, with
+        // their arm figures at zero. The note says why they are zero, which a
+        // populated-looking screen of zeroes otherwise gives no reason for.
+        <EmptyLedgerNote reason="new-tenant" />
       ) : null}
 
       {list.map((experiment) => {

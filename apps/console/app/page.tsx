@@ -31,7 +31,7 @@ import { buildLoop } from '@/lib/loop';
 import { useFormat } from '@/components/tenant-format';
 import { useAuth } from '@/components/auth-provider';
 import { ArchitectOverview } from '@/components/architect-overview';
-import { NoDecisionsYet } from '@/components/no-decisions-yet';
+import { EmptyLedgerNote } from '@/components/no-decisions-yet';
 import { useOverviewPersona } from '@/lib/persona';
 
 /**
@@ -255,19 +255,12 @@ function OverviewView() {
         <LoadingState label="Joining outcomes to decisions" />
       ) : report.isError || !report.data || !loop ? (
         <ErrorState description="Could not build the loop." onRetry={() => void report.refetch()} />
-      ) : report.data.decisions === 0 ? (
-        // Unfiltered: this screen reads the whole tenant, so no history and no
-        // match are the same thing here and the new-tenant sentence is always
-        // the right one.
-        <NoDecisionsYet
-          shows={[
-            'The loop: how many decisions were made, offered an offer, could be delivered, were seen, and were acted on',
-            'Realised value against the ceiling the delivered offers set',
-            'Where the loop breaks — the stage losing the most, and the rule that did it',
-          ]}
-        />
       ) : (
+        // The loop is drawn whether or not anything has been decided: data can
+        // be zero, structure cannot vanish. Unfiltered, so an empty report here
+        // is always a new tenant, never a narrow window.
         <section aria-label="The loop">
+          {report.data.decisions === 0 ? <EmptyLedgerNote reason="new-tenant" /> : null}
           <LoopInversions loop={loop} />
 
           <CascadePanes
