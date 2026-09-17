@@ -25,7 +25,15 @@ export function CascadePanes({
   rail: React.ReactNode;
   /** The selected stage, or the whole before anything is selected. */
   children: React.ReactNode;
-  evidence: React.ReactNode;
+  /**
+   * The third pane. Omitted, the Cascade is rail and stage only, on two columns.
+   *
+   * The Overview drops it: its evidence quoted the loop's closure sentence,
+   * which the rail already says, and the rest read as the product explaining
+   * itself. `/performance` and the trace keep it, where the evidence carries
+   * rule text and per-channel figures a reader cannot get from the rail.
+   */
+  evidence?: React.ReactNode;
   evidenceLabel?: string;
   /** A wider evidence column, for the trace, whose evidence carries rule text. */
   wide?: boolean;
@@ -48,11 +56,13 @@ export function CascadePanes({
     <div
       className={cn(
         'grid overflow-hidden rounded-lg border border-border bg-page',
-        twelve
-          ? 'xl:grid-cols-12'
-          : wide
-            ? 'xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,21rem)]'
-            : 'xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,19rem)]',
+        !evidence
+          ? 'xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]'
+          : twelve
+            ? 'xl:grid-cols-12'
+            : wide
+              ? 'xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,21rem)]'
+              : 'xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,19rem)]',
         className
       )}
     >
@@ -62,16 +72,26 @@ export function CascadePanes({
         where the page puts it.
       */}
       <div className={cn('bg-rail', twelve && 'xl:col-span-3')}>{rail}</div>
-      <div className={cn('min-w-0 border-border p-3 xl:border-x', twelve && 'xl:col-span-5')}>{children}</div>
-      <section
-        aria-label={evidenceLabel}
+      <div
         className={cn(
-          'min-w-0 border-t border-border bg-surface p-card xl:border-t-0',
-          twelve && 'xl:col-span-4'
+          'min-w-0 border-border p-3',
+          evidence ? 'xl:border-x' : 'xl:border-l',
+          twelve && 'xl:col-span-5'
         )}
       >
-        {evidence}
-      </section>
+        {children}
+      </div>
+      {evidence ? (
+        <section
+          aria-label={evidenceLabel}
+          className={cn(
+            'min-w-0 border-t border-border bg-surface p-card xl:border-t-0',
+            twelve && 'xl:col-span-4'
+          )}
+        >
+          {evidence}
+        </section>
+      ) : null}
     </div>
   );
 }

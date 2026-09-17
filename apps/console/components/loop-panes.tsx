@@ -65,7 +65,19 @@ function Rate({ value, measured }: { value: number | null; measured: number }) {
   );
 }
 
-/** One line under the rail, saying what the whole loop is closed on. */
+/**
+ * One line under the rail, saying what the whole loop is closed on — or nothing,
+ * when the Deliverable stage's own pass-through already says it.
+ *
+ * `railFootOf` is what a screen should call: a foot that repeats the stage above
+ * it is the duplication the Overview's evidence pane was cut for (2026-09-17).
+ */
+export function railFootOf(loop: Loop): React.ReactNode | undefined {
+  const deliverable = loop.stages.find((s) => s.id === 'deliverable');
+  if (loop.dead.length === 0 && deliverable?.passThrough) return undefined;
+  return <LoopRailFoot loop={loop} />;
+}
+
 export function LoopRailFoot({ loop }: { loop: Loop }) {
   if (loop.stages[0]?.value === 0) {
     return <>Nothing has been decided yet, so every stage reads zero.</>;
@@ -108,9 +120,60 @@ export function LoopInversions({ loop }: { loop: Loop }) {
  * The loop whole, before a stage is chosen: realised value against the expected
  * ceiling, the flow with the drop-outs drawn as volume leaving, and three trends.
  */
-export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop }) {
+export function LoopFirstPaint({
+  data,
+  loop,
+  dense = false,
+}: {
+  data: LoopReport;
+  loop: Loop;
+  /**
+   * The Overview's shape, decided by the product owner on 2026-09-17: one row of
+   * six cards instead of two of three, and nothing the rail beside it already
+   * says. It removes 300px of the Overview's scroll.
+   *
+   * `/performance` keeps the fuller shape. It is the screen a marketer reads to
+   * quote a rate, and two of the sentences dropped here are asserted there on
+   * purpose — the coverage sentence ("Every rate below the break describes…")
+   * and the channel card. Nothing is lost on the Overview: the rail carries the
+   * break and the population beneath it.
+   */
+  dense?: boolean;
+}) {
   const format = useFormat();
   const { tail, population, dead, undeliverable } = loop;
+
+  /** The three per-day cards. Beside the value cards when dense, under the flow otherwise. */
+  const trends = [
+    {
+      label: 'Decisions per day',
+      value: format.number(Math.round(tail.reduce((s, d) => s + d.decisions, 0) / Math.max(1, tail.length))),
+      series: tail.map((d) => d.decisions),
+      tone: 'accent' as const,
+    },
+    {
+      label: 'Deliverable share',
+      value: pct(data.deliverable ?? 0, data.offered, format),
+      series: tail.map((d) => d.deliverable),
+      tone: 'hold' as const,
+    },
+    {
+      label: `Seen per day · ${population}`,
+      value: format.number(Math.round(tail.reduce((s, d) => s + d.seen, 0) / Math.max(1, tail.length))),
+      series: tail.map((d) => d.seen),
+      tone: 'pass' as const,
+    },
+  ].map((t) => (
+    <Card key={t.label}>
+      <CardBody>
+        <p className="text-label text-content-subtle">{t.label}</p>
+        <p className="tnum mt-1 text-figure font-semibold text-content">{t.value}</p>
+        <div className="mt-2">
+          <Sparkline values={t.series} label={`${t.label}, last ${tail.length} days`} tone={t.tone} />
+        </div>
+      </CardBody>
+    </Card>
+  ));
 
   return (
     <>
@@ -133,7 +196,9 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
         page by three times, and the accent would tell a reader to read it
         first. It is drawn plain, and nothing else takes the accent.
       */}
-      <div className="mb-stack grid gap-3 sm:grid-cols-3">
+      {/* Dense: the six cards share one row, which is what took 300px out of the
+          Overview's scroll. Three abreast on a laptop, six on a wide screen. */}
+      <div className={cn('mb-stack grid gap-3 sm:grid-cols-3', dense && 'xl:grid-cols-6')}>
         <Card className={cn(loop.realisedAccent && 'border-accent/40 bg-accent-subtle')}>
           <CardBody>
             <p className="text-label text-content-subtle">Realised value</p>
@@ -154,8 +219,12 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
             <p className="tnum mt-1 text-figure font-semibold text-content">
               {money(loop.expectedDelivered, format)}
             </p>
+            {/* The qualifier is the point of the card, so it stays in both
+                shapes — shorter where the page has to fit. */}
             <p className="mt-1 text-label text-content-subtle">
-              if all {format.number(data.deliverable ?? 0)} delivered offers had been taken — a bound, not a forecast
+              {dense
+                ? `a bound over ${format.number(data.deliverable ?? 0)} delivered offers, not a forecast`
+                : `if all ${format.number(data.deliverable ?? 0)} delivered offers had been taken — a bound, not a forecast`}
             </p>
           </CardBody>
         </Card>
@@ -166,24 +235,32 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
               {money(loop.expectedUndelivered, format)}
             </p>
             <p className="mt-1 text-label text-content-subtle">
-              the same ceiling over the {format.number(undeliverable)} decisions nothing sent
+              the same ceiling over the {format.number(undeliverable)} {dense ? 'nothing sent' : 'decisions nothing sent'}
             </p>
           </CardBody>
         </Card>
+        {dense ? trends : null}
       </div>
 
-      <Card className="mb-stack">
+      {/* Last on the dense page, so it carries no bottom margin there. */}
+      <Card className={cn(!dense && 'mb-stack')}>
         <CardHeader
           title="From decision to outcome"
+          // The tip said "bar height is volume; the wedge is what left the loop
+          // there", which the drawing says by being the drawing. Kept where the
+          // reader is quoting figures, dropped where they are scanning.
           tip={
-            <InfoTip label="About the flow diagram">
-              Bar height is volume. The wedge between two stages is what left the loop there.
-            </InfoTip>
+            dense ? undefined : (
+              <InfoTip label="About the flow diagram">
+                Bar height is volume. The wedge between two stages is what left the loop there.
+              </InfoTip>
+            )
           }
         />
         <CardBody>
           <LoopFlow
             stages={loop.stages.map((s) => ({ id: s.id, label: s.label, value: s.value, broken: Boolean(s.broken) }))}
+            dense={dense}
           />
         </CardBody>
       </Card>
@@ -197,7 +274,10 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
         </p>
       ) : null}
 
-      {data.measured > 0 && (data.deliverable ?? 0) > data.measured ? (
+      {/* The population every rate below the break describes. Asserted on
+          `/performance` on purpose (`performance-cascade.spec.ts`,
+          `outcome-loop.spec.ts`); on the Overview the rail's foot carries it. */}
+      {!dense && data.measured > 0 && (data.deliverable ?? 0) > data.measured ? (
         <p className="mb-stack text-label text-content-muted">
           {format.number((data.deliverable ?? 0) - data.measured)} of {format.number(data.deliverable ?? 0)} deliverable
           offers have no outcome recorded. Every rate below the break describes the {format.number(data.measured)} that
@@ -205,40 +285,11 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
         </p>
       ) : null}
 
-      <div className="mb-stack grid gap-3 sm:grid-cols-3">
-        {[
-          {
-            label: 'Decisions per day',
-            value: format.number(Math.round(tail.reduce((s, d) => s + d.decisions, 0) / Math.max(1, tail.length))),
-            series: tail.map((d) => d.decisions),
-            tone: 'accent' as const,
-          },
-          {
-            label: 'Deliverable share',
-            value: pct(data.deliverable ?? 0, data.offered, format),
-            series: tail.map((d) => d.deliverable),
-            tone: 'hold' as const,
-          },
-          {
-            label: `Seen per day · ${population}`,
-            value: format.number(Math.round(tail.reduce((s, d) => s + d.seen, 0) / Math.max(1, tail.length))),
-            series: tail.map((d) => d.seen),
-            tone: 'pass' as const,
-          },
-        ].map((t) => (
-          <Card key={t.label}>
-            <CardBody>
-              <p className="text-label text-content-subtle">{t.label}</p>
-              <p className="tnum mt-1 text-figure font-semibold text-content">{t.value}</p>
-              <div className="mt-2">
-                <Sparkline values={t.series} label={`${t.label}, last ${tail.length} days`} tone={t.tone} />
-              </div>
-            </CardBody>
-          </Card>
-        ))}
-      </div>
+      {dense ? null : <div className="mb-stack grid gap-3 sm:grid-cols-3">{trends}</div>}
 
-      {dead.length > 0 ? (
+      {/* The same break the rail draws in the block colour, with the schema
+          reason and a way out. Dropped where the rail is beside it. */}
+      {!dense && dead.length > 0 ? (
         <Card className="border-block/40">
           <CardHeader title="Wants your attention" />
           <CardBody>
@@ -488,11 +539,9 @@ export function LoopStageEvidence({ data, loop, stage }: { data: LoopReport; loo
             {loop.losesMost.kind === 'stage' && loop.losesMost.unreported ? <> {loop.losesMost.unreported}</> : null}
           </EvidenceQuote>
         ) : null}
-        {loop.offeredNothing ? (
-          <EvidenceQuote title="Why the rest offered nothing" tone="neutral">
-            {loop.offeredNothing}
-          </EvidenceQuote>
-        ) : null}
+        {/* "Why the rest offered nothing" moved onto the Offered stage in the
+            rail on 2026-09-17: the cause belongs on the stage that dropped, and
+            saying it twice on one screen is what the Overview's pane was cut for. */}
         <EvidenceFields>
           {data.channels.map((c) => (
             <EvidenceRow key={c.channel} label={channelLabel(c.channel)}>
@@ -531,10 +580,6 @@ export function LoopStageEvidence({ data, loop, stage }: { data: LoopReport; loo
       ) : selected.passThrough ? (
         <EvidenceQuote title="Why nothing can drop here" tone="neutral">
           {selected.passThrough}
-        </EvidenceQuote>
-      ) : selected.id === 'offered' && loop.offeredNothing ? (
-        <EvidenceQuote title="Why the rest offered nothing" tone="neutral">
-          {loop.offeredNothing}
         </EvidenceQuote>
       ) : measuredBelow ? (
         <EvidenceQuote title="What these rates describe" tone="hold">

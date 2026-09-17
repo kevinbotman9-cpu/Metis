@@ -78,6 +78,15 @@ export interface CascadeStage {
    * Never alongside `broken`: a stage that broke has dropped.
    */
   passThrough?: string;
+  /**
+   * One line of cause, under the figure: what this stage's drop is made of.
+   *
+   * The loop showed the drop from decisions to "offered something" and never
+   * said why; the cause was a screen away, on the policy funnel. It belongs on
+   * the stage that dropped, not in a pane beside it — where the Overview's
+   * evidence used to put it before that pane was cut (2026-09-17).
+   */
+  detail?: string;
 }
 
 export type CascadeTone = 'neutral' | 'accent' | 'ok' | 'attention';
@@ -106,9 +115,20 @@ export interface CascadeRailProps {
   foot?: React.ReactNode;
   /** Names the rail, and is shown as its title. */
   label: string;
+  /**
+   * Tighter rows, and no sparklines.
+   *
+   * The Overview's rail was 888px — taller than any laptop viewport once the
+   * proposals sat under it — and the sparkline was the largest part of a row
+   * that already carried the figure, the share and the bar. The screen that
+   * exists to be read whole loses the least by losing it; `/performance`, where
+   * a reader is following a trend, keeps it. Measured on 2026-09-17: 888px to
+   * 560px.
+   */
+  dense?: boolean;
 }
 
-export function CascadeRail({ stages, selected, onSelect, foot, label }: CascadeRailProps) {
+export function CascadeRail({ stages, selected, onSelect, foot, label, dense = false }: CascadeRailProps) {
   const format = useFormat();
   const titleId = useId();
   return (
@@ -141,10 +161,11 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
                   stage.broken ? `. ${stage.broken}` : ''
                 }${
                   stage.passThrough ? `. ${stage.passThrough}` : ''
-                }`}
+                }${stage.detail ? `. ${stage.detail}` : ''}`}
                 onClick={() => onSelect(current ? null : stage.id)}
                 className={cn(
-                  'w-full border-b border-rail-line px-4 pb-3 pt-2.5 text-left transition-colors',
+                  'w-full border-b border-rail-line px-4 text-left transition-colors',
+                  dense ? 'pb-2 pt-1.5' : 'pb-3 pt-2.5',
                   'hover:bg-rail-hover-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-rail-fg',
                   current && cn('bg-rail-selected-wash shadow-[inset_3px_0_0]', TONE_EDGE[tone])
                 )}
@@ -190,7 +211,7 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
 
                 {stage.passThrough ? (
                   <span className="mt-1.5 block text-label text-rail-dim">{stage.passThrough}</span>
-                ) : stage.series ? (
+                ) : stage.series && !dense ? (
                   <span className="mt-2 block">
                     <Sparkline
                       values={stage.series}
@@ -208,6 +229,10 @@ export function CascadeRail({ stages, selected, onSelect, foot, label }: Cascade
 
                 {stage.broken ? (
                   <span className="mt-1.5 block text-label text-rail-block">{stage.broken}</span>
+                ) : null}
+
+                {stage.detail ? (
+                  <span className="mt-1.5 block text-label text-rail-dim">{stage.detail}</span>
                 ) : null}
               </button>
             </li>

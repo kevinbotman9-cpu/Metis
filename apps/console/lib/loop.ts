@@ -295,6 +295,7 @@ export function buildLoop(
       ? `Nothing offered can drop here: every channel that offered something delivers it (${offeringNames.join(', ')}). It drops only when an offer wins a slot on a channel with no sender.`
       : undefined;
 
+  const offeredNothing = offeredNothingSentence(data, format);
   const deadNames = dead.map((c) => channelLabel(c.channel)).join(', ');
   const closure =
     data.decisions === 0
@@ -321,6 +322,9 @@ export function buildLoop(
       note: `${pct(data.offered, data.decisions, format)} of decisions`,
       series: tail.map((d) => d.offered),
       tone: 'accent',
+      // Why the rest offered nothing, on the stage that dropped them. It was in
+      // the evidence pane until that pane came off the Overview (2026-09-17).
+      detail: offeredNothing ?? undefined,
     },
     {
       id: 'deliverable',
@@ -387,6 +391,6 @@ export function buildLoop(
     expectedUndelivered: ceiling(data.rows.filter((r) => !delivers(r))),
     inversions,
     losesMost: losesMostOf(data, deliverable, format),
-    offeredNothing: offeredNothingSentence(data, format),
+    offeredNothing,
   };
 }

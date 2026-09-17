@@ -85,7 +85,20 @@ export function mergeEqualRuns(stages: readonly LoopFlowStage[]): LoopFlowColumn
   return columns;
 }
 
-export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
+export function LoopFlow({
+  stages,
+  dense = false,
+}: {
+  stages: readonly LoopFlowStage[];
+  /**
+   * Capped in height, for a screen that has to fit.
+   *
+   * The drawing scales with its column, so widening that column — which the
+   * Overview did by dropping its third pane — made it taller. `meet` keeps the
+   * proportions and centres what is left.
+   */
+  dense?: boolean;
+}) {
   const format = useFormat();
   const { width: W, band: BAND, column: COL, dropGap, line: LINE } = LOOP_FLOW;
   // Nothing has entered the loop. The columns are still drawn — outlined, at the
@@ -114,7 +127,9 @@ export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
     <svg
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="xMidYMid meet"
-      className="block h-auto w-full"
+      // Dense: a fixed height and the width the aspect gives it, centred, so
+      // capping the height does not leave the drawing adrift in a wide card.
+      className={cn(dense ? 'mx-auto block h-48 w-auto max-w-full' : 'block h-auto w-full')}
       role="img"
       aria-label={`The loop as volume: ${stages
         .map((s) => `${s.label} ${format.number(s.value)}`)

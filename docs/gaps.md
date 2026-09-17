@@ -44,6 +44,48 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-155 — The Overview's agent feed was an empty card on every tenant, and nothing has been chosen to stand where it was
+
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — a screen decision, taken off the page rather than left empty
+
+**What was there.** The marketer's Overview carried two cards side by side:
+*Proposed changes*, and *Agent activity* reading
+
+> Nothing in this feed. The audit log records agent actions this feed doesn't.
+
+with a link to `/audit`. It said that on every tenant, in every environment.
+
+**Why it was always empty.** `agentActivity` in
+`apps/console/mocks/fixtures/catalogue.ts` is `[]` — deliberately, since the
+telco-us catalogue was authored on 2026-09-12 and *"a tenant whose catalogue was
+authored today has no agent history"*. Nothing writes an entry at runtime either:
+`store.activity` is read by `GET /api/agent-activity` and written by nothing, so
+the feed is what the outcome loop was before ADR-008 — a surface with no
+producer. `/agentic` shows the same list and keeps it, because that screen is
+about autonomy and an empty list there is an answer.
+
+**Removed from the Overview on 2026-09-17**, by the product owner: an empty card
+pointing at another screen is not worth a column on the page that has to fit
+without scrolling. *Proposed changes* now stands alone.
+
+**What it should be replaced with is not decided.** Candidates, none chosen:
+
+- **Nothing.** The page is the loop plus what is waiting for a person, and it
+  fits. This is the current state and needs no work.
+- **What changed, from the audit log.** `audit_log` has real entries — every
+  approval, autonomy change and authored rule — so a "recently changed" card
+  would be a real feed rather than a placeholder. It is the audit log's own
+  content, on a screen a marketer reads.
+- **The funnel's largest drop**, linking to `/targeting-policies`. Real, and the
+  rail's Offered stage already names the stage that emptied a decision.
+- **The agent feed, once something writes it.** The proposals in the card beside
+  it are authored by agents (`requestedBy: agent-…`), so the producer that would
+  fill this is the one that records what an agent did when it proposes.
+
+**Done when:** either the Overview carries a second card whose content exists on
+a fresh tenant, or a decision records that the page is one card and this entry
+closes as answered.
+
 ### G-154 — The in-memory ledger records any outcome type, and PostgreSQL refuses what it records
 
 **Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — a validation defect with a clear fix, split from G-153 by the product owner

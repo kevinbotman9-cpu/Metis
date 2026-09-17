@@ -55,7 +55,15 @@ const BREAK =
   '2,687 decisions won a slot on a channel nothing delivers — SMS, Outbound call, Push, Email. They were decided correctly and reached nobody.';
 
 /** Selection is the consumer's state, so the stories hold it themselves. */
-function Interactive({ stages, foot }: { stages: CascadeStage[]; foot?: React.ReactNode }) {
+function Interactive({
+  stages,
+  foot,
+  dense,
+}: {
+  stages: CascadeStage[];
+  foot?: React.ReactNode;
+  dense?: boolean;
+}) {
   const [selected, setSelected] = useState<string | null>(null);
   return (
     // The rail brings its own frame colour; the story only gives it a width.
@@ -67,6 +75,7 @@ function Interactive({ stages, foot }: { stages: CascadeStage[]; foot?: React.Re
         selected={selected}
         onSelect={setSelected}
         foot={foot}
+        dense={dense}
       />
     </div>
   );
@@ -159,4 +168,14 @@ export const ByHand: Story = {
     ],
   },
   name: 'By hand — a stage that cannot drop, drawn as a pass-through',
+};
+
+/**
+ * Dense: tighter rows and no sparklines, for the Overview, which has to fit
+ * without scrolling. 888px of rail became 584px. Compare with **The break**,
+ * which is the same five stages on `/performance`.
+ */
+export const Dense: Story = {
+  args: { stages: loop(BREAK), dense: true },
+  name: 'Dense — the Overview’s rail',
 };
