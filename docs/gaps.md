@@ -44,6 +44,68 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-143 — A history made by hand renders everything, refuses nothing the loop can see, and stops dead at "acted"
+
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — a precondition for the empty-by-default tenant, owed before it ships
+
+The next step for the console is a tenant with no seeded history, whose numbers
+come from the person using it. This records what that person's clicking actually
+produces, measured, because the version of it registered first was wrong.
+
+**What was expected, and why it was wrong.** The concern as first raised was
+that most hand-made decisions would win a slot and render nothing: *"127 of 202
+active offers have no active web creative."* That figure is true of the catalogue
+it was measured on, on 2026-09-10, and of nothing since. On 2026-09-12 (`a6cc45e`,
+*"The telco-us tenant is the customer's catalogue"*) the tenant became **five
+offers, all active, all with an active web creative.** The figure survived in
+one present-tense comment, `apps/console/public/storefront/index.html` around
+line 1047 — *"127 of the 202 active offers in the seeded catalogue have no active
+web creative"* — and was quoted from there into a survey without being measured.
+It is dated, and correct as history, in `creative-coverage.tsx`, ADR-012 and
+ADR-013.
+
+**What clicking actually produces.** Measured on 2026-09-17 against a console
+started with `METIS_SEED_LEDGER=0` and nothing else: every storefront preset
+(`eva_fiber`, `eva_no_fiber`, `eva_accepted`) on both views, six passes.
+
+| Preset | Home hero | Home grid | Account |
+|---|---|---|---|
+| `eva_fiber` | FIOS Gigabit | 3 of 5 shown | FIOS Gigabit |
+| `eva_no_fiber` | 5G Home Ultimate | 3 of 4 shown | 5G Home Ultimate |
+| `eva_accepted` | Gaming Plus Bundle | 3 of 3 shown | Gaming Plus Bundle |
+
+Every slot rendered. The loop over the 26 decisions that made:
+
+| Decisions | Offered | Deliverable | Measured | Acted |
+|---|---|---|---|---|
+| 26 | 26 | 26 | 26 | **0** |
+
+**Three consequences, none of them a defect in the loop.**
+
+- **It reads as a cliff at the last stage.** Four stages at 100% and a fifth at
+  zero is the shape a broken outcome join would draw. Here it means nobody pressed
+  a call to action, which the storefront records as a click only when someone
+  does. A person looking at their own fresh tenant has no way to tell those apart.
+- **Refusals happen and the loop cannot show them.** The fiber offer *is* refused
+  for `eva_no_fiber` (five candidates to four), and the accepted offer rests for
+  `eva_accepted` (to three). But every decision still offers *something*, so
+  each counts as offered, and the refusals live only inside individual traces.
+  The seeded corpus had 5,712 of 10,400 decisions offer nothing; a hand-made one,
+  on this catalogue and these presets, has none. The policy funnel, "where the
+  loop breaks" and the suppression half of the product have nothing to draw.
+- **Caps are reachable only on purpose.** `cpol_web_daily` does refuse with
+  `FREQUENCY_CAP_BREACHED` when a customer is re-decided enough (reproduced on
+  2026-09-16), but nothing in a normal click-through gets there.
+
+**Why it is registered rather than fixed.** Nothing here is wrong. It is what an
+honest empty tenant looks like on day one, and the product owner has asked to
+decide the empty-by-default setting with this in front of them.
+
+**Done when:** a person starting from an empty tenant can reach a refusal, a cap
+and an acted-on outcome by using the product, and the screens they read
+distinguish "nothing reached this stage yet" from "this stage lost everything".
+The storefront comment is dated or corrected in the same change.
+
 ### G-142 — The storefront panel test races the panel's own re-render, and fails at a different line each time
 
 **Registered:** 2026-09-16 · **Status:** Open · **Work item:** none
