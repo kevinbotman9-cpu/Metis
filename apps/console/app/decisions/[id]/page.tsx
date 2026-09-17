@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { apiClient, ApiError } from '@/lib/api-client';
 import { downloadJson, evidenceFilename } from '@/lib/download';
 import { ProvenanceBanner } from '@/components/ui/provenance-banner';
-import { NoDecisionsYet, useEmptyReason } from '@/components/no-decisions-yet';
+import { NoTraceYet, useEmptyReason } from '@/components/no-decisions-yet';
 import { CascadeRail, type CascadeStage } from '@/components/cascade-rail';
 import { CascadePanes } from '@/components/cascade-panes';
 import { TraceEvidence } from '@/components/trace-evidence';
@@ -128,7 +128,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
               for a decision that expired, when none was ever made.
             */}
             {emptyReason === 'new-tenant' ? (
-              <NoDecisionsYet
+              <NoTraceYet
                 shows={[
                   'The candidates this decision started from, and what removed each one',
                   'The ranking function, its terms, and why the winner outranked the rest',

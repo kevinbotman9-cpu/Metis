@@ -34,6 +34,16 @@ interface DataTableProps<T> {
   /** Makes the whole row activatable. */
   onRowClick?: (row: T) => void;
   isLoading?: boolean;
+  /**
+   * With no rows, keep the header row and say so in the body, rather than
+   * replacing the table with a message.
+   *
+   * Opt-in, and on for `/decisions` only, since 2026-09-17: *data can be zero;
+   * structure cannot vanish.* Every other table in the console still replaces
+   * itself when empty, and turning this on for them is a change each of those
+   * screens should be looked at for, not one made here unseen.
+   */
+  keepHeadersWhenEmpty?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
   defaultSort?: { key: string; dir: 'asc' | 'desc' };
@@ -62,6 +72,7 @@ export function DataTable<T>({
   rowKey,
   onRowClick,
   isLoading,
+  keepHeadersWhenEmpty = false,
   emptyTitle = 'Nothing to show',
   emptyDescription,
   defaultSort,
@@ -142,7 +153,7 @@ export function DataTable<T>({
   }
 
   if (isLoading) return <LoadingState />;
-  if (rows.length === 0)
+  if (rows.length === 0 && !keepHeadersWhenEmpty)
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
 
   return (
@@ -196,6 +207,17 @@ export function DataTable<T>({
           <tbody ref={bodyRef}>
             {/* Spacers stand in for the rows outside the window, so the
                 scrollbar reflects the whole set. */}
+            {rows.length === 0 ? (
+              <tr data-empty>
+                <td colSpan={columns.length} className="px-cell py-8 text-center">
+                  <p className="text-body font-medium text-content">{emptyTitle}</p>
+                  {emptyDescription ? (
+                    <p className="mt-1 text-label text-content-muted">{emptyDescription}</p>
+                  ) : null}
+                </td>
+              </tr>
+            ) : null}
+
             {padTop > 0 && (
               <tr aria-hidden style={{ height: padTop }}>
                 <td colSpan={columns.length} />
