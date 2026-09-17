@@ -157,6 +157,54 @@ describe('the sharded end-to-end suite', () => {
     expect(unreached, 'these spec files exist and no shard would run them').toEqual([]);
   });
 
+  /**
+   * The empty-ledger suite is a second world, and it needs the same guarantee.
+   *
+   * `playwright.empty.config.ts` runs `tests/e2e-empty` against a server with
+   * no seeded history — the state every new tenant starts in, and the one the
+   * sharded suite above cannot reach, because its warm-up asserts the ledger
+   * holds exactly 10,400 decisions.
+   *
+   * That directory is outside this file's partition arithmetic by construction:
+   * the checks above read `tests/e2e` off disk, and a spec here is not in that
+   * set. Which is the point — the seeded warm-up needed no weakening to make
+   * room for this — and also the risk, because it means nothing above would
+   * notice a spec added here that no config runs. The run is unsharded, so
+   * there is no partition to verify; what there is to verify is that the config
+   * reaches every file.
+   */
+  it('reaches every spec file in the empty-ledger suite', () => {
+    const dir = resolve(consoleDir, 'tests/e2e-empty');
+    const onDisk = readdirSync(dir)
+      .filter((f) => f.endsWith('.spec.ts'))
+      .map((f) => `tests/e2e-empty/${f}`.replace(/\\/g, '/'));
+    expect(onDisk.length, 'no empty-ledger spec files found').toBeGreaterThan(0);
+
+    // Its own listing rather than `list()`, which takes a shard and reads the
+    // default config. `--list` starts no server and runs nothing.
+    const out = execFileSync(
+      'npx',
+      ['playwright', 'test', '--config', 'playwright.empty.config.ts', '--list', '--reporter=json'],
+      { cwd: consoleDir, encoding: 'utf8', maxBuffer: 64e6, shell: process.platform === 'win32' }
+    );
+    interface S {
+      specs?: { file: string }[];
+      suites?: S[];
+    }
+    const files = new Set<string>();
+    const walk = (s: S): void => {
+      for (const spec of s.specs ?? []) files.add(spec.file.replace(/\\/g, '/'));
+      for (const child of s.suites ?? []) walk(child);
+    };
+    for (const s of (JSON.parse(out) as { suites?: S[] }).suites ?? []) walk(s);
+
+    expect(files.size, 'the empty-ledger config listed no tests at all').toBeGreaterThan(0);
+    const unreached = onDisk.filter((f) => ![...files].some((c) => f.endsWith(c) || c.endsWith(f)));
+    expect(unreached, 'these spec files exist and the empty-ledger config would not run them').toEqual(
+      []
+    );
+  });
+
   it('runs no test twice', () => {
     // Duplication is cheaper than a drop and still wrong: it inflates the
     // counts the flaky summary is computed over, and a test that writes to the

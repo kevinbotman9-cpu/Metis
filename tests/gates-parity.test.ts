@@ -37,7 +37,7 @@ interface Gate {
 }
 
 /** The jobs whose steps are gates. */
-const GATE_JOBS = ['verify', 'e2e', 'spec'] as const;
+const GATE_JOBS = ['verify', 'e2e', 'e2e-empty', 'spec'] as const;
 
 /**
  * Jobs deliberately outside `npm run gates`, each with a reason.
@@ -181,16 +181,21 @@ describe('the run before a pull request', () => {
   const ids = (gates: Gate[]) => gates.map((g) => g.id);
 
   it('skips end-to-end and nothing else', () => {
-    const { selected, skipped } = selectGates(GATES, ['--skip', 'e2e']);
-    expect(ids(skipped)).toEqual(['e2e']);
-    expect(ids(selected)).toEqual(ids((GATES as Gate[]).filter((g) => g.id !== 'e2e')));
+    // Both suites: the seeded one and the empty-ledger one. 'End-to-end' is
+    // about needing a dev server, not about how long the suite takes — the
+    // empty run is half a minute and still belongs on the far side of this
+    // line, because a gate that starts a server is the thing pre-pr defers.
+    const SERVER_GATES = ['e2e', 'e2e-empty'];
+    const { selected, skipped } = selectGates(GATES, ['--skip', 'e2e', '--skip', 'e2e-empty']);
+    expect(ids(skipped)).toEqual(SERVER_GATES);
+    expect(ids(selected)).toEqual(ids((GATES as Gate[]).filter((g) => !SERVER_GATES.includes(g.id))));
   });
 
   it('is the script CLAUDE.md names', () => {
     const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
       scripts: Record<string, string>;
     };
-    expect(pkg.scripts['gates:pre-pr']).toBe('node scripts/gates.mjs --skip e2e');
+    expect(pkg.scripts['gates:pre-pr']).toBe('node scripts/gates.mjs --skip e2e --skip e2e-empty');
     expect(readFileSync(resolve(root, 'CLAUDE.md'), 'utf8')).toContain('npm run gates:pre-pr');
   });
 

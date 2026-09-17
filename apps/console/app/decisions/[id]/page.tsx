@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { apiClient, ApiError } from '@/lib/api-client';
 import { downloadJson, evidenceFilename } from '@/lib/download';
 import { ProvenanceBanner } from '@/components/ui/provenance-banner';
+import { NoDecisionsYet, useEmptyReason } from '@/components/no-decisions-yet';
 import { CascadeRail, type CascadeStage } from '@/components/cascade-rail';
 import { CascadePanes } from '@/components/cascade-panes';
 import { TraceEvidence } from '@/components/trace-evidence';
@@ -40,6 +41,8 @@ const AUDIENCES = [
 type AudienceKey = (typeof AUDIENCES)[number]['key'];
 
 function TraceView({ decisionId }: { decisionId: string }) {
+  // Which of the two blanks this screen is showing, when it shows one.
+  const emptyReason = useEmptyReason();
   const format = useFormat();
   const [audience, setAudience] = useState<AudienceKey>('analyst');
   const router = useRouter();
@@ -118,15 +121,31 @@ function TraceView({ decisionId }: { decisionId: string }) {
         />
         {notFound ? (
           <Card>
-            <EmptyState
-              title={`No decision with ID ${decisionId}`}
-              description="It may have been outside the retention window, or the link may be stale."
-              action={
-                <Link href="/decisions">
-                  <Button variant="primary">Back to decision search</Button>
-                </Link>
-              }
-            />
+            {/*
+              A stale link and a tenant that has never decided both arrive here
+              as a 404, and the retention-window sentence is only true of the
+              first. On a tenant with no history it sends the reader looking
+              for a decision that expired, when none was ever made.
+            */}
+            {emptyReason === 'new-tenant' ? (
+              <NoDecisionsYet
+                shows={[
+                  'The candidates this decision started from, and what removed each one',
+                  'The ranking function, its terms, and why the winner outranked the rest',
+                  'The chain hash over the record, and whether it can be re-executed',
+                ]}
+              />
+            ) : (
+              <EmptyState
+                title={`No decision with ID ${decisionId}`}
+                description="It may have been outside the retention window, or the link may be stale."
+                action={
+                  <Link href="/decisions">
+                    <Button variant="primary">Back to decision search</Button>
+                  </Link>
+                }
+              />
+            )}
           </Card>
         ) : (
           <ErrorState description={(error as Error).message} onRetry={() => refetch()} />

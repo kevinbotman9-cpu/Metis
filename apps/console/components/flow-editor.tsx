@@ -263,7 +263,10 @@ export function FlowEditor({ artifactId, nodes, edges, candidateKeys, canEdit }:
               'Volume could not be loaded. The graph is shown without it.'
             ) : volume.data ? (
               volume.data.decisions === 0 ? (
-                'No decisions recorded for this flow, so every edge is drawn at its thinnest.'
+                // The overlay is a thin strip under the graph rather than a panel,
+                // so this says the same two things in one sentence: nothing is
+                // wrong, and what the overlay will draw once there is traffic.
+                'No decisions have run through this flow yet, so every edge is drawn at its thinnest. Once a decision is made here, edge thickness becomes the candidates that crossed it and each node shows what it removed.'
               ) : (
                 <>
                   <strong className="font-semibold text-content">Edge thickness is candidates, last {volume.data.hours} hours</strong>{' '}
