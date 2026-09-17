@@ -754,7 +754,8 @@ async function reportOutcome(decisionId, type) {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       // An input, never the clock on the server — the same rule the decision
-      // itself follows, and what lets an outcome be replayed beside it.
+      // itself follows. It does not make this page's decisions replayable:
+      // their input values are not kept (G-009).
       body: JSON.stringify({ type, occurredAt: new Date().toISOString() }),
     });
     return res.ok;

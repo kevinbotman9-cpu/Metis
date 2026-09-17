@@ -179,7 +179,9 @@ function FlowDetail({ artifactId }: { artifactId: string }) {
           value={artifact.candidateKeys.length}
           sub="offers in scope"
         />
-        <Metric label="Versions" value={artifact.versions.length} sub="all replayable" />
+        {/* It said "all replayable", which no decision a channel made is: their
+            input values are not kept (G-009). */}
+        <Metric label="Versions" value={artifact.versions.length} sub="a channel's decisions cannot be replayed" />
       </div>
 
       <div className="mb-stack">

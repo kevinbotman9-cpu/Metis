@@ -90,13 +90,24 @@ and creatives. Integration resolution runs on this path: fields the site does no
 send are fetched before the engine runs and recorded as coming from a named
 connector.
 
-**Not built, and not faked.** There is no embed SDK and no impression capture
-(W-016), so the page calls the API directly and records nothing when a slot
-renders — a real integration would do both. A slot the platform cannot fill is
+**Not built, and not faked.** There is no embed SDK (W-016), so the page calls
+the API directly and reports its own outcomes: an impression when a slot renders
+an offer, a click when a call to action is pressed, each to `POST /outcomes`
+against the decision's id. That id is all it sends, so a click on the second or
+third card of the grid is credited to the first card's offer
+([ADR-020](adr/ADR-020-a-slate-is-recorded-as-shown.md) §4). *(Until 2026-09-17
+this paragraph said the page recorded nothing when a slot rendered; it has
+reported impressions since 2026-09-09.)* A slot the platform cannot fill is
 left empty and counted, never padded. There is no content store
 (W-015), so `imageUrl` names an asset nothing serves and the slot shows a
-placeholder. A decision made here can be traced through the API but not replayed;
-see `gaps.md`.
+placeholder.
+
+**A decision made here cannot be replayed, and never could.** The record keeps a
+hash of the inputs, never the values (ADR-004), and fields this page does not
+send are resolved from connectors whose values are kept nowhere — so neither the
+platform nor the page holds what was hashed. The path from this page ends at the
+trace, which says "Cannot be re-executed here" ([G-009](gaps.md)). The decisions
+the console can replay are the seeded ones, whose inputs the generator holds.
 
 **The catalogue is the demo tenant's.** `telco-us` — the five offers the customer's brief names. No prices: the brief supplies none and none was invented ([G-089](gaps.md)). The
 storefront renders whatever the catalogue says, so a demo for a different market

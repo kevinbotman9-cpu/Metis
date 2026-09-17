@@ -12,7 +12,7 @@ METIS is an enterprise decision platform that flips the script on AI-driven deci
 
 - **Authoring Plane (Design-Time)**: AI agents propose changes to flows, rules, journeys, and creatives
 - **Execution Plane (Runtime)**: Compiled decision artifacts run deterministically with **zero LLM calls** in the hot path
-- **Audit Trail**: Every decision is traceable, replayable, and explainable—built in, not added later
+- **Audit Trail**: Every decision is traceable and explainable—built in, not added later. Replay is exact for the engine; the platform can replay only a decision whose inputs it still holds, which today means the seeded corpus and not a decision a channel made ([G-009](docs/gaps.md))
 
 **Why it matters:**
 - Pega CDH is expensive to change and hard to audit
