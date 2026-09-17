@@ -54,8 +54,21 @@ const request = (over: Record<string, unknown> = {}) => ({
   },
 });
 
+/**
+ * A customer of the decision's own unless the test names one.
+ *
+ * A placement decision reads the customer's contacts from the ledger and holds
+ * them to `cpol_web_daily` (ADR-021), and every decision here is at the same
+ * `occurredAt`. Shared, each test would spend the next one's cap: the boundary
+ * test below would find the ledger's contacts added to the caller's, and a
+ * slate test would pass on an empty slate.
+ */
+let customers = 0;
 const decide = async (key: string, over: Record<string, unknown> = {}) => {
-  const res = await call(['placements', 'telco-us', key, 'decisions'], request(over));
+  const res = await call(
+    ['placements', 'telco-us', key, 'decisions'],
+    request({ customerId: `cust_slate_demo_${(customers += 1)}`, ...over })
+  );
   return { status: res.status, body: (await res.json()) as Record<string, never> };
 };
 
@@ -96,10 +109,13 @@ describe('POST /api/placements/{tenantId}/{key}/decisions', () => {
   });
 
   it('gives a single-slot placement exactly what POST /decisions would', async () => {
-    const slate = await decide('account_dashboard_hero');
+    // One customer for both, with nothing on the ledger: the placement reads
+    // its contacts and `POST /decisions` does not (G-150), so they agree only
+    // for a customer the platform has not contacted.
+    const slate = await decide('account_dashboard_hero', { customerId: 'cust_slate_single' });
     const direct = await call(['decisions'], {
       artifactId: 'next-best-action',
-      request: { ...request().request, placement: 'account_dashboard_hero' },
+      request: { ...request({ customerId: 'cust_slate_single' }).request, placement: 'account_dashboard_hero' },
     });
     const decision = (await direct.json()) as { decision: { winner: string } };
 

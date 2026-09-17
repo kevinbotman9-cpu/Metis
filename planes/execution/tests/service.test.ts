@@ -102,6 +102,21 @@ describe('the decision service', () => {
     expect(replayed.replayed).toBe(true);
   });
 
+  it('stamps a placement’s delivery with when the decision happened, not the clock', async () => {
+    // G-151. The hand-over is part of the same request, so it happened when the
+    // decision did. The clock here says 2026-09-14; the case says otherwise, and
+    // a cap counting contacts back from a decision's time needs the case's.
+    const c = cases.find((x) => x.expected.winner !== null)!;
+    const res = await post(`/api/placements/${tenantId}/${c.request.placement}/decisions`, {
+      request: { ...c.request, idempotencyKey: 'stamped-at-decision' },
+    });
+    expect(res.status, await res.clone().text()).toBe(200);
+    const { decisionId } = await json(res);
+    const [delivery] = await ledgerStore.deliveriesFor(tenantId, decisionId as string);
+    expect(delivery.at).toBe(c.request.occurredAt);
+    expect(delivery.at).not.toBe('2026-09-14T12:00:00.000Z');
+  });
+
   it('refuses a key reused for a different request', async () => {
     const [a, b] = cases;
     await post('/api/decisions', { artifactId: a.artifactId, request: { ...a.request, idempotencyKey: 'one-key' } });

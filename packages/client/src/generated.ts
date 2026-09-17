@@ -792,10 +792,43 @@ export interface Denial {
   key: string;
   /** A closed set, never renamed. NOT_RANKED is not a fault: the candidate passed every gate and was beaten.
  */
-  code: "ELIGIBILITY_FAILED" | "RELEVANCE_FAILED" | "SUITABILITY_FAILED" | "FREQUENCY_CAP_BREACHED" | "COOLDOWN_ACTIVE" | "CONSENT_WITHHELD" | "OUT_OF_VALIDITY_WINDOW" | "NOT_ACTIVE" | "NOT_RANKED";
+  code: "ELIGIBILITY_FAILED" | "RELEVANCE_FAILED" | "SUITABILITY_FAILED" | "FREQUENCY_CAP_BREACHED" | "COOLDOWN_ACTIVE" | "CONSENT_WITHHELD" | "CONTACT_HISTORY_UNAVAILABLE" | "OUT_OF_VALIDITY_WINDOW" | "NOT_ACTIVE" | "NOT_RANKED";
   /** The targeting or frequency policy that did it, where one is identifiable. Null for codes that are properties of the candidate rather than of a rule. Always present, never omitted — an optional key would mean two engines each deciding when to drop it, and the canonical form differs if they disagree.
  */
   ruleId: string | null;
+}
+
+/** What the platform read from its own ledger about this customer's
+contacts on the decision's channel, before deciding. ADR-021.
+
+**Absent means the platform did not read** — no cap applied on the
+channel, or the decision was made where nothing reads (the seeded
+generator, a conformance case, `executeDecision` and the decision service
+today, G-150). A present `read` with every count zero means it read
+and found nothing.
+The two are different facts and a screen must not render them alike.
+
+`read`: distinct decisions that offered something and were handed over
+or delivered to this customer on this channel, per rolling window back
+from `occurredAt` — 24 hours, 7 days, 30 days. Added to the caller's
+`contactHistory` counts, never instead of them.
+
+`unavailable`: the ledger could not be read. Every candidate a cap
+covers was suppressed with `CONTACT_HISTORY_UNAVAILABLE` rather than
+counted as zero.
+
+Hashed with the decision, so a replay holds the caps to these counts
+and never to a ledger that has moved on.
+ */
+export interface ContactsRead {
+  status: "read" | "unavailable";
+  channel: string;
+  /** Present when `status` is `read`. */
+  withinPeriod?: {
+    day: number;
+    week: number;
+    month: number;
+  };
 }
 
 /** One step's verdict on the candidate set, in execution order. Consent is
@@ -955,6 +988,7 @@ So a decision is re-executable only where the platform can still produce the inp
   timings: Record<string, number>;
   constraintsApplied: string[];
   consentState: ConsentState;
+  contactsRead?: ContactsRead;
   creativeId?: string | null;
   /** Which connector supplied which input field. Reproducible. */
   sourceBindings?: SourceBinding[];
@@ -1475,7 +1509,7 @@ engine (G-086).
  */
 export interface ContactHistory {
   channel: "email" | "sms" | "web" | "push" | "outbound_call";
-  /** Contacts already made, keyed by period — `day`, `week`, `month`. Compared against `maxContacts` on every frequency policy whose scope covers the candidate.
+  /** Contacts the caller knows of, keyed by period — `day`, `week`, `month`. Where the platform reads its own ledger (ADR-021), its count is added to these, never replaced by them, and the sum is compared against `maxContacts` on every frequency policy whose scope covers the candidate. Report contacts the platform did not make; a contact it made is already counted.
  */
   withinPeriod: Record<string, number>;
   /** The most recent decline per offer key, ISO-8601 with an explicit offset or Z. Any other form is refused rather than guessed at: a timestamp with no zone is local time to one engine and an error to the other, and the two are required to agree.

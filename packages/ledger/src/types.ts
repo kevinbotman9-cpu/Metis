@@ -127,6 +127,44 @@ export interface DeliveryAttempt {
   providerRef: string | null;
 }
 
+/** The periods a frequency cap counts over. The same three `FrequencyPolicy.period` takes. */
+export type ContactPeriod = 'day' | 'week' | 'month';
+
+/**
+ * Each period as a rolling window back from the decision's own time, never the
+ * clock and never a calendar boundary, so a replay lands in the same window and
+ * no time zone decides whether a contact counts. "month" is therefore thirty
+ * days (ADR-021 §2).
+ */
+export const CONTACT_WINDOW_MS: Readonly<Record<ContactPeriod, number>> = {
+  day: 24 * 60 * 60 * 1000,
+  week: 7 * 24 * 60 * 60 * 1000,
+  month: 30 * 24 * 60 * 60 * 1000,
+};
+
+/**
+ * The delivery states that are a contact: handed over, or confirmed received.
+ *
+ * `suppressed` never counts — nothing was sent. `failed` does not count, so a
+ * message that never arrived does not consume a customer's cap (ADR-013 §6);
+ * nothing writes it until an adapter exists, and when one does this needs no
+ * change. Neither does `delivered`. `accepted` and `deferred` are held by the
+ * platform and not yet handed to anyone. ADR-021 §3.
+ */
+export const CONTACT_STATES: readonly DeliveryState[] = ['dispatched', 'delivered'];
+
+/** Whose contacts, on which channel, up to when. */
+export interface ContactQuery {
+  tenantId: string;
+  subjectHash: string;
+  channel: string;
+  /** The decision's `occurredAt`. Inclusive; each window runs back from it, exclusive. */
+  until: string;
+}
+
+/** Distinct decisions that were a contact, per rolling window. */
+export type ContactCounts = Record<ContactPeriod, number>;
+
 export class LedgerError extends Error {
   constructor(
     readonly code:

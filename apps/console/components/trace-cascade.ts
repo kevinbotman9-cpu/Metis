@@ -215,6 +215,8 @@ export const CODE_MEANING: Record<string, string> = {
   FREQUENCY_CAP_BREACHED: 'We have already contacted them this often in the period.',
   COOLDOWN_ACTIVE: 'They declined this recently and the rest period has not elapsed.',
   CONSENT_WITHHELD: 'The customer has not permitted this kind of contact.',
+  CONTACT_HISTORY_UNAVAILABLE:
+    'The platform could not read how often it has contacted them, so an offer a cap covers was held back rather than treated as never contacted.',
   OUT_OF_VALIDITY_WINDOW: 'Outside the offer’s effective dates.',
   NOT_ACTIVE: 'The offer is not live in the catalogue.',
   NOT_RANKED:

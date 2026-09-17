@@ -27,6 +27,7 @@ import { CascadeRail, type CascadeStage } from '@/components/cascade-rail';
 import { CascadePanes } from '@/components/cascade-panes';
 import { TraceEvidence } from '@/components/trace-evidence';
 import { CODE_MEANING, groupDenials, stagesFor } from '@/components/trace-cascade';
+import { contactHistoryStatement } from '@/lib/contact-history';
 import { cn } from '@/lib/cn';
 import { useFormat } from '@/components/tenant-format';
 
@@ -840,6 +841,26 @@ function TraceView({ decisionId }: { decisionId: string }) {
                     </li>
                   ))}
                 </ul>
+
+                {/* ADR-021 §5: not read, read and found none, read, and could not
+                    be read are four different statements, and never share words. */}
+                {(() => {
+                  const contacts = contactHistoryStatement(trace.contactsRead, trace.constraintsApplied, format);
+                  return (
+                    <>
+                      <p className="mb-2 mt-4 text-label text-content-subtle">Contact history</p>
+                      <p
+                        data-contact-history={contacts.kind}
+                        className={cn(
+                          'text-label',
+                          contacts.tone === 'block' ? 'text-block' : contacts.tone === 'hold' ? 'text-hold' : 'text-content-muted'
+                        )}
+                      >
+                        {contacts.text}
+                      </p>
+                    </>
+                  );
+                })()}
 
                 {trace.creativeId && (
                   <>

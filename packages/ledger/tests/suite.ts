@@ -348,6 +348,114 @@ export function describeLedger(label: string, harness: StoreHarness): void {
       });
     });
 
+    /**
+     * ADR-021: the one query a frequency cap reads. Run against both stores, so
+     * the SQL and the in-memory filter cannot quietly count differently.
+     */
+    describe('contacts, as a cap counts them', () => {
+      const UNTIL = '2026-06-30T12:00:00.000Z';
+      const ago = (ms: number) => new Date(Date.parse(UNTIL) - ms).toISOString();
+      const H = 60 * 60 * 1000;
+      const D = 24 * H;
+
+      let n = 0;
+      /** Record a decision for a customer and attempt its delivery. */
+      async function contact(over: {
+        at: string;
+        state?: 'dispatched' | 'delivered' | 'failed' | 'suppressed' | 'accepted';
+        customerRef?: string;
+        channel?: string;
+        winner?: string | null;
+        decisionId?: string;
+        tenantId?: string;
+      }) {
+        const decisionId = over.decisionId ?? `dec_contact_${(n += 1)}`;
+        const tenantId = over.tenantId ?? T;
+        if (!(await ledger.get(tenantId, decisionId))) {
+          await ledger.record(
+            ledger.entryFor(
+              decisionRecord({
+                id: decisionId,
+                customerRef: over.customerRef ?? 'cust_capped',
+                channel: over.channel ?? 'web',
+                winner: over.winner,
+                occurredAt: over.at,
+              }),
+              tenantId
+            )
+          );
+        }
+        await ledger.recordDelivery({
+          tenantId,
+          decisionId,
+          placementKey: 'homepage_hero',
+          channel: over.channel ?? 'web',
+          state: over.state ?? 'dispatched',
+          at: over.at,
+          reason: null,
+          permanent: null,
+          providerRef: null,
+        });
+        return decisionId;
+      }
+      const counts = (over: { customerRef?: string; channel?: string; tenantId?: string } = {}) =>
+        ledger.contactsFor({
+          tenantId: over.tenantId ?? T,
+          customerRef: over.customerRef ?? 'cust_capped',
+          channel: over.channel ?? 'web',
+          until: UNTIL,
+        });
+
+      it('is zero, in every window, for a customer never contacted', async () => {
+        expect(await counts()).toEqual({ day: 0, week: 0, month: 0 });
+      });
+
+      it('counts a message handed over or delivered, and never one suppressed or failed', async () => {
+        await contact({ at: ago(H), state: 'dispatched' });
+        await contact({ at: ago(H), state: 'delivered' });
+        await contact({ at: ago(H), state: 'suppressed' });
+        // A message that never arrived does not consume the cap (ADR-013 §6).
+        await contact({ at: ago(H), state: 'failed' });
+        // Held by the platform, not yet handed to anyone.
+        await contact({ at: ago(H), state: 'accepted' });
+        expect(await counts()).toEqual({ day: 2, week: 2, month: 2 });
+      });
+
+      it('does not count a decision that offered nothing: nothing was handed over', async () => {
+        await contact({ at: ago(H), winner: null });
+        expect(await counts()).toEqual({ day: 0, week: 0, month: 0 });
+      });
+
+      it('counts each window back from the decision, not the clock or the calendar', async () => {
+        await contact({ at: UNTIL }); // the same instant: inside every window
+        await contact({ at: ago(23 * H) }); // day, week, month
+        await contact({ at: ago(D) }); // exactly a day before: outside the day
+        await contact({ at: ago(3 * D) }); // week, month
+        await contact({ at: ago(7 * D) }); // exactly a week before: month only
+        await contact({ at: ago(20 * D) }); // month
+        await contact({ at: ago(30 * D) }); // exactly thirty days: outside
+        await contact({ at: new Date(Date.parse(UNTIL) + 1000).toISOString() }); // after: never
+        expect(await counts()).toEqual({ day: 2, week: 4, month: 6 });
+      });
+
+      it('counts a decision once, at its first contact, however many attempts it took', async () => {
+        const id = await contact({ at: ago(2 * D), state: 'dispatched' });
+        await contact({ decisionId: id, at: ago(H), state: 'delivered' });
+        // First handed over two days ago: in the week, not in the day.
+        expect(await counts()).toEqual({ day: 0, week: 1, month: 1 });
+      });
+
+      it('counts only this customer, on this channel, in this tenant', async () => {
+        await contact({ at: ago(H) });
+        await contact({ at: ago(H), customerRef: 'cust_someone_else' });
+        await contact({ at: ago(H), channel: 'email' });
+        await contact({ at: ago(H), tenantId: 'telco-ie' });
+        expect(await counts()).toEqual({ day: 1, week: 1, month: 1 });
+        expect(await counts({ channel: 'email' })).toEqual({ day: 1, week: 1, month: 1 });
+        expect(await counts({ tenantId: 'telco-ie' })).toEqual({ day: 1, week: 1, month: 1 });
+      });
+    });
+
     describe('idempotency', () => {
       const request = {
         tenantId: T,

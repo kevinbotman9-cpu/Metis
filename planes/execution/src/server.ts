@@ -178,7 +178,9 @@ export function createService(options: ServiceOptions): Server {
           placementKey: placement.key,
           channel: placement.channel,
           state: suppressed ? 'suppressed' : 'dispatched',
-          at: options.now(),
+          // When the decision happened, not the wall clock: this hand-over is
+          // part of the same request, and the seed already stamps it so (G-151).
+          at: record.decision.occurredAt,
           reason: suppressed,
           permanent: null,
           providerRef: null,

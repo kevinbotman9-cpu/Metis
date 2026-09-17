@@ -34,6 +34,7 @@ export type {
   ExecEdge,
   ExecNodeType,
   CatalogueSnapshot,
+  ContactsRead,
   DecisionRequest,
   DecisionRecord,
   DeterministicDecision,

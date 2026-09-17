@@ -1,11 +1,15 @@
 import type { IdempotencyRecord, IdempotencyStore } from '@metis/runtime';
 import type { DecisionQuery, LedgerStore } from './ledger';
-import type {
-  DeliveryAttempt,
-  DeliveryState,
-  LedgerEntry,
-  OutcomeEvent,
-  OutcomeType,
+import {
+  CONTACT_STATES,
+  CONTACT_WINDOW_MS,
+  type ContactCounts,
+  type ContactQuery,
+  type DeliveryAttempt,
+  type DeliveryState,
+  type LedgerEntry,
+  type OutcomeEvent,
+  type OutcomeType,
 } from './types';
 
 /**
@@ -234,11 +238,11 @@ export class PostgresLedgerStore implements LedgerStore {
     );
   }
 
-  async appendDelivery(attempt: DeliveryAttempt): Promise<void> {
+  async appendDelivery(attempt: DeliveryAttempt, subjectHash: string): Promise<void> {
     await this.db.query(
       `INSERT INTO delivery_attempts
-         (tenant_id, decision_id, placement_key, channel, state, at, reason, permanent, provider_ref)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+         (tenant_id, decision_id, placement_key, channel, state, at, reason, permanent, provider_ref, subject_hash)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         attempt.tenantId,
         attempt.decisionId,
@@ -249,8 +253,44 @@ export class PostgresLedgerStore implements LedgerStore {
         attempt.reason,
         attempt.permanent,
         attempt.providerRef,
+        subjectHash,
       ]
     );
+  }
+
+  /**
+   * One statement, over `delivery_attempts_by_subject`
+   * (`003_delivery_subject.sql`).
+   *
+   * An attempt written before that migration carries no subject and is not
+   * counted: the append-only trigger refuses the UPDATE a backfill would need,
+   * and every ledger that holds such rows is synthetic and reset rather than
+   * migrated (ADR-019 §7, ADR-021 §1).
+   */
+  async countContacts(q: ContactQuery): Promise<ContactCounts> {
+    const until = Date.parse(q.until);
+    const since = (period: keyof ContactCounts) => new Date(until - CONTACT_WINDOW_MS[period]).toISOString();
+    const { rows } = await this.db.query<{ day: string; week: string; month: string }>(
+      `SELECT count(*) FILTER (WHERE first_at > $5)::text AS day,
+              count(*) FILTER (WHERE first_at > $6)::text AS week,
+              count(*) FILTER (WHERE first_at > $7)::text AS month
+         FROM (
+           SELECT a.decision_id, min(a.at) AS first_at
+             FROM delivery_attempts a
+             JOIN decision_records r
+               ON r.tenant_id = a.tenant_id AND r.decision_id = a.decision_id
+            WHERE a.tenant_id = $1
+              AND a.subject_hash = $2
+              AND a.channel = $3
+              AND a.state = ANY($8::text[])
+              AND a.at <= $4
+              AND (r.record->'decision'->>'winner') IS NOT NULL
+            GROUP BY a.decision_id
+         ) contacts`,
+      [q.tenantId, q.subjectHash, q.channel, q.until, since('day'), since('week'), since('month'), [...CONTACT_STATES]]
+    );
+    const r = rows[0];
+    return { day: Number(r?.day ?? 0), week: Number(r?.week ?? 0), month: Number(r?.month ?? 0) };
   }
 
   async deliveriesFor(tenantId: string, decisionId: string): Promise<DeliveryAttempt[]> {

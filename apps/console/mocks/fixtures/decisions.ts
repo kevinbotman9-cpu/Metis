@@ -75,6 +75,8 @@ export interface TraceRecord extends DecisionRecord {
   timings: Record<string, number>;
   constraintsApplied: string[];
   consentState: import('@metis/runtime').ConsentState;
+  /** Absent when the platform did not read its ledger — not the same as a read of zero (ADR-021 §5). */
+  contactsRead?: import('@metis/runtime').ContactsRead;
   creativeId: string | null;
   /** Which connector supplied which field. Reproducible. */
   sourceBindings: SourceBinding[];
@@ -209,6 +211,9 @@ function toTrace({ trace }: GeneratedDecision): TraceRecord {
     timings: trace.measured.timingsByNode,
     constraintsApplied: d.constraintsApplied,
     consentState: d.consentState,
+    // Passed through only when present: an absent field is the statement that
+    // the platform did not read, and serving `null` would blur it.
+    ...(d.contactsRead ? { contactsRead: d.contactsRead } : {}),
     creativeId: resolveCreative(d.winnerOfferId, d.channel),
     sourceBindings: d.sourceBindings,
     sourceCalls: sourceCallsFor(d.sourceBindings, trace.id, d.occurredAt),

@@ -9,6 +9,8 @@ import {
 import type { DecisionRequest } from '@metis/runtime';
 import {
   LedgerError,
+  type ContactCounts,
+  type ContactQuery,
   type DeliveryAttempt,
   type LedgerEntry,
   type OutcomeEvent,
@@ -61,8 +63,20 @@ export interface LedgerStore {
   count(q: DecisionQuery): Promise<number>;
   appendOutcome(event: OutcomeEvent): Promise<void>;
   outcomesFor(tenantId: string, decisionId: string): Promise<OutcomeEvent[]>;
-  appendDelivery(attempt: DeliveryAttempt): Promise<void>;
+  /**
+   * `subjectHash` is the decision's, passed by the ledger, which has just read
+   * it: an attempt carries the subject so a cap can count one customer's
+   * contacts without reading every decision they were part of (ADR-021 §1).
+   */
+  appendDelivery(attempt: DeliveryAttempt, subjectHash: string): Promise<void>;
   deliveriesFor(tenantId: string, decisionId: string): Promise<DeliveryAttempt[]>;
+  /**
+   * The one query frequency caps read (ADR-021 §1): distinct decisions that
+   * offered something and were handed over on this channel to this subject,
+   * per rolling window ending at `until`. A decision counts at its first
+   * contact attempt.
+   */
+  countContacts(q: ContactQuery): Promise<ContactCounts>;
   idempotency: IdempotencyStore;
 }
 
@@ -177,11 +191,21 @@ export class DecisionLedger {
           'A delivery attempt that cannot be joined to a decision records nothing.'
       );
     }
-    await this.store.appendDelivery(attempt);
+    await this.store.appendDelivery(attempt, decision.subjectHash);
   }
 
   deliveriesFor(tenantId: string, decisionId: string): Promise<DeliveryAttempt[]> {
     return this.store.deliveriesFor(tenantId, decisionId);
+  }
+
+  /**
+   * How often this customer has been contacted on this channel, per period,
+   * before a decision at `until`. Takes the customer reference and hashes it
+   * here, so no caller has to know how the ledger keys a subject.
+   */
+  contactsFor(q: Omit<ContactQuery, 'subjectHash'> & { customerRef: string }): Promise<ContactCounts> {
+    const { customerRef, ...rest } = q;
+    return this.store.countContacts({ ...rest, subjectHash: subjectHash(q.tenantId, customerRef) });
   }
 
   // --- Idempotency ---------------------------------------------------------

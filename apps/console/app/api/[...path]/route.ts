@@ -23,7 +23,7 @@ import { findGeneratedDecision, toApiTrace } from '@/mocks/fixtures/decisions';
 import type { GeneratedDecision } from '@/mocks/fixtures/engine';
 import { deliveryFor } from '@/mocks/delivery-state';
 import { rowOfEntry } from '@/mocks/seed-ledger';
-import { subjectHash } from '@metis/ledger';
+import { capsApply, readContacts, subjectHash } from '@metis/ledger';
 import { provenanceFor, provenanceOver } from '@/mocks/provenance';
 import {
   IdempotencyConflict,
@@ -556,7 +556,16 @@ function normaliseDelivery(value: unknown): Placement['delivery'] | undefined {
 async function recordDeliveryFor(
   placement: { key: string; channel: string; delivery: { mode: string } | null },
   decisionId: string,
-  tenantId: string
+  tenantId: string,
+  /**
+   * The decision's `occurredAt`. The hand-over this records happens with the
+   * decision, in the same request, so it happened when the decision did — the
+   * rule the seed job already follows. It was the wall clock, which disagrees
+   * with the decision's own time on anything backdated or dated ahead, and a cap
+   * counting contacts back from a decision's time then counted the wrong ones
+   * (G-151). A later attempt by an adapter carries the time of that attempt.
+   */
+  decidedAt: string
 ): Promise<void> {
   // One rule for what a delivery records, shared with the seed job (ADR-018 §5.3).
   const delivery = deliveryFor(placement);
@@ -568,7 +577,7 @@ async function recordDeliveryFor(
       placementKey: placement.key,
       channel: placement.channel,
       state: delivery.state,
-      at: new Date().toISOString(),
+      at: decidedAt,
       reason: delivery.reason,
       permanent: null,
       providerRef: null,
@@ -656,7 +665,12 @@ type DecideOutcome =
 async function resolveAndExecute(
   artifact: ExecArtifact,
   decisionRequest: DecisionRequest,
-  read?: CatalogueSnapshotRecord
+  read?: CatalogueSnapshotRecord,
+  /**
+   * Whether caps read the platform's own contacts (ADR-021 §7): placement
+   * decisions do, `POST /api/decisions` does not, until G-150 closes.
+   */
+  options: { readContacts: boolean } = { readContacts: false }
 ): Promise<
   | { kind: 'error'; response: Response }
   | { kind: 'executed'; trace: DecisionRecord; resolvedRequest: DecisionRequest }
@@ -716,10 +730,38 @@ async function resolveAndExecute(
   // the one that applied.
   const arms = assignAll(cat.experiments, decisionRequest.customerId);
 
+  // How often the platform has contacted this customer on this channel, read
+  // from its own ledger — ADR-021. Only where a cap could hold a candidate, so
+  // a decision the platform did not read for says so by carrying nothing. A
+  // read that fails is `unavailable`, never zero: the engine then holds back
+  // what a cap covers.
+  //
+  // Placement decisions only. `POST /api/decisions` is the operation the JVM
+  // service serves, and `contract.spec.ts` holds the console to that service's
+  // hashes exactly; reading there would move 44 of its 60 cases to hashes the
+  // JVM service cannot produce. That check is worth more than reading on an
+  // operation the storefront does not use. Both read when G-150 closes.
+  const contactsRead = options.readContacts && capsApply(artifact, catalogue, decisionRequest.channel)
+    ? await readContacts(
+        store.ledger,
+        {
+          tenantId: decisionRequest.tenantId,
+          customerRef: decisionRequest.customerId,
+          channel: decisionRequest.channel,
+          occurredAt: decisionRequest.occurredAt,
+        },
+        (e) => {
+          // eslint-disable-next-line no-console
+          console.error(`[metis] contact history unavailable, capped offers held back: ${(e as Error).message}`);
+        }
+      )
+    : undefined;
+
   // Fields the caller supplied win, which `resolveInputs` guarantees; the
   // 60 service cases carry theirs, which is why they still hash the same.
   const resolvedRequest = {
     ...decisionRequest,
+    ...(contactsRead ? { contactsRead } : {}),
     input: {
       ...mergeAggregations(resolvedInputs.input, rolled.values),
       // Nested under `experiments` so a policy names `experiments.<key>` and
@@ -764,7 +806,8 @@ async function arbitrationScenario(cat: CatalogueSnapshotRecord): Promise<Respon
   const artifact = await artifactFor(CONSOLE_TENANT, placement.artifactId);
   if (!artifact) return notFound(`No flow ${placement.artifactId} answers ${scenario.placementKey}.`);
 
-  const executed = await resolveAndExecute(artifact, scenario.request, cat);
+  // A preview of a placement decision, so it reads as one does.
+  const executed = await resolveAndExecute(artifact, scenario.request, cat, { readContacts: true });
   if (executed.kind === 'error') return executed.response;
   const { decision } = executed.trace;
 
@@ -905,7 +948,8 @@ async function decideAndRecord(
   artifact: ExecArtifact,
   decisionRequest: DecisionRequest,
   /** The catalogue read the caller already made, so one request is one moment. */
-  read?: CatalogueSnapshotRecord
+  read?: CatalogueSnapshotRecord,
+  options: { readContacts: boolean } = { readContacts: false }
 ): Promise<DecideOutcome> {
   // Idempotency and durability, through the ledger.
   //
@@ -936,7 +980,7 @@ async function decideAndRecord(
   // Integrations resolve here, before the deterministic core and after
   // the idempotency check — a retry that is going to be answered from the
   // ledger must not pay for a bureau call first.
-  const executed = await resolveAndExecute(artifact, decisionRequest, read);
+  const executed = await resolveAndExecute(artifact, decisionRequest, read, options);
   if (executed.kind === 'error') return executed;
   const { trace, resolvedRequest } = executed;
 
@@ -2783,7 +2827,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         correlationId: body.request.correlationId,
       };
 
-      const outcome = await decideAndRecord(artifact, decisionRequest, cat);
+      const outcome = await decideAndRecord(artifact, decisionRequest, cat, { readContacts: true });
       if (outcome.kind === 'error') return outcome.response;
 
       const record = outcome.kind === 'replay' ? outcome.record : outcome.trace;
@@ -2796,7 +2840,7 @@ async function handlePost(req: Request, { params }: Ctx) {
       // Not on a replay: an idempotent retry returns the original decision and
       // did not deliver anything a second time.
       if (outcome.kind !== 'replay') {
-        await recordDeliveryFor(placement, record.id, decisionRequest.tenantId);
+        await recordDeliveryFor(placement, record.id, decisionRequest.tenantId, record.decision.occurredAt);
       }
 
       // The action key is what the decision names; the offer id is what a site

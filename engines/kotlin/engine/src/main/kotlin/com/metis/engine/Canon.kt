@@ -78,7 +78,28 @@ object Canon {
         ),
         "winner" to strOrNull(d.winner),
         "winnerOfferId" to strOrNull(d.winnerOfferId),
+        // Absent, not null, when the platform did not read: the TypeScript
+        // omits the key, and a decision that never read keeps the identity it
+        // had before the field existed (ADR-021 §5).
+        "contactsRead" to (d.contactsRead?.let { contacts(it) } ?: Value.Absent),
     )
+
+    private fun contacts(r: ContactsRead): Value {
+        val w = r.withinPeriod
+        return if (r.status == "read" && w != null) {
+            obj(
+                "status" to str("read"),
+                "channel" to str(r.channel),
+                "withinPeriod" to obj(
+                    "day" to num(w.day.toDouble()),
+                    "week" to num(w.week.toDouble()),
+                    "month" to num(w.month.toDouble()),
+                ),
+            )
+        } else {
+            obj("status" to str(r.status), "channel" to str(r.channel))
+        }
+    }
 
     private fun binding(b: SourceBinding): Value = obj(
         "field" to str(b.field),

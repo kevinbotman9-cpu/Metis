@@ -41,6 +41,7 @@ import type {
   ExecArtifact,
   ExecNode,
   CatalogueSnapshot,
+  ContactsRead,
   DecisionRequest,
   DecisionRecord,
   DeterministicDecision,
@@ -290,6 +291,30 @@ function catalogueHash(catalogue: CatalogueSnapshot): string {
   const computed = hash(catalogue);
   catalogueHashes.set(catalogue, computed);
   return computed;
+}
+
+/**
+ * The contact read as it enters the hashed decision: exactly its declared
+ * fields, so nothing a resolver happened to carry along can move an id, and
+ * refused when it describes a channel other than the decision's — counts from
+ * one channel held against another channel's caps is a defect in whatever read
+ * them, not a decision to record.
+ */
+function recordedContacts(read: ContactsRead, channel: string): ContactsRead {
+  if (read.channel !== channel) {
+    throw new Error(
+      `contactsRead describes channel "${read.channel}" and the decision is on "${channel}". ` +
+        'Counts read for one channel cannot be held against another channel’s caps.'
+    );
+  }
+  if (read.status === 'unavailable') return { status: 'unavailable', channel };
+  const { day, week, month } = read.withinPeriod;
+  for (const [period, n] of Object.entries({ day, week, month })) {
+    if (!Number.isInteger(n) || n < 0) {
+      throw new Error(`contactsRead.withinPeriod.${period} must be a whole number of contacts, got ${JSON.stringify(n)}`);
+    }
+  }
+  return { status: 'read', channel, withinPeriod: { day, week, month } };
 }
 
 /**
@@ -587,7 +612,14 @@ export function execute(
         // here too when a constraint node comes first, and by the platform otherwise.
         if (node.type === 'constraint') {
           consentApplied = true;
-          const used = request.contactHistory?.withinPeriod ?? {};
+          // What the caller sent, plus what the platform read from its own
+          // ledger — added, never replacing: a caller may report contacts the
+          // platform did not make and cannot remove any (ADR-014 §10, ADR-021).
+          const read = request.contactsRead;
+          const used: Record<string, number> = { ...(request.contactHistory?.withinPeriod ?? {}) };
+          if (read?.status === 'read') {
+            for (const [period, n] of Object.entries(read.withinPeriod)) used[period] = (used[period] ?? 0) + n;
+          }
           const rejects = request.contactHistory?.rejects ?? {};
           const decidedAt = Date.parse(request.occurredAt);
 
@@ -644,6 +676,13 @@ export function execute(
           } else {
             candidates = candidates.filter((p) => {
               const relevant = relevantTo(p);
+              // A count the platform could not read is not a count of zero.
+              // Every candidate a cap covers is held back, naming the cap, and
+              // the rest go on (ADR-021 §4).
+              if (read?.status === 'unavailable' && relevant.length > 0) {
+                denials.push({ key: p.key, code: 'CONTACT_HISTORY_UNAVAILABLE', ruleId: relevant[0].id });
+                return false;
+              }
               const breached = relevant.filter((c) => (used[c.period] ?? 0) >= c.maxContacts);
               if (breached.length > 0) {
                 // The first breached cap, in catalogue order. Naming which one
@@ -877,6 +916,9 @@ export function execute(
       runnerUp,
     },
     constraintsApplied: [...new Set(constraintsApplied)].sort(),
+    // Only when the platform read: absent and "read, and found none" are
+    // different facts, and a decision that never read keeps its identity.
+    ...(request.contactsRead ? { contactsRead: recordedContacts(request.contactsRead, request.channel) } : {}),
     consentState: consent,
     winner,
     winnerOfferId: winnerOffer?.id ?? null,
@@ -960,6 +1002,8 @@ export function replay(
     occurredAt: d.occurredAt,
     input,
     contactHistory,
+    // Read from the record, never from a ledger that has moved on since.
+    ...(d.contactsRead ? { contactsRead: d.contactsRead } : {}),
     // The request that produces the recorded state: an absent purpose stays
     // unstated, so the replay records it as absent again.
     consent: assertionOf(d.consentState),
@@ -978,6 +1022,11 @@ export function replay(
 
 /** Structural diff between two canonical values, reported by path. */
 export function diff(a: unknown, b: unknown, path = '$'): ReplayResult['differences'] {
+  // A member on one side only — a step that removed more candidates on replay,
+  // a field one record has — is a difference to report. It reached
+  // `canonicalise(undefined)`, which throws, so a replay that diverged in shape
+  // answered with an error instead of saying where (found 2026-09-17, ADR-021).
+  if (a === undefined || b === undefined) return a === b ? [] : [{ path, original: a, replayed: b }];
   if (canonicalise(a) === canonicalise(b)) return [];
 
   const bothObjects =
