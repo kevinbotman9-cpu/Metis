@@ -44,6 +44,45 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-154 — The in-memory ledger records any outcome type, and PostgreSQL refuses what it records
+
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — a validation defect with a clear fix, split from G-153 by the product owner
+
+**What happens.** `recordOutcome`'s spec declares `type` as `[impression, click,
+acceptance, rejection, conversion]`. Nothing checks it before a store does.
+
+- **The console route** (`apps/console/app/api/[...path]/route.ts`,
+  `case 'outcomes'`) checks only that `type` is present.
+- **`DecisionLedger.recordOutcome`** (`packages/ledger/src/ledger.ts`) checks only
+  that the decision exists.
+- **`InMemoryLedgerStore`** appends whatever it is given.
+- **`outcome_events` in PostgreSQL** has `CHECK (type IN (...))` naming the five.
+
+Measured on 2026-09-17:
+
+| Where | `rejection` | `banana` |
+|---|---|---|
+| Console route, in-memory ledger (the default) | 201 | **201**, and `decline` too |
+| `DecisionLedger` over `InMemoryLedgerStore` | accepted | **accepted** |
+| `DecisionLedger` over `PostgresLedgerStore` (`metis_registry_test`) | accepted | **refused**: `violates check constraint "outcome_events_type_check"` |
+
+**Why it matters beyond one bad row.**
+
+- **The two stores disagree about what is valid.** Both are meant to pass one
+  behaviour suite (`packages/ledger/tests/suite.ts`), and nothing in that suite
+  records an undeclared type, so it cannot see the difference.
+- **A development console stores events production would refuse.**
+  `buildPerformance` counts only the five types it knows. A `banana` is
+  therefore kept, invisible to every report, and counted by nothing.
+- **On PostgreSQL the refusal is answered as a 404.** The route's catch turns
+  any ledger error into `not_found`, so a caller sending a bad type is told the
+  decision does not exist.
+
+**Done when:** the ledger refuses an undeclared type before any store sees it,
+with a named error, answered as 400 by the route; the shared suite records an
+undeclared type and expects the refusal on both stores; and the refusal is
+shown to bite on the in-memory store.
+
 ### G-153 — The documents say a decline cannot be reported, and the platform accepts, stores, seeds and counts `rejection`; the cooldown reads none of it
 
 **Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — the documents are corrected when this closes; whether the cooldown reads the ledger needs a decision shaped like ADR-021
@@ -79,10 +118,21 @@ reproduced here, because a count in two places is a count that will disagree.
 The funnel description is right that a rejection is not a stage the rates nest
 through. It is wrong that one has nowhere to live.
 
-**Also found.** The console's outcome route and the ledger check only that
-`type` is present. The same probe recorded `decline` and `banana` with 201 on the
-in-memory store. PostgreSQL's CHECK would refuse both, and the route answers any
-ledger error as 404 `not_found`. That path is not exercised by any test here.
+**Also found**, and registered on its own as [G-154](gaps.md): the outcome route
+and the in-memory ledger accept any `type` string.
+
+**Documents corrected 2026-09-17**, on the product owner's decision that they
+were wrong. The owner named two documents; the claim was in six places, and all
+six now say a rejection can be recorded and is not read into the cooldown:
+
+- the storefront, beside `rejects` and in `offerActions`;
+- ADR-021's Consequences;
+- the spec's `ContactHistory` description, and the client generated from it;
+- `ContactHistory` in `packages/runtime/src/deterministic/types.ts`;
+- `ContactHistory` in `engines/kotlin/engine/.../Domain.kt`.
+
+**The cooldown reading recorded rejections waits for ADR-020 §4**, also the
+product owner's decision. This entry stays open for that.
 
 **Which: the documents are wrong, and the cooldown should use it — but not
 without a decision.** The platform can hold "she said no", so documents saying
@@ -103,14 +153,14 @@ to keep it. Three things stop it being a patch:
   caller's `rejects` and recorded on the decision like `contactsRead`: hashed,
   on placement decisions only, and so widening G-150's asymmetry until slice 9.
 
-**Done when:** the spec, the storefront and ADR-021 stop saying a decline cannot
-be reported; the outcome route refuses a type outside the enum on every store;
-and either the cooldown reads recorded rejections, under a decision covering
-the three points above, or a decision records why it does not.
+**Done when:** ~~the spec, the storefront and ADR-021 stop saying a decline cannot
+be reported~~ (done 2026-09-17); and, once ADR-020 §4 lands, either the cooldown
+reads recorded rejections under a decision covering the three points above, or
+a decision records why it does not. Outcome-type validation is G-154's.
 
 ### G-152 — A decision names a connector as the source of a field the caller sent, in both engines and in its hash
 
-**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — a change to the hashed record in both engines, so it needs a decision and a corpus regeneration, not a patch · **Decision:** [ADR-022](adr/ADR-022-a-decision-records-where-each-value-came-from.md), Proposed
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — a change to the hashed record in both engines, so it needs a decision and a corpus regeneration, not a patch · **Decision:** [ADR-022](adr/ADR-022-a-decision-records-where-each-value-came-from.md), accepted 2026-09-17; lands with ADR-019's reseed
 
 **What the record says.** Every storefront decision lists
 `customer.address.fios_serviceable ← conn_serviceability` under "Where the inputs

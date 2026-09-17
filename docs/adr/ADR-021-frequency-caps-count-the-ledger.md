@@ -207,7 +207,13 @@ correction in its own right, registered and resolved as [G-151](../gaps.md).
   customer the platform has contacted**, until G-150 closes: a placement decision
   holds a cap to the ledger's count, `POST /api/decisions` to the caller's.
 - **What this does not do.** The cooldown after a decline still reads the caller's
-  `rejects`, because a decline is not an outcome (G-086). Counts are per channel,
+  `rejects`, and not the ledger's recorded rejections. *(Corrected 2026-09-17.
+  This said the reason was that "a decline is not an outcome (G-086)", which is
+  false. `rejection` is an outcome type the spec declares, `POST /outcomes`
+  accepts, the ledger stores and the performance report counts, and the seeded
+  ledger holds 80. The real reason is that a rejection names a decision, not an
+  offer, which is ambiguous on a slate. Reading them waits for ADR-020 §4
+  (G-153).)* Counts are per channel,
   not per offer or action, so the `offer`/`action` split (ADR-019) does not
   disturb them; a cap scoped to one offer still counts the channel's contacts,
   as it did. "Last outcome per action" and the other rollups ADR-014 §10 names are

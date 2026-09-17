@@ -1500,12 +1500,14 @@ opens no sockets, so everything a decision depends on arrives with the
 request. `withinPeriod` drives the caps; `rejects` drives
 `cooldownDaysAfterReject`.
 
-**A decline is not an outcome.** `OutcomeType` is a monotone funnel —
-conversion ⊆ acceptance ⊆ click ⊆ impression — with no negative event in
-it, so a rejection has nowhere to live in the interaction log and is
-stated here instead. Until 2026-09-11 there was no way to state one at
-all, and the cooldown every catalogue carried was enforced by neither
-engine (G-086).
+**The cooldown reads declines from here, not from recorded outcomes.**
+A decline can be recorded: `rejection` is an outcome type, and
+`recordOutcome` accepts it. It is not read into the cooldown, because an
+outcome names a decision rather than an offer, which is ambiguous on a
+slate until ADR-020 §4 (G-153). Until 2026-09-11 there was no way to
+state a decline at all, and the cooldown every catalogue carried was
+enforced by neither engine (G-086). Until 2026-09-17 this description
+said a rejection had nowhere to live in the interaction log.
  */
 export interface ContactHistory {
   channel: "email" | "sms" | "web" | "push" | "outbound_call";

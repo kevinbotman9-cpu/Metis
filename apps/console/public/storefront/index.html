@@ -781,10 +781,13 @@ async function decide(placement) {
         // What the customer has already turned down, and when, which is what
         // `cooldownDaysAfterReject` rests against.
         //
-        // The site holds this, not the platform: a decline is not an outcome.
-        // The outcome funnel runs impression, click, acceptance, conversion,
-        // and has no negative event in it, so there is nowhere to report a
-        // "no" to and nothing to read it back from. Omitted entirely when
+        // The site holds this, and the cooldown reads it from here. Not
+        // because a decline cannot be reported: `rejection` is an outcome type
+        // the spec declares, `POST /outcomes` accepts, the ledger stores and
+        // /performance counts. The cooldown does not read recorded rejections,
+        // because an outcome names a decision rather than an offer, which is
+        // ambiguous on a slate until ADR-020 §4 (G-153). Until 2026-09-17 this
+        // said there was nowhere to report a "no" to. Omitted entirely when
         // empty, so a page that has declined nothing asks exactly the question
         // it asked before this control existed.
         ...(declines.size ? { rejects: Object.fromEntries(declines) } : {}),
@@ -990,10 +993,12 @@ function renderInline(slot, r) {
  * other — and a placement decision chooses its own offers. So the panel says
  * what the email was decided to carry, and whether this offer is in it.
  *
- * "Not interested" is the customer saying no, and it is the only input a rest
- * period can run from: the platform records no rejections of its own. It names
- * the offer key because that is what `rejects` is keyed by and what the engine
- * matches a candidate on.
+ * "Not interested" is the customer saying no, and this page's record of it is
+ * the only input a rest period runs from today. The platform could store it —
+ * `rejection` is an outcome type — but the cooldown does not read recorded
+ * rejections (G-153), and this page does not report one. It names the offer
+ * key because that is what `rejects` is keyed by and what the engine matches a
+ * candidate on.
  */
 function offerActions(r, entry, { decline = true } = {}) {
   const key = esc(entry.action);

@@ -1,12 +1,16 @@
 # ADR-022: A decision records where each value came from, not which connector could have supplied it
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-09-17 (proposed)
+**Decided:** 2026-09-17
+**Deciders:** Product owner
 **Owner:** Product owner
-**Decision needed by:** the commit that starts ADR-019's reseed (slice 5 of the
-data-layer order in `docs/DIRECTIVE.md`). This changes the hashed decision in
-both engines. Landing it with that reseed costs one regeneration; landing it
-after costs a second, moving every decision id again.
+**Accepted with one amendment:** clause 8, the check that a seeded input is
+what the live path builds from the same request. Clause 6 fixes the instance;
+clause 8 closes the class.
+**Decision needed by:** — decided. It lands with ADR-019's reseed (slice 5 of the
+data-layer order in `docs/DIRECTIVE.md`), because it changes the hashed decision
+in both engines and landing it later would move every decision id a second time.
 **Constrains:** `packages/runtime/src/integration/resolve.ts`; the source node
 and decision record in `packages/runtime/src/deterministic/engine.ts` and
 `engines/kotlin/engine` (`Engine.kt`, `Domain.kt`, `Canon.kt`);
@@ -70,6 +74,24 @@ What each row means:
   change chain hash, 7,121 change what was eliminated, and **2,321 change
   winner**. The seeded attribution is true of an input that resolution would
   not have produced from the seed's own request.
+
+  **The population barely moves.** Measured the same day, by seeding the whole
+  ledger both ways and reading the performance and policy-funnel routes and the
+  loop model the screens use:
+  - **Winners.** Of the 2,321 changes, 673 go from an offer to nothing, 690
+    from nothing to an offer, and 958 from one offer to another.
+  - **Why they cancel.** The base request and the connector payload draw each
+    field from the same thresholds with different salts, so which one is used
+    moves individual decisions and leaves the distribution where it was.
+  - **Loop.** Offered 4,688 → 4,705, deliverable 1,686 → 1,674, seen
+    1,228 → 1,216, acted 278 → 292.
+  - **Funnel.** No stage moves by more than 1.7%. "Where it loses most" names the
+    same stage (Acted on, 23% → 24%). "Why the rest offered nothing" keeps its
+    order (Relevance 4,320 → 4,287, then Consent, Eligibility, Frequency).
+  - **Realised value** moves 40%, from $2,279.09 to $3,201.10. That is not
+    precedence: the outcome model's draws are keyed on the decision id, the ids of
+    8,622 decisions change, and the value rests on a few dozen accepted and
+    converted decisions. Any regeneration moves it this much, ADR-019's included.
 
 **The record cannot answer the question after the fact.** It holds a hash of
 the input, never its values (ADR-004). It keeps no copy of the request as it
@@ -179,8 +201,10 @@ identical to today's on all 10,400 decisions:
 - no winner moves;
 - every seeded entry is `connector`.
 
-Applying the live precedence would also be defensible, and it moves 2,321
-winners (Context). The seeded story is that serviceability arrives from a named
+Applying the live precedence would also be defensible. It moves 2,321 winners,
+no funnel stage by more than 1.7% and no loop stage by more than 5% (acted,
+278 → 292). Single rules move more: `pol_not_on_5g_home` removes 12% fewer. And
+realised value re-rolls (Context). The seeded story is that serviceability arrives from a named
 system, so the connector should be the one supplying it.
 
 The request-origin case is then exercised by the storefront, the service cases
@@ -205,6 +229,43 @@ ledger for ADR-019 (and ADR-020 clauses 1–5).
 **Must agree:** the TypeScript and JVM services on all 60 service cases, all of
 whose entries become `request`.
 
+### 8. A seeded input is held to what the live path builds from the same request
+
+*Added on acceptance, by the product owner.* Clause 6 removes the two values the
+seed discards. Nothing stops the next seed change reintroducing the same
+divergence, because nothing compares the two. The seed's own comment says it
+mirrors the live path: `writePath` is *"The same walk `resolveInputs` does on the
+live path. Kept identical on purpose"*. The seed copied the walk and not the
+precedence, and the comment could not notice.
+
+- **The seed exposes both halves.** The seed exposes the request as a caller
+  would send it, before resolution. It also exposes each connector's recorded
+  answer at the paths that connector declares (`binding.path`), not the
+  field-keyed map `connectorPayload` returns today.
+- **A test builds every seeded input the live way.** For all 10,400 seeded
+  decisions, it runs the request through the live path's own pre-engine steps:
+  `resolveInputs`, with a gateway answering from the recorded answers, then
+  `resolveAggregations` and `mergeAggregations`, as the console route does. It
+  asserts:
+  - the result is canonically equal to the input the seeded decision was
+    executed with;
+  - the origins resolution reports equal the decision's `fieldOrigins`.
+- **It calls the live functions, never a copy of their rules.** Copying is how
+  the seed diverged. A test that restated "the request wins" would diverge the
+  same way the first time precedence changes.
+- **It is shown to fail before clause 6 is applied.** On today's seed it fails on
+  the 8,622 decisions where the base request's serviceability differs from the
+  recorded answer (measured, Context). After clause 6 it passes. Re-adding either
+  field to the base request must turn it red again.
+- **What it does not cover, said here so it is not assumed.** The check holds
+  the seed to the live path's precedence, not to realism.
+  `customer.engagement.digital_or_broadband_intent` is `origin: aggregation` in
+  the schema. The schema's `aggregations` declare nothing that produces it, so
+  the live path cannot compute it, and the seed invents it in the request. The
+  check passes it, because the request wins in both steps. A seeded field whose
+  schema origin says the caller cannot supply it is a different class, and is
+  not closed by this clause.
+
 ## Consequences
 
 - **The storefront trace stops saying `conn_serviceability` decided where the
@@ -225,7 +286,9 @@ whose entries become `request`.
       seventeen reading files, the trace page, the evidence pane and the
       storefront panel;
     - `SourceCall.fields` and `overridden`;
-    - the two-field seed change.
+    - the two-field seed change;
+    - clause 8's check, and splitting the seed's request from its recorded
+      answers so the check has both.
 
     Estimated at one to two days on top of ADR-019's two to four, most of it in
     the readers and the Kotlin parity, not the engine.
