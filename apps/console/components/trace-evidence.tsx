@@ -1,5 +1,7 @@
 'use client';
 
+import { ageInWords } from '@/lib/age';
+
 import Link from 'next/link';
 import { Badge } from '@/components/ui/primitives';
 import {
@@ -73,6 +75,8 @@ export interface TraceEvidenceProps {
 
 /** When a value was computed, in the words the record can support. */
 function whenComputed(call: SourceCallDto): React.ReactNode {
+  // In words past a minute and a half: "77023s older" was the right number in a
+  // unit nobody reads. See `lib/age.ts`.
   if (!call.observedAt) {
     return (
       <Absent reason="this cache does not record when it stored the value" />
@@ -86,7 +90,7 @@ function whenComputed(call: SourceCallDto): React.ReactNode {
       <span className="tnum">{observed.toISOString().replace('T', ' ').slice(0, 19)}Z</span>
       <span className="text-content-muted">
         {' '}
-        · {call.cacheHit ? `cached, ${ageSeconds}s older than this decision` : 'read live'}
+        · {call.cacheHit ? `cached, ${ageInWords(ageSeconds)} older than this decision` : 'read live'}
       </span>
     </>
   );

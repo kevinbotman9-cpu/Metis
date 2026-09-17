@@ -100,8 +100,13 @@ test.describe('the content library', () => {
     // instead (the same call as `fixtures.test.ts` makes about offers with no
     // deliverable creative).
     await page.getByRole('radio', { name: /Switched off/ }).click();
-    await expect(page.locator('tbody tr')).toHaveCount(0);
-    await expect(page.getByText('No creatives match', { exact: true })).toBeVisible();
+    // No data rows — and, since 2026-09-17, the table is still there with its
+    // columns, saying so in its body. This asserted `tbody tr` was empty, which
+    // was the old rule: an empty table replaced itself with a sentence. Data can
+    // be zero; structure cannot vanish.
+    await expect(page.locator('tr[data-row]')).toHaveCount(0);
+    await expect(page.getByRole('columnheader').first(), 'the empty lens dropped its columns').toBeVisible();
+    await expect(page.getByRole('table').getByText('No creatives match', { exact: true })).toBeVisible();
   });
 
   test('edits content from here, without going via the offer', async ({ page }) => {

@@ -10,13 +10,12 @@ import {
   Card,
   CardHeader,
   Badge,
-  EmptyState,
   ErrorState,
   Field,
   LoadingState,
   Select,
 } from '@/components/ui/primitives';
-import { NoDecisionsYet, useEmptyReason } from '@/components/no-decisions-yet';
+import { EmptyLedgerNote, useEmptyReason } from '@/components/no-decisions-yet';
 import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import { CascadeRail } from '@/components/cascade-rail';
 import { CascadePanes } from '@/components/cascade-panes';
@@ -131,44 +130,34 @@ function PolicyFunnel() {
         </div>
       </div>
 
+      {/* The funnel is drawn at zero; the note above it says which empty this is. */}
       {data.decisions === 0 ? (
-        emptyReason === 'new-tenant' ? (
-          <NoDecisionsYet
-            shows={[
-              'The qualification funnel: how many candidates each tier removed, and which rule removed them',
-              'Eligibility, relevance and suitability as three stages with volumes between them',
-              'Every removal traceable to the offer it removed and the policy that named it',
-            ]}
-          />
-        ) : (
-          <EmptyState
-            title="Nothing has been decided in this window"
-            description="This tenant has a decision history; this flow has no part of it. Choose another flow."
-          />
-        )
-      ) : (
-        <>
-          <FunnelUnaccounted report={data} />
-          <CascadePanes
-            rail={
-              <CascadeRail
-                label="Where candidates fall out"
-                stages={view.stages}
-                selected={selected}
-                onSelect={setSelected}
-                foot={<FunnelRailFoot />}
-              />
-            }
-            evidence={<FunnelStageEvidence report={data} stageId={selected} />}
-          >
-            {selected ? (
-              <FunnelStageDetail report={data} stageId={selected} />
-            ) : (
-              <FunnelFirstPaint report={data} view={view} />
-            )}
-          </CascadePanes>
-        </>
-      )}
+        <EmptyLedgerNote
+          reason={emptyReason}
+          filtered="This tenant has a decision history; this flow has no part of it. Choose another flow."
+        />
+      ) : null}
+      <>
+        <FunnelUnaccounted report={data} />
+        <CascadePanes
+          rail={
+            <CascadeRail
+              label="Where candidates fall out"
+              stages={view.stages}
+              selected={selected}
+              onSelect={setSelected}
+              foot={<FunnelRailFoot />}
+            />
+          }
+          evidence={<FunnelStageEvidence report={data} stageId={selected} />}
+        >
+          {selected ? (
+            <FunnelStageDetail report={data} stageId={selected} />
+          ) : (
+            <FunnelFirstPaint report={data} view={view} />
+          )}
+        </CascadePanes>
+      </>
     </>
   );
 }

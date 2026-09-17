@@ -51,7 +51,14 @@ export const LOOP_FLOW = {
 
 export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
   const format = useFormat();
-  const { width: W, height: H, top: TOP, band: BAND, column: COL, dropGap } = LOOP_FLOW;
+  const { width: W, top: TOP, band: BAND, column: COL, dropGap } = LOOP_FLOW;
+  // Nothing has entered the loop. The columns are still drawn — outlined, at the
+  // full band — so the shape a reader is about to fill is on screen; and the
+  // drawing stops at the band, because there is no row for losses to fall to.
+  // Until 2026-09-17 this state drew nothing inside the full 316-unit canvas,
+  // which read as about 300px of chart that had failed to load.
+  const empty = stages.length > 0 && stages.every((s) => s.value === 0);
+  const H = empty ? TOP + BAND + 8 : LOOP_FLOW.height;
   const scale = volumeScale(Math.max(0, ...stages.map((s) => s.value)), BAND);
   const n = stages.length;
   const step = n > 1 ? (W - COL) / (n - 1) : 0;
@@ -109,15 +116,28 @@ export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
         const tx = i === 0 ? x(i) : i === n - 1 ? x(i) + COL : x(i) + COL / 2;
         return (
           <g key={stage.id}>
-            <rect
-              data-part="stage"
-              x={x(i)}
-              y={TOP}
-              width={COL}
-              height={scale(stage.value)}
-              rx={3}
-              className={cn(stage.broken ? 'fill-block' : 'fill-accent')}
-            />
+            {empty ? (
+              <rect
+                data-part="stage-empty"
+                x={x(i)}
+                y={TOP}
+                width={COL}
+                height={BAND}
+                rx={3}
+                strokeDasharray="4 3"
+                className="fill-none stroke-border"
+              />
+            ) : (
+              <rect
+                data-part="stage"
+                x={x(i)}
+                y={TOP}
+                width={COL}
+                height={scale(stage.value)}
+                rx={3}
+                className={cn(stage.broken ? 'fill-block' : 'fill-accent')}
+              />
+            )}
             <text x={tx} y={TOP - 22} textAnchor={anchor} className="tnum fill-content text-body font-semibold">
               {format.number(stage.value)}
             </text>

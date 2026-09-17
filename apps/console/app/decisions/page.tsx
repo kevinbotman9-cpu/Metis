@@ -13,7 +13,7 @@ import {
   Metric,
   ErrorState,
 } from '@/components/ui/primitives';
-import { NoDecisionsYet, useEmptyReason } from '@/components/no-decisions-yet';
+import { EmptyLedgerNote, useEmptyReason } from '@/components/no-decisions-yet';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import {
@@ -209,6 +209,9 @@ function DecisionsView() {
         />
       </div>
 
+      {!isLoading && !error && rows.length === 0 && emptyReason === 'new-tenant' ? (
+        <EmptyLedgerNote reason="new-tenant" />
+      ) : null}
       <Card>
           <CardHeader
             title={`Results${data ? ` · ${data.total}` : ''}`}
@@ -219,14 +222,6 @@ function DecisionsView() {
               description={(error as Error).message}
               onRetry={() => refetch()}
             />
-          ) : !isLoading && rows.length === 0 && emptyReason === 'new-tenant' ? (
-            <NoDecisionsYet
-              shows={[
-                'Every decision this tenant has made, newest first, with the offer that won and the channel that asked',
-                'Filters by customer, channel, outcome, action and date',
-                'A row opens the trace: the candidates, what removed each one, and the hash over the record',
-              ]}
-            />
           ) : (
             <DataTable
               columns={columns}
@@ -235,8 +230,8 @@ function DecisionsView() {
               isLoading={isLoading}
               defaultSort={{ key: 'timestamp', dir: 'desc' }}
               onRowClick={(d) => router.push(`/decisions/${d.id}`)}
-              emptyTitle="No decisions match these filters"
-              emptyDescription="Remove a filter chip to widen the search."
+              emptyTitle={emptyReason === 'new-tenant' ? 'No decisions yet' : 'No decisions match these filters'}
+              emptyDescription={emptyReason === 'new-tenant' ? undefined : 'Remove a filter chip to widen the search.'}
               caption="Decision search results"
             />
           )}

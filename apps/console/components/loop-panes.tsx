@@ -67,6 +67,9 @@ function Rate({ value, measured }: { value: number | null; measured: number }) {
 
 /** One line under the rail, saying what the whole loop is closed on. */
 export function LoopRailFoot({ loop }: { loop: Loop }) {
+  if (loop.stages[0]?.value === 0) {
+    return <>Nothing has been decided yet, so every stage reads zero.</>;
+  }
   if (loop.dead.length === 0) {
     return <>Every channel that offered something delivers it, so the loop is closed end to end.</>;
   }
@@ -130,7 +133,16 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
           <CardBody>
             <p className="text-label text-content-subtle">Realised value</p>
             <p className="tnum mt-1 text-figure font-semibold text-accent">{money(loop.realised, format)}</p>
-            <p className="mt-1 text-label text-content-subtle">from {format.number(data.acted)} acted on</p>
+            <p className="mt-1 text-label text-content-subtle">
+              {loop.realised !== null
+                ? `from ${format.number(data.acted)} acted on`
+                : data.acted > 0
+                  ? // A click is acted on and carries no value. Saying "0" here read
+                    // as "we measured it and it was worth nothing", which is the
+                    // one thing this card cannot know.
+                    `${format.number(data.acted)} acted on, none carrying a value`
+                  : 'nothing acted on yet'}
+            </p>
           </CardBody>
         </Card>
         <Card>
@@ -460,9 +472,7 @@ export function LoopStageEvidence({ data, loop, stage }: { data: LoopReport; loo
     return (
       <>
         <EvidenceLabel>The loop</EvidenceLabel>
-        <EvidencePick>
-          Closed on {loop.population}, open on {loop.dead.length}
-        </EvidencePick>
+        <EvidencePick>{loop.closure}</EvidencePick>
         {breakStage?.broken ? (
           <EvidenceQuote title="Where the loop breaks" tone="block">
             {breakStage.broken}

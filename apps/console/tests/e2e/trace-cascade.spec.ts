@@ -209,7 +209,8 @@ test.describe('the trace reads as a cascade @screen-only', () => {
     // used — which is the claim this row exists to disprove, and which a
     // deliberately broken fixture produced while a \d+ pattern stayed green.
     await expect(
-      evidence.getByText(/cached, [1-9]\d*s older than this decision|read live/).first()
+      // In the unit a person reads since 2026-09-17 (lib/age.ts) — still never 0.
+      evidence.getByText(/cached, [1-9]\d*(?:s| min| h| days?) older than this decision|read live/).first()
     ).toBeVisible();
 
     // Every connector the decision called is dated, not just the first.

@@ -56,8 +56,29 @@ export interface Loop {
   undeliverable: number;
   /** The population every rate below the break describes, in words. */
   population: string;
-  /** Realised value, in minor units of the tenant's currency. */
-  realised: number;
+  /**
+   * What the loop is closed on, as one sentence a reader can take whole.
+   *
+   * It was assembled in the pane as "Closed on {population}, open on
+   * {dead.length}", which printed *"Closed on Web only, open on 0"* on every
+   * tenant whose channels all deliver — a count where a sentence was expected,
+   * and on a tenant with no decisions *"Closed on 0 delivered channels, open on
+   * 0"*, which says nothing true at all. The three cases are different
+   * statements, so they are three sentences.
+   */
+  closure: string;
+  /**
+   * Realised value, in minor units of the tenant's currency — or `null` when no
+   * outcome carried a value.
+   *
+   * It summed `valueMinor ?? 0`, so a tenant whose only outcomes were clicks read
+   * *"$0.00 from 1 acted on"*: a measured zero, when nothing had been measured.
+   * The ledger's rule is the opposite — `packages/ledger/src/performance.ts`,
+   * *"Null when nothing was measured — not zero"* — and the panes already draw a
+   * dash for `null`. A click carries no value; only an acceptance or a
+   * conversion does, and the storefront sends neither.
+   */
+  realised: number | null;
   /**
    * Expected margin × offers, over the delivered channels.
    *
@@ -89,10 +110,22 @@ export function buildLoop(
   const deliverable = data.deliverable ?? 0;
   const undeliverable = data.offered - deliverable;
 
+  // Before a channel has carried anything there is no population to name, and
+  // "0 delivered channels" read as a measurement of one.
   const population =
-    delivering.length === 1
-      ? `${channelLabel(delivering[0].channel)} only`
-      : `${delivering.length} delivered channels`;
+    delivering.length === 0
+      ? 'no channel yet'
+      : delivering.length === 1
+        ? `${channelLabel(delivering[0].channel)} only`
+        : `${delivering.length} delivered channels`;
+
+  const deadNames = dead.map((c) => channelLabel(c.channel)).join(', ');
+  const closure =
+    data.decisions === 0
+      ? 'Nothing has been decided, so no channel has been asked to deliver anything yet.'
+      : dead.length === 0
+        ? `Closed on ${population}: every channel that offered something delivers it.`
+        : `Open on ${deadNames}: ${dead.length === 1 ? 'it offers' : 'they offer'} and nothing delivers. Closed on ${population}.`;
 
   const stages: CascadeStage[] = [
     {
@@ -100,7 +133,8 @@ export function buildLoop(
       label: 'Decisions made',
       value: data.decisions,
       pct: 100,
-      note: `${data.channels.length} channels`,
+      // "1 channels" read on every tenant driven by the storefront, which is one.
+      note: `${data.channels.length} ${data.channels.length === 1 ? 'channel' : 'channels'}`,
       series: tail.map((d) => d.decisions),
     },
     {
@@ -165,7 +199,10 @@ export function buildLoop(
     dead,
     undeliverable,
     population,
-    realised: data.rows.reduce((sum, r) => sum + (r.valueMinor ?? 0), 0),
+    closure,
+    realised: data.rows.some((r) => r.valueMinor !== null && r.valueMinor !== undefined)
+      ? data.rows.reduce((sum, r) => sum + (r.valueMinor ?? 0), 0)
+      : null,
     expectedDelivered: ceiling(data.rows.filter(delivers)),
     expectedUndelivered: ceiling(data.rows.filter((r) => !delivers(r))),
     inversions,

@@ -7,13 +7,12 @@ import { RequireAuth } from '@/components/require-auth';
 import {
   PageBody,
   PageHeader,
-  EmptyState,
   ErrorState,
   LoadingState,
   Select,
   Field,
 } from '@/components/ui/primitives';
-import { NoDecisionsYet, useEmptyReason } from '@/components/no-decisions-yet';
+import { EmptyLedgerNote, useEmptyReason } from '@/components/no-decisions-yet';
 import { ProvenanceBanner } from '@/components/ui/provenance-banner';
 import { CascadeRail } from '@/components/cascade-rail';
 import { CascadePanes } from '@/components/cascade-panes';
@@ -152,47 +151,38 @@ function PerformanceView() {
         </div>
       </div>
 
+      {/*
+        Filtered, so an empty report has two meanings and the note says which:
+        a window that matched nothing is the reader's to fix, a tenant with no
+        history is not. Either way the loop below is drawn, at zero.
+      */}
       {data.decisions === 0 ? (
-        // Filtered, so the blank has two meanings and the screen has to say
-        // which: a window that matched nothing is the reader's to fix, and a
-        // tenant with no history is not.
-        emptyReason === 'new-tenant' ? (
-          <NoDecisionsYet
-            shows={[
-              'Decisions, offers, deliveries and outcomes over the window and flow you choose',
-              'Conversion and acceptance rates, and the value realised against the ceiling',
-              'The stage of the loop losing the most volume, with the rule responsible',
-            ]}
-          />
-        ) : (
-          <EmptyState
-            title="Nothing has been decided in this window"
-            description="This tenant has a decision history; none of it is in this window. Narrow the filters or widen the window."
-          />
-        )
-      ) : (
-        <>
-          <LoopInversions loop={loop} />
-          <CascadePanes
-            rail={
-              <CascadeRail
-                label="The loop"
-                stages={loop.stages}
-                selected={selected}
-                onSelect={setSelected}
-                foot={<LoopRailFoot loop={loop} />}
-              />
-            }
-            evidence={<LoopStageEvidence data={data} loop={loop} stage={selected} />}
-          >
-            {selected ? (
-              <LoopStageDetail data={data} loop={loop} stage={selected} />
-            ) : (
-              <LoopFirstPaint data={data} loop={loop} />
-            )}
-          </CascadePanes>
-        </>
-      )}
+        <EmptyLedgerNote
+          reason={emptyReason}
+          filtered="This tenant has a decision history; none of it is in this window. Narrow the filters or widen the window."
+        />
+      ) : null}
+      <>
+        <LoopInversions loop={loop} />
+        <CascadePanes
+          rail={
+            <CascadeRail
+              label="The loop"
+              stages={loop.stages}
+              selected={selected}
+              onSelect={setSelected}
+              foot={<LoopRailFoot loop={loop} />}
+            />
+          }
+          evidence={<LoopStageEvidence data={data} loop={loop} stage={selected} />}
+        >
+          {selected ? (
+            <LoopStageDetail data={data} loop={loop} stage={selected} />
+          ) : (
+            <LoopFirstPaint data={data} loop={loop} />
+          )}
+        </CascadePanes>
+      </>
 
       {/* What this screen will not claim. Change it with the row that quotes it: it is cited in
           `docs/CAPABILITIES.md` as the place the product says it in its own
