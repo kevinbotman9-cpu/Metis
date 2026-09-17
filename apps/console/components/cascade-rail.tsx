@@ -135,7 +135,10 @@ export function CascadeRail({ stages, selected, onSelect, foot, label, dense = f
     <nav aria-labelledby={titleId} className="flex h-full flex-col bg-rail">
       <h2
         id={titleId}
-        className="border-b border-rail-line px-4 pb-2 pt-3 text-label font-semibold text-rail-dim"
+        className={cn(
+          'border-b border-rail-line px-4 text-label font-semibold text-rail-dim',
+          dense ? 'pb-1.5 pt-2' : 'pb-2 pt-3'
+        )}
       >
         {label}
       </h2>
@@ -165,7 +168,7 @@ export function CascadeRail({ stages, selected, onSelect, foot, label, dense = f
                 onClick={() => onSelect(current ? null : stage.id)}
                 className={cn(
                   'w-full border-b border-rail-line px-4 text-left transition-colors',
-                  dense ? 'pb-2 pt-1.5' : 'pb-3 pt-2.5',
+                  dense ? 'pb-1.5 pt-1.5' : 'pb-3 pt-2.5',
                   'hover:bg-rail-hover-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-rail-fg',
                   current && cn('bg-rail-selected-wash shadow-[inset_3px_0_0]', TONE_EDGE[tone])
                 )}
@@ -198,10 +201,14 @@ export function CascadeRail({ stages, selected, onSelect, foot, label, dense = f
                   <span
                     aria-hidden
                     data-part="pass-through"
-                    className="mt-2 block h-1 border-t border-dashed border-rail-dim"
+                    className={cn('block h-1 border-t border-dashed border-rail-dim', dense ? 'mt-1.5' : 'mt-2')}
                   />
                 ) : (
-                  <span aria-hidden data-part="bar" className="mt-2 block h-1 overflow-hidden rounded-sm bg-rail-hover/10">
+                  <span
+                    aria-hidden
+                    data-part="bar"
+                    className={cn('block h-1 overflow-hidden rounded-sm bg-rail-hover/10', dense ? 'mt-1.5' : 'mt-2')}
+                  >
                     <span
                       className={cn('block h-full rounded-sm', TONE_FILL[tone])}
                       style={{ width: `${Math.max(stage.pct, 0.6)}%` }}

@@ -60,7 +60,7 @@ describe('the loop', () => {
     expect(undeliverable).toBe(15);
     expect(dead.map((c) => c.channel)).toEqual(['email', 'sms']);
     expect(deliverable.broken).toBe(
-      '15 decisions won a slot on a channel nothing delivers — Email, SMS. They were decided correctly and reached nobody.'
+      '15 decisions won a slot on a channel nothing delivers — Email, SMS. Decided correctly, reached nobody.'
     );
     // The stages either side are simply smaller, which is not a break.
     expect(stages.filter((s) => s.broken).map((s) => s.id)).toEqual(['deliverable']);

@@ -82,4 +82,69 @@ test.describe.serial('a loop made by hand @screen-only', () => {
     await expect(deliverable(page)).toHaveAttribute('aria-label', /won a slot on a channel nothing delivers — Email/);
     await expect(deliverable(page)).not.toHaveAttribute('aria-label', /Nothing offered can drop here/);
   });
+
+  /**
+   * The Overview fits a hand-made tenant, which is the case the seeded check
+   * cannot see.
+   *
+   * `overview.spec.ts` pins the seeded tenant at 1680x1000. That tenant's rail
+   * carries shorter text than this one's: at a dozen decisions the Offered
+   * stage names what suppressed them and Deliverable says why nothing can drop,
+   * so the rail — the tallest column, and the page's floor — is taller here than
+   * where the check was looking. The product owner read a scrolling page off
+   * this state while the seeded check was green (2026-09-17).
+   *
+   * Two sizes, two different claims:
+   *
+   * - **1440x900: the page fits.** Nothing scrolls.
+   * - **1280x720: the loop fits, and the proposals card is what scrolls.** The
+   *   rail and the funnel are wholly above the fold. The arithmetic does not
+   *   allow more: the rail alone is taller than half of a 720px window, and the
+   *   proposals card is another 252px. Asserting no scroll at 1280 would mean
+   *   taking the proposals card off a page the product owner wants it on, so
+   *   what is asserted is which part scrolls.
+   */
+  test('the Overview fits at 1440x900, and at 1280x720 only the proposals scroll', async ({ page }) => {
+    // The marketer's Overview is the loop; an administrator lands on the
+    // architect's, which is panels, and switches with the control in the chrome
+    // (`lib/persona.ts`).
+    await page.goto('/');
+    await page.getByRole('group', { name: 'Overview persona', exact: true })
+      .getByRole('button', { name: 'Marketer', exact: true })
+      .click();
+    await expect(rail(page)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Realised value', { exact: true })).toBeVisible();
+
+    const geometry = () =>
+      page.evaluate(() => {
+        const scroller = [...document.querySelectorAll<HTMLElement>('main')].find((n) =>
+          ['auto', 'scroll'].includes(getComputedStyle(n).overflowY)
+        );
+        if (!scroller) throw new Error('no scroll container on the page');
+        const box = scroller.getBoundingClientRect();
+        const bottomOf = (sel: string) => {
+          const n = document.querySelector(sel);
+          if (!n) throw new Error(`no ${sel}`);
+          return n.getBoundingClientRect().bottom - box.top;
+        };
+        return {
+          overflow: scroller.scrollHeight - scroller.clientHeight,
+          fold: scroller.clientHeight,
+          loopBottom: Math.max(bottomOf('nav[aria-labelledby]'), bottomOf('svg[role="img"]')),
+        };
+      });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(rail(page)).toBeVisible();
+    const wide = await geometry();
+    expect(wide.overflow, `the Overview scrolls at 1440x900 by ${wide.overflow}px`).toBeLessThanOrEqual(0);
+
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect(rail(page)).toBeVisible();
+    const narrow = await geometry();
+    expect(
+      narrow.loopBottom,
+      `the loop runs past the fold at 1280x720 by ${Math.round(narrow.loopBottom - narrow.fold)}px`
+    ).toBeLessThanOrEqual(narrow.fold);
+  });
 });

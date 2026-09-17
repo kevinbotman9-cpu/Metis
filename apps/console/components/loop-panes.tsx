@@ -143,8 +143,16 @@ export function LoopFirstPaint({
   const format = useFormat();
   const { tail, population, dead, undeliverable } = loop;
 
-  /** The three per-day cards. Beside the value cards when dense, under the flow otherwise. */
-  const trends = [
+  /**
+   * The three per-day cards, or none.
+   *
+   * One day of history is not a trend: the sparkline says "one day so far" and
+   * the figures repeat the rail — 12 decisions, 8 seen, 100% deliverable, all
+   * of them already one row to the left. A card that cannot say anything stands
+   * down, which is the rule the pass-through stage follows. Decided by the
+   * product owner on 2026-09-17, from a hand-made tenant.
+   */
+  const trends = tail.length < 2 ? [] : [
     {
       label: 'Decisions per day',
       value: format.number(Math.round(tail.reduce((s, d) => s + d.decisions, 0) / Math.max(1, tail.length))),
@@ -180,38 +188,28 @@ export function LoopFirstPaint({
     // height they leave instead of the pane stretching around a fixed drawing.
     <div className={cn(dense && 'flex h-full min-h-0 flex-col')}>
       {/*
-        At most one accent on the page, on one figure.
+        One accent on the page, and it is not this card.
 
-        Realised value is what the loop is for: the other two cards are a bound
-        and a loss, and every stage in the rail below exists to move this
-        number. Until 2026-09-17 it was `text-content` like everything else, so
-        the screen had no focal point at all — greys throughout, with colour
-        only where something had gone wrong.
+        Realised value held it from 2026-09-17, on the argument that the loop
+        exists to move this number. Measured against the screen: the figure is a
+        dash whenever nothing carried a value, and drawn plain below
+        `REALISED_FLOOR` (ADR-023 §3) — so on the seeded tenant and on every
+        hand-made one the page had no visible accent at all. The product owner
+        moved it the same day to the funnel's largest drop, which is present
+        whenever anything has been decided and is the loss a person can act on
+        (ADR-023 §3, amended).
 
-        The token is the console's existing `--accent`, which already holds the
-        design drafts' value exactly (#2563C7 light, #63A8E8 dark). Nothing was
-        added to the token layer for this, and the accent goes nowhere else on
-        the screen: two accents is no accent.
-
-        **Only when the figure rests on enough** (ADR-023 §3). Below
-        `REALISED_FLOOR` valued decisions it is the least stable figure on the
-        page by three times, and the accent would tell a reader to read it
-        first. It is drawn plain, and nothing else takes the accent.
+        The card keeps the floor: above it the figure can be read as a return,
+        below it the line says it cannot. That distinction is the card's job;
+        the colour was not doing it.
       */}
       {/* Dense: the six cards share one row, which is what took 300px out of the
           Overview's scroll. Three abreast on a laptop, six on a wide screen. */}
       <div className={cn('mb-stack grid gap-3 sm:grid-cols-3', dense && 'xl:grid-cols-6')}>
-        <Card className={cn(loop.realisedAccent && 'border-accent/40 bg-accent-subtle')}>
+        <Card>
           <CardBody>
             <p className="text-label text-content-subtle">Realised value</p>
-            <p
-              className={cn(
-                'tnum mt-1 text-figure font-semibold',
-                loop.realisedAccent ? 'text-accent' : 'text-content'
-              )}
-            >
-              {money(loop.realised, format)}
-            </p>
+            <p className="tnum mt-1 text-figure font-semibold text-content">{money(loop.realised, format)}</p>
             <p className="mt-1 text-label text-content-subtle">{loop.realisedLine}</p>
           </CardBody>
         </Card>
@@ -236,8 +234,13 @@ export function LoopFirstPaint({
             <p className={cn('tnum mt-1 text-figure font-semibold', undeliverable > 0 ? 'text-block' : 'text-content')}>
               {money(loop.expectedUndelivered, format)}
             </p>
+            {/* At zero this read "the same ceiling over the 0 nothing sent",
+                which is not a sentence — the shortening for the dense page broke
+                it. Nothing undeliverable is a result, and it is said as one. */}
             <p className="mt-1 text-label text-content-subtle">
-              the same ceiling over the {format.number(undeliverable)} {dense ? 'nothing sent' : 'decisions nothing sent'}
+              {undeliverable === 0
+                ? 'every offer had a channel that could send it'
+                : `the same ceiling over the ${format.number(undeliverable)} ${dense ? 'nothing sent' : 'decisions nothing sent'}`}
             </p>
           </CardBody>
         </Card>

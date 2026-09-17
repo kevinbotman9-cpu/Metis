@@ -156,8 +156,10 @@ describe('the flow diagram', () => {
     expect(columns.map((g) => g.getAttribute('data-stages'))).toEqual(['4', '1']);
     expect(columns[0].textContent).toContain('Decisions made');
     expect(columns[0].textContent).toContain('Seen');
-    // One transition, where the volume actually left.
-    expect(container.querySelectorAll('path[data-part="leave"]')).toHaveLength(1);
+    // One transition, where the volume actually left — and it is the page's
+    // accent, being the largest drop that is not the break.
+    expect(container.querySelectorAll('path[data-part="leave"]')).toHaveLength(0);
+    expect(container.querySelectorAll('path[data-part="leave-most"]')).toHaveLength(1);
     // The names stack above the columns, so the columns start below them.
     const [, , , h] = container.querySelector('svg')!.getAttribute('viewBox')!.split(' ').map(Number);
     expect(h).toBe(LOOP_FLOW.height + 3 * LOOP_FLOW.line);
@@ -169,6 +171,50 @@ describe('the flow diagram', () => {
     expect(
       [...container.querySelectorAll('g[data-part="column"]')].map((g) => g.getAttribute('data-stages'))
     ).toEqual(['2', '2', '1']);
+  });
+
+  it('spends the page’s one accent on the largest drop that is not the break', () => {
+    // ADR-023 §3, amended 2026-09-17: realised value is a dash or too thin to
+    // emphasise most of the time, so the accent went to the loss a person can
+    // act on. The break has its own colour and never takes it.
+    const { container } = flow(withEmail);
+    const accented = [...container.querySelectorAll('path[data-part="leave-most"]')];
+    expect(accented).toHaveLength(1);
+    expect(accented[0].getAttribute('class')).toContain('fill-accent');
+
+    // Of the drops here — 1 at Offered, 26 at Seen→Acted on and the break's own
+    // — the accent is on the largest that is not the break.
+    const drops = [...container.querySelectorAll('path[data-part="leave"], path[data-part="leave-most"]')];
+    expect(drops.filter((d) => (d.getAttribute('class') ?? '').includes('fill-accent'))).toHaveLength(1);
+    expect(drops.filter((d) => (d.getAttribute('class') ?? '').includes('fill-block')).length).toBeGreaterThan(0);
+  });
+
+  it('never gives the accent to the break, even when the break is the largest drop', () => {
+    // 28 of 30 offers won a channel nothing sends: the biggest loss on the page
+    // is structural, and structural losses are the block colour. The accent goes
+    // to the largest one a person can act on — here the two that were seen and
+    // not acted on.
+    const mostlyDead = byHand({
+      decisions: 30,
+      offered: 30,
+      deliverable: 2,
+      measured: 2,
+      acted: 1,
+      channels: [
+        { channel: 'web', decisions: 2, offered: 2, deliverable: 2, seen: 2, acted: 1, delivers: true },
+        { channel: 'email', decisions: 28, offered: 28, deliverable: 0, seen: 0, acted: 0, delivers: false },
+      ],
+    });
+    const { container } = flow(mostlyDead);
+    const accented = [...container.querySelectorAll('path[data-part="leave-most"]')];
+    expect(accented).toHaveLength(1);
+    // The accented wedge is not the break's: the break's carries the block colour.
+    expect(accented[0].getAttribute('class')).toContain('fill-accent');
+    expect(accented[0].getAttribute('class')).not.toContain('fill-block');
+    const blocked = [...container.querySelectorAll('path[data-part="leave"]')].filter((d) =>
+      (d.getAttribute('class') ?? '').includes('fill-block')
+    );
+    expect(blocked).toHaveLength(1);
   });
 
   it('takes the rail’s colour for each stage, and the break’s', () => {
@@ -201,6 +247,12 @@ describe('the flow diagram', () => {
     const box = container.querySelector('svg')!.getAttribute('viewBox')!.split(' ').map(Number);
     expect(box[2]).toBe(LOOP_FLOW.denseWidth);
     expect(LOOP_FLOW.denseWidth).toBeGreaterThan(LOOP_FLOW.width);
+    // And shorter, by its own band: `meet` fits a fixed viewBox by its tighter
+    // dimension, so a canvas taller than the card's proportion letterboxes.
+    // The hand-made loop stacks four names, which is three extra lines.
+    const { top, denseBand, denseDropGap, line } = LOOP_FLOW;
+    expect(box[3]).toBe(top + denseBand + denseDropGap + denseBand + 12 + 3 * line);
+    expect(box[2] / box[3]).toBeGreaterThan(2.9);
     // And it fills the box its card gives it rather than its own aspect.
     expect(container.querySelector('svg')!.getAttribute('class')).toContain('absolute inset-0');
   });

@@ -74,11 +74,17 @@ export const LOOP_FLOW = {
   /** Each further stage name a merged column carries adds a line this tall above the columns. */
   line: 14,
   /**
-   * The canvas the Overview draws on: wider, so filling a card that is about
-   * three times as wide as it is tall does not leave the drawing in a letterbox.
+   * The canvas the Overview draws on: wider and shorter, because `meet` fits a
+   * fixed viewBox by its tighter dimension and any mismatch becomes empty space.
+   * Measured on 2026-09-17: the card runs about 3.5 wide to 1 tall — 845x230 at
+   * 1440x900, 1,098x312 at 1680x1000 — so these are chosen to match it. At
+   * 1000x344 the drawing filled the wide window and letterboxed in the narrow
+   * one; the height was the mismatch, not the width.
    */
   denseWidth: 1000,
   denseColumn: 22,
+  denseBand: 96,
+  denseDropGap: 16,
 } as const;
 
 /** One drawn column: a stage, or a run of consecutive stages with the same figure. */
@@ -135,9 +141,11 @@ export function LoopFlow({
   dense?: boolean;
 }) {
   const format = useFormat();
-  const { band: BAND, dropGap, line: LINE } = LOOP_FLOW;
+  const { line: LINE } = LOOP_FLOW;
   const W = dense ? LOOP_FLOW.denseWidth : LOOP_FLOW.width;
   const COL = dense ? LOOP_FLOW.denseColumn : LOOP_FLOW.column;
+  const BAND = dense ? LOOP_FLOW.denseBand : LOOP_FLOW.band;
+  const dropGap = dense ? LOOP_FLOW.denseDropGap : LOOP_FLOW.dropGap;
   // Nothing has entered the loop. The columns are still drawn — outlined, at the
   // full band — so the shape a reader is about to fill is on screen; and the
   // drawing stops at the band, because there is no row for losses to fall to.
@@ -158,13 +166,32 @@ export function LoopFlow({
   // so the columns start below the tallest stack.
   const extra = (Math.max(1, ...columns.map((c) => c.labels.length)) - 1) * LINE;
   const TOP = LOOP_FLOW.top + extra;
-  const H = (empty ? LOOP_FLOW.top + BAND + 8 : LOOP_FLOW.height) + extra;
+  // Dense: the canvas ends where the deepest wedge does — the columns' band, the
+  // gap under them, and a row as deep as the largest loss — so the shorter band
+  // shortens the canvas with it. `/performance` keeps the canvas it has, to the
+  // unit: its own tests pin the viewBox.
+  const full = dense ? LOOP_FLOW.top + BAND + dropGap + BAND + 12 : LOOP_FLOW.height;
+  const H = (empty ? LOOP_FLOW.top + BAND + 8 : full) + extra;
   const scale = volumeScale(Math.max(0, ...columns.map((c) => c.value)), BAND);
   const n = columns.length;
   const step = n > 1 ? (W - COL) / (n - 1) : 0;
   const x = (i: number) => i * step;
   const dropY = TOP + BAND + dropGap;
   const run = Math.min(step * 0.55, dense ? 140 : 96);
+  /**
+   * The largest drop that is not the break: the page's one accent.
+   *
+   * Decided by the product owner on 2026-09-17, over keeping it on realised
+   * value — which is a dash, or too thin to emphasise, most of the time, so the
+   * page had no visible accent at all. It marks the loss a person can act on:
+   * the break has its own colour, and a behavioural drop with no wedge to point
+   * at is what the cut evidence pane used to say in a sentence.
+   */
+  const accentAt = columns
+    .slice(0, -1)
+    .map((c, i) => ({ i, lost: c.value - columns[i + 1].value, broken: columns[i + 1].broken }))
+    .filter((d) => d.lost > 0 && !d.broken)
+    .sort((a, b) => b.lost - a.lost)[0]?.i;
   /** The type sizes: a size up where the drawing is the page's heaviest element. */
   const type = dense
     ? { figure: 'text-figure', name: 'text-body', drop: 'text-body' }
@@ -174,8 +201,6 @@ export function LoopFlow({
     <svg
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="xMidYMid meet"
-      // Dense: a fixed height and the width the aspect gives it, centred, so
-      // capping the height does not leave the drawing adrift in a wide card.
       // Dense: absolute inside the box its card gives it, so the drawing's own
       // proportion cannot push the pane taller than the rail beside it — which
       // is what put the page back into a scroll the first time it filled.
@@ -207,16 +232,23 @@ export function LoopFlow({
             />
             {lost > 0 ? (
               <>
-                {/* What left: the rest of this column, falling to the row below. */}
+                {/* What left: the rest of this column, falling to the row below.
+                    The largest drop that is not the break takes the accent. */}
                 <path
-                  data-part="leave"
+                  data-part={i === accentAt ? 'leave-most' : 'leave'}
                   d={ribbonPath(x0, TOP + on, TOP + here, x0 + run, dropY, dropY + Math.max(1, here - on))}
-                  className={cn(next.broken ? 'fill-block/30' : 'fill-content-subtle/15')}
+                  className={cn(
+                    next.broken ? 'fill-block/30' : i === accentAt ? 'fill-accent/40' : 'fill-content-subtle/15'
+                  )}
                 />
                 <text
                   x={x0 + run + 6}
                   y={dropY + 12}
-                  className={cn('tnum', type.drop, next.broken ? 'fill-block' : 'fill-content-subtle')}
+                  className={cn(
+                    'tnum',
+                    type.drop,
+                    next.broken ? 'fill-block' : i === accentAt ? 'fill-accent font-semibold' : 'fill-content-subtle'
+                  )}
                 >
                   −{format.number(lost)}
                 </text>
