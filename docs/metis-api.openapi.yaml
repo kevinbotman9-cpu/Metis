@@ -698,7 +698,7 @@ components:
       type: object
       required:
         [rows, decisions, offered, suppressed, suppressedBy, measured,
-         deliverable, acted, channels, series]
+         deliverable, acted, valued, channels, series]
       properties:
         rows:
           type: array
@@ -739,6 +739,15 @@ components:
           description: >-
             Decisions with a click, acceptance or conversion. The customer did
             something.
+        valued:
+          type: integer
+          description: |
+            Offered decisions with at least one outcome that carried a value:
+            the population realised value is summed over, and what it rests on.
+
+            Not `acted`: a click is acted on and carries no value. Realised
+            value's stability follows this count, so a screen showing the figure
+            states it (ADR-023).
         channels:
           type: array
           items: { $ref: '#/components/schemas/ChannelStages' }

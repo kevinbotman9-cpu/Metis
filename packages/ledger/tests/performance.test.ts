@@ -263,6 +263,34 @@ describe('what the numbers refuse to say', () => {
     expect(report.rows[0].valueMinor).toBe(5000);
   });
 
+  it('counts the decisions a value rests on: once each, offered only, and never a click', () => {
+    // ADR-023. Realised value's stability follows how many decisions carried a
+    // value, not how many were acted on, so the count has to be exactly the
+    // population the rows' values are summed over.
+    const report = buildPerformance(
+      [
+        entry({ id: 'd1', winner: 'a' }),
+        entry({ id: 'd2', winner: 'b' }),
+        entry({ id: 'd3', winner: 'a' }),
+        entry({ id: 'd4', winner: null }),
+      ],
+      map([
+        // Two valued events on one decision: one decision.
+        outcome('d1', 'acceptance', 5000),
+        outcome('d1', 'conversion', 9000),
+        // Acted on, and worth nothing said: not valued.
+        outcome('d2', 'click'),
+        outcome('d3', 'conversion', 7000),
+        // An outcome on a decision that offered nothing is not in any row.
+        outcome('d4', 'conversion', 100),
+      ])
+    );
+    expect(report.acted).toBe(4);
+    expect(report.valued).toBe(2);
+    const summed = report.rows.reduce((s, r) => s + (r.valueMinor ?? 0), 0);
+    expect(summed).toBe(21000);
+  });
+
   it('distinguishes measured from offered', () => {
     // Two offers, one with any outcome at all. "How much of this do we
     // actually know about" is a different question from "how did it do".

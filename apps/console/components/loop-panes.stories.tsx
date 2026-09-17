@@ -27,6 +27,7 @@ const REPORT = {
   deliverable: 36,
   measured: 22,
   acted: 5,
+  valued: 2,
   from: '2026-08-14T00:00:00.000Z',
   to: '2026-09-12T00:00:00.000Z',
   channels: [
@@ -68,9 +69,21 @@ export default meta;
 
 type Story = StoryObj;
 
-/** Before a stage is chosen: value against the ceiling, the flow, three trends. */
+/**
+ * Before a stage is chosen: value against the ceiling, the flow, three trends.
+ *
+ * Realised value rests on two valued outcomes here, far below the floor of 100
+ * (ADR-023), so it is drawn plain, says it is thin, and the page has no accent.
+ */
 export const FirstPaint: Story = {
   render: () => <LoopFirstPaint data={REPORT} loop={LOOP} />,
+};
+
+const ENOUGH = { ...REPORT, valued: 140 } as LoopReport;
+
+/** The same page with realised value resting on 140 valued outcomes: at the floor and above, it takes the accent. */
+export const FirstPaintAboveTheFloor: Story = {
+  render: () => <LoopFirstPaint data={ENOUGH} loop={buildLoop(ENOUGH, MARGINS, F)} />,
 };
 
 /** The break, selected. */

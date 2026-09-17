@@ -1,12 +1,17 @@
 # ADR-023: Realised value states what it rests on, and is emphasised only when that is enough
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-09-17 (proposed)
+**Decided:** 2026-09-17
+**Deciders:** Product owner
 **Owner:** Product owner
-**Decision needed by:** before ADR-019's reseed (slice 5). The reseed re-rolls
-every outcome draw, so realised value will move again with no behaviour behind
-it — the same move that prompted this — and the screens should say how much to
-trust the figure before it happens, not after.
+**Accepted as proposed**, with a floor of 100. One wording change on building
+it: the thin-figure sentence reads *"a count this small moves by about 20% with
+no change in behaviour"*, not *"a regeneration could move this by a fifth"*. A
+real tenant is never regenerated, and the count's spread is true of it anyway.
+**Decision needed by:** — decided. Built before ADR-019's reseed, which re-rolls
+every outcome draw, so the screens say how far to trust the figure before it
+moves again.
 **Constrains:** `packages/ledger/src/performance.ts` (a count of valued
 decisions); `docs/metis-api.openapi.yaml` (the performance report); `packages/client`;
 `apps/console/lib/loop.ts`; `apps/console/components/loop-panes.tsx`

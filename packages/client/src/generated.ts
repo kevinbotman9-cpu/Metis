@@ -396,6 +396,14 @@ the first.
   deliverable: number | null;
   /** Decisions with a click, acceptance or conversion. The customer did something. */
   acted: number;
+  /** Offered decisions with at least one outcome that carried a value:
+the population realised value is summed over, and what it rests on.
+
+Not `acted`: a click is acted on and carries no value. Realised
+value's stability follows this count, so a screen showing the figure
+states it (ADR-023).
+ */
+  valued: number;
   /** The same five stages per channel, so a rate below the break can name the population it describes. */
   channels: ChannelStages[];
   /** Daily, oldest first. What the rail's sparklines are drawn from. */

@@ -83,6 +83,26 @@ export interface Loop {
    */
   realised: number | null;
   /**
+   * The line under realised value, saying what the figure rests on.
+   *
+   * It read *"from 278 acted on"*, which named the wrong population: a click is
+   * acted on and carries no value, and on the seeded tenant 24 of those 278
+   * carried one. The figure's stability follows that count (ADR-023): re-rolled
+   * 200 times, realised value varied 17.7% and the count 17.8%. So the line names
+   * the count, and below `REALISED_FLOOR` says the figure is thin and roughly how
+   * much a count that small moves on its own. The number is drawn either way:
+   * it is money reported, not an estimate, and hiding it would hide the one
+   * measured amount at the volume where someone is checking by hand.
+   */
+  realisedLine: string;
+  /**
+   * Whether realised value carries the page's one accent. Only at or above
+   * `REALISED_FLOOR` (ADR-023 §3). Below it, nothing on the page takes the
+   * accent: moving it to a steadier figure would make "the accented figure" mean
+   * different things on different tenants.
+   */
+  realisedAccent: boolean;
+  /**
    * Expected margin × offers, over the delivered channels.
    *
    * A **ceiling**, and every screen that shows it says so. Expected margin is
@@ -131,6 +151,32 @@ export interface Loop {
 
 /** Below this many at the stage above, a share is not named as the largest loss. */
 export const LOSES_MOST_FLOOR = 20;
+
+/**
+ * Below this many valued decisions, realised value is drawn, said to be thin,
+ * and not emphasised. ADR-023 §2, accepted 2026-09-17.
+ *
+ * Not `LOSES_MOST_FLOOR`. That bounds a share, which one decision moves by five
+ * points under 20. This bounds a sum over rare events, whose spread goes as
+ * 1/√n: about 22% at 20, and about 10% at 100.
+ */
+export const REALISED_FLOOR = 100;
+
+function realisedLineOf(data: LoopReport, realised: number | null, format: Formatter): string {
+  const acted = format.number(data.acted);
+  if (realised === null) {
+    // A click is acted on and carries no value. Saying "0" here read as "we
+    // measured it and it was worth nothing", which is the one thing the card
+    // cannot know.
+    return data.acted > 0 ? `${acted} acted on, none carrying a value` : 'nothing acted on yet';
+  }
+  const valued = data.valued ?? 0;
+  const head = `from ${format.number(valued)} valued ${valued === 1 ? 'outcome' : 'outcomes'}, of ${acted} acted on`;
+  if (valued >= REALISED_FLOOR) return head;
+  // Computed, not written: a count this small moves by about 1/√n on its own.
+  const spread = format.number(1 / Math.sqrt(Math.max(1, valued)), { style: 'percent', maximumFractionDigits: 0 });
+  return `${head} — too few to read as a return: a count this small moves by about ${spread} with no change in behaviour`;
+}
 
 export type LosesMost =
   /** Nothing decided; `closure` already says so. */
@@ -319,6 +365,9 @@ export function buildLoop(
       : []
   );
 
+  const realised = data.rows.some((r) => r.valueMinor !== null && r.valueMinor !== undefined)
+    ? data.rows.reduce((sum, r) => sum + (r.valueMinor ?? 0), 0)
+    : null;
   const delivers = (r: PerformanceRowDto) => delivering.some((c) => c.channel === r.channel);
   const ceiling = (rows: PerformanceRowDto[]) =>
     rows.reduce((sum, r) => sum + r.offered * (marginByKey.get(r.action) ?? 0), 0);
@@ -331,9 +380,9 @@ export function buildLoop(
     undeliverable,
     population,
     closure,
-    realised: data.rows.some((r) => r.valueMinor !== null && r.valueMinor !== undefined)
-      ? data.rows.reduce((sum, r) => sum + (r.valueMinor ?? 0), 0)
-      : null,
+    realised,
+    realisedLine: realisedLineOf(data, realised, format),
+    realisedAccent: realised !== null && (data.valued ?? 0) >= REALISED_FLOOR,
     expectedDelivered: ceiling(data.rows.filter(delivers)),
     expectedUndelivered: ceiling(data.rows.filter((r) => !delivers(r))),
     inversions,

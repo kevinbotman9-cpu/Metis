@@ -52,7 +52,10 @@ test.describe.serial('a loop made by hand @screen-only', () => {
     await expect(rail(page)).toBeVisible({ timeout: 20_000 });
     const realised = page.getByText('Realised value', { exact: true }).locator('..');
     await expect(realised).toContainText('$75.00');
-    await expect(realised).toContainText('from 1 acted on');
+    // One acceptance is one valued decision: drawn, counted, and said to be thin
+    // (ADR-023). The click before it is acted on and carries no value.
+    await expect(realised).toContainText('from 1 valued outcome, of 1 acted on');
+    await expect(realised).toContainText('too few to read as a return');
 
     // Web delivers and nothing else offered, so Deliverable cannot drop: a
     // pass-through that says why, not a full bar.

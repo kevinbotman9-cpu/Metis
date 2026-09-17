@@ -115,7 +115,7 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
   return (
     <>
       {/*
-        One accent on the page, on one figure.
+        At most one accent on the page, on one figure.
 
         Realised value is what the loop is for: the other two cards are a bound
         and a loss, and every stage in the rail below exists to move this
@@ -127,22 +127,25 @@ export function LoopFirstPaint({ data, loop }: { data: LoopReport; loop: Loop })
         design drafts' value exactly (#2563C7 light, #63A8E8 dark). Nothing was
         added to the token layer for this, and the accent goes nowhere else on
         the screen: two accents is no accent.
+
+        **Only when the figure rests on enough** (ADR-023 §3). Below
+        `REALISED_FLOOR` valued decisions it is the least stable figure on the
+        page by three times, and the accent would tell a reader to read it
+        first. It is drawn plain, and nothing else takes the accent.
       */}
       <div className="mb-stack grid gap-3 sm:grid-cols-3">
-        <Card className="border-accent/40 bg-accent-subtle">
+        <Card className={cn(loop.realisedAccent && 'border-accent/40 bg-accent-subtle')}>
           <CardBody>
             <p className="text-label text-content-subtle">Realised value</p>
-            <p className="tnum mt-1 text-figure font-semibold text-accent">{money(loop.realised, format)}</p>
-            <p className="mt-1 text-label text-content-subtle">
-              {loop.realised !== null
-                ? `from ${format.number(data.acted)} acted on`
-                : data.acted > 0
-                  ? // A click is acted on and carries no value. Saying "0" here read
-                    // as "we measured it and it was worth nothing", which is the
-                    // one thing this card cannot know.
-                    `${format.number(data.acted)} acted on, none carrying a value`
-                  : 'nothing acted on yet'}
+            <p
+              className={cn(
+                'tnum mt-1 text-figure font-semibold',
+                loop.realisedAccent ? 'text-accent' : 'text-content'
+              )}
+            >
+              {money(loop.realised, format)}
             </p>
+            <p className="mt-1 text-label text-content-subtle">{loop.realisedLine}</p>
           </CardBody>
         </Card>
         <Card>
