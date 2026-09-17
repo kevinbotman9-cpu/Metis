@@ -30,6 +30,10 @@ export default defineConfig({
     command: 'npm run build && node scripts/serve-standalone.mjs',
     url: 'http://localhost:3100/login',
     reuseExistingServer: false,
+    // A build and a production server both load `.env.local`. A budget has no
+    // business opening a person's database — the reason is in
+    // `playwright.config.ts`, the check in `tests/unit/e2e-harness-memory.test.ts`.
+    env: { METIS_DATABASE_URL: '' },
     timeout: 300_000,
   },
 });
