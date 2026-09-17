@@ -44,6 +44,100 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-144 — On a tenant with no history, `/decisions` opens filtered and shows three zero tiles above the sentence saying nothing was decided
+
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none
+
+Seen in a screenshot of a console with an empty ledger, 1680x1000, and not by
+any check. The empty state itself is right — *"Nothing has been decided yet"*,
+with what will appear — and three things around it contradict it:
+
+- **A filter is already applied.** The screen opens with *"Outcome: Offer made"*
+  as a removable chip. A filtered result that is empty is the blank that means
+  "change the filter"; the new-tenant sentence means the opposite, and the page
+  shows both at once.
+- **Three tiles read 0.** *Decisions 0 · in the current filter*, *Offer made 0*,
+  *Suppressed 0 · policy or consent* — figures over nothing, with "in the current
+  filter" pointing the reader back at the chip.
+- **The zero under "Offer made" is green.** A colour that says good, on a count
+  that means nothing has happened.
+
+**Done when:** a tenant with no decisions sees the new-tenant state without a
+pre-applied filter or zero tiles above it, and a check in `tests/e2e-empty`
+asserts it.
+
+### G-143 — A history made by hand renders every slot, stops at "acted on", and never leaves a decision with nothing offered
+
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — a precondition for the empty-by-default tenant, owed before it ships
+
+The next step for the console is a tenant whose decision history starts empty
+and comes from the person using it. This records what that person's clicking
+produces, measured twice on 2026-09-17, because the version first asked for was
+wrong in two places.
+
+**How it was measured.** A console started with `METIS_SEED_LEDGER=0`, the
+ledger confirmed at zero decisions with a signed-in session, then every
+storefront preset (`eva_fiber`, `eva_no_fiber`, `eva_accepted`) on both of its
+views. Six passes, 26 decisions. Then the loop and the policy funnel read over
+exactly those.
+
+**Every slot renders.**
+
+| Preset | Home hero | Home grid | Account |
+|---|---|---|---|
+| `eva_fiber` | FIOS Gigabit | 3 of 5 shown | FIOS Gigabit |
+| `eva_no_fiber` | 5G Home Ultimate | 3 of 4 shown | 5G Home Ultimate |
+| `eva_accepted` | Gaming Plus Bundle | 3 of 3 shown | Gaming Plus Bundle |
+
+**The loop stops at "acted on", because nobody pressed a call to action.**
+
+| Decisions | Offered | Deliverable | Measured | Acted on |
+|---|---|---|---|---|
+| 26 | 26 | 26 | 26 | **0** |
+
+Four stages at 100% and a fifth at zero is the shape a broken outcome join would
+draw. Here it means the storefront records a click only when someone clicks, and
+nobody did. A person reading their own fresh tenant cannot tell the two apart,
+and "where the loop breaks" will name the last stage for a reason that is not a
+break.
+
+**Refusals happen, and the policy funnel shows them — but no decision is ever
+left with nothing offered.** Over the same 26 decisions, 130 candidates entered:
+
+| Not live | Eligibility | Relevance | Suitability | Consent | Frequency | Not ranked | Offered |
+|---|---|---|---|---|---|---|---|
+| 0 | **16** | **8** | not asked | 0 | 0 | **80** | 26 |
+
+Fiber is refused for `eva_no_fiber` and the accepted offer rests for
+`eva_accepted`, and the funnel counts both, because it counts candidates. What
+it cannot get from a click-through is a *decision* that offered nothing: every
+one of the 26 still offered something, so the loop shows no drop between
+decisions and offered. The seeded corpus had 5,712 of 10,400 decisions offer
+nothing. Consent and frequency never fire at all; `cpol_web_daily` does refuse
+with `FREQUENCY_CAP_BREACHED` when a customer is re-decided enough (reproduced
+on 2026-09-16), but a normal click-through never gets there.
+
+**What was wrong first, and where it came from.** Asked for as *"127 of 202
+active offers have no active web creative, so clicking through produces
+decisions that win a slot and render nothing."* That figure was true of the
+catalogue seeded when it was written and has been untrue since 2026-09-12
+(`a6cc45e`), when the telco-us tenant became **five offers, all active, all with
+an active web creative.** It survived in an undated, present-tense comment in
+`apps/console/public/storefront/index.html` — *"127 of the 202 active offers in
+the seeded catalogue have no active web creative"* — was quoted from there into a
+survey without being measured, and passed on. That comment is dated in the same
+change as this entry. A second claim, that the funnel would have nothing to draw,
+was an inference from the first and did not survive the second measurement.
+
+**Why it is registered rather than fixed.** Nothing measured here is a defect. It
+is what an honest empty tenant looks like on day one, and the empty-by-default
+setting is to be decided with it in view.
+
+**Done when:** a person starting from an empty tenant can reach an acted-on
+outcome, a decision that offered nothing, and a frequency refusal by using the
+product; and the loop distinguishes "nothing has reached this stage yet" from
+"this stage lost everything".
+
 ### G-142 — The storefront panel test races the panel's own re-render, and fails at a different line each time
 
 **Registered:** 2026-09-16 · **Status:** Open · **Work item:** none

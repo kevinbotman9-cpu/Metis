@@ -1044,11 +1044,16 @@ async function runPlacement(placement) {
     // call to action, nothing the customer can act on.
     //
     // `status` used to be `filled.length ? 'filled' : 'empty'`, which counted
-    // the win. 127 of the 202 active offers in the seeded catalogue have no
-    // active web creative, so that was the common case, not an edge: the slot
-    // took a decision id and reported an impression for content that was never
-    // on the page, and every rate on /performance computed over impressions
-    // inherited it.
+    // the win. When this was written, on 2026-09-09, 127 of the 202 active offers
+    // in the catalogue then seeded had no active web creative, so that was the
+    // common case, not an edge: the slot took a decision id and reported an
+    // impression for content that was never on the page, and every rate on
+    // /performance computed over impressions inherited it.
+    //
+    // Since 2026-09-12 the tenant is five offers, each with an active web
+    // creative, so the case is now rare and still handled. The figure above was
+    // undated until 2026-09-17, read as current, and produced a wrong premise
+    // about what clicking through this page yields (G-143).
     //
     // `filled` is kept as what won, because the panel and `fallbackReason` both
     // need to name the offer that took the slot and say why it shows nothing.
