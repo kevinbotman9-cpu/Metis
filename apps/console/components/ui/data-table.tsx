@@ -9,7 +9,7 @@ import {
   useCallback,
 } from 'react';
 import { cn } from '@/lib/cn';
-import { LoadingState, EmptyState } from './primitives';
+import { LoadingState } from './primitives';
 import { useFormat } from '@/components/tenant-format';
 
 export interface Column<T> {
@@ -35,15 +35,17 @@ interface DataTableProps<T> {
   onRowClick?: (row: T) => void;
   isLoading?: boolean;
   /**
-   * With no rows, keep the header row and say so in the body, rather than
-   * replacing the table with a message.
+   * What the body says when there are no rows. **The table itself stays.**
    *
-   * Opt-in, and on for `/decisions` only, since 2026-09-17: *data can be zero;
-   * structure cannot vanish.* Every other table in the console still replaces
-   * itself when empty, and turning this on for them is a change each of those
-   * screens should be looked at for, not one made here unseen.
+   * *Data can be zero; structure cannot vanish* — the product owner's rule,
+   * 2026-09-17. Until then an empty table returned an `EmptyState` in its
+   * place, header row and all, so a reader saw a sentence where the columns
+   * they were about to fill should have been. It was opt-in for a day, on
+   * `/decisions` and a loop stage only; the eight other tables — arbitration,
+   * audit, creatives, decision flows, frequency policy, integrations, the
+   * policies list and creative coverage — were then looked at and given the
+   * same rule, so there is no longer an option to turn it off.
    */
-  keepHeadersWhenEmpty?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
   defaultSort?: { key: string; dir: 'asc' | 'desc' };
@@ -72,7 +74,6 @@ export function DataTable<T>({
   rowKey,
   onRowClick,
   isLoading,
-  keepHeadersWhenEmpty = false,
   emptyTitle = 'Nothing to show',
   emptyDescription,
   defaultSort,
@@ -153,8 +154,6 @@ export function DataTable<T>({
   }
 
   if (isLoading) return <LoadingState />;
-  if (rows.length === 0 && !keepHeadersWhenEmpty)
-    return <EmptyState title={emptyTitle} description={emptyDescription} />;
 
   return (
     <>

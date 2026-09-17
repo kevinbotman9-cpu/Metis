@@ -230,9 +230,6 @@ function DecisionsView() {
               isLoading={isLoading}
               defaultSort={{ key: 'timestamp', dir: 'desc' }}
               onRowClick={(d) => router.push(`/decisions/${d.id}`)}
-              // The columns stay when there are no rows: the reader sees what a
-              // decision will be listed with, not a sentence about it.
-              keepHeadersWhenEmpty
               emptyTitle={emptyReason === 'new-tenant' ? 'No decisions yet' : 'No decisions match these filters'}
               emptyDescription={emptyReason === 'new-tenant' ? undefined : 'Remove a filter chip to widen the search.'}
               caption="Decision search results"

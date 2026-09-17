@@ -80,12 +80,14 @@ test.describe('content coverage @screen-only', () => {
       await rail(page).getByRole('button', { name: new RegExp(`^${STAGES[i]}: `) }).click();
       const fell = counted[i - 1] - counted[i];
       if (fell === 0) {
-        // Nothing fell out here, and the screen says so rather than rendering a
-        // table with no rows under it.
-        await expect(coverage(page)).toHaveCount(0);
+        // Nothing fell out here. Until 2026-09-17 the screen said so *instead* of
+        // the table; now the table stays, with its columns, and says so in its
+        // body — data can be zero, structure cannot vanish.
+        await expect(coverage(page), 'the table vanished when nothing fell out').toHaveCount(1);
+        await expect(coverage(page).locator('tr[data-row]')).toHaveCount(0);
       } else {
         await expect(coverage(page)).toContainText(`${fell} of ${counted[0]}`);
-        expect(await coverage(page).locator('tbody tr').count()).toBe(fell);
+        expect(await coverage(page).locator('tr[data-row]').count()).toBe(fell);
       }
       // Selecting again clears it, back to the whole.
       await rail(page).getByRole('button', { name: new RegExp(`^${STAGES[i]}: `) }).click();

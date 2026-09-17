@@ -447,9 +447,6 @@ export function LoopStageDetail({ data, loop, stage }: { data: LoopReport; loop:
             rowKey={(r) => `${r.action}:${r.channel}:${r.flowId}`}
             defaultSort={{ key: 'offered', dir: 'desc' }}
             caption={`${data.rows.length} action and channel pairs`}
-            // A stage of the loop, which on a new tenant is selected at zero: the
-            // columns are what the reader is about to fill, so they stay.
-            keepHeadersWhenEmpty
             emptyTitle="Nothing measured yet"
           />
         </Card>
