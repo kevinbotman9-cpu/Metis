@@ -661,6 +661,11 @@ emptiness and fabricated content, not craft.
 One tenant, `demo-telco-us`, seeded and reproducible from a fixed seed. Every
 screen in Part 3 that is built must be populated from it.
 
+**Run a demo with `npm run dev:seeded`.** Since 2026-09-17 `npm run dev` starts
+the same catalogue with no decision history — the state a new tenant starts in —
+and a demo run from that does not meet this bar: every screen that reads the
+ledger is empty, by design, and says what will appear.
+
 - **Names are real-shaped.** "Unlimited 5G upgrade — existing handset", not
   "Test Offer 1". Authors are named people. Dates are recent and irregular.
 - **Volumes create texture.** 240+ offers so the list scrolls and facets have

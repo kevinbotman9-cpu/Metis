@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:seeded": "node --import tsx scripts/dev-seeded.ts",
     "generate": "node scripts/generate-routes.mjs",
     "build": "next build",
     "start": "next start",
