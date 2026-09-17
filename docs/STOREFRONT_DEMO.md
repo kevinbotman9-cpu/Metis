@@ -31,6 +31,9 @@ The page asks for slots by name, and nothing else:
    this visitor, now. Which flow answers is configuration held by the platform,
    not by the website.
 2. `GET /api/offers/{tenantId}/{offerId}` — the creative to render each with.
+3. `POST /api/outcomes/{tenantId}/{decisionId}` — what the customer did with it.
+4. `GET /api/placements/{tenantId}` — only when she asks for an email, to say
+   whether anything sends one.
 
 Nothing about an offer is written into the page: if the platform has no creative
 for the channel, the slot says so rather than inventing copy.
@@ -60,13 +63,16 @@ figure in the panel comes from the decision the platform returned — which was
 untrue from 2026-09-07 to 2026-09-12, when the panel rendered an empty div
 ([G-087](gaps.md)).
 
-They are the customer brief's own three, and **one customer** in all three: the
-scenarios are meant to differ by her address and what she holds, nothing else.
+They are the customer brief's own three, and **one customer** in all three —
+`cust_eva` — so the scenarios differ by her address and what she holds, nothing
+else. *(Until 2026-09-17 this said one customer while each preset sent its own
+id, so the platform recorded three people, with three sets of contacts against
+the caps. One id also means switching preset does not start a fresh daily cap.)*
 
 | Preset | What to point at |
 |---|---|
 | **Eva — fibre available** | All five offers qualify. FIOS leads, 5G Home second, Gaming Plus third — the brief's own order, and every position carries a distinct priority because two declared boosts break what would otherwise be a three-way tie at business value 100 |
-| **Eva — moved, no fibre** | The same customer, one field different. `fios_gigabit — ELIGIBILITY_FAILED · pol_fios_serviceable`, and 5G Home takes the top slot. The refused field arrives from `conn_serviceability`, so the trace names the system that supplied the evidence |
+| **Eva — moved, no fibre** | The same customer, one field different. `fios_gigabit — ELIGIBILITY_FAILED · pol_fios_serviceable`, and 5G Home takes the top slot. The refused field is the one the preset sends in `customer.address`. The panel lists it against `conn_serviceability`, and that attribution is wrong: the engine names a configured connector for any field present, whoever supplied it ([G-152](gaps.md)). *(This row said the field arrived from the connector.)* |
 | **Eva — after accepting 5G Home** | Both broadband offers are gone and the cross-sell opens: Gaming Plus, Disney+, Netflix. The suppression comes from **what she now holds**, not from the interaction log — the platform records no acceptance of its own, and the panel names `pol_not_on_5g_home` doing it |
 
 `brief-scenarios.spec.ts` asserts all three rankings, both refusals, and that
@@ -77,6 +83,26 @@ The consent switches and the contact-history counters re-decide every placement
 on the page, so suppression by consent or by a frequency cap is one click away.
 **Not interested** on any offer starts its 30-day rest period, which is the
 brief's reject rule and became real on 2026-09-11 ([G-086](gaps.md)).
+
+**Driving the loop by hand.** Three controls exist so a person can take
+`/performance` past "acted on" without generated history:
+
+- **Accept**, on the hero, the account hero and the inline offer, reports a click
+  and then an acceptance carrying the panel's **Value of an acceptance** (USD 50
+  by default). Not on the grid: an outcome names a decision, not a card, so an
+  acceptance there would be credited to the first card's offer until
+  [ADR-020](adr/ADR-020-a-slate-is-recorded-as-shown.md) §4 lands. The value is a
+  placeholder and deliberately not the offer's expected margin, which is the unit
+  of the loop's ceiling — a realised value taken from it would approach the
+  ceiling by construction. The offers have no prices ([G-089](gaps.md)); once
+  they do, the default should come from the price.
+- **Email this offer** asks the platform to decide her weekly email,
+  `weekly_offers_send`, which nothing sends. The decision counts as offered and
+  not deliverable, so the loop's Deliverable drops below Offered and the rail
+  names Email. It cannot put *this* offer in the email: a placement decision
+  chooses its own offers, and the panel says whether this one made it.
+- **Next day** moves the visit a day on, so yesterday's contacts leave the daily
+  cap.
 **Show placements** outlines the decisioned slots and reveals the asset path
 each creative names.
 
@@ -92,8 +118,9 @@ connector.
 
 **Not built, and not faked.** There is no embed SDK (W-016), so the page calls
 the API directly and reports its own outcomes: an impression when a slot renders
-an offer, a click when a call to action is pressed, each to `POST /outcomes`
-against the decision's id. That id is all it sends, so a click on the second or
+an offer, a click when a call to action is pressed, and a click then an
+acceptance when **Accept** is pressed, each to `POST /outcomes` against the
+decision's id. That id is all it sends, so a click on the second or
 third card of the grid is credited to the first card's offer
 ([ADR-020](adr/ADR-020-a-slate-is-recorded-as-shown.md) §4). *(Until 2026-09-17
 this paragraph said the page recorded nothing when a slot rendered; it has

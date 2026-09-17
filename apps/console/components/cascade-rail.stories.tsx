@@ -133,3 +133,30 @@ export const Healthy: Story = {
   },
   name: 'Healthy — no break to draw',
 };
+
+/**
+ * A loop made by hand: twenty-six storefront decisions, all on web, which
+ * delivers. Deliverable cannot be anything but Offered, so it is drawn as a
+ * pass-through that says why — no bar, no sparkline. Offered and Seen are also
+ * whole here, and keep their bars: either could have dropped.
+ */
+export const ByHand: Story = {
+  args: {
+    stages: [
+      { ...loop()[0], value: 26, pct: 100, note: '1 channel', series: days(3) },
+      { ...loop()[1], value: 26, pct: 100, note: '100.0% of decisions', series: days(3) },
+      {
+        ...loop()[2],
+        value: 26,
+        pct: 100,
+        note: '100.0% of offered',
+        series: days(3),
+        passThrough:
+          'Nothing offered can drop here: every channel that offered something delivers it (Web). It drops only when an offer wins a slot on a channel with no sender.',
+      },
+      { ...loop()[3], value: 26, pct: 100, note: '100.0% of deliverable', series: days(3) },
+      { ...loop()[4], value: 1, pct: 3.8, note: '3.8% of seen', series: days(1) },
+    ],
+  },
+  name: 'By hand — a stage that cannot drop, drawn as a pass-through',
+};

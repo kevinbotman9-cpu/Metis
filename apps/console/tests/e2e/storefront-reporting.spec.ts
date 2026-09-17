@@ -28,7 +28,7 @@ const OUTCOMES = '**/api/outcomes/**';
 
 /**
  * Each test on a day of its own: the platform caps each customer's web slots
- * per day (ADR-021), every storefront spec opens on the same preset customer,
+ * per day (ADR-021), every storefront spec opens on the presets' one customer,
  * and tests sharing a day would find each other's contacts and render nothing.
  */
 const storefrontOn = (day: number) => `/storefront/index.html?day=${day}`;

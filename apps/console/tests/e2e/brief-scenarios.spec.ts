@@ -26,7 +26,8 @@ const STOREFRONT = '/storefront/index.html';
 /**
  * The storefront on a day of this test's own.
  *
- * The platform counts each preset customer's contacts against
+ * The platform counts the customer's contacts — one customer, `cust_eva`, in
+ * all three presets since 2026-09-17 — against
  * `cpol_web_daily` — three web slots a day — and a page load decides two, the
  * grid's read counting the hero's (ADR-021). Tests sharing a day would spend each other's cap, so each starts
  * on its own day, ten apart, and moves a day forward with the panel's Next day
@@ -197,9 +198,11 @@ test.describe('@screen-only the brief’s three scenarios', () => {
   test('the same customer, one field apart', async ({ page }) => {
     // The claim the first two scenarios rest on. If the presets differed by
     // more than the address, the demo would be showing two customers and
-    // calling it one — which is what it did until 2026-09-12, when every
-    // preset carried its own id and the address sat one level too flat to be
-    // read at all (G-094).
+    // calling it one. Until 2026-09-12 the address sat one level too flat to be
+    // read at all (G-094). And every preset carried its own customer id, until
+    // 2026-09-17 — this comment said that had ended on the 12th, and it had
+    // not — so the platform recorded three people. `storefront.test.ts` holds
+    // the presets to one id; this holds them to one field.
     await page.goto(onDay(140));
 
     await choose(page, 'Eva — fiber available at her address');

@@ -136,3 +136,52 @@ describe('the storefront demo names things that exist', () => {
     }
   });
 });
+
+/** The page's own PRESETS, evaluated rather than pattern-matched: they are a plain array literal. */
+const PRESETS = new Function(
+  `${html.slice(
+    html.indexOf('const PRESETS = ['),
+    html.indexOf('// ---------------------------------------------------------------- state')
+  )}; return PRESETS;`
+)() as { id: string; customerId: string; name: string; input: { customer: Record<string, unknown> } }[];
+
+describe('the storefront records one customer, and what she does', () => {
+  it('sends one customer id from all three presets, because they are one person', () => {
+    // The docs, the specs and this page's own comment said the three scenarios
+    // were one customer a field apart, while each preset sent its own id — three
+    // people to the platform, each with their own contacts and outcomes. Found
+    // and joined on 2026-09-17; every slate and refusal was measured the same
+    // under one id before it was.
+    expect(PRESETS).toHaveLength(3);
+    expect(new Set(PRESETS.map((p) => p.customerId)).size).toBe(1);
+    expect(new Set(PRESETS.map((p) => p.name)).size).toBe(1);
+  });
+
+  it('sends serviceability in every preset, so the connector is not what tells the addresses apart', () => {
+    // With one id, the recorded connector would answer every preset alike. The
+    // contrast survives because the request's own value wins over a connector's.
+    const serviceable = PRESETS.map((p) => (p.input.customer.address as { fios_serviceable?: boolean }).fios_serviceable);
+    expect(serviceable).toEqual([true, false, false]);
+  });
+
+  it('offers Accept only on a slot that holds one offer, until ADR-020 §4', () => {
+    // An outcome binds to the decision, not to a card, so Accept on the grid's
+    // second card would credit the first card's offer. The condition is the
+    // platform's slot count, not a renderer name.
+    expect(html).toMatch(/r\.slate\.slotCount === 1 \? `<button type="button" class="accept"/);
+    expect(html.match(/class="accept"/g) ?? []).toHaveLength(1);
+  });
+
+  it('reports an acceptance with the panel’s value, never the expected margin', () => {
+    expect(html).toMatch(/reportOutcome\(decisionId, 'acceptance', valueMinor\)/);
+    expect(html).toContain('id="accept-value"');
+    expect(html).not.toMatch(/expectedMargin/);
+  });
+
+  it('asks for the weekly email on a placement that exists, is decidable and is email', () => {
+    const email = placements.find((p) => p.key === 'weekly_offers_send');
+    expect(html).toContain(`const EMAIL = { id: 'weekly_offers_send', channel: 'email' }`);
+    expect(email?.channel).toBe('email');
+    expect(email?.decidable).toBe(true);
+  });
+});

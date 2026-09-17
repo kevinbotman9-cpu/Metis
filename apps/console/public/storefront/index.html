@@ -21,16 +21,20 @@
   the route handlers reading the ledger. The flag is off by default; when it is
   on, what you are demonstrating is the mock.
 
-  API - `POST /api/decisions` for what to show, `GET /api/offers/...` for the
-  creative. Nothing about an offer is written into this file.
+  API - `POST /api/placements/{tenant}/{key}/decisions` for what to show,
+  `GET /api/offers/...` for the creative, `POST /api/outcomes/...` for what the
+  customer did, and `GET /api/placements/{tenant}` to learn whether anything
+  sends her email. Nothing about an offer is written into this file. (The first
+  of these read `POST /api/decisions`, which this page has not called since it
+  started asking for slots by name.)
 
   Meridian Mobile is fictional. Re-brand it by editing the four custom
   properties under `--brand-*` below and the wordmark in the header; nothing
   else in the page assumes a brand.
 
   Not built, and not faked here: there is no embed SDK (W-016), so this page
-  calls the decision API directly and reports its own impressions and clicks to
-  `POST /outcomes`. A real integration would do that through the SDK. (This
+  calls the decision API directly and reports its own impressions, clicks and
+  acceptances to `POST /outcomes`. A real integration would do that through the SDK. (This
   said the page recorded nothing when a placement rendered; it has reported
   impressions since 2026-09-09.)
 -->
@@ -339,6 +343,19 @@
     cursor: pointer; align-self: flex-start;
   }
   .decline:hover { color: #111827; }
+  /* What a customer does with an offer besides pressing its call to action. Text
+     buttons like "Not interested", so the creative's own button stays the one
+     thing that looks like the offer. */
+  .offer-actions { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; }
+  .accept, .email-offer {
+    display: block; font: inherit; font-size: 0.8125rem; margin-top: 8px; padding: 0;
+    background: none; border: 0; color: #6b7280; text-decoration: underline; cursor: pointer;
+  }
+  .accept:hover, .email-offer:hover { color: #111827; }
+  .accept[disabled] { text-decoration: none; cursor: default; color: var(--ok); }
+  .hero .decline, .hero .accept, .hero .email-offer { color: rgba(255,255,255,.72); }
+  .hero .decline:hover, .hero .accept:hover, .hero .email-offer:hover { color: #fff; }
+  .hero .accept[disabled] { color: #7ee2a8; }
   .survived { font-size: 12px; color: #7ee2a8; }
 
   table.scores { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 8px; }
@@ -507,6 +524,19 @@
       <button id="next-day" class="secondary">Next day</button>
     </div>
 
+    <h3>When she accepts</h3>
+    <!-- What an acceptance is reported as worth. Not the offer's expected margin:
+         that is the unit /performance's ceiling is computed in, so a realised
+         value taken from it would approach the ceiling by construction and the
+         two figures would stop meaning different things. The offers carry no
+         price (G-089); once they do, the default comes from the price. -->
+    <label for="accept-value">Value of an acceptance (USD)</label>
+    <input type="number" id="accept-value" min="0" step="1" value="50">
+    <p class="preset-note" id="accept-note">Sent with each acceptance. A placeholder, not a price: the catalogue has no prices yet (G-089). Leave it empty to report an acceptance with no value.</p>
+
+    <h3>Email</h3>
+    <p class="preset-note" id="email-note">Nothing emailed. "Email this offer" asks the platform to decide her weekly email.</p>
+
     <h3>Decisions on this page</h3>
     <div id="decisions"></div>
   </div>
@@ -575,6 +605,14 @@ const PLACEMENTS = [
  * different id per preset would change the customer as well as the situation,
  * and the point of the second card is that one field moved.
  *
+ * From 2026-09-12 until 2026-09-17 this comment said so while each preset sent
+ * its own id — `cust_eva_fiber`, `cust_eva_no_fiber`, `cust_eva_accepted` — so the platform
+ * recorded three people, counted three sets of contacts against the caps, and
+ * credited outcomes to three histories. The ids were measured before they were
+ * joined: every preset's slate and every refusal are the same under one id,
+ * because nothing here reads the id to decide (below). One id also means one
+ * set of contacts, so switching preset no longer starts a fresh daily cap.
+ *
  * Every field sits under `customer`, which is where the schema's profile root
  * puts it. The presets this replaced had `address`, `usage` and four more as
  * siblings of `customer`, one level too flat, so `customer.address.*` resolved
@@ -582,17 +620,21 @@ const PLACEMENTS = [
  * visitor. The demo's headline contrast — same visitor, one field different —
  * was showing the same refusal twice (G-094).
  *
- * Serviceability and coverage are deliberately absent here: they arrive from
- * `conn_serviceability` at decision time, which is what lets a refusal name the
- * system that supplied the evidence. The connector reads them from the id, so
- * the fiber and no-fiber presets use ids the fixture answers differently for.
+ * Serviceability and coverage are **sent** here, in `customer.address`, and the
+ * value sent is the one decided on: a field the request carries is never
+ * overwritten by a connector (`resolveInputs`). This comment used to say they
+ * were deliberately absent and arrived from `conn_serviceability`, read from
+ * the id — which is what the three ids were for, and was not true of the
+ * presets beneath it. The panel still lists `conn_serviceability` against both
+ * fields, because the engine attributes a field to the connector configured
+ * for it whenever the field is present, whoever supplied it (G-152).
  */
 const PRESETS = [
   {
     id: 'eva_fiber',
     label: 'Eva — fiber available at her address',
     note: 'Her primary residence, where fiber can be installed. All five offers qualify and the ranking decides.',
-    customerId: 'cust_eva_fiber',
+    customerId: 'cust_eva',
     signedIn: true,
     name: 'Eva Ramirez',
     planName: 'Broadband 300 · DSL',
@@ -615,7 +657,7 @@ const PRESETS = [
     id: 'eva_no_fiber',
     label: 'Eva — moved, no fiber at the new address',
     note: 'The same customer, one field different. FIOS is refused at the eligibility gate and 5G Home takes the top slot.',
-    customerId: 'cust_eva_no_fiber',
+    customerId: 'cust_eva',
     signedIn: true,
     name: 'Eva Ramirez',
     planName: 'Broadband 300 · DSL',
@@ -638,7 +680,7 @@ const PRESETS = [
     id: 'eva_accepted',
     label: 'Eva — after accepting 5G Home',
     note: 'She took the broadband offer. Both broadband offers are now suppressed from what she holds, not from the interaction log, and the cross-sell opens.',
-    customerId: 'cust_eva_accepted',
+    customerId: 'cust_eva',
     signedIn: true,
     name: 'Eva Ramirez',
     planName: '5G Home Ultimate',
@@ -700,16 +742,21 @@ const el = (html) => {
   return t.content.firstElementChild;
 };
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const money = (p) => (p / 100).toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
+// The tenant's currency. This read GBP, which no figure on the page used until
+// an acceptance carried a value.
+const money = (p) => (p / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
 // ------------------------------------------------------------- the API ---
 
 async function decide(placement) {
+  // Every slot on the page is web. The one exception is the weekly email, asked
+  // for by "Email this offer" (`EMAIL`, below).
+  const channel = placement.channel ?? 'web';
   const body = {
     request: {
       tenantId: TENANT,
       customerId: preset.customerId,
-      channel: 'web',
+      channel,
       // An input, never the clock on the server: the caller says when — on the
       // day the visit is set to.
       occurredAt: visitNow(),
@@ -720,12 +767,17 @@ async function decide(placement) {
         thirdParty: $('#c-third').checked,
       },
       contactHistory: {
-        channel: 'web',
-        withinPeriod: {
-          day: Number($('#h-day').value || 0),
-          week: Number($('#h-week').value || 0),
-          month: Number($('#h-month').value || 0),
-        },
+        channel,
+        // The panel's counters are contacts this site knows about on the web.
+        // An email is asked with none, so the only thing that can hold it back
+        // is the platform's own count and its policies.
+        withinPeriod: channel === 'web'
+          ? {
+              day: Number($('#h-day').value || 0),
+              week: Number($('#h-week').value || 0),
+              month: Number($('#h-month').value || 0),
+            }
+          : { day: 0, week: 0, month: 0 },
         // What the customer has already turned down, and when, which is what
         // `cooldownDaysAfterReject` rests against.
         //
@@ -772,15 +824,19 @@ async function decide(placement) {
  * reconstructs a decision from customer, offer and time — the id came back with
  * the slate, so it is echoed rather than inferred.
  *
- * Two types only. `acceptance` is a business event this storefront does not
- * model, and reporting one because somebody clicked would put the least
- * trustworthy number in the demo.
+ * Three types. An impression when a slot renders an offer, a click when its call
+ * to action is pressed, and an acceptance only when someone presses **Accept** —
+ * never inferred from a click, which would put the least trustworthy number in
+ * the demo. Until 2026-09-17 this page sent no acceptance at all, so the loop's
+ * realised value could not be reached by hand (G-143). An acceptance carries
+ * the value typed in the panel, in minor units; the other two carry none,
+ * because an impression is not a sale worth nothing.
  *
  * Failure is swallowed on purpose. A site that could not render because
  * telemetry was down would be a worse site, and a demo that alerts on a missing
  * outcome teaches the wrong lesson about which half matters.
  */
-async function reportOutcome(decisionId, type) {
+async function reportOutcome(decisionId, type, valueMinor = null) {
   if (!decisionId) return false;
   try {
     const res = await fetch(`${API}/outcomes/${TENANT}/${decisionId}`, {
@@ -789,7 +845,7 @@ async function reportOutcome(decisionId, type) {
       // An input, never the clock on the server — the same rule the decision
       // itself follows. It does not make this page's decisions replayable:
       // their input values are not kept (G-009).
-      body: JSON.stringify({ type, occurredAt: visitNow() }),
+      body: JSON.stringify({ type, occurredAt: visitNow(), ...(valueMinor === null ? {} : { valueMinor }) }),
     });
     return res.ok;
   } catch {
@@ -858,7 +914,7 @@ function renderHero(slot, r) {
         <h3>${esc(c.headline)}</h3>
         <p>${esc(c.subheadline)}</p>
         <button class="cta">${esc(c.ctaLabel)}</button>
-        <button type="button" class="decline" data-offer-key="${esc(first.entry.action)}">Not interested</button>
+        ${offerActions(r, first.entry)}
       </div>
       <div class="art">${esc(c.imageUrl)}</div>
     </div>
@@ -889,16 +945,13 @@ function renderCards(slot, r) {
       continue;
     }
     const c = creative.content;
-    // "Not interested" is the customer saying no, and it is the only input a
-    // rest period can run from: the platform records no rejections of its own.
-    // It names the offer key because that is what `rejects` is keyed by and
-    // what the engine matches a candidate on.
+    // No Accept on these cards: see `offerActions`.
     grid.append(el(`
       <article class="card">
         <h3>${esc(c.headline)}</h3>
         <p>${esc(c.subheadline)}</p>
         <button class="cta">${esc(c.ctaLabel)}</button>
-        <button type="button" class="decline" data-offer-key="${esc(entry.action)}">Not interested</button>
+        ${offerActions(r, entry)}
       </article>
     `));
   }
@@ -914,10 +967,41 @@ function renderInline(slot, r) {
       <div class="body">
         <h3>${esc(c.headline)}</h3>
         <p>${esc(c.subheadline)}</p>
+        ${offerActions(r, first.entry, { decline: false })}
       </div>
       <button class="cta">${esc(c.ctaLabel)}</button>
     </div>
   `));
+}
+
+/**
+ * What a customer can do with a rendered offer besides its call to action.
+ *
+ * **Accept only where the slot holds one offer.** An outcome is bound to a
+ * decision and nothing finer (ADR-008 §2), so an acceptance on the grid's second
+ * card would be credited to the first card's offer — the defect
+ * `docs/adr/ADR-020-a-slate-is-recorded-as-shown.md` §4 decides how to fix.
+ * Until that lands a multi-slot slate has no Accept, rather than one that
+ * records the wrong offer. Keyed on the slot count the platform returned, not
+ * on which renderer drew the slot.
+ *
+ * **"Email this offer" cannot put this offer in an email.** It asks the platform
+ * for her weekly email — `weekly_offers_send`, a placement decision like any
+ * other — and a placement decision chooses its own offers. So the panel says
+ * what the email was decided to carry, and whether this offer is in it.
+ *
+ * "Not interested" is the customer saying no, and it is the only input a rest
+ * period can run from: the platform records no rejections of its own. It names
+ * the offer key because that is what `rejects` is keyed by and what the engine
+ * matches a candidate on.
+ */
+function offerActions(r, entry, { decline = true } = {}) {
+  const key = esc(entry.action);
+  return `<div class="offer-actions">${
+    r.slate.slotCount === 1 ? `<button type="button" class="accept" data-offer-key="${key}">Accept</button>` : ''
+  }<button type="button" class="email-offer" data-offer-key="${key}">Email this offer</button>${
+    decline ? `<button type="button" class="decline" data-offer-key="${key}">Not interested</button>` : ''
+  }</div>`;
 }
 
 /**
@@ -1234,6 +1318,100 @@ document.addEventListener('click', (e) => {
   declines.set(btn.dataset.offerKey, visitNow());
   renderDeclines();
   decideAll();
+});
+
+/*
+ * Accepting an offer: a click, then an acceptance, against the decision that put
+ * it in the slot.
+ *
+ * The click first because taking an offer passes through its call to action on
+ * any real site, and an acceptance with no click would give a click rate below
+ * the acceptance rate. The value is the panel's, read when pressed — see the
+ * note beside `#accept-value` for why it is not the offer's expected margin.
+ */
+function acceptValueMinor() {
+  const raw = $('#accept-value').value.trim();
+  if (raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null;
+}
+
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest?.('.accept');
+  if (!btn || btn.disabled) return;
+  const slot = btn.closest('[data-decision-id]');
+  if (!slot) return;
+  const decisionId = slot.dataset.decisionId;
+  const valueMinor = acceptValueMinor();
+  btn.disabled = true;
+  btn.textContent = 'Accepting…';
+  const clicked = await reportOutcome(decisionId, 'click');
+  const accepted = clicked && (await reportOutcome(decisionId, 'acceptance', valueMinor));
+  if (accepted) {
+    btn.textContent = valueMinor === null ? 'Accepted' : `Accepted · ${money(valueMinor)}`;
+    $('#accept-note').textContent = `${btn.dataset.offerKey} accepted on decision ${decisionId}, ${
+      valueMinor === null ? 'with no value' : `worth ${money(valueMinor)}`
+    }. /performance counts it as acted on and adds it to realised value.`;
+  } else {
+    // Said, not swallowed: unlike an impression, this is something a person
+    // just did on purpose and is waiting to see counted.
+    btn.disabled = false;
+    btn.textContent = 'Accept';
+    $('#accept-note').textContent = `The acceptance was not recorded against ${decisionId}. Nothing was counted.`;
+  }
+});
+
+/*
+ * "Email this offer": ask the platform for her weekly email.
+ *
+ * `weekly_offers_send` is an email placement with nothing configured to deliver
+ * it, so the decision is recorded as offered and not deliverable, and the loop
+ * on /performance shows the gap between the two. Which offers the email carries
+ * is the platform's decision, not this button's — see `offerActions`. Whether
+ * anything sends it is read from the placement, not assumed here.
+ */
+const EMAIL = { id: 'weekly_offers_send', channel: 'email' };
+
+/**
+ * How the email placement is delivered: its `delivery`, `null` when nothing is
+ * configured, and `undefined` when the page could not find out — which must not
+ * read as "nothing sends it".
+ */
+async function emailDelivery() {
+  try {
+    const res = await fetch(`${API}/placements/${TENANT}`);
+    if (!res.ok) return undefined;
+    const { placements } = await res.json();
+    const p = placements.find((x) => x.key === EMAIL.id);
+    return p ? p.delivery : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest?.('.email-offer');
+  if (!btn) return;
+  const key = btn.dataset.offerKey;
+  const note = $('#email-note');
+  note.textContent = 'Asking the platform for her weekly email…';
+  try {
+    const [slate, delivery] = await Promise.all([decide(EMAIL), emailDelivery()]);
+    const carried = slate.entries.map((x) => x.action);
+    const what = carried.length === 0
+      ? 'and put nothing in it'
+      : `to carry ${carried.join(', ')} — ${carried.includes(key) ? `${key} is in it` : `not ${key}, because the platform chooses what an email carries`}`;
+    const sent = carried.length === 0
+      ? 'An email that offers nothing has nothing to deliver.'
+      : delivery === undefined
+        ? 'Whether anything sends it could not be read.'
+        : delivery
+          ? `The placement is configured to deliver by ${delivery.mode}.`
+          : 'Nothing is configured to send it, so it counts as offered and not deliverable.';
+    note.textContent = `Her weekly email was decided ${what}. Decision ${slate.decisionId}. ${sent}`;
+  } catch (err) {
+    note.textContent = `No email was decided: ${err.message}`;
+  }
 });
 
 $('#clear-declines').addEventListener('click', () => {

@@ -297,6 +297,10 @@ stores" comment. The largest piece, and the one the first two do not depend on.
   impression and click only. An "acceptance" on a web placement is a business
   event — an order, a plan change — that the storefront does not model, and
   faking one would put the least trustworthy number in the demo.
+  *Acceptance added 2026-09-17, by the product owner's decision, so a person can
+  drive the loop to realised value by hand: an explicit **Accept** on single-slot
+  placements, never inferred from a click, carrying a value typed in the panel
+  rather than the offer's expected margin. Rejection is still out of scope.*
 
 ## Consequences
 

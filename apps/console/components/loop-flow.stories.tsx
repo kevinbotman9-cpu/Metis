@@ -11,7 +11,7 @@ import { LoopFlow } from './loop-flow';
  *
  * A figure, not a control — the rail beside it on `/performance` is what
  * selects a stage. See **Every stage equal**, which is the shape when nothing
- * leaves: nothing falls away, and the diagram correctly says nothing.
+ * leaves: one column naming every stage, and nothing falling away.
  */
 
 const meta: Meta<typeof LoopFlow> = {
@@ -57,10 +57,11 @@ export const NothingBroken: Story = {
 };
 
 /**
- * Nothing leaves between any pair, so there is no wedge to draw. Worth keeping
- * as a story because the drawing code returns `null` for a non-positive loss,
- * and a diagram that renders a zero-height quadrilateral instead would put four
- * faint slivers and four `−0` labels on a perfect funnel.
+ * Nothing leaves between any pair, so there is one column carrying all five
+ * names and no wedge at all. Before equal runs were merged (2026-09-17) this
+ * drew five full columns joined by four full bands; it was kept as a story then
+ * because a diagram rendering a zero-height quadrilateral would put four faint
+ * slivers and four `−0` labels on a perfect funnel, and that still cannot happen.
  */
 export const EveryStageEqual: Story = {
   args: {
@@ -91,4 +92,21 @@ export const Empty: Story = {
     ],
   },
   name: 'Empty — nothing decided yet',
+};
+
+/**
+ * A loop made by hand. Four stages at 26 are one column carrying all four
+ * names, and the only transition drawn is the one where volume left.
+ */
+export const ByHand: Story = {
+  args: {
+    stages: [
+      stage('decisions', 'Decisions made', 26),
+      stage('offered', 'Offered something', 26),
+      stage('deliverable', 'Deliverable', 26),
+      stage('seen', 'Seen', 26),
+      stage('acted', 'Acted on', 1),
+    ],
+  },
+  name: 'By hand — equal stages drawn as one column',
 };

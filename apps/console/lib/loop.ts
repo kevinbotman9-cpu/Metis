@@ -237,6 +237,18 @@ export function buildLoop(
         ? `${channelLabel(delivering[0].channel)} only`
         : `${delivering.length} delivered channels`;
 
+  // Deliverable is what was offered, less what was offered on a channel nothing
+  // delivers. When every channel that offered something delivers it, the two are
+  // one count by definition, not by result — so the rail draws the stage as a
+  // pass-through that says so, instead of a full bar that reads as a measurement.
+  // Unknown delivery (a null `deliverable`) is not a pass-through: the report
+  // could not say.
+  const offeringNames = data.channels.filter((c) => c.offered > 0).map((c) => channelLabel(c.channel));
+  const passThrough =
+    data.deliverable !== null && data.deliverable !== undefined && data.offered > 0 && undeliverable === 0
+      ? `Nothing offered can drop here: every channel that offered something delivers it (${offeringNames.join(', ')}). It drops only when an offer wins a slot on a channel with no sender.`
+      : undefined;
+
   const deadNames = dead.map((c) => channelLabel(c.channel)).join(', ');
   const closure =
     data.decisions === 0
@@ -279,6 +291,7 @@ export function buildLoop(
               .map((c) => channelLabel(c.channel))
               .join(', ')}. They were decided correctly and reached nobody.`
           : undefined,
+      passThrough,
     },
     {
       id: 'seen',

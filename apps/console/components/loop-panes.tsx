@@ -525,6 +525,10 @@ export function LoopStageEvidence({ data, loop, stage }: { data: LoopReport; loo
         <EvidenceQuote title="Why it breaks here" tone="block">
           {selected.broken}
         </EvidenceQuote>
+      ) : selected.passThrough ? (
+        <EvidenceQuote title="Why nothing can drop here" tone="neutral">
+          {selected.passThrough}
+        </EvidenceQuote>
       ) : selected.id === 'offered' && loop.offeredNothing ? (
         <EvidenceQuote title="Why the rest offered nothing" tone="neutral">
           {loop.offeredNothing}
