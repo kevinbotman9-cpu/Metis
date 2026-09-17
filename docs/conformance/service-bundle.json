@@ -1837,7 +1837,7 @@
       "tenantId": "telco-us",
       "key": "hero_copy",
       "name": "Homepage hero wording",
-      "description": "Two headlines for the homepage hero. Stopped; kept because the decisions it influenced are still in the ledger and still have to be explainable.",
+      "description": "Two headlines for the homepage hero. Stopped; kept so that any decision it influenced stays explainable.",
       "arms": [
         {
           "key": "control",

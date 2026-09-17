@@ -45,7 +45,10 @@ describe('an empty ledger is an empty list', () => {
     const body = await search({ limit: '25' });
     expect(body.total).toBe(0);
     expect(body.decisions).toEqual([]);
-    expect(body.provenance.source).toBe('synthetic');
+    // Nothing to describe, so nothing described. This read
+    // `body.provenance.source === 'synthetic'` until 2026-09-17, which pinned a
+    // banner claiming a fixed seed over an empty tenant's empty list.
+    expect(body, 'an empty list carries a provenance claim').not.toHaveProperty('provenance');
   });
 });
 
