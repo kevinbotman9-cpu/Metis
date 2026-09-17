@@ -23,6 +23,7 @@ export function decisionRecord(over: {
   artifactId?: string;
   channel?: string;
   winner?: string | null;
+  winnerOfferId?: string | null;
 } = {}): DecisionRecord {
   const id = over.id ?? 'dec_0000000000000001';
   return {
@@ -52,7 +53,7 @@ export function decisionRecord(over: {
       constraintsApplied: [],
       consentState: { marketing: 'granted', profiling: 'granted', thirdParty: 'withheld' },
       winner: over.winner === undefined ? 'offer_a' : over.winner,
-      winnerOfferId: over.winner === null ? null : 'p_a',
+      winnerOfferId: over.winner === null ? null : (over.winnerOfferId ?? 'p_a'),
     },
     measured: { timingsByNode: {}, totalMs: 1, executedAt: AT },
   } as unknown as DecisionRecord;
@@ -366,6 +367,7 @@ export function describeLedger(label: string, harness: StoreHarness): void {
         customerRef?: string;
         channel?: string;
         winner?: string | null;
+        winnerOfferId?: string;
         decisionId?: string;
         tenantId?: string;
       }) {
@@ -379,6 +381,7 @@ export function describeLedger(label: string, harness: StoreHarness): void {
                 customerRef: over.customerRef ?? 'cust_capped',
                 channel: over.channel ?? 'web',
                 winner: over.winner,
+                winnerOfferId: over.winnerOfferId,
                 occurredAt: over.at,
               }),
               tenantId
@@ -398,12 +401,13 @@ export function describeLedger(label: string, harness: StoreHarness): void {
         });
         return decisionId;
       }
-      const counts = (over: { customerRef?: string; channel?: string; tenantId?: string } = {}) =>
+      const counts = (over: { customerRef?: string; channel?: string; tenantId?: string; offerIds?: string[] } = {}) =>
         ledger.contactsFor({
           tenantId: over.tenantId ?? T,
           customerRef: over.customerRef ?? 'cust_capped',
           channel: over.channel ?? 'web',
           until: UNTIL,
+          ...(over.offerIds ? { offerIds: over.offerIds } : {}),
         });
 
       it('is zero, in every window, for a customer never contacted', async () => {
@@ -453,6 +457,18 @@ export function describeLedger(label: string, harness: StoreHarness): void {
         expect(await counts()).toEqual({ day: 1, week: 1, month: 1 });
         expect(await counts({ channel: 'email' })).toEqual({ day: 1, week: 1, month: 1 });
         expect(await counts({ tenantId: 'telco-ie' })).toEqual({ day: 1, week: 1, month: 1 });
+      });
+
+      it('counts only the contacts about the offers a scope covers, when asked for them (ADR-021 §9)', async () => {
+        await contact({ at: ago(H), winner: 'disney_plus', winnerOfferId: 'off_disney_plus' });
+        await contact({ at: ago(2 * H), winner: 'fios_gigabit', winnerOfferId: 'off_fios_gigabit' });
+        await contact({ at: ago(3 * D), winner: 'disney_plus', winnerOfferId: 'off_disney_plus' });
+        // The channel's count is every contact; the scope's is the two about Disney+.
+        expect(await counts()).toEqual({ day: 2, week: 3, month: 3 });
+        expect(await counts({ offerIds: ['off_disney_plus'] })).toEqual({ day: 1, week: 2, month: 2 });
+        expect(await counts({ offerIds: ['off_disney_plus', 'off_fios_gigabit'] })).toEqual({ day: 2, week: 3, month: 3 });
+        // A scope that covers no offer has had no contact about it.
+        expect(await counts({ offerIds: [] })).toEqual({ day: 0, week: 0, month: 0 });
       });
     });
 

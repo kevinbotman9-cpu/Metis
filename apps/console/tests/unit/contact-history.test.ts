@@ -28,6 +28,23 @@ describe('the contact history a trace states', () => {
     expect(noCaps.text).toBe('No frequency policy applied, so the platform did not read the contact history.');
   });
 
+  it('names each scoped cap’s own count beside the channel’s (ADR-021 §9)', () => {
+    const scoped = contactHistoryStatement(
+      {
+        status: 'read',
+        channel: 'web',
+        withinPeriod: { day: 2, week: 5, month: 9 },
+        scoped: { cpol_disney_web_daily: { day: 1, week: 1, month: 2 } },
+      },
+      [...CAPS, 'cpol_disney_web_daily'],
+      F
+    );
+    expect(scoped.text).toBe(
+      'Read from the ledger for Web: 2 in the last 24 hours, 5 in 7 days, 9 in 30 days — added to what the caller sent. ' +
+        'Caps scoped narrower than the channel counted only the contacts about their scope — cpol_disney_web_daily: 1 in 24 hours, 1 in 7 days, 2 in 30 days.'
+    );
+  });
+
   it('never renders "not read" like "read, and found none"', () => {
     expect(notRead.kind).not.toBe(none.kind);
     expect(notRead.text).not.toBe(none.text);

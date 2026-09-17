@@ -89,7 +89,7 @@ describe('the loop evidence quote', () => {
     expect(screen.getByText(/measured on Web only, not decisions made/)).toBeTruthy();
   });
 
-  it('says where it loses most beside the break, neutrally, and why the rest offered nothing', () => {
+  it('says where it loses most beside the break, neutrally', () => {
     const data = report({
       suppressed: 55,
       suppressedBy: [{ stage: 'consent', decisions: 55, sampleDecisionId: 'dec_a' }],
@@ -98,14 +98,22 @@ describe('the loop evidence quote', () => {
     expect(screen.getByText('Where the loop breaks')).toBeTruthy();
     expect(screen.getByText('Where it loses most')).toBeTruthy();
     expect(screen.getByText('It loses most at Acted on: 20.0% of seen decisions were acted on, and 16 were not.')).toBeTruthy();
-    expect(screen.getByText('Why the rest offered nothing')).toBeTruthy();
-    expect(screen.getByText('55 decisions offered nothing: 55 at Consent.')).toBeTruthy();
   });
 
-  it('says why the rest offered nothing on the offered stage, and opens the funnel', () => {
-    pane(report({ suppressed: 55, suppressedBy: [{ stage: 'consent', decisions: 55, sampleDecisionId: 'dec_a' }] }), 'offered');
-    expect(screen.getByText('55 decisions offered nothing: 55 at Consent.')).toBeTruthy();
+  it('leaves why the rest offered nothing to the rail, and keeps the way into the funnel', () => {
+    // Moved onto the Offered stage on 2026-09-17: the cause belongs on the stage
+    // that dropped, and the Overview has no pane to put it in any more.
+    const data = report({ suppressed: 55, suppressedBy: [{ stage: 'consent', decisions: 55, sampleDecisionId: 'dec_a' }] });
+    const sentence = '55 decisions offered nothing: 55 at Consent.';
+    expect(buildLoop(data, MARGINS, F).stages.find((s) => s.id === 'offered')?.detail).toBe(sentence);
+
+    pane(data, 'offered');
+    expect(screen.queryByText(sentence)).toBeNull();
+    expect(screen.queryByText('Why the rest offered nothing')).toBeNull();
     expect(screen.getByRole('link', { name: /^Open the policy funnel/ }).getAttribute('href')).toBe('/targeting-policies');
+
+    pane(data, null);
+    expect(screen.queryByText(sentence)).toBeNull();
   });
 
   it('says there are too few rather than naming a stage at two decisions', () => {

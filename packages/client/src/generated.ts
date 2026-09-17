@@ -396,6 +396,14 @@ the first.
   deliverable: number | null;
   /** Decisions with a click, acceptance or conversion. The customer did something. */
   acted: number;
+  /** Offered decisions with at least one outcome that carried a value:
+the population realised value is summed over, and what it rests on.
+
+Not `acted`: a click is acted on and carries no value. Realised
+value's stability follows this count, so a screen showing the figure
+states it (ADR-023).
+ */
+  valued: number;
   /** The same five stages per channel, so a rate below the break can name the population it describes. */
   channels: ChannelStages[];
   /** Daily, oldest first. What the rail's sparklines are drawn from. */
@@ -829,6 +837,22 @@ export interface ContactsRead {
     week: number;
     month: number;
   };
+  /** For each active frequency policy on this channel whose scope is
+narrower than the tenant, keyed by its id: the contacts *about that
+scope*, meaning decisions whose recorded offer the scope covers, per
+the same windows. A scoped cap is held to its own count, not the
+channel's (ADR-021 §9).
+
+Present only when `status` is `read` and such a cap exists, so a read
+on a channel with none keeps its identity. A read that omits a scoped
+cap, or names one the channel does not have, is refused by both
+engines.
+ */
+  scoped?: Record<string, {
+    day: number;
+    week: number;
+    month: number;
+  }>;
 }
 
 /** One step's verdict on the candidate set, in execution order. Consent is
@@ -1609,7 +1633,16 @@ export interface SourceCall {
   ms: number;
   cacheHit: boolean;
   outcome: "ok" | "timeout" | "error" | "skipped";
+  /** Fields this call's value was used for: it answered them and the
+request did not carry them. Until 2026-09-17 this listed every field
+the call answered, crediting the connector with values the request
+supplied (ADR-022 §5).
+ */
   fields: string[];
+  /** Fields this call answered that the request already carried, so its
+answer was discarded and the request's value used.
+ */
+  overridden: string[];
   detail?: string;
   /** When this decision asked for the value. ms says how long the answer
 took; a duration on its own cannot place a call in time.

@@ -122,10 +122,17 @@ describe('the evidence pane', () => {
 });
 
 describe('the flow diagram', () => {
-  const flow = (data: LoopReport) =>
+  const flow = (data: LoopReport, dense = false) =>
     render(
       <StaticFormatProvider settings={SETTINGS}>
-        <LoopFlow stages={buildLoop(data, MARGINS, F).stages.map((s) => ({ ...s, broken: Boolean(s.broken) }))} />
+        <LoopFlow
+          dense={dense}
+          stages={buildLoop(data, MARGINS, F).stages.map((s) => ({
+            ...s,
+            broken: Boolean(s.broken),
+            tone: s.tone ?? 'neutral',
+          }))}
+        />
       </StaticFormatProvider>
     );
 
@@ -162,6 +169,40 @@ describe('the flow diagram', () => {
     expect(
       [...container.querySelectorAll('g[data-part="column"]')].map((g) => g.getAttribute('data-stages'))
     ).toEqual(['2', '2', '1']);
+  });
+
+  it('takes the rail’s colour for each stage, and the break’s', () => {
+    // The funnel was one pale blue beside a coloured rail until 2026-09-17, so
+    // the two read as separate things. Same stages, same tones, different
+    // tokens: `--rail-*` on the frame, the analytic ones on a white card.
+    // Three columns here, because equal runs merge: decisions with offered,
+    // deliverable with seen, then acted on. A merged column takes the first
+    // stage's tone, and a break beats it.
+    const { container } = flow(withEmail);
+    const fills = [...container.querySelectorAll('rect[data-part="stage"]')].map((r) => r.getAttribute('class'));
+    expect(fills).toHaveLength(3);
+    expect(fills[0]).toContain('fill-content-subtle');
+    expect(fills[1]).toContain('fill-block');
+    expect(fills[2]).toContain('fill-pass');
+
+    // Unmerged, each stage keeps its own: accent at Offered, attention at Seen.
+    const distinct = flow(byHand({ offered: 20, deliverable: 20, measured: 10, acted: 5 }));
+    const more = [...distinct.container.querySelectorAll('rect[data-part="stage"]')].map((r) => r.getAttribute('class'));
+    // Offered and Deliverable are both 20 and merge, so: decisions, offered,
+    // seen, acted on.
+    expect(more).toHaveLength(4);
+    expect(more[1]).toContain('fill-accent');
+    expect(more[2]).toContain('fill-hold');
+    expect(more[3]).toContain('fill-pass');
+  });
+
+  it('draws the Overview’s funnel on a wider canvas, so filling a wide card is not a letterbox', () => {
+    const { container } = flow(byHand(), true);
+    const box = container.querySelector('svg')!.getAttribute('viewBox')!.split(' ').map(Number);
+    expect(box[2]).toBe(LOOP_FLOW.denseWidth);
+    expect(LOOP_FLOW.denseWidth).toBeGreaterThan(LOOP_FLOW.width);
+    // And it fills the box its card gives it rather than its own aspect.
+    expect(container.querySelector('svg')!.getAttribute('class')).toContain('absolute inset-0');
   });
 
   it('does not merge an empty loop: its outlined columns are the shape about to be filled', () => {

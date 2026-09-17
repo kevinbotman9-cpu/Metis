@@ -27,6 +27,7 @@ const REPORT = {
   deliverable: 36,
   measured: 22,
   acted: 5,
+  valued: 2,
   from: '2026-08-14T00:00:00.000Z',
   to: '2026-09-12T00:00:00.000Z',
   channels: [
@@ -68,9 +69,21 @@ export default meta;
 
 type Story = StoryObj;
 
-/** Before a stage is chosen: value against the ceiling, the flow, three trends. */
+/**
+ * Before a stage is chosen: value against the ceiling, the flow, three trends.
+ *
+ * Realised value rests on two valued outcomes here, far below the floor of 100
+ * (ADR-023), so it is drawn plain, says it is thin, and the page has no accent.
+ */
 export const FirstPaint: Story = {
   render: () => <LoopFirstPaint data={REPORT} loop={LOOP} />,
+};
+
+const ENOUGH = { ...REPORT, valued: 140 } as LoopReport;
+
+/** The same page with realised value resting on 140 valued outcomes: at the floor and above, it takes the accent. */
+export const FirstPaintAboveTheFloor: Story = {
+  render: () => <LoopFirstPaint data={ENOUGH} loop={buildLoop(ENOUGH, MARGINS, F)} />,
 };
 
 /** The break, selected. */
@@ -83,12 +96,12 @@ export const ActedOnSelected: Story = {
   render: () => <LoopStageDetail data={REPORT} loop={LOOP} stage="acted" />,
 };
 
-/** Evidence with nothing selected: which channels close the loop, where it loses most, and why the rest offered nothing. */
+/** Evidence with nothing selected: which channels close the loop, and where it loses most. Why the rest offered nothing is on the rail's Offered stage. */
 export const EvidenceWhole: Story = {
   render: () => <LoopStageEvidence data={REPORT} loop={LOOP} stage={null} />,
 };
 
-/** "Offered something", selected: why the rest offered nothing, and the way to the policy funnel. */
+/** "Offered something", selected: the per-channel counts, and the way to the policy funnel. */
 export const EvidenceOffered: Story = {
   render: () => <LoopStageEvidence data={REPORT} loop={LOOP} stage="offered" />,
 };
@@ -117,4 +130,14 @@ export const AnInversion: Story = {
     const lying = { ...REPORT, measured: 40 } as LoopReport;
     return <LoopInversions loop={buildLoop(lying, MARGINS, F)} />;
   },
+};
+
+/**
+ * The Overview's shape, from 2026-09-17: six cards on one row, no channel card,
+ * no coverage sentence, the flow capped in height. Beside it on that screen is
+ * a rail with no sparklines and no foot, and no third pane at all.
+ */
+export const FirstPaintDense: Story = {
+  render: () => <LoopFirstPaint data={REPORT} loop={LOOP} dense />,
+  name: 'First paint, dense — the Overview',
 };

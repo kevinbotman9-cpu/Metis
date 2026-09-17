@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/cn';
 import { useFormat } from '@/components/tenant-format';
+import type { CascadeTone } from '@/components/cascade-rail';
 import { ribbonPath, volumeScale } from '@/components/volume/geometry';
 
 /**
@@ -41,7 +42,23 @@ export interface LoopFlowStage {
   value: number;
   /** Drawn in the block colour, for the stage the loop breaks at. */
   broken?: boolean;
+  /**
+   * The stage's colour, the rail's own — so the two read as one object rather
+   * than a coloured rail beside a pale blue diagram. The rail's `--rail-*`
+   * tones are measured against the frame; these are the analytic tokens of the
+   * same meaning, measured against a white card.
+   */
+  tone?: CascadeTone;
 }
+
+/** The rail's tone, in the analytic tokens a white card needs. */
+const FILL: Record<CascadeTone | 'broken', { solid: string; band: string }> = {
+  neutral: { solid: 'fill-content-subtle', band: 'fill-content-subtle/20' },
+  accent: { solid: 'fill-accent', band: 'fill-accent/20' },
+  attention: { solid: 'fill-hold', band: 'fill-hold/20' },
+  ok: { solid: 'fill-pass', band: 'fill-pass/20' },
+  broken: { solid: 'fill-block', band: 'fill-block/25' },
+};
 
 /** The drawing's own units. Exported so a test can hold the heights to the shared scale. */
 export const LOOP_FLOW = {
@@ -56,6 +73,12 @@ export const LOOP_FLOW = {
   dropGap: 22,
   /** Each further stage name a merged column carries adds a line this tall above the columns. */
   line: 14,
+  /**
+   * The canvas the Overview draws on: wider, so filling a card that is about
+   * three times as wide as it is tall does not leave the drawing in a letterbox.
+   */
+  denseWidth: 1000,
+  denseColumn: 22,
 } as const;
 
 /** One drawn column: a stage, or a run of consecutive stages with the same figure. */
@@ -64,6 +87,7 @@ export interface LoopFlowColumn {
   labels: string[];
   value: number;
   broken: boolean;
+  tone: CascadeTone;
 }
 
 /**
@@ -79,15 +103,41 @@ export function mergeEqualRuns(stages: readonly LoopFlowStage[]): LoopFlowColumn
     if (last && last.value === s.value) {
       last.labels.push(s.label);
     } else {
-      columns.push({ id: s.id, labels: [s.label], value: s.value, broken: Boolean(s.broken) });
+      columns.push({
+        id: s.id,
+        labels: [s.label],
+        value: s.value,
+        broken: Boolean(s.broken),
+        tone: s.tone ?? 'neutral',
+      });
     }
   }
   return columns;
 }
 
-export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
+export function LoopFlow({
+  stages,
+  dense = false,
+}: {
+  stages: readonly LoopFlowStage[];
+  /**
+   * The Overview's shape: **fills its card**, and reads at the card's size.
+   *
+   * The first version of this capped the height to buy the page its fit, and
+   * the drawing shrank to half size inside a card that kept its height — a
+   * funnel floating in white space, with labels smaller than anything else on
+   * the screen, because SVG text scales with the drawing. So dense is not
+   * "smaller": it is a wider canvas (1000 units against 720, close to the
+   * card's own proportion), thicker columns, and type a size up, drawn at
+   * whatever height the card has. It is the heaviest thing on the page, which
+   * is what the product owner asked for on 2026-09-17.
+   */
+  dense?: boolean;
+}) {
   const format = useFormat();
-  const { width: W, band: BAND, column: COL, dropGap, line: LINE } = LOOP_FLOW;
+  const { band: BAND, dropGap, line: LINE } = LOOP_FLOW;
+  const W = dense ? LOOP_FLOW.denseWidth : LOOP_FLOW.width;
+  const COL = dense ? LOOP_FLOW.denseColumn : LOOP_FLOW.column;
   // Nothing has entered the loop. The columns are still drawn — outlined, at the
   // full band — so the shape a reader is about to fill is on screen; and the
   // drawing stops at the band, because there is no row for losses to fall to.
@@ -95,7 +145,13 @@ export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
   // which read as about 300px of chart that had failed to load.
   const empty = stages.length > 0 && stages.every((s) => s.value === 0);
   const columns: LoopFlowColumn[] = empty
-    ? stages.map((s) => ({ id: s.id, labels: [s.label], value: 0, broken: Boolean(s.broken) }))
+    ? stages.map((s) => ({
+        id: s.id,
+        labels: [s.label],
+        value: 0,
+        broken: Boolean(s.broken),
+        tone: s.tone ?? 'neutral',
+      }))
     : mergeEqualRuns(stages);
   const merged = columns.length < stages.length;
   // Every column's figure sits on one baseline, and its names stack beneath it,
@@ -108,13 +164,22 @@ export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
   const step = n > 1 ? (W - COL) / (n - 1) : 0;
   const x = (i: number) => i * step;
   const dropY = TOP + BAND + dropGap;
-  const run = Math.min(step * 0.55, 96);
+  const run = Math.min(step * 0.55, dense ? 140 : 96);
+  /** The type sizes: a size up where the drawing is the page's heaviest element. */
+  const type = dense
+    ? { figure: 'text-figure', name: 'text-body', drop: 'text-body' }
+    : { figure: 'text-body', name: 'text-label', drop: 'text-label' };
 
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="xMidYMid meet"
-      className="block h-auto w-full"
+      // Dense: a fixed height and the width the aspect gives it, centred, so
+      // capping the height does not leave the drawing adrift in a wide card.
+      // Dense: absolute inside the box its card gives it, so the drawing's own
+      // proportion cannot push the pane taller than the rail beside it — which
+      // is what put the page back into a scroll the first time it filled.
+      className={cn(dense ? 'absolute inset-0 block h-full w-full' : 'block h-auto w-full')}
       role="img"
       aria-label={`The loop as volume: ${stages
         .map((s) => `${s.label} ${format.number(s.value)}`)
@@ -131,10 +196,14 @@ export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
         return (
           <g key={`between-${column.id}`}>
             {/* What carries on: a band as tall as the next stage. */}
+            {/* The band takes the colour of the stage it carries into, so the
+                diagram runs through the rail's own tones rather than one pale
+                blue: neutral into accent, accent into the break's block,
+                through attention at Seen to pass at Acted on. */}
             <path
               data-part="carry"
               d={ribbonPath(x0, TOP, TOP + on, x(i + 1), TOP, TOP + on)}
-              className={cn(next.broken ? 'fill-block/20' : 'fill-accent/20')}
+              className={FILL[next.broken ? 'broken' : next.tone].band}
             />
             {lost > 0 ? (
               <>
@@ -147,7 +216,7 @@ export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
                 <text
                   x={x0 + run + 6}
                   y={dropY + 12}
-                  className={cn('tnum text-label', next.broken ? 'fill-block' : 'fill-content-subtle')}
+                  className={cn('tnum', type.drop, next.broken ? 'fill-block' : 'fill-content-subtle')}
                 >
                   −{format.number(lost)}
                 </text>
@@ -181,10 +250,15 @@ export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
                 width={COL}
                 height={scale(column.value)}
                 rx={3}
-                className={cn(column.broken ? 'fill-block' : 'fill-accent')}
+                className={FILL[column.broken ? 'broken' : column.tone].solid}
               />
             )}
-            <text x={tx} y={LOOP_FLOW.top - 22} textAnchor={anchor} className="tnum fill-content text-body font-semibold">
+            <text
+              x={tx}
+              y={LOOP_FLOW.top - (dense ? 26 : 22)}
+              textAnchor={anchor}
+              className={cn('tnum fill-content font-semibold', type.figure)}
+            >
               {format.number(column.value)}
             </text>
             {column.labels.map((label, j) => (
@@ -193,7 +267,7 @@ export function LoopFlow({ stages }: { stages: readonly LoopFlowStage[] }) {
                 x={tx}
                 y={LOOP_FLOW.top - 8 + j * LINE}
                 textAnchor={anchor}
-                className="fill-content-subtle text-label"
+                className={cn('fill-content-subtle', type.name)}
               >
                 {label}
               </text>

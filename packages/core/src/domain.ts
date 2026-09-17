@@ -810,8 +810,22 @@ export interface SourceCall {
   ms: number;
   cacheHit: boolean;
   outcome: 'ok' | 'timeout' | 'error' | 'skipped';
-  /** Fields this call put into the input. */
+  /**
+   * Fields this call's value was used for: it answered them and the request did
+   * not carry them.
+   *
+   * It listed every field the call answered until 2026-09-17, including the ones
+   * the request then overrode, so the measured half made the same claim G-152
+   * found in the hashed half: a connector credited with values it did not supply
+   * (ADR-022 §5).
+   */
   fields: string[];
+  /**
+   * Fields this call answered and the request already carried, so the request's
+   * value was used and this call's discarded. The "available and not used" half
+   * of a `request` origin (ADR-022 §2).
+   */
+  overridden: string[];
   /** Present when the call did not succeed. */
   detail?: string;
   /**

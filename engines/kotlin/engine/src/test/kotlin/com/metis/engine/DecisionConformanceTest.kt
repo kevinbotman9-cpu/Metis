@@ -217,6 +217,11 @@ class DecisionConformanceTest {
                 it["withinPeriod"]?.takeIf { w -> !w.isNull }?.let { w ->
                     ContactCounts(w["day"].asLong(), w["week"].asLong(), w["month"].asLong())
                 },
+                it["scoped"]?.takeIf { s -> !s.isNull }?.let { s ->
+                    s.fields().asSequence().associate { (id, w) ->
+                        id to ContactCounts(w["day"].asLong(), w["week"].asLong(), w["month"].asLong())
+                    }
+                },
             )
         },
     )
@@ -258,6 +263,13 @@ class DecisionConformanceTest {
         val steps = decide("withheld consent leaves only service-exempt scopes").eliminations
         assertTrue(steps.none { it.nodeId == Engine.CONSENT_STEP_ID })
         assertTrue(steps.any { s -> s.nodeType == "constraint" && s.denials.any { it.code == "CONSENT_WITHHELD" } })
+    }
+
+    /** A corpus case as the engine takes it, for a test that alters the request before executing. */
+    internal fun caseNamed(name: String): Triple<ExecArtifact, CatalogueSnapshot, DecisionRequest> {
+        val case = corpus["cases"].firstOrNull { it["name"].asText() == name }
+            ?: fail("the decision corpus has no case named '$name'")
+        return Triple(artifact(case["artifact"]), catalogue(case["catalogue"]), request(case["request"]))
     }
 
     private fun decide(name: String): DeterministicDecision {

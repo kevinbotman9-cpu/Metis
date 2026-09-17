@@ -749,6 +749,9 @@ async function resolveAndExecute(
           customerRef: decisionRequest.customerId,
           channel: decisionRequest.channel,
           occurredAt: decisionRequest.occurredAt,
+          // So a cap scoped to an offer, category or objective is held to the
+          // contacts about its scope, not every contact on the channel (ADR-021 §9).
+          catalogue,
         },
         (e) => {
           // eslint-disable-next-line no-console

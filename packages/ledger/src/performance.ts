@@ -160,6 +160,17 @@ export interface PerformanceReport {
   deliverable: number | null;
   /** Decisions with a click, acceptance or conversion — the customer did something. */
   acted: number;
+  /**
+   * Offered decisions with at least one outcome that carried a value: the
+   * population every row's `valueMinor` is summed over.
+   *
+   * What realised value rests on, and not the same as `acted`. A click is acted
+   * on and worth nothing. On the seeded tenant 278 decisions were acted on and 24
+   * carried a value. Re-rolled 200 times, realised value varied 17.7% and this
+   * count 17.8%, while the value per valued decision varied 3.8% (ADR-023). So
+   * this count, not `acted`, says how far the figure can be trusted.
+   */
+  valued: number;
   /** The same five stages per channel, so a rate can name its population. */
   channels: ChannelStages[];
   /** Daily, oldest first. */
@@ -242,6 +253,7 @@ export function buildPerformance(
   const suppression = new Map<SuppressionReason['stage'], SuppressionReason>();
   let measured = 0;
   let acted = 0;
+  let valued = 0;
   let deliverable = 0;
   let from: string | null = null;
   let to: string | null = null;
@@ -344,6 +356,10 @@ export function buildPerformance(
 
     bucket.offered += 1;
     if (events.length > 0) bucket.measured.add(entry.decisionId);
+    // Once per decision however many of its events carried a value, and only
+    // here, among offered decisions, so it counts exactly the decisions the
+    // rows' `valueMinor` is summed over.
+    if (events.some((e) => e.valueMinor !== null && e.valueMinor !== undefined)) valued += 1;
     for (const event of events) {
       // The decision id, not a counter: a channel that fires the same event
       // twice reports one, and a rate can never exceed 1.
@@ -390,6 +406,7 @@ export function buildPerformance(
     measured,
     deliverable: delivers ? deliverable : null,
     acted,
+    valued,
     // Widest first: the reader is looking for where the volume went.
     channels: [...perChannel.values()].sort(
       (a, b) => b.decisions - a.decisions || a.channel.localeCompare(b.channel)

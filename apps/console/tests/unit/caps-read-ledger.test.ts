@@ -168,6 +168,51 @@ describe('a cap counts the platform’s own contacts', () => {
     expect(next.trace.contactsRead?.withinPeriod?.day).toBe(1);
   });
 
+  it('holds a cap scoped to one offer to the contacts about that offer, not every contact on the channel', async () => {
+    // ADR-021 §9. A scope that did not narrow what is counted would not be a
+    // scope: before this, a cap on one offer counted every web contact.
+    const first = await decide('cust_caps_scoped', 0);
+    const offered = (first.trace as Trace & { winnerOfferId: string }).winnerOfferId;
+    expect(offered).toBeTruthy();
+
+    await store.catalogueReady;
+    await store.catalogue.putFrequencyPolicy(
+      TENANT,
+      {
+        id: 'cpol_test_one_offer_daily',
+        name: 'One offer, once a day',
+        description: 'Test cap scoped to the offer the first decision made.',
+        channel: 'web',
+        maxContacts: 1,
+        period: 'day',
+        cooldownDaysAfterReject: 0,
+        scope: { level: 'offer', targetId: offered },
+        active: true,
+      },
+      'test',
+      '2026-09-10T11:00:00.000Z'
+    );
+
+    // One contact about that offer today: its own cap is spent, the offer is
+    // held back naming it, and something else is offered — the channel's cap
+    // of three is not.
+    const second = await decide('cust_caps_scoped', 1);
+    type Scoped = Trace & { winnerOfferId: string | null; contactsRead?: { scoped?: Record<string, { day: number }> } };
+    const s = second.trace as Scoped;
+    expect(s.contactsRead?.withinPeriod?.day).toBe(1);
+    expect(s.contactsRead?.scoped).toEqual({ cpol_test_one_offer_daily: { day: 1, week: 1, month: 1 } });
+    expect(denials(s)).toContainEqual(expect.objectContaining({ code: 'FREQUENCY_CAP_BREACHED', ruleId: 'cpol_test_one_offer_daily' }));
+    expect(s.winnerOfferId).not.toBeNull();
+    expect(s.winnerOfferId).not.toBe(offered);
+
+    // Two contacts on the channel now, still one about the capped offer: the
+    // scoped count does not follow the channel's.
+    const third = await decide('cust_caps_scoped', 2);
+    const t = third.trace as Scoped;
+    expect(t.contactsRead?.withinPeriod?.day).toBe(2);
+    expect(t.contactsRead?.scoped?.cpol_test_one_offer_daily.day).toBe(1);
+  });
+
   // Replay from the recorded counts is held in `packages/runtime/tests`: a
   // channel's decision cannot be replayed here at all, because its
   // connector-resolved inputs are not kept (G-009).

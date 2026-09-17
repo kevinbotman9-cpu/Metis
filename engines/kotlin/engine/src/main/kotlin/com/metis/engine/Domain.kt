@@ -237,6 +237,12 @@ data class ContactsRead(
     val status: String,
     val channel: String,
     val withinPeriod: ContactCounts? = null,
+    /**
+     * For each active cap on this channel whose scope is narrower than the
+     * tenant, the contacts about that scope, keyed by cap id. Null when there is
+     * no such cap, so a read with none keeps its identity (ADR-021 §9).
+     */
+    val scoped: Map<String, ContactCounts>? = null,
 )
 
 data class ContactCounts(val day: Long, val week: Long, val month: Long)

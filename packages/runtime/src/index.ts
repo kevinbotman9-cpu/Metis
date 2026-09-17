@@ -11,7 +11,7 @@
  * never have worked, and nothing depended on it.
  */
 
-export { execute, replay, diff, topologicalOrder } from './deterministic/engine';
+export { execute, replay, diff, topologicalOrder, scopeCovers, scopedCapsOn } from './deterministic/engine';
 export { consentStateOf, assertionOf, permits } from './deterministic/consent';
 export type { ConsentState, ConsentValue, ConsentAssertion } from './deterministic/consent';
 export { canonicalise, hash, shortHash, seededUnitInterval } from './deterministic/canonical';
@@ -35,6 +35,7 @@ export type {
   ExecNodeType,
   CatalogueSnapshot,
   ContactsRead,
+  ContactWindow,
   DecisionRequest,
   DecisionRecord,
   DeterministicDecision,

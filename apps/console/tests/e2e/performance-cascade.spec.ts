@@ -92,7 +92,7 @@ test.describe('performance reads as a cascade @screen-only', () => {
     expect(label).toMatch(/SMS|Email|Push|Outbound call/);
   });
 
-  test('says where it loses most, beside the break, and why the rest offered nothing', async ({ page }) => {
+  test('says where it loses most beside the break, and why the rest offered nothing on the stage that dropped', async ({ page }) => {
     await open(page);
 
     const decisions = await stage(page, 'Decisions made');
@@ -118,11 +118,13 @@ test.describe('performance reads as a cascade @screen-only', () => {
     await expect(page.getByText('Where the loop breaks', { exact: true })).toBeVisible();
 
     // Item 11 of the 2026-09-17 walk-through: the drop to "offered something"
-    // was drawn and never explained on this screen.
+    // was drawn and never explained on this screen. It was an evidence quote
+    // until later that day, when it moved onto the stage that dropped — so the
+    // cause sits on the rail, and no pane repeats it.
     const nothing = decisions - offered;
-    await expect(page.getByText('Why the rest offered nothing', { exact: true })).toBeVisible();
+    await expect(page.getByText('Why the rest offered nothing', { exact: true })).toHaveCount(0);
     await expect(
-      page.getByText(new RegExp(`^${nothing.toLocaleString('en-GB')} decisions offered nothing: [\\d,]+ at `))
+      rail(page).getByText(new RegExp(`^${nothing.toLocaleString('en-GB')} decisions offered nothing: [\\d,]+ at `))
     ).toBeVisible();
   });
 

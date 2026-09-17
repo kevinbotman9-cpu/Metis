@@ -463,14 +463,30 @@ object Engine {
                         consentApplied = true
                         // What the caller sent, plus what the platform read from
                         // its ledger — added, never replacing (ADR-021).
-                        val read = request.contactsRead
-                        val used: Map<String, Double> = (request.contactHistory?.withinPeriod ?: emptyMap()).toMutableMap().also { m ->
-                            val w = read?.withinPeriod
-                            if (read?.status == "read" && w != null) {
-                                for ((period, n) in listOf("day" to w.day, "week" to w.week, "month" to w.month)) {
-                                    m[period] = (m[period] ?: 0.0) + n.toDouble()
-                                }
+                        //
+                        // Validated here, so a read missing a scoped cap's count
+                        // is refused rather than holding that cap to the channel's.
+                        val read = request.contactsRead?.let { recordedContacts(it, request.channel, catalogue) }
+                        val callerCounts = request.contactHistory?.withinPeriod ?: emptyMap()
+
+                        /**
+                         * The contacts a cap is held to in one period: the
+                         * caller's, which name no offer and so count toward every
+                         * cap (ADR-021 §3), plus the platform's about the cap's
+                         * scope — the channel's for a tenant cap, the scoped read
+                         * for a narrower one (ADR-021 §9).
+                         */
+                        fun usedBy(c: FrequencyPolicy, period: String): Double {
+                            val caller = callerCounts[period] ?: 0.0
+                            if (read?.status != "read") return caller
+                            val w = if (c.scope.level == "tenant") read.withinPeriod!! else read.scoped!!.getValue(c.id)
+                            val platform = when (period) {
+                                "day" -> w.day
+                                "week" -> w.week
+                                "month" -> w.month
+                                else -> 0L
                             }
+                            return caller + platform.toDouble()
                         }
                         val rejects = request.contactHistory?.rejects ?: emptyMap()
                         val decidedAt = instantOf(request.occurredAt, "request.occurredAt")
@@ -523,7 +539,7 @@ object Engine {
                                 // "contacted too much" and a policy someone can
                                 // go and look at.
                                 val breached = relevant.firstOrNull {
-                                    (used[it.period] ?: 0.0) >= it.maxContacts
+                                    usedBy(it, it.period) >= it.maxContacts
                                 }
                                 if (breached != null) {
                                     denials.add(Denial(p.key, "FREQUENCY_CAP_BREACHED", breached.id))
@@ -731,7 +747,7 @@ object Engine {
             consentState = consent,
             winner = winner,
             winnerOfferId = winnerOffer?.id,
-            contactsRead = request.contactsRead?.let { recordedContacts(it, request.channel) },
+            contactsRead = request.contactsRead?.let { recordedContacts(it, request.channel, catalogue) },
         )
 
         // One hash, used twice: the id is a prefix of the chain hash.
@@ -744,17 +760,41 @@ object Engine {
      * another channel or a count that is not a count — the same refusals the
      * TypeScript engine's `recordedContacts` makes.
      */
-    private fun recordedContacts(read: ContactsRead, channel: String): ContactsRead {
+    private fun recordedContacts(read: ContactsRead, channel: String, catalogue: CatalogueSnapshot): ContactsRead {
         require(read.channel == channel) {
             "contactsRead describes channel \"${read.channel}\" and the decision is on \"$channel\". " +
                 "Counts read for one channel cannot be held against another channel's caps."
         }
         if (read.status == "unavailable") return ContactsRead("unavailable", channel, null)
         require(read.status == "read") { "contactsRead.status must be read or unavailable, got \"${read.status}\"" }
-        val w = requireNotNull(read.withinPeriod) { "contactsRead.withinPeriod is required when status is read" }
-        for ((period, n) in listOf("day" to w.day, "week" to w.week, "month" to w.month)) {
-            require(n >= 0) { "contactsRead.withinPeriod.$period must be a whole number of contacts, got $n" }
+        fun window(at: String, w: ContactCounts): ContactCounts {
+            for ((period, n) in listOf("day" to w.day, "week" to w.week, "month" to w.month)) {
+                require(n >= 0) { "$at.$period must be a whole number of contacts, got $n" }
+            }
+            return ContactCounts(w.day, w.week, w.month)
         }
-        return ContactsRead("read", channel, ContactCounts(w.day, w.week, w.month))
+        val w = requireNotNull(read.withinPeriod) { "contactsRead.withinPeriod is required when status is read" }
+
+        // Exactly the scoped caps on this channel (ADR-021 §9): one missing would
+        // hold that cap to the channel's count; an extra is a count nobody asked for.
+        val needed = scopedCapsOn(catalogue, channel).map { it.id }.sorted()
+        val given = (read.scoped?.keys ?: emptySet()).sorted()
+        require(needed == given) {
+            "contactsRead.scoped names [${given.joinToString(", ")}] and the scoped caps on \"$channel\" are " +
+                "[${needed.joinToString(", ")}]. A scoped cap is held to the contacts about its scope, so each needs its own count."
+        }
+        val withinPeriod = window("contactsRead.withinPeriod", w)
+        if (needed.isEmpty()) return ContactsRead("read", channel, withinPeriod)
+        return ContactsRead(
+            "read",
+            channel,
+            withinPeriod,
+            needed.associateWith { id -> window("contactsRead.scoped.$id", read.scoped!!.getValue(id)) },
+        )
+    }
+
+    /** Active caps on this channel scoped narrower than the tenant. See the TypeScript `scopedCapsOn`. */
+    private fun scopedCapsOn(catalogue: CatalogueSnapshot, channel: String) = catalogue.frequencyPolicies.filter { c ->
+        c.active && (c.channel == null || c.channel == channel) && c.scope.level != "tenant"
     }
 }

@@ -55,14 +55,11 @@ test.describe("the marketer's Overview is the loop @screen-only", () => {
    */
   test('leads with the loop, and keeps the proposals under it', async ({ page }) => {
     const proposals = page.getByRole('heading', { name: 'Proposed changes', exact: true });
-    const activity = page.getByRole('heading', { name: 'Agent activity', exact: true });
     await expect(proposals).toBeVisible();
-    await expect(activity).toBeVisible();
     await expect(rail(page)).toBeVisible();
 
     const railTop = (await rail(page).boundingBox())!.y;
     expect((await proposals.boundingBox())!.y).toBeGreaterThan(railTop);
-    expect((await activity.boundingBox())!.y).toBeGreaterThan(railTop);
 
     // The loop's own first figure is reachable without scrolling, which is the
     // point of the reorder rather than a side effect of it.
@@ -73,6 +70,43 @@ test.describe("the marketer's Overview is the loop @screen-only", () => {
 
     // And the four doughnuts it replaced are gone rather than moved.
     await expect(page.getByText('Flow compilation', { exact: true })).toHaveCount(0);
+  });
+
+  /**
+   * The page fits, and the check says at what size.
+   *
+   * Cut on 2026-09-17, by the product owner: the agent-activity feed (it said
+   * "Nothing in this feed" on every tenant — G-155), the evidence pane, the
+   * thesis paragraph, the page's own description, and four sentences explaining
+   * the screen to a reader who is on it. The value cards and the per-day cards
+   * share a row, the rail drops its sparklines, and the flow diagram is capped.
+   *
+   * 1680x1000 is the size the comment above already named as the fold. The page
+   * was 1315px of content in an 843px box at 1440x900 before this; it is 921
+   * now, so **1440x900 still scrolls by 78px** and that is recorded rather than
+   * hidden — the floor is the rail (584) and the proposals card (252).
+   */
+  test('fits without scrolling at 1680x1000', async ({ page }) => {
+    await page.setViewportSize({ width: 1680, height: 1000 });
+    await expect(rail(page)).toBeVisible();
+    await expect(page.getByText('Realised value', { exact: true })).toBeVisible();
+    const overflow = await page.evaluate(() => {
+      const scroller = [...document.querySelectorAll<HTMLElement>('main')].find(
+        (n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowY)
+      );
+      if (!scroller) throw new Error('no scroll container on the page');
+      return scroller.scrollHeight - scroller.clientHeight;
+    });
+    expect(overflow, 'the Overview scrolls at 1680x1000').toBeLessThanOrEqual(0);
+  });
+
+  test('has two panes, not three: no evidence column narrating the screen', async ({ page }) => {
+    // The evidence quoted the loop's closure — which the rail says — and
+    // explained the stages. `/performance` keeps its third pane.
+    await expect(page.getByRole('region', { name: 'Evidence', exact: true })).toHaveCount(0);
+    await expect(page.getByText(/Closed on Web only/)).toHaveCount(0);
+    // Except the one sentence worth keeping, which moved onto the stage that dropped.
+    await expect(rail(page)).toContainText(/decisions offered nothing/);
   });
 
   test('first paint selects nothing and shows the loop whole', async ({ page }) => {
@@ -93,7 +127,7 @@ test.describe("the marketer's Overview is the loop @screen-only", () => {
     }
   });
 
-  test('selecting a stage changes the middle and the evidence, never the rail', async ({ page }) => {
+  test('selecting a stage changes the middle, never the rail', async ({ page }) => {
     const before = await stageFigures(page);
 
     await rail(page).getByRole('button', { name: /^Deliverable: / }).click();

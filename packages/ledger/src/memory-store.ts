@@ -108,6 +108,7 @@ export class InMemoryLedgerStore implements LedgerStore {
     // The same rule as the SQL in `postgres-store.ts`, written the same way, so
     // the suite that runs against both can tell if they part company.
     const until = Date.parse(q.until);
+    const about = q.offerIds ? new Set(q.offerIds) : null;
     const firstContact = new Map<string, number>();
     for (const { attempt: a } of this.bySubject.get(this.subjectKey(q.tenantId, q.subjectHash, q.channel)) ?? []) {
       if (!CONTACT_STATES.includes(a.state)) continue;
@@ -115,6 +116,7 @@ export class InMemoryLedgerStore implements LedgerStore {
       if (at > until) continue;
       const decision = this.entries.get(this.id(a.tenantId, a.decisionId));
       if (!decision || decision.record.decision.winner === null) continue;
+      if (about && !about.has(decision.record.decision.winnerOfferId ?? '')) continue;
       const seen = firstContact.get(a.decisionId);
       if (seen === undefined || at < seen) firstContact.set(a.decisionId, at);
     }

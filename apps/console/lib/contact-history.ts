@@ -5,6 +5,7 @@ type ContactsRead = {
   status: 'read' | 'unavailable';
   channel: string;
   withinPeriod?: { day: number; week: number; month: number };
+  scoped?: Record<string, { day: number; week: number; month: number }>;
 };
 import { channelLabel } from '@/lib/loop';
 
@@ -52,11 +53,23 @@ export function contactHistoryStatement(
       text: `Read from the ledger for ${channel}: no contacts in the last 30 days.`,
     };
   }
+  // A cap scoped to an offer, category or objective was held to the contacts
+  // about its scope, not the channel's (ADR-021 §9), and the trace says which
+  // count each one saw rather than leaving the channel's to stand for all.
+  const scoped = Object.entries(read.scoped ?? {})
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(
+      ([id, w]) =>
+        `${id}: ${format.number(w.day)} in 24 hours, ${format.number(w.week)} in 7 days, ${format.number(w.month)} in 30 days`
+    );
   return {
     kind: 'read',
     tone: 'neutral',
     text:
       `Read from the ledger for ${channel}: ${format.number(day)} in the last 24 hours, ` +
-      `${format.number(week)} in 7 days, ${format.number(month)} in 30 days — added to what the caller sent.`,
+      `${format.number(week)} in 7 days, ${format.number(month)} in 30 days — added to what the caller sent.` +
+      (scoped.length > 0
+        ? ` Caps scoped narrower than the channel counted only the contacts about their scope — ${scoped.join('; ')}.`
+        : ''),
   };
 }

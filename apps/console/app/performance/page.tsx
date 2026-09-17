@@ -19,7 +19,7 @@ import { CascadePanes } from '@/components/cascade-panes';
 import {
   LoopFirstPaint,
   LoopInversions,
-  LoopRailFoot,
+  railFootOf,
   LoopStageDetail,
   LoopStageEvidence,
 } from '@/components/loop-panes';
@@ -171,7 +171,9 @@ function PerformanceView() {
               stages={loop.stages}
               selected={selected}
               onSelect={setSelected}
-              foot={<LoopRailFoot loop={loop} />}
+              // Absent where the Deliverable stage's own pass-through already
+              // says the loop is closed end to end (2026-09-17).
+              foot={railFootOf(loop)}
             />
           }
           evidence={<LoopStageEvidence data={data} loop={loop} stage={selected} />}

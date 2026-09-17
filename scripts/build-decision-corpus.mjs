@@ -745,6 +745,55 @@ const CASES = [
     request: request({ contactsRead: { status: 'unavailable', channel: 'web' } }),
   },
   {
+    // ADR-021 §9. A cap scoped to an offer counts the contacts about that offer,
+    // not every contact on the channel. The ledger holds three contacts this
+    // week: one about offer_b, none about offer_c. offer_b's cap of one is
+    // breached by its own count; offer_c's cap of one is not, though the channel
+    // count is three — which is what would breach it if a scope did not narrow
+    // what is counted. The tenant cap of five holds offer_a to the channel's three.
+    name: 'a cap scoped to an offer counts the contacts about that offer, not the channel’s',
+    artifact: artifact({
+      candidateKeys: threeKeys,
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source' },
+        {
+          id: 'n2_constraint',
+          type: 'constraint',
+          label: 'Frequency policy',
+          frequencyPolicyIds: ['cp_all', 'cp_offer_b', 'cp_offer_c'],
+        },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+      edges: [
+        { from: 'n1_source', to: 'n2_constraint' },
+        { from: 'n2_constraint', to: 'n3_arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({
+      offers: [
+        offer({ id: 'p_a', key: 'offer_a' }),
+        offer({ id: 'p_b', key: 'offer_b' }),
+        offer({ id: 'p_c', key: 'offer_c' }),
+      ],
+      frequencyPolicies: [
+        frequencyPolicy({ id: 'cp_all', maxContacts: 5 }),
+        frequencyPolicy({ id: 'cp_offer_b', maxContacts: 1, scope: { level: 'offer', targetId: 'p_b' } }),
+        frequencyPolicy({ id: 'cp_offer_c', maxContacts: 1, scope: { level: 'offer', targetId: 'p_c' } }),
+      ],
+    }),
+    request: request({
+      contactsRead: {
+        status: 'read',
+        channel: 'web',
+        withinPeriod: { day: 1, week: 3, month: 3 },
+        scoped: {
+          cp_offer_b: { day: 1, week: 1, month: 1 },
+          cp_offer_c: { day: 0, week: 0, month: 0 },
+        },
+      },
+    }),
+  },
+  {
     name: 'withheld consent leaves only service-exempt scopes',
     ...consentScenario(),
     request: request({

@@ -160,6 +160,10 @@ function sourceCallsFor(
         cacheHit,
         outcome: 'ok' as const,
         fields: fields.sort(),
+        // The seed writes every connector value over its request, so no
+        // connector answer is ever discarded here (ADR-022 §6 removes the two
+        // request values it overwrote; §8 holds the seed to the live path).
+        overridden: [],
         fetchedAt: new Date(askedAt).toISOString(),
         observedAt: new Date(askedAt - ageSeconds * 1000).toISOString(),
       };

@@ -9,6 +9,9 @@
 2026-09-17 before any code, and two more — which deliveries count, and where a
 read is recorded — were answered the same day when the code showed the first
 answer counted nothing.
+**Amended 2026-09-17** by the product owner: §9, a scoped cap counts the contacts
+about its scope. This ADR as first accepted said a cap scoped to one offer
+counted every contact on the channel, which contradicted ADR-019 §4 and ADR-020 §4.
 **Constrains:** `packages/ledger` (`countContacts` on both stores,
 `contactsFor`, `capsApply`, `readContacts`, migration
 `003_delivery_subject.sql`); the TypeScript and Kotlin engines' constraint node
@@ -180,6 +183,57 @@ or dated ahead, and a cap counting back from `occurredAt` then counted the wrong
 contacts. A later attempt by an adapter carries the time of that attempt. A
 correction in its own right, registered and resolved as [G-151](../gaps.md).
 
+### 9. A scoped cap counts the contacts about its scope
+
+*Added 2026-09-17, by the product owner: "a scope that doesn't narrow what's
+counted isn't a scope."* §1 counted every contact on the channel for every cap,
+and the Consequences below said so of a cap scoped to one offer. That
+contradicted two accepted ADRs: ADR-019 §4 (*"'Cap this offer' means: this
+offer, counting contacts across every action of it"*) and ADR-020 §4 (offer- and
+action-scoped caps count a delivery against the entries of its decision's
+slate). No fixture had a scoped cap, so nothing could show the disagreement.
+
+- **What a scoped cap counts.**
+  - A cap whose scope is an objective, a category or an offer counts the same
+    contacts as §1–§3 (distinct decisions handed over, first contact, rolling
+    windows), restricted to decisions whose recorded offer (`winnerOfferId`)
+    the scope covers.
+  - Coverage is decided by the constraint node's own `scopeCovers`, over the
+    decision's catalogue snapshot, exported so the reader cannot count a
+    different set of offers from the one the engine holds to the cap.
+  - A tenant cap counts every contact on the channel, as before.
+  - Once ADR-020 records slates, a decision counts toward a scope when any
+    entry of its slate is covered (ADR-020 §4). Until then its winner is the
+    only offer it records.
+- **How it is recorded.**
+  - `contactsRead.scoped` holds one count per active scoped cap on the channel,
+    keyed by the cap's id, beside the channel's `withinPeriod`, and is hashed
+    with it.
+  - It is present only when such a cap exists, so no read made before this
+    clause changes identity. All 44 existing decision-corpus cases kept their
+    hashes.
+  - Both engines refuse a read that omits a scoped cap's count or names a cap
+    the channel does not have: holding a scoped cap to the channel's count is
+    the defect this clause ends, and it must not happen silently.
+- **The caller's counts still count toward every cap.**
+  - `contactHistory.withinPeriod` names no offer, so a contact the caller reports
+    might be about the capped one.
+  - Leaving it out of a scoped cap would under-count, which §3 calls a customer
+    protection failing open.
+  - The platform's own count is what narrows. A caller wanting to report
+    contacts about one offer would need a per-scope field that does not exist.
+    Not decided here.
+- **Held by:**
+  - the decision-corpus case *"a cap scoped to an offer counts the contacts about
+    that offer, not the channel's"*, in both engines;
+  - `ScopedCapTest` and `contacts-read.test.ts`, for the refusals;
+  - the ledger suite on both stores, for the count;
+  - `caps-read-ledger.test.ts`, for the console's placement route end to end.
+- **The fixture follows with ADR-019's reseed.** An offer-scoped cap in the demo
+  catalogue changes `catalogueSnapshotHash` and so every seeded decision's id. It
+  lands in that commit, with its own delta table, rather than moving every id
+  once now and again there.
+
 ## Consequences
 
 - **The storefront suppresses sooner than a person expects.** `cpol_web_daily`
@@ -213,11 +267,11 @@ correction in its own right, registered and resolved as [G-151](../gaps.md).
   accepts, the ledger stores and the performance report counts, and the seeded
   ledger holds 80. The real reason is that a rejection names a decision, not an
   offer, which is ambiguous on a slate. Reading them waits for ADR-020 §4
-  (G-153).)* Counts are per channel,
-  not per offer or action, so the `offer`/`action` split (ADR-019) does not
-  disturb them; a cap scoped to one offer still counts the channel's contacts,
-  as it did. "Last outcome per action" and the other rollups ADR-014 §10 names are
-  not built.
+  (G-153).)* A cap scoped to one offer counts the contacts about that offer
+  (§9). *(Corrected 2026-09-17. This said such a cap "still counts the channel's
+  contacts, as it did", and that counts were per channel, not per offer or
+  action, which contradicted ADR-019 §4.)* "Last outcome per action" and the other
+  rollups ADR-014 §10 names are not built.
 - **A service message a cap covers is held back when the ledger cannot be read.**
   Decided as stated in §4; if duty-of-care messages should pass an unreadable
   ledger, that is a change to this clause.
