@@ -44,6 +44,101 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-148 — The policy funnel's headline names "Ranked" as the largest drop at every volume, because only one candidate can win
+
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — a design question, tied to "Where it loses most"
+
+`apps/console/components/policy-funnel-panes.tsx` opens the funnel with *"The
+largest drop is <stage>"*, choosing the stage that removed most candidates. On a
+flow that ranks five candidates for one slot, arbitration removes four of every
+five by construction, so the sentence says the same thing at any volume and for
+any tenant. Measured on 2026-09-17 against an empty console driven by hand:
+
+| Decisions | Headline |
+|---|---|
+| 2 | The largest drop is **Ranked**: 8 removed, 80.0% of everything that entered |
+| 22 | The largest drop is **Ranked**: 68 removed, 61.8% |
+| 44 | The largest drop is **Ranked**: 96 removed, 43.6% — beside Frequency & suppression removing 58 |
+
+At 44 decisions a customer contacted nine times that day lost 58 candidates to a
+cap, which is the thing a reader of a *policy* funnel is looking for, and the
+headline still leads with arbitration. Losing on priority is not a refusal — the
+screen's own words call it *"Not a fault"* — so the most prominent sentence on the
+screen is about the one stage that cannot be wrong.
+
+**Done when:** the headline describes the largest *refusal* and treats ranking as
+the expected remainder, or the product owner decides it should read otherwise;
+and the choice holds at 2, 20 and a few dozen decisions, not only at 10,400.
+
+### G-147 — A stopped experiment counts every decision made after it stopped, and reports an acceptance rate nothing can measure
+
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none
+
+On `/experiments`, *Homepage hero wording* is **stopped**. After a hand-driven
+session of 42 decisions on an empty console on 2026-09-17, every one made after it
+stopped, its arm table read:
+
+| Arm | Offered | Reported | Rate |
+|---|---|---|---|
+| control (holdout) | 0 | 0 | no rate yet |
+| variant | **42** | **42** | **0.0% accepted** |
+
+Three things, from what the code does:
+
+- **It counts decisions made after it stopped.** The performance route recomputes
+  each arm from the decision's customer reference — by design, so a months-old
+  decision stays explainable — and for a stopped experiment forces the status to
+  running first: *"`assignArm` returns null for a stopped experiment, so the arm
+  is taken from the arms list directly against the same bucket"*
+  (`apps/console/app/api/[...path]/route.ts`, the arm join). Nothing checks
+  whether the decision was made while the experiment ran, so a stopped experiment
+  keeps accruing exposures for as long as the tenant keeps deciding.
+- **"0.0% accepted" is a measured zero where nothing is measurable.** The storefront
+  reports `impression` and `click` only, so an acceptance can never arrive from
+  it. Forty-two reported decisions and no acceptances reads as "nobody accepted";
+  the truth is "no channel reports acceptance". The loop already draws this line
+  for realised value (a dash, not $0.00); this rate does not.
+- **A 50/50 split reads 42 / 0.** The arm is a function of the customer
+  reference, and a hand-made history has three references — the storefront's three
+  presets — which all fall into one arm. Correct arithmetic; unreadable without
+  knowing it. A tenant driven by hand can never populate a control.
+
+**Done when:** an experiment counts only decisions made while it was running; a
+rate over an outcome type no channel has reported is a dash with that reason; and
+the arm table says when its population is too few customers for the split to mean
+anything.
+
+### G-146 — `/decisions` reads "Suppressed 0" under its default filter, whatever was suppressed
+
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — the worst case of G-144, and not only on a new tenant
+
+`/decisions` opens with the removable filter *"Outcome: Offer made"*, and its three
+tiles — *Decisions*, *Offer made*, *Suppressed · policy or consent* — count **in the
+current filter**. Under that default, *Suppressed* can only ever be zero: the filter
+has already removed every suppressed decision before the tile counts.
+
+Measured on 2026-09-17, on an empty console driven by hand: contact history was set
+to nine contacts today, and 14 of 44 decisions offered nothing. The loop said so
+(44 decided, 30 offered). `/decisions` said:
+
+| Decisions | Offer made | Suppressed |
+|---|---|---|
+| 30 · *in the current filter* | 30 | **0** · *policy or consent* |
+
+A person who has just caused fourteen suppressions opens the screen that lists
+decisions and is told there were none. The filter chip is on screen, and the
+tile's own caption is "in the current filter" — both technically disclose it, and
+neither stops the number from being read as a fact about the tenant.
+
+G-144 registered the same tiles as confusing on a tenant with no decisions. This
+is the same construction producing a false statement at any volume, which is why
+it is its own entry.
+
+**Done when:** the *Suppressed* tile cannot read zero because of the default
+filter — whether by counting outside the filter, by the default changing, or by
+the tile not being shown under a filter that excludes what it counts — and a check
+drives a suppression by hand and asserts the tile moves.
+
 ### G-145 — Decision search returns `provenance` the contract never declared, and `/decisions` renders the banner from it
 
 **Registered:** 2026-09-17 · **Status:** Open · **Work item:** none
