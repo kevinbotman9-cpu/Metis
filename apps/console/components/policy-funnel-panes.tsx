@@ -67,11 +67,21 @@ export function FunnelFirstPaint({ report, view }: { report: PolicyFunnelReportD
           <p className="mt-2 text-body text-content">
             The largest drop is <strong>{STAGE_LABEL[largest.id]}</strong>: {format.number(largest.removed)} removed,{' '}
             {pct(largest.removed, report.entered, format)} of everything that entered.
-            {top ? (
+            {/*
+              "<rule> alone removes N" only for a named rule. A code with no rule
+              — ranking, consent, a date window — renders its meaning, and every
+              meaning is a whole sentence, so the old template printed "…beaten on
+              priority by something else. alone removes 8." A stage whose top
+              removal is not a rule has nothing to attribute, and says so by not
+              pretending to.
+            */}
+            {top?.ruleId ? (
               <>
                 {' '}
                 <RuleName rule={top} /> alone removes {format.number(top.removed)}.
               </>
+            ) : top ? (
+              <span className="text-label text-content-muted"> {CODE_MEANING[top.code] ?? top.code}</span>
             ) : null}
           </p>
         ) : null}

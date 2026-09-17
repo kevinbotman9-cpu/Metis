@@ -133,7 +133,8 @@ export function buildLoop(
       label: 'Decisions made',
       value: data.decisions,
       pct: 100,
-      note: `${data.channels.length} channels`,
+      // "1 channels" read on every tenant driven by the storefront, which is one.
+      note: `${data.channels.length} ${data.channels.length === 1 ? 'channel' : 'channels'}`,
       series: tail.map((d) => d.decisions),
     },
     {

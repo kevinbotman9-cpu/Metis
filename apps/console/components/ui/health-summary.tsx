@@ -200,6 +200,22 @@ export function Sparkline({
    */
   tone?: 'accent' | 'pass' | 'hold' | 'rail' | 'rail-block';
 }) {
+  // One value is not a trend. Drawn, it was a single bar under every stage and
+  // trend card on a tenant a day old, which read as a rendering fault. The slot
+  // stays — structure does not vanish — and says why there is no line yet.
+  if (values.length === 1) {
+    const railTone = tone === 'rail' || tone === 'rail-block';
+    return (
+      <span
+        className={cn('inline-flex h-6 items-end text-label', railTone ? 'text-rail-dim' : 'text-content-subtle')}
+        role="img"
+        aria-label={`${label}: one day so far, no trend yet`}
+      >
+        one day so far
+      </span>
+    );
+  }
+
   const max = Math.max(1, ...values);
   const fill =
     tone === 'pass'
