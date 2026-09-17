@@ -169,10 +169,11 @@ export interface DecisionRequest {
    * `rejects` is the most recent decline per offer key, ISO-8601, and drives
    * `cooldownDaysAfterReject`.
    *
-   * A decline is not an outcome. `OutcomeType` is a monotone funnel —
-   * conversion ⊆ acceptance ⊆ click ⊆ impression — with no negative event in
-   * it, so a rejection has no home in the interaction log and arrives here
-   * instead, exactly as the contact counts do (G-086).
+   * Declines arrive here, from the caller, not from recorded outcomes. A
+   * `rejection` outcome can be recorded, but an outcome names a decision rather
+   * than an offer, so the cooldown does not read one until ADR-020 §4 settles
+   * which offer on a slate it was for (G-153; G-086 for why `rejects` exists).
+   * This said a decline was not an outcome until 2026-09-17.
    */
   contactHistory?: {
     channel: string;

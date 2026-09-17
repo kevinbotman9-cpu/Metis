@@ -187,8 +187,9 @@ data class SchemaPin(
  *
  * [withinPeriod] counts contacts per period; [rejects] is the most recent
  * decline per offer key, ISO-8601 with an explicit offset, and drives
- * `cooldownDaysAfterReject`. A decline is not an outcome — the outcome funnel
- * is monotone and has no negative event — so it arrives here (G-086).
+ * `cooldownDaysAfterReject`. Declines arrive here from the caller. A `rejection`
+ * outcome can be recorded, but the cooldown does not read one until ADR-020 §4
+ * settles which offer on a slate it names (G-153; G-086 for why this exists).
  */
 data class ContactHistory(
     val channel: String,
