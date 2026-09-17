@@ -44,6 +44,44 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-149 — A console on a database keeps some fixture edits and drops others, and only a startup log line says which
+
+**Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — found setting up a durable local console
+
+With `METIS_DATABASE_URL` set, the console seeds each durable store once, into
+an empty database, and after that uses what it finds
+(`apps/console/mocks/catalogue-source.ts`, `registry-source.ts`,
+`governance-source.ts`). The stores that are not durable are seeded from the
+fixtures on every start (`seed()` in `apps/console/mocks/store.ts`). So after the
+first start, the same kind of edit to a fixture file does or does not reach the
+console depending on which store holds it:
+
+| Edited in the fixtures | Reaches a console on a database after restart |
+|---|---|
+| Objectives, categories, offers, creatives, targeting and frequency policies, boosts, the ranking function, connectors, placements, the profile schema, experiments | No — catalogue store |
+| Decision flows: drafts, versions, environments | No — registry |
+| Change sets and the audit log | No — governance store |
+| Users, tenant settings, autonomy settings, agent activity, data sources | Yes — memory, reseeded every start (G-118) |
+
+Nothing compares a stored tenant with the fixtures. The only signal is three
+lines in the server's output — `[metis] catalogue: …; tenant found, used as
+stored`, `[metis] registry: …; flows found, used as stored`, `[metis] governance:
+…; tenant found, used as stored` (`mocks/store.ts`) — which say the store was
+found, not that it differs. A developer who changes an offer's margin in
+`mocks/fixtures/catalogue.ts`, restarts, and sees the old margin has no screen
+that says why, while an edit to a user in the same file does appear.
+
+What is possible today is all-or-nothing: author the change through the console,
+which is what a durable store is for; or drop and recreate the database, which
+takes the decision history with it. No command reseeds one store, and the
+catalogue's edit log is append-only, so clearing it is a `TRUNCATE`, the same
+as `npm run seed:ledger -- --reset` does for the ledger.
+
+**Done when:** a console on a database compares each stored store with the
+fixtures at start and says on screen which parts differ, and a synthetic tenant's
+catalogue, flows and change sets can be reset to the fixtures by one audited
+command, as its ledger can.
+
 ### G-148 — The policy funnel's headline names "Ranked" as the largest drop at every volume, because only one candidate can win
 
 **Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — a design question, tied to "Where it loses most"
@@ -994,7 +1032,7 @@ interrupted seed leaves a partial tenant, and the next start uses it as found.
 around the check and the write, or a constraint — or is recorded as advisory.
 Either way, a test runs two writers at once.
 
-### G-116 — A live decision cannot be replayed after the console restarts
+### G-116 — A decision against an edited catalogue cannot be replayed after the console restarts
 
 **Registered:** 2026-09-14 · **Status:** Open · **Work item:** [W-005](BACKLOG.md)
 
@@ -1005,11 +1043,22 @@ and that lookup is a map in memory.
 Since 2026-09-14 the catalogue survives a restart, and so does a PostgreSQL
 ledger. The map does not.
 
-- **A decision recorded before a restart** names a hash nothing holds
-  afterwards. Its replay answers 409 `catalogue_unavailable`, correctly and
-  permanently.
+- **A decision recorded before a restart, against a catalogue since edited,**
+  names a hash nothing holds afterwards. Its replay answers 409
+  `catalogue_unavailable`, correctly and permanently.
+- **A decision against a catalogue that has not changed** replays again once
+  the restarted console has decided anything or opened the arbitration preview,
+  because both register the current catalogue under its hash (`snapshotFrom`
+  in `apps/console/mocks/catalogue-state.ts`). A plain catalogue read does not,
+  so a replay before either is refused even so. *(Narrowed 2026-09-17; the entry said every
+  decision before a restart was lost.)*
 - **The seeded decisions still replay**, because the fixture catalogue is
   registered at every start.
+
+**This does not affect a channel's decisions, which cannot be replayed at all**
+— their input values are not kept (G-009). Closing this entry changes what the
+console can replay only for decisions whose inputs a caller hands back through
+the API.
 
 The store keeps the catalogue as it is now, not every version it has been.
 W-005 named a snapshot per decision, cached by hash, as the likely shape; only
@@ -2239,6 +2288,23 @@ asserted in `ledger.spec.ts`.
 So "byte-identical replay" is exactly true of the engine, and true of the
 platform only for a decision whose every input the caller still holds.
 `CAPABILITIES.md` now says so.
+
+**What this means for the storefront, stated 2026-09-17 because the record
+implied otherwise.** A decision the storefront makes — every decision a channel
+makes — cannot be replayed from the console, and never could. Its input values
+are not kept, and the storefront lets the platform resolve fields from
+connectors, so not even the caller holds everything that was hashed. The path
+from the storefront ends at the trace: `GET /decisions/{id}/trace` answers
+`replay: { possible: false, reason: 'inputs_not_kept' }` and the trace reader
+shows "Cannot be re-executed here" (`apps/console/tests/e2e/decisions.spec.ts`).
+Until 2026-09-16 the button was offered and failed with a 422. The only decisions
+the console replays are the seeded ones, whose inputs the generator still holds.
+G-116 is a second, smaller limit behind this one and changes nothing for a
+channel's decisions.
+
+Closing it needs ADR-004's per-subject encryption, whose key store ADR-004
+leaves undecided, and the connector-resolved values retained with the input —
+a key-store decision and then several slices, not a routing fix.
 
 **This is ADR-004's question, not a routing one.** Making replay work in general
 means retaining the input snapshot, which means retaining customer data in the

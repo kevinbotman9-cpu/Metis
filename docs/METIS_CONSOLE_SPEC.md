@@ -687,6 +687,10 @@ demo is broken and you find out in CI rather than in the room.
 3. The trace reader. 142 candidates to 6. Expand `no_consent`. Show the rule, its
    package version, the field value and where it came from.
 4. `Replay`. Identical, byte level. This is the moment the room goes quiet.
+   *(Only on a seeded decision. One the storefront or any channel made cannot be
+   replayed — its input values are not kept — and a console started with
+   `npm run dev` holds only those until it is seeded; G-009. Recorded
+   2026-09-17.)*
 5. Switch persona to Decision Architect. Open the decision flow. Live volume on
    the edges.
 6. Change a business boost. Simulated movement previews before saving.

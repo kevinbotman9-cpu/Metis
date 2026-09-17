@@ -138,7 +138,7 @@ product, with two holes.***
 | Search decisions by customer, or outcome | BUILT | `apps/console/app/decisions/page.tsx` over 10,400 rows; `apps/console/tests/e2e/decisions.spec.ts` |
 | Search by **rule** | ABSENT | `searchDecisions` takes `action`, `channel`, `customerId`, `dateFrom`, `dateTo`, `outcome`. There is no rule parameter, so the question *"show me every decision my new rule touched"* cannot be asked |
 | Open one; read the trace in the regulator rendering | BUILT | `apps/console/app/decisions/[id]/page.tsx` — seven nodes, per-candidate scores, per-node timings, consent state, connector provenance, chain hash |
-| Replay it and see byte-identical confirmation | BUILT | Replay shows stored and replayed hashes side by side; `apps/console/tests/e2e/ledger.spec.ts` |
+| Replay it and see byte-identical confirmation | BUILT for the seeded decisions; ABSENT for any decision a channel made | Replay shows stored and replayed hashes side by side; `apps/console/tests/e2e/ledger.spec.ts`. A decision the storefront or any other channel made cannot be replayed: its input values are not kept, so the trace says "Cannot be re-executed here" (`apps/console/tests/e2e/decisions.spec.ts`, [G-009](gaps.md)). A console started with `npm run dev` holds only channel-made decisions until it is seeded, so this step cannot be shown on it |
 | Run a bias check on a segment | ABSENT | A bias ratio exists only inside a change-set simulation (`apps/console/app/approvals/[id]/page.tsx:236`). There is no on-demand check on a segment. W-021 |
 | Export evidence | BUILT for JSON, stated for PDF | `apps/console/tests/e2e/evidence-export.spec.ts` reaches a real exported file. Export PDF is disabled and names its reason and its work item, W-053 |
 
