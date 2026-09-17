@@ -23,7 +23,7 @@ import { useAuth } from '@/components/auth-provider';
 import { CompileReport } from '@/components/compile-report';
 import { RegistryPanel } from '@/components/registry-panel';
 import { ShadowPanel } from '@/components/shadow-panel';
-import { apiClient, ApiError } from '@/lib/api-client';
+import { apiClient, ApiError, TENANT } from '@/lib/api-client';
 import { downloadJson, evidenceFilename } from '@/lib/download';
 import type { FlowNode, FlowEdge } from '@/mocks/fixtures/artifacts';
 import { useFormat } from '@/components/tenant-format';
@@ -138,16 +138,15 @@ function FlowDetail({ artifactId }: { artifactId: string }) {
                 compiled
                   ? () =>
                       downloadJson(evidenceFilename('flow', artifact.id, compiled.compiledAt), {
-                        // A flow is configuration rather than a measurement, so
-                        // it is the tenant that is synthetic here, not the
-                        // artifact. Said out loud anyway: an exported DIR from
-                        // the demo tenant should not be mistaken for a
-                        // customer's.
+                        // A flow is configuration, not a measurement: the
+                        // tenant is synthetic here, not the artifact. Named from
+                        // the client's tenant rather than typed, so it cannot
+                        // drift again.
                         provenance: {
                           source: 'synthetic' as const,
                           note:
-                            'Synthetic. This flow belongs to the seeded demo tenant ' +
-                            'demo-telco-us and was authored by nobody.',
+                            `Synthetic. This flow is configuration in the ${TENANT} ` +
+                            "tenant's demonstration catalogue, not a customer's.",
                         },
                         // Only what the compiled artifact does not carry. The
                         // spread below has always won at runtime for id,

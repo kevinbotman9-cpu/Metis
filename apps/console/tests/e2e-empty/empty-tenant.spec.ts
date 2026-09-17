@@ -75,6 +75,43 @@ test.describe('a tenant with no decision history @screen-only', () => {
     expect((await search.json()).total, 'the ledger holds decisions').toBe(0);
   });
 
+  /**
+   * No provenance claim over nothing: not on the screen, not in the payload.
+   *
+   * Until 2026-09-17 the three screens below carried a banner reading *"Every
+   * figure here is generated from a fixed seed for the demo tenant
+   * demo-telco-us"* on a tenant with no history — a seed that had not run, over
+   * figures that did not exist, naming a tenant renamed five days earlier. It
+   * came from the payload, so it would have survived a `curl` and an export as
+   * well as a screenshot, which is the standard a marker is held to and the
+   * reason the payload is asserted here and not only the screen.
+   */
+  test('carries no provenance claim, on screen or in the payload', async ({ page, request }) => {
+    const payloads: [string, string][] = [
+      ['/api/performance/telco-us', 'performance'],
+      ['/api/policy-funnel/telco-us', 'policy funnel'],
+      ['/api/decisions/search?limit=50', 'decision search'],
+    ];
+    for (const [url, name] of payloads) {
+      const res = await request.get(url);
+      expect(res.ok(), `${name}: HTTP ${res.status()}`).toBe(true);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(Object.keys(body), `${name} still carries a provenance key over an empty set`).not.toContain(
+        'provenance'
+      );
+    }
+
+    for (const path of ['/performance', '/decisions', '/targeting-policies?view=funnel']) {
+      await page.goto(path);
+      // Wait for the screen to settle on its empty state first, so a count of
+      // zero means the banner is absent and not that it has not arrived yet.
+      await expect(page.getByText(HEADLINE, { exact: true })).toBeVisible();
+      await expect(page.getByTestId('provenance-banner'), `${path} shows a provenance banner`).toHaveCount(0);
+      await expect(page.getByText(/generated from a fixed seed/), path).toHaveCount(0);
+      await expect(page.getByText(/demo-telco-us/), path).toHaveCount(0);
+    }
+  });
+
   /** The catalogue is the half that must survive. */
   test('the catalogue is still there, which is what makes this a new tenant and not an empty install', async ({
     page,
@@ -140,6 +177,12 @@ test.describe('a tenant with no decision history @screen-only', () => {
     await page.goto('/experiments');
     await expect(page.getByText(HEADLINE, { exact: true })).toBeVisible();
     await promisesWhatComes(page);
+
+    // A stopped experiment said it was kept "because the decisions it
+    // influenced are still in the ledger" — on a ledger holding none. Its
+    // description is catalogue data, so it survives an emptied ledger, and it
+    // has to be true there too.
+    await expect(page.getByText(/still in the ledger/)).toHaveCount(0);
   });
 
   test('the flow graph says the overlay has no traffic to draw yet', async ({ page }) => {

@@ -30,43 +30,68 @@ import { effectiveDataClass } from '@metis/ledger';
  * **`mixed` is therefore unreachable** and nothing constructs it. It was the
  * normal state of a demo tenant somebody had clicked in, when two stores each
  * carried their own kind of history. There is one store now, and one class.
+ *
+ * **Nothing to describe is not described.** Until 2026-09-17 an empty set got
+ * the same note as a full one — *"Every figure here is generated from a fixed
+ * seed"* — so a tenant with no decision history showed a banner asserting a
+ * seed that had not run, over figures that did not exist, on `/performance`,
+ * `/decisions` and the policy funnel. A marker that must survive a `curl` has
+ * to be true in one, so the absence is at the source: an empty set returns no
+ * provenance, the key drops out of the response, and the banner — which
+ * renders nothing when it is absent — has nothing to render.
+ *
+ * **The note does not say where the decisions came from, because it cannot
+ * know.** The same note used to say "generated from a fixed seed", which was
+ * true of the seeded corpus and false of anything decided since, and nothing
+ * persists whether a seed ran: `store.ledgerSeed` is this process only, and a
+ * ledger seeded into PostgreSQL by `npm run seed:ledger` records nothing unless
+ * it was a reset. Both origins that can exist today are named instead, and
+ * neither is claimed. It cannot be a third: `real` is refused everywhere while
+ * the subject is unprotected.
+ *
+ * **The tenant is the one the response is for.** The note named
+ * `demo-telco-us`, typed into a string, a tenant renamed on 2026-09-12 when it
+ * became the customer's catalogue — while the tenant switcher above the banner
+ * said `telco-us`. A name passed in cannot drift from the request it describes.
  */
 
-const SYNTHETIC_NOTE =
-  'Synthetic. Every figure here is generated from a fixed seed for the demo tenant ' +
-  'demo-telco-us and describes no real customer, decision or outcome. Reproducible, ' +
-  'and not evidence of anything.';
+const syntheticNote = (tenantId: string) =>
+  `Synthetic, for tenant ${tenantId}. The decisions behind these figures were generated ` +
+  'from a fixed seed or made by using the demo; they describe no real customer, decision ' +
+  'or outcome, and are not evidence of anything.';
 
-const RECORDED_NOTE =
-  'Recorded. Every figure here derives from a decision this platform actually made.';
+const recordedNote = (tenantId: string) =>
+  `Recorded, for tenant ${tenantId}. Every figure here derives from a decision this ` +
+  'platform actually made.';
 
-const NOTE = { synthetic: SYNTHETIC_NOTE, real: RECORDED_NOTE } as const;
+const NOTE = { synthetic: syntheticNote, real: recordedNote } as const;
 const SOURCE = { synthetic: 'synthetic', real: 'recorded' } as const;
 
-/** Provenance for a single record. */
-export function provenanceFor(_decisionId: string): Provenance {
-  return provenanceOf(1);
+/** Provenance for a single record, which by construction exists. */
+export function provenanceFor(tenantId: string, _decisionId: string): Provenance {
+  return provenanceOf(tenantId, 1)!;
 }
 
 /**
- * Provenance for a set.
+ * Provenance for a set, or `undefined` when the set is empty.
  *
  * The counts are carried so a reader can see the ratio rather than take the
  * word for it — the whole set shares the ledger's class, so one of the two is
  * always zero.
  */
-export function provenanceOver(decisionIds: Iterable<string>): Provenance {
+export function provenanceOver(tenantId: string, decisionIds: Iterable<string>): Provenance | undefined {
   let n = 0;
   for (const _ of decisionIds) n += 1;
-  return provenanceOf(n);
+  return provenanceOf(tenantId, n);
 }
 
-function provenanceOf(count: number): Provenance {
+function provenanceOf(tenantId: string, count: number): Provenance | undefined {
+  if (count === 0) return undefined;
   const dataClass = effectiveDataClass();
   return {
     source: SOURCE[dataClass],
     syntheticCount: dataClass === 'synthetic' ? count : 0,
     recordedCount: dataClass === 'real' ? count : 0,
-    note: NOTE[dataClass],
+    note: NOTE[dataClass](tenantId),
   };
 }

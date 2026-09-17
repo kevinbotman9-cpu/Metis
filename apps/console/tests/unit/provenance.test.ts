@@ -81,25 +81,50 @@ describe('provenance is the ledger’s data class, not a membership test', () =>
     // The change ADR-018 §8 warned would surprise whoever wrote the old tests:
     // an id the seed never produced is synthetic too, because the ledger it
     // would be written to cannot be real.
-    expect(provenanceFor(seededId).source).toBe('synthetic');
-    expect(provenanceFor('dec_definitely_not_seeded').source).toBe('synthetic');
-    expect(provenanceFor('dec_live_one').source).toBe('synthetic');
+    expect(provenanceFor('telco-us', seededId).source).toBe('synthetic');
+    expect(provenanceFor('telco-us', 'dec_definitely_not_seeded').source).toBe('synthetic');
+    expect(provenanceFor('telco-us', 'dec_live_one').source).toBe('synthetic');
   });
 
   it('carries the count, and nothing is recorded while the subject is unprotected', () => {
-    const p = provenanceOver([seededId, 'dec_live_one', 'dec_another']);
+    const p = provenanceOver('telco-us', [seededId, 'dec_live_one', 'dec_another'])!;
     expect(p.source).toBe('synthetic');
     expect(p.syntheticCount).toBe(3);
     expect(p.recordedCount).toBe(0);
     // The note has to stand alone in a file somebody opens months later.
-    expect(p.note).toMatch(/demo-telco-us/);
     expect(p.note).toMatch(/[Nn]ot evidence/);
   });
 
-  it('says nothing rather than guessing when there is nothing to describe', () => {
-    const p = provenanceOver([]);
-    expect(p.syntheticCount).toBe(0);
-    expect(p.recordedCount).toBe(0);
+  it('names the tenant the response is for, not one typed into a string', () => {
+    // It named `demo-telco-us` until 2026-09-17, a tenant renamed on 2026-09-12,
+    // under a tenant switcher reading `telco-us`. Two different tenants here,
+    // so a constant that happened to match one of them cannot pass.
+    expect(provenanceOver('telco-us', ['dec_a'])!.note).toMatch(/\btelco-us\b/);
+    expect(provenanceOver('telco-eu', ['dec_a'])!.note).toMatch(/\btelco-eu\b/);
+    expect(provenanceFor('telco-eu', 'dec_a').note).toMatch(/\btelco-eu\b/);
+    expect(provenanceOver('telco-us', ['dec_a'])!.note).not.toMatch(/demo-telco-us/);
+  });
+
+  it('claims no origin it cannot know', () => {
+    // "Generated from a fixed seed" was true of the seeded corpus and false of
+    // every decision made since, and nothing persists whether a seed ran. The
+    // note names both origins that can exist and asserts neither.
+    const note = provenanceOver('telco-us', ['dec_a'])!.note;
+    expect(note).not.toMatch(/Every figure here is generated from a fixed seed/);
+    expect(note).toMatch(/fixed seed or made by using the demo/);
+  });
+
+  it('says nothing at all when there is nothing to describe', () => {
+    // Until 2026-09-17 this returned counts of zero *and the full note*, so an
+    // empty tenant's screens carried a banner asserting a seed that had not
+    // run, over figures that did not exist. This test was already named "says
+    // nothing" and only checked the counts, which is how the note got through.
+    expect(provenanceOver('telco-us', [])).toBeUndefined();
+    // And the key is absent from the JSON, not present as null: `curl` shows
+    // no claim, which is the standard this module holds a marker to.
+    expect(JSON.stringify({ decisions: [], provenance: provenanceOver('telco-us', []) })).toBe(
+      '{"decisions":[]}'
+    );
   });
 
   it('is the refusal G-068 describes, not a constant somebody typed', () => {

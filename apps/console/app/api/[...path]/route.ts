@@ -1169,7 +1169,7 @@ async function handleGet(req: Request, { params }: Ctx) {
           return json({
             decisions: page,
             total,
-            provenance: provenanceOver(page.map((d) => d.id)),
+            provenance: provenanceOver(tenantId, page.map((d) => d.id)),
           });
         }
       }
@@ -1217,7 +1217,7 @@ async function handleGet(req: Request, { params }: Ctx) {
         if (entry) {
           return json({
             ...toApiTrace(entry.record as unknown as GeneratedDecision['trace']),
-            provenance: provenanceFor(rest[0]),
+            provenance: provenanceFor('telco-us', rest[0]),
             replay: replayOf(rest[0]),
           });
         }
@@ -1242,7 +1242,7 @@ async function handleGet(req: Request, { params }: Ctx) {
       // hold the same 1,654 events.
       return json({
         outcomes: await store.ledger.outcomesFor(tenantId, decisionId),
-        provenance: provenanceFor(decisionId),
+        provenance: provenanceFor(tenantId, decisionId),
       });
     }
 
@@ -1480,7 +1480,7 @@ async function handleGet(req: Request, { params }: Ctx) {
       return json({
         ...report,
         arms: armRows,
-        provenance: provenanceOver(all.map((e) => e.decisionId)),
+        provenance: provenanceOver(tenantId, all.map((e) => e.decisionId)),
       });
     }
 
@@ -1523,7 +1523,7 @@ async function handleGet(req: Request, { params }: Ctx) {
 
       return json({
         ...buildPolicyFunnel(inRange, asked),
-        provenance: provenanceOver(inRange.map((d) => d.decisionId)),
+        provenance: provenanceOver(tenantId, inRange.map((d) => d.decisionId)),
       });
     }
 
@@ -1566,7 +1566,7 @@ async function handleGet(req: Request, { params }: Ctx) {
         flowId,
         hours,
         ...report,
-        provenance: provenanceOver(inWindow.map((d) => d.decisionId)),
+        provenance: provenanceOver(tenantId, inWindow.map((d) => d.decisionId)),
       });
     }
 

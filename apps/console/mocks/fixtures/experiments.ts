@@ -48,7 +48,7 @@ export const experiments: Experiment[] = [
     key: 'hero_copy',
     name: 'Homepage hero wording',
     description:
-      'Two headlines for the homepage hero. Stopped; kept because the decisions it influenced are still in the ledger and still have to be explainable.',
+      'Two headlines for the homepage hero. Stopped; kept so that any decision it influenced stays explainable.',
     arms: [
       { key: 'control', name: 'Original', weight: 50, holdout: true },
       { key: 'variant', name: 'Shorter', weight: 50 },
