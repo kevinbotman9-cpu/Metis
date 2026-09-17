@@ -134,17 +134,26 @@ describe('selectSlate', () => {
     }
   });
 
-  it('breaks a tie by key, not by insertion order', () => {
+  it('breaks a tie by the order the flow declared, not by name or insertion order', () => {
     // Identical margins and one customer: value, boost and context match, so
-    // only the seeded propensity separates them. Force the true tie by hand.
+    // only the seeded propensity separates them. Force the true tie by hand,
+    // with a declared order that is neither alphabetical nor the order the
+    // scores were inserted in, so passing cannot be either of those by luck.
+    //
+    // This test said "by key" until ADR-020 §6 and pinned the alphabetical
+    // order, which is why ADR-019 §8 moving the engine left it green.
     const decision = decide();
+    const declared = ['c_three', 'a_one', 'd_four', 'b_two'];
     const tied: DeterministicDecision = {
       ...decision,
+      candidateKeys: declared,
       scores: Object.fromEntries(
-        Object.entries(decision.scores).map(([k, s]) => [k, { ...s, priority: 0.5 }])
+        Object.entries(decision.scores)
+          .reverse()
+          .map(([k, s]) => [k, { ...s, priority: 0.5 }])
       ),
     };
-    expect(selectSlate(tied, 4).entries.map((e) => e.action)).toEqual([...keys].sort());
+    expect(selectSlate(tied, 4).entries.map((e) => e.action)).toEqual(declared);
   });
 
   it('reports slots it cannot fill rather than padding them', () => {

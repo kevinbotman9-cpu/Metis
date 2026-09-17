@@ -21,6 +21,7 @@
  */
 
 import type { DeterministicDecision } from './deterministic/types';
+import { orderCandidates } from './deterministic/engine';
 
 export interface SlateEntry {
   /** 1-based, so a caller can render "slot 1 of 3" without arithmetic. */
@@ -71,25 +72,29 @@ function finalists(decision: DeterministicDecision): string[] {
 }
 
 /**
- * Order candidates the way arbitration did: priority descending, then key.
+ * Order candidates the way arbitration did: priority descending, then the order
+ * the flow declared them in.
  *
  * The tie-break is not cosmetic. Two candidates on an identical priority would
  * otherwise swap between runs, and a slate that reorders on replay is a slate
- * that cannot be audited. This mirrors the engine's own comparator exactly, so
- * `entries[0]` is always the decision's winner.
+ * that cannot be audited. So this does not copy the engine's comparator, it
+ * calls it: `orderCandidates`, over the decision's own recorded `candidateKeys`.
+ *
+ * It copied it until ADR-020 §6. The engine moved to declared order at ADR-019
+ * §8 and this went on breaking ties by key, under a comment saying it mirrored
+ * the engine exactly — so a rename could change what a customer was shown in
+ * slot 2 without changing any decision.
  */
 export function selectSlate(decision: DeterministicDecision, slotCount: number): Slate {
   if (!Number.isInteger(slotCount) || slotCount < 1) {
     throw new RangeError(`A placement must have at least one slot; got ${slotCount}`);
   }
 
-  const ranked = finalists(decision)
-    .filter((key) => decision.scores[key])
-    .sort((a, b) => {
-      const d = decision.scores[b].priority - decision.scores[a].priority;
-      return d !== 0 ? d : a.localeCompare(b);
-    })
-    .map((action, i) => ({ rank: i + 1, action, priority: decision.scores[action].priority }));
+  const ranked = orderCandidates(
+    finalists(decision).map((key) => ({ key })),
+    decision.scores,
+    { id: decision.artifactId, version: decision.artifactVersion, candidateKeys: decision.candidateKeys }
+  ).map(({ key }, i) => ({ rank: i + 1, action: key, priority: decision.scores[key].priority }));
 
   return {
     entries: ranked.slice(0, slotCount),

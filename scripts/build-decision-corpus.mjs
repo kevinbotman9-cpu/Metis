@@ -302,6 +302,27 @@ const CASES = [
     request: request(),
   },
   {
+    name: 'a tie below the runner-up breaks by the order the flow declared',
+    // What a slate of three or more shows and a single winner does not
+    // (ADR-020 §6). The winner and the runner-up are separated by their boosts;
+    // the third and fourth are identical, so only the tie-break orders them,
+    // and they are declared `z` before `m` so that breaking by name would put
+    // them the other way round. Neither `winner` nor `runnerUp` sees this pair:
+    // the decision's scores and declared keys do, and both engines are held to
+    // those byte for byte, so the slate drawn from either engine's record is
+    // the same slate.
+    artifact: artifact({ candidateKeys: ['offer_top', 'offer_next', 'offer_z', 'offer_m'] }),
+    catalogue: catalogue({
+      offers: [
+        offer({ id: 'p_top', key: 'offer_top', boost: 1.5 }),
+        offer({ id: 'p_next', key: 'offer_next', boost: 1.2 }),
+        offer({ id: 'p_z3', key: 'offer_z' }),
+        offer({ id: 'p_m', key: 'offer_m' }),
+      ],
+    }),
+    request: request(),
+  },
+  {
     // A second ranking function, so the corpus proves the evaluator and not
     // just one hard-coded expression. Without this the `expected-value` AST
     // would be exercised by unit tests on one engine and by nothing at all on
