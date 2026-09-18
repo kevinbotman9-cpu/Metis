@@ -44,6 +44,36 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-156 — A caller can override `conn_consent_registry`'s `customer.marketing_consent`, and the first policy that reads it inherits that
+
+**Registered:** 2026-09-18 · **Status:** Open · **Work item:** [W-013](BACKLOG.md) · **Decision:** [ADR-022](adr/ADR-022-a-decision-records-where-each-value-came-from.md) §1 leaves it open
+
+**What is true today.** ADR-022 §1 makes the request's value win for every
+field a connector provides: a field the request carries is not overwritten by
+the connector, and the record says the request supplied it. It leaves
+precedence per binding undecided — a connector whose answer the caller may not
+override, or whose field the request is refused for carrying. It names the
+consent registry as the case that will ask: `conn_consent_registry` provides
+`customer.marketing_consent`, and under this rule a caller can send its own.
+
+**Why it is harmless now, and why that will not last.** No policy reads the
+field (checked 2026-09-17: it appears only in the schema, the connector and the
+seed). The engine's consent check reads `request.consent`, not this field
+(G-065). The first policy condition that names `customer.marketing_consent`
+turns the registry into a default the caller can overrule — the opposite of
+G-065's done-when, which says the request may only narrow consent.
+
+**Why it is registered rather than left in the ADR.** It will be found by
+someone writing a consent policy in the editor, not by anyone reading ADR-022.
+Nothing in the policy editor, the compiler or the engine knows the field is
+consent-bearing, so the policy compiles, decides and records `origin: request`
+for a consent the caller asserted.
+
+**Done when:** precedence per binding is decided, and until it is, a policy
+condition that reads a field whose binding lets the request override a consent
+source is refused — by a named test that goes red when a policy names
+`customer.marketing_consent` while the request can override it.
+
 ### G-155 — The Overview's agent feed was an empty card on every tenant, and nothing has been chosen to stand where it was
 
 **Registered:** 2026-09-17 · **Status:** Open · **Work item:** none — a screen decision, taken off the page rather than left empty
