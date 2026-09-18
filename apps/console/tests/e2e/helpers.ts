@@ -78,6 +78,76 @@ export async function openSeededDecision(page: Page): Promise<string> {
   return id;
 }
 
+/**
+ * What the Overview's funnel shows, as drawn — not only that it fits.
+ *
+ * Every version in the product owner's side-by-side of 2026-09-18 passed the
+ * fit checks, including the one where the funnel had become a band: four stage
+ * names stacked over one bar, the bars 76px at 1440x900. A fit check is
+ * satisfied by a drawing of any shape. This reads the rendered SVG:
+ *
+ * - five columns, each naming one stage, every name inside the drawing;
+ * - a bar at least 2px tall for every stage with a figure above zero, and none
+ *   for a stage at zero;
+ * - the tallest bar at least 0.13 of the drawing's width: a funnel, not a strip.
+ *   The band was 0.096 and this is 0.14, at any window size and on any
+ *   platform, because the drawing scales uniformly.
+ *
+ * There was a pixel floor on the tallest bar as well, 88px, and it went on
+ * 2026-09-18 by the product owner's decision. It was measured on Windows (92px
+ * on the hand-made tenant at 1440x900) and asserted in CI on Linux, where the
+ * cards above the funnel set taller and the same page drew 83px. A threshold
+ * measured on one platform and asserted on another is the wrong shape of check
+ * (CLAUDE.md, Rule 10), and the proportion is what caught the band anyway, at
+ * both 1440 and 1680. The 2px floor stays: it is a visibility check, not a
+ * measurement.
+ */
+export async function expectFunnelShows(page: Page) {
+  const funnel = page.locator('svg[role="img"][aria-label^="The loop as volume"]');
+  await expect(funnel).toBeVisible();
+  // The drawing's width on screen: its viewBox width at the scale it is drawn.
+  const drawnWidth = await funnel.evaluate(
+    (svg) => (svg as SVGSVGElement).viewBox.baseVal.width * (svg as SVGSVGElement).getScreenCTM()!.a
+  );
+  const shape = await funnel.evaluate((svg) => {
+    const box = svg.getBoundingClientRect();
+    return [...svg.querySelectorAll('g[data-part="column"]')].map((g) => {
+      const texts = [...g.querySelectorAll('text')];
+      const bar = g.querySelector('rect[data-part="stage"]');
+      const named = texts[1]?.getBoundingClientRect();
+      return {
+        stage: g.getAttribute('data-stage'),
+        figure: Number((texts[0]?.textContent ?? '').replace(/[^\d]/g, '')),
+        names: texts.length - 1,
+        nameInside: Boolean(named && named.left >= box.left - 1 && named.right <= box.right + 1 && named.top >= box.top - 1),
+        bar: bar ? bar.getBoundingClientRect().height : null,
+      };
+    });
+  });
+  expect(shape.map((c) => c.stage), 'the funnel draws five columns, one per stage').toEqual([
+    'decisions',
+    'offered',
+    'deliverable',
+    'seen',
+    'acted',
+  ]);
+  for (const c of shape) {
+    expect(c.names, `${c.stage} carries one name`).toBe(1);
+    expect(c.nameInside, `${c.stage}'s name is inside the drawing`).toBe(true);
+    if (c.figure === 0) {
+      expect(c.bar, `${c.stage} is zero and draws no bar`).toBeNull();
+    } else {
+      expect(c.bar, `${c.stage} is ${c.figure} and draws a bar`).not.toBeNull();
+      expect(c.bar!, `${c.stage}'s bar is visible`).toBeGreaterThanOrEqual(2);
+    }
+  }
+  const top = Math.max(...shape.map((c) => c.bar ?? 0));
+  expect(
+    top / drawnWidth,
+    `the tallest bar is ${Math.round(top)}px across a ${Math.round(drawnWidth)}px drawing: a funnel, not a strip`
+  ).toBeGreaterThanOrEqual(0.13);
+}
+
 /** Restore seed data. The store is process-wide, so writes leak between specs. */
 export async function resetStore(page: Page) {
   const res = await page.request.post('/api/_test/reset');

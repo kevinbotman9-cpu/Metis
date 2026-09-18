@@ -54,7 +54,11 @@ describe('the loop diagram', () => {
     const { top, column } = LOOP_FLOW;
     const step = (LOOP_FLOW.width - column) / (stages.length - 1);
     const carry = [...container.querySelectorAll('path[data-part="carry"]')].map((p) => p.getAttribute('d'));
-    const leave = [...container.querySelectorAll('path[data-part="leave"]')].map((p) => p.getAttribute('d'));
+    // Both parts: the largest drop that is not the break carries the page's
+    // accent and says so in its `data-part` (ADR-023 §3, amended).
+    const leave = [...container.querySelectorAll('path[data-part="leave"], path[data-part="leave-most"]')].map((p) =>
+      p.getAttribute('d')
+    );
 
     // Between decisions and offered: 4,000 carries on at its own height.
     const on = scale(4_000);

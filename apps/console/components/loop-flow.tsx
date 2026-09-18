@@ -15,12 +15,14 @@ import { ribbonPath, volumeScale } from '@/components/volume/geometry';
  * and nothing vanishes — which is the point: a row of shrinking columns says the
  * last one is small, and this says where the rest went.
  *
- * **Consecutive stages with the same figure are one column**, carrying every
- * stage's name. At low volume most of a hand-made loop is equal — 26 decided, 26
- * offered, 26 deliverable, 26 seen — and five identical columns joined by full
- * bands drew four transitions where nothing happened, which read as a chart of
- * a broken join. Decided by the product owner on 2026-09-17. Not while the loop
- * is empty: the outlined columns are the shape a reader is about to fill.
+ * **Five columns, always.** From 2026-09-17 to 2026-09-18 consecutive stages
+ * with the same figure were drawn as one column carrying every name. It was
+ * added for low volume, and low volume is where it did the damage: at two
+ * decisions four names stacked over one bar and the funnel stopped being a
+ * funnel, because at that volume nearly every stage is equal. Removed by the
+ * product owner, from a side-by-side at 2, 12 and the seeded corpus: five
+ * columns at 12 read fine. A stage's place in the line is what says which
+ * stage it is.
  *
  * Heights come from `volumeScale` and curves from `ribbonPath`, the geometry the
  * canvas's volume overlay draws with (`components/volume/geometry.ts`), so a
@@ -71,55 +73,56 @@ export const LOOP_FLOW = {
   column: 16,
   /** Between the bottom of the tallest column and the row the losses fall to. */
   dropGap: 22,
-  /** Each further stage name a merged column carries adds a line this tall above the columns. */
-  line: 14,
   /**
-   * The canvas the Overview draws on: wider, so filling a card that is about
-   * three times as wide as it is tall does not leave the drawing in a letterbox.
+   * The canvas the Overview draws on.
+   *
+   * From 2026-09-17 it was 1000 wide with a 96-unit band, chosen to match the
+   * card's 3.5:1 proportion, and the funnel became a strip: the bars were 40%
+   * thinner against the width than on `/performance`. The band is back near
+   * that proportion (120 against 860), and the height is paid for below the
+   * bars instead — `denseHeight` reserves only the depth the deepest drop
+   * actually falls, not a second full band every time — and above them, by
+   * the cards over the funnel not wrapping (`LoopFirstPaint`). 2026-09-18.
    */
-  denseWidth: 1000,
+  denseWidth: 860,
   denseColumn: 22,
+  denseBand: 120,
+  denseDropGap: 12,
+  /** Under the deepest drop: room for its "−N" when the drop itself is thin. */
+  denseFloor: 18,
+  densePad: 8,
 } as const;
 
-/** One drawn column: a stage, or a run of consecutive stages with the same figure. */
-export interface LoopFlowColumn {
-  id: string;
-  labels: string[];
-  value: number;
-  broken: boolean;
-  tone: CascadeTone;
-}
-
 /**
- * Consecutive stages with equal figures, as one column each.
- *
- * A run's colour is its first stage's: a break is where volume left, so a broken
- * stage is always smaller than the one above and can only start a run.
+ * The dense canvas's height: labels, the band, the gap, and as deep as the
+ * deepest drop falls. Exported so a test can hold a drop to the room it has.
  */
-export function mergeEqualRuns(stages: readonly LoopFlowStage[]): LoopFlowColumn[] {
-  const columns: LoopFlowColumn[] = [];
-  for (const s of stages) {
-    const last = columns[columns.length - 1];
-    if (last && last.value === s.value) {
-      last.labels.push(s.label);
-    } else {
-      columns.push({
-        id: s.id,
-        labels: [s.label],
-        value: s.value,
-        broken: Boolean(s.broken),
-        tone: s.tone ?? 'neutral',
-      });
-    }
-  }
-  return columns;
+export function denseHeight(stages: readonly LoopFlowStage[]): number {
+  const scale = volumeScale(Math.max(0, ...stages.map((s) => s.value)), LOOP_FLOW.denseBand);
+  const deepest = Math.max(
+    0,
+    ...stages.slice(0, -1).map((s, i) => {
+      const lost = s.value - stages[i + 1].value;
+      return lost > 0 ? scale(s.value) - Math.min(scale(s.value), scale(stages[i + 1].value)) : 0;
+    })
+  );
+  return (
+    LOOP_FLOW.top +
+    LOOP_FLOW.denseBand +
+    LOOP_FLOW.denseDropGap +
+    Math.max(deepest, LOOP_FLOW.denseFloor) +
+    LOOP_FLOW.densePad
+  );
 }
 
 export function LoopFlow({
   stages,
   dense = false,
+  accentStage = null,
 }: {
   stages: readonly LoopFlowStage[];
+  /** The stage whose incoming drop takes the accent, from `Loop.accentStage`. None when null. */
+  accentStage?: string | null;
   /**
    * The Overview's shape: **fills its card**, and reads at the card's size.
    *
@@ -127,44 +130,45 @@ export function LoopFlow({
    * the drawing shrank to half size inside a card that kept its height — a
    * funnel floating in white space, with labels smaller than anything else on
    * the screen, because SVG text scales with the drawing. So dense is not
-   * "smaller": it is a wider canvas (1000 units against 720, close to the
-   * card's own proportion), thicker columns, and type a size up, drawn at
-   * whatever height the card has. It is the heaviest thing on the page, which
-   * is what the product owner asked for on 2026-09-17.
+   * "smaller": it is a wider canvas (860 units against 720), thicker columns,
+   * a height that ends where the deepest drop does, and type a size up, drawn
+   * at whatever height the card has. It is the heaviest thing on the page,
+   * which is what the product owner asked for on 2026-09-17.
    */
   dense?: boolean;
 }) {
   const format = useFormat();
-  const { band: BAND, dropGap, line: LINE } = LOOP_FLOW;
   const W = dense ? LOOP_FLOW.denseWidth : LOOP_FLOW.width;
   const COL = dense ? LOOP_FLOW.denseColumn : LOOP_FLOW.column;
+  const BAND = dense ? LOOP_FLOW.denseBand : LOOP_FLOW.band;
+  const dropGap = dense ? LOOP_FLOW.denseDropGap : LOOP_FLOW.dropGap;
   // Nothing has entered the loop. The columns are still drawn — outlined, at the
   // full band — so the shape a reader is about to fill is on screen; and the
   // drawing stops at the band, because there is no row for losses to fall to.
   // Until 2026-09-17 this state drew nothing inside the full 316-unit canvas,
   // which read as about 300px of chart that had failed to load.
   const empty = stages.length > 0 && stages.every((s) => s.value === 0);
-  const columns: LoopFlowColumn[] = empty
-    ? stages.map((s) => ({
-        id: s.id,
-        labels: [s.label],
-        value: 0,
-        broken: Boolean(s.broken),
-        tone: s.tone ?? 'neutral',
-      }))
-    : mergeEqualRuns(stages);
-  const merged = columns.length < stages.length;
-  // Every column's figure sits on one baseline, and its names stack beneath it,
-  // so the columns start below the tallest stack.
-  const extra = (Math.max(1, ...columns.map((c) => c.labels.length)) - 1) * LINE;
-  const TOP = LOOP_FLOW.top + extra;
-  const H = (empty ? LOOP_FLOW.top + BAND + 8 : LOOP_FLOW.height) + extra;
+  const columns = stages;
+  const TOP = LOOP_FLOW.top;
+  // Dense: the canvas ends where the deepest drop does, so a loop whose losses
+  // are small is not drawn inside room reserved for one that lost everything.
+  // `/performance` keeps the canvas it has, to the unit: its own tests pin the
+  // viewBox.
+  const full = dense ? denseHeight(stages) : LOOP_FLOW.height;
+  const H = empty ? LOOP_FLOW.top + BAND + 8 : full;
   const scale = volumeScale(Math.max(0, ...columns.map((c) => c.value)), BAND);
   const n = columns.length;
   const step = n > 1 ? (W - COL) / (n - 1) : 0;
   const x = (i: number) => i * step;
   const dropY = TOP + BAND + dropGap;
   const run = Math.min(step * 0.55, dense ? 140 : 96);
+  /**
+   * Which drop carries the page's one accent: the one into `accentStage`, a
+   * decision the model makes (`Loop.accentStage`) under the loop's own guards.
+   * The drawing chose for itself until 2026-09-18 and accented "−2" on a
+   * two-decision tenant nobody had clicked on.
+   */
+  const accentAt = accentStage ? columns.findIndex((c, i) => i > 0 && c.id === accentStage) - 1 : -1;
   /** The type sizes: a size up where the drawing is the page's heaviest element. */
   const type = dense
     ? { figure: 'text-figure', name: 'text-body', drop: 'text-body' }
@@ -174,8 +178,6 @@ export function LoopFlow({
     <svg
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="xMidYMid meet"
-      // Dense: a fixed height and the width the aspect gives it, centred, so
-      // capping the height does not leave the drawing adrift in a wide card.
       // Dense: absolute inside the box its card gives it, so the drawing's own
       // proportion cannot push the pane taller than the rail beside it — which
       // is what put the page back into a scroll the first time it filled.
@@ -183,9 +185,7 @@ export function LoopFlow({
       role="img"
       aria-label={`The loop as volume: ${stages
         .map((s) => `${s.label} ${format.number(s.value)}`)
-        .join(', ')}. What leaves between each pair falls away beneath it.${
-        merged ? ' Stages with the same figure are drawn as one column.' : ''
-      }`}
+        .join(', ')}. What leaves between each pair falls away beneath it.`}
     >
       {columns.slice(0, -1).map((column, i) => {
         const next = columns[i + 1];
@@ -200,23 +200,34 @@ export function LoopFlow({
                 diagram runs through the rail's own tones rather than one pale
                 blue: neutral into accent, accent into the break's block,
                 through attention at Seen to pass at Acted on. */}
-            <path
-              data-part="carry"
-              d={ribbonPath(x0, TOP, TOP + on, x(i + 1), TOP, TOP + on)}
-              className={FILL[next.broken ? 'broken' : next.tone].band}
-            />
+            {/* Nothing carries into a stage at zero. The band was drawn at its
+                minimum height anyway, and read as a line across the card. */}
+            {next.value > 0 ? (
+              <path
+                data-part="carry"
+                d={ribbonPath(x0, TOP, TOP + on, x(i + 1), TOP, TOP + on)}
+                className={FILL[next.broken ? 'broken' : (next.tone ?? 'neutral')].band}
+              />
+            ) : null}
             {lost > 0 ? (
               <>
-                {/* What left: the rest of this column, falling to the row below. */}
+                {/* What left: the rest of this column, falling to the row below.
+                    The largest drop that is not the break takes the accent. */}
                 <path
-                  data-part="leave"
+                  data-part={i === accentAt ? 'leave-most' : 'leave'}
                   d={ribbonPath(x0, TOP + on, TOP + here, x0 + run, dropY, dropY + Math.max(1, here - on))}
-                  className={cn(next.broken ? 'fill-block/30' : 'fill-content-subtle/15')}
+                  className={cn(
+                    next.broken ? 'fill-block/30' : i === accentAt ? 'fill-accent/40' : 'fill-content-subtle/15'
+                  )}
                 />
                 <text
                   x={x0 + run + 6}
                   y={dropY + 12}
-                  className={cn('tnum', type.drop, next.broken ? 'fill-block' : 'fill-content-subtle')}
+                  className={cn(
+                    'tnum',
+                    type.drop,
+                    next.broken ? 'fill-block' : i === accentAt ? 'fill-accent font-semibold' : 'fill-content-subtle'
+                  )}
                 >
                   −{format.number(lost)}
                 </text>
@@ -230,7 +241,12 @@ export function LoopFlow({
         const anchor = i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle';
         const tx = i === 0 ? x(i) : i === n - 1 ? x(i) + COL : x(i) + COL / 2;
         return (
-          <g key={column.id} data-part="column" data-stages={column.labels.length}>
+          <g key={column.id} data-part="column" data-stage={column.id}>
+            {/* An empty loop draws every column outlined at the full band: the
+                shape a reader is about to fill. One stage at zero in a loop that
+                is not empty draws nothing but its figure — no bar, and no band
+                into it. It drew the scale's minimum until 2026-09-18, a stub and
+                a hairline across the card that read as a trickle. */}
             {empty ? (
               <rect
                 data-part="stage-empty"
@@ -242,7 +258,7 @@ export function LoopFlow({
                 strokeDasharray="4 3"
                 className="fill-none stroke-border"
               />
-            ) : (
+            ) : column.value > 0 ? (
               <rect
                 data-part="stage"
                 x={x(i)}
@@ -250,9 +266,9 @@ export function LoopFlow({
                 width={COL}
                 height={scale(column.value)}
                 rx={3}
-                className={FILL[column.broken ? 'broken' : column.tone].solid}
+                className={FILL[column.broken ? 'broken' : (column.tone ?? 'neutral')].solid}
               />
-            )}
+            ) : null}
             <text
               x={tx}
               y={LOOP_FLOW.top - (dense ? 26 : 22)}
@@ -261,17 +277,9 @@ export function LoopFlow({
             >
               {format.number(column.value)}
             </text>
-            {column.labels.map((label, j) => (
-              <text
-                key={label}
-                x={tx}
-                y={LOOP_FLOW.top - 8 + j * LINE}
-                textAnchor={anchor}
-                className={cn('fill-content-subtle', type.name)}
-              >
-                {label}
-              </text>
-            ))}
+            <text x={tx} y={LOOP_FLOW.top - 8} textAnchor={anchor} className={cn('fill-content-subtle', type.name)}>
+              {column.label}
+            </text>
           </g>
         );
       })}
