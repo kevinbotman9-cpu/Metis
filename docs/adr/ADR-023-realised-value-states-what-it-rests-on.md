@@ -136,6 +136,15 @@ break. Realised value carries no accent at any count.**
   is usually absent.
 - **The floor stays**, doing the job it is good at: above it the figure can be
   read as a return, below it the line says it cannot (§2).
+- **The drop follows the loop's own guards** (amended 2026-09-18, by the product
+  owner). The first build let the drawing pick the largest drop for itself, and
+  accented "−2" at Acted on for a two-decision tenant nobody had clicked on. A
+  drop is a candidate only from a stage of at least `LOSES_MOST_FLOOR` (20)
+  decisions, and never into a stage no channel reported — the same two rules
+  "where it loses most" follows. Below them there is no accent, which is the
+  honest reading: nothing yet is a loss. "Present whenever anything has been
+  decided", above, holds from twenty decisions with outcomes reported.
+  `Loop.accentStage` makes the choice; `LoopFlow` only draws it.
 
 ## Consequences
 

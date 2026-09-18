@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, ACCOUNTS } from './helpers';
+import { login, ACCOUNTS, expectFunnelShows } from './helpers';
 
 /**
  * @screen-only
@@ -98,6 +98,8 @@ test.describe("the marketer's Overview is the loop @screen-only", () => {
       return scroller.scrollHeight - scroller.clientHeight;
     });
     expect(overflow, 'the Overview scrolls at 1680x1000').toBeLessThanOrEqual(0);
+    // And fits as a funnel: the band of 2026-09-17 fitted too.
+    await expectFunnelShows(page, { tallest: 88 });
   });
 
   test('has two panes, not three: no evidence column narrating the screen', async ({ page }) => {

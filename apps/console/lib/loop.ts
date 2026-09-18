@@ -148,6 +148,39 @@ export interface Loop {
    * was only on the policy funnel.
    */
   offeredNothing: string | null;
+  /**
+   * The stage whose incoming drop carries the page's one accent, or null.
+   *
+   * The largest drop that is not the break (ADR-023 §3, amended) — held to the
+   * same two guards "where it loses most" is held to, because both answer "where
+   * did the volume go?" and one screen must not answer it twice by different
+   * rules:
+   *
+   * - **The floor.** A drop from fewer than `LOSES_MOST_FLOOR` is not named. At
+   *   two decisions every drop is all or nothing.
+   * - **Unreported is not lost.** A stage no channel has reported anything for
+   *   has not lost anything; it has not been told.
+   *
+   * The first version picked the largest wedge in the drawing and nothing else,
+   * and on a two-decision tenant with no click it accented "−2" at Acted on —
+   * the one drop the loop's own rules refuse to call a loss (2026-09-18).
+   */
+  accentStage: 'offered' | 'seen' | 'acted' | null;
+}
+
+/** See `Loop.accentStage`. Deliverable is never a candidate: it is whole or the break. */
+function accentStageOf(data: LoopReport, deliverable: number): Loop['accentStage'] {
+  const candidates = [
+    { stage: 'offered' as const, above: data.decisions, lost: data.decisions - data.offered, unreported: false },
+    { stage: 'seen' as const, above: deliverable, lost: deliverable - data.measured, unreported: data.measured === 0 },
+    {
+      stage: 'acted' as const,
+      above: data.measured,
+      lost: data.measured - data.acted,
+      unreported: data.measured === 0 || data.acted === 0,
+    },
+  ].filter((c) => c.above >= LOSES_MOST_FLOOR && c.lost > 0 && !c.unreported);
+  return candidates.sort((a, b) => b.lost - a.lost)[0]?.stage ?? null;
 }
 
 /** Below this many at the stage above, a share is not named as the largest loss. */
@@ -400,5 +433,6 @@ export function buildLoop(
     inversions,
     losesMost: losesMostOf(data, deliverable, format),
     offeredNothing,
+    accentStage: accentStageOf(data, deliverable),
   };
 }

@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { StaticFormatProvider } from '@/components/tenant-format';
 import { CascadeRail } from '@/components/cascade-rail';
-import { LoopFlow, mergeEqualRuns, LOOP_FLOW } from '@/components/loop-flow';
+import { LoopFlow, LOOP_FLOW, denseHeight } from '@/components/loop-flow';
 import { LoopStageEvidence } from '@/components/loop-panes';
 import { buildLoop, type LoopReport } from '@/lib/loop';
 import { formatterFor } from '@/lib/format';
@@ -16,8 +16,10 @@ import { formatterFor } from '@/lib/format';
  * Offered. Drawn as three full bars and four full bands, that is the shape a
  * broken outcome join draws. The product owner's answer on 2026-09-17: a stage
  * that *cannot* drop is drawn as a pass-through that says why; a stage that
- * could have dropped and did not keeps its bar; and the flow diagram draws a
- * run of equal stages as one column. Nothing collapses into a sentence.
+ * could have dropped and did not keeps its bar. Nothing collapses into a
+ * sentence. The flow diagram drew a run of equal stages as one column from
+ * then until 2026-09-18, when that was found to be the funnel disappearing at
+ * exactly the volume it was added for; it draws five columns again.
  */
 
 afterEach(cleanup);
@@ -122,12 +124,14 @@ describe('the evidence pane', () => {
 });
 
 describe('the flow diagram', () => {
-  const flow = (data: LoopReport, dense = false) =>
-    render(
+  const flow = (data: LoopReport, dense = false) => {
+    const loop = buildLoop(data, MARGINS, F);
+    return render(
       <StaticFormatProvider settings={SETTINGS}>
         <LoopFlow
           dense={dense}
-          stages={buildLoop(data, MARGINS, F).stages.map((s) => ({
+          accentStage={loop.accentStage}
+          stages={loop.stages.map((s) => ({
             ...s,
             broken: Boolean(s.broken),
             tone: s.tone ?? 'neutral',
@@ -135,80 +139,68 @@ describe('the flow diagram', () => {
         />
       </StaticFormatProvider>
     );
+  };
 
-  it('merges consecutive equal stages, and only consecutive ones', () => {
-    const columns = mergeEqualRuns([
-      { id: 'a', label: 'A', value: 5 },
-      { id: 'b', label: 'B', value: 5 },
-      { id: 'c', label: 'C', value: 2 },
-      { id: 'd', label: 'D', value: 5 },
-    ]);
-    expect(columns.map((c) => [c.labels, c.value])).toEqual([
-      [['A', 'B'], 5],
-      [['C'], 2],
-      [['D'], 5],
-    ]);
-  });
+  /** A loop with enough volume, and reported outcomes, for a drop to be named. */
+  const reported = (over: Partial<Record<string, unknown>> = {}) =>
+    byHand({
+      decisions: 100,
+      offered: 60,
+      deliverable: 60,
+      measured: 50,
+      acted: 15,
+      channels: [{ channel: 'web', decisions: 100, offered: 60, deliverable: 60, seen: 50, acted: 15, delivers: true }],
+      series: [{ decisions: 100, offered: 60, deliverable: 60, seen: 50, acted: 15 }],
+      ...over,
+    });
 
-  it('draws the hand-made loop as two columns, naming every stage in the first', () => {
+  it('draws the hand-made loop as five columns, with one transition where the volume left', () => {
     const { container } = flow(byHand());
     const columns = [...container.querySelectorAll('g[data-part="column"]')];
-    expect(columns.map((g) => g.getAttribute('data-stages'))).toEqual(['4', '1']);
-    expect(columns[0].textContent).toContain('Decisions made');
-    expect(columns[0].textContent).toContain('Seen');
-    // One transition, where the volume actually left — and it is the page's
-    // accent, being the largest drop that is not the break.
-    expect(container.querySelectorAll('path[data-part="leave"]')).toHaveLength(0);
-    expect(container.querySelectorAll('path[data-part="leave-most"]')).toHaveLength(1);
-    // The names stack above the columns, so the columns start below them.
+    expect(columns.map((g) => g.getAttribute('data-stage'))).toEqual(['decisions', 'offered', 'deliverable', 'seen', 'acted']);
+    // One drop, where the volume actually left. Not the accent: nothing has
+    // been acted on, so no channel has reported an action, and an unreported
+    // stage has not lost anything.
+    expect(container.querySelectorAll('path[data-part="leave"]')).toHaveLength(1);
+    expect(container.querySelectorAll('path[data-part="leave-most"]')).toHaveLength(0);
     const [, , , h] = container.querySelector('svg')!.getAttribute('viewBox')!.split(' ').map(Number);
-    expect(h).toBe(LOOP_FLOW.height + 3 * LOOP_FLOW.line);
-    expect(container.querySelector('svg')!.getAttribute('aria-label')).toMatch(/drawn as one column/);
-  });
-
-  it('keeps a stage its own column once its figure differs', () => {
-    const { container } = flow(withEmail);
-    expect(
-      [...container.querySelectorAll('g[data-part="column"]')].map((g) => g.getAttribute('data-stages'))
-    ).toEqual(['2', '2', '1']);
+    expect(h).toBe(LOOP_FLOW.height);
   });
 
   it('spends the page’s one accent on the largest drop that is not the break', () => {
     // ADR-023 §3, amended 2026-09-17: realised value is a dash or too thin to
     // emphasise most of the time, so the accent went to the loss a person can
-    // act on. The break has its own colour and never takes it.
-    const { container } = flow(withEmail);
+    // act on. Here: 40 offered nothing, 10 were not seen, 35 were seen and not
+    // acted on. The largest is at Offered.
+    const data = reported();
+    expect(buildLoop(data, MARGINS, F).accentStage).toBe('offered');
+    const { container } = flow(data);
     const accented = [...container.querySelectorAll('path[data-part="leave-most"]')];
     expect(accented).toHaveLength(1);
     expect(accented[0].getAttribute('class')).toContain('fill-accent');
-
-    // Of the drops here — 1 at Offered, 26 at Seen→Acted on and the break's own
-    // — the accent is on the largest that is not the break.
-    const drops = [...container.querySelectorAll('path[data-part="leave"], path[data-part="leave-most"]')];
-    expect(drops.filter((d) => (d.getAttribute('class') ?? '').includes('fill-accent'))).toHaveLength(1);
-    expect(drops.filter((d) => (d.getAttribute('class') ?? '').includes('fill-block')).length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.fill-accent\\/40')).toHaveLength(1);
   });
 
   it('never gives the accent to the break, even when the break is the largest drop', () => {
-    // 28 of 30 offers won a channel nothing sends: the biggest loss on the page
-    // is structural, and structural losses are the block colour. The accent goes
-    // to the largest one a person can act on — here the two that were seen and
-    // not acted on.
+    // 260 of 300 offers won a channel nothing sends: the biggest loss on the
+    // page is structural, and structural losses are the block colour. The
+    // accent goes to the largest one a person can act on — the 20 seen and not
+    // acted on.
     const mostlyDead = byHand({
-      decisions: 30,
-      offered: 30,
-      deliverable: 2,
-      measured: 2,
-      acted: 1,
+      decisions: 300,
+      offered: 300,
+      deliverable: 40,
+      measured: 30,
+      acted: 10,
       channels: [
-        { channel: 'web', decisions: 2, offered: 2, deliverable: 2, seen: 2, acted: 1, delivers: true },
-        { channel: 'email', decisions: 28, offered: 28, deliverable: 0, seen: 0, acted: 0, delivers: false },
+        { channel: 'web', decisions: 40, offered: 40, deliverable: 40, seen: 30, acted: 10, delivers: true },
+        { channel: 'email', decisions: 260, offered: 260, deliverable: 0, seen: 0, acted: 0, delivers: false },
       ],
     });
+    expect(buildLoop(mostlyDead, MARGINS, F).accentStage).toBe('acted');
     const { container } = flow(mostlyDead);
     const accented = [...container.querySelectorAll('path[data-part="leave-most"]')];
     expect(accented).toHaveLength(1);
-    // The accented wedge is not the break's: the break's carries the block colour.
     expect(accented[0].getAttribute('class')).toContain('fill-accent');
     expect(accented[0].getAttribute('class')).not.toContain('fill-block');
     const blocked = [...container.querySelectorAll('path[data-part="leave"]')].filter((d) =>
@@ -217,52 +209,188 @@ describe('the flow diagram', () => {
     expect(blocked).toHaveLength(1);
   });
 
+  it('names no drop at two decisions with nothing acted on — the product owner’s screenshot, 2026-09-18', () => {
+    // It accented "−2" at Acted on: all of the volume, on a stage no channel had
+    // reported an action for, from two decisions. Both of the loop's guards say
+    // that is not a loss yet — the floor of 20 and "unreported is not lost".
+    const two = byHand({
+      decisions: 2,
+      offered: 2,
+      deliverable: 2,
+      measured: 2,
+      acted: 0,
+      channels: [{ channel: 'web', decisions: 2, offered: 2, deliverable: 2, seen: 2, acted: 0, delivers: true }],
+      series: [{ decisions: 2, offered: 2, deliverable: 2, seen: 2, acted: 0 }],
+    });
+    expect(buildLoop(two, MARGINS, F).accentStage).toBeNull();
+    const { container } = flow(two, true);
+    expect(container.querySelectorAll('path[data-part="leave-most"]')).toHaveLength(0);
+  });
+
+  it('holds the accent to the floor: a drop from fewer than 20 is not named', () => {
+    // 19 decisions, 10 offered nothing: a share over 19 is not compared, and
+    // neither is a drop from it.
+    const nineteen = reported({
+      decisions: 19,
+      offered: 9,
+      deliverable: 9,
+      measured: 9,
+      acted: 3,
+      channels: [{ channel: 'web', decisions: 19, offered: 9, deliverable: 9, seen: 9, acted: 3, delivers: true }],
+    });
+    expect(buildLoop(nineteen, MARGINS, F).accentStage).toBeNull();
+  });
+
   it('takes the rail’s colour for each stage, and the break’s', () => {
     // The funnel was one pale blue beside a coloured rail until 2026-09-17, so
     // the two read as separate things. Same stages, same tones, different
     // tokens: `--rail-*` on the frame, the analytic ones on a white card.
-    // Three columns here, because equal runs merge: decisions with offered,
-    // deliverable with seen, then acted on. A merged column takes the first
-    // stage's tone, and a break beats it.
+    // Acted on is zero here, so it draws no bar at all.
     const { container } = flow(withEmail);
     const fills = [...container.querySelectorAll('rect[data-part="stage"]')].map((r) => r.getAttribute('class'));
-    expect(fills).toHaveLength(3);
+    expect(fills).toHaveLength(4);
     expect(fills[0]).toContain('fill-content-subtle');
-    expect(fills[1]).toContain('fill-block');
-    expect(fills[2]).toContain('fill-pass');
+    expect(fills[1]).toContain('fill-accent');
+    expect(fills[2]).toContain('fill-block');
+    expect(fills[3]).toContain('fill-hold');
 
-    // Unmerged, each stage keeps its own: accent at Offered, attention at Seen.
     const distinct = flow(byHand({ offered: 20, deliverable: 20, measured: 10, acted: 5 }));
     const more = [...distinct.container.querySelectorAll('rect[data-part="stage"]')].map((r) => r.getAttribute('class'));
-    // Offered and Deliverable are both 20 and merge, so: decisions, offered,
-    // seen, acted on.
-    expect(more).toHaveLength(4);
+    expect(more).toHaveLength(5);
     expect(more[1]).toContain('fill-accent');
-    expect(more[2]).toContain('fill-hold');
-    expect(more[3]).toContain('fill-pass');
+    expect(more[3]).toContain('fill-hold');
+    expect(more[4]).toContain('fill-pass');
   });
 
-  it('draws the Overview’s funnel on a wider canvas, so filling a wide card is not a letterbox', () => {
+  it('draws the Overview’s funnel on its own canvas, filling the box inside its card', () => {
     const { container } = flow(byHand(), true);
     const box = container.querySelector('svg')!.getAttribute('viewBox')!.split(' ').map(Number);
     expect(box[2]).toBe(LOOP_FLOW.denseWidth);
-    expect(LOOP_FLOW.denseWidth).toBeGreaterThan(LOOP_FLOW.width);
-    // And shorter, by its own band: `meet` fits a fixed viewBox by its tighter
-    // dimension, so a canvas taller than the card's proportion letterboxes.
-    // The hand-made loop stacks four names, which is three extra lines.
-    const { top, denseBand, denseDropGap, line } = LOOP_FLOW;
-    expect(box[3]).toBe(top + denseBand + denseDropGap + denseBand + 12 + 3 * line);
-    expect(box[2] / box[3]).toBeGreaterThan(2.9);
-    // And it fills the box its card gives it rather than its own aspect.
+    const stages = buildLoop(byHand(), MARGINS, F).stages.map((s) => ({ ...s, broken: Boolean(s.broken) }));
+    expect(box[3]).toBe(denseHeight(stages));
     expect(container.querySelector('svg')!.getAttribute('class')).toContain('absolute inset-0');
   });
 
-  it('does not merge an empty loop: its outlined columns are the shape about to be filled', () => {
+  it('outlines all five columns of an empty loop: the shape about to be filled', () => {
     const empty = byHand({
       decisions: 0, offered: 0, deliverable: 0, measured: 0, acted: 0,
       channels: [], rows: [], series: [],
     });
     const { container } = flow(empty);
     expect(container.querySelectorAll('rect[data-part="stage-empty"]')).toHaveLength(5);
+  });
+});
+
+/**
+ * What the funnel shows, not only that it fits.
+ *
+ * Every version in the product owner's side-by-side of 2026-09-18 passed the
+ * Overview's fit check — including the one where the funnel had become a band
+ * with four names stacked over one bar. A fit check is satisfied by a drawing
+ * of any shape. These pin the shape: five columns at every volume, a bar of
+ * real height for every stage something reached, and nothing for a stage
+ * nothing reached.
+ */
+describe('what the funnel shows', () => {
+  const volumes: Record<string, LoopReport> = {
+    'two decisions': byHand({
+      decisions: 2, offered: 2, deliverable: 2, measured: 2, acted: 0,
+      channels: [{ channel: 'web', decisions: 2, offered: 2, deliverable: 2, seen: 2, acted: 0, delivers: true }],
+      series: [{ decisions: 2, offered: 2, deliverable: 2, seen: 2, acted: 0 }],
+    }),
+    'twelve decisions': byHand({
+      decisions: 12, offered: 8, deliverable: 8, measured: 8, acted: 2,
+      channels: [{ channel: 'web', decisions: 12, offered: 8, deliverable: 8, seen: 8, acted: 2, delivers: true }],
+      series: [{ decisions: 12, offered: 8, deliverable: 8, seen: 8, acted: 2 }],
+    }),
+    'the seeded corpus': byHand({
+      decisions: 10_400, offered: 4688, deliverable: 1686, measured: 1228, acted: 278,
+      channels: [
+        { channel: 'web', decisions: 1686, offered: 1686, deliverable: 1686, seen: 1228, acted: 278, delivers: true },
+        { channel: 'email', decisions: 8714, offered: 3002, deliverable: 0, seen: 0, acted: 0, delivers: false },
+      ],
+      series: [{ decisions: 10_400, offered: 4688, deliverable: 1686, seen: 1228, acted: 278 }],
+    }),
+  };
+
+  const draw = (data: LoopReport, dense: boolean) => {
+    const loop = buildLoop(data, MARGINS, F);
+    const { container } = render(
+      <StaticFormatProvider settings={SETTINGS}>
+        <LoopFlow
+          dense={dense}
+          accentStage={loop.accentStage}
+          stages={loop.stages.map((s) => ({ ...s, broken: Boolean(s.broken), tone: s.tone ?? 'neutral' }))}
+        />
+      </StaticFormatProvider>
+    );
+    return { loop, svg: container.querySelector('svg')! };
+  };
+
+  for (const [name, data] of Object.entries(volumes)) {
+    for (const dense of [false, true]) {
+      const where = dense ? 'on the Overview' : 'on /performance';
+
+      it(`draws five columns at ${name} ${where}, each naming one stage`, () => {
+        const { loop, svg } = draw(data, dense);
+        const columns = [...svg.querySelectorAll('g[data-part="column"]')];
+        expect(columns.map((g) => g.getAttribute('data-stage'))).toEqual(loop.stages.map((s) => s.id));
+        expect(columns).toHaveLength(5);
+        columns.forEach((g, i) => {
+          const texts = [...g.querySelectorAll('text')].map((t) => t.textContent);
+          // A figure and one name: no column carries two stages' names.
+          expect(texts).toEqual([F.number(loop.stages[i].value), loop.stages[i].label]);
+        });
+      });
+
+      it(`draws a bar for every stage something reached at ${name} ${where}, and nothing for one nothing did`, () => {
+        const { loop, svg } = draw(data, dense);
+        const band = dense ? LOOP_FLOW.denseBand : LOOP_FLOW.band;
+        const top = Math.max(...loop.stages.map((s) => s.value));
+        for (const s of loop.stages) {
+          const g = svg.querySelector(`g[data-stage="${s.id}"]`)!;
+          const bar = g.querySelector('rect[data-part="stage"]');
+          if (s.value === 0) {
+            // Nothing: no bar, no outline, and no band carrying nothing into it.
+            expect(g.querySelector('rect')).toBeNull();
+            continue;
+          }
+          const h = Number(bar!.getAttribute('height'));
+          // In proportion to the first stage, and never thinner than the
+          // scale's floor: a trickle is still visible.
+          expect(h).toBeCloseTo(Math.max(1.5, (s.value / top) * band), 5);
+          expect(h).toBeGreaterThanOrEqual(1.5);
+        }
+        // The first stage is the full band.
+        expect(Number(svg.querySelector('rect[data-part="stage"]')!.getAttribute('height'))).toBe(band);
+        const carries = svg.querySelectorAll('path[data-part="carry"]').length;
+        expect(carries).toBe(loop.stages.slice(1).filter((s) => s.value > 0).length);
+      });
+    }
+  }
+
+  it('keeps the Overview’s band in proportion to its width: a funnel, not a strip', () => {
+    // 96 against 1000 was the strip of 2026-09-17. `/performance` is 120 against
+    // 720; the Overview may be wider, not flatter than about two thirds of that.
+    expect(LOOP_FLOW.denseBand / LOOP_FLOW.denseWidth).toBeGreaterThanOrEqual(0.13);
+    expect(LOOP_FLOW.denseBand).toBeGreaterThanOrEqual(LOOP_FLOW.band);
+  });
+
+  it('reserves only the depth the deepest drop falls, and every drop fits in it', () => {
+    for (const data of Object.values(volumes)) {
+      const { svg } = draw(data, true);
+      const [, , , h] = svg.getAttribute('viewBox')!.split(' ').map(Number);
+      // Every drop's lowest point is inside the canvas.
+      for (const path of svg.querySelectorAll('path[data-part^="leave"]')) {
+        const ys = [...path.getAttribute('d')!.matchAll(/-?\d+(?:\.\d+)?/g)].map(Number).filter((_, i) => i % 2 === 1);
+        expect(Math.max(...ys)).toBeLessThanOrEqual(h);
+      }
+    }
+    // Twelve decisions lose at most half of the band at once, so the canvas is
+    // shorter than one reserved for losing all of it.
+    const { svg } = draw(volumes['twelve decisions'], true);
+    const [, , , h12] = svg.getAttribute('viewBox')!.split(' ').map(Number);
+    const { top, denseBand, denseDropGap, densePad } = LOOP_FLOW;
+    expect(h12).toBeLessThan(top + denseBand + denseDropGap + denseBand + densePad);
   });
 });

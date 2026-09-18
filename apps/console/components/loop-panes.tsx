@@ -204,8 +204,11 @@ export function LoopFirstPaint({
         the colour was not doing it.
       */}
       {/* Dense: the six cards share one row, which is what took 300px out of the
-          Overview's scroll. Three abreast on a laptop, six on a wide screen. */}
-      <div className={cn('mb-stack grid gap-3 sm:grid-cols-3', dense && 'xl:grid-cols-6')}>
+          Overview's scroll. Three abreast on a laptop, six on a wide screen.
+          Six columns only when there are six cards: with no trend cards the
+          three sat in half a row of six, wrapped every line, and stood 156px
+          tall at 1440x900 — height the funnel below needed (2026-09-18). */}
+      <div className={cn('mb-stack grid gap-3 sm:grid-cols-3', dense && trends.length > 0 && 'xl:grid-cols-6')}>
         <Card>
           <CardBody>
             <p className="text-label text-content-subtle">Realised value</p>
@@ -265,17 +268,23 @@ export function LoopFirstPaint({
           }
         />
         <CardBody className={cn(dense && 'relative min-h-0 flex-1')}>
-          <LoopFlow
-            stages={loop.stages.map((s) => ({
-              id: s.id,
-              label: s.label,
-              value: s.value,
-              broken: Boolean(s.broken),
-              // The rail's own tone for the stage, so the two are one object.
-              tone: s.tone ?? 'neutral',
-            }))}
-            dense={dense}
-          />
+          {/* Dense: the drawing sits inside the card's padding. Absolute, it
+              covered the padding too, and once it filled the card's width it
+              ran to the card's edges (2026-09-18). */}
+          <div className={cn(dense && 'absolute inset-card')}>
+            <LoopFlow
+              stages={loop.stages.map((s) => ({
+                id: s.id,
+                label: s.label,
+                value: s.value,
+                broken: Boolean(s.broken),
+                // The rail's own tone for the stage, so the two are one object.
+                tone: s.tone ?? 'neutral',
+              }))}
+              dense={dense}
+              accentStage={loop.accentStage}
+            />
+          </div>
         </CardBody>
       </Card>
 

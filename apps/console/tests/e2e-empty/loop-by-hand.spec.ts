@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, ACCOUNTS } from '../e2e/helpers';
+import { login, ACCOUNTS, expectFunnelShows } from '../e2e/helpers';
 
 /**
  * The whole loop, driven by hand, on a tenant that starts with no history.
@@ -62,8 +62,9 @@ test.describe.serial('a loop made by hand @screen-only', () => {
     await expect(deliverable(page)).toHaveAttribute('aria-label', /Nothing offered can drop here/);
     // Seen could have dropped and did not; it keeps its bar and says nothing extra.
     await expect(rail(page).getByRole('button', { name: /^Seen: / })).not.toHaveAttribute('aria-label', /can drop/);
-    // And the flow draws the equal stages as one column.
-    await expect(page.getByRole('img', { name: /^The loop as volume/ })).toHaveAttribute('aria-label', /drawn as one column/);
+    // And the flow still draws five columns: equal stages were merged into one
+    // until 2026-09-18, which is where the funnel disappeared at low volume.
+    await expect(page.getByRole('img', { name: /^The loop as volume/ }).locator('g[data-part="column"]')).toHaveCount(5);
   });
 
   test('asking for an email separates Deliverable from Offered, and the rail says where', async ({ page }) => {
@@ -138,6 +139,9 @@ test.describe.serial('a loop made by hand @screen-only', () => {
     await expect(rail(page)).toBeVisible();
     const wide = await geometry();
     expect(wide.overflow, `the Overview scrolls at 1440x900 by ${wide.overflow}px`).toBeLessThanOrEqual(0);
+    // Fitting is not enough: the funnel fitted on 2026-09-17 as a band, four
+    // names over one bar, and this test was green.
+    await expectFunnelShows(page, { tallest: 88 });
 
     await page.setViewportSize({ width: 1280, height: 720 });
     await expect(rail(page)).toBeVisible();
