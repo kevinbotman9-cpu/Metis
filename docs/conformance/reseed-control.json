@@ -1,0 +1,63 @@
+{
+  "$comment": "ADR-019 §9, amended 2026-09-18: what the reseed of ADR-019, ADR-020, ADR-021 §9 and ADR-022 must not move. Captured once, from the tree before the reseed, and never regenerated: a control rebuilt from the tree it checks checks nothing. Held by apps/console/tests/unit/reseed-control.test.ts.",
+  "capturedFrom": "04fcf18c2423cdd978e494e79db827c5098b0e9c",
+  "canonicalCorpus": {
+    "file": "docs/conformance/canonical-corpus.json",
+    "sha256OfLfText": "8052a2d93df483ee52985648b40da437715fc66937240b2a75a75e037ef0b7fb"
+  },
+  "decisionCorpus": {
+    "count": 45,
+    "inputSnapshotHash": {
+      "single candidate, no policies": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "scored and arbitrated": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "no score node: every term neutral except value and boost": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "approved default stands in for a missing score": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "an approved default is recorded even when nothing needed it": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "non-unit arbitration weights exercise pow": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "tie on priority breaks by the order the flow declared": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "a tie below the runner-up breaks by the order the flow declared": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "expected-value ranking function instead of multiplicative": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "relevance filter removes a candidate": "1507f0e43026165f54b2f00b683c6e640e3cda1df3f2d761f8794d97f5b88f5b",
+      "suitability constraint removes a candidate": "d3e2b965c447462c911026996fe1c627647f74ea435dcd4c10cc675c01008f72",
+      "eligibility filter removes a candidate": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "policy scoped to a category only applies to that category": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "missing field fails a numeric comparison rather than passing it": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "every comparison operator": "76ba7db6de00801343db3d1c472c701d6a95339964bf85d26abf8abf98cd9568",
+      "frequency policy breach suppresses": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "a decline inside the rest period suppresses that offer and no other": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "a decline older than the rest period does not suppress": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "a breached cap is reported ahead of an active cooldown": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "frequency policy scoped to a category leaves the rest alone": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "contacts read from the ledger add to the caller’s and breach the cap": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "a read that found no contacts is recorded, and nothing is suppressed": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "an unreadable contact history suppresses what a cap covers, and nothing else": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "a cap scoped to an offer counts the contacts about that offer, not the channel’s": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "withheld consent leaves only service-exempt scopes": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "absent consent is enforced as withheld and recorded as absent": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "a purpose left out of stated consent is absent, not granted": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "channel-specific frequency policy ignores other channels": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "boost resolves to the most specific scope": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "boost outside its validity window does not apply": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "retired and out-of-window candidates never enter": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "no candidates survive: no offer": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "connector provenance is recorded, not fetched": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "node visit order is topological with ties broken by id": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "an offer-scoped policy only binds where the candidate opted in": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "inactive policy is ignored": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "expectedMargin drives the value term, floored at 0.01": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "a connector supplies a value nested under the profile root": "68a8faea7723999e908c39802e40c2878ac6e48b52e6426152d0afd22531d3ca",
+      "a pinned schema is part of the decision": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "consent is applied to a flow with no constraint node": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "absent consent is applied to a flow with no constraint node": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "a constraint node after ranking does not stand in for consent": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "a condition compares each candidate with the customer, and splits the decision": "359e4ba74e9ee936fabeb506222ab59f6e1a3a42818fdd5aebd37fe8422c1e3d",
+      "a condition reads a field of the candidate against a literal": "98fc8092eb130611249f29c6be773d687b1cf5304cf7f0c7d2e6f71240941b46",
+      "a path value whose other side is missing fails closed": "e135bd1ac51f29b7d6185f4de0cee027922921adf274cefad7f4a5dd472df964"
+    }
+  },
+  "seeded": {
+    "count": 10400,
+    "$comment": "sha256 of every seeded decision’s inputSnapshotHash, in seed order, joined by a newline.",
+    "inputSnapshotHashDigest": "2376789fc05fc0c948d5201eb2e02dfe5769c6581c6fefe90a7e6588ec904f32"
+  }
+}
