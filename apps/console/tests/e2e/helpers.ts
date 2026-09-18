@@ -90,19 +90,19 @@ export async function openSeededDecision(page: Page): Promise<string> {
  * - a bar at least 2px tall for every stage with a figure above zero, and none
  *   for a stage at zero;
  * - the tallest bar at least 0.13 of the drawing's width: a funnel, not a strip.
- *   The band was 0.096 and this is 0.14, at any window size, because the
- *   drawing scales uniformly;
- * - the tallest bar at least `tallest` px, which catches a funnel of the right
- *   shape squeezed small.
+ *   The band was 0.096 and this is 0.14, at any window size and on any
+ *   platform, because the drawing scales uniformly.
  *
- * Both, because each misses what the other sees. Measured 2026-09-18, the band
- * drew 76px at 1440x900 on a tenant with no trend cards, 80px on one with them,
- * and 103px on the seeded tenant at 1680x1000; the funnel that replaced it draws
- * 116px, 92px and 131px. An 88px floor goes red on the band at 1440 and not at
- * 1680, where only the proportion does. The trend cards cost the difference at
- * 1440 — six to a row they stand 192px tall, and the funnel takes what is left.
+ * There was a pixel floor on the tallest bar as well, 88px, and it went on
+ * 2026-09-18 by the product owner's decision. It was measured on Windows (92px
+ * on the hand-made tenant at 1440x900) and asserted in CI on Linux, where the
+ * cards above the funnel set taller and the same page drew 83px. A threshold
+ * measured on one platform and asserted on another is the wrong shape of check
+ * (CLAUDE.md, Rule 10), and the proportion is what caught the band anyway, at
+ * both 1440 and 1680. The 2px floor stays: it is a visibility check, not a
+ * measurement.
  */
-export async function expectFunnelShows(page: Page, { tallest }: { tallest: number }) {
+export async function expectFunnelShows(page: Page) {
   const funnel = page.locator('svg[role="img"][aria-label^="The loop as volume"]');
   await expect(funnel).toBeVisible();
   // The drawing's width on screen: its viewBox width at the scale it is drawn.
@@ -146,7 +146,6 @@ export async function expectFunnelShows(page: Page, { tallest }: { tallest: numb
     top / drawnWidth,
     `the tallest bar is ${Math.round(top)}px across a ${Math.round(drawnWidth)}px drawing: a funnel, not a strip`
   ).toBeGreaterThanOrEqual(0.13);
-  expect(top, `the tallest bar is ${Math.round(top)}px: a funnel, not one squeezed small`).toBeGreaterThanOrEqual(tallest);
 }
 
 /** Restore seed data. The store is process-wide, so writes leak between specs. */

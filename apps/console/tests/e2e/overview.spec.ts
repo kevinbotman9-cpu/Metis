@@ -99,7 +99,7 @@ test.describe("the marketer's Overview is the loop @screen-only", () => {
     });
     expect(overflow, 'the Overview scrolls at 1680x1000').toBeLessThanOrEqual(0);
     // And fits as a funnel: the band of 2026-09-17 fitted too.
-    await expectFunnelShows(page, { tallest: 88 });
+    await expectFunnelShows(page);
   });
 
   test('has two panes, not three: no evidence column narrating the screen', async ({ page }) => {

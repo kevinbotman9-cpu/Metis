@@ -141,7 +141,7 @@ test.describe.serial('a loop made by hand @screen-only', () => {
     expect(wide.overflow, `the Overview scrolls at 1440x900 by ${wide.overflow}px`).toBeLessThanOrEqual(0);
     // Fitting is not enough: the funnel fitted on 2026-09-17 as a band, four
     // names over one bar, and this test was green.
-    await expectFunnelShows(page, { tallest: 88 });
+    await expectFunnelShows(page);
 
     await page.setViewportSize({ width: 1280, height: 720 });
     await expect(rail(page)).toBeVisible();
