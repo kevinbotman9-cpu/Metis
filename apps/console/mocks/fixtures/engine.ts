@@ -117,6 +117,14 @@ export const execArtifacts: ExecArtifact[] = artifacts.map(toExecArtifact);
 const T0 = Date.parse('2026-09-04T08:00:00Z');
 const DAY = 86_400_000;
 
+/**
+ * Every seeded decision happened before this instant, by construction:
+ * `occurredAt` sets a time of day on a date at or before T0's. A decision in a
+ * ledger at or after it was made by using the console — which is what
+ * `seed:ledger --reset` counts before it will destroy one.
+ */
+export const SEEDED_BEFORE = new Date(Math.floor(T0 / DAY) * DAY + DAY).toISOString();
+
 /** Two years of history, which is what the charts in the console spec show. */
 const HISTORY_DAYS = 730;
 

@@ -11,6 +11,12 @@
  *
  *   npm run seed:ledger -- --reset --tenant telco-us --by marcus.webb
  *
+ * A reset of a tenant holding decisions made by using the console — decided
+ * after the seeded corpus ends — refuses and says how many, because nothing can
+ * regenerate them. To go ahead, acknowledge the exact count:
+ *
+ *   npm run seed:ledger -- --reset --tenant telco-us --by marcus.webb --discard-made-by-hand 37
+ *
  * It is never an API operation. `POST /api/_test/reset` refuses a PostgreSQL
  * store and keeps refusing it: clearing a database from a test endpoint is not
  * a thing the console should be able to do.
@@ -23,6 +29,7 @@ import { DecisionLedger, PostgresLedgerStore, dataClassOf, runMigration } from '
 import { Governance, createGovernanceStore } from '@metis/governance';
 import { planSeed } from '../mocks/seed-plan';
 import { seedLedger } from '../mocks/seed-ledger';
+import { SEEDED_BEFORE } from '../mocks/fixtures/engine';
 
 function arg(name: string): string | undefined {
   const flag = `--${name}`;
@@ -50,6 +57,12 @@ async function main(): Promise<number> {
     console.error(`--count must be a whole number of decisions; got ${arg('count')}`);
     return 1;
   }
+  const discard = arg('discard-made-by-hand');
+  const discardMadeByHand = discard === undefined ? undefined : Number(discard);
+  if (discardMadeByHand !== undefined && (!Number.isInteger(discardMadeByHand) || discardMadeByHand < 1)) {
+    console.error(`--discard-made-by-hand must be the number of decisions to discard; got ${discard}`);
+    return 1;
+  }
 
   const pool = new Pool({ connectionString: url });
   try {
@@ -63,6 +76,8 @@ async function main(): Promise<number> {
     );
     const tenantsInLedger = rows.map((r) => r.tenant_id);
     const existingForTenant = tenant ? await ledger.count({ tenantId: tenant }) : 0;
+    // Decided after the seeded corpus ends: made by using the console.
+    const madeByHand = tenant ? await ledger.count({ tenantId: tenant, from: SEEDED_BEFORE }) : 0;
 
     const plan = planSeed({
       tenant,
@@ -71,6 +86,8 @@ async function main(): Promise<number> {
       dataClass: dataClassOf(process.env.METIS_DATA_CLASS),
       tenantsInLedger,
       existingForTenant,
+      madeByHand,
+      discardMadeByHand,
     });
 
     if (plan.kind === 'refuse') {

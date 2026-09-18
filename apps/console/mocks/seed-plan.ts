@@ -25,6 +25,17 @@ export interface SeedRequest {
   tenantsInLedger: readonly string[];
   /** How many decisions the named tenant already has. */
   existingForTenant: number;
+  /**
+   * How many of those were made by using the console: decided after the
+   * seeded corpus ends (`SEEDED_BEFORE`), so nothing can regenerate them.
+   */
+  madeByHand?: number;
+  /**
+   * The operator's acknowledgement, `--discard-made-by-hand <n>`. A reset of a
+   * tenant holding decisions made by hand goes ahead only when this is exactly
+   * that count — typed, not defaulted, so the number is read before it is lost.
+   */
+  discardMadeByHand?: number;
 }
 
 export type SeedPlan =
@@ -34,7 +45,8 @@ export type SeedPlan =
   | { kind: 'leave'; reason: string };
 
 export function planSeed(request: SeedRequest): SeedPlan {
-  const { tenant, reset, by, dataClass, tenantsInLedger, existingForTenant } = request;
+  const { tenant, reset, by, dataClass, tenantsInLedger, existingForTenant, madeByHand = 0, discardMadeByHand } =
+    request;
 
   if (!tenant) {
     return {
@@ -68,6 +80,26 @@ export function planSeed(request: SeedRequest): SeedPlan {
         reason:
           `The ledger also holds ${others.join(', ')}. A reset truncates the tables for every tenant, and the append-only triggers are never bypassed (ADR-004 clause 2), ` +
           'so there is no per-tenant delete. Use a database holding only this tenant.',
+      };
+    }
+
+    /**
+     * A history made by hand is not regenerable (ADR-019 §7, amended
+     * 2026-09-17). Every other refusal here protects a ledger that is real or
+     * shared; this one protects a synthetic ledger somebody spent an afternoon
+     * clicking into, which the reseed of ADR-019 is the first thing to ask to
+     * reset. Asked for by the product owner on 2026-09-18, before that reseed.
+     */
+    if (madeByHand > 0 && discardMadeByHand !== madeByHand) {
+      const them = madeByHand === 1 ? 'it' : 'them';
+      return {
+        kind: 'refuse',
+        reason:
+          `${tenant} holds ${madeByHand} decision${madeByHand === 1 ? '' : 's'} made by using the console, after the seeded corpus ends. ` +
+          `A reset destroys ${them} with everything joined to ${them}, and nothing can regenerate ${them}: the seed produces only its own history (ADR-019 §7). ` +
+          (discardMadeByHand === undefined
+            ? `To discard ${them}, repeat with --discard-made-by-hand ${madeByHand}.`
+            : `--discard-made-by-hand said ${discardMadeByHand}; it must be exactly ${madeByHand}, the count this ledger holds now.`),
       };
     }
 

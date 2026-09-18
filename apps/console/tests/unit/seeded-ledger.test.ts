@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { DecisionLedger, InMemoryLedgerStore, type OutcomeEvent } from '@metis/ledger';
 import { placements } from '@/mocks/fixtures/catalogue';
-import { executeAt, DECISION_COUNT } from '@/mocks/fixtures/engine';
+import { executeAt, DECISION_COUNT, SEEDED_BEFORE } from '@/mocks/fixtures/engine';
 import { rowOf } from '@/mocks/seed-ledger';
 import { outcomesFor, deliversOnChannel } from '@/mocks/fixtures/synthetic-customers';
 import { deliveryFor } from '@/mocks/delivery-state';
@@ -87,6 +87,17 @@ describe('the seeded decisions are the generator’s decisions', () => {
   it('holds every decision the generator produced, and nothing else', () => {
     expect(history.entries.length).toBe(DECISION_COUNT);
     expect(new Set(history.entries.map((e) => e.decisionId))).toEqual(new Set(generated.map((d) => d.id)));
+  });
+
+  it('decided every one before SEEDED_BEFORE, which is how a reset tells them from decisions made by hand', () => {
+    // `seed:ledger --reset` counts decisions at or after this instant as made
+    // by using the console, and refuses to destroy them unacknowledged. A seeded
+    // decision on the wrong side would be counted as one — or, with the instant
+    // set too late, a decision made by hand would not be.
+    const latest = history.entries.reduce((m, e) => (e.occurredAt > m ? e.occurredAt : m), '');
+    expect(latest < SEEDED_BEFORE, `the latest seeded decision is ${latest}`).toBe(true);
+    // Tight, not merely true: the corpus ends on the day before it.
+    expect(Date.parse(SEEDED_BEFORE) - Date.parse(latest)).toBeLessThan(86_400_000);
   });
 
   it('agrees with the generator on every field a screen reads, chain hash included, for every decision', () => {

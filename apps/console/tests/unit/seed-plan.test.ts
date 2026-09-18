@@ -69,3 +69,48 @@ describe('what it refuses', () => {
     expect(reason).toMatch(/append-only triggers are never bypassed/);
   });
 });
+
+/**
+ * A history made by hand is not regenerable (ADR-019 §7, amended 2026-09-17).
+ *
+ * The product owner's durable console holds decisions somebody made by clicking
+ * through the storefront, and ADR-019's reseed is the first thing that will ask
+ * for a reset. Every refusal above protects a ledger that is real or shared;
+ * this one protects a synthetic ledger that cannot be made again. Asked for on
+ * 2026-09-18, before the reseed.
+ */
+describe('a reset of decisions made by hand', () => {
+  const reset = { ...base, reset: true, by: 'marcus.webb', existingForTenant: 10_437 };
+
+  it('refuses, says how many would go, and says how to discard them', () => {
+    const plan = planSeed({ ...reset, madeByHand: 37 });
+    expect(plan.kind).toBe('refuse');
+    const reason = (plan as { reason: string }).reason;
+    expect(reason).toMatch(/holds 37 decisions made by using the console/);
+    expect(reason).toMatch(/nothing can regenerate them/);
+    expect(reason).toMatch(/--discard-made-by-hand 37\b/);
+  });
+
+  it('refuses a count that is not exactly the one the ledger holds', () => {
+    // A number typed from memory, or from yesterday, is not an acknowledgement
+    // of what is about to be lost.
+    const plan = planSeed({ ...reset, madeByHand: 37, discardMadeByHand: 36 });
+    expect(plan.kind).toBe('refuse');
+    expect((plan as { reason: string }).reason).toMatch(/said 36; it must be exactly 37/);
+    expect(planSeed({ ...reset, madeByHand: 37, discardMadeByHand: 38 }).kind).toBe('refuse');
+  });
+
+  it('resets when the exact count is acknowledged', () => {
+    expect(planSeed({ ...reset, madeByHand: 37, discardMadeByHand: 37 })).toEqual({ kind: 'reset-and-seed' });
+  });
+
+  it('asks nothing of a ledger holding only the seeded history', () => {
+    expect(planSeed({ ...reset, madeByHand: 0 })).toEqual({ kind: 'reset-and-seed' });
+  });
+
+  it('still refuses first for a real ledger or a second tenant, whatever is acknowledged', () => {
+    expect(planSeed({ ...reset, madeByHand: 1, discardMadeByHand: 1, dataClass: 'real' }).kind).toBe('refuse');
+    const shared = planSeed({ ...reset, madeByHand: 1, discardMadeByHand: 1, tenantsInLedger: ['telco-us', 'telco-uk'] });
+    expect((shared as { reason: string }).reason).toMatch(/also holds telco-uk/);
+  });
+});
