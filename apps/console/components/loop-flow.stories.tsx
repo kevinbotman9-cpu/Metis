@@ -10,8 +10,9 @@ import { LoopFlow } from './loop-flow';
  * no sender. Drawn with the geometry the canvas's volume overlay uses.
  *
  * A figure, not a control — the rail beside it on `/performance` is what
- * selects a stage. See **Every stage equal**, which is the shape when nothing
- * leaves: one column naming every stage, and nothing falling away.
+ * selects a stage. Five columns in every story: equal stages were merged into
+ * one column from 2026-09-17 to 2026-09-18, and at low volume that made the
+ * funnel disappear.
  */
 
 const meta: Meta<typeof LoopFlow> = {
@@ -67,11 +68,10 @@ export const NothingBroken: Story = {
 };
 
 /**
- * Nothing leaves between any pair, so there is one column carrying all five
- * names and no wedge at all. Before equal runs were merged (2026-09-17) this
- * drew five full columns joined by four full bands; it was kept as a story then
- * because a diagram rendering a zero-height quadrilateral would put four faint
- * slivers and four `−0` labels on a perfect funnel, and that still cannot happen.
+ * Nothing leaves between any pair: five full columns joined by four full bands,
+ * and no wedge at all. Kept as a story because a diagram rendering a
+ * zero-height quadrilateral would put four faint slivers and four `−0` labels on
+ * a perfect funnel.
  */
 export const EveryStageEqual: Story = {
   args: {
@@ -105,8 +105,8 @@ export const Empty: Story = {
 };
 
 /**
- * A loop made by hand. Four stages at 26 are one column carrying all four
- * names, and the only transition drawn is the one where volume left.
+ * A loop made by hand. Four stages at 26 and the only drop is at Acted on — five
+ * columns still, because a stage's place in the line is what names it.
  */
 export const ByHand: Story = {
   args: {
@@ -118,5 +118,48 @@ export const ByHand: Story = {
       stage('acted', 'Acted on', 1),
     ],
   },
-  name: 'By hand — equal stages drawn as one column',
+  name: 'By hand — equal stages, five columns',
+};
+
+/**
+ * The Overview's shape at two decisions, in a box the size of its card at
+ * 1440x900. Acted on is zero: a figure and no bar, and no band into it. The
+ * drop is too small to carry the accent (`LOSES_MOST_FLOOR`), so none is drawn.
+ */
+export const OverviewTwoDecisions: Story = {
+  args: {
+    dense: true,
+    stages: [
+      stage('decisions', 'Decisions made', 2),
+      stage('offered', 'Offered something', 2),
+      stage('deliverable', 'Deliverable', 2),
+      stage('seen', 'Seen', 2),
+      stage('acted', 'Acted on', 0),
+    ],
+  },
+  decorators: [
+    (Story) => (
+      <div className="relative h-[290px] w-[858px]">
+        <Story />
+      </div>
+    ),
+  ],
+  name: 'Overview — two decisions, nothing acted on',
+};
+
+/** The Overview's shape at the seeded corpus, with the largest drop accented. */
+export const OverviewSeeded: Story = {
+  args: {
+    dense: true,
+    accentStage: 'offered',
+    stages: TheSeededLoop.args!.stages,
+  },
+  decorators: [
+    (Story) => (
+      <div className="relative h-[290px] w-[858px]">
+        <Story />
+      </div>
+    ),
+  ],
+  name: 'Overview — the seeded loop',
 };

@@ -47,7 +47,7 @@ describe('the line under realised value', () => {
   it('says the figure is thin below the floor, with a spread computed from the count', () => {
     const line = buildLoop(report(24), MARGINS, F).realisedLine;
     expect(line).toBe(
-      'from 24 valued outcomes, of 278 acted on — too few to read as a return: a count this small moves by about 20% with no change in behaviour'
+      'from 24 valued outcomes, of 278 acted on — too few to read as a return: a count this small swings about 20%'
     );
     // 1/√n, not a figure written into a sentence: 25 gives 20%, 4 gives 50%.
     expect(buildLoop(report(4), MARGINS, F).realisedLine).toMatch(/about 50%/);
@@ -69,18 +69,6 @@ describe('the line under realised value', () => {
 });
 
 describe('the accent', () => {
-  it('is held at the floor and above, and never below it', () => {
-    expect(buildLoop(report(REALISED_FLOOR - 1), MARGINS, F).realisedAccent).toBe(false);
-    expect(buildLoop(report(REALISED_FLOOR), MARGINS, F).realisedAccent).toBe(true);
-  });
-
-  it('is on no figure at all when nothing carried a value', () => {
-    const none = report(0, {
-      rows: [{ action: 'fios_gigabit', channel: 'web', flowId: 'next-best-action', offered: 600, measured: 400, valueMinor: null }],
-    });
-    expect(buildLoop(none, MARGINS, F).realisedAccent).toBe(false);
-  });
-
   const paint = (valued: number) => {
     const data = report(valued);
     return render(
@@ -90,18 +78,74 @@ describe('the accent', () => {
     );
   };
 
-  it('draws the figure plain below the floor, and nothing else on the first paint takes the accent', () => {
-    const { container } = paint(24);
+  it('never takes the page’s accent, at any count (ADR-023 §3, amended)', () => {
+    // It held the accent for a few hours on 2026-09-17. The figure is a dash
+    // whenever nothing carried a value and plain below the floor, so the page
+    // had no visible accent at all; it is on the funnel's largest drop now.
+    for (const valued of [24, REALISED_FLOOR, REALISED_FLOOR * 3]) {
+      const { container, unmount } = paint(valued);
+      expect(container.querySelectorAll('.text-accent')).toHaveLength(0);
+      expect(container.querySelectorAll('.bg-accent-subtle')).toHaveLength(0);
+      unmount();
+    }
+  });
+
+  it('stands the per-day cards down until there is a trend to draw', () => {
+    // One day is not a trend: the sparkline says "one day so far" and the
+    // figures repeat the rail. Same rule as the pass-through stage — a card that
+    // cannot say anything does not pretend to (product owner, 2026-09-17).
+    const oneDay = report(2, { series: [{ decisions: 12, offered: 8, deliverable: 8, seen: 8, acted: 2 }] });
+    const { unmount } = render(
+      <StaticFormatProvider settings={SETTINGS}>
+        <LoopFirstPaint data={oneDay} loop={buildLoop(oneDay, MARGINS, F)} dense />
+      </StaticFormatProvider>
+    );
+    expect(screen.queryByText('Decisions per day')).toBeNull();
+    expect(screen.queryByText('Deliverable share')).toBeNull();
+    expect(screen.queryByText(/one day so far/)).toBeNull();
+    // The value cards stay: they are not trends.
+    expect(screen.getByText('Realised value')).toBeTruthy();
+    unmount();
+
+    const twoDays = report(2, {
+      series: [
+        { decisions: 6, offered: 4, deliverable: 4, seen: 4, acted: 1 },
+        { decisions: 6, offered: 4, deliverable: 4, seen: 4, acted: 1 },
+      ],
+    });
+    render(
+      <StaticFormatProvider settings={SETTINGS}>
+        <LoopFirstPaint data={twoDays} loop={buildLoop(twoDays, MARGINS, F)} dense />
+      </StaticFormatProvider>
+    );
+    expect(screen.getByText('Decisions per day')).toBeTruthy();
+  });
+
+  it('says nothing was undeliverable as a result, not as "over the 0"', () => {
+    // The dense shortening made this "the same ceiling over the 0 nothing sent".
+    const whole = report(2, {
+      offered: 600,
+      deliverable: 600,
+      channels: [{ channel: 'web', decisions: 1000, offered: 600, deliverable: 600, seen: 400, acted: 278, delivers: true }],
+    });
+    render(
+      <StaticFormatProvider settings={SETTINGS}>
+        <LoopFirstPaint data={whole} loop={buildLoop(whole, MARGINS, F)} dense />
+      </StaticFormatProvider>
+    );
+    expect(screen.getByText('every offer had a channel that could send it')).toBeTruthy();
+    expect(screen.queryByText(/over the 0/)).toBeNull();
+  });
+
+  it('draws the figure plain below the floor, and says it is thin', () => {
+    paint(24);
     expect(screen.getByText('$2,279.09')).toBeTruthy();
-    expect(container.querySelectorAll('.text-accent')).toHaveLength(0);
-    expect(container.querySelectorAll('.bg-accent-subtle')).toHaveLength(0);
     expect(screen.getByText(/too few to read as a return/)).toBeTruthy();
   });
 
-  it('draws the figure in the accent at the floor', () => {
-    const { container } = paint(REALISED_FLOOR);
-    const accented = container.querySelectorAll('.text-accent');
-    expect(accented).toHaveLength(1);
-    expect(accented[0].textContent).toBe('$2,279.09');
+  it('says nothing about thinness at or above the floor', () => {
+    paint(REALISED_FLOOR);
+    expect(screen.getByText('from 100 valued outcomes, of 278 acted on')).toBeTruthy();
+    expect(screen.queryByText(/too few to read as a return/)).toBeNull();
   });
 });

@@ -95,13 +95,14 @@ export interface Loop {
    * measured amount at the volume where someone is checking by hand.
    */
   realisedLine: string;
-  /**
-   * Whether realised value carries the page's one accent. Only at or above
-   * `REALISED_FLOOR` (ADR-023 §3). Below it, nothing on the page takes the
-   * accent: moving it to a steadier figure would make "the accented figure" mean
-   * different things on different tenants.
+  /*
+   * `realisedAccent` was here from 2026-09-17 until later the same day: whether
+   * realised value carried the page's one accent, at or above `REALISED_FLOOR`.
+   * It is gone with the accent (ADR-023 §3, amended) — the figure is a dash
+   * whenever nothing carried a value and plain below the floor, so the accent
+   * was invisible on every tenant that exists. It is on the funnel's largest
+   * drop instead, which `LoopFlow` decides from the stages it is given.
    */
-  realisedAccent: boolean;
   /**
    * Expected margin × offers, over the delivered channels.
    *
@@ -147,6 +148,39 @@ export interface Loop {
    * was only on the policy funnel.
    */
   offeredNothing: string | null;
+  /**
+   * The stage whose incoming drop carries the page's one accent, or null.
+   *
+   * The largest drop that is not the break (ADR-023 §3, amended) — held to the
+   * same two guards "where it loses most" is held to, because both answer "where
+   * did the volume go?" and one screen must not answer it twice by different
+   * rules:
+   *
+   * - **The floor.** A drop from fewer than `LOSES_MOST_FLOOR` is not named. At
+   *   two decisions every drop is all or nothing.
+   * - **Unreported is not lost.** A stage no channel has reported anything for
+   *   has not lost anything; it has not been told.
+   *
+   * The first version picked the largest wedge in the drawing and nothing else,
+   * and on a two-decision tenant with no click it accented "−2" at Acted on —
+   * the one drop the loop's own rules refuse to call a loss (2026-09-18).
+   */
+  accentStage: 'offered' | 'seen' | 'acted' | null;
+}
+
+/** See `Loop.accentStage`. Deliverable is never a candidate: it is whole or the break. */
+function accentStageOf(data: LoopReport, deliverable: number): Loop['accentStage'] {
+  const candidates = [
+    { stage: 'offered' as const, above: data.decisions, lost: data.decisions - data.offered, unreported: false },
+    { stage: 'seen' as const, above: deliverable, lost: deliverable - data.measured, unreported: data.measured === 0 },
+    {
+      stage: 'acted' as const,
+      above: data.measured,
+      lost: data.measured - data.acted,
+      unreported: data.measured === 0 || data.acted === 0,
+    },
+  ].filter((c) => c.above >= LOSES_MOST_FLOOR && c.lost > 0 && !c.unreported);
+  return candidates.sort((a, b) => b.lost - a.lost)[0]?.stage ?? null;
 }
 
 /** Below this many at the stage above, a share is not named as the largest loss. */
@@ -174,8 +208,10 @@ function realisedLineOf(data: LoopReport, realised: number | null, format: Forma
   const head = `from ${format.number(valued)} valued ${valued === 1 ? 'outcome' : 'outcomes'}, of ${acted} acted on`;
   if (valued >= REALISED_FLOOR) return head;
   // Computed, not written: a count this small moves by about 1/√n on its own.
+  // Two clauses, not three — the third ("with no change in behaviour") took the
+  // card to five wrapped lines on the Overview, which is 18px of the page's fit.
   const spread = format.number(1 / Math.sqrt(Math.max(1, valued)), { style: 'percent', maximumFractionDigits: 0 });
-  return `${head} — too few to read as a return: a count this small moves by about ${spread} with no change in behaviour`;
+  return `${head} — too few to read as a return: a count this small swings about ${spread}`;
 }
 
 export type LosesMost =
@@ -292,7 +328,11 @@ export function buildLoop(
   const offeringNames = data.channels.filter((c) => c.offered > 0).map((c) => channelLabel(c.channel));
   const passThrough =
     data.deliverable !== null && data.deliverable !== undefined && data.offered > 0 && undeliverable === 0
-      ? `Nothing offered can drop here: every channel that offered something delivers it (${offeringNames.join(', ')}). It drops only when an offer wins a slot on a channel with no sender.`
+      // One sentence. It carried a second — "It drops only when an offer wins a
+      // slot on a channel with no sender" — which explained the mechanism to
+      // somebody reading their own numbers, and made this the tallest block in
+      // the rail (four lines at low volume).
+      ? `Nothing offered can drop here: every channel that offered something delivers it (${offeringNames.join(', ')}).`
       : undefined;
 
   const offeredNothing = offeredNothingSentence(data, format);
@@ -337,9 +377,11 @@ export function buildLoop(
       tone: 'accent',
       broken:
         undeliverable > 0
-          ? `${format.number(undeliverable)} decisions won a slot on a channel nothing delivers — ${dead
+          ? // "They were decided correctly and reached nobody" said the first
+            // sentence again, one clause shorter.
+            `${format.number(undeliverable)} decisions won a slot on a channel nothing delivers — ${dead
               .map((c) => channelLabel(c.channel))
-              .join(', ')}. They were decided correctly and reached nobody.`
+              .join(', ')}. Decided correctly, reached nobody.`
           : undefined,
       passThrough,
     },
@@ -386,11 +428,11 @@ export function buildLoop(
     closure,
     realised,
     realisedLine: realisedLineOf(data, realised, format),
-    realisedAccent: realised !== null && (data.valued ?? 0) >= REALISED_FLOOR,
     expectedDelivered: ceiling(data.rows.filter(delivers)),
     expectedUndelivered: ceiling(data.rows.filter((r) => !delivers(r))),
     inversions,
     losesMost: losesMostOf(data, deliverable, format),
     offeredNothing,
+    accentStage: accentStageOf(data, deliverable),
   };
 }

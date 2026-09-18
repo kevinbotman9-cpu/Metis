@@ -6,9 +6,14 @@
 **Deciders:** Product owner
 **Owner:** Product owner
 **Accepted as proposed**, with a floor of 100. One wording change on building
-it: the thin-figure sentence reads *"a count this small moves by about 20% with
-no change in behaviour"*, not *"a regeneration could move this by a fifth"*. A
-real tenant is never regenerated, and the count's spread is true of it anyway.
+it: the thin-figure sentence reads *"too few to read as a return: a count this
+small swings about 20%"*, not *"a regeneration could move this by a fifth"*. A
+real tenant is never regenerated, the count's spread is true of it anyway, and
+the shorter sentence is 18px of the Overview's fit — a third clause took the
+card to five wrapped lines.
+**Amended the same day:** §3. The accent left this card for the funnel's largest
+drop, because on every tenant that exists the figure is a dash or below the
+floor, so the accent was never actually drawn.
 **Decision needed by:** — decided. Built before ADR-019's reseed, which re-rolls
 every outcome draw, so the screens say how far to trust the figure before it
 moves again.
@@ -82,9 +87,9 @@ and the acted-on count beside it: *"from 24 valued outcomes, of 278 acted on"*.
 ### 2. A floor, below which the figure is shown and said to be thin — not hidden
 
 **`REALISED_FLOOR = 100` valued decisions.** Below it the figure is still drawn,
-and the card says so beneath it: *"24 valued outcomes — too few to read as a
-return; a regeneration could move this by a fifth."* The fraction in that sentence
-is not written by hand: it is 1/√n, rounded, from the same count.
+and the card says so beneath it: *"from 24 valued outcomes, of 278 acted on —
+too few to read as a return: a count this small swings about 20%."* The fraction
+in that sentence is not written by hand: it is 1/√n, rounded, from the same count.
 
 - **Not hidden, because it is not an estimate.** A realised value is the sum of
   what was reported — on a real tenant, money a channel said it made. Replacing
@@ -103,20 +108,43 @@ is not written by hand: it is 1/√n, rounded, from the same count.
   a different tolerance, and the sentence and the accent both follow whatever
   number is chosen.
 
-### 3. The accent follows the floor, and does not move
+### 3. The accent is on the funnel's largest drop, not on this card
 
-**At or above the floor the card keeps the accent. Below it the card is drawn in
-the content colour, and nothing else on the page takes the accent.**
+*Amended 2026-09-17, the day this ADR was accepted, by the product owner: "the
+largest drop … realised value is a dash too often to carry an accent."*
 
-- The accent says "this is the figure to read first". Below the floor that is
-  the one thing the figure cannot support, and it is the least stable figure on
-  the page by three times (Context).
-- **The accent does not move to a stable figure instead.** If it went to "acted
-  on" on a thin tenant and to realised value on a full one, "the accented figure"
-  would mean different things on different tenants, and a reader who learned the
-  screen on one would misread it on the other. A page with no focal figure is an
-  honest statement that the loop has not produced one yet.
-- The existing rule stands: one accent on the page, on one figure, or none.
+**The page's one accent marks the largest drop in the funnel that is not the
+break. Realised value carries no accent at any count.**
+
+- **What the first version said, and why it failed.** *"At or above the floor
+  the card keeps the accent; below it the card is plain and nothing else takes
+  it."* On every tenant that exists the figure is either a dash — nothing
+  carried a value — or below the floor of 100, so the accent was never drawn.
+  A rule whose effect is "no accent, ever" is not a rule about emphasis.
+- **Why the largest drop earns it.** It is present whenever anything has been
+  decided, it is the loss a person can act on, and it is what the evidence pane
+  said in a sentence before that pane came off the Overview — so the colour
+  replaces prose rather than decorating a figure.
+- **The break keeps its own colour** and never takes the accent: a structural
+  loss and the largest behavioural one are different findings, and the block
+  colour already means the first.
+- **Not "acted on"**, the other candidate. Rendered on the seeded tenant it puts
+  the accent on a four-pixel sliver: 278 of 10,400 at one scale is a hairline,
+  so the stage the loop exists to produce would carry the least visible mark on
+  the page.
+- The rule that stands: one accent on the page, and it is not on a figure that
+  is usually absent.
+- **The floor stays**, doing the job it is good at: above it the figure can be
+  read as a return, below it the line says it cannot (§2).
+- **The drop follows the loop's own guards** (amended 2026-09-18, by the product
+  owner). The first build let the drawing pick the largest drop for itself, and
+  accented "−2" at Acted on for a two-decision tenant nobody had clicked on. A
+  drop is a candidate only from a stage of at least `LOSES_MOST_FLOOR` (20)
+  decisions, and never into a stage no channel reported — the same two rules
+  "where it loses most" follows. Below them there is no accent, which is the
+  honest reading: nothing yet is a loss. "Present whenever anything has been
+  decided", above, holds from twenty decisions with outcomes reported.
+  `Loop.accentStage` makes the choice; `LoopFlow` only draws it.
 
 ## Consequences
 

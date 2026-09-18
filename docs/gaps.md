@@ -619,8 +619,10 @@ has not been re-measured:
   draws the break naming Email.
 - **The loop at this volume.** A stage that cannot drop — Deliverable, when every
   channel that offered something delivers it — is drawn as a pass-through that
-  says why; the flow diagram draws a run of equal stages as one column; and
-  "where it loses most" does not count an unreported stage as a loss (#112).
+  says why; the flow diagram draws five columns at every volume, a stage at
+  zero drawing no bar; and "where it loses most" does not count an unreported
+  stage as a loss (#112). Equal stages were drawn as one column from #112 until
+  2026-09-18, and removed: at two decisions it stacked four names over one bar.
 
 `tests/e2e-empty/loop-by-hand.spec.ts` drives the last three from the
 storefront on an empty tenant and reads them on `/performance`. The six-pass
