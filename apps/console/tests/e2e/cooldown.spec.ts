@@ -22,6 +22,21 @@ const STOREFRONT = '/storefront/index.html';
 const heroOffer = (page: import('@playwright/test').Page) =>
   page.locator('#slot-homepage_hero .decline').first();
 
+/**
+ * The key of the offer the hero shows now, or "nothing offered" — read without
+ * waiting. `getAttribute` waits for its element, so reading a hero that shows
+ * nothing blocked until the poll around it gave up, and the poll's message said
+ * the declined offer "came back" when the hero was empty. Nothing offered is
+ * one of the two answers this spec accepts. It failed CI twice on 2026-09-19:
+ * after a decline, the hero and the grid re-decide for the day's last slot in
+ * arrival order (ADR-021 §10), and when the grid took it the hero was capped.
+ */
+async function heroOfferKey(page: import('@playwright/test').Page): Promise<string> {
+  const button = page.locator('#slot-homepage_hero .decline');
+  if ((await button.count()) === 0) return 'nothing offered';
+  return (await button.first().getAttribute('data-offer-key', { timeout: 1000 }).catch(() => null)) ?? 'nothing offered';
+}
+
 test.describe('@screen-only a declined offer stops being offered', () => {
   test('declining the hero offer replaces it, and clearing brings it back', async ({ page }) => {
     // A day of its own, for the reason `brief-scenarios.spec.ts` gives: the
@@ -44,9 +59,7 @@ test.describe('@screen-only a declined offer stops being offered', () => {
     // not happen is the same offer coming back.
     await expect
       .poll(
-        async () =>
-          (await page.locator('#slot-homepage_hero .decline').first().getAttribute('data-offer-key').catch(() => null)) ??
-          'nothing offered',
+        () => heroOfferKey(page),
         { message: `${declined} was declined and came back` }
       )
       .not.toBe(declined);
@@ -66,9 +79,7 @@ test.describe('@screen-only a declined offer stops being offered', () => {
     await expect(page.locator('#visit-note')).toContainText('211 days ahead');
     await expect
       .poll(
-        async () =>
-          (await page.locator('#slot-homepage_hero .decline').first().getAttribute('data-offer-key').catch(() => null)) ??
-          'nothing offered',
+        () => heroOfferKey(page),
         { message: `${declined} came back a day later, inside its rest period` }
       )
       .not.toBe(declined);
@@ -76,9 +87,7 @@ test.describe('@screen-only a declined offer stops being offered', () => {
     await page.getByRole('button', { name: 'Clear declines', exact: true }).click();
     await expect
       .poll(
-        async () =>
-          (await page.locator('#slot-homepage_hero .decline').first().getAttribute('data-offer-key').catch(() => null)) ??
-          'nothing offered',
+        () => heroOfferKey(page),
         { message: `${declined} did not return after the decline was cleared` }
       )
       .toBe(declined);
