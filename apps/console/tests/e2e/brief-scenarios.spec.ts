@@ -115,6 +115,19 @@ async function choose(page: Page, label: string) {
       .locator('dl.facts dt:text-is("decision") + dd')
       .textContent()
       .catch(() => null);
+  // Spend the day's last web slot on what is already showing before choosing.
+  // The load decided the hero and the grid, two of the day's three; the choice
+  // below re-decides both, and whichever reaches the platform first takes the
+  // third (ADR-021 §10: one decision per customer at a time, in arrival
+  // order). When that was the grid, it showed the chosen scenario's offers a
+  // day early — and Disney+, capped at one a week on the web since the reseed
+  // (ADR-021 §9), was then held back on the day this test reads. That failed
+  // CI on 2026-09-19, one run in several. Deciding the preset already shown
+  // takes the slot with an offer set that has no Disney+ in it, so the choice
+  // lands fully capped and the next day is the chosen preset's first.
+  const spent = await decisionId();
+  await page.getByRole('button', { name: 'Decide again', exact: true }).click();
+  await expect.poll(decisionId, { message: 'Decide again did not re-decide' }).not.toBe(spent);
   const before = await decisionId();
 
   await page.locator('#preset').selectOption({ label });
@@ -127,6 +140,17 @@ async function choose(page: Page, label: string) {
     page.locator('#decisions details.decision', { hasText: 'homepage_grid' }).first()
   ).toBeVisible();
   await expect.poll(decisionId, { message: 'the grid never re-decided' }).not.toBe(before);
+
+  // The assumption the next day's read rests on, asserted rather than trusted:
+  // the choice landed on a spent day, so neither placement showed anything.
+  // Without the Decide again above, one of the two always takes the day's
+  // third slot, and this fails on every run rather than one run in several.
+  for (const placement of ['homepage_hero', 'homepage_grid']) {
+    await expect(
+      page.locator('#decisions details.decision', { hasText: placement }).first().locator('summary'),
+      `${placement} showed an offer on the day the choice was made, so the chosen scenario was contacted a day early`
+    ).toContainText('nothing offered');
+  }
 
   // Then a day on, and read that. A home-page load decides the hero and the
   // grid, and the grid's read already counts the hero, so a day holds one
