@@ -12,6 +12,7 @@
     "@metis/catalogue": "*",
     "@metis/core": "*",
     "@metis/governance": "*",
+    "@metis/keys": "*",
     "@metis/ledger": "*",
     "@metis/registry": "*",
     "@metis/runtime": "*"

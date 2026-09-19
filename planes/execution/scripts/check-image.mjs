@@ -86,11 +86,20 @@ async function main() {
   }
   console.log(`refused to start against an unmigrated database: ${refusal.trim().split('\n').pop()}`);
 
+  // Every store the first run migrated must be named again by the second, as
+  // having nothing to apply. Compared by name, not by a count: a count pinned
+  // here broke the day a fifth store was added (the key store, ADR-025), and
+  // would have passed a second run that named a different store twice.
   const first = migrationJob('against an empty database');
-  if (!/applied/.test(first)) throw new Error('the first migration job applied nothing to an empty database');
+  const migrated = [...first.matchAll(/^(\w+): applied /gm)].map((m) => m[1]);
+  if (migrated.length === 0) throw new Error('the first migration job applied nothing to an empty database');
   const second = migrationJob('again, which must change nothing');
-  if (/applied /.test(second) || (second.match(/nothing to apply/g) ?? []).length !== 4) {
-    throw new Error('the second migration job was not a no-op for all four stores');
+  const unchanged = [...second.matchAll(/^(\w+): at version \d+; nothing to apply$/gm)].map((m) => m[1]);
+  if (/applied /.test(second) || unchanged.join(',') !== migrated.join(',')) {
+    throw new Error(
+      `the second migration job was not a no-op for every store: the first migrated ${migrated.join(', ')}; ` +
+        `the second left unchanged ${unchanged.join(', ') || 'none'}`
+    );
   }
 
   // Seeded after the job and in verify mode, so the seed proves the schema is

@@ -1,5 +1,6 @@
 import { runMigration as catalogue } from '@metis/catalogue';
 import { runMigration as governance } from '@metis/governance';
+import { runMigration as keys } from '@metis/keys';
 import { runMigration as ledger } from '@metis/ledger';
 import { runMigration as registry } from '@metis/registry';
 import { MigrationError, type Connectable, type MigrateResult } from '@metis/core/migrate';
@@ -29,6 +30,7 @@ type Store = { name: string; run: (pool: Connectable) => Promise<MigrateResult> 
 export const STORES: readonly Store[] = [
   { name: 'catalogue', run: (pool) => catalogue(pool) },
   { name: 'governance', run: (pool) => governance(pool) },
+  { name: 'keys', run: (pool) => keys(pool) },
   { name: 'ledger', run: (pool) => ledger(pool) },
   { name: 'registry', run: (pool) => registry(pool) },
 ];
