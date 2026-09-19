@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { execute, orderCandidates } from '../src/deterministic/engine';
 import type { ExecArtifact, CatalogueSnapshot, DecisionRequest } from '../src/deterministic/types';
+import { withGeneratedActions } from '@metis/core/domain';
 
 /**
  * What decides a tie at equal priority — ADR-019 §8.
@@ -55,14 +56,14 @@ const ARBITRATION = {
 };
 
 const catalogue = (keys: string[]): CatalogueSnapshot =>
-  ({
-    offers: keys.map(twin),
+  (withGeneratedActions({
+    offers: keys.map(twin) as unknown as CatalogueSnapshot['offers'],
     targetingPolicies: [],
     frequencyPolicies: [],
     boosts: [],
     connectors: [],
     arbitration: ARBITRATION,
-  }) as unknown as CatalogueSnapshot;
+  })) as unknown as CatalogueSnapshot;
 
 const artifact = (candidateKeys: string[]): ExecArtifact =>
   ({

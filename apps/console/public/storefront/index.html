@@ -706,6 +706,163 @@ const PRESETS = [
   },
 ];
 
+/**
+ * Six more customers, each a different person with an id of their own
+ * (decided by the product owner on 2026-09-18).
+ *
+ * The brief is Eva, and her three presets above stay one person on purpose. But
+ * one person is one set of contacts: the web cap of three decisioned slots a day
+ * was spent by her first page load, and a session driven through her alone was
+ * mostly frequency suppressions — correct, and no picture of a site with
+ * customers on it. These six give the loop a spread: each takes a different path
+ * through the policies, from everything offered to nothing, and each has a daily
+ * cap of their own. Their fields are sent in full, like Eva's, so the request's
+ * values are what is decided on.
+ */
+const CUSTOMERS = [
+  {
+    id: 'jordan',
+    label: 'Jordan — already on Fios, has Netflix',
+    note: 'Holds the fiber product and Netflix. Both broadband offers and Netflix are not relevant; Disney+ and the gaming bundle compete.',
+    customerId: 'cust_jordan',
+    signedIn: true,
+    name: 'Jordan Lee',
+    planName: 'Fios Gigabit',
+    input: {
+      customer: {
+        account_status: 'active',
+        moving_within_days: 999,
+        address: { fios_serviceable: true, fiveg_coverage: 'strong' },
+        broadband: { status: 'active', product: 'fios' },
+        orders: { open_broadband: false },
+        ott: { disney: false, netflix: true, disney_available: true, netflix_available: true },
+        affinity: { gaming: 0.6, entertainment: 0.7 },
+        engagement: { digital_or_broadband_intent: false },
+        usage: { pct_of_allowance_3mo_avg: 0.55, months_of_history: 30 },
+      },
+      context: {},
+    },
+  },
+  {
+    id: 'priya',
+    label: 'Priya — heavy user, no fiber, weak 5G',
+    note: 'Uses nearly all her allowance, but neither fiber nor strong 5G reaches her. Both broadband offers are refused at eligibility; add-ons remain.',
+    customerId: 'cust_priya',
+    signedIn: true,
+    name: 'Priya Shah',
+    planName: 'Broadband 100 · DSL',
+    input: {
+      customer: {
+        account_status: 'active',
+        moving_within_days: 999,
+        address: { fios_serviceable: false, fiveg_coverage: 'marginal' },
+        broadband: { status: 'active', product: 'dsl' },
+        orders: { open_broadband: false },
+        ott: { disney: false, netflix: false, disney_available: true, netflix_available: true },
+        affinity: { gaming: 0.9, entertainment: 0.6 },
+        engagement: { digital_or_broadband_intent: true },
+        usage: { pct_of_allowance_3mo_avg: 0.97, months_of_history: 22 },
+      },
+      context: {},
+    },
+  },
+  {
+    id: 'sam',
+    label: 'Sam — moving in two weeks',
+    note: 'Moving in 14 days, so no broadband offer is relevant until the move. Entertainment add-ons are still offered.',
+    customerId: 'cust_sam',
+    signedIn: true,
+    name: 'Sam Okafor',
+    planName: 'Broadband 300 · DSL',
+    input: {
+      customer: {
+        account_status: 'active',
+        moving_within_days: 14,
+        address: { fios_serviceable: true, fiveg_coverage: 'strong' },
+        broadband: { status: 'active', product: 'dsl' },
+        orders: { open_broadband: false },
+        ott: { disney: false, netflix: false, disney_available: true, netflix_available: true },
+        affinity: { gaming: 0.2, entertainment: 0.9 },
+        engagement: { digital_or_broadband_intent: true },
+        usage: { pct_of_allowance_3mo_avg: 0.88, months_of_history: 40 },
+      },
+      context: {},
+    },
+  },
+  {
+    id: 'grace',
+    label: 'Grace — account suspended',
+    note: 'Her account is suspended, so every offer is refused at the tenant-wide eligibility gate and the site shows its own content.',
+    customerId: 'cust_grace',
+    signedIn: true,
+    name: 'Grace Kim',
+    planName: 'Broadband 300 · DSL',
+    input: {
+      customer: {
+        account_status: 'suspended',
+        moving_within_days: 999,
+        address: { fios_serviceable: true, fiveg_coverage: 'strong' },
+        broadband: { status: 'active', product: 'dsl' },
+        orders: { open_broadband: false },
+        ott: { disney: false, netflix: false, disney_available: true, netflix_available: true },
+        affinity: { gaming: 0.7, entertainment: 0.7 },
+        engagement: { digital_or_broadband_intent: true },
+        usage: { pct_of_allowance_3mo_avg: 0.9, months_of_history: 18 },
+      },
+      context: {},
+    },
+  },
+  {
+    id: 'diego',
+    label: 'Diego — no internet yet, fiber at his address',
+    note: 'A new customer with no service. Fiber is offered; add-ons need an active line, and 5G Home needs a usage history he does not have.',
+    customerId: 'cust_diego',
+    signedIn: true,
+    name: 'Diego Alvarez',
+    planName: 'No internet service',
+    input: {
+      customer: {
+        account_status: 'active',
+        moving_within_days: 999,
+        address: { fios_serviceable: true, fiveg_coverage: 'strong' },
+        broadband: { status: 'none', product: 'none' },
+        orders: { open_broadband: false },
+        ott: { disney: false, netflix: false, disney_available: true, netflix_available: true },
+        affinity: { gaming: 0.5, entertainment: 0.5 },
+        engagement: { digital_or_broadband_intent: true },
+        usage: { pct_of_allowance_3mo_avg: 0, months_of_history: 0 },
+      },
+      context: {},
+    },
+  },
+  {
+    id: 'hannah',
+    label: 'Hannah — upgrade already on order',
+    note: 'A broadband order is being provisioned, so both broadband offers are refused; she has both streaming services, which leaves the gaming bundle.',
+    customerId: 'cust_hannah',
+    signedIn: true,
+    name: 'Hannah Weiss',
+    planName: 'Broadband 300 · DSL',
+    input: {
+      customer: {
+        account_status: 'active',
+        moving_within_days: 999,
+        address: { fios_serviceable: true, fiveg_coverage: 'strong' },
+        broadband: { status: 'active', product: 'dsl' },
+        orders: { open_broadband: true },
+        ott: { disney: true, netflix: true, disney_available: true, netflix_available: true },
+        affinity: { gaming: 0.75, entertainment: 0.8 },
+        engagement: { digital_or_broadband_intent: true },
+        usage: { pct_of_allowance_3mo_avg: 0.85, months_of_history: 26 },
+      },
+      context: {},
+    },
+  },
+];
+
+/** Everyone the panel can choose, the brief first. */
+const PEOPLE = [...PRESETS, ...CUSTOMERS];
+
 // ---------------------------------------------------------------- state ---
 
 let preset = PRESETS[0];
@@ -714,8 +871,22 @@ let view = 'home';
 const results = new Map();
 /** offerId -> { offer, creatives }, so one offer is fetched once per page. */
 const offerCache = new Map();
-/** offer key -> when the customer declined it, ISO-8601. Sent as `rejects`. */
-const declines = new Map();
+/**
+ * customer id -> (offer key -> when they declined it, ISO-8601).
+ *
+ * Per customer, because a decline is one person's "no". While Eva was the only
+ * customer a single map was hers; with six more, it sent her declines as
+ * everyone's `rejects`, and the rest period she started held Fios back from
+ * Diego, who had never seen it (found driving the storefront, 2026-09-18).
+ * Her three presets share one id, so they share her declines.
+ */
+const declinesByCustomer = new Map();
+const declinesFor = (customerId) => {
+  if (!declinesByCustomer.has(customerId)) declinesByCustomer.set(customerId, new Map());
+  return declinesByCustomer.get(customerId);
+};
+/** The chosen customer's declines. Sent as `rejects`. */
+let declines = declinesFor(preset.customerId);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /**
@@ -839,7 +1010,32 @@ async function decide(placement) {
  * telemetry was down would be a worse site, and a demo that alerts on a missing
  * outcome teaches the wrong lesson about which half matters.
  */
-async function reportOutcome(decisionId, type, valueMinor = null) {
+/**
+ * Run `then` once, the first time half of `card` is in the viewport.
+ *
+ * One observer for the page. A card that is re-rendered is a new element and a
+ * new decision, so it is observed afresh; one that leaves the page before it is
+ * seen reports nothing, which is the point.
+ */
+const seenCallbacks = new WeakMap();
+const seenObserver = new IntersectionObserver(
+  (entries) => {
+    for (const e of entries) {
+      if (e.intersectionRatio < 0.5) continue;
+      const then = seenCallbacks.get(e.target);
+      seenObserver.unobserve(e.target);
+      seenCallbacks.delete(e.target);
+      if (then) then();
+    }
+  },
+  { threshold: [0.5] }
+);
+function whenSeen(card, then) {
+  seenCallbacks.set(card, then);
+  seenObserver.observe(card);
+}
+
+async function reportOutcome(decisionId, type, valueMinor = null, action = null) {
   if (!decisionId) return false;
   try {
     const res = await fetch(`${API}/outcomes/${TENANT}/${decisionId}`, {
@@ -848,7 +1044,16 @@ async function reportOutcome(decisionId, type, valueMinor = null) {
       // An input, never the clock on the server — the same rule the decision
       // itself follows. It does not make this page's decisions replayable:
       // their input values are not kept (G-009).
-      body: JSON.stringify({ type, occurredAt: visitNow(), ...(valueMinor === null ? {} : { valueMinor }) }),
+      // `action` says which offer on the slate this was about. The platform
+      // requires it where a decision showed more than one and checks it against
+      // what the decision recorded it showed (ADR-020 §4); sending it on a
+      // single-offer slot too costs nothing and says the same thing twice.
+      body: JSON.stringify({
+        type,
+        occurredAt: visitNow(),
+        ...(valueMinor === null ? {} : { valueMinor }),
+        ...(action === null ? {} : { action }),
+      }),
     });
     return res.ok;
   } catch {
@@ -912,7 +1117,7 @@ function renderHero(slot, r) {
   if (!first?.creative) return slot.replaceChildren(el(`<div>${fallbackReason(r)}</div>`));
   const c = first.creative.content;
   slot.replaceChildren(el(`
-    <div class="hero">
+    <div class="hero" data-action="${esc(first.entry.action)}">
       <div>
         <h3>${esc(c.headline)}</h3>
         <p>${esc(c.subheadline)}</p>
@@ -948,9 +1153,8 @@ function renderCards(slot, r) {
       continue;
     }
     const c = creative.content;
-    // No Accept on these cards: see `offerActions`.
     grid.append(el(`
-      <article class="card">
+      <article class="card" data-action="${esc(entry.action)}">
         <h3>${esc(c.headline)}</h3>
         <p>${esc(c.subheadline)}</p>
         <button class="cta">${esc(c.ctaLabel)}</button>
@@ -966,7 +1170,7 @@ function renderInline(slot, r) {
   if (!first?.creative) return slot.replaceChildren(el(`<div>${fallbackReason(r)}</div>`));
   const c = first.creative.content;
   slot.replaceChildren(el(`
-    <div class="inline-offer">
+    <div class="inline-offer" data-action="${esc(first.entry.action)}">
       <div class="body">
         <h3>${esc(c.headline)}</h3>
         <p>${esc(c.subheadline)}</p>
@@ -980,13 +1184,11 @@ function renderInline(slot, r) {
 /**
  * What a customer can do with a rendered offer besides its call to action.
  *
- * **Accept only where the slot holds one offer.** An outcome is bound to a
- * decision and nothing finer (ADR-008 §2), so an acceptance on the grid's second
- * card would be credited to the first card's offer — the defect
- * `docs/adr/ADR-020-a-slate-is-recorded-as-shown.md` §4 decides how to fix.
- * Until that lands a multi-slot slate has no Accept, rather than one that
- * records the wrong offer. Keyed on the slot count the platform returned, not
- * on which renderer drew the slot.
+ * **Accept on every card.** An outcome names the offer it was about, and the
+ * platform checks it against what the decision recorded it showed (ADR-020 §4),
+ * so an acceptance on the grid's second card is the second card's. Until
+ * 2026-09-18 an outcome was bound to a decision and nothing finer, and a
+ * multi-slot slate had no Accept rather than one that credited the first card.
  *
  * **"Email this offer" cannot put this offer in an email.** It asks the platform
  * for her weekly email — `weekly_offers_send`, a placement decision like any
@@ -1003,7 +1205,7 @@ function renderInline(slot, r) {
 function offerActions(r, entry, { decline = true } = {}) {
   const key = esc(entry.action);
   return `<div class="offer-actions">${
-    r.slate.slotCount === 1 ? `<button type="button" class="accept" data-offer-key="${key}">Accept</button>` : ''
+    `<button type="button" class="accept" data-offer-key="${key}">Accept</button>`
   }<button type="button" class="email-offer" data-offer-key="${key}">Email this offer</button>${
     decline ? `<button type="button" class="decline" data-offer-key="${key}">Not interested</button>` : ''
   }</div>`;
@@ -1079,9 +1281,15 @@ function decisionCard(placement, r) {
       exclusion are W-028.</p>
 
     <h3>Where the inputs came from</h3>
-    ${d.sourceBindings.length
-      ? d.sourceBindings.map((b) => `<div class="binding">${esc(b.field)} <span>&larr; ${esc(b.connectorId)}</span></div>`).join('')
-      : '<div class="binding"><span>every field came from the request</span></div>'}
+    ${d.fieldOrigins.length
+      ? d.fieldOrigins.map((b) => `<div class="binding" data-origin="${esc(b.origin)}">${esc(b.field)} <span>&larr; ${
+          b.origin === 'connector'
+            ? esc(b.connectorId)
+            : b.origin === 'default'
+              ? `${esc(b.connectorId)}'s default — it did not answer`
+              : `this preset; ${esc(b.connectorId)} available, not used`
+        }</span></div>`).join('')
+      : '<div class="binding"><span>no connector on this flow provides a field the request used</span></div>'}
 
     <h3>What was refused, and by what</h3>
     ${d.eliminations.map((s) => `
@@ -1211,12 +1419,21 @@ async function runPlacement(placement) {
   // decision's offer, and cleared above before the slot stops showing it.
   if (r.status === 'filled') {
     slot.dataset.decisionId = r.slate.decisionId;
-    // An impression is of an offer the customer could see. A slot that offered
-    // nothing had none; a slot that errored showed the reason instead; and a
-    // slot whose winner had no creative rendered a notice explaining that there
-    // was nothing to render. None of the three reports one — a rate over
-    // impressions that included them would be measuring page views.
-    reportOutcome(r.slate.decisionId, 'impression');
+    // An impression is of an offer the customer could see: one per rendered
+    // entry, naming it, so a grid of three has had three (ADR-020 §4). A slot
+    // that offered nothing had none; a slot that errored showed the reason
+    // instead; and an entry with no creative rendered a notice, not an offer.
+    // None of those reports one — a rate over impressions that included them
+    // would be measuring page views.
+    //
+    // And only once it is on screen: half of the card in view, the usual
+    // viewability line. Until 2026-09-18 every rendered card reported one at
+    // render, below the fold or not, so "seen" was 100% of what was delivered
+    // by construction and the loop's seen stage measured nothing.
+    for (const shown of r.rendered) {
+      const card = slot.querySelector(`[data-action="${CSS.escape(shown.entry.action)}"]`);
+      if (card) whenSeen(card, () => reportOutcome(r.slate.decisionId, 'impression', null, shown.entry.action));
+    }
   } else {
     delete slot.dataset.decisionId;
   }
@@ -1269,14 +1486,21 @@ function switchView(next) {
 // ------------------------------------------------------------------ wire ---
 
 const select = $('#preset');
-for (const p of PRESETS) {
-  const o = document.createElement('option');
-  o.value = p.id;
-  o.textContent = p.label;
-  select.append(o);
+for (const [label, people] of [['The brief: Eva', PRESETS], ['Other customers', CUSTOMERS]]) {
+  const group = document.createElement('optgroup');
+  group.label = label;
+  for (const p of people) {
+    const o = document.createElement('option');
+    o.value = p.id;
+    o.textContent = p.label;
+    group.append(o);
+  }
+  select.append(group);
 }
 select.addEventListener('change', () => {
-  preset = PRESETS.find((p) => p.id === select.value);
+  preset = PEOPLE.find((p) => p.id === select.value);
+  declines = declinesFor(preset.customerId);
+  renderDeclines();
   applyPreset();
   decideAll();
 });
@@ -1298,7 +1522,9 @@ document.addEventListener('click', (e) => {
   if (!cta) return;
   const slot = cta.closest('[data-decision-id]');
   if (!slot) return;
-  reportOutcome(slot.dataset.decisionId, 'click');
+  // The entry the call to action is on, not the slot: a click on the second
+  // card is about the second card (ADR-020 §4).
+  reportOutcome(slot.dataset.decisionId, 'click', null, cta.closest('[data-action]')?.dataset.action ?? null);
 });
 
 /*
@@ -1350,8 +1576,9 @@ document.addEventListener('click', async (e) => {
   const valueMinor = acceptValueMinor();
   btn.disabled = true;
   btn.textContent = 'Accepting…';
-  const clicked = await reportOutcome(decisionId, 'click');
-  const accepted = clicked && (await reportOutcome(decisionId, 'acceptance', valueMinor));
+  const action = btn.dataset.offerKey;
+  const clicked = await reportOutcome(decisionId, 'click', null, action);
+  const accepted = clicked && (await reportOutcome(decisionId, 'acceptance', valueMinor, action));
   if (accepted) {
     btn.textContent = valueMinor === null ? 'Accepted' : `Accepted · ${money(valueMinor)}`;
     $('#accept-note').textContent = `${btn.dataset.offerKey} accepted on decision ${decisionId}, ${

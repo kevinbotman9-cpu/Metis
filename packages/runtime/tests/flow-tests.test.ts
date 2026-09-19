@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createFlowTestRunner, type FlowTestCase } from '../src/flow-tests';
 import type { CatalogueSnapshot, ExecArtifact } from '../src/deterministic/types';
 import type { Offer, TargetingPolicy } from '@metis/core/domain';
+import { withGeneratedActions } from '@metis/core/domain';
 
 /**
  * Evaluating a flow author's test case.
@@ -49,7 +50,7 @@ const adultsOnly: TargetingPolicy = {
   active: true,
 } as unknown as TargetingPolicy;
 
-const catalogue: CatalogueSnapshot = {
+const catalogue: CatalogueSnapshot = withGeneratedActions({
   offers: [
     offer({ id: 'p1', key: 'offer_adult', policyIds: ['tp_adult'] }),
     offer({ id: 'p2', key: 'offer_open' }),
@@ -67,7 +68,7 @@ const catalogue: CatalogueSnapshot = {
   },
   boosts: [],
   connectors: [],
-} as unknown as CatalogueSnapshot;
+}) as unknown as CatalogueSnapshot;
 
 const artifact: ExecArtifact = {
   id: 'flow',

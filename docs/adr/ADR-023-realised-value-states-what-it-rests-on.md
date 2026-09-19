@@ -108,6 +108,24 @@ in that sentence is not written by hand: it is 1/√n, rounded, from the same co
   a different tolerance, and the sentence and the accent both follow whatever
   number is chosen.
 
+**Amended 2026-09-18, by the product owner: the line is the count and whether it
+is too few to read — "17 valued — too few to read" below the floor, "124 valued"
+at or above it.** The sentence above ran to five lines on the Overview at 1680px
+and nine at 1280px, where the card is a sixth of the page's width. The acted-on
+count and the computed spread are dropped; the two facts kept are the ones this
+clause exists for — what the figure rests on, and that it is too few to read as a
+return.
+
+**One line was the goal, and it was dropped because it cost the meaning.**
+Measured in the card's font on 2026-09-18, the only wording that held both facts
+on one line at 1280px was "17 valued, thin" (73px of 77). It does not do what
+this clause is for: "thin" does not tell a reader that a small sample cannot be
+read as a return, which is the whole reason the line is there. "17 valued — too
+few to read" is one line from 1680px and two below it, and two lines is
+accepted. Held by `realised-value-floor.test.tsx` for the wording and by
+`overview.spec.ts` at 1280px for the line rendering inside its card — wrapping
+is allowed there, overflowing is not.
+
 ### 3. The accent is on the funnel's largest drop, not on this card
 
 *Amended 2026-09-17, the day this ADR was accepted, by the product owner: "the

@@ -30,6 +30,7 @@ import { CODE_MEANING, groupDenials, stagesFor } from '@/components/trace-cascad
 import { contactHistoryStatement } from '@/lib/contact-history';
 import { cn } from '@/lib/cn';
 import { useFormat } from '@/components/tenant-format';
+import { shownBy, offeredPhrase, offeredClause, slotOf } from '@/lib/shown';
 
 const AUDIENCES = [
   { key: 'customer', label: 'Customer', blurb: 'Plain language, no internal identifiers.' },
@@ -158,6 +159,8 @@ function TraceView({ decisionId }: { decisionId: string }) {
   if (!trace) return null;
 
   const ranked = Object.entries(trace.scores).sort((a, b) => b[1].priority - a[1].priority);
+  // What the decision showed: its slate, not only its winner (ADR-020 §1).
+  const shown = shownBy(trace);
   const maxPriority = ranked[0]?.[1].priority ?? 1;
   const show = (...keys: AudienceKey[]) => keys.includes(audience);
 
@@ -228,10 +231,15 @@ function TraceView({ decisionId }: { decisionId: string }) {
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>Decision</span>
             <span className="font-mono text-body font-normal text-content-muted">{trace.id}</span>
-            {trace.winner ? (
-              <Badge tone="pass">{trace.winner}</Badge>
-            ) : (
+            {shown.length === 0 ? (
               <Badge tone="block">no offer</Badge>
+            ) : (
+              // Every offer shown, in slot order: a grid of three is three.
+              shown.map((e) => (
+                <Badge key={e.action} tone="pass">
+                  {shown.length > 1 ? `${e.rank}. ${e.action}` : e.action}
+                </Badge>
+              ))
             )}
           </span>
         }
@@ -362,7 +370,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
               <>
                 {trace.candidateCount} entered,{' '}
                 <strong className="font-semibold">
-                  {trace.winner ? '1 was offered' : 'none was offered'}
+                  {offeredClause(shown.length)}
                 </strong>
                 . Every stage is what the flow actually ran, not the policy model.
               </>
@@ -470,7 +478,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
               <CardHeader
                 title={
                   <span className="text-title">
-                    {`${trace.candidateCount} candidates, ${trace.winner ? 'one offered' : 'none offered'}`}
+                    {`${trace.candidateCount} candidates, ${offeredPhrase(shown.length)}`}
                   </span>
                 }
               />
@@ -548,13 +556,21 @@ function TraceView({ decisionId }: { decisionId: string }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {ranked.map(([action, s], i) => (
+                      {ranked.map(([action, s]) => (
                         <tr key={action} className="border-b border-border/60">
                           <td className="py-2">
                             <div className="flex items-center gap-2">
-                              {i === 0 && trace.winner === action ? (
+                              {/* Every offer the slate showed is marked with its
+                                  slot; only slot 1 was marked until 2026-09-18,
+                                  so slots 2 and 3 read like the candidates ranked
+                                  below the last slot. One slot keeps "winner". */}
+                              {slotOf(shown, action) === null ? null : shown.length > 1 ? (
+                                <Badge tone="pass">
+                                  slot {slotOf(shown, action)}
+                                </Badge>
+                              ) : (
                                 <Badge tone="pass">winner</Badge>
-                              ) : null}
+                              )}
                               <span className="font-medium">{action}</span>
                             </div>
                             <div
@@ -763,7 +779,7 @@ function TraceView({ decisionId }: { decisionId: string }) {
             </CardBody>
           </Card>
 
-          {(trace.sourceBindings?.length ?? 0) > 0 && (
+          {(trace.fieldOrigins?.length ?? 0) > 0 && (
             <Card>
               <CardHeader
                 title="Where the data came from"
@@ -771,8 +787,14 @@ function TraceView({ decisionId }: { decisionId: string }) {
               />
               <CardBody>
                 <ul className="space-y-2">
-                  {(trace.sourceBindings ?? []).map((b) => {
-                    const call = trace.sourceCalls?.find((c) => c.connectorId === b.connectorId);
+                  {(trace.fieldOrigins ?? []).map((b) => {
+                    // A call only for a value a connector supplied: a field the
+                    // request carried was not the connector's, whatever it
+                    // answered (ADR-022 §2).
+                    const call =
+                      b.origin === 'request'
+                        ? undefined
+                        : trace.sourceCalls?.find((c) => c.connectorId === b.connectorId);
                     return (
                       <li
                         key={`${b.field}-${b.connectorId}`}
@@ -780,8 +802,12 @@ function TraceView({ decisionId }: { decisionId: string }) {
                       >
                         <div className="min-w-0">
                           <span className="font-mono text-label text-content">{b.field}</span>
-                          <span className="ml-2 text-label text-content-muted">
-                            via {b.connectorId}
+                          <span className="ml-2 text-label text-content-muted" data-origin={b.origin}>
+                            {b.origin === 'connector'
+                              ? `from ${b.connectorId}`
+                              : b.origin === 'default'
+                                ? `${b.connectorId}'s default: it did not answer`
+                                : `sent with the request; ${b.connectorId} not used`}
                           </span>
                           <div className="font-mono text-label text-content-subtle">
                             at node {b.nodeId}

@@ -20,7 +20,7 @@ import type {
   PolicyCondition,
   Boost,
   PolicyScope,
-  SourceBinding,
+  FieldOrigin,
 } from '@metis/core/domain';
 import { CANDIDATE_ROOT, isCandidatePath, isPathValue } from '@metis/core/domain';
 import {
@@ -47,6 +47,7 @@ import type {
   DecisionRecord,
   DeterministicDecision,
   EliminationStep,
+  SlateRecordEntry,
   CandidateScore,
   ReplayResult,
   Denial,
@@ -154,12 +155,19 @@ function policyPasses(policy: TargetingPolicy, input: Record<string, unknown>, c
 }
 
 /**
- * Does this scope cover this offer?
+ * Does this scope cover this candidate?
  *
  * Exported because a service reading the ledger for a scoped cap must count the
  * contacts about exactly the offers the engine will hold to that cap (ADR-021 §9).
+ *
+ * An offer-level scope covers every action of the offer; an action-level scope
+ * covers the one action, and nothing is covered by it that has no action id —
+ * an offer on its own is not an action (ADR-019 §4).
  */
-export function scopeCovers(scope: PolicyScope, p: Pick<Offer, 'id' | 'objectiveId' | 'categoryId'>): boolean {
+export function scopeCovers(
+  scope: PolicyScope,
+  p: Pick<Offer, 'id' | 'objectiveId' | 'categoryId'> & { actionId?: string }
+): boolean {
   switch (scope.level) {
     case 'tenant':
       return true;
@@ -169,6 +177,8 @@ export function scopeCovers(scope: PolicyScope, p: Pick<Offer, 'id' | 'objective
       return scope.targetId === p.categoryId;
     case 'offer':
       return scope.targetId === p.id;
+    case 'action':
+      return p.actionId !== undefined && scope.targetId === p.actionId;
     default:
       return false;
   }
@@ -179,7 +189,49 @@ const SCOPE_RANK: Record<PolicyScope['level'], number> = {
   objective: 1,
   category: 2,
   offer: 3,
+  action: 4,
 };
+
+/**
+ * A candidate is an action joined to the offer it instances (ADR-019 §1–2):
+ * the offer's commerce — financials, validity, status, boost, policies, tags —
+ * under the action's key. `id` stays the offer's, because everything scoped to
+ * an offer and every figure credited to one is keyed on it; the action is
+ * `actionId`.
+ */
+type Candidate = Offer & { actionId: string; actionActive: boolean };
+
+/**
+ * The candidates a catalogue can offer, by action key.
+ *
+ * Refuses a snapshot whose actions name an offer it does not hold, or share a
+ * key: either would make a candidate key mean two things, or nothing, and the
+ * record would say something was offered that the catalogue cannot account for.
+ */
+function candidatesByKey(catalogue: CatalogueSnapshot): Map<string, Candidate> {
+  // Once per snapshot, like its hash: building this is work in proportion to the
+  // catalogue, and done per decision it grew the hot path with catalogue size —
+  // `hot path cost` in determinism.test.ts measured 6.1 against a ceiling of 5
+  // on CI (2026-09-19). A snapshot is immutable once built, and the engine never
+  // writes to a candidate, so every decision can share one map.
+  const cached = candidateMaps.get(catalogue);
+  if (cached) return cached;
+  // A snapshot built before actions existed would otherwise decide from no
+  // candidates at all, and record it as a decision that offered nothing.
+  if (!Array.isArray(catalogue.actions)) throw new Error('The catalogue snapshot declares no actions.');
+  const offerById = new Map(catalogue.offers.map((o) => [o.id, o]));
+  const byKey = new Map<string, Candidate>();
+  for (const a of catalogue.actions) {
+    const offer = offerById.get(a.offerId);
+    if (!offer) throw new Error(`Action ${a.id} names offer ${a.offerId}, which is not in the catalogue snapshot.`);
+    if (byKey.has(a.key)) throw new Error(`Action key ${a.key} is declared twice in the catalogue snapshot.`);
+    byKey.set(a.key, { ...offer, key: a.key, actionId: a.id, actionActive: a.active });
+  }
+  candidateMaps.set(catalogue, byKey);
+  return byKey;
+}
+
+const candidateMaps = new WeakMap<CatalogueSnapshot, Map<string, Candidate>>();
 
 /**
  * Effective boost for an offer: the most specific scope wins, matching how
@@ -297,6 +349,73 @@ function catalogueHash(catalogue: CatalogueSnapshot): string {
   const computed = hash(catalogue);
   catalogueHashes.set(catalogue, computed);
   return computed;
+}
+
+/**
+ * Where each connector-provided value in the input came from — ADR-022 §2, §3.
+ *
+ * Resolution says what it wrote (`request.resolved`), and each entry is
+ * validated rather than trusted: its connector is active, is on a source node
+ * of this artifact, and provides that field, and the field is present in the
+ * input. Anything else is a resolver and an engine disagreeing about what
+ * happened, and it throws naming the artifact and the field, as
+ * `recordedContacts` does — a provenance line the engine could not stand
+ * behind is worse than no decision.
+ *
+ * Every other field a connector on a source node provides, where the input
+ * carries it, came from the request. A field no connector on the flow provides
+ * is not listed: it can only have come from the request, and listing it adds
+ * nothing the flow does not already say.
+ */
+function fieldOriginsOf(
+  artifact: ExecArtifact,
+  catalogue: CatalogueSnapshot,
+  request: DecisionRequest
+): FieldOrigin[] {
+  const connectorById = new Map((catalogue.connectors ?? []).map((c) => [c.id, c]));
+  const sourceNodes = artifact.nodes.filter((n) => n.type === 'source');
+  const resolved = new Map<string, FieldOrigin>();
+
+  for (const r of request.resolved ?? []) {
+    const refuse = (why: string): never => {
+      throw new Error(`Artifact ${artifact.id}: resolved field "${r.field}" from ${r.connectorId} at ${r.nodeId} ${why}.`);
+    };
+    if (r.origin !== 'connector' && r.origin !== 'default') refuse(`has origin "${r.origin}", which resolution cannot report`);
+    const node = sourceNodes.find((n) => n.id === r.nodeId);
+    if (!node || !(node.connectorIds ?? []).includes(r.connectorId)) refuse('names a connector no source node of the flow draws on');
+    const connector = connectorById.get(r.connectorId);
+    if (!connector || !connector.active) refuse('names a connector that is not active in the catalogue');
+    if (!connector!.provides.some((b) => b.field === r.field)) refuse('is not a field that connector provides');
+    if (readPath(request.input, r.field) === undefined) refuse('is not present in the input');
+    resolved.set(`${r.field}|${r.connectorId}|${r.nodeId}`, {
+      field: r.field,
+      nodeId: r.nodeId,
+      connectorId: r.connectorId,
+      origin: r.origin,
+    });
+  }
+  const resolvedFields = new Set([...resolved.values()].map((o) => o.field));
+
+  const origins: FieldOrigin[] = [...resolved.values()];
+  for (const node of sourceNodes) {
+    for (const connectorId of node.connectorIds ?? []) {
+      const connector = connectorById.get(connectorId);
+      if (!connector || !connector.active) continue;
+      for (const binding of connector.provides) {
+        // By path, not by key (G-069): a connector declares where its value
+        // lands as a path into the profile.
+        if (readPath(request.input, binding.field) === undefined) continue;
+        // A value resolution wrote is that connector's, and no other
+        // connector's alternative to it is a request.
+        if (resolvedFields.has(binding.field)) continue;
+        origins.push({ field: binding.field, nodeId: node.id, connectorId, origin: 'request' });
+      }
+    }
+  }
+  return origins.sort(
+    (a, b) =>
+      a.field.localeCompare(b.field) || a.connectorId.localeCompare(b.connectorId) || a.nodeId.localeCompare(b.nodeId)
+  );
 }
 
 /**
@@ -442,15 +561,14 @@ export function execute(
   /** Candidates that fell back because nothing scored them. */
   const missingScoreApplied: string[] = [];
 
-  const byKey = new Map(catalogue.offers.map((p) => [p.key, p]));
+  const byKey = candidatesByKey(catalogue);
   const policyById = new Map(catalogue.targetingPolicies.map((p) => [p.id, p]));
-  const connectorById = new Map((catalogue.connectors ?? []).map((c) => [c.id, c]));
-  const sourceBindings: SourceBinding[] = [];
+  const fieldOrigins = fieldOriginsOf(artifact, catalogue, request);
 
   // Initial candidate set, in artifact order so it is reproducible.
-  let candidates: Offer[] = artifact.candidateKeys
+  let candidates: Candidate[] = artifact.candidateKeys
     .map((k) => byKey.get(k))
-    .filter((p): p is Offer => Boolean(p));
+    .filter((p): p is Candidate => Boolean(p));
 
   // What was stated, per purpose, and nothing that was not: a request with no
   // consent is absent, enforced as withheld. Until 2026-09-13 this line granted
@@ -461,6 +579,12 @@ export function execute(
   const constraintsApplied: string[] = [];
   let winner: string | null = null;
   let runnerUp: string | null = null;
+  // How many offers the placement shows (ADR-020 §2), and what was shown.
+  const slotCount = request.slotCount ?? 1;
+  if (!Number.isInteger(slotCount) || slotCount < 1) {
+    throw new Error(`Artifact ${artifact.id}: a placement shows at least one offer; slotCount was ${slotCount}.`);
+  }
+  let slate: SlateRecordEntry[] = [];
 
   /**
    * `denials` is passed in rather than derived from the before/after diff.
@@ -494,7 +618,7 @@ export function execute(
   const record = (
     node: ExecNode,
     reason: string,
-    after: Offer[],
+    after: Candidate[],
     denials: Denial[]
   ) => {
     eliminations.push({
@@ -562,24 +686,10 @@ export function execute(
 
     switch (node.type) {
       case 'source': {
-        // Record which connector was configured to supply which field. The
-        // engine does not fetch anything: `resolveInputs` already ran, outside
-        // the deterministic core, and the values are in request.input. This is
-        // provenance, derived from the artifact and the catalogue, and it is
-        // reproducible for exactly that reason.
-        for (const connectorId of node.connectorIds ?? []) {
-          const connector = connectorById.get(connectorId);
-          if (!connector || !connector.active) continue;
-          for (const binding of connector.provides) {
-            // By path, not by key. A connector declares where its value lands as
-            // a path into the profile (ADR-014 §2), and `field in input` asked
-            // whether the input had a key literally called
-            // `customer.monthly_spend` — which it never does, so every binding
-            // was dropped and the trace could attribute nothing (G-069).
-            if (readPath(request.input, binding.field) === undefined) continue;
-            sourceBindings.push({ field: binding.field, connectorId, nodeId: node.id });
-          }
-        }
+        // The engine fetches nothing: `resolveInputs` already ran, outside the
+        // deterministic core, and the values are in request.input. Where each
+        // came from was settled before the loop (`fieldOriginsOf`); this node
+        // only names what its connectors supplied.
 
         // Validity and status are intrinsic to the candidate set: a retired or
         // out-of-window offer was never really a candidate. Status is checked
@@ -588,7 +698,8 @@ export function execute(
         // first.
         const sourceDenials: Denial[] = [];
         candidates = before.filter((p) => {
-          if (p.status !== 'active') {
+          // An action switched off is as unavailable as its offer retired.
+          if (p.status !== 'active' || !p.actionActive) {
             sourceDenials.push({ key: p.key, code: 'NOT_ACTIVE', ruleId: null });
             return false;
           }
@@ -599,10 +710,13 @@ export function execute(
           return true;
         });
 
+        // The fields a connector supplied here — answered or defaulted — and
+        // not the ones the request carried, which until 2026-09-18 were listed
+        // as though a connector had supplied them (ADR-022).
         const sourced = node.connectorIds?.length
-          ? ` Fields from ${node.connectorIds.length} connector(s): ${sourceBindings
-              .filter((b) => b.nodeId === node.id)
-              .map((b) => b.field)
+          ? ` Fields from ${node.connectorIds.length} connector(s): ${fieldOrigins
+              .filter((o) => o.nodeId === node.id && o.origin !== 'request')
+              .map((o) => o.field)
               .join(', ') || 'none resolved'}.`
           : '';
 
@@ -706,7 +820,7 @@ export function execute(
           // policy. Applying them all to every candidate is wrong: a
           // once-a-month cooldown scoped to one category would otherwise suppress
           // the entire catalogue.
-          const relevantTo = (p: Offer) =>
+          const relevantTo = (p: Candidate) =>
             catalogue.frequencyPolicies.filter(
               (c) =>
                 c.active &&
@@ -896,18 +1010,26 @@ export function execute(
         // (ADR-019 §8, `rankCandidates`).
         const ranked = orderCandidates(candidates, scores, artifact);
 
-        winner = ranked[0]?.key ?? null;
-        runnerUp = ranked[1]?.key ?? null;
-        candidates = ranked.slice(0, 1);
+        // The slate: as many of the ranked as the placement has slots, best
+        // first (ADR-020 §1). Slot 1 is the winner, as it always was; the
+        // runner-up is the best finalist the slate left out, which for one
+        // slot is the one that came second.
+        const shown = ranked.slice(0, slotCount);
+        slate = shown.map((p, i) => ({ rank: i + 1, action: p.key, offerId: p.id, priority: scores[p.key].priority }));
+        winner = shown[0]?.key ?? null;
+        runnerUp = ranked[slotCount]?.key ?? null;
+        candidates = shown;
 
-        // Everyone who reached ranking and did not win. NOT_RANKED is not a
-        // fault: these candidates passed every gate and were simply beaten, so
-        // the code has to be distinguishable from the ones that mean something
-        // was wrong.
+        // Every finalist ranked below the last slot. NOT_RANKED is not a fault:
+        // these passed every gate and were shown nothing only because the
+        // placement had no more room — so an offer in slot 2 is a survivor,
+        // not a denial (ADR-020 §3). For one slot this is "beaten by the
+        // winner", as it always meant.
         record(
           node,
           winner
-            ? `Ranked ${ranked.length} finalist(s) by ${catalogue.arbitration.formula}. Winner: ${winner}.`
+            ? `Ranked ${ranked.length} finalist(s) by ${catalogue.arbitration.formula}. Winner: ${winner}.` +
+                (slotCount > 1 ? ` Shown in ${slotCount} slot(s): ${shown.map((p) => p.key).join(', ')}.` : '')
             : 'No candidates reached arbitration; decision returned no offer.',
           candidates,
           before
@@ -937,6 +1059,11 @@ export function execute(
   if (!consentApplied) applyConsentByPlatform();
 
   const winnerOffer = winner ? byKey.get(winner) ?? null : null;
+  // A record whose winner is not its slate's first entry is two claims about
+  // what was shown, and the engine does not write one (ADR-020 §1).
+  if ((slate[0]?.action ?? null) !== winner) {
+    throw new Error(`Artifact ${artifact.id}: winner ${winner} is not the slate's first entry (${slate[0]?.action ?? 'none'}).`);
+  }
 
   const decision: DeterministicDecision = {
     tenantId: request.tenantId,
@@ -948,12 +1075,7 @@ export function execute(
     placement: request.placement,
     inputSnapshotHash: hash(request.input),
     catalogueSnapshotHash: catalogueHash(catalogue),
-    sourceBindings: [...sourceBindings].sort(
-      (a, b) =>
-        a.field.localeCompare(b.field) ||
-        a.connectorId.localeCompare(b.connectorId) ||
-        a.nodeId.localeCompare(b.nodeId)
-    ),
+    fieldOrigins,
     packageVersions: artifact.packageVersions,
     // Explicitly null rather than omitted when the artifact pins none: a
     // decision that cannot name its model should say so (ADR-014 §2).
@@ -980,6 +1102,8 @@ export function execute(
     consentState: consent,
     winner,
     winnerOfferId: winnerOffer?.id ?? null,
+    slotCount,
+    slate,
   };
 
   // One hash, used twice. `shortHash` is a prefix of `hash`, so computing both
@@ -1062,6 +1186,16 @@ export function replay(
     contactHistory,
     // Read from the record, never from a ledger that has moved on since.
     ...(d.contactsRead ? { contactsRead: d.contactsRead } : {}),
+    // The slot count the decision had, not the placement's today: a replay
+    // under an edited placement returns the slate that was returned then
+    // (ADR-020 §2).
+    slotCount: d.slotCount,
+    // What resolution wrote, from the record, never resolved again (ADR-022
+    // §4): a connector asked today would answer today, and a replay reproduces
+    // the decision that was made.
+    resolved: d.fieldOrigins
+      .filter((o) => o.origin !== 'request')
+      .map((o) => ({ field: o.field, nodeId: o.nodeId, connectorId: o.connectorId, origin: o.origin as 'connector' | 'default' })),
     // The request that produces the recorded state: an absent purpose stays
     // unstated, so the replay records it as absent again.
     consent: assertionOf(d.consentState),

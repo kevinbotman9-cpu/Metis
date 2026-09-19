@@ -54,12 +54,15 @@ describe('POST /api/decisions resolves its connectors', () => {
     const res = await decide(request());
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      decision: { sourceBindings: { field: string; connectorId: string; nodeId: string }[] };
+      decision: { fieldOrigins: { field: string; connectorId: string; nodeId: string; origin: string }[] };
     };
 
     // The caller sent none of these. They are in the decision because the
-    // endpoint fetched them.
-    const byField = new Map(body.decision.sourceBindings.map((b) => [b.field, b.connectorId]));
+    // endpoint fetched them, and the record says a connector supplied each.
+    expect(
+      body.decision.fieldOrigins.filter((b) => b.origin !== 'connector').map((b) => `${b.field}:${b.origin}`)
+    ).toEqual([]);
+    const byField = new Map(body.decision.fieldOrigins.map((b) => [b.field, b.connectorId]));
     // The two the brief's scenarios turn on, and which named system said so:
     // a fiber refusal that can point at the serviceability lookup is the whole
     // reason this path is worth having.
@@ -91,6 +94,32 @@ describe('POST /api/decisions resolves its connectors', () => {
     ).json()) as { chainHash: string };
 
     expect(supplied.chainHash).not.toBe(resolved.chainHash);
+  });
+
+  it('records a field the caller sent as the request’s, whatever the caller claims', async () => {
+    // G-152: the storefront's preset sent the address, and the record said
+    // `conn_serviceability` decided it. And a caller cannot fix that by
+    // claiming a connector vouched for its value: `resolved` is set by the
+    // platform after resolving and dropped from a body (ADR-022 §3).
+    const res = await decide(
+      request({
+        input: {
+          customer: { age: 41, credit_status: 'pass', account_status: 'active', address: { fios_serviceable: true } },
+        },
+        resolved: [
+          { field: 'customer.address.fios_serviceable', nodeId: 'n1', connectorId: 'conn_serviceability', origin: 'connector' },
+        ],
+      })
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      decision: { fieldOrigins: { field: string; connectorId: string; origin: string }[] };
+    };
+    const fios = body.decision.fieldOrigins.filter((o) => o.field === 'customer.address.fios_serviceable');
+    expect(fios.map((o) => [o.connectorId, o.origin])).toEqual([['conn_serviceability', 'request']]);
+    // The other serviceability field was not sent, so the connector supplied it.
+    const coverage = body.decision.fieldOrigins.find((o) => o.field === 'customer.address.fiveg_coverage');
+    expect(coverage?.origin).toBe('connector');
   });
 });
 

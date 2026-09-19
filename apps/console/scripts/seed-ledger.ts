@@ -11,6 +11,17 @@
  *
  *   npm run seed:ledger -- --reset --tenant telco-us --by marcus.webb
  *
+ * A reset of a tenant holding decisions made by using the console — decided
+ * after the seeded corpus ends — refuses and says how many, because nothing can
+ * regenerate them. To go ahead, acknowledge the exact count:
+ *
+ *   npm run seed:ledger -- --reset --tenant telco-us --by marcus.webb --discard-made-by-hand 37
+ *
+ * and to clear it and seed nothing, so it holds only what is made by using the
+ * console from then on:
+ *
+ *   npm run seed:ledger -- --reset --empty --tenant telco-us --by marcus.webb
+ *
  * It is never an API operation. `POST /api/_test/reset` refuses a PostgreSQL
  * store and keeps refusing it: clearing a database from a test endpoint is not
  * a thing the console should be able to do.
@@ -23,6 +34,7 @@ import { DecisionLedger, PostgresLedgerStore, dataClassOf, runMigration } from '
 import { Governance, createGovernanceStore } from '@metis/governance';
 import { planSeed } from '../mocks/seed-plan';
 import { seedLedger } from '../mocks/seed-ledger';
+import { SEEDED_BEFORE } from '../mocks/fixtures/engine';
 
 function arg(name: string): string | undefined {
   const flag = `--${name}`;
@@ -50,6 +62,12 @@ async function main(): Promise<number> {
     console.error(`--count must be a whole number of decisions; got ${arg('count')}`);
     return 1;
   }
+  const discard = arg('discard-made-by-hand');
+  const discardMadeByHand = discard === undefined ? undefined : Number(discard);
+  if (discardMadeByHand !== undefined && (!Number.isInteger(discardMadeByHand) || discardMadeByHand < 1)) {
+    console.error(`--discard-made-by-hand must be the number of decisions to discard; got ${discard}`);
+    return 1;
+  }
 
   const pool = new Pool({ connectionString: url });
   try {
@@ -63,6 +81,8 @@ async function main(): Promise<number> {
     );
     const tenantsInLedger = rows.map((r) => r.tenant_id);
     const existingForTenant = tenant ? await ledger.count({ tenantId: tenant }) : 0;
+    // Decided after the seeded corpus ends: made by using the console.
+    const madeByHand = tenant ? await ledger.count({ tenantId: tenant, from: SEEDED_BEFORE }) : 0;
 
     const plan = planSeed({
       tenant,
@@ -71,6 +91,9 @@ async function main(): Promise<number> {
       dataClass: dataClassOf(process.env.METIS_DATA_CLASS),
       tenantsInLedger,
       existingForTenant,
+      madeByHand,
+      discardMadeByHand,
+      empty: has('empty'),
     });
 
     if (plan.kind === 'refuse') {
@@ -82,7 +105,7 @@ async function main(): Promise<number> {
       return 0;
     }
 
-    if (plan.kind === 'reset-and-seed') {
+    if (plan.kind === 'reset-and-seed' || plan.kind === 'reset') {
       // One statement, and the order the foreign keys need. TRUNCATE rather
       // than DELETE because the append-only triggers refuse a row delete and
       // this command does not bypass them (ADR-004 clause 2).
@@ -97,12 +120,20 @@ async function main(): Promise<number> {
           actorType: 'human',
           eventType: 'LedgerReset',
           scope: 'tenant',
-          summary: `Truncated the ledger for ${tenant} before reseeding: ${existingForTenant} decisions removed.`,
+          summary:
+            plan.kind === 'reset'
+              ? `Truncated the ledger for ${tenant} and left it empty: ${existingForTenant} decisions removed.`
+              : `Truncated the ledger for ${tenant} before reseeding: ${existingForTenant} decisions removed.`,
           changeSetId: null,
         });
       } finally {
         await governance.close?.();
       }
+    }
+
+    if (plan.kind === 'reset') {
+      console.log(`Left ${tenant} empty: it holds what is made by using the console from here on.`);
+      return 0;
     }
 
     const report = await seedLedger(ledger, { count, tenantId: tenant });

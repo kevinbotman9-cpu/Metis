@@ -36,6 +36,7 @@
 
 import { hash } from '@metis/runtime/deterministic/canonical';
 import type { CatalogueSnapshot } from '@metis/runtime/deterministic/types';
+import { generateActions } from '@metis/core/domain';
 import type { CatalogueSnapshotRecord } from '@metis/catalogue';
 import { store } from '@/mocks/store';
 import { CONSOLE_TENANT } from '@/mocks/catalogue-source';
@@ -78,6 +79,9 @@ export function snapshotFrom(record: CatalogueSnapshotRecord): CatalogueSnapshot
   }
   const built: CatalogueSnapshot = {
     offers: record.offers,
+    // One per offer, generated rather than stored (ADR-019 §1, decided
+    // 2026-09-18): nothing can author an action yet.
+    actions: generateActions(record.offers),
     targetingPolicies: record.targetingPolicies,
     frequencyPolicies: record.frequencyPolicies,
     arbitration: record.arbitration,

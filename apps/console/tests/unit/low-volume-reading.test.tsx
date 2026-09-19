@@ -107,7 +107,7 @@ describe('the funnel headline ends in a sentence', () => {
       />
     );
     expect(container.textContent).not.toMatch(/alone removes/);
-    expect(container.textContent).toMatch(/beaten on priority by something else\./);
+    expect(container.textContent).toMatch(/ranked below every slot the placement had\./);
   });
 
   it('still names a rule that did the removing', () => {

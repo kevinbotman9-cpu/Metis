@@ -40,9 +40,11 @@ interface Case {
   };
 }
 
-const corpus: { cases: Case[]; algorithm: string } = JSON.parse(
-  fs.readFileSync(CORPUS, 'utf8')
-);
+const corpus: {
+  cases: Case[];
+  algorithm: string;
+  refusals: (Omit<Case, 'expected'> & { expectedRefusal: string })[];
+} = JSON.parse(fs.readFileSync(CORPUS, 'utf8'));
 
 describe('decision conformance (ADR-003)', () => {
   it('the corpus covers a meaningful set of distinct decisions', () => {
@@ -106,6 +108,27 @@ describe('decision conformance (ADR-003)', () => {
       expect(trace.decision.catalogueSnapshotHash).toBe(c.expected.catalogueSnapshotHash);
       expect(trace.chainHash).toBe(c.expected.chainHash);
       expect(trace.id).toBe(c.expected.id);
+    });
+  }
+
+  /**
+   * What an engine must refuse, and the words it refuses with. A refusal is
+   * part of the contract: an engine that decided where the other refused would
+   * record a provenance line one of them cannot stand behind (ADR-022 §3).
+   */
+  it('holds at least one refusal', () => {
+    expect(corpus.refusals.length).toBeGreaterThan(0);
+  });
+
+  for (const r of corpus.refusals) {
+    it(`refuses: ${r.name}`, () => {
+      let message: string | undefined;
+      try {
+        execute(r.artifact, r.catalogue, r.request);
+      } catch (e) {
+        message = (e as Error).message;
+      }
+      expect(message).toBe(r.expectedRefusal);
     });
   }
 

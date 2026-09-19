@@ -172,10 +172,38 @@ object Engine {
         "objective" -> scope.targetId == p.objectiveId
         "category" -> scope.targetId == p.categoryId
         "offer" -> scope.targetId == p.id
+        // One action, and nothing without an action id: an offer is not one.
+        "action" -> p.actionId != null && scope.targetId == p.actionId
         else -> false
     }
 
-    private val SCOPE_RANK = mapOf("tenant" to 0, "objective" to 1, "category" to 2, "offer" to 3)
+    private val SCOPE_RANK = mapOf("tenant" to 0, "objective" to 1, "category" to 2, "offer" to 3, "action" to 4)
+
+    /**
+     * The candidates a catalogue can offer, by action key: each action joined
+     * to its offer, under the action's key, as `candidatesByKey` in the
+     * TypeScript engine. The offer's record is what an `offer.*` condition
+     * reads, so the candidate's carries the same three fields the TypeScript
+     * candidate does.
+     */
+    private fun candidatesByKey(catalogue: CatalogueSnapshot): Map<String, Offer> {
+        val offerById = catalogue.offers.associateBy { it.id }
+        val byKey = linkedMapOf<String, Offer>()
+        for (a in catalogue.actions) {
+            val offer = offerById[a.offerId]
+                ?: throw IllegalArgumentException("Action ${a.id} names offer ${a.offerId}, which is not in the catalogue snapshot.")
+            if (byKey.containsKey(a.key)) {
+                throw IllegalArgumentException("Action key ${a.key} is declared twice in the catalogue snapshot.")
+            }
+            byKey[a.key] = offer.copy(
+                key = a.key,
+                actionId = a.id,
+                actionActive = a.active,
+                raw = offer.raw + mapOf("key" to a.key, "actionId" to a.id, "actionActive" to a.active),
+            )
+        }
+        return byKey
+    }
 
     /** Most specific scope wins; falls back to the offer's own weight. */
     private fun effectiveBoost(boosts: List<Boost>, p: Offer, occurredAt: String): Double {
@@ -297,10 +325,10 @@ object Engine {
         catalogueSnapshotHash: String,
         inputSnapshotHash: String,
     ): DecisionRecord {
-        val byKey = catalogue.offers.associateBy { it.key }
+        val byKey = candidatesByKey(catalogue)
         val policyById = catalogue.targetingPolicies.associateBy { it.id }
         val connectorById = catalogue.connectors.associateBy { it.id }
-        val sourceBindings = mutableListOf<SourceBinding>()
+        val fieldOrigins = fieldOriginsOf(artifact, catalogue, request)
 
         // Initial candidate set, in artifact order so it is reproducible.
         var candidates: List<Offer> = artifact.candidateKeys.mapNotNull { byKey[it] }
@@ -316,6 +344,12 @@ object Engine {
         val missingScoreApplied = mutableListOf<String>()
         var winner: String? = null
         var runnerUp: String? = null
+        // How many offers the placement shows, and what was shown (ADR-020).
+        val slotCount = request.slotCount ?: 1
+        if (slotCount < 1) {
+            throw IllegalArgumentException("Artifact ${artifact.id}: a placement shows at least one offer; slotCount was $slotCount.")
+        }
+        var slate: List<SlateEntry> = emptyList()
 
         // Resolved once and thrown on rather than defaulted. A config naming
         // a function that does not exist is a deployment fault; falling back
@@ -386,22 +420,9 @@ object Engine {
 
             when (node.type) {
                 "source" -> {
-                    // Provenance, not fetching. Resolution already ran outside
-                    // the deterministic core and the values are in the input.
-                    for (connectorId in node.connectorIds ?: emptyList()) {
-                        val connector = connectorById[connectorId] ?: continue
-                        if (!connector.active) continue
-                        for (binding in connector.provides) {
-                            // By path, not by key. A connector declares where its
-                            // value lands as a path into the profile (ADR-014
-                            // §2); containsKey asked for a key literally named
-                            // "customer.monthly_spend", which never exists, so
-                            // every binding was dropped (G-069). The same
-                            // mistake was in the TypeScript engine.
-                            if (readPath(request.input, binding.field) == null) continue
-                            sourceBindings.add(SourceBinding(binding.field, connectorId, node.id))
-                        }
-                    }
+                    // Nothing fetched here: resolution ran outside the core and
+                    // the values are in the input. Where each came from was
+                    // settled before the loop (fieldOriginsOf).
 
                     // Status before validity, so a retired offer that is also
                     // out of window reports as retired — the more fundamental
@@ -409,7 +430,8 @@ object Engine {
                     val sourceDenials = mutableListOf<Denial>()
                     candidates = before.filter { p ->
                         when {
-                            p.status != "active" -> {
+                            // An action switched off is as unavailable as its offer retired.
+                            p.status != "active" || !p.actionActive -> {
                                 sourceDenials.add(Denial(p.key, "NOT_ACTIVE", null)); false
                             }
                             !withinValidity(p, request.occurredAt) -> {
@@ -421,7 +443,9 @@ object Engine {
 
                     val ids = node.connectorIds ?: emptyList()
                     val sourced = if (ids.isNotEmpty()) {
-                        val fields = sourceBindings.filter { it.nodeId == node.id }.map { it.field }
+                        // What its connectors supplied, not what the request
+                        // carried (ADR-022), in the TypeScript's words.
+                        val fields = fieldOrigins.filter { it.nodeId == node.id && it.origin != "request" }.map { it.field }
                         val list = if (fields.isEmpty()) "none resolved" else fields.joinToString(", ")
                         " Fields from ${ids.size} connector(s): $list."
                     } else ""
@@ -681,14 +705,19 @@ object Engine {
                                 .thenBy { positionOf(it.key) }
                         )
 
-                    winner = ranked.getOrNull(0)?.key
-                    runnerUp = ranked.getOrNull(1)?.key
-                    candidates = ranked.take(1)
+                    // The slate, cut to the placement's slots; the runner-up is
+                    // the best finalist it left out. The TypeScript's rule.
+                    val shown = ranked.take(slotCount)
+                    slate = shown.mapIndexed { i, p -> SlateEntry(i + 1, p.key, p.id, scores.getValue(p.key).priority) }
+                    winner = shown.getOrNull(0)?.key
+                    runnerUp = ranked.getOrNull(slotCount)?.key
+                    candidates = shown
 
                     record(
                         node,
                         if (winner != null) {
-                            "Ranked ${ranked.size} finalist(s) by ${catalogue.arbitration.formula}. Winner: $winner."
+                            "Ranked ${ranked.size} finalist(s) by ${catalogue.arbitration.formula}. Winner: $winner." +
+                                (if (slotCount > 1) " Shown in $slotCount slot(s): ${shown.joinToString(", ") { it.key }}." else "")
                         } else {
                             "No candidates reached arbitration; decision returned no offer."
                         },
@@ -712,6 +741,10 @@ object Engine {
         if (!consentApplied) applyConsentByPlatform()
 
         val winnerOffer = winner?.let { byKey[it] }
+        // Two claims about what was shown, and the engine writes neither.
+        if (slate.firstOrNull()?.action != winner) {
+            throw IllegalStateException("Artifact ${artifact.id}: winner $winner is not the slate's first entry (${slate.firstOrNull()?.action ?: "none"}).")
+        }
 
         val decision = DeterministicDecision(
             tenantId = request.tenantId,
@@ -723,9 +756,7 @@ object Engine {
             placement = request.placement,
             inputSnapshotHash = inputSnapshotHash,
             catalogueSnapshotHash = catalogueSnapshotHash,
-            sourceBindings = sourceBindings.sortedWith(
-                compareBy({ it.field }, { it.connectorId }, { it.nodeId })
-            ),
+            fieldOrigins = fieldOrigins,
             packageVersions = artifact.packageVersions,
             schema = artifact.schema,
             candidateKeys = artifact.candidateKeys,
@@ -747,6 +778,8 @@ object Engine {
             consentState = consent,
             winner = winner,
             winnerOfferId = winnerOffer?.id,
+            slotCount = slotCount,
+            slate = slate,
             contactsRead = request.contactsRead?.let { recordedContacts(it, request.channel, catalogue) },
         )
 
@@ -760,6 +793,52 @@ object Engine {
      * another channel or a count that is not a count — the same refusals the
      * TypeScript engine's `recordedContacts` makes.
      */
+    /**
+     * Where each connector-provided value came from — ADR-022 §2, §3. The
+     * TypeScript `fieldOriginsOf`, rule for rule and message for message: a
+     * resolved entry is validated, not trusted, and every other present field a
+     * connector on a source node provides came from the request.
+     */
+    private fun fieldOriginsOf(
+        artifact: ExecArtifact,
+        catalogue: CatalogueSnapshot,
+        request: DecisionRequest,
+    ): List<FieldOrigin> {
+        val connectorById = catalogue.connectors.associateBy { it.id }
+        val sourceNodes = artifact.nodes.filter { it.type == "source" }
+        val resolved = linkedMapOf<String, FieldOrigin>()
+
+        for (r in request.resolved ?: emptyList()) {
+            fun refuse(why: String): Nothing = throw IllegalArgumentException(
+                "Artifact ${artifact.id}: resolved field \"${r.field}\" from ${r.connectorId} at ${r.nodeId} $why."
+            )
+            if (r.origin != "connector" && r.origin != "default") refuse("has origin \"${r.origin}\", which resolution cannot report")
+            val node = sourceNodes.firstOrNull { it.id == r.nodeId }
+            if (node == null || !(node.connectorIds ?: emptyList()).contains(r.connectorId)) refuse("names a connector no source node of the flow draws on")
+            val connector = connectorById[r.connectorId]
+            if (connector == null || !connector.active) refuse("names a connector that is not active in the catalogue")
+            if (connector.provides.none { it.field == r.field }) refuse("is not a field that connector provides")
+            if (readPath(request.input, r.field) == null) refuse("is not present in the input")
+            resolved["${r.field}|${r.connectorId}|${r.nodeId}"] = FieldOrigin(r.field, r.nodeId, r.connectorId, r.origin)
+        }
+        val resolvedFields = resolved.values.map { it.field }.toSet()
+
+        val origins = resolved.values.toMutableList()
+        for (node in sourceNodes) {
+            for (connectorId in node.connectorIds ?: emptyList()) {
+                val connector = connectorById[connectorId] ?: continue
+                if (!connector.active) continue
+                for (binding in connector.provides) {
+                    // By path, not by key (G-069).
+                    if (readPath(request.input, binding.field) == null) continue
+                    if (binding.field in resolvedFields) continue
+                    origins.add(FieldOrigin(binding.field, node.id, connectorId, "request"))
+                }
+            }
+        }
+        return origins.sortedWith(compareBy({ it.field }, { it.connectorId }, { it.nodeId }))
+    }
+
     private fun recordedContacts(read: ContactsRead, channel: String, catalogue: CatalogueSnapshot): ContactsRead {
         require(read.channel == channel) {
             "contactsRead describes channel \"${read.channel}\" and the decision is on \"$channel\". " +

@@ -30,6 +30,7 @@ import type {
   Connector,
   ModelVersion,
 } from '@metis/core/domain';
+import { generateActions } from '@metis/core/domain';
 import {
   conditionProblems,
   listFieldPaths,
@@ -1006,6 +1007,9 @@ export function compileDecisionFlow(
       ...knownTargets.objectives,
       ...knownTargets.categories,
       ...ctx.offers.map((p) => p.id),
+      // The actions a snapshot of these offers holds (ADR-019 §4): generated
+      // one per offer until an action can be authored.
+      ...generateActions(ctx.offers).map((a) => a.id),
     ]);
     const scoped: { id: string; name: string; kind: string; scope: PolicyScope }[] = [
       ...ctx.frequencyPolicies.filter((c) => c.active).map((c) => ({

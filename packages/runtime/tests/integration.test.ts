@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Connector } from '@metis/core/domain';
+import { withGeneratedActions } from '@metis/core/domain';
 import { resolveInputs, requiredConnectors, IntegrationError } from '../src/integration/resolve';
 import type { IntegrationGateway, ResolutionContext } from '../src/integration/resolve';
 import { execute, replay } from '../src/deterministic/engine';
@@ -47,7 +48,7 @@ const artifact: ExecArtifact = {
   packageVersions: {},
 };
 
-const catalogue: CatalogueSnapshot = {
+const catalogue: CatalogueSnapshot = withGeneratedActions({
   offers: [
     {
       id: 'p1',
@@ -87,7 +88,7 @@ const catalogue: CatalogueSnapshot = {
   },
   boosts: [],
   connectors: [connector()],
-};
+});
 
 const request: DecisionRequest = {
   tenantId: 't',
@@ -122,8 +123,8 @@ describe('integration resolution', () => {
 
     expect(g.calls).toBe(1);
     expect(resolved.input.creditScore).toBe(720);
-    expect(resolved.bindings).toEqual([
-      { field: 'creditScore', connectorId: 'conn_bureau', nodeId: 'n_source' },
+    expect(resolved.resolved).toEqual([
+      { field: 'creditScore', connectorId: 'conn_bureau', nodeId: 'n_source', origin: 'connector' },
     ]);
     expect(resolved.calls[0]).toMatchObject({
       connectorId: 'conn_bureau',
@@ -158,8 +159,8 @@ describe('integration resolution', () => {
       g
     );
     expect(resolved.input.creditScore).toBe(810);
-    // Nothing was bound, because nothing was taken from the connector.
-    expect(resolved.bindings).toEqual([]);
+    // Nothing was resolved, because nothing was taken from the connector.
+    expect(resolved.resolved).toEqual([]);
     // And the measured call says so: it answered, and its answer was not used.
     // It listed `creditScore` as a field it contributed until 2026-09-17
     // (ADR-022 §5).
@@ -180,7 +181,7 @@ describe('integration resolution', () => {
       gateway({ score: { value: 720, band: 'C' } })
     );
     expect(resolved.calls[0]).toMatchObject({ fields: ['creditScore'], overridden: ['creditBand'] });
-    expect(resolved.bindings.map((b) => b.field)).toEqual(['creditScore']);
+    expect(resolved.resolved.map((b) => b.field)).toEqual(['creditScore']);
   });
 
   it('fails the decision when a required connector fails', async () => {
@@ -278,11 +279,59 @@ describe('integrations and determinism', () => {
   it('records provenance in the reproducible half of the trace', async () => {
     const g = gateway({ score: { value: 720 } });
     const resolved = await resolveInputs(artifact, catalogue.connectors, request, g);
-    const trace = execute(artifact, catalogue, { ...request, input: resolved.input });
+    const trace = execute(artifact, catalogue, { ...request, input: resolved.input, resolved: resolved.resolved });
 
-    expect(trace.decision.sourceBindings).toEqual([
-      { field: 'creditScore', connectorId: 'conn_bureau', nodeId: 'n_source' },
+    expect(trace.decision.fieldOrigins).toEqual([
+      { field: 'creditScore', connectorId: 'conn_bureau', nodeId: 'n_source', origin: 'connector' },
     ]);
+  });
+
+  it('records a value the request carried as the request’s, naming the connector not used', async () => {
+    // G-152: the engine named the connector for any present field it provides.
+    // With nothing resolved, the value can only have come from the caller.
+    const trace = execute(artifact, catalogue, { ...request, input: { creditScore: 810 } });
+    expect(trace.decision.fieldOrigins).toEqual([
+      { field: 'creditScore', connectorId: 'conn_bureau', nodeId: 'n_source', origin: 'request' },
+    ]);
+  });
+
+  it('records a binding’s default as a default, not as the connector’s answer', async () => {
+    // A registry outage recorded as `connector` would read as the registry
+    // saying what the default says (ADR-022 §2).
+    const withDefault = connector({
+      onFailure: 'default',
+      provides: [{ field: 'creditScore', path: 'score.value', type: 'number', defaultValue: 600 }],
+    });
+    const resolved = await resolveInputs(artifact, [withDefault], request, gateway(null, { fail: new Error('down') }));
+    expect(resolved.resolved).toEqual([
+      { field: 'creditScore', connectorId: 'conn_bureau', nodeId: 'n_source', origin: 'default' },
+    ]);
+    const trace = execute(artifact, { ...catalogue, connectors: [withDefault] }, {
+      ...request,
+      input: resolved.input,
+      resolved: resolved.resolved,
+    });
+    expect(trace.decision.fieldOrigins.map((o) => o.origin)).toEqual(['default']);
+  });
+
+  it('refuses a resolved entry the artifact and catalogue cannot stand behind', () => {
+    const bad = (over: Record<string, unknown>) => () =>
+      execute(artifact, catalogue, {
+        ...request,
+        input: { creditScore: 720 },
+        resolved: [{ field: 'creditScore', connectorId: 'conn_bureau', nodeId: 'n_source', origin: 'connector', ...over }],
+      } as never);
+    expect(bad({ field: 'creditBand' })).toThrow(/not a field that connector provides/);
+    expect(bad({ nodeId: 'n_elsewhere' })).toThrow(/no source node of the flow draws on/);
+    expect(bad({ connectorId: 'conn_nowhere' })).toThrow(/no source node of the flow draws on/);
+    expect(bad({ origin: 'request' })).toThrow(/which resolution cannot report/);
+    expect(() =>
+      execute(artifact, catalogue, {
+        ...request,
+        input: {},
+        resolved: [{ field: 'creditScore', connectorId: 'conn_bureau', nodeId: 'n_source', origin: 'connector' }],
+      })
+    ).toThrow(/not present in the input/);
   });
 
   it('replays without calling the connector, and matches', async () => {
@@ -291,7 +340,10 @@ describe('integrations and determinism', () => {
     // chain hash matches.
     const g = gateway({ score: { value: 720 } });
     const resolved = await resolveInputs(artifact, catalogue.connectors, request, g);
-    const original = execute(artifact, catalogue, { ...request, input: resolved.input });
+    const original = execute(artifact, catalogue, { ...request, input: resolved.input, resolved: resolved.resolved });
+    // Recorded as the connector's, so replay has to hand that back rather than
+    // re-derive `request` from an input it cannot tell apart (ADR-022 §4).
+    expect(original.decision.fieldOrigins.map((o) => o.origin)).toEqual(['connector']);
 
     const callsBefore = g.calls;
     const result = replay(artifact, catalogue, original, resolved.input);

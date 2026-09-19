@@ -7,6 +7,7 @@ import type {
   MissingScoreDefault,
 } from '../src/deterministic/types';
 import type { Offer } from '@metis/core/domain';
+import { withGeneratedActions } from '@metis/core/domain';
 
 /**
  * The approved default for a candidate nothing scored.
@@ -46,7 +47,7 @@ const offer = (over: Partial<Offer> & { id: string; key: string }): Offer =>
     ...over,
   }) as Offer;
 
-const catalogue: CatalogueSnapshot = {
+const catalogue: CatalogueSnapshot = withGeneratedActions({
   // Two offers whose margins differ, so a change to the shared propensity
   // moves every priority without changing their order — and a change to only
   // one candidate's score would.
@@ -77,7 +78,7 @@ const catalogue: CatalogueSnapshot = {
   },
   boosts: [],
   connectors: [],
-} as unknown as CatalogueSnapshot;
+}) as unknown as CatalogueSnapshot;
 
 /** No scoring node, so every candidate reaches arbitration unscored. */
 const unscored = (missingScoreDefault?: MissingScoreDefault): ExecArtifact =>

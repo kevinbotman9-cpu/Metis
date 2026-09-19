@@ -71,6 +71,15 @@ second. A second action on one offer is what a retention-focused one, a
 channel-specific framing or a regional price point becomes when somebody needs
 one; none of them needs a migration.
 
+**A generated action inherits its offer's key; an authored action declares its
+own** (added 2026-09-18, by the product owner). The seeded catalogue's actions
+are generated one per offer, and each takes its offer's `key` — so the
+candidate keys, winners, report rows and cap names of every existing decision
+read exactly as they did, and only the catalogue's hash and the record's shape
+move. The first second action on any offer is authored, and declares a key of
+its own; it cannot inherit one, because two actions of one offer would then
+collide on the key that is unique within a tenant.
+
 **Rejected:** one-to-one with a note about growing later. The relation is what
 the identity of every candidate, every cap and every rollup is keyed on. A
 one-to-one that becomes one-to-many later moves every chain hash a second time,
@@ -230,6 +239,32 @@ sums — is re-pinned in the same commit, with the old and the new number both i
 the message. A figure that moves silently here is the failure ADR-018 §6 was
 written to prevent.
 
+**Amended 2026-09-18, by the product owner: the draws are keyed on the seed
+index, and that is re-keyed once, before the reseed.** The paragraph above
+describes the re-roll as a consequence of keying the draws on the decision id.
+It is not a requirement, and it would have cost the reseed its attribution:
+ADR-019, ADR-020 §1, ADR-021 §9's fixture and ADR-022 §2–4 each change what a
+decision records, so each moves every id, and each would have re-rolled every
+outcome — four re-rolls, and no outcome figure in the commit traceable to the
+ADR that moved it. The deeper cost is the one the reseed only exposes: with a
+content-addressed key, *every* future change to the record re-rolls history.
+ADR-022's measurement saw realised value swing 40% for a reason that had
+nothing to do with any decision.
+
+- **The key is the seed index**, which does not move: one customer per seeded
+  decision, `cust_` and `880000 + index * 137` in base 36, decoded by
+  `decisionIndexOf` (`drawKey` in `mocks/fixtures/synthetic-customers.ts`).
+  A record the seed did not make has no seed index and keeps its id.
+- **It is the reseed's stage 0**, with its own delta table, before any ADR's
+  change. It re-rolls once. After it, an outcome moves only when its decision's
+  winner, or (ADR-020 §5) its slate, does.
+- **Held by** `outcome-draw-key.test.ts`: a seeded decision's events do not
+  depend on its id, and a decision the seed did not make is keyed on its own.
+  Keying on the id again, or on the index for every decision, turns it red.
+- **This does not contradict the paragraph above;** it changes which change
+  re-rolls. The figures still move once, and the commit still carries the old
+  and new number for each.
+
 ### 8. The tie-break is decided now, because the split is what makes ties reachable
 
 Today no decision turns on the tie-break, and the closest two candidates come is
@@ -287,6 +322,18 @@ is over the 45 that exist before it.)*
 
 ## Consequences
 
+- **Actions are generated, not yet editable** (decided by the product owner,
+  2026-09-18). The split lands in the engine, the record, the catalogue snapshot,
+  policy scope and caps; the **Actions screen and the creative editor off the
+  action are deferred** to a slice of their own, and so is clause 5's move of a
+  creative's key from the offer to the action. The reason is the same for all
+  three: creatives are authored in the editor, which is keyed on the offer, and
+  moving the stored key before the editor moves would leave no screen that can
+  author a creative against an action. With one generated action per offer the
+  two keys name the same thing, so nothing is decided wrongly in the meantime.
+  `CAPABILITIES.md` records the split as `ENGINE-ONLY` in the survey's terms,
+  which its own map writes as PARTIAL with no screen and the limit stated: an
+  action nobody can edit is real progress and is not recorded as more than it is.
 - **Every decision in the seeded history gets a new id**, and every report, list
   and trace URL built from one changes with it. Nothing in the product stores a
   decision id outside the ledger.

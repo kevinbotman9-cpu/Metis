@@ -59,13 +59,17 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     // Inside the shell, not instead of it. Someone who lands here by following
     // a stale link needs the rail to get somewhere they are allowed to be, and
     // a bare refusal on an empty page is a dead end.
+    // In the tenant's formats too: the shell's footer counts the ledger's
+    // decisions through them.
     return (
-      <AppShell>
-        <PageBody>
-          <PageHeader title={required.label} />
-          <PermissionDenied permission={required.permission} />
-        </PageBody>
-      </AppShell>
+      <TenantFormatProvider>
+        <AppShell>
+          <PageBody>
+            <PageHeader title={required.label} />
+            <PermissionDenied permission={required.permission} />
+          </PageBody>
+        </AppShell>
+      </TenantFormatProvider>
     );
   }
 

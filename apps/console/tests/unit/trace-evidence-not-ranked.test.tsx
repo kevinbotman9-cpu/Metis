@@ -24,7 +24,7 @@ const TRACE = {
   candidateCount: 4,
   eliminations: [],
   timings: {},
-  sourceBindings: [],
+  fieldOrigins: [],
   sourceCalls: [],
 } as unknown as TraceDto;
 
@@ -65,7 +65,8 @@ const pane = () =>
 describe('a candidate beaten on priority is not described as a refusal', () => {
   it('says what the code means and names the code', () => {
     pane();
-    expect(screen.getByText(/beaten on priority/)).toBeTruthy();
+    // ADR-020 §3: below every slot the placement had, not "beaten" by slot 2.
+    expect(screen.getByText(/ranked below every slot the placement had/)).toBeTruthy();
     // Twice, on purpose: once as the pane's heading and once as the reason-code
     // badge under "Reason code", which is the one row that stays.
     expect(screen.getByRole('heading', { name: 'NOT_RANKED' })).toBeTruthy();

@@ -35,10 +35,11 @@ test.describe('virtualised decision grid', () => {
     expect(rendered).toBeGreaterThan(5);
     // The whole point: DOM cost is bounded regardless of result size.
     expect(rendered).toBeLessThan(100);
-    // The list opens on offered decisions: 4,688 of the seed's 10,400. Read
-    // from the ledger since slice 3, and the same 4,688 — which is what the
-    // deletion was gated on (ADR-018 §6).
-    await expect(page.getByText(/of 4,688/)).toBeVisible();
+    // The list opens on offered decisions: 4,649 of the seed's 10,400. It was
+    // 4,688, the figure the index's deletion was gated on (ADR-018 §6), until
+    // the reseed's stage 4 (2026-09-19) capped Disney+ at once a week on the
+    // web and 39 decisions stopped offering anything.
+    await expect(page.getByText(/of 4,649/)).toBeVisible();
   });
 
   test('advances the window when scrolled, keeping the DOM bounded', async ({ page }) => {

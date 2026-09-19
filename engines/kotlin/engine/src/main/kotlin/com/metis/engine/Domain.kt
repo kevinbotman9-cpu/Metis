@@ -52,6 +52,21 @@ data class Offer(
      * to do with decisioning.
      */
     val raw: Map<String, Any?> = emptyMap(),
+    /**
+     * Set on a candidate, which is an action joined to this offer (ADR-019
+     * §1–2): the action's id, and whether the action itself is switched on.
+     * An offer read from a catalogue has neither.
+     */
+    val actionId: String? = null,
+    val actionActive: Boolean = true,
+)
+
+/** An offer made decidable: what a flow offers and a record names. ADR-019 §1. */
+data class Action(
+    val id: String,
+    val key: String,
+    val offerId: String,
+    val active: Boolean,
 )
 
 data class PolicyCondition(val field: String, val operator: String, val value: Any?)
@@ -114,6 +129,7 @@ data class Connector(
 
 data class CatalogueSnapshot(
     val offers: List<Offer>,
+    val actions: List<Action>,
     val targetingPolicies: List<TargetingPolicy>,
     val frequencyPolicies: List<FrequencyPolicy>,
     val arbitration: ArbitrationConfig,
@@ -223,6 +239,15 @@ data class DecisionRequest(
      * counts, never instead of them. See the TypeScript `ContactsRead` (ADR-021).
      */
     val contactsRead: ContactsRead? = null,
+    /**
+     * What resolution wrote into the input, and how (ADR-022 §3). Set by the
+     * service resolving the request, never taken from a caller; absent when
+     * nothing was resolved, and then every present connector-provided field is
+     * recorded as `request`.
+     */
+    val resolved: List<ResolvedField>? = null,
+    /** How many offers the placement shows (ADR-020 §2). Null means 1. */
+    val slotCount: Int? = null,
 )
 
 /**
@@ -278,7 +303,21 @@ data class CandidateScore(
     var priority: Double,
 )
 
-data class SourceBinding(val field: String, val connectorId: String, val nodeId: String)
+/**
+ * Where the value a decision used for a connector-provided field came from:
+ * `connector`, `default` or `request` (ADR-022 §2). Hashed. See the
+ * TypeScript `FieldOrigin`; this was `SourceBinding` until 2026-09-18.
+ */
+data class FieldOrigin(val field: String, val nodeId: String, val connectorId: String, val origin: String)
+
+/** One slot of a recorded slate (ADR-020 §1). The offer is stored, not derived. */
+data class SlateEntry(val rank: Int, val action: String, val offerId: String, val priority: Double)
+
+/**
+ * What resolution wrote, `connector` or `default` (ADR-022 §3). Set by the
+ * service after resolving and never taken from a caller, like [ContactsRead].
+ */
+data class ResolvedField(val field: String, val nodeId: String, val connectorId: String, val origin: String)
 
 /**
  * What ranking did about candidates nothing scored.
@@ -311,7 +350,7 @@ data class DeterministicDecision(
     val placement: String,
     val inputSnapshotHash: String,
     val catalogueSnapshotHash: String,
-    val sourceBindings: List<SourceBinding>,
+    val fieldOrigins: List<FieldOrigin>,
     val packageVersions: Map<String, String>,
     /** Null when the artifact pins no model. Recorded, never omitted. */
     val schema: SchemaPin?,
@@ -323,6 +362,10 @@ data class DeterministicDecision(
     val consentState: ConsentState,
     val winner: String?,
     val winnerOfferId: String?,
+    /** How many slots the placement had when this was decided (ADR-020 §2). */
+    val slotCount: Int,
+    /** What was shown, best first, one entry per slot filled (ADR-020 §1). */
+    val slate: List<SlateEntry>,
     /**
      * Absent when the platform did not read its ledger; present, possibly with
      * every count zero, when it did. The two are different facts and hash

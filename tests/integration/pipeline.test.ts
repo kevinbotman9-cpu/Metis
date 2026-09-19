@@ -23,6 +23,7 @@ import type {
   DecisionRequest,
 } from '../../packages/runtime/src/deterministic/types';
 import type { Offer, TargetingPolicy } from '../../packages/core/src/domain';
+import { withGeneratedActions } from '@metis/core/domain';
 
 const gbp = (amount: number) => ({ amount, currency: 'GBP' as const });
 
@@ -100,14 +101,14 @@ const compileContext: CompileContext = {
   tenant: { id: 'telco-us', latencyBudgetMs: 50, maxNodes: 100 },
 };
 
-const catalogue: CatalogueSnapshot = {
+const catalogue: CatalogueSnapshot = withGeneratedActions({
   offers,
   targetingPolicies: [adultOnly],
   frequencyPolicies: [],
   arbitration,
   boosts: [],
   connectors: [],
-};
+});
 
 const source: DecisionFlowSource = {
   id: 'next-best-action',

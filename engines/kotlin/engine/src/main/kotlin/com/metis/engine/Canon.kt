@@ -8,7 +8,7 @@ import com.metis.canonical.Canonical.Value
  *
  * The one place where the port has to agree with the TypeScript object
  * *shape*, not just its behaviour: the same field names, the same nesting, and
- * the same view of what is absent. `sourceBindings` on a decision with no
+ * the same view of what is absent. `fieldOrigins` on a decision with no
  * connectors is an empty array, not a missing key, because that is what the
  * TypeScript builds — and an empty array and a missing key hash differently.
  *
@@ -35,7 +35,7 @@ object Canon {
         "placement" to str(d.placement),
         "inputSnapshotHash" to str(d.inputSnapshotHash),
         "catalogueSnapshotHash" to str(d.catalogueSnapshotHash),
-        "sourceBindings" to arr(d.sourceBindings.map { binding(it) }),
+        "fieldOrigins" to arr(d.fieldOrigins.map { origin(it) }),
         "packageVersions" to obj(*d.packageVersions.map { (k, v) -> k to str(v) }.toTypedArray()),
         // Null rather than an absent key when the artifact pins no model: the
         // TypeScript writes `schema: null`, and an absent key hashes
@@ -78,6 +78,15 @@ object Canon {
         ),
         "winner" to strOrNull(d.winner),
         "winnerOfferId" to strOrNull(d.winnerOfferId),
+        "slotCount" to num(d.slotCount.toDouble()),
+        "slate" to arr(d.slate.map { e ->
+            obj(
+                "rank" to num(e.rank.toDouble()),
+                "action" to str(e.action),
+                "offerId" to str(e.offerId),
+                "priority" to num(e.priority),
+            )
+        }),
         // Absent, not null, when the platform did not read: the TypeScript
         // omits the key, and a decision that never read keeps the identity it
         // had before the field existed (ADR-021 §5).
@@ -106,10 +115,11 @@ object Canon {
         }
     }
 
-    private fun binding(b: SourceBinding): Value = obj(
-        "field" to str(b.field),
-        "connectorId" to str(b.connectorId),
-        "nodeId" to str(b.nodeId),
+    private fun origin(o: FieldOrigin): Value = obj(
+        "field" to str(o.field),
+        "nodeId" to str(o.nodeId),
+        "connectorId" to str(o.connectorId),
+        "origin" to str(o.origin),
     )
 
     private fun denial(d: Denial): Value = obj(

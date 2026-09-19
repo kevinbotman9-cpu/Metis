@@ -99,6 +99,9 @@ export async function decide(
 
   const resolvedRequest: DecisionRequest = {
     ...request,
+    // What resolution wrote, from resolution — after the spread, so a caller
+    // cannot claim a connector vouched for its value (ADR-022 §3).
+    resolved: inputs.resolved,
     input: {
       ...mergeAggregations(inputs.input, rolled.values),
       ...(Object.keys(arms.values).length > 0

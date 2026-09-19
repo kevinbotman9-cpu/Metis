@@ -131,8 +131,8 @@ describe('HttpIntegrationGateway', () => {
     );
 
     expect(resolved.input.creditScore).toBe(640);
-    expect(resolved.bindings).toEqual([
-      { field: 'creditScore', connectorId: 'conn_bureau', nodeId: 'n_source' },
+    expect(resolved.resolved).toEqual([
+      { field: 'creditScore', connectorId: 'conn_bureau', nodeId: 'n_source', origin: 'connector' },
     ]);
     expect(resolved.calls[0]).toMatchObject({ connectorId: 'conn_bureau', outcome: 'ok' });
   });

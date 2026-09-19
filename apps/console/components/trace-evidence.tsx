@@ -1,6 +1,7 @@
 'use client';
 
 import { ageInWords } from '@/lib/age';
+import { shownBy } from '@/lib/shown';
 
 import Link from 'next/link';
 import { Badge } from '@/components/ui/primitives';
@@ -106,22 +107,39 @@ export function TraceEvidence({
 }: TraceEvidenceProps) {
   const policy = group?.ruleId ? policies.find((p) => p.id === group.ruleId) : undefined;
 
-  // Which connector supplied the field this rule read, where the trace bound
-  // one. `sourceBindings` maps field -> connector; the policy names the field.
+  // Where the value of each field this rule read came from: a connector, a
+  // connector's default, or the request (ADR-022 §2). `fieldOrigins` maps
+  // field -> origin; the policy names the field. It was `sourceBindings`, and
+  // named a connector for values the caller sent (G-152).
   const fields = (policy?.conditions ?? []).map((c) => c.field).filter(Boolean);
-  const bindings = (trace.sourceBindings ?? []).filter((b) => fields.includes(b.field));
+  const bindings = (trace.fieldOrigins ?? []).filter((b) => fields.includes(b.field));
   const calls = trace.sourceCalls ?? [];
   const pack = group?.ruleId ? policySources?.[group.ruleId] : undefined;
-  // The calls behind the fields this rule read, deduplicated by connector.
-  const readCalls = [...new Set(bindings.map((b) => b.connectorId))]
+  // The calls behind the fields this rule read — only those a connector
+  // supplied — deduplicated by connector.
+  const readCalls = [...new Set(bindings.filter((b) => b.origin !== 'request').map((b) => b.connectorId))]
     .map((id) => calls.find((c) => c.connectorId === id))
     .filter((c): c is SourceCallDto => Boolean(c));
 
   if (!stage) {
     return (
       <>
-        <EvidenceLabel>The decision</EvidenceLabel>
-        <EvidencePick>{trace.winner ? trace.winner : 'No offer'}</EvidencePick>
+        <EvidenceLabel>{shownBy(trace).length > 1 ? 'What it showed' : 'The decision'}</EvidenceLabel>
+        {/* Every offer the decision showed, in slot order (ADR-020 §1). It named
+            the winner alone until 2026-09-18, over a funnel that said three. */}
+        {shownBy(trace).length === 0 ? (
+          <EvidencePick>No offer</EvidencePick>
+        ) : shownBy(trace).length === 1 ? (
+          <EvidencePick>{shownBy(trace)[0].action}</EvidencePick>
+        ) : (
+          <ol className="flex flex-col gap-0.5">
+            {shownBy(trace).map((e) => (
+              <li key={e.action}>
+                <EvidencePick>{`${e.rank}. ${e.action}`}</EvidencePick>
+              </li>
+            ))}
+          </ol>
+        )}
         {trace.arbitration?.formula ? (
           <EvidenceQuote title="How it was ranked" tone="accent">
             <span className="font-mono">{trace.arbitration.formula}</span>
@@ -277,16 +295,18 @@ export function TraceEvidence({
             {bindings.length > 0 ? (
               <ul className="flex flex-col gap-0.5">
                 {bindings.map((b) => {
-                  const call = calls.find((c) => c.connectorId === b.connectorId);
+                  const call = b.origin === 'request' ? undefined : calls.find((c) => c.connectorId === b.connectorId);
                   return (
-                    <li key={`${b.field}-${b.connectorId}`}>
-                      <span className="font-mono text-label">{b.field}</span> from{' '}
+                    <li key={`${b.field}-${b.connectorId}`} data-origin={b.origin}>
+                      <span className="font-mono text-label">{b.field}</span>{' '}
+                      {b.origin === 'request' ? 'sent with the request; ' : b.origin === 'default' ? 'the default of ' : 'from '}
                       <Link
                         href={`/integrations?connector=${encodeURIComponent(b.connectorId)}`}
                         className="text-accent underline-offset-2 hover:underline"
                       >
                         {b.connectorId}
                       </Link>
+                      {b.origin === 'request' ? ' not used' : b.origin === 'default' ? ', which did not answer' : null}
                       {call ? (
                         <span className="text-content-muted">
                           {' '}

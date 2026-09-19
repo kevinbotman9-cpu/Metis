@@ -1,5 +1,6 @@
 import type { CatalogueSnapshotRecord } from '@metis/catalogue';
 import type { CatalogueSnapshot } from '@metis/runtime/deterministic/types';
+import { generateActions } from '@metis/core/domain';
 
 /**
  * The part of a tenant's catalogue a decision is made from.
@@ -24,6 +25,7 @@ export function snapshotFor(tenantId: string, record: CatalogueSnapshotRecord): 
   // edited afterwards would rewrite the history of every decision made from it.
   return structuredClone({
     offers: record.offers,
+    actions: generateActions(record.offers),
     targetingPolicies: record.targetingPolicies,
     frequencyPolicies: record.frequencyPolicies,
     arbitration: record.arbitration,

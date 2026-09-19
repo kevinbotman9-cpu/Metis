@@ -9,6 +9,7 @@ import { catalogueSnapshot } from '@/mocks/fixtures/engine';
 import { openCatalogue, CatalogueTenantRefused, CONSOLE_TENANT } from '@/mocks/catalogue-source';
 import { toSource } from '@/mocks/fixtures/compiled';
 import type { ArtifactSummary } from '@/mocks/fixtures/artifacts';
+import { withGeneratedActions } from '@metis/core/domain';
 
 /**
  * What a person authors in the console survives a restart, and the next
@@ -75,14 +76,14 @@ const truncate = (tables = [...CATALOGUE_TABLES, ...REGISTRY_TABLES, ...GOVERNAN
   pool.query(`TRUNCATE ${tables.join(', ')} RESTART IDENTITY CASCADE`);
 
 /** The part of a stored catalogue the engine decides from. */
-const engineSnapshot = (held: CatalogueSnapshotRecord): CatalogueSnapshot => ({
+const engineSnapshot = (held: CatalogueSnapshotRecord): CatalogueSnapshot => (withGeneratedActions({
   offers: held.offers,
   targetingPolicies: held.targetingPolicies,
   frequencyPolicies: held.frequencyPolicies,
   arbitration: held.arbitration!,
   boosts: held.boosts,
   connectors: held.connectors,
-});
+}));
 
 /**
  * Start the console's API as a fresh process would: its store rebuilt, every

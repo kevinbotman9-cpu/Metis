@@ -12,6 +12,7 @@ import {
   connectors,
   arbitrationConfig,
 } from '@/mocks/fixtures/catalogue';
+import { withGeneratedActions } from '@metis/core/domain';
 
 /**
  * The catalogue a decision is made against is the catalogue a store reads back.
@@ -41,14 +42,14 @@ async function readBack(): Promise<CatalogueSnapshot> {
   await store.putArbitration(T, arbitrationConfig);
 
   const read = await store.read(T);
-  return {
+  return withGeneratedActions({
     offers: read.offers,
     targetingPolicies: read.targetingPolicies,
     frequencyPolicies: read.frequencyPolicies,
     arbitration: read.arbitration!,
     boosts: read.boosts,
     connectors: read.connectors,
-  };
+  });
 }
 
 describe('the catalogue a decision names is the catalogue a store holds', () => {

@@ -48,8 +48,8 @@ const count = (type: string) => WITH.filter((x) => has(x.events, type)).length;
 describe('the seeded outcomes have a shape a marketer can read', () => {
   it('covers the corpus, not a corner of it', () => {
     expect(rows.length).toBeGreaterThan(10_000);
-    // 1,228 decisions carry events, from 416 measured on 2026-09-10 and 887
-    // and 2,101 before that. Two rules set the shape and neither is a loss of
+    // 1,159 decisions carry events since the reseed (2026-09-19); 1,228
+    // before it, 416 measured on 2026-09-10, and 887 and 2,101 before that. Two rules set the shape and neither is a loss of
     // coverage: an offer must have a creative on the winning channel, and
     // something must deliver that channel. The corpus is thin because the
     // platform delivers on one channel of five, which is the fact it is now

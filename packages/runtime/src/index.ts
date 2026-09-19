@@ -39,6 +39,7 @@ export type {
   DecisionRequest,
   DecisionRecord,
   DeterministicDecision,
+  SlateRecordEntry,
   Measurements,
   EliminationStep,
   Denial,
@@ -97,5 +98,5 @@ export type {
 export { resolveAggregations, mergeAggregations } from './integration/aggregate';
 export type { AggregationResult } from './integration/aggregate';
 
-export { selectSlate } from './slate';
+export { selectSlate, recordedSlate } from './slate';
 export type { Slate, SlateEntry } from './slate';

@@ -23,7 +23,7 @@ import { findGeneratedDecision, toApiTrace } from '@/mocks/fixtures/decisions';
 import type { GeneratedDecision } from '@/mocks/fixtures/engine';
 import { deliveryFor } from '@/mocks/delivery-state';
 import { rowOfEntry } from '@/mocks/seed-ledger';
-import { capsApply, readContacts, subjectHash } from '@metis/ledger';
+import { LedgerError, capsApply, readContacts, subjectHash } from '@metis/ledger';
 import { provenanceFor, provenanceOver } from '@/mocks/provenance';
 import {
   IdempotencyConflict,
@@ -31,7 +31,7 @@ import {
   buildShadowReport,
   type ShadowComparison,
   resolveInputs,
-  selectSlate,
+  recordedSlate,
   resolveAggregations,
   mergeAggregations,
   IntegrationError,
@@ -86,7 +86,7 @@ import {
   type DataSourceDefinition,
   type FieldMapping,
 } from '@metis/core/intake';
-import { catalogueSnapshot } from '@/mocks/fixtures/engine';
+import { catalogueSnapshot, SEEDED_BEFORE } from '@/mocks/fixtures/engine';
 import {
   currentCatalogue,
   catalogueByHash,
@@ -765,6 +765,9 @@ async function resolveAndExecute(
   const resolvedRequest = {
     ...decisionRequest,
     ...(contactsRead ? { contactsRead } : {}),
+    // What resolution wrote, from resolution — after the spread, so a caller
+    // cannot claim a connector vouched for its value (ADR-022 §3).
+    resolved: resolvedInputs.resolved,
     input: {
       ...mergeAggregations(resolvedInputs.input, rolled.values),
       // Nested under `experiments` so a policy names `experiments.<key>` and
@@ -1428,6 +1431,25 @@ async function handleGet(req: Request, { params }: Ctx) {
     // merged them and deduplicated by id. The seed made that merge a
     // double count waiting to happen (ADR-018 §6), and one source is what
     // stops the trace and the rate disagreeing about the same decision.
+    case 'ledger': {
+      // GET /api/ledger/{tenantId}/summary — what the ledger holds, split at
+      // the end of the seeded corpus the same way `seed:ledger` splits it.
+      const tenantId = rest[0];
+      if (!tenantId || rest[1] !== 'summary') return notFound();
+      //
+      // Each part counted on its own and the total summed from them. The total
+      // was counted separately and the seeded part taken as the difference,
+      // until a storefront run writing while the footer read made the two
+      // counts disagree and the footer announced a seeded history in a ledger
+      // that had none (2026-09-18). `to` is inclusive, so the seeded part
+      // stops a millisecond before the corpus ends.
+      const [seeded, madeByHand] = await Promise.all([
+        store.ledger.count({ tenantId, to: new Date(Date.parse(SEEDED_BEFORE) - 1).toISOString() }),
+        store.ledger.count({ tenantId, from: SEEDED_BEFORE }),
+      ]);
+      return json({ store: store.ledgerKind(), decisions: seeded + madeByHand, seeded, madeByHand });
+    }
+
     case 'performance': {
       const tenantId = rest[0];
       if (!tenantId) return notFound();
@@ -1881,6 +1903,8 @@ async function handlePost(req: Request, { params }: Ctx) {
         occurredAt?: string;
         valueMinor?: number | null;
         detail?: Record<string, unknown>;
+        /** The slate entry it was about (ADR-020 §4). */
+        action?: string;
       } | null;
       if (!body) return json({ error: 'bad_request', message: 'Request body must be JSON' }, 400);
       if (!body.type) {
@@ -1900,6 +1924,7 @@ async function handlePost(req: Request, { params }: Ctx) {
         // Explicitly null when absent: an impression is not a conversion worth
         // nothing, and defaulting to 0 would say it was.
         valueMinor: body.valueMinor ?? null,
+        ...(body.action !== undefined ? { action: body.action } : {}),
         ...(body.detail ? { detail: body.detail } : {}),
       };
 
@@ -1913,6 +1938,13 @@ async function handlePost(req: Request, { params }: Ctx) {
       try {
         await store.ledger.recordOutcome(event);
       } catch (e) {
+        // Which offer it was about is the caller's to say correctly: missing on
+        // a decision that showed several, or naming one it did not show, is a
+        // request the ledger understood and will not store (ADR-020 §4).
+        const code = (e as { code?: string }).code;
+        if (code === 'OUTCOME_ACTION_REQUIRED' || code === 'OUTCOME_ACTION_NOT_SHOWN') {
+          return json({ error: 'unprocessable', code, message: (e as Error).message }, 422);
+        }
         return json({ error: 'not_found', message: (e as Error).message }, 404);
       }
       return json(event, 201);
@@ -2271,6 +2303,16 @@ async function handlePost(req: Request, { params }: Ctx) {
           );
         }
 
+        // Optional, and 1 when absent (ADR-020 §2). A number of slots, or it
+        // is refused here rather than by the engine as an error.
+        const slotCount = body.request.slotCount;
+        if (slotCount !== undefined && (!Number.isInteger(slotCount) || slotCount < 1)) {
+          return json(
+            { error: 'bad_request', message: `request.slotCount must be a whole number of slots, at least 1; got ${slotCount}` },
+            400
+          );
+        }
+
         const artifact = await artifactFor(body.request.tenantId, body.artifactId);
         if (!artifact) {
           return json(
@@ -2290,6 +2332,7 @@ async function handlePost(req: Request, { params }: Ctx) {
           customerId: body.request.customerId,
           channel: body.request.channel,
           placement: body.request.placement,
+          ...(slotCount !== undefined ? { slotCount } : {}),
           occurredAt: body.request.occurredAt,
           input: body.request.input ?? {},
           contactHistory: body.request.contactHistory,
@@ -2822,6 +2865,9 @@ async function handlePost(req: Request, { params }: Ctx) {
         customerId: body.request.customerId,
         channel: body.request.channel,
         placement: placement.key,
+        // From the placement, not the caller: how many offers the slot shows is
+        // the placement's to say (ADR-020 §2).
+        slotCount: placement.slotCount,
         occurredAt: body.request.occurredAt,
         input: body.request.input ?? {},
         contactHistory: body.request.contactHistory,
@@ -2830,37 +2876,42 @@ async function handlePost(req: Request, { params }: Ctx) {
         correlationId: body.request.correlationId,
       };
 
-      const outcome = await decideAndRecord(artifact, decisionRequest, cat, { readContacts: true });
+      // From reading the customer's contacts to writing the one this decision
+      // makes, nothing else decides for them (G-160, ADR-021 §10). A page that
+      // decides its hero and grid at once used to have both read the count
+      // before either wrote, and both took the day's last slot.
+      const outcome = await store.ledger.withSubject(decisionRequest.tenantId, decisionRequest.customerId, async () => {
+        const decided = await decideAndRecord(artifact, decisionRequest, cat, { readContacts: true });
+        // What the platform did about getting this decision to somebody —
+        // ADR-013 §1. Written here because this is the moment the platform hands
+        // the decision over, or discovers it has nobody to hand it to.
+        //
+        // Not on a replay: an idempotent retry returns the original decision and
+        // did not deliver anything a second time.
+        if (decided.kind === 'decided') {
+          await recordDeliveryFor(placement, decided.trace.id, decisionRequest.tenantId, decided.trace.decision.occurredAt);
+        }
+        return decided;
+      });
       if (outcome.kind === 'error') return outcome.response;
 
       const record = outcome.kind === 'replay' ? outcome.record : outcome.trace;
-      const slate = selectSlate(record.decision, placement.slotCount);
-
-      // What the platform did about getting this decision to somebody —
-      // ADR-013 §1. Written here because this is the moment the platform hands
-      // the decision over, or discovers it has nobody to hand it to.
-      //
-      // Not on a replay: an idempotent retry returns the original decision and
-      // did not deliver anything a second time.
-      if (outcome.kind !== 'replay') {
-        await recordDeliveryFor(placement, record.id, decisionRequest.tenantId, record.decision.occurredAt);
-      }
-
-      // The action key is what the decision names; the offer id is what a site
-      // needs to fetch content. Resolved from the catalogue the engine read, so
-      // the two cannot name different things.
-      const offerByKey = new Map(cat.offers.map((o) => [o.key, o.id]));
+      // What the decision recorded, not a slate composed here: the engine cut
+      // it to the slot count it was given, and the offers are the ones it
+      // stored (ADR-020 §1, §2).
+      const slate = recordedSlate(record.decision);
 
       return json(
         {
           placement: placement.key,
-          slotCount: placement.slotCount,
+          // The count the decision was made with, which on a replay is the
+          // original's, not the placement's today.
+          slotCount: record.decision.slotCount,
           decisionId: record.id,
           chainHash: record.chainHash,
-          entries: slate.entries.map((e) => ({
-            ...e,
-            offerId: offerByKey.get(e.action) ?? null,
-          })),
+          // The offer id is the one the decision stored. It was looked up here,
+          // in the current catalogue, until 2026-09-18 (ADR-020 §1).
+          entries: slate.entries.map((e) => ({ ...e, offerId: e.offerId ?? null })),
           unfilled: slate.unfilled,
           rankedCount: slate.ranked.length,
         },
@@ -3894,6 +3945,12 @@ function refusingCatalogueErrors(handler: (req: Request, ctx: Ctx) => Promise<Re
     try {
       return await handler(req, ctx);
     } catch (e) {
+      // A ledger written before the reseed: records this console cannot read
+      // faithfully. Said, with the way out, rather than a 500 from whichever
+      // reader first met a missing slate (ADR-019 §7; the reseed's guard).
+      if (e instanceof LedgerError && e.code === 'RECORD_PREDATES_RESEED') {
+        return json({ error: 'ledger_predates_reseed', code: e.code, message: e.message }, 409);
+      }
       if (!(e instanceof CatalogueError)) throw e;
       const conflict = e.code === 'DUPLICATE_KEY' || e.code === 'OFFER_IN_USE';
       return json(

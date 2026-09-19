@@ -222,13 +222,9 @@ export function LoopFirstPaint({
             <p className="tnum mt-1 text-figure font-semibold text-content">
               {money(loop.expectedDelivered, format)}
             </p>
-            {/* The qualifier is the point of the card, so it stays in both
-                shapes — shorter where the page has to fit. */}
-            <p className="mt-1 text-label text-content-subtle">
-              {dense
-                ? `a bound over ${format.number(data.deliverable ?? 0)} delivered offers, not a forecast`
-                : `if all ${format.number(data.deliverable ?? 0)} delivered offers had been taken — a bound, not a forecast`}
-            </p>
+            {/* No sentence under the figure, by the product owner's decision
+                (2026-09-18): the one it had explained the method rather than
+                telling anyone anything. The title says it is a ceiling. */}
           </CardBody>
         </Card>
         <Card className={cn(undeliverable > 0 && 'border-block/40')}>
@@ -237,14 +233,7 @@ export function LoopFirstPaint({
             <p className={cn('tnum mt-1 text-figure font-semibold', undeliverable > 0 ? 'text-block' : 'text-content')}>
               {money(loop.expectedUndelivered, format)}
             </p>
-            {/* At zero this read "the same ceiling over the 0 nothing sent",
-                which is not a sentence — the shortening for the dense page broke
-                it. Nothing undeliverable is a result, and it is said as one. */}
-            <p className="mt-1 text-label text-content-subtle">
-              {undeliverable === 0
-                ? 'every offer had a channel that could send it'
-                : `the same ceiling over the ${format.number(undeliverable)} ${dense ? 'nothing sent' : 'decisions nothing sent'}`}
-            </p>
+            {/* No sentence under the figure either (2026-09-18, as above). */}
           </CardBody>
         </Card>
         {dense ? trends : null}

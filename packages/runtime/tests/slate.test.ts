@@ -8,6 +8,7 @@ import type {
   DeterministicDecision,
 } from '../src/deterministic/types';
 import type { Offer } from '@metis/core/domain';
+import { withGeneratedActions } from '@metis/core/domain';
 
 /**
  * A slate is a projection of a decision, and has to agree with it.
@@ -47,7 +48,7 @@ const offer = (key: string, margin: number): Offer => ({
   updatedBy: 'test@metis.example',
 });
 
-const catalogue = (offers: Offer[]): CatalogueSnapshot => ({
+const catalogue = (offers: Offer[]): CatalogueSnapshot => (withGeneratedActions({
   offers,
   targetingPolicies: [],
   frequencyPolicies: [],
@@ -60,7 +61,7 @@ const catalogue = (offers: Offer[]): CatalogueSnapshot => ({
   } as CatalogueSnapshot['arbitration'],
   boosts: [],
   connectors: [],
-});
+}));
 
 const artifact = (keys: string[]): ExecArtifact =>
   ({

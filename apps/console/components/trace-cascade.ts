@@ -220,5 +220,5 @@ export const CODE_MEANING: Record<string, string> = {
   OUT_OF_VALIDITY_WINDOW: 'Outside the offer’s effective dates.',
   NOT_ACTIVE: 'The offer is not live in the catalogue.',
   NOT_RANKED:
-    'Not a fault. It passed every gate and was beaten on priority by something else.',
+    'Not a fault. It passed every gate and ranked below every slot the placement had.',
 };

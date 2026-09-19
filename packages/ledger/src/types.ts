@@ -60,6 +60,16 @@ export interface OutcomeEvent {
    * worth nothing, and averaging over zeros would say it was.
    */
   valueMinor: number | null;
+  /**
+   * The action key of the slate entry this outcome is about — ADR-020 §4.
+   *
+   * Required by `recordOutcome` when the decision showed more than one offer,
+   * and checked against the decision's recorded slate, never the catalogue;
+   * optional when it showed one, and then it means that one. Absent on an
+   * outcome recorded before outcomes named their action, which a reader
+   * credits to slot 1.
+   */
+  action?: string;
   /** Free-form, for whatever the channel reported. Never read by the engine. */
   detail?: Record<string, unknown>;
 }
@@ -161,12 +171,20 @@ export interface ContactQuery {
   /** The decision's `occurredAt`. Inclusive; each window runs back from it, exclusive. */
   until: string;
   /**
-   * Only decisions whose recorded offer (`winnerOfferId`) is one of these: the
-   * contacts about a scoped cap's scope (ADR-021 §9). Omitted, every contact on
-   * the channel counts. An empty list counts nothing, because a scope that
-   * covers no offer has had no contact about it.
+   * Only decisions that showed one of these offers — any entry of the recorded
+   * slate, not only the winner (ADR-020 §4): the contacts about a scoped cap's
+   * scope (ADR-021 §9). Omitted, every contact on the channel counts. An empty
+   * list counts nothing, because a scope that covers no offer has had no
+   * contact about it. A decision recorded before slates cannot answer this,
+   * and the count is refused rather than read as zero (`RECORD_PREDATES_RESEED`).
    */
   offerIds?: readonly string[];
+  /**
+   * Only decisions that showed one of these actions, by key: the contacts about
+   * a cap scoped to an action (ADR-019 §4), which narrows within its offer's.
+   * Read like `offerIds`, and never given with it — a scope names one level.
+   */
+  actionKeys?: readonly string[];
 }
 
 /** Distinct decisions that were a contact, per rolling window. */
@@ -178,10 +196,28 @@ export class LedgerError extends Error {
       | 'DECISION_NOT_FOUND'
       | 'DECISION_EXISTS'
       | 'OUTCOME_WITHOUT_DECISION'
-      | 'DELIVERY_WITHOUT_DECISION',
+      | 'OUTCOME_ACTION_REQUIRED'
+      | 'OUTCOME_ACTION_NOT_SHOWN'
+      | 'DELIVERY_WITHOUT_DECISION'
+      | 'RECORD_PREDATES_RESEED',
     message: string
   ) {
     super(message);
     this.name = 'LedgerError';
   }
+}
+
+/**
+ * The refusal for a decision recorded before the reseed — one message, written
+ * once, for every read that meets one (`currentShape` in `ledger.ts`, and the
+ * scoped contact counts of both stores).
+ */
+export function predatesReseed(decisionId: string, tenantId: string): LedgerError {
+  return new LedgerError(
+    'RECORD_PREDATES_RESEED',
+    `Decision ${decisionId} for ${tenantId} was recorded before decisions recorded their slate and where each value came from ` +
+      '(ADR-019 §7, ADR-020 §1, ADR-022 §2), and this console cannot read it faithfully. ' +
+      `Reset the tenant's ledger: npm run seed:ledger -- --reset --tenant ${tenantId} --by <who>. ` +
+      'A reset destroys what it holds, and it refuses to destroy decisions made by using the console until you acknowledge how many.'
+  );
 }

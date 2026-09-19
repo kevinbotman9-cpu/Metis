@@ -16,11 +16,16 @@ import type { AuthUserDto } from '@/lib/api-client';
  * an architect and a marketer, Marcus an administrator and an architect. So the
  * Overview cannot be picked by role alone. An account that can see more than
  * one gets a switch in the chrome, remembered per person in this browser, and a
- * default that follows what they explicitly are:
+ * default:
  *
- * - explicitly a marketer → the loop;
- * - otherwise explicitly an architect → the change pipeline;
- * - an administrator with neither, who can see both, like the nav → the loop.
+ * - anyone who can see the loop lands on it — a marketer, and an administrator,
+ *   who can see both;
+ * - an architect who cannot see the loop → the change pipeline.
+ *
+ * Until 2026-09-18 an architect landed on the change pipeline even when they could
+ * see the loop, so Marcus — an administrator and an architect — opened on it. The
+ * product owner made the loop the landing view that day: it is what the product
+ * is for, and the pipeline is one click away in the switch.
  *
  * Anyone with neither persona — compliance, operator, analyst — gets the loop
  * and no switch.
@@ -46,8 +51,6 @@ export function overviewPersonas(roles: readonly Role[]): OverviewPersona[] {
 
 /** Where an account lands before it has chosen, or null when it has neither persona. */
 export function defaultPersona(roles: readonly Role[]): OverviewPersona | null {
-  if (roles.includes('marketer')) return 'marketer';
-  if (roles.includes('architect')) return 'architect';
   return overviewPersonas(roles)[0] ?? null;
 }
 

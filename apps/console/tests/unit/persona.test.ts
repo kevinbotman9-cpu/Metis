@@ -26,11 +26,14 @@ describe('which Overviews an account may see', () => {
 });
 
 describe('where an account lands before it has chosen', () => {
-  it('follows what the account explicitly is, not what admin lets it see', () => {
+  it('lands everyone who can see the loop on it, and an architect who cannot on the pipeline', () => {
     // Sarah is a marketer as well as an architect: her landing page is the loop.
     expect(defaultPersona([...SARAH])).toBe('marketer');
-    // Marcus can see both only because he is an administrator; he is an architect.
-    expect(defaultPersona([...MARCUS])).toBe('architect');
+    // Marcus is an administrator and an architect. He landed on the pipeline
+    // until 2026-09-18, when the loop became the landing view for anyone who
+    // can see it.
+    expect(defaultPersona([...MARCUS])).toBe('marketer');
+    expect(defaultPersona(['architect'])).toBe('architect');
   });
 
   it('lands an administrator with neither persona on the loop, and a compliance officer on nothing', () => {

@@ -24,12 +24,14 @@ const decision = (
   candidates: number,
   winner: string | null,
   removals: [string, string | null][],
-  occurredAt = '2026-06-01T12:00:00.000Z'
+  occurredAt = '2026-06-01T12:00:00.000Z',
+  shown = winner ? 1 : 0
 ): FunnelDecision => ({
   decisionId: id,
   occurredAt,
   candidates,
   winner,
+  shown,
   removals: removals.map(([code, ruleId]) => ({ code, ruleId })),
 });
 
@@ -208,6 +210,7 @@ describe('a ledger entry as the funnel reads it', () => {
         decision: {
           candidateKeys: ['a', 'b', 'c'],
           winner: 'c',
+          slate: [{ rank: 1, action: 'c', offerId: 'p_c', priority: 1 }],
           eliminations: [
             { nodeId: 'filter', denials: [{ key: 'a', code: 'ELIGIBILITY_FAILED', ruleId: 'pol_a' }] },
             { nodeId: 'arbitrate', denials: [{ key: 'b', code: 'NOT_RANKED', ruleId: null }] },
@@ -221,11 +224,27 @@ describe('a ledger entry as the funnel reads it', () => {
       occurredAt: '2026-06-01T12:00:00.000Z',
       candidates: 3,
       winner: 'c',
+      shown: 1,
       removals: [
         { code: 'ELIGIBILITY_FAILED', ruleId: 'pol_a' },
         { code: 'NOT_RANKED', ruleId: null },
       ],
     });
     expect(buildPolicyFunnel([funnelDecisionOf(entry)]).unaccounted).toBe(0);
+  });
+
+  it('accounts for an offer shown in slot 2 as shown, not removed (ADR-020 §3)', () => {
+    // Three candidates, two slots: two shown, one ranked below the last slot.
+    // Counting only the winner beside the removals would call this decision
+    // unaccounted — and counting slot 2 as NOT_RANKED is the 742 the reseed
+    // took out of the ranking stage.
+    const report = buildPolicyFunnel([decision('dec_2slot', 3, 'a', [['NOT_RANKED', null]], undefined, 2)]);
+    expect(report.unaccounted).toBe(0);
+    expect(stage(report, 'not_ranked').removed).toBe(1);
+    // The same decision recorded before slates, with slot 2 as a denial, does
+    // not add up once it says it showed two.
+    expect(
+      buildPolicyFunnel([decision('dec_old', 3, 'a', [['NOT_RANKED', null], ['NOT_RANKED', null]], undefined, 2)]).unaccounted
+    ).toBe(1);
   });
 });

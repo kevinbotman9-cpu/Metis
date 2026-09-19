@@ -2,7 +2,7 @@ export { DecisionLedger, subjectHash } from './ledger';
 export type { LedgerStore, DecisionQuery } from './ledger';
 export { InMemoryLedgerStore } from './memory-store';
 export { PostgresLedgerStore } from './postgres-store';
-export type { Queryable } from './postgres-store';
+export type { LockClient, Queryable } from './postgres-store';
 export {
   createLedgerStore,
   dataClassOf,

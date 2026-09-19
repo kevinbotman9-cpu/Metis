@@ -376,6 +376,43 @@
         "updatedBy": "sarah.chen@telco.example"
       }
     ],
+    "actions": [
+      {
+        "id": "act_off_5g_home_ultimate",
+        "key": "5g_home_ultimate",
+        "offerId": "off_5g_home_ultimate",
+        "name": "5G Home Ultimate",
+        "active": true
+      },
+      {
+        "id": "act_off_disney_plus",
+        "key": "disney_plus",
+        "offerId": "off_disney_plus",
+        "name": "Disney Plus",
+        "active": true
+      },
+      {
+        "id": "act_off_fios_gigabit",
+        "key": "fios_gigabit",
+        "offerId": "off_fios_gigabit",
+        "name": "FIOS Gigabit",
+        "active": true
+      },
+      {
+        "id": "act_off_gaming_plus_bundle",
+        "key": "gaming_plus_bundle",
+        "offerId": "off_gaming_plus_bundle",
+        "name": "Gaming Plus Bundle",
+        "active": true
+      },
+      {
+        "id": "act_off_netflix",
+        "key": "netflix",
+        "offerId": "off_netflix",
+        "name": "Netflix",
+        "active": true
+      }
+    ],
     "targetingPolicies": [
       {
         "id": "pol_5g_bandwidth_need",
@@ -719,6 +756,20 @@
       }
     ],
     "frequencyPolicies": [
+      {
+        "id": "cpol_disney_web_weekly",
+        "name": "Disney+ weekly cap",
+        "description": "At most one Disney+ promotion a week on the web.",
+        "channel": "web",
+        "maxContacts": 1,
+        "period": "week",
+        "cooldownDaysAfterReject": 0,
+        "scope": {
+          "level": "offer",
+          "targetId": "off_disney_plus"
+        },
+        "active": true
+      },
       {
         "id": "cpol_email_weekly",
         "name": "Email weekly cap",

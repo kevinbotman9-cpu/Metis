@@ -10,6 +10,7 @@ import {
 } from '../src/scoring';
 import { round } from '../src/deterministic/canonical';
 import type { ExecArtifact, CatalogueSnapshot, DecisionRequest } from '../src/deterministic/types';
+import { withGeneratedActions } from '@metis/core/domain';
 
 /**
  * Scoring, after it moved out of the core — ADR-009 phase one.
@@ -26,7 +27,7 @@ import type { ExecArtifact, CatalogueSnapshot, DecisionRequest } from '../src/de
  * a scorer that is not pure is refused inside the core rather than quietly run.
  */
 
-const CAT: CatalogueSnapshot = {
+const CAT: CatalogueSnapshot = withGeneratedActions({
   offers: [
     offer('upsell_5g', 2000, 200),
     offer('upsell_data', 1200, 100),
@@ -45,7 +46,7 @@ const CAT: CatalogueSnapshot = {
     updatedAt: '2026-01-01T00:00:00Z',
     updatedBy: 'test',
   },
-} as unknown as CatalogueSnapshot;
+}) as unknown as CatalogueSnapshot;
 
 const REQ: DecisionRequest = {
   tenantId: 'telco-us',
