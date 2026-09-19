@@ -58,7 +58,11 @@ export interface PerformanceRow {
   action: string;
   channel: string;
   flowId: string;
-  /** Decisions where this action was the winner. The denominator. */
+  /**
+   * Decisions whose slate showed this action — the denominator (ADR-020 §4).
+   * Decisions it won, until 2026-09-18: a two-offer email's second offer
+   * counted only where it came first.
+   */
   offered: number;
   /**
    * Decisions with any outcome at all. The denominator for every rate here.
@@ -330,42 +334,53 @@ export function buildPerformance(
       stage.deliverable += 1;
       day.deliverable += 1;
     }
-    // JSON rather than a delimiter: it is injective for strings, so an action
-    // containing whatever separator was chosen cannot collide with another
-    // triple — and it stays printable, which a control character does not.
-    const key = JSON.stringify([winner, channel, entry.flowId]);
-    let bucket = buckets.get(key);
-    if (!bucket) {
-      bucket = {
-        action: winner,
-        channel,
-        flowId: entry.flowId,
-        offered: 0,
-        seen: {
-          impression: new Set(),
-          click: new Set(),
-          acceptance: new Set(),
-          rejection: new Set(),
-          conversion: new Set(),
-        },
-        measured: new Set(),
-        valueMinor: null,
-      };
-      buckets.set(key, bucket);
-    }
-
-    bucket.offered += 1;
-    if (events.length > 0) bucket.measured.add(entry.decisionId);
     // Once per decision however many of its events carried a value, and only
     // here, among offered decisions, so it counts exactly the decisions the
     // rows' `valueMinor` is summed over.
     if (events.some((e) => e.valueMinor !== null && e.valueMinor !== undefined)) valued += 1;
-    for (const event of events) {
-      // The decision id, not a counter: a channel that fires the same event
-      // twice reports one, and a rate can never exceed 1.
-      bucket.seen[event.type]?.add(entry.decisionId);
-      if (event.valueMinor !== null && event.valueMinor !== undefined) {
-        bucket.valueMinor = (bucket.valueMinor ?? 0) + event.valueMinor;
+
+    // A row per action the decision showed, not only its winner (ADR-020 §4):
+    // a two-offer email offered both, and its second offer's row counted only
+    // the decisions it won until 2026-09-18. An outcome is credited to the
+    // entry it names, or to slot 1 when it names none — a single-slot decision,
+    // or an outcome recorded before outcomes named their action.
+    const slate = entry.record.decision.slate;
+    const shown = slate.length > 0 ? slate.map((e) => e.action) : [winner];
+    for (const action of shown) {
+      // JSON rather than a delimiter: it is injective for strings, so an action
+      // containing whatever separator was chosen cannot collide with another
+      // triple — and it stays printable, which a control character does not.
+      const key = JSON.stringify([action, channel, entry.flowId]);
+      let bucket = buckets.get(key);
+      if (!bucket) {
+        bucket = {
+          action,
+          channel,
+          flowId: entry.flowId,
+          offered: 0,
+          seen: {
+            impression: new Set(),
+            click: new Set(),
+            acceptance: new Set(),
+            rejection: new Set(),
+            conversion: new Set(),
+          },
+          measured: new Set(),
+          valueMinor: null,
+        };
+        buckets.set(key, bucket);
+      }
+
+      bucket.offered += 1;
+      const about = events.filter((e) => (e.action ?? shown[0]) === action);
+      if (about.length > 0) bucket.measured.add(entry.decisionId);
+      for (const event of about) {
+        // The decision id, not a counter: a channel that fires the same event
+        // twice reports one, and a rate can never exceed 1.
+        bucket.seen[event.type]?.add(entry.decisionId);
+        if (event.valueMinor !== null && event.valueMinor !== undefined) {
+          bucket.valueMinor = (bucket.valueMinor ?? 0) + event.valueMinor;
+        }
       }
     }
   }

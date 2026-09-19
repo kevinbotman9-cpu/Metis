@@ -194,11 +194,11 @@ test.describe('performance reads as a cascade @screen-only', () => {
 
     // Both expectation figures are ceilings — expected margin is what an offer
     // is worth if it is taken, and there is no propensity in a decision record
-    // to weight it by. Putting £2.6m beside £3.4k without saying so is the same
-    // class of true-numbers-false-impression this screen was rebuilt to stop,
-    // so the qualifier is asserted rather than trusted to survive an edit.
-    await expect(page.getByText(/a bound, not a forecast/)).toBeVisible();
-    await expect(page.getByText(/the same ceiling over the/)).toBeVisible();
+    // to weight it by. The title says so; the sentences beneath each figure
+    // that explained the method were removed by the product owner on
+    // 2026-09-18, and stay removed.
+    await expect(page.getByText('Expected, at the ceiling', { exact: true })).toBeVisible();
+    await expect(page.getByText(/a bound, not a forecast|the same ceiling over the/)).toHaveCount(0);
 
     // The flow diagram draws the drop-outs as volume leaving. Its accessible
     // name has to carry the same five figures the rail does, or a reader who
@@ -226,7 +226,7 @@ test.describe('performance reads as a cascade @screen-only', () => {
 
     // Right: the evidence. The per-channel breakdown has to sum to the stage,
     // or the two panes are describing different things.
-    // `exact` because the middle pane's own heading is "1,228 were seen", and
+    // `exact` because the middle pane's own heading is "1,159 were seen", and
     // a substring match on "Seen" finds both panes.
     const evidence = page
       .getByRole('heading', { level: 2, name: 'Seen', exact: true })
@@ -234,7 +234,7 @@ test.describe('performance reads as a cascade @screen-only', () => {
     // The definition list's values, not every number in the pane: filtering the
     // pane's digits by "not equal to the stage total" silently drops the
     // channel that happens to carry all of it, which on this tenant is web and
-    // is every one of the 1,228.
+    // is every one of the 1,159.
     const perChannel = (await evidence.locator('dd').allInnerTexts()).map((t) =>
       Number(t.replace(/[^0-9]/g, ''))
     );

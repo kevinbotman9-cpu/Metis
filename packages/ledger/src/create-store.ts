@@ -11,7 +11,7 @@ import {
 } from '@metis/core/migrate';
 import type { LedgerStore } from './ledger';
 import { InMemoryLedgerStore } from './memory-store';
-import { PostgresLedgerStore, type Queryable } from './postgres-store';
+import { PostgresLedgerStore, type LockClient, type Queryable } from './postgres-store';
 
 /**
  * Pick a ledger store from the environment.
@@ -160,12 +160,16 @@ export async function createLedgerStore(
     }
   }
 
+  // Connections that only ever hold a customer's lock (G-160), apart from the
+  // ones decisions read and write through: see `PostgresLedgerStore`.
+  const locks = new Pool({ connectionString: url, max: 10 });
+
   return {
-    store: new PostgresLedgerStore(pool as unknown as Queryable),
+    store: new PostgresLedgerStore(pool as unknown as Queryable, locks as unknown as { connect(): Promise<LockClient> }),
     kind: 'postgres',
     description: `postgres at ${redact(url)}`,
     async close() {
-      await pool.end();
+      await Promise.all([pool.end(), locks.end()]);
     },
   };
 }

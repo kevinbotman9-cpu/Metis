@@ -15,12 +15,14 @@
 
 import type {
   Offer,
+  Action,
   TargetingPolicy,
   FrequencyPolicy,
   ArbitrationConfig,
   Boost,
   Connector,
-  SourceBinding,
+  FieldOrigin,
+  ResolvedField,
   SourceCall,
 } from '@metis/core/domain';
 
@@ -63,8 +65,9 @@ export interface ExecNode {
    *
    * The engine never calls them - `resolveInputs` does, before execution, and
    * the values arrive in `request.input`. What the engine does with these is
-   * record which connector was configured to supply which field, so the trace
-   * can answer "where did this credit score come from".
+   * record where each value they provide came from — the connector, its
+   * default, or the request (`fieldOrigins`, ADR-022) — so the trace can answer
+   * "where did this credit score come from" truthfully.
    */
   connectorIds?: string[];
 }
@@ -132,6 +135,12 @@ export interface ExecArtifact {
  */
 export interface CatalogueSnapshot {
   offers: Offer[];
+  /**
+   * What a flow may offer: each an offer made decidable (ADR-019 §1). A
+   * candidate key is an action key. Generated one per offer today, inheriting
+   * the offer's key (`generateActions`), and hashed with the rest.
+   */
+  actions: Action[];
   targetingPolicies: TargetingPolicy[];
   frequencyPolicies: FrequencyPolicy[];
   arbitration: ArbitrationConfig;
@@ -152,6 +161,14 @@ export interface DecisionRequest {
   customerId: string;
   channel: string;
   placement: string;
+  /**
+   * How many offers the placement shows — ADR-020 §2. Resolved from the
+   * placement by the route that decides for it, and recorded on the decision;
+   * the arbitrate node cuts the slate to it. Absent means 1. Not in `input`,
+   * so it does not move `inputSnapshotHash`, and not in the catalogue
+   * snapshot, so editing one placement moves no other decision's hash.
+   */
+  slotCount?: number;
   /**
    * When the decision is considered to have happened.
    *
@@ -187,6 +204,14 @@ export interface DecisionRequest {
    * not make and cannot remove any (ADR-014 §10). Recorded on the decision.
    */
   contactsRead?: ContactsRead;
+  /**
+   * What resolution wrote into the input, and how — ADR-022 §3. Set by the
+   * service after `resolveInputs`, never taken from a caller's body, for
+   * `contactsRead`'s reason: otherwise a caller could claim a system vouched for
+   * its value. Absent when nothing was resolved, and then every present
+   * connector-provided field is recorded as `request`.
+   */
+  resolved?: ResolvedField[];
   /**
    * What the caller asserts, per purpose. A purpose left out, or null, was not
    * stated: it is recorded as absent and enforced as withheld (ADR-014 §7.1).
@@ -347,19 +372,20 @@ export interface DeterministicDecision {
   inputSnapshotHash: string;
   catalogueSnapshotHash: string;
   /**
-   * Which connector was configured to supply which input field.
+   * Where each connector-provided value in the input came from — ADR-022 §2.
    *
-   * Reproducible, so it belongs in the hashed half: it is derived from the
-   * artifact and the catalogue snapshot, both already pinned. It is redundant
-   * in the strict sense and kept anyway, because "the credit score came from
-   * the bureau connector, at this node" is precisely the question a compliance
-   * officer asks, and reconstructing it from two other hashes is not an answer.
+   * One entry per field a connector on a source node provides, where the field
+   * is present in the input: `connector` or `default` as resolution reported
+   * (`request.resolved`), `request` for every other. Hashed (§4): "refused
+   * because the serviceability system said the address cannot take fiber" and
+   * "refused because the caller said so" are different findings, and the
+   * record cannot be asked afterwards, because it keeps no values.
    *
    * The *values* are not here. They are in the input snapshot, which is hashed
    * but never stored, so a trace can be kept without keeping the customer data
    * it was made from.
    */
-  sourceBindings: SourceBinding[];
+  fieldOrigins: FieldOrigin[];
   packageVersions: Record<string, string>;
   /**
    * The data model this decision's fields were resolved through, from the
@@ -399,6 +425,10 @@ export interface DeterministicDecision {
       approved: MissingScoreDefault | null;
     };
     winner: string | null;
+    /**
+     * The best finalist the slate left out (ADR-020 §1). For one slot, the
+     * candidate that came second, as it always meant.
+     */
     runnerUp: string | null;
   };
   constraintsApplied: string[];
@@ -421,8 +451,36 @@ export interface DeterministicDecision {
    * changes identity.
    */
   contactsRead?: ContactsRead;
+  /**
+   * The action key in slot 1 — `slate[0].action`, or null when nothing was
+   * shown. Kept as its own stored field, with its meaning unchanged, so every
+   * reader of `winner` keeps working (ADR-020 §1). The engine refuses to write
+   * a record where the two disagree.
+   */
   winner: string | null;
   winnerOfferId: string | null;
+  /** How many slots the placement had when this was decided (ADR-020 §2). Replay uses this, not today's. */
+  slotCount: number;
+  /**
+   * What was shown, best first: one entry per slot filled — ADR-020 §1.
+   *
+   * `offerId` is stored, not derived, so what a decision says it showed does
+   * not depend on a catalogue that has moved on. Written by the arbitrate node
+   * in both engines, not by a route, so two engines that disagree about what
+   * was shown fail `decision-conformance`.
+   */
+  slate: SlateRecordEntry[];
+}
+
+/** One slot of a recorded slate. */
+export interface SlateRecordEntry {
+  /** 1-based. */
+  rank: number;
+  /** The action key. */
+  action: string;
+  offerId: string;
+  /** The priority ranking gave it: the same number that ordered the slate. */
+  priority: number;
 }
 
 /**

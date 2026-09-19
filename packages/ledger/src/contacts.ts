@@ -48,7 +48,7 @@ export async function readContacts(
      * each get a count of the contacts about their scope (ADR-021 §9). Omitted,
      * none are read, and the engine refuses the read if the catalogue has any.
      */
-    catalogue?: Pick<CatalogueSnapshot, 'frequencyPolicies' | 'offers'>;
+    catalogue?: Pick<CatalogueSnapshot, 'frequencyPolicies' | 'offers' | 'actions'>;
   },
   onUnavailable: (error: unknown) => void = () => {}
 ): Promise<ContactsRead> {
@@ -59,11 +59,18 @@ export async function readContacts(
       ledger.contactsFor(base),
       // About the offers the engine will hold this cap to, and no others: the
       // same `scopeCovers` the constraint node uses, over the same snapshot.
+      // An action-scoped cap counts the contacts about that action, and no
+      // other action of its offer (ADR-019 §4); every other level counts by
+      // offer, so an offer's cap covers all of its actions.
       ...scoped.map((c) =>
-        ledger.contactsFor({
-          ...base,
-          offerIds: q.catalogue!.offers.filter((o) => scopeCovers(c.scope, o)).map((o) => o.id),
-        })
+        ledger.contactsFor(
+          c.scope.level === 'action'
+            ? {
+                ...base,
+                actionKeys: q.catalogue!.actions.filter((a) => a.id === c.scope.targetId).map((a) => a.key),
+              }
+            : { ...base, offerIds: q.catalogue!.offers.filter((o) => scopeCovers(c.scope, o)).map((o) => o.id) }
+        )
       ),
     ]);
     return {

@@ -9,6 +9,7 @@ import type {
   ExecArtifact,
 } from '@metis/runtime/deterministic/types';
 import type { CompileContext, DecisionFlowSource } from '@metis/compiler/decision-flow';
+import { withGeneratedActions } from '@metis/core/domain';
 
 /**
  * A populated tenant, built the way a real one is: published, promoted,
@@ -89,14 +90,14 @@ function arbitration() {
   };
 }
 
-export const catalogue: CatalogueSnapshot = {
+export const catalogue: CatalogueSnapshot = withGeneratedActions({
   offers: [offer()],
   targetingPolicies: [],
   frequencyPolicies: [],
   arbitration: arbitration(),
   boosts: [],
   connectors: [],
-} as unknown as CatalogueSnapshot;
+}) as unknown as CatalogueSnapshot;
 
 export const artifact: ExecArtifact = {
   id: FLOW,

@@ -3,6 +3,7 @@ import type { DecisionQuery, LedgerStore } from './ledger';
 import {
   CONTACT_STATES,
   CONTACT_WINDOW_MS,
+  predatesReseed,
   type ContactCounts,
   type ContactQuery,
   type DeliveryAttempt,
@@ -108,7 +109,9 @@ export class InMemoryLedgerStore implements LedgerStore {
     // The same rule as the SQL in `postgres-store.ts`, written the same way, so
     // the suite that runs against both can tell if they part company.
     const until = Date.parse(q.until);
-    const about = q.offerIds ? new Set(q.offerIds) : null;
+    const aboutOffers = q.offerIds ? new Set(q.offerIds) : null;
+    const aboutActions = q.actionKeys ? new Set(q.actionKeys) : null;
+    const about = aboutOffers || aboutActions;
     const firstContact = new Map<string, number>();
     for (const { attempt: a } of this.bySubject.get(this.subjectKey(q.tenantId, q.subjectHash, q.channel)) ?? []) {
       if (!CONTACT_STATES.includes(a.state)) continue;
@@ -116,7 +119,19 @@ export class InMemoryLedgerStore implements LedgerStore {
       if (at > until) continue;
       const decision = this.entries.get(this.id(a.tenantId, a.decisionId));
       if (!decision || decision.record.decision.winner === null) continue;
-      if (about && !about.has(decision.record.decision.winnerOfferId ?? '')) continue;
+      // A contact about any offer the decision showed, not only its winner: a
+      // two-offer email contacted the customer about both (ADR-020 §4,
+      // ADR-021 §9). Counting only winners let the second offer through its cap.
+      if (about) {
+        // A decision recorded before slates cannot say what it showed. Read as
+        // "showed nothing" it would under-count a cap, which is a customer
+        // protection failing open (ADR-021 §3), so the count is refused and the
+        // caller holds capped offers back as unreadable (§4).
+        if (!Array.isArray(decision.record.decision.slate)) throw predatesReseed(a.decisionId, a.tenantId);
+        const shown = decision.record.decision.slate;
+        if (aboutOffers && !shown.some((e) => aboutOffers.has(e.offerId))) continue;
+        if (aboutActions && !shown.some((e) => aboutActions.has(e.action))) continue;
+      }
       const seen = firstContact.get(a.decisionId);
       if (seen === undefined || at < seen) firstContact.set(a.decisionId, at);
     }

@@ -30,7 +30,9 @@
  * make the console's entire decision history unreplayable.
  */
 
-import { execute } from '@metis/runtime/deterministic/engine';
+import { execute, readPath } from '@metis/runtime/deterministic/engine';
+import { requiredConnectors } from '@metis/runtime';
+import { generateActions, type ResolvedField } from '@metis/core/domain';
 import { seededUnitInterval } from '@metis/runtime/deterministic/canonical';
 import type {
   ExecArtifact,
@@ -45,6 +47,7 @@ import {
   arbitrationConfig,
   boosts,
   connectors,
+  placements as placementFixtures,
 } from './catalogue';
 import { artifacts, type ArtifactSummary } from './artifacts';
 import { schemaPin } from './compiled';
@@ -65,6 +68,7 @@ const byId = <T extends { id: string }>(list: T[]): T[] =>
  */
 export const catalogueSnapshot: CatalogueSnapshot = {
   offers: byId(offers),
+  actions: generateActions(offers),
   targetingPolicies: byId(targetingPolicies),
   frequencyPolicies: byId(frequencyPolicies),
   arbitration: arbitrationConfig,
@@ -269,15 +273,18 @@ function writePath(input: Record<string, unknown>, path: string, value: unknown)
   cursor[segments[segments.length - 1]] = value;
 }
 
-/** The seeded input, on the two roots the schema declares. ADR-014 §2. */
-function inputFor(index: number, base: Record<string, unknown>): Record<string, unknown> {
+/**
+ * The seeded input as a caller would send it, before resolution — ADR-022 §8.
+ *
+ * The base the request carries, and the one field no connector provides.
+ */
+function callerInputFor(index: number, base: Record<string, unknown>): Record<string, unknown> {
   const input = structuredClone(base);
-  for (const [path, value] of Object.entries(connectorPayload(index))) {
-    writePath(input, path, value);
-  }
   // The one disjunction the brief asks for, computed rather than fetched:
   // digital engagement OR a broadband intent signal. Its origin in the schema
-  // is `aggregation`, and this is the aggregation.
+  // is `aggregation`, and this is the aggregation. The schema's `aggregations`
+  // declare nothing that produces it, so the live path cannot compute it and
+  // the seed puts it in the request (ADR-022 §8, "what it does not cover").
   const r = (salt: string) => seededUnitInterval('engagement', index, salt);
   writePath(
     input,
@@ -287,11 +294,42 @@ function inputFor(index: number, base: Record<string, unknown>): Record<string, 
   return input;
 }
 
+/** The seeded input, on the two roots the schema declares. ADR-014 §2. */
+function inputFor(index: number, base: Record<string, unknown>): Record<string, unknown> {
+  const input = callerInputFor(index, base);
+  for (const [path, value] of Object.entries(connectorPayload(index))) {
+    writePath(input, path, value);
+  }
+  return input;
+}
+
+/**
+ * Each connector's recorded answer for this decision, at the paths that
+ * connector declares (`binding.path`) — ADR-022 §8.
+ *
+ * What a gateway would have returned, so a test can run the seeded request
+ * through the live path's own resolution and compare. `connectorPayload` keys
+ * the same values by field, which is the shape the seed writes with; this is
+ * the shape a connector answers in.
+ */
+export function recordedAnswers(index: number): Record<string, unknown> {
+  const byField = connectorPayload(index);
+  const answers: Record<string, Record<string, unknown>> = {};
+  for (const connector of connectors) {
+    const payload: Record<string, unknown> = {};
+    for (const binding of connector.provides) {
+      if (binding.field in byField) writePath(payload, binding.path, byField[binding.field]);
+    }
+    answers[connector.id] = payload;
+  }
+  return answers;
+}
+
 /**
  * Build a customer input deterministically from its index, spanning the range
  * the policies actually test: age, credit, usage, contract, affordability.
  */
-function buildRequest(index: number): DecisionRequest {
+function buildRequest(index: number, form: 'resolved' | 'caller' = 'resolved'): DecisionRequest {
   const r = (salt: string) => seededUnitInterval('req', index, salt);
 
   // No `outbound_call`. Its only slot, `retention_queue`, stopped being
@@ -334,6 +372,11 @@ function buildRequest(index: number): DecisionRequest {
     customerId: `cust_${(880000 + index * 137).toString(36)}`,
     channel,
     placement: placements[channel],
+    // The placement's own slot count, as the route that decides for it passes
+    // it (ADR-020 §2): the weekly email shows two offers, so a seeded email
+    // decision records a slate of up to two, and its second offer is shown
+    // rather than denied.
+    slotCount: placementFixtures.find((p) => p.key === placements[channel])?.slotCount ?? 1,
     // Fixed relative to T0 so the set does not drift with the wall clock.
     occurredAt: occurredAt(index),
     // Two roots: what is true of the subject, and what only this request
@@ -348,20 +391,22 @@ function buildRequest(index: number): DecisionRequest {
     // traces carry genuine provenance and the console can show where each
     // field came from. The live path really does resolve;
     // `decision-resolution.test.ts` fails if that wiring is removed.
-    input: inputFor(index, {
+    input: (form === 'caller' ? callerInputFor : inputFor)(index, {
       customer: {
         account_status: r('account') > 0.03 ? 'active' : 'suspended',
         // A known move, or a number large enough to mean "none known". The
         // brief's rule is "not moving within 30 days", so this is the field
         // that fires it.
         moving_within_days: r('move') > 0.93 ? Math.floor(r('movedays') * 30) : 999,
-        address: {
-          // Fiber is built out unevenly, which is the whole premise of the
-          // brief: the same visitor at two addresses gets two answers.
-          fios_serviceable: r('fios') > 0.45,
-          fiveg_coverage:
-            r('cover') > 0.7 ? 'strong' : r('cover') > 0.3 ? 'marginal' : 'none',
-        },
+        // No `address`. Both of its fields — whether fiber reaches it, and how
+        // strong 5G is there — arrive from `conn_serviceability`
+        // (`connectorPayload`), so a fiber refusal in the trace can say who
+        // said so. Until 2026-09-18 the request carried both as well, and the
+        // seed wrote the connector's answer over them, where the live path
+        // lets the request win: 8,622 seeded inputs were not what resolution
+        // builds from the seed's own request (ADR-022 §6, §8). Removing them
+        // changes no input — the payload writes both, and canonical form
+        // sorts keys — so no hash moves.
         broadband: {
           // Most of this base already buys internet here, on something older
           // than fiber. That is what makes Gaming Plus eligible and fiber a
@@ -396,6 +441,43 @@ function buildRequest(index: number): DecisionRequest {
       thirdParty: r('third') > 0.7,
     },
   };
+}
+
+/**
+ * A seeded request as a caller would send it, before resolution — ADR-022 §8.
+ *
+ * Everything the executed request carries except what the connectors supply.
+ * Run through the live path with `recordedAnswers` behind the gateway, it must
+ * produce the input the seeded decision was executed with.
+ */
+export function requestBeforeResolution(index: number): DecisionRequest {
+  return buildRequest(index, 'caller');
+}
+
+/**
+ * What resolution would report writing for this decision — ADR-022 §3.
+ *
+ * Each field an active connector the artifact draws on answered in
+ * `recordedAnswers`, and the caller's request did not carry: the live path's
+ * precedence, stated here synchronously because the corpus is built at import.
+ * `seed-live-parity.test.ts` holds this to what `resolveInputs` itself reports,
+ * so the two cannot drift the way the seed's precedence once did.
+ */
+function resolvedFor(index: number, artifact: ExecArtifact): ResolvedField[] {
+  const byField = connectorPayload(index);
+  const caller = requestBeforeResolution(index).input;
+  const byId = new Map(connectors.map((c) => [c.id, c]));
+  const out: ResolvedField[] = [];
+  for (const { nodeId, connectorId } of requiredConnectors(artifact)) {
+    const connector = byId.get(connectorId);
+    if (!connector || !connector.active) continue;
+    for (const binding of connector.provides) {
+      if (!(binding.field in byField) || byField[binding.field] === undefined) continue;
+      if (readPath(caller, binding.field) !== undefined) continue;
+      out.push({ field: binding.field, nodeId, connectorId, origin: 'connector' });
+    }
+  }
+  return out.sort((a, b) => a.field.localeCompare(b.field) || a.connectorId.localeCompare(b.connectorId));
 }
 
 // ---------------------------------------------------------------------------
@@ -441,8 +523,8 @@ export function executeAt(index: number): GeneratedDecision {
   const hit = cache.get(index);
   if (hit) return hit;
 
-  const request = buildRequest(index);
   const artifact = LIVE[index % LIVE.length];
+  const request = { ...buildRequest(index), resolved: resolvedFor(index, artifact) };
   const made = { trace: execute(artifact, catalogueSnapshot, request), request, artifact };
   cache.set(index, made);
   return made;

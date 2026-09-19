@@ -36,16 +36,23 @@ export interface SeedRequest {
    * that count — typed, not defaulted, so the number is read before it is lost.
    */
   discardMadeByHand?: number;
+  /**
+   * `--empty`: reset and write nothing, so the ledger holds only what is made
+   * by using the console from here on — a development console's default since
+   * ADR-018 §3 was amended. Only with `--reset`; every refusal still applies.
+   */
+  empty?: boolean;
 }
 
 export type SeedPlan =
   | { kind: 'refuse'; reason: string }
   | { kind: 'seed' }
   | { kind: 'reset-and-seed' }
+  | { kind: 'reset' }
   | { kind: 'leave'; reason: string };
 
 export function planSeed(request: SeedRequest): SeedPlan {
-  const { tenant, reset, by, dataClass, tenantsInLedger, existingForTenant, madeByHand = 0, discardMadeByHand } =
+  const { tenant, reset, by, dataClass, tenantsInLedger, existingForTenant, madeByHand = 0, discardMadeByHand, empty } =
     request;
 
   if (!tenant) {
@@ -53,6 +60,13 @@ export function planSeed(request: SeedRequest): SeedPlan {
       kind: 'refuse',
       reason:
         'Name the tenant: --tenant <id>. There is no default and no all-tenants form, because a reset truncates the ledger for every tenant in the database.',
+    };
+  }
+
+  if (empty && !reset) {
+    return {
+      kind: 'refuse',
+      reason: `--empty clears a ledger, so it needs --reset: --reset --empty --tenant ${tenant} --by <who>.`,
     };
   }
 
@@ -103,7 +117,7 @@ export function planSeed(request: SeedRequest): SeedPlan {
       };
     }
 
-    return { kind: 'reset-and-seed' };
+    return empty ? { kind: 'reset' } : { kind: 'reset-and-seed' };
   }
 
   if (existingForTenant > 0) {

@@ -179,8 +179,9 @@ rather than assumed to agree.
 }
 
 export interface PolicyScope {
-  level: "tenant" | "objective" | "category" | "offer";
-  /** null when level is tenant */
+  /** Resolved most specific first. An offer-level scope covers every action of the offer; an action-level scope covers that action alone, and narrows within its offer's rather than replacing it (ADR-019 §4). */
+  level: "tenant" | "objective" | "category" | "offer" | "action";
+  /** null when level is tenant. At action level, an action id — today always `act_` and the offer's id, because each offer has one generated action and none can yet be authored (ADR-019 §1). */
   targetId: string | null;
 }
 
@@ -370,6 +371,17 @@ export interface Provenance {
   recordedCount?: number;
   /** A sentence a person can read in an exported file months later, without this document in front of them. */
   note: string;
+}
+
+export interface LedgerSummary {
+  /** Where the ledger is kept. `memory` forgets on restart. */
+  store: "memory" | "postgres";
+  /** Every decision the tenant's ledger holds. */
+  decisions: number;
+  /** Decided before the seeded corpus ends, so written by the seed. */
+  seeded: number;
+  /** Decided after it, so made by using the console or the storefront. */
+  madeByHand: number;
 }
 
 export interface PerformanceReport {
@@ -798,7 +810,7 @@ A route is gated by declaring the permission on its entry in the console's navig
 export interface Denial {
   /** The candidate this is about. */
   key: string;
-  /** A closed set, never renamed. NOT_RANKED is not a fault: the candidate passed every gate and was beaten.
+  /** A closed set, never renamed. NOT_RANKED is not a fault: the candidate passed every gate and ranked below every slot the placement had (ADR-020 §3). An offer shown in a later slot is a survivor, not a denial.
  */
   code: "ELIGIBILITY_FAILED" | "RELEVANCE_FAILED" | "SUITABILITY_FAILED" | "FREQUENCY_CAP_BREACHED" | "COOLDOWN_ACTIVE" | "CONSENT_WITHHELD" | "CONTACT_HISTORY_UNAVAILABLE" | "OUT_OF_VALIDITY_WINDOW" | "NOT_ACTIVE" | "NOT_RANKED";
   /** The targeting or frequency policy that did it, where one is identifiable. Null for codes that are properties of the candidate rather than of a rule. Always present, never omitted — an optional key would mean two engines each deciding when to drop it, and the canonical form differs if they disagree.
@@ -894,6 +906,9 @@ export interface OutcomeEvent {
   /** Realised value in minor units, where the outcome carries one. Null rather than zero when there is none: a click is not a conversion worth nothing, and averaging over zeros would say it was.
  */
   valueMinor: number | null;
+  /** The slate entry this outcome is about (ADR-020 §4). Absent on an outcome about a single-offer decision that did not name it, and on one recorded before outcomes named their action; both mean slot 1.
+ */
+  action?: string;
   /** Whatever the channel reported. Never read by the engine. */
   detail?: Record<string, unknown>;
 }
@@ -920,6 +935,14 @@ export interface ConsentAssertion {
   thirdParty?: boolean | null;
 }
 
+/** One slot of what a decision showed (ADR-020 §1). The offer is stored, not looked up. */
+export interface RecordedSlateEntry {
+  rank: number;
+  action: string;
+  offerId: string;
+  priority: number;
+}
+
 /** A decision as it appears in search results, without the trace.
 
 Carries no latency. A decision's duration is a measurement of one
@@ -942,6 +965,11 @@ export interface Decision {
   /** Action key of the winning candidate, or null if suppressed */
   winner: string | null;
   winnerOfferId: string | null;
+  /** What the decision showed, best first (ADR-020 §1). A grid of three is three
+entries; `winner` is the first. A list that named only the winner said a
+three-offer decision offered one.
+ */
+  slate?: RecordedSlateEntry[];
   candidateCount: number;
 }
 
@@ -972,6 +1000,13 @@ So a decision is re-executable only where the platform can still produce the inp
   placement: string;
   winner: string | null;
   winnerOfferId: string | null;
+  /** How many slots the placement had when this was decided (ADR-020 §2). Replay uses this. */
+  slotCount?: number;
+  /** What was shown, best first, one entry per slot filled (ADR-020 §1). `winner`
+is the first entry's action. Each entry's offer is stored, not looked up in
+a catalogue that has moved on.
+ */
+  slate?: RecordedSlateEntry[];
   /** Every action the flow was allowed to consider, from the artifact's candidate set. Served as the set and not only as a count: "what did we consider" is the first question the cascade answers, and a count cannot answer it. It is derivable by unioning every denial key with the winner, which is exactly the re-derivation that produces two consumers disagreeing about one decision.
  */
   candidateKeys: string[];
@@ -1014,8 +1049,13 @@ So a decision is re-executable only where the platform can still produce the inp
   consentState: ConsentState;
   contactsRead?: ContactsRead;
   creativeId?: string | null;
-  /** Which connector supplied which input field. Reproducible. */
-  sourceBindings?: SourceBinding[];
+  /** Where each connector-provided value in the input came from: the connector
+that answered, a binding's default standing in for one that did not, or
+the request, naming the connector it was preferred over (ADR-022 §2).
+Reproducible; part of the hashed decision. Was `sourceBindings` until
+2026-09-18, which named a connector for values the caller sent (G-152).
+ */
+  fieldOrigins?: FieldOrigin[];
   /** What the integrations did on the wire. Measured, so absent on a
 replayed trace - replay calls no connectors.
  */
@@ -1603,7 +1643,9 @@ export interface SlateEntry {
   action: string;
   /** The priority ranking gave it — the same number that chose the winner. */
   priority: number;
-  /** The offer this action belongs to, resolved from the catalogue. */
+  /** The offer this action belongs to, as the decision stored it (ADR-020 §1). It
+was looked up in the current catalogue until 2026-09-18.
+ */
   offerId?: string | null;
 }
 
@@ -1620,11 +1662,18 @@ export interface CreativeRejected {
   }[];
 }
 
-/** Which connector supplied a field. Reproducible; part of the hashed decision. */
-export interface SourceBinding {
+/** Where the value a decision used for one connector-provided field came from
+(ADR-022 §2). Reproducible; part of the hashed decision.
+ */
+export interface FieldOrigin {
   field: string;
-  connectorId: string;
   nodeId: string;
+  /** For `connector`, the connector that answered; for `default`, the one
+that failed; for `request`, the one that also provides the field and
+was not used.
+ */
+  connectorId: string;
+  origin: "connector" | "default" | "request";
 }
 
 /** What an integration actually did. Measured; never hashed, absent on replay. */
@@ -1862,6 +1911,13 @@ export const OPERATIONS = {
     path: '/flow-volume/{tenantId}',
     pathParams: ['tenantId'],
     queryParams: ['flowId', 'hours'],
+    statuses: ['200'],
+  },
+  getLedgerSummary: {
+    method: 'GET',
+    path: '/ledger/{tenantId}/summary',
+    pathParams: ['tenantId'],
+    queryParams: [],
     statuses: ['200'],
   },
   getOffer: {
@@ -2107,7 +2163,7 @@ export const OPERATIONS = {
     path: '/outcomes/{tenantId}/{decisionId}',
     pathParams: ['tenantId', 'decisionId'],
     queryParams: [],
-    statuses: ['201', '404'],
+    statuses: ['201', '404', '422'],
   },
   rejectChangeSet: {
     method: 'POST',
@@ -2366,6 +2422,10 @@ export type ExecuteDecisionRequest = {
     customerId: string;
     channel: string;
     placement: string;
+    /** How many offers the placement shows (ADR-020 §2). Optional, and 1
+when absent. Recorded on the decision, not hashed into the input.
+ */
+    slotCount?: number;
     /** An input, never the clock. */
     occurredAt: string;
     /** Customer and context attributes, already resolved. */
@@ -2419,6 +2479,9 @@ export type GetDecisionRecordResponse = DecisionRecord;
 
 /** Candidates through one flow, node by node */
 export type GetFlowVolumeResponse = FlowVolumeReport;
+
+/** What this tenant's decision ledger holds */
+export type GetLedgerSummaryResponse = LedgerSummary;
 
 /** An offer with its creatives, policies and effective autonomy */
 export type GetOfferResponse = OfferDetail;
@@ -2607,6 +2670,12 @@ export type RecordOutcomeRequest = {
   type: "impression" | "click" | "acceptance" | "rejection" | "conversion";
   occurredAt: string;
   valueMinor?: number | null;
+  /** The action key of the slate entry this outcome is about (ADR-020 §4).
+Required when the decision showed more than one offer; optional when
+it showed one, and then it means that one. Checked against the
+decision's recorded slate, never the catalogue.
+ */
+  action?: string;
   detail?: Record<string, unknown>;
 };
 
@@ -2756,6 +2825,7 @@ export interface ResponseOf {
   getCounterfactual: GetCounterfactualResponse;
   getDecisionRecord: GetDecisionRecordResponse;
   getFlowVolume: GetFlowVolumeResponse;
+  getLedgerSummary: GetLedgerSummaryResponse;
   getOffer: GetOfferResponse;
   getPerformance: GetPerformanceResponse;
   getPolicyFunnel: GetPolicyFunnelResponse;

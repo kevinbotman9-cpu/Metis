@@ -79,10 +79,18 @@ test.describe('integration provenance in the trace', () => {
     const id = (await page.locator('tr[data-row] td').first().innerText()).trim();
     await page.goto(`/decisions/${id}`);
 
-    await expect(page.getByRole('heading', { name: 'Where the data came from', exact: true })).toBeVisible();
-    // Provenance names the connector and the node, not just the field.
-    await expect(page.getByText(/via conn_/).first()).toBeVisible();
-    await expect(page.getByText(/at node source_/).first()).toBeVisible();
+    const card = page.getByRole('heading', { name: 'Where the data came from', exact: true }).locator('xpath=ancestor::*[.//ul][1]');
+    await expect(card).toBeVisible();
+    // Provenance names the connector and the node, not just the field — in
+    // whichever of the three ways the value arrived (ADR-022 §1): "from
+    // conn_x", "conn_x's default: it did not answer", or "sent with the
+    // request; conn_x not used". It said "via conn_x" for all three until the
+    // reseed, and this check pinned that one word; the label changed and the
+    // check went red on the first full run, 2026-09-19.
+    const origins = card.locator('[data-origin]');
+    await expect(origins.first()).toBeVisible();
+    for (const text of await origins.allInnerTexts()) expect(text).toMatch(/conn_[a-z_]+/);
+    await expect(card.getByText(/at node source_/).first()).toBeVisible();
   });
 
   test('replay still reproduces a decision that used an integration', async ({ page }) => {

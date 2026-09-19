@@ -22,6 +22,9 @@ const URL =
   'postgresql://postgres:postgres@localhost:5432/metis_registry_test';
 
 const pool = new Pool({ connectionString: URL, max: 4 });
+/** Two instances' lock connections, apart from the pool they read and write through (G-160). */
+const locks = new Pool({ connectionString: URL, max: 4 });
+const otherLocks = new Pool({ connectionString: URL, max: 4 });
 
 let reachable = false;
 try {
@@ -46,9 +49,12 @@ if (!reachable) {
       await pool.query(
         'TRUNCATE outcome_events, idempotency_keys, decision_records RESTART IDENTITY CASCADE'
       );
-      return new PostgresLedgerStore(pool);
+      return new PostgresLedgerStore(pool, locks);
     },
     enforcesForeignKeys: true,
+    async another() {
+      return new PostgresLedgerStore(pool, otherLocks);
+    },
   });
 
   // The pool closes at file scope, not in the suite harness. The harness's
@@ -57,6 +63,7 @@ if (!reachable) {
   // pool and reporting "cannot use a pool after end" instead of what they
   // actually check.
   afterAll(async () => {
+    await Promise.all([locks.end(), otherLocks.end()]);
     await pool.end();
   });
 

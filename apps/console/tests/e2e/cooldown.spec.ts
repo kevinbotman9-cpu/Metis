@@ -83,4 +83,31 @@ test.describe('@screen-only a declined offer stops being offered', () => {
       )
       .toBe(declined);
   });
+
+  test('a decline is one customer’s, and another customer is not held to it', async ({ page }) => {
+    // Found driving the storefront with its six other customers on 2026-09-18:
+    // the page kept one list of declines, so Eva's "no" to Fios went out as
+    // Diego's `rejects` and held it back from him for thirty days.
+    await page.goto(`${STOREFRONT}?day=220`);
+    const declineButton = heroOffer(page);
+    await expect(declineButton).toBeVisible();
+    const declined = await declineButton.getAttribute('data-offer-key');
+    await declineButton.click();
+    await page.getByRole('button', { name: 'Decided by METIS', exact: true }).click();
+    await expect(page.locator('#declines-note')).toContainText(declined!);
+
+    // Someone else visits. What the page asks the platform about them carries
+    // no decline of hers, and the panel says they have declined nothing.
+    const asked = page.waitForRequest(
+      (r) => r.method() === 'POST' && r.url().includes('/placements/') && (r.postData() ?? '').includes('"cust_diego"')
+    );
+    await page.getByLabel('Customer', { exact: true }).selectOption({ label: 'Diego — no internet yet, fiber at his address' });
+    const body = JSON.parse((await asked).postData()!);
+    expect(body.request.contactHistory.rejects, 'Eva’s decline was sent as Diego’s').toBeUndefined();
+    await expect(page.locator('#declines-note')).toContainText('Nothing declined');
+
+    // And hers is still hers: back to Eva, and it is still running.
+    await page.getByLabel('Customer', { exact: true }).selectOption({ label: 'Eva — fiber available at her address' });
+    await expect(page.locator('#declines-note')).toContainText(declined!);
+  });
 });

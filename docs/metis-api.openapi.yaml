@@ -345,10 +345,17 @@ components:
       properties:
         level:
           type: string
-          enum: [tenant, objective, category, offer]
+          enum: [tenant, objective, category, offer, action]
+          description: >-
+            Resolved most specific first. An offer-level scope covers every
+            action of the offer; an action-level scope covers that action alone,
+            and narrows within its offer's rather than replacing it (ADR-019 §4).
         targetId:
           type: [string, "null"]
-          description: null when level is tenant
+          description: >-
+            null when level is tenant. At action level, an action id — today
+            always `act_` and the offer's id, because each offer has one
+            generated action and none can yet be authored (ADR-019 §1).
 
     PolicyCondition:
       type: object
@@ -694,6 +701,24 @@ components:
           description: >-
             A sentence a person can read in an exported file months later,
             without this document in front of them.
+    LedgerSummary:
+      type: object
+      required: [store, decisions, seeded, madeByHand]
+      properties:
+        store:
+          type: string
+          enum: [memory, postgres]
+          description: Where the ledger is kept. `memory` forgets on restart.
+        decisions:
+          type: integer
+          description: Every decision the tenant's ledger holds.
+        seeded:
+          type: integer
+          description: Decided before the seeded corpus ends, so written by the seed.
+        madeByHand:
+          type: integer
+          description: Decided after it, so made by using the console or the storefront.
+
     PerformanceReport:
       type: object
       required:
@@ -1529,7 +1554,9 @@ components:
           type: string
           description: >
             A closed set, never renamed. NOT_RANKED is not a fault: the
-            candidate passed every gate and was beaten.
+            candidate passed every gate and ranked below every slot the placement
+            had (ADR-020 §3). An offer shown in a later slot is a survivor, not a
+            denial.
           enum:
             - ELIGIBILITY_FAILED
             - RELEVANCE_FAILED
@@ -1688,6 +1715,12 @@ components:
             Realised value in minor units, where the outcome carries one. Null
             rather than zero when there is none: a click is not a conversion
             worth nothing, and averaging over zeros would say it was.
+        action:
+          type: string
+          description: >
+            The slate entry this outcome is about (ADR-020 §4). Absent on an outcome
+            about a single-offer decision that did not name it, and on one recorded
+            before outcomes named their action; both mean slot 1.
         detail:
           type: object
           description: Whatever the channel reported. Never read by the engine.
@@ -1727,6 +1760,21 @@ components:
         thirdParty:
           type: [boolean, 'null']
 
+    RecordedSlateEntry:
+      type: object
+      description: One slot of what a decision showed (ADR-020 §1). The offer is stored, not looked up.
+      required: [rank, action, offerId, priority]
+      properties:
+        rank:
+          type: integer
+          minimum: 1
+        action:
+          type: string
+        offerId:
+          type: string
+        priority:
+          type: number
+
     Decision:
       type: object
       description: |
@@ -1765,6 +1813,14 @@ components:
           description: Action key of the winning candidate, or null if suppressed
         winnerOfferId:
           type: [string, 'null']
+        slate:
+          type: array
+          description: |
+            What the decision showed, best first (ADR-020 §1). A grid of three is three
+            entries; `winner` is the first. A list that named only the winner said a
+            three-offer decision offered one.
+          items:
+            $ref: '#/components/schemas/RecordedSlateEntry'
         candidateCount:
           type: integer
 
@@ -1833,6 +1889,18 @@ components:
           type: [string, 'null']
         winnerOfferId:
           type: [string, 'null']
+        slotCount:
+          type: integer
+          minimum: 1
+          description: How many slots the placement had when this was decided (ADR-020 §2). Replay uses this.
+        slate:
+          type: array
+          description: |
+            What was shown, best first, one entry per slot filled (ADR-020 §1). `winner`
+            is the first entry's action. Each entry's offer is stored, not looked up in
+            a catalogue that has moved on.
+          items:
+            $ref: '#/components/schemas/RecordedSlateEntry'
         candidateKeys:
           type: array
           description: >
@@ -1927,11 +1995,16 @@ components:
           $ref: '#/components/schemas/ContactsRead'
         creativeId:
           type: [string, 'null']
-        sourceBindings:
+        fieldOrigins:
           type: array
-          description: Which connector supplied which input field. Reproducible.
+          description: |
+            Where each connector-provided value in the input came from: the connector
+            that answered, a binding's default standing in for one that did not, or
+            the request, naming the connector it was preferred over (ADR-022 §2).
+            Reproducible; part of the hashed decision. Was `sourceBindings` until
+            2026-09-18, which named a connector for values the caller sent (G-152).
           items:
-            $ref: '#/components/schemas/SourceBinding'
+            $ref: '#/components/schemas/FieldOrigin'
         sourceCalls:
           type: array
           description: |
@@ -2941,7 +3014,9 @@ components:
           description: The priority ranking gave it — the same number that chose the winner.
         offerId:
           type: [string, 'null']
-          description: The offer this action belongs to, resolved from the catalogue.
+          description: |
+            The offer this action belongs to, as the decision stored it (ADR-020 §1). It
+            was looked up in the current catalogue until 2026-09-18.
 
     CreativeRejected:
       type: object
@@ -2967,17 +3042,26 @@ components:
               message:
                 type: string
 
-    SourceBinding:
+    FieldOrigin:
       type: object
-      description: Which connector supplied a field. Reproducible; part of the hashed decision.
-      required: [field, connectorId, nodeId]
+      description: |
+        Where the value a decision used for one connector-provided field came from
+        (ADR-022 §2). Reproducible; part of the hashed decision.
+      required: [field, nodeId, connectorId, origin]
       properties:
         field:
           type: string
-        connectorId:
-          type: string
         nodeId:
           type: string
+        connectorId:
+          type: string
+          description: |
+            For `connector`, the connector that answered; for `default`, the one
+            that failed; for `request`, the one that also provides the field and
+            was not used.
+        origin:
+          type: string
+          enum: [connector, default, request]
 
     SourceCall:
       type: object
@@ -4051,6 +4135,24 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/PerformanceReport' }
 
+  /ledger/{tenantId}/summary:
+    get:
+      summary: What this tenant's decision ledger holds
+      description: |
+        Where the ledger is kept, and how many of its decisions the seed wrote
+        and how many were made by using the console. The console's chrome says
+        this, so a screen never calls a ledger "fixture data" when a person made
+        every decision in it.
+      operationId: getLedgerSummary
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: The summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LedgerSummary' }
+
   /policy-funnel/{tenantId}:
     get:
       summary: Where candidates fall out of decisions
@@ -4418,6 +4520,12 @@ paths:
                       type: string
                     placement:
                       type: string
+                    slotCount:
+                      type: integer
+                      minimum: 1
+                      description: |
+                        How many offers the placement shows (ADR-020 §2). Optional, and 1
+                        when absent. Recorded on the decision, not hashed into the input.
                     occurredAt:
                       type: string
                       format: date-time
@@ -4746,6 +4854,13 @@ paths:
                   format: date-time
                 valueMinor:
                   type: [integer, 'null']
+                action:
+                  type: string
+                  description: |
+                    The action key of the slate entry this outcome is about (ADR-020 §4).
+                    Required when the decision showed more than one offer; optional when
+                    it showed one, and then it means that one. Checked against the
+                    decision's recorded slate, never the catalogue.
                 detail:
                   type: object
                   additionalProperties: true
@@ -4758,6 +4873,11 @@ paths:
                 $ref: '#/components/schemas/OutcomeEvent'
         '404':
           description: No such decision, so nothing to attach the outcome to
+        '422':
+          description: |
+            The outcome does not say which offer it was about on a decision that showed
+            several (`OUTCOME_ACTION_REQUIRED`), or names one the decision did not show
+            (`OUTCOME_ACTION_NOT_SHOWN`).
 
     get:
       summary: Outcomes recorded against a decision

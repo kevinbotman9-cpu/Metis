@@ -11,6 +11,8 @@ import { PersonaSwitch } from './persona-switch';
 import { CommandPalette, useCommandPalette } from './command-palette';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { ledgerBadge } from '@/lib/ledger-badge';
+import { useFormat } from './tenant-format';
 import { NavRail } from './nav-rail';
 import { buildNav } from '@/lib/nav/build-nav';
 import { PERSONA_MANIFEST } from '@/lib/nav/persona-manifest';
@@ -98,6 +100,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     g.children.some((s) => s.badge === 'approvals' || s.children.some((c) => c.badge === 'approvals'))
   );
   const approvalCount = useApprovalCount(wantsApprovals);
+  // What the footer says the screens are showing: where the ledger is and who
+  // wrote what is in it, not a constant.
+  const format = useFormat();
+  const ledgerSummary = useQuery({
+    queryKey: ['ledger-summary'],
+    queryFn: () => apiClient.getLedgerSummary(),
+    enabled: Boolean(user),
+  });
 
   // A panel opened from the keyboard has to be closeable from the keyboard.
   useEffect(() => {
@@ -412,10 +422,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           {sidebarOpen ? (
-            <div className="px-4 py-3">
+            // `w-0 min-w-full`: as wide as the nav above it and no wider. The
+            // rail sizes to its content, and the ledger line is longer than any
+            // nav label, so without this it widened the rail to fit one line.
+            <div className="w-0 min-w-full px-4 py-3">
               <p className="flex items-center gap-1.5 text-label text-rail-dim">
                 <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-rail-ok" />
-                Fixture data
+                {ledgerBadge(ledgerSummary.data, ledgerSummary.isError, format)}
               </p>
             </div>
           ) : null}

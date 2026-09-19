@@ -71,7 +71,14 @@ describe('a cap counts the platform’s own contacts', () => {
 
   it('reads the ledger for a decision a cap applies to, and records a read of nothing as a read', async () => {
     const { trace } = await decide('cust_caps_first', 0);
-    expect(trace.contactsRead).toEqual({ status: 'read', channel: 'web', withinPeriod: { day: 0, week: 0, month: 0 } });
+    // The demo catalogue's offer-scoped cap on the web, Disney+ once a week, is
+    // read beside the channel's count (ADR-021 §9, the reseed's fixture).
+    expect(trace.contactsRead).toEqual({
+      status: 'read',
+      channel: 'web',
+      withinPeriod: { day: 0, week: 0, month: 0 },
+      scoped: { cpol_disney_web_weekly: { day: 0, week: 0, month: 0 } },
+    });
     expect(trace.winner).not.toBeNull();
   });
 
@@ -123,8 +130,10 @@ describe('a cap counts the platform’s own contacts', () => {
     const { trace } = await decide('cust_caps_unreadable', 0);
     expect(trace.contactsRead).toEqual({ status: 'unavailable', channel: 'web' });
     expect(trace.winner).toBeNull();
+    // Each held-back candidate names the first cap covering it that could not
+    // be read: Disney+ its own weekly cap, everything else the channel's.
     expect(new Set(denials(trace).map((d) => `${d.code}:${d.ruleId}`))).toEqual(
-      new Set(['CONTACT_HISTORY_UNAVAILABLE:cpol_web_daily'])
+      new Set(['CONTACT_HISTORY_UNAVAILABLE:cpol_web_daily', 'CONTACT_HISTORY_UNAVAILABLE:cpol_disney_web_weekly'])
     );
     expect(logged.mock.calls.flat().join(' ')).toMatch(/contact history unavailable.*statement timeout/);
   });
@@ -200,7 +209,10 @@ describe('a cap counts the platform’s own contacts', () => {
     type Scoped = Trace & { winnerOfferId: string | null; contactsRead?: { scoped?: Record<string, { day: number }> } };
     const s = second.trace as Scoped;
     expect(s.contactsRead?.withinPeriod?.day).toBe(1);
-    expect(s.contactsRead?.scoped).toEqual({ cpol_test_one_offer_daily: { day: 1, week: 1, month: 1 } });
+    // Beside the demo catalogue's own scoped cap, which this customer's first
+    // contact was not about unless it was Disney+.
+    expect(s.contactsRead?.scoped?.cpol_test_one_offer_daily).toEqual({ day: 1, week: 1, month: 1 });
+    expect(Object.keys(s.contactsRead?.scoped ?? {}).sort()).toEqual(['cpol_disney_web_weekly', 'cpol_test_one_offer_daily']);
     expect(denials(s)).toContainEqual(expect.objectContaining({ code: 'FREQUENCY_CAP_BREACHED', ruleId: 'cpol_test_one_offer_daily' }));
     expect(s.winnerOfferId).not.toBeNull();
     expect(s.winnerOfferId).not.toBe(offered);

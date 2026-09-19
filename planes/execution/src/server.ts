@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { selectSlate } from '@metis/runtime';
+import { recordedSlate } from '@metis/runtime';
 import type { DecisionRequest } from '@metis/runtime/deterministic/types';
 import { decide, type DecideDeps, type DecideOutcome } from './decide';
 import type { LoadResult } from './state';
@@ -64,6 +64,9 @@ function toDecisionRequest(body: Partial<DecisionRequest>, placement: string): D
     customerId: body.customerId as string,
     channel: body.channel as DecisionRequest['channel'],
     placement,
+    // Optional on the decision operation, and 1 when absent; the placement
+    // operation sets it from the placement (ADR-020 §2).
+    ...(body.slotCount !== undefined ? { slotCount: body.slotCount } : {}),
     occurredAt: body.occurredAt as string,
     input: body.input ?? {},
     contactHistory: body.contactHistory,
@@ -132,6 +135,10 @@ export function createService(options: ServiceOptions): Server {
     if (absent.length > 0) {
       return send(res, 400, { error: 'bad_request', message: `Missing required field(s): ${absent.map((f) => `request.${f}`).join(', ')}` });
     }
+    const slots = body.request.slotCount;
+    if (slots !== undefined && (!Number.isInteger(slots) || slots < 1)) {
+      return send(res, 400, { error: 'bad_request', message: `request.slotCount must be a whole number of slots, at least 1; got ${slots}` });
+    }
 
     // POST /api/decisions
     if (segments.length === 2 && segments[1] === 'decisions') {
@@ -162,12 +169,14 @@ export function createService(options: ServiceOptions): Server {
       if (!artifact) {
         return send(res, 404, { error: 'unknown_flow', message: `Placement '${placementKey}' is answered by flow '${placement.artifactId}', which is not active.` });
       }
-      const request = toDecisionRequest(body.request, placement.key);
+      const request = { ...toDecisionRequest(body.request, placement.key), slotCount: placement.slotCount };
       const outcome = await decide(options, tenant, artifact, request);
       if (outcome.kind === 'error') return send(res, outcome.status, outcome.body);
 
       const record = outcome.record;
-      const slate = selectSlate(record.decision, placement.slotCount);
+      // The slate the decision recorded, cut by the engine to the placement's
+      // slot count (ADR-020 §1, §2).
+      const slate = recordedSlate(record.decision);
       if (outcome.kind === 'decided') {
         // ADR-013 §1: what the platform did about getting the decision to
         // somebody. A slot nothing delivers still decides, and says so.
@@ -186,14 +195,14 @@ export function createService(options: ServiceOptions): Server {
           providerRef: null,
         });
       }
-      const offerByKey = new Map(tenant.snapshot.offers.map((o) => [o.key, o.id]));
       return send(res, 200, {
         placement: placement.key,
-        slotCount: placement.slotCount,
+        slotCount: record.decision.slotCount,
         decisionId: record.id,
         chainHash: record.chainHash,
         replayed: outcome.kind === 'replay',
-        entries: slate.entries.map((e) => ({ ...e, offerId: offerByKey.get(e.action) ?? null })),
+        // Stored on the decision, not looked up in today's catalogue (ADR-020 §1).
+        entries: slate.entries.map((e) => ({ ...e, offerId: e.offerId ?? null })),
       });
     }
 

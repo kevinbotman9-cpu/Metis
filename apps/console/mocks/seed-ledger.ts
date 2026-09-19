@@ -65,6 +65,8 @@ export function rowOf(trace: EngineRecord, tenantId = TENANT): DecisionRecord {
     placement: d.placement,
     winner: d.winner,
     winnerOfferId: d.winnerOfferId,
+    slotCount: d.slotCount,
+    slate: d.slate,
     candidateCount: d.candidateKeys.length,
   };
 }

@@ -52,7 +52,7 @@ import type {
   PublishOutcome as PublishOutcomeDto,
   RegistryEvent as RegistryEventDto,
   ShadowReport as ShadowReportDto,
-  SourceBinding as SourceBindingDto,
+  FieldOrigin as FieldOriginDto,
   SourceCall as SourceCallDto,
   PolicySource as PolicySourceDto,
   InboundCall as InboundCallDto,
@@ -64,6 +64,7 @@ import type {
   SchemaAggregation as SchemaAggregationDto,
   DataSource as DataSourceDto,
   PerformanceReport as PerformanceReportDto,
+  LedgerSummary as LedgerSummaryDto,
   PerformanceRow as PerformanceRowDto,
   ChannelStages as ChannelStagesDto,
   SuppressionReason as SuppressionReasonDto,
@@ -558,6 +559,10 @@ export const apiClient = {
     tenantId: string = TENANT
   ) => apiCall<PerformanceReportDto>('getPerformance', { params: { tenantId }, query: filters }),
 
+  /** Where the ledger is kept and who wrote what is in it, for the chrome. */
+  getLedgerSummary: (tenantId: string = TENANT) =>
+    apiCall<LedgerSummaryDto>('getLedgerSummary', { params: { tenantId } }),
+
   /**
    * Where candidates fall out of decisions, by reason code and by rule, summed
    * over the decisions in range. Proposed: the development API serves it (G-107).
@@ -731,7 +736,7 @@ export type {
   EnvironmentStateDto,
   PublishOutcomeDto,
   RegistryEventDto,
-  SourceBindingDto,
+  FieldOriginDto,
   SourceCallDto,
   PolicySourceDto,
   InboundCallDto,
@@ -742,6 +747,7 @@ export type {
   SchemaAggregationDto,
   DataSourceDto,
   PerformanceReportDto,
+  LedgerSummaryDto,
   PerformanceRowDto,
   ChannelStagesDto,
   SuppressionReasonDto,

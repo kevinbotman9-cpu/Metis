@@ -21,13 +21,14 @@ import type {
   DecisionRequest,
   ExecArtifact,
 } from '@metis/runtime/deterministic/types';
-import type {
-  ArbitrationConfig,
-  Connector,
-  FrequencyPolicy,
-  TargetingPolicy,
-  Boost,
-  Offer,
+import {
+  generateActions,
+  type ArbitrationConfig,
+  type Connector,
+  type FrequencyPolicy,
+  type TargetingPolicy,
+  type Boost,
+  type Offer,
 } from '@metis/core/domain';
 
 const CHANNELS = ['web', 'email', 'sms', 'push', 'outbound_call'] as const;
@@ -241,6 +242,7 @@ export function buildWorkload(options: WorkloadOptions = {}): Workload {
     artifact,
     catalogue: {
       offers,
+      actions: generateActions(offers),
       targetingPolicies,
       frequencyPolicies,
       arbitration,

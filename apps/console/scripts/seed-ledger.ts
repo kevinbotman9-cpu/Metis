@@ -17,6 +17,11 @@
  *
  *   npm run seed:ledger -- --reset --tenant telco-us --by marcus.webb --discard-made-by-hand 37
  *
+ * and to clear it and seed nothing, so it holds only what is made by using the
+ * console from then on:
+ *
+ *   npm run seed:ledger -- --reset --empty --tenant telco-us --by marcus.webb
+ *
  * It is never an API operation. `POST /api/_test/reset` refuses a PostgreSQL
  * store and keeps refusing it: clearing a database from a test endpoint is not
  * a thing the console should be able to do.
@@ -88,6 +93,7 @@ async function main(): Promise<number> {
       existingForTenant,
       madeByHand,
       discardMadeByHand,
+      empty: has('empty'),
     });
 
     if (plan.kind === 'refuse') {
@@ -99,7 +105,7 @@ async function main(): Promise<number> {
       return 0;
     }
 
-    if (plan.kind === 'reset-and-seed') {
+    if (plan.kind === 'reset-and-seed' || plan.kind === 'reset') {
       // One statement, and the order the foreign keys need. TRUNCATE rather
       // than DELETE because the append-only triggers refuse a row delete and
       // this command does not bypass them (ADR-004 clause 2).
@@ -114,12 +120,20 @@ async function main(): Promise<number> {
           actorType: 'human',
           eventType: 'LedgerReset',
           scope: 'tenant',
-          summary: `Truncated the ledger for ${tenant} before reseeding: ${existingForTenant} decisions removed.`,
+          summary:
+            plan.kind === 'reset'
+              ? `Truncated the ledger for ${tenant} and left it empty: ${existingForTenant} decisions removed.`
+              : `Truncated the ledger for ${tenant} before reseeding: ${existingForTenant} decisions removed.`,
           changeSetId: null,
         });
       } finally {
         await governance.close?.();
       }
+    }
+
+    if (plan.kind === 'reset') {
+      console.log(`Left ${tenant} empty: it holds what is made by using the console from here on.`);
+      return 0;
     }
 
     const report = await seedLedger(ledger, { count, tenantId: tenant });

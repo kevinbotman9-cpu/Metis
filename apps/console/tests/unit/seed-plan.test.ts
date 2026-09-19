@@ -104,6 +104,19 @@ describe('a reset of decisions made by hand', () => {
     expect(planSeed({ ...reset, madeByHand: 37, discardMadeByHand: 37 })).toEqual({ kind: 'reset-and-seed' });
   });
 
+  it('resets and seeds nothing when asked for an empty ledger', () => {
+    expect(planSeed({ ...reset, empty: true })).toEqual({ kind: 'reset' });
+    // Every refusal still stands in front of it.
+    expect(planSeed({ ...reset, empty: true, madeByHand: 3 }).kind).toBe('refuse');
+    expect(planSeed({ ...reset, empty: true, dataClass: 'real' }).kind).toBe('refuse');
+  });
+
+  it('refuses --empty without --reset, rather than seeding or doing nothing', () => {
+    const plan = planSeed({ ...base, empty: true });
+    expect(plan.kind).toBe('refuse');
+    expect((plan as { reason: string }).reason).toMatch(/needs --reset/);
+  });
+
   it('asks nothing of a ledger holding only the seeded history', () => {
     expect(planSeed({ ...reset, madeByHand: 0 })).toEqual({ kind: 'reset-and-seed' });
   });

@@ -23,6 +23,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execute } from '../packages/runtime/src/deterministic/engine.ts';
 import { hash } from '../packages/runtime/src/deterministic/canonical.ts';
+import { generateActions } from '../packages/core/src/domain.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -90,7 +91,7 @@ function frequencyPolicy(over = {}) {
 }
 
 function catalogue(over = {}) {
-  return {
+  const built = {
     offers: [offer({ id: 'p_a', key: 'offer_a' })],
     targetingPolicies: [],
     frequencyPolicies: [],
@@ -107,6 +108,9 @@ function catalogue(over = {}) {
     connectors: [],
     ...over,
   };
+  // One action per offer, inheriting its key (ADR-019 §1), unless the case
+  // declares its own — which is how a second action on one offer is written.
+  return { ...built, actions: over.actions ?? generateActions(built.offers) };
 }
 
 function artifact(over = {}) {
@@ -132,6 +136,25 @@ function artifact(over = {}) {
  * a grant; the consent cases below state or omit it on purpose.
  */
 const GRANTED = { marketing: true, profiling: true, thirdParty: false };
+
+/** A connector providing `tenureMonths`, for the field-origin cases (ADR-022). */
+function originConnector(id, onFailure) {
+  return {
+    id,
+    name: 'Fixture connector',
+    kind: 'rest',
+    description: 'Fixture.',
+    target: 'https://x',
+    declaredP95Ms: 10,
+    timeoutMs: 50,
+    onFailure,
+    cacheTtlSeconds: 0,
+    provides: [{ field: 'tenureMonths', path: 'account.tenure', type: 'number', defaultValue: 0 }],
+    active: true,
+    updatedAt: '2020-01-01T00:00:00.000Z',
+    updatedBy: 'f',
+  };
+}
 
 function request(over = {}) {
   return {
@@ -204,6 +227,46 @@ const three = [
   offer({ id: 'p_c', key: 'offer_c', boost: 1 }),
 ];
 const threeKeys = ['offer_a', 'offer_b', 'offer_c'];
+
+/**
+ * An authored action (ADR-019 §1): it declares its own key, which is how a
+ * second action on one offer is written — the generated one already holds the
+ * offer's key.
+ */
+function action(over = {}) {
+  return { id: 'act_x', key: 'offer_x', offerId: 'p_a', name: 'Fixture action', active: true, ...over };
+}
+
+/**
+ * Offer `p_a` with a second action, `offer_a_retain`, beside the generated
+ * `offer_a`; and `p_b` with its generated one. Both actions of `p_a` inherit
+ * its margin and boost, so nothing but a scope that names one of them, or the
+ * flow's order, can tell them apart (ADR-019 §2, §8).
+ */
+const twoOfOne = [offer({ id: 'p_a', key: 'offer_a' }), offer({ id: 'p_b', key: 'offer_b', boost: 0.8 })];
+const twoOfOneActions = (over = {}) => [
+  action({ id: 'act_p_a', key: 'offer_a', offerId: 'p_a' }),
+  action({ id: 'act_p_a_retain', key: 'offer_a_retain', offerId: 'p_a', name: 'Retention framing', ...over }),
+  action({ id: 'act_p_b', key: 'offer_b', offerId: 'p_b' }),
+];
+const twoOfOneKeys = ['offer_a_retain', 'offer_a', 'offer_b'];
+
+/** Source -> constraint -> arbitrate, enforcing the named caps. */
+function cappedArtifact(capIds, over = {}) {
+  return artifact({
+    candidateKeys: twoOfOneKeys,
+    nodes: [
+      { id: 'n1_source', type: 'source', label: 'Source' },
+      { id: 'n2_constraint', type: 'constraint', label: 'Frequency policy', frequencyPolicyIds: capIds },
+      { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+    ],
+    edges: [
+      { from: 'n1_source', to: 'n2_constraint' },
+      { from: 'n2_constraint', to: 'n3_arbitrate' },
+    ],
+    ...over,
+  });
+}
 
 const CASES = [
   {
@@ -1260,6 +1323,203 @@ const CASES = [
     }),
     request: request({ input: { customer: {} } }),
   },
+
+  // --- Where each value came from (ADR-022 §2, §3, §7) ------------------------
+  //
+  // One case per origin, and the request winning over one connector while
+  // another fails to its default. Until 2026-09-18 the engine named a connector
+  // for any present field it provided, whoever sent it (G-152); the two cases
+  // above that carry connectors now record their values as the request's,
+  // because nothing in them was resolved.
+  {
+    name: 'a value resolution wrote is recorded as the connector’s',
+    artifact: artifact({
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source', connectorIds: ['conn_usage'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({ connectors: [originConnector('conn_usage', 'fail')] }),
+    request: request({
+      resolved: [{ field: 'tenureMonths', nodeId: 'n1_source', connectorId: 'conn_usage', origin: 'connector' }],
+    }),
+  },
+  {
+    name: 'a binding’s default is recorded as a default, not as the connector’s answer',
+    // A registry outage recorded as `connector` would read as the registry
+    // saying what the default says.
+    artifact: artifact({
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source', connectorIds: ['conn_usage'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({ connectors: [originConnector('conn_usage', 'default')] }),
+    request: request({
+      resolved: [{ field: 'tenureMonths', nodeId: 'n1_source', connectorId: 'conn_usage', origin: 'default' }],
+    }),
+  },
+  {
+    name: 'a value the caller sent is recorded as the request’s, naming the connector not used',
+    artifact: artifact({
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source', connectorIds: ['conn_usage'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({ connectors: [originConnector('conn_usage', 'fail')] }),
+    request: request(),
+  },
+  {
+    name: 'the request wins over one connector while another fails to its default',
+    artifact: artifact({
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source', connectorIds: ['conn_registry', 'conn_usage'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({
+      connectors: [
+        originConnector('conn_usage', 'fail'),
+        {
+          ...originConnector('conn_registry', 'default'),
+          provides: [{ field: 'marketingConsent', path: 'consent.marketing', type: 'boolean', defaultValue: false }],
+        },
+      ],
+    }),
+    request: request({
+      input: { tenureMonths: 24, marketingConsent: false },
+      resolved: [{ field: 'marketingConsent', nodeId: 'n1_source', connectorId: 'conn_registry', origin: 'default' }],
+    }),
+  },
+
+  // --- What was shown (ADR-020 §1–3) ------------------------------------------
+  //
+  // The slot count is what separates a survivor from a denial: three finalists,
+  // two slots, and the third is NOT_RANKED because the placement had no more
+  // room — not because the second beat it. Before ADR-020 every case had one
+  // slot, so `decision-conformance` had never been shown the thing it guards:
+  // two engines agreeing on a winner and disagreeing about slot 2.
+  {
+    name: 'a slate of two shows the second finalist and ranks the third below the last slot',
+    artifact: artifact({ candidateKeys: threeKeys }),
+    catalogue: catalogue({ offers: three }),
+    request: request({ slotCount: 2 }),
+  },
+  {
+    name: 'a slate with more slots than finalists shows them all and leaves no runner-up',
+    artifact: artifact({ candidateKeys: threeKeys }),
+    catalogue: catalogue({ offers: three }),
+    request: request({ slotCount: 5 }),
+  },
+
+  // ADR-019: an offer has many actions. The seeded catalogue generates one per
+  // offer under the offer's key, so these are the only cases where the two
+  // differ — and the only ones that show both engines an action that is not
+  // its offer.
+  {
+    name: 'two actions of one offer tie, and the order the flow declared decides',
+    // Same margin, same boost, same neutral propensity: identical by
+    // construction (§8). Both are shown, and both name the one offer.
+    artifact: artifact({ candidateKeys: twoOfOneKeys }),
+    catalogue: catalogue({ offers: twoOfOne, actions: twoOfOneActions() }),
+    request: request({ slotCount: 2 }),
+  },
+  {
+    name: 'an action switched off is not active, and its offer’s other action is offered',
+    artifact: artifact({ candidateKeys: twoOfOneKeys }),
+    catalogue: catalogue({ offers: twoOfOne, actions: twoOfOneActions({ active: false }) }),
+    request: request(),
+  },
+  {
+    name: 'a cap on an offer covers every action of it',
+    // §4: two actions of one offer are one thing to the customer. The count is
+    // the offer's, and both of its actions are held to it.
+    artifact: cappedArtifact(['cp_offer_a']),
+    catalogue: catalogue({
+      offers: twoOfOne,
+      actions: twoOfOneActions(),
+      frequencyPolicies: [frequencyPolicy({ id: 'cp_offer_a', maxContacts: 1, scope: { level: 'offer', targetId: 'p_a' } })],
+    }),
+    request: request({
+      contactsRead: {
+        status: 'read',
+        channel: 'web',
+        withinPeriod: { day: 1, week: 1, month: 1 },
+        scoped: { cp_offer_a: { day: 1, week: 1, month: 1 } },
+      },
+    }),
+  },
+  {
+    name: 'a cap on an action narrows within its offer, and the offer’s other action is offered',
+    artifact: cappedArtifact(['cp_retain']),
+    catalogue: catalogue({
+      offers: twoOfOne,
+      actions: twoOfOneActions(),
+      frequencyPolicies: [
+        frequencyPolicy({ id: 'cp_retain', maxContacts: 1, scope: { level: 'action', targetId: 'act_p_a_retain' } }),
+      ],
+    }),
+    request: request({
+      contactsRead: {
+        status: 'read',
+        channel: 'web',
+        withinPeriod: { day: 1, week: 1, month: 1 },
+        scoped: { cp_retain: { day: 1, week: 1, month: 1 } },
+      },
+    }),
+  },
+  {
+    name: 'a boost on an action is more specific than one on its offer',
+    artifact: scoredArtifact({ candidateKeys: twoOfOneKeys }),
+    catalogue: catalogue({
+      offers: twoOfOne,
+      actions: twoOfOneActions(),
+      boosts: [
+        { id: 'lv_offer', name: 'Offer', scope: { level: 'offer', targetId: 'p_a' }, value: 2, reason: 'x', validity: null, updatedAt: '2020-01-01T00:00:00.000Z', updatedBy: 'f' },
+        { id: 'lv_action', name: 'Action', scope: { level: 'action', targetId: 'act_p_a_retain' }, value: 0.5, reason: 'x', validity: null, updatedAt: '2020-01-01T00:00:00.000Z', updatedBy: 'f' },
+      ],
+    }),
+    request: request({ slotCount: 3 }),
+  },
+];
+
+/**
+ * Requests an engine must refuse, and the message it refuses with — the same
+ * words in both engines, because a refusal is part of the contract too.
+ */
+const REFUSALS = [
+  {
+    name: 'a resolved entry naming a field its connector does not provide is refused',
+    artifact: artifact({
+      nodes: [
+        { id: 'n1_source', type: 'source', label: 'Source', connectorIds: ['conn_usage'] },
+        { id: 'n3_arbitrate', type: 'arbitrate', label: 'Arbitrate' },
+      ],
+    }),
+    catalogue: catalogue({ connectors: [originConnector('conn_usage', 'fail')] }),
+    request: request({
+      input: { tenureMonths: 24, creditBand: 'A' },
+      resolved: [{ field: 'creditBand', nodeId: 'n1_source', connectorId: 'conn_usage', origin: 'connector' }],
+    }),
+  },
+  {
+    name: 'an action naming an offer the snapshot does not hold is refused',
+    artifact: artifact(),
+    catalogue: catalogue({ actions: [action({ id: 'act_orphan', key: 'offer_a', offerId: 'p_gone' })] }),
+    request: request(),
+  },
+  {
+    name: 'two actions declaring one key are refused',
+    artifact: artifact(),
+    catalogue: catalogue({
+      actions: [
+        action({ id: 'act_one', key: 'offer_a', offerId: 'p_a' }),
+        action({ id: 'act_two', key: 'offer_a', offerId: 'p_a' }),
+      ],
+    }),
+    request: request(),
+  },
 ];
 
 // --- Emit -------------------------------------------------------------------
@@ -1298,6 +1558,15 @@ if (hashes.size !== cases.length) {
   }
 }
 
+const refusals = REFUSALS.map((c) => {
+  try {
+    execute(c.artifact, c.catalogue, c.request);
+  } catch (e) {
+    return { name: c.name, artifact: c.artifact, catalogue: c.catalogue, request: c.request, expectedRefusal: e.message };
+  }
+  throw new Error(`"${c.name}" was expected to be refused and was decided`);
+});
+
 const corpus = {
   $comment:
     'GENERATED by scripts/build-decision-corpus.mjs from the TypeScript engine. ' +
@@ -1305,6 +1574,7 @@ const corpus = {
     'See docs/adr/ADR-003-canonical-serialisation.md for the hashing rules.',
   algorithm: 'sha256',
   cases,
+  refusals,
 };
 
 const out = path.join(root, 'docs/conformance/decision-corpus.json');

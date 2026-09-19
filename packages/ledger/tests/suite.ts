@@ -24,8 +24,13 @@ export function decisionRecord(over: {
   channel?: string;
   winner?: string | null;
   winnerOfferId?: string | null;
+  /** What was shown, best first; the winner alone when not given (ADR-020 §1). */
+  slate?: { action: string; offerId: string }[];
 } = {}): DecisionRecord {
   const id = over.id ?? 'dec_0000000000000001';
+  const winner = over.winner === undefined ? 'offer_a' : over.winner;
+  const winnerOfferId = over.winner === null ? null : (over.winnerOfferId ?? 'p_a');
+  const shown = over.slate ?? (winner ? [{ action: winner, offerId: winnerOfferId as string }] : []);
   return {
     id,
     chainHash: over.chainHash ?? `${id}_hash`.padEnd(64, '0'),
@@ -39,7 +44,7 @@ export function decisionRecord(over: {
       placement: 'weekly_offers',
       inputSnapshotHash: 'a'.repeat(64),
       catalogueSnapshotHash: 'b'.repeat(64),
-      sourceBindings: [],
+      fieldOrigins: [],
       packageVersions: {},
       candidateKeys: ['offer_a'],
       eliminations: [],
@@ -52,8 +57,10 @@ export function decisionRecord(over: {
       },
       constraintsApplied: [],
       consentState: { marketing: 'granted', profiling: 'granted', thirdParty: 'withheld' },
-      winner: over.winner === undefined ? 'offer_a' : over.winner,
-      winnerOfferId: over.winner === null ? null : (over.winnerOfferId ?? 'p_a'),
+      winner,
+      winnerOfferId,
+      slotCount: Math.max(1, shown.length),
+      slate: shown.map((e, i) => ({ rank: i + 1, action: e.action, offerId: e.offerId, priority: 1 - i / 10 })),
     },
     measured: { timingsByNode: {}, totalMs: 1, executedAt: AT },
   } as unknown as DecisionRecord;
@@ -64,6 +71,13 @@ export interface StoreHarness {
   teardown?(): Promise<void>;
   /** Postgres refuses an outcome for a missing decision; memory cannot. */
   enforcesForeignKeys?: boolean;
+  /**
+   * A second store over the same data, as a second instance of the decision
+   * service would hold (G-160). Only a store shared between processes has one;
+   * the in-process order cannot help across two of them, so only the store's
+   * own lock can pass the test that uses it.
+   */
+  another?(): Promise<LedgerStore>;
 }
 
 export function describeLedger(label: string, harness: StoreHarness): void {
@@ -286,6 +300,99 @@ export function describeLedger(label: string, harness: StoreHarness): void {
         });
         expect(await ledger.outcomesFor('telco-ie', 'dec_o')).toEqual([]);
       });
+
+      /**
+       * ADR-020 §4. An outcome names the offer it was about, checked against
+       * what the decision recorded it showed — never the catalogue.
+       */
+      describe('which offer it was about', () => {
+        const slate = [
+          { action: 'fios_gigabit', offerId: 'off_fios_gigabit' },
+          { action: 'disney_plus', offerId: 'off_disney_plus' },
+        ];
+        beforeEach(async () => {
+          await ledger.record(
+            ledger.entryFor(decisionRecord({ id: 'dec_two', winner: 'fios_gigabit', winnerOfferId: 'off_fios_gigabit', slate }), T)
+          );
+        });
+
+        it('keeps the action an outcome names, on either store', async () => {
+          await ledger.recordOutcome({
+            tenantId: T, decisionId: 'dec_two', type: 'click', occurredAt: AT, valueMinor: null, action: 'disney_plus',
+          });
+          const [out] = await ledger.outcomesFor(T, 'dec_two');
+          expect(out.action).toBe('disney_plus');
+        });
+
+        it('requires it on a decision that showed several, and says which it showed', async () => {
+          const e = await ledger
+            .recordOutcome({ tenantId: T, decisionId: 'dec_two', type: 'click', occurredAt: AT, valueMinor: null })
+            .catch((x) => x);
+          expect(e).toBeInstanceOf(LedgerError);
+          expect(e.code).toBe('OUTCOME_ACTION_REQUIRED');
+          expect(e.message).toMatch(/fios_gigabit, disney_plus/);
+        });
+
+        it('refuses an action the decision did not show', async () => {
+          const e = await ledger
+            .recordOutcome({ tenantId: T, decisionId: 'dec_two', type: 'click', occurredAt: AT, valueMinor: null, action: 'netflix' })
+            .catch((x) => x);
+          expect(e.code).toBe('OUTCOME_ACTION_NOT_SHOWN');
+          // Refused, not stored.
+          expect(await ledger.outcomesFor(T, 'dec_two')).toEqual([]);
+        });
+
+        it('takes an outcome that names nothing, on a decision that showed one, as about that one', async () => {
+          await ledger.recordOutcome({ tenantId: T, decisionId: 'dec_o', type: 'click', occurredAt: AT, valueMinor: null });
+          const [out] = await ledger.outcomesFor(T, 'dec_o');
+          expect(out.action).toBeUndefined();
+        });
+      });
+    });
+
+    /**
+     * A ledger written before the reseed (ADR-019 §7, ADR-020 §1, ADR-022 §2):
+     * its records have no slate and name `sourceBindings`. Refused, with the
+     * way out, rather than thrown on by the first reader that meets one — or
+     * worse, read as a decision that showed nothing.
+     */
+    describe('a record from before the reseed', () => {
+      const stale = () => {
+        const r = decisionRecord({ id: 'dec_stale', customerRef: 'cust_capped', channel: 'web', occurredAt: '2026-06-01T11:00:00.000Z' });
+        const d = r.decision as unknown as Record<string, unknown>;
+        delete d.slate;
+        delete d.slotCount;
+        delete d.fieldOrigins;
+        d.sourceBindings = [];
+        return r;
+      };
+      beforeEach(async () => {
+        await ledger.record(ledger.entryFor(stale(), T));
+      });
+
+      it('is refused on read, naming the decision and the reset', async () => {
+        const e = await ledger.get(T, 'dec_stale').catch((x) => x);
+        expect(e).toBeInstanceOf(LedgerError);
+        expect(e.code).toBe('RECORD_PREDATES_RESEED');
+        expect(e.message).toMatch(/dec_stale/);
+        expect(e.message).toMatch(/seed:ledger -- --reset --tenant telco-us/);
+        await expect(ledger.query({ tenantId: T })).rejects.toMatchObject({ code: 'RECORD_PREDATES_RESEED' });
+        await expect(
+          ledger.recordOutcome({ tenantId: T, decisionId: 'dec_stale', type: 'click', occurredAt: AT, valueMinor: null })
+        ).rejects.toMatchObject({ code: 'RECORD_PREDATES_RESEED' });
+      });
+
+      it('refuses a scoped contact count rather than reading it as zero, and still counts the channel', async () => {
+        await ledger.recordDelivery({
+          tenantId: T, decisionId: 'dec_stale', placementKey: 'homepage_hero', channel: 'web', state: 'dispatched',
+          at: '2026-06-01T11:00:00.000Z', reason: null, permanent: null, providerRef: null,
+        });
+        const q = { tenantId: T, customerRef: 'cust_capped', channel: 'web', until: AT };
+        // Under-counting a cap is a customer protection failing open (ADR-021 §3).
+        await expect(ledger.contactsFor({ ...q, offerIds: ['p_a'] })).rejects.toMatchObject({ code: 'RECORD_PREDATES_RESEED' });
+        // A channel count needs no slate.
+        expect(await ledger.contactsFor(q)).toEqual({ day: 1, week: 1, month: 1 });
+      });
     });
 
     /**
@@ -368,6 +475,7 @@ export function describeLedger(label: string, harness: StoreHarness): void {
         channel?: string;
         winner?: string | null;
         winnerOfferId?: string;
+        slate?: { action: string; offerId: string }[];
         decisionId?: string;
         tenantId?: string;
       }) {
@@ -382,6 +490,7 @@ export function describeLedger(label: string, harness: StoreHarness): void {
                 channel: over.channel ?? 'web',
                 winner: over.winner,
                 winnerOfferId: over.winnerOfferId,
+                slate: over.slate,
                 occurredAt: over.at,
               }),
               tenantId
@@ -401,13 +510,16 @@ export function describeLedger(label: string, harness: StoreHarness): void {
         });
         return decisionId;
       }
-      const counts = (over: { customerRef?: string; channel?: string; tenantId?: string; offerIds?: string[] } = {}) =>
+      const counts = (
+        over: { customerRef?: string; channel?: string; tenantId?: string; offerIds?: string[]; actionKeys?: string[] } = {}
+      ) =>
         ledger.contactsFor({
           tenantId: over.tenantId ?? T,
           customerRef: over.customerRef ?? 'cust_capped',
           channel: over.channel ?? 'web',
           until: UNTIL,
           ...(over.offerIds ? { offerIds: over.offerIds } : {}),
+          ...(over.actionKeys ? { actionKeys: over.actionKeys } : {}),
         });
 
       it('is zero, in every window, for a customer never contacted', async () => {
@@ -469,6 +581,108 @@ export function describeLedger(label: string, harness: StoreHarness): void {
         expect(await counts({ offerIds: ['off_disney_plus', 'off_fios_gigabit'] })).toEqual({ day: 2, week: 3, month: 3 });
         // A scope that covers no offer has had no contact about it.
         expect(await counts({ offerIds: [] })).toEqual({ day: 0, week: 0, month: 0 });
+      });
+
+      /**
+       * G-160: a cap read, an engine's worth of time, and a contact written —
+       * six times at once for one customer against a cap of three. Each one
+       * reads the count before deciding, as the placement route does; without
+       * the subject lock every one of them reads zero.
+       */
+      async function rushTheCap(ledgers: DecisionLedger[], attempts: number) {
+        let made = 0;
+        const one = (l: DecisionLedger, i: number) =>
+          l.withSubject(T, 'cust_rush', async () => {
+            const seen = await l.contactsFor({ tenantId: T, customerRef: 'cust_rush', channel: 'web', until: UNTIL });
+            if (seen.day >= 3) return false;
+            // The engine's time: long enough that without the lock every
+            // attempt has read before the first one writes.
+            await new Promise((r) => setTimeout(r, 25));
+            const decisionId = `dec_rush_${i}`;
+            await l.record(
+              l.entryFor(
+                decisionRecord({ id: decisionId, customerRef: 'cust_rush', channel: 'web', occurredAt: ago(H) }),
+                T
+              )
+            );
+            await l.recordDelivery({
+              tenantId: T,
+              decisionId,
+              placementKey: 'homepage_hero',
+              channel: 'web',
+              state: 'dispatched',
+              at: ago(H),
+              reason: null,
+              permanent: null,
+              providerRef: null,
+            });
+            made += 1;
+            return true;
+          });
+        await Promise.all(Array.from({ length: attempts }, (_, i) => one(ledgers[i % ledgers.length], i)));
+        return made;
+      }
+
+      it('holds decisions for one customer made at once to the cap (G-160)', async () => {
+        expect(await rushTheCap([ledger], 6)).toBe(3);
+        expect(await counts({ customerRef: 'cust_rush' })).toEqual({ day: 3, week: 3, month: 3 });
+      });
+
+      it('holds them to the cap across four instances sharing the store (G-160)', async (ctx) => {
+        if (!harness.another) return ctx.skip();
+        // Four, not two. Each instance orders its own decisions, so two
+        // instances overlap one attempt at a time and could land on three by
+        // luck — which is what this test did with the store's lock removed, on
+        // 2026-09-18, until it was widened. Four readers of zero cannot.
+        const others = await Promise.all([1, 2, 3].map(async () => new DecisionLedger(await harness.another!())));
+        expect(await rushTheCap([ledger, ...others], 8)).toBe(3);
+        expect(await counts({ customerRef: 'cust_rush' })).toEqual({ day: 3, week: 3, month: 3 });
+      });
+
+      it('lets a failed decision go, and the next one for the customer runs', async () => {
+        await expect(ledger.withSubject(T, 'cust_rush', async () => { throw new Error('engine refused'); })).rejects.toThrow(
+          'engine refused'
+        );
+        expect(await ledger.withSubject(T, 'cust_rush', async () => 'next')).toBe('next');
+      });
+
+      it('counts a contact about every offer the decision showed, not only its winner (ADR-020 §4)', async () => {
+        // A two-offer email contacted the customer about both. Counting only
+        // winners let the second offer contact somebody without limit.
+        await contact({
+          at: ago(H),
+          winner: 'fios_gigabit',
+          winnerOfferId: 'off_fios_gigabit',
+          slate: [
+            { action: 'fios_gigabit', offerId: 'off_fios_gigabit' },
+            { action: 'disney_plus', offerId: 'off_disney_plus' },
+          ],
+        });
+        expect(await counts({ offerIds: ['off_disney_plus'] })).toEqual({ day: 1, week: 1, month: 1 });
+        expect(await counts({ offerIds: ['off_fios_gigabit'] })).toEqual({ day: 1, week: 1, month: 1 });
+        // Once per decision, however many of its entries a scope covers.
+        expect(await counts({ offerIds: ['off_disney_plus', 'off_fios_gigabit'] })).toEqual({ day: 1, week: 1, month: 1 });
+      });
+
+      it('counts the contacts about one action, not its offer’s other action (ADR-019 §4)', async () => {
+        // Two actions of one offer. The offer's count is both; each action's
+        // is its own, so a cap on one narrows within the offer's.
+        await contact({
+          at: ago(H),
+          winner: 'disney_plus_retain',
+          winnerOfferId: 'off_disney_plus',
+          slate: [{ action: 'disney_plus_retain', offerId: 'off_disney_plus' }],
+        });
+        await contact({
+          at: ago(3 * D),
+          winner: 'disney_plus',
+          winnerOfferId: 'off_disney_plus',
+          slate: [{ action: 'disney_plus', offerId: 'off_disney_plus' }],
+        });
+        expect(await counts({ offerIds: ['off_disney_plus'] })).toEqual({ day: 1, week: 2, month: 2 });
+        expect(await counts({ actionKeys: ['disney_plus_retain'] })).toEqual({ day: 1, week: 1, month: 1 });
+        expect(await counts({ actionKeys: ['disney_plus'] })).toEqual({ day: 0, week: 1, month: 1 });
+        expect(await counts({ actionKeys: [] })).toEqual({ day: 0, week: 0, month: 0 });
       });
     });
 

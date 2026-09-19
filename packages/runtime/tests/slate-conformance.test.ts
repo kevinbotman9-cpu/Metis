@@ -95,10 +95,16 @@ describe('a slate agrees with the decision it is drawn from, at every slot count
         const shown = slate.entries.map((e) => e.action);
 
         expect(shown[0], `slot 1 of ${slots}`).toBe(c.d.arbitration.winner);
-        if (slots >= 2) expect(shown[1], `slot 2 of ${slots}`).toBe(c.d.arbitration.runnerUp);
         expect(shown).toHaveLength(Math.min(slots, c.finalists.length));
         expect(slate.unfilled).toBe(Math.max(0, slots - c.finalists.length));
       }
+
+      // At the decision's own slot count, the projection is the slate the
+      // engine recorded (ADR-020 §1), and the runner-up is the finalist just
+      // below its last slot — for one slot, the second, as it always was.
+      const own = selectSlate(c.d, c.d.slotCount);
+      expect(own.entries.map((e) => e.action)).toEqual(c.d.slate.map((e) => e.action));
+      expect(own.ranked[c.d.slotCount]?.action ?? null).toBe(c.d.arbitration.runnerUp);
 
       const order = selectSlate(c.d, c.finalists.length).ranked.map((e) => e.action);
       expect([...order].sort()).toEqual([...c.finalists].sort());

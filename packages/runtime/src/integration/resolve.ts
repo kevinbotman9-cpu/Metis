@@ -17,7 +17,7 @@
  * a recorded-fixture player are all the same shape.
  */
 
-import type { Connector, SourceBinding, SourceCall } from '@metis/core/domain';
+import type { Connector, ResolvedField, SourceCall } from '@metis/core/domain';
 import type { ExecArtifact, DecisionRequest } from '../deterministic/types';
 
 /** What a connector is asked for. Not the full decision request. */
@@ -59,8 +59,13 @@ export interface IntegrationCache {
 export interface ResolvedInput {
   /** The decision input, ready to hash. */
   input: Record<string, unknown>;
-  /** Which connector supplied which field. Reproducible; goes in the trace. */
-  bindings: SourceBinding[];
+  /**
+   * What resolution wrote into the input, and how: `connector` for an answer
+   * used, `default` for a binding's declared default standing in for a
+   * connector that did not answer (ADR-022 §2, §3). The service puts it on the
+   * request as `resolved`, and the engine records the rest as `request`.
+   */
+  resolved: ResolvedField[];
   /** What happened on the wire. Measured; never hashed. */
   calls: SourceCall[];
 }
@@ -269,7 +274,7 @@ export async function resolveInputs(
     occurredAt: request.occurredAt,
   };
 
-  const bindings: SourceBinding[] = [];
+  const resolved: ResolvedField[] = [];
   const calls: SourceCall[] = [];
   const fetched: Record<string, unknown> = {};
 
@@ -293,6 +298,7 @@ export async function resolveInputs(
           nodeId,
           connector,
           values: {} as Record<string, unknown>,
+          defaulted: new Set<string>(),
           call: {
             connectorId,
             ms: 0,
@@ -350,12 +356,17 @@ export async function resolveInputs(
       }
 
       const values: Record<string, unknown> = {};
+      // Fields whose value is the binding's default, not the connector's
+      // answer: recorded as `default`, so an outage does not read as the
+      // source saying what the default says (ADR-022 §2).
+      const defaulted = new Set<string>();
       for (const binding of connector.provides) {
         let value =
           payload === undefined ? undefined : coerce(readPath(payload, binding.path), binding, connectorId);
 
         if (value === undefined && outcome !== 'ok' && connector.onFailure === 'default') {
           value = binding.defaultValue;
+          if (value !== undefined) defaulted.add(binding.field);
         }
         if (value !== undefined) values[binding.field] = value;
       }
@@ -364,6 +375,7 @@ export async function resolveInputs(
         nodeId,
         connector,
         values,
+        defaulted,
         call: {
           connectorId,
           ms: Date.now() - started,
@@ -397,7 +409,12 @@ export async function resolveInputs(
       }
       used.push(field);
       writeAt(fetched, field, r.values[field]);
-      bindings.push({ field, connectorId: r.connector.id, nodeId: r.nodeId });
+      resolved.push({
+        field,
+        connectorId: r.connector.id,
+        nodeId: r.nodeId,
+        origin: r.defaulted.has(field) ? 'default' : 'connector',
+      });
     }
     // What the call contributed, and what it answered that was not used: the
     // measured record of a call must not credit it with a value the request
@@ -405,10 +422,10 @@ export async function resolveInputs(
     calls.push({ ...r.call, fields: used, overridden });
   }
 
-  bindings.sort(
+  resolved.sort(
     (a, b) => a.field.localeCompare(b.field) || a.connectorId.localeCompare(b.connectorId)
   );
   calls.sort((a, b) => a.connectorId.localeCompare(b.connectorId));
 
-  return { input: deepPrefer(fetched, request.input), bindings, calls };
+  return { input: deepPrefer(fetched, request.input), resolved, calls };
 }

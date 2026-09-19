@@ -30,6 +30,12 @@ export interface SlateEntry {
   action: string;
   /** The priority ranking gave it. Same number that chose the winner. */
   priority: number;
+  /**
+   * The offer the action instances, as the decision stored it — present on a
+   * recorded slate (`recordedSlate`), never looked up in a catalogue that has
+   * moved on since (ADR-020 §1).
+   */
+  offerId?: string;
 }
 
 export interface Slate {
@@ -85,6 +91,23 @@ function finalists(decision: DeterministicDecision): string[] {
  * the engine exactly — so a rename could change what a customer was shown in
  * slot 2 without changing any decision.
  */
+/**
+ * The slate the decision recorded — ADR-020 §1, §2.
+ *
+ * What a placement serves. `selectSlate` below is a projection of the
+ * finalists at any slot count, for a comparison or a preview; this is what was
+ * shown, at the slot count the decision was made with, with each entry's offer
+ * as the decision stored it. A replayed request gets the slate the original
+ * returned, whatever the placement says today.
+ */
+export function recordedSlate(decision: DeterministicDecision): Slate {
+  return {
+    entries: decision.slate.map((e) => ({ rank: e.rank, action: e.action, priority: e.priority, offerId: e.offerId })),
+    unfilled: Math.max(0, decision.slotCount - decision.slate.length),
+    ranked: selectSlate(decision, decision.slotCount).ranked,
+  };
+}
+
 export function selectSlate(decision: DeterministicDecision, slotCount: number): Slate {
   if (!Number.isInteger(slotCount) || slotCount < 1) {
     throw new RangeError(`A placement must have at least one slot; got ${slotCount}`);

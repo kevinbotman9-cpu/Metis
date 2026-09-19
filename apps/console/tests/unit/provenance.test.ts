@@ -239,12 +239,14 @@ describe('the marker cannot be quietly removed', () => {
     expect(shell).not.toContain('<ProvenanceBanner');
   });
 
-  it('still carries the fixture badge in the shell, as the standing reminder', () => {
+  it('still carries a ledger badge in the shell, as the standing reminder', () => {
     // Untested until 2026-09-09, which is how it came to be the only marker.
     // It is not sufficient and it is not useless: it is the thing that is true
-    // on every screen including the ones with no numbers on them.
+    // on every screen including the ones with no numbers on them. It said
+    // "Fixture data" whatever the ledger held until 2026-09-18, and says what the
+    // ledger holds now — seeded, or made by using the demo (`ledger-badge.test.ts`).
     const shell = readFileSync(resolve(APP, '../components/app-shell.tsx'), 'utf8');
-    expect(shell).toContain('Fixture data');
+    expect(shell).toContain('{ledgerBadge(ledgerSummary.data, ledgerSummary.isError, format)}');
   });
 
   it('exports the record with its provenance, not beside it', () => {

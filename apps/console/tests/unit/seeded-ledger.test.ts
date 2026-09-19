@@ -15,7 +15,7 @@ import { seededHistory, seedLedger, type SeededHistory } from '@/mocks/seed-ledg
  * the index was what the screens read. The index has been deleted and the
  * comparison is against the generator, which is what the index was built from:
  * the ledger holds the same 10,400 decisions, the same chain hashes and the
- * same 1,654 outcome events, or this file fails.
+ * same 1,561 outcome events, or this file fails.
  *
  * The figures below are the ones the deletion was gated on. ADR-018 §6 required
  * each report computed both ways and equal before the index came out;
@@ -89,6 +89,31 @@ describe('the seeded decisions are the generator’s decisions', () => {
     expect(new Set(history.entries.map((e) => e.decisionId))).toEqual(new Set(generated.map((d) => d.id)));
   });
 
+  it('records what each decision showed: slot 1 is the winner, and nothing shown is denied (ADR-020 §5)', () => {
+    let offered = 0;
+    let twoShown = 0;
+    const wrong: string[] = [];
+    for (const e of history.entries) {
+      const d = e.record.decision;
+      if (d.winner !== null) offered += 1;
+      if ((d.slate[0]?.action ?? null) !== d.winner) wrong.push(`${e.decisionId}: slot 1 is not the winner`);
+      if (d.slate.length > d.slotCount) wrong.push(`${e.decisionId}: more shown than slots`);
+      if (d.slate.length === 2) twoShown += 1;
+      const shown = new Set(d.slate.map((s) => s.action));
+      for (const step of d.eliminations) {
+        for (const denial of step.denials) {
+          if (denial.code === 'NOT_RANKED' && shown.has(denial.key)) wrong.push(`${e.decisionId}: ${denial.key} shown and denied`);
+        }
+      }
+    }
+    expect(wrong.slice(0, 5), `${wrong.length} decisions record a slate that contradicts them`).toEqual([]);
+    // 4,688 until (the reseed's stage 4, 2026-09-19: the offer-scoped cap fixture, Disney+ once a week on the web).
+    expect(offered).toBe(4_649);
+    // The weekly email shows two, and 742 decisions filled both slots —
+    // ADR-020's measurement, now a recorded fact rather than a projection.
+    expect(twoShown).toBe(742);
+  });
+
   it('decided every one before SEEDED_BEFORE, which is how a reset tells them from decisions made by hand', () => {
     // `seed:ledger --reset` counts decisions at or after this instant as made
     // by using the console, and refuses to destroy them unacknowledged. A seeded
@@ -149,12 +174,16 @@ describe('the delivery gate picks the same decisions as the channel rule it repl
 });
 
 describe('the seeded outcomes are exactly what the model says', () => {
-  it('writes 1,654 events across 1,228 decisions, by type', () => {
+  it('writes 1,561 events across 1,159 decisions, by type', () => {
+    // 1,654 across 1,228 until the reseed's stage 0 (2026-09-18) keyed the
+    // outcome draws on the seed index instead of the decision id; 1,602 across
+    // 1,188 until (the reseed's stage 4, 2026-09-19: the offer-scoped cap fixture, Disney+ once a week on the web), which took 29 web offers off the page and with them
+    // their impressions, 9 clicks and 3 rejections. No valued outcome moved.
     const byType: Record<string, number> = {};
     for (const e of history.outcomes) byType[e.type] = (byType[e.type] ?? 0) + 1;
-    expect(history.outcomes.length).toBe(1654);
-    expect(new Set(history.outcomes.map((e) => e.decisionId)).size).toBe(1228);
-    expect(byType).toEqual({ impression: 1228, click: 278, rejection: 80, acceptance: 44, conversion: 24 });
+    expect(history.outcomes.length).toBe(1561);
+    expect(new Set(history.outcomes.map((e) => e.decisionId)).size).toBe(1159);
+    expect(byType).toEqual({ impression: 1159, click: 252, rejection: 71, acceptance: 47, conversion: 32 });
   });
 
   it('gives every decision the model’s events under the channel rule, decision by decision', () => {
@@ -211,10 +240,10 @@ describe('the in-memory store seeds once per process, and the reports read it al
   it('seeds when METIS_SEED_LEDGER is set, and a reset restores the history without executing again', async () => {
     const booted = await boot(true);
     expect(booted.store.ledgerSeed, 'the store did not seed').not.toBeNull();
-    expect(booted.store.ledgerSeed).toMatchObject({ decisions: 10_400, deliveries: 10_400, outcomes: 1654 });
+    expect(booted.store.ledgerSeed).toMatchObject({ decisions: 10_400, deliveries: 10_400, outcomes: 1561 });
 
     await booted.resetStore();
-    expect(booted.store.ledgerSeed).toMatchObject({ decisions: 10_400, deliveries: 10_400, outcomes: 1654, executed: false });
+    expect(booted.store.ledgerSeed).toMatchObject({ decisions: 10_400, deliveries: 10_400, outcomes: 1561, executed: false });
     expect((await booted.store.ledger.query({ tenantId: TENANT })).length).toBe(10_400);
 
     // Captured here, from the seeded store, for the assertions below.
@@ -236,32 +265,36 @@ describe('the in-memory store seeds once per process, and the reports read it al
     // have outcomes, and was deleted with the index it read. These are the
     // figures the two agreed on, so a later change moves them here rather than
     // quietly.
+    // Before (the reseed's stage 4, 2026-09-19: the offer-scoped cap fixture, Disney+ once a week on the web): offered 4,688, suppressed 5,712, deliverable 1,686,
+    // measured 1,188, acted 261, frequency 256, web offered 1,686, seen 1,188,
+    // acted 261, arms offered 2,362 and 2,326, measured 605 and 583. Realised
+    // value and acceptances did not move.
     expect(seeded.performance).toMatchObject({
       decisions: 10_400,
-      offered: 4_688,
-      suppressed: 5_712,
+      offered: 4_649,
+      suppressed: 5_751,
       // Only web delivers, so it is the only channel anything can be seen on.
-      deliverable: 1_686,
-      measured: 1_228,
-      acted: 278,
+      deliverable: 1_647,
+      measured: 1_159,
+      acted: 252,
     });
-    // Why the 5,712 offered nothing, each counted once at the stage that removed
+    // Why the 5,751 offered nothing, each counted once at the stage that removed
     // its last candidate. Added 2026-09-17; they sum to `suppressed`.
     const suppressedBy = seeded.performance.suppressedBy as { stage: string; decisions: number }[];
     expect(suppressedBy.map(({ stage, decisions }) => [stage, decisions])).toEqual([
       ['relevance', 4_320],
       ['consent', 810],
       ['eligibility', 326],
-      ['frequency', 256],
+      ['frequency', 295],
     ]);
     expect(seeded.performance.channels).toEqual([
-      { channel: 'web', delivers: true, decisions: 3_499, offered: 1_686, deliverable: 1_686, seen: 1_228, acted: 278 },
+      { channel: 'web', delivers: true, decisions: 3_499, offered: 1_647, deliverable: 1_647, seen: 1_159, acted: 252 },
       { channel: 'email', delivers: false, decisions: 3_466, offered: 1_394, deliverable: 0, seen: 0, acted: 0 },
       { channel: 'sms', delivers: false, decisions: 3_435, offered: 1_608, deliverable: 0, seen: 0, acted: 0 },
     ]);
     expect(seeded.performance.arms).toEqual([
-      { experimentKey: 'hero_copy', arm: 'control', holdout: true, offered: 2_362, measured: 624, acceptances: 28, acceptanceRate: 28 / 624, valueMinor: 156_917 },
-      { experimentKey: 'hero_copy', arm: 'variant', holdout: false, offered: 2_326, measured: 604, acceptances: 16, acceptanceRate: 16 / 604, valueMinor: 70_992 },
+      { experimentKey: 'hero_copy', arm: 'control', holdout: true, offered: 2_340, measured: 587, acceptances: 23, acceptanceRate: 23 / 587, valueMinor: 169_084 },
+      { experimentKey: 'hero_copy', arm: 'variant', holdout: false, offered: 2_309, measured: 572, acceptances: 24, acceptanceRate: 24 / 572, valueMinor: 147_030 },
     ]);
     expect(seeded.performance.provenance).toEqual({
       source: 'synthetic',
@@ -278,7 +311,8 @@ describe('the in-memory store seeds once per process, and the reports read it al
     expect(seeded.funnel).toMatchObject({
       decisions: 10_400,
       entered: 52_000,
-      offered: 4_688,
+      // 4,688 until (the reseed's stage 4, 2026-09-19: the offer-scoped cap fixture, Disney+ once a week on the web).
+      offered: 4_649,
       // Every removal lands in a stage: a decision's candidates are accounted
       // for or the cascade is lying about where they went.
       unaccounted: 0,
@@ -297,8 +331,13 @@ describe('the in-memory store seeds once per process, and the reports read it al
       // rather than reporting a zero that looks like a pass.
       ['suitability', 0, false],
       ['consent', 1_499, true],
-      ['frequency', 468, true],
-      ['not_ranked', 3_898, true],
+      // 468 until (the reseed's stage 4, 2026-09-19: the offer-scoped cap fixture, Disney+ once a week on the web): 323 more candidates held
+      // to the Disney+ cap, 284 of which had been ranked below the last slot.
+      ['frequency', 791, true],
+      // 3,898 until the reseed recorded slates (ADR-020 §3): 742 of them were
+      // the weekly email's second offer, shown and counted as a denial. 3,156
+      // until stage 4 capped Disney+ before ranking.
+      ['not_ranked', 2_872, true],
     ]);
 
     expect(seeded.volume).toMatchObject({
@@ -306,7 +345,8 @@ describe('the in-memory store seeds once per process, and the reports read it al
       hours: 8_760,
       decisions: 6_754,
       entered: 33_770,
-      offered: 3_055,
+      // 3,055 until (the reseed's stage 4, 2026-09-19: the offer-scoped cap fixture, Disney+ once a week on the web).
+      offered: 3_035,
       // Nothing was removed at a step the compiled flow does not hold.
       unplaced: 0,
     });

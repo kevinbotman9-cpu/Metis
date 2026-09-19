@@ -98,6 +98,14 @@ object Json {
 
     fun catalogue(n: JsonNode) = CatalogueSnapshot(
         offers = req(n["offers"], "catalogue.offers").map { offer(it) },
+        actions = req(n["actions"], "catalogue.actions").map { a ->
+            Action(
+                id = req(a["id"], "action.id").asText(),
+                key = req(a["key"], "action.key").asText(),
+                offerId = req(a["offerId"], "action.offerId").asText(),
+                active = a["active"]?.asBoolean() ?: true,
+            )
+        },
         targetingPolicies = (n["targetingPolicies"] ?: mapper.createArrayNode()).map { p ->
             TargetingPolicy(
                 id = req(p["id"], "policy.id").asText(),
@@ -220,6 +228,13 @@ object Json {
         customerId = req(n["customerId"], "request.customerId").asText(),
         channel = req(n["channel"], "request.channel").asText(),
         placement = req(n["placement"], "request.placement").asText(),
+        // Optional, and 1 when absent (ADR-020 §2). A number of slots or a 400.
+        slotCount = n["slotCount"]?.takeIf { !it.isNull }?.let {
+            if (!it.isIntegralNumber || it.asInt() < 1) {
+                throw BadRequest("request.slotCount must be a whole number of slots, at least 1; got ${it}")
+            }
+            it.asInt()
+        },
         // An input, never the clock. A service that defaulted this to `now`
         // would make replay depend on when the replay happened.
         occurredAt = req(n["occurredAt"], "request.occurredAt").asText(),

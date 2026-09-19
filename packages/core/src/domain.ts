@@ -316,9 +316,64 @@ export interface TargetingPolicy {
 }
 
 export interface PolicyScope {
-  level: 'tenant' | 'objective' | 'category' | 'offer';
-  /** null when level is 'tenant'. */
+  /**
+   * Most specific last. `action` since ADR-019 §4: a rule on an action narrows
+   * within its offer's, never widens — an offer-level cap counts contacts across
+   * every action of the offer, and an action's cap applies as well.
+   */
+  level: 'tenant' | 'objective' | 'category' | 'offer' | 'action';
+  /** null when level is 'tenant'. An action's id when level is `action`. */
   targetId: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Action — an offer made decidable (ADR-019)
+// ---------------------------------------------------------------------------
+
+/**
+ * What a flow may offer, a decision may choose and a customer may be contacted
+ * with: an offer made decidable in a context. One offer has many actions.
+ *
+ * An action inherits its offer's commerce (financials, validity, lifecycle) and
+ * may not override it; it carries its own key and its own `active` flag.
+ * `candidateKeys`, scores, eliminations and a decision's `winner` are action
+ * keys, and the record stores the offer beside it (`winnerOfferId`).
+ *
+ * Generated today, one per offer (`generateActions`), and not yet editable:
+ * the Actions screen, the creative editor off the action, and a creative's key
+ * moving from the offer to the action are deferred to a slice of their own
+ * (ADR-019, Consequences, 2026-09-18). An action's channels come with them —
+ * they are its creatives', and creatives are not in the catalogue snapshot.
+ */
+export interface Action {
+  id: string;
+  /** The candidate key, unique within a tenant. A generated action's is its offer's. */
+  key: string;
+  offerId: string;
+  name: string;
+  /** Its own flag, beside its offer's status: either one retires the action. */
+  active: boolean;
+}
+
+/**
+ * One action per offer, taking the offer's key — ADR-019 §1, as amended on
+ * 2026-09-18. An authored action declares a key of its own; a generated one
+ * cannot collide, because each offer has exactly one.
+ *
+ * Sorted by id, the order every catalogue store reads in, so the snapshot a
+ * catalogue hash is taken over does not depend on authoring order.
+ */
+export function generateActions(offers: readonly Pick<Offer, 'id' | 'key' | 'name'>[]): Action[] {
+  return offers
+    .map((o) => ({ id: `act_${o.id}`, key: o.key, offerId: o.id, name: o.name, active: true }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/** A catalogue with no authored actions, given the ones its offers generate. */
+export function withGeneratedActions<T extends { offers: readonly Pick<Offer, 'id' | 'key' | 'name'>[] }>(
+  catalogue: T
+): T & { actions: Action[] } {
+  return { ...catalogue, actions: generateActions(catalogue.offers) };
 }
 
 // ---------------------------------------------------------------------------
@@ -516,15 +571,18 @@ const SCOPE_SPECIFICITY: Record<PolicyScope['level'], number> = {
   objective: 1,
   category: 2,
   offer: 3,
+  // One more rung, ADR-019 §4.
+  action: 4,
 };
 
 /**
  * Resolve the effective autonomy setting for an offer by walking the
- * hierarchy and taking the most specific match.
+ * hierarchy and taking the most specific match. An `action` scope matches when
+ * the context names that action.
  */
 export function resolveAutonomy(
   settings: AutonomySetting[],
-  ctx: { offerId: string; categoryId: string; objectiveId: string }
+  ctx: { offerId: string; categoryId: string; objectiveId: string; actionId?: string }
 ): AutonomySetting | null {
   const matches = settings.filter((s) => {
     switch (s.scope.level) {
@@ -536,6 +594,8 @@ export function resolveAutonomy(
         return s.scope.targetId === ctx.categoryId;
       case 'offer':
         return s.scope.targetId === ctx.offerId;
+      case 'action':
+        return ctx.actionId !== undefined && s.scope.targetId === ctx.actionId;
       default:
         return false;
     }
@@ -797,11 +857,47 @@ export interface PlacementDelivery {
   adapterId?: string;
 }
 
-/** Which connector was configured to supply a field. Reproducible. */
-export interface SourceBinding {
+/**
+ * Where the value a decision used for a connector-provided field came from —
+ * ADR-022 §2. Hashed.
+ *
+ * - `connector`: resolution wrote the connector's answer, fresh or cached;
+ *   `connectorId` names the connector that answered.
+ * - `default`: the connector did not answer, its `onFailure` is `default`, and
+ *   resolution wrote the binding's declared `defaultValue`; `connectorId` names
+ *   the connector that failed. A registry outage recorded as `connector` would
+ *   read as the registry withdrawing consent.
+ * - `request`: the caller sent the value; `connectorId` names the connector
+ *   that also provides the field, and was not used. A value that could have
+ *   come from either is `request`: which one was used is known when it is
+ *   chosen, and the record writes it down.
+ *
+ * This was `SourceBinding` until 2026-09-18 — "which connector was configured
+ * to supply a field" — and every reader took `connectorId` as "supplied by",
+ * which on the storefront was false for 7 of 11 fields (G-152). Renamed so each
+ * of those readers became a compile error rather than stayed wrong.
+ */
+export type FieldOriginKind = 'connector' | 'default' | 'request';
+
+export interface FieldOrigin {
   field: string;
-  connectorId: string;
   nodeId: string;
+  connectorId: string;
+  origin: FieldOriginKind;
+}
+
+/**
+ * What resolution wrote into the input, handed to the engine on the request as
+ * `resolved` — ADR-022 §3. Set by the platform after resolving, never taken
+ * from a caller: the request builders take named fields and drop it, as they do
+ * `contactsRead`. The engine validates each entry and derives `request` for
+ * every other connector-provided field present in the input.
+ */
+export interface ResolvedField {
+  field: string;
+  nodeId: string;
+  connectorId: string;
+  origin: 'connector' | 'default';
 }
 
 /** What actually happened on the wire. Measured, never hashed. */

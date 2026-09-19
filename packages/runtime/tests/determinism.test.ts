@@ -13,6 +13,7 @@ import { describe, it, expect } from 'vitest';
 import { execute, replay, diff, topologicalOrder, canonicalise, hash } from '../src';
 import type { ExecArtifact, CatalogueSnapshot, DecisionRequest } from '../src';
 import type { Offer, TargetingPolicy, FrequencyPolicy } from '@metis/core/domain';
+import { withGeneratedActions } from '@metis/core/domain';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -70,7 +71,7 @@ const weeklyCap: FrequencyPolicy = {
   active: true,
 };
 
-const catalogue: CatalogueSnapshot = {
+const catalogue: CatalogueSnapshot = withGeneratedActions({
   offers: [
     offer({ id: 'p1', key: 'upsell_5g', financials: { price: gbp(3500), cost: gbp(1200), expectedMargin: gbp(55200), termMonths: 24, oneOff: false } }),
     offer({ id: 'p2', key: 'upsell_data', financials: { price: gbp(800), cost: gbp(150), expectedMargin: gbp(7800), termMonths: 12, oneOff: false } }),
@@ -90,7 +91,7 @@ const catalogue: CatalogueSnapshot = {
   },
   boosts: [],
   connectors: [],
-};
+});
 
 const artifact: ExecArtifact = {
   id: 'next-best-action',
@@ -569,7 +570,7 @@ describe('hot path cost', () => {
     // that per-decision cost does not grow with catalogue size; an absolute
     // threshold measures whatever else the machine happens to be doing, and
     // this test failed exactly that way while a dev server was running.
-    const bulk = (n: number): CatalogueSnapshot => ({
+    const bulk = (n: number): CatalogueSnapshot => (withGeneratedActions({
       ...catalogue,
       offers: Array.from({ length: n }, (_, i) =>
         offer({
@@ -579,7 +580,7 @@ describe('hot path cost', () => {
           description: `filler `.repeat(40),
         })
       ).concat(catalogue.offers),
-    });
+    }));
 
     const timePerDecision = (snapshot: CatalogueSnapshot) => {
       const N = 300;

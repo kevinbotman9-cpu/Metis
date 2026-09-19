@@ -44,6 +44,208 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-165 — Realised value adds an acceptance and a conversion of the same sale
+
+**Registered:** 2026-09-18 · **Status:** Open · **Work item:** none · **Decision:** [ADR-024](adr/ADR-024-an-acceptance-and-a-conversion-are-stages-of-one-sale.md), accepted 2026-09-18
+
+`buildPerformance` sums the value of every outcome, so an offer accepted at $50
+and confirmed as a conversion at $120 reports $170.00 realised on one valued
+decision. Decided the same day (ADR-024): an acceptance and a conversion are
+stages of one sale — a decision and an action — and the conversion's value
+supersedes the acceptance's, because it reports what was bought rather than
+what was offered. Measured the same day, it moves no figure on any ledger that
+exists — the seed's 32 valued decisions are each a single conversion, the
+storefront's 17 each a single acceptance — so it is registered to be built
+before a caller reports both, not because anything is wrong today.
+
+**Done when:** the report takes each sale's value as ADR-024 §1–§2 say, the
+spec's `valueMinor` descriptions state it, and tests hold $50-then-$120 at
+$120.00, $50-then-$30 at $30.00, and two accepted cards on one decision at both.
+
+### G-164 — The same outcome recorded twice doubles realised value, and no count shows it
+
+**Registered:** 2026-09-18 · **Status:** Open · **Work item:** none · **Decision:** the product owner, 2026-09-18: refused at the ledger, not absorbed in the report
+
+`recordOutcome` refuses an outcome with no decision, one that names no action on
+a multi-offer slate, and one naming an action the decision did not show. It does
+not refuse a second outcome of the same type for the same decision and action.
+Recorded, the second one's value is added to the first's
+(`performance.ts`, the row loop): an acceptance at $50 reported twice reports
+**$100.00**, measured with the report's own function on 2026-09-18.
+
+**Why it is dangerous: every count stays right and only the money moves.** The
+report counts decisions, not events — the acceptance count stays 1, `valued`
+stays 1, acted on stays 1 — so nothing on the page contradicts the doubled
+figure. A client retrying after a timeout, or a channel that reports twice,
+inflates the one number the loop exists to move, and the figures around it
+vouch for it. The storefront cannot do it today only because its Accept button
+disables itself after success; any other caller can.
+
+**Why at the ledger.** A second outcome of the same type for the same decision
+and action is the same fact arriving twice. Taking each decision's value once in
+the report would hide it there and leave the duplicate row in the ledger for the
+next reader to sum — an export, a warehouse query, the next report.
+
+**What the fix must also do.** The refusal has to hold under concurrency, so two
+copies arriving at once cannot both be written: the in-memory store checks and
+appends without an await between, and PostgreSQL needs a unique index on
+(tenant, decision, type, action), which fails to build on a ledger that already
+holds a duplicate — none does: the seeded corpus writes none (measured
+2026-09-18), and the storefront ledger holds none. The storefront's Accept
+sends a click before the acceptance, and a click already reported by the call
+to action would now be refused: the page must read "already recorded" as
+recorded, or no acceptance would follow a clicked card.
+
+**Done when:** `recordOutcome` refuses the second outcome with its own code, the
+route answers 409 naming it, a test fires two at once on both stores and holds
+the ledger to one, and removing the refusal turns it red.
+
+### G-163 — "Next day" on the storefront decides the page again for whoever is on it
+
+**Registered:** 2026-09-18 · **Status:** Open · **Work item:** none — a demo-page fix
+
+The panel's **Next day** control moves the visit's clock forward and re-decides
+the current view for the selected customer, so every day advanced adds a visit
+nobody made — two decisions on the home page, two on the account page, each a
+contact against the customer's cap and a row in every report. In two weeks of
+visits by nine customers on 2026-09-18 it added about one phantom visit a day.
+The control exists to show the rolling window (ADR-021, Consequences); it could
+advance the clock and wait for the next customer or view instead. Found driving
+the storefront, 2026-09-18.
+
+**Done when:** advancing the day decides nothing until someone visits, and a
+test counts the decisions a day-advance makes.
+
+### G-162 — Every storefront acceptance is worth the panel's one value
+
+**Registered:** 2026-09-18 · **Status:** Open · **Work item:** none — a demo-page fix
+
+An acceptance carries the value typed in the panel (`#accept-value`, $50 by
+default), whatever was accepted, so realised value on the loop is the number
+of acceptances times fifty — $1,050 from 21 on 2026-09-18. It is honest about
+being a value somebody typed (the page says why it is not the offer's expected
+margin), and it does not read as one: a Fios order and a Netflix add-on earn
+the same. Found driving the storefront, 2026-09-18.
+
+**Done when:** the value an acceptance reports comes from the offer that was
+accepted — a stated price per offer on the page, or the catalogue's — and the
+panel's override is still available and says it is one.
+
+### G-161 — Two requests that differ only in slot count share an idempotency key, and the retry gets the first slate without a warning
+
+**Registered:** 2026-09-18 · **Status:** Open (decided, not overlooked) · **Work item:** none · **Decision:** [ADR-020](adr/ADR-020-a-slate-is-recorded-as-shown.md) §2
+
+`requestHash` (`packages/runtime/src/idempotency`) covers tenant, customer,
+channel, placement, time, input, contact history and consent — not `slotCount`,
+which ADR-020 §2 added to the request. So a retry carrying the same idempotency
+key and a different slot count is treated as the same attempt and returns the
+original decision, with the original slate.
+
+**This was decided, not overlooked** (the product owner, 2026-09-18): the same
+attempt gets the same answer, including a placement retry after someone edited
+the placement between the attempt and its retry. What is registered is the cost
+of that decision: a caller deliberately retrying with a different slot count
+silently gets the original slate — confused rather than warned. Nothing does
+that today; the placement route takes the slot count from the placement, and
+`POST /api/decisions` callers send none.
+
+**Done when:** either the behaviour is stated where a caller will read it (the
+spec's `idempotencyKey` and `slotCount` descriptions), or `slotCount` joins the
+hash and a changed count is a 409 like any other changed field — decided by the
+product owner, with a test either way.
+
+### G-160 — Two decisions for one customer made at once both pass a frequency cap that should have stopped one
+
+**Registered:** 2026-09-18 · **Status:** Open until the reseed branch lands; the fix is ADR-021 §10 · **Work item:** [W-012](BACKLOG.md) · **Decision:** [ADR-021](adr/ADR-021-frequency-caps-count-the-ledger.md) §1–§4, §10
+
+**Fixed on the reseed branch, 2026-09-18,** by `DecisionLedger.withSubject`: one
+decision per customer in flight from the contact read to the delivery write, in
+order within a process and under a PostgreSQL advisory lock across processes.
+Measured and held as ADR-021 §10 says. Before it, two weeks of storefront visits
+by nine customers went over the three-a-day web cap on 41 of 64 customer-days.
+The decision service does not read contacts yet (G-150); when it does, it reads
+inside the same call.
+
+**What happens.** A cap reads the customer's contacts from the ledger before the
+engine runs, and the decision's delivery is written after it. Nothing holds the
+count between the read and the write. Two decisions for the same customer made
+concurrently each read the count before either records, both see room under the
+cap, and both are handed over — one more contact than the cap allows, on every
+cap the two share.
+
+**It is every page with more than one placement.** The Meridian storefront
+decides the hero and the grid at once (`Promise.all` over the view's
+placements), for one customer, against `cpol_web_daily`'s three a day. Found on
+2026-09-18 by driving the storefront on the reseed branch: on day 0 the second
+load of the day offered the hero and capped the grid; on day 60 it capped the
+hero and filled the grid. Which one reads first decides which one gets the
+day's last slot, and when both read before either writes, both get it. The
+storefront is the only multi-placement caller today; every real site with a
+home page is one.
+
+**It is not a demo artefact.** The same holds for the decision service
+(`planes/execution`), which ADR-016 scales horizontally: two instances deciding
+for one subject have no shared lock at all, so an in-process fix would not close
+it. A frequency cap is a customer protection (ADR-021 §3), and a protection that
+fails under concurrency fails exactly when a customer is being contacted most.
+
+**ADR-021's Consequences said otherwise** — "on the second [load], the hero is
+offered and the grid is `FREQUENCY_CAP_BREACHED`" — as though the order were
+fixed. Corrected the same day.
+
+**Done when:** two concurrent decisions for one subject cannot together exceed a
+cap, on both stores and across instances of the decision service; a named test
+fires them concurrently and holds the total to the cap; and removing the
+mechanism turns it red. The cost of the chosen mechanism is measured against
+ADR-021 §6's budget before it is chosen (see the analysis reported with this
+entry, 2026-09-18).
+
+### G-159 — The same offer is shown twice on one page, by two placements that decide independently
+
+**Registered:** 2026-09-18 · **Status:** Open · **Work item:** [W-028](BACKLOG.md)
+
+On the storefront's home page the hero and the grid are separate decisions, so
+the hero's winner is usually the grid's first card too — "Gigabit fiber is
+available at your address" twice, one above the other. The account page does
+the same with its hero and its inline offer. Each decision is correct on its
+own; nothing composes them. Diversity across a page's placements is W-028's
+slate-optimisation work. Found driving the storefront, 2026-09-18.
+
+**Asked for on 2026-09-18 and not built that day, deliberately.** The fix that
+keeps the record honest is on the platform: the page's second request names
+the actions the page already shows, and the engine removes them with a reason
+of its own, recorded and replayed like any other elimination — both engines,
+the spec, a reason code and the corpora. Hiding the duplicate on the page would
+leave the record saying the grid showed a card nobody saw (ADR-020 §1); a
+catalogue policy reading the page from `context` fails closed wherever the
+field is absent, which is every seeded decision, and would not reach a console
+whose catalogue is already stored (G-149).
+
+### G-158 — A refused outcome is invisible on the storefront, and the platform's reason is dropped
+
+**Registered:** 2026-09-18 · **Status:** Open · **Work item:** none — a demo-page fix
+
+When the platform refuses an acceptance (a 422, `OUTCOME_ACTION_REQUIRED` or
+`OUTCOME_ACTION_NOT_SHOWN`), the Accept button returns to "Accept" and the
+only explanation is in the closed panel: "The acceptance was not recorded
+against dec_…. Nothing was counted." — without the reason the platform gave.
+Refused clicks and impressions are swallowed silently by design. Nothing on the
+page can produce a refusal today, because every outcome names its entry; the
+first caller that can will be unable to say why it was refused. Found driving
+the storefront, 2026-09-18, with the refusal simulated.
+
+### G-157 — A slot the platform refused says "every candidate was refused", whatever refused them, and an empty ranking table shows its headers
+
+**Registered:** 2026-09-18 · **Status:** Open · **Work item:** none — a demo-page fix
+
+A capped slot on the storefront reads "Nothing offered here. Every candidate
+was refused… The panel says which rule refused each one." The panel's detail
+does say it — `FREQUENCY_CAP_BREACHED` at the constraint node — but the slot a
+person sees does not distinguish a cap from consent from eligibility, and a
+cap is the one a person can do something about (come back tomorrow). When
+nothing reached ranking, the panel's ranking table renders its column headers
+over no rows. Found driving the storefront, 2026-09-18.
+
 ### G-156 — A caller can override `conn_consent_registry`'s `customer.marketing_consent`, and the first policy that reads it inherits that
 
 **Registered:** 2026-09-18 · **Status:** Open · **Work item:** [W-013](BACKLOG.md) · **Decision:** [ADR-022](adr/ADR-022-a-decision-records-where-each-value-came-from.md) §1 leaves it open

@@ -570,6 +570,17 @@ export const frequencyPolicies: FrequencyPolicy[] = [
     scope: { level: 'tenant', targetId: null },
     active: true,
   },
+  {
+    id: 'cpol_disney_web_weekly',
+    name: 'Disney+ weekly cap',
+    description: 'At most one Disney+ promotion a week on the web.',
+    channel: 'web',
+    maxContacts: 1,
+    period: 'week',
+    cooldownDaysAfterReject: 0,
+    scope: { level: 'offer', targetId: 'off_disney_plus' },
+    active: true,
+  },
 ];
 
 // ---------------------------------------------------------------------------

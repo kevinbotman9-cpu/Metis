@@ -123,8 +123,10 @@ describe('the storefront demo names things that exist', () => {
     const declaring = (leaf: string) =>
       (presets.match(new RegExp(`(?<![A-Za-z0-9_])${leaf}:`, 'g')) ?? []).length;
 
+    // Eva's three scenarios and the six other customers (2026-09-18): every
+    // one of them is asked about, so every one must send what policies read.
     const presetCount = count('customerId:');
-    expect(presetCount, 'the brief has three scenarios').toBe(3);
+    expect(presetCount, 'three brief scenarios and six other customers').toBe(9);
 
     for (const f of leaves) {
       // Counted as a key, `disney:`, not as a substring: `disney` also occurs
@@ -137,13 +139,15 @@ describe('the storefront demo names things that exist', () => {
   });
 });
 
-/** The page's own PRESETS, evaluated rather than pattern-matched: they are a plain array literal. */
-const PRESETS = new Function(
+type Person = { id: string; customerId: string; name: string; input: { customer: Record<string, unknown> } };
+
+/** The page's own PRESETS and CUSTOMERS, evaluated rather than pattern-matched: they are plain array literals. */
+const { PRESETS, CUSTOMERS } = new Function(
   `${html.slice(
     html.indexOf('const PRESETS = ['),
     html.indexOf('// ---------------------------------------------------------------- state')
-  )}; return PRESETS;`
-)() as { id: string; customerId: string; name: string; input: { customer: Record<string, unknown> } }[];
+  )}; return { PRESETS, CUSTOMERS };`
+)() as { PRESETS: Person[]; CUSTOMERS: Person[] };
 
 describe('the storefront records one customer, and what she does', () => {
   it('sends one customer id from all three presets, because they are one person', () => {
@@ -157,6 +161,24 @@ describe('the storefront records one customer, and what she does', () => {
     expect(new Set(PRESETS.map((p) => p.name)).size).toBe(1);
   });
 
+  it('adds other customers as people of their own, never as more of Eva', () => {
+    // One customer is one daily cap, and a session driven through Eva alone was
+    // mostly frequency suppressions. The others are separate people: their own
+    // ids, their own names, none of them Eva's — so the brief's scenarios still
+    // differ by one field and nothing else.
+    expect(CUSTOMERS).toHaveLength(6);
+    const ids = CUSTOMERS.map((p) => p.customerId);
+    expect(new Set(ids).size).toBe(6);
+    expect(new Set(CUSTOMERS.map((p) => p.name)).size).toBe(6);
+    expect(ids).not.toContain(PRESETS[0].customerId);
+    expect(new Set([...PRESETS, ...CUSTOMERS].map((p) => p.id)).size).toBe(9);
+  });
+
+  it('lets a person choose any of them from the panel', () => {
+    expect(html).toContain("['The brief: Eva', PRESETS], ['Other customers', CUSTOMERS]");
+    expect(html).toContain('preset = PEOPLE.find((p) => p.id === select.value);');
+  });
+
   it('sends serviceability in every preset, so the connector is not what tells the addresses apart', () => {
     // With one id, the recorded connector would answer every preset alike. The
     // contrast survives because the request's own value wins over a connector's.
@@ -164,16 +186,19 @@ describe('the storefront records one customer, and what she does', () => {
     expect(serviceable).toEqual([true, false, false]);
   });
 
-  it('offers Accept only on a slot that holds one offer, until ADR-020 §4', () => {
-    // An outcome binds to the decision, not to a card, so Accept on the grid's
-    // second card would credit the first card's offer. The condition is the
-    // platform's slot count, not a renderer name.
-    expect(html).toMatch(/r\.slate\.slotCount === 1 \? `<button type="button" class="accept"/);
+  it('offers Accept on every card, since an outcome names the card it was about (ADR-020 §4)', () => {
+    // It offered Accept only where a slot held one offer until 2026-09-18,
+    // because an outcome bound to the decision alone credited the grid's second
+    // card to the first. Every entry now carries its action, and every outcome
+    // the page sends names it.
+    expect(html).not.toMatch(/slotCount === 1 \?/);
     expect(html.match(/class="accept"/g) ?? []).toHaveLength(1);
+    expect(html).toMatch(/<article class="card" data-action=/);
+    expect(html).toMatch(/reportOutcome\(decisionId, 'click', null, action\)/);
   });
 
   it('reports an acceptance with the panel’s value, never the expected margin', () => {
-    expect(html).toMatch(/reportOutcome\(decisionId, 'acceptance', valueMinor\)/);
+    expect(html).toMatch(/reportOutcome\(decisionId, 'acceptance', valueMinor, action\)/);
     expect(html).toContain('id="accept-value"');
     expect(html).not.toMatch(/expectedMargin/);
   });

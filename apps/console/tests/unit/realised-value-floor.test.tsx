@@ -40,18 +40,16 @@ const report = (valued: number, over: Partial<Record<string, unknown>> = {}) =>
   }) as unknown as LoopReport;
 
 describe('the line under realised value', () => {
-  it('names the valued decisions, not the acted-on ones, beside the acted-on count', () => {
-    expect(buildLoop(report(REALISED_FLOOR), MARGINS, F).realisedLine).toBe('from 100 valued outcomes, of 278 acted on');
+  it('names the count the figure rests on: the valued decisions, not the acted-on ones', () => {
+    expect(buildLoop(report(REALISED_FLOOR), MARGINS, F).realisedLine).toBe('100 valued');
   });
 
-  it('says the figure is thin below the floor, with a spread computed from the count', () => {
-    const line = buildLoop(report(24), MARGINS, F).realisedLine;
-    expect(line).toBe(
-      'from 24 valued outcomes, of 278 acted on — too few to read as a return: a count this small swings about 20%'
-    );
-    // 1/√n, not a figure written into a sentence: 25 gives 20%, 4 gives 50%.
-    expect(buildLoop(report(4), MARGINS, F).realisedLine).toMatch(/about 50%/);
-    expect(buildLoop(report(1), MARGINS, F).realisedLine).toMatch(/^from 1 valued outcome, of/);
+  it('says the figure is too few to read below the floor, beside the count', () => {
+    // ADR-023 §2, amended 2026-09-18: two facts, and no more. The acted-on
+    // count and the computed spread took the line to five lines on the Overview.
+    expect(buildLoop(report(24), MARGINS, F).realisedLine).toBe('24 valued — too few to read');
+    expect(buildLoop(report(1), MARGINS, F).realisedLine).toBe('1 valued — too few to read');
+    expect(buildLoop(report(REALISED_FLOOR - 1), MARGINS, F).realisedLine).toBe('99 valued — too few to read');
   });
 
   it('keeps the sentences for no value at all', () => {
@@ -121,8 +119,11 @@ describe('the accent', () => {
     expect(screen.getByText('Decisions per day')).toBeTruthy();
   });
 
-  it('says nothing was undeliverable as a result, not as "over the 0"', () => {
-    // The dense shortening made this "the same ceiling over the 0 nothing sent".
+  it('puts no sentence under the two ceiling figures', () => {
+    // It said "the same ceiling over the 0 nothing sent" once, and "every offer
+    // had a channel that could send it" after that. Both explained a method;
+    // the product owner removed them, and the sentence under the delivered
+    // ceiling, on 2026-09-18.
     const whole = report(2, {
       offered: 600,
       deliverable: 600,
@@ -133,19 +134,19 @@ describe('the accent', () => {
         <LoopFirstPaint data={whole} loop={buildLoop(whole, MARGINS, F)} dense />
       </StaticFormatProvider>
     );
-    expect(screen.getByText('every offer had a channel that could send it')).toBeTruthy();
-    expect(screen.queryByText(/over the 0/)).toBeNull();
+    expect(screen.getByText('Never had the chance')).toBeTruthy();
+    expect(screen.queryByText(/every offer had a channel|ceiling over|a bound|not a forecast/)).toBeNull();
   });
 
   it('draws the figure plain below the floor, and says it is thin', () => {
     paint(24);
     expect(screen.getByText('$2,279.09')).toBeTruthy();
-    expect(screen.getByText(/too few to read as a return/)).toBeTruthy();
+    expect(screen.getByText('24 valued — too few to read')).toBeTruthy();
   });
 
   it('says nothing about thinness at or above the floor', () => {
     paint(REALISED_FLOOR);
-    expect(screen.getByText('from 100 valued outcomes, of 278 acted on')).toBeTruthy();
-    expect(screen.queryByText(/too few to read as a return/)).toBeNull();
+    expect(screen.getByText('100 valued')).toBeTruthy();
+    expect(screen.queryByText(/too few to read/)).toBeNull();
   });
 });

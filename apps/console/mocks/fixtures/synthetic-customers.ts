@@ -180,14 +180,45 @@ export function deliversOnChannel(channel: string): boolean {
   return deliverableChannels.has(channel);
 }
 
-/** Whether this decision's winner had anything to render on the winning channel. */
-function couldRender(d: DecisionRecord): boolean {
-  // The id where the record carries one, the key where it does not: a caller
-  // building a record by hand should not silently get an empty funnel because
-  // it left a field out.
-  const offerId = d.winnerOfferId ?? (d.winner ? offerIdByKey.get(d.winner) : undefined);
+/** Whether an offer shown on this channel had anything to render there. */
+function couldRender(offerId: string | undefined, channel: string): boolean {
   if (!offerId) return false;
-  return channelsByOfferId.get(offerId)?.has(d.channel) ?? false;
+  return channelsByOfferId.get(offerId)?.has(channel) ?? false;
+}
+
+/**
+ * What the decision showed: its slate, or — on a record built by hand without
+ * one — its winner as a slate of one. The offer is the record's where it
+ * carries one and the catalogue's where it does not, so a hand-built record
+ * does not silently get an empty funnel for leaving a field out.
+ */
+function shownBy(d: DecisionRecord): { rank: number; action: string; offerId: string | undefined }[] {
+  if (d.slate && d.slate.length > 0) return d.slate.map((e) => ({ rank: e.rank, action: e.action, offerId: e.offerId }));
+  if (!d.winner) return [];
+  return [{ rank: 1, action: d.winner, offerId: d.winnerOfferId ?? offerIdByKey.get(d.winner) }];
+}
+
+/**
+ * What every draw for a decision's outcomes is keyed on: its place in the seed.
+ *
+ * Until 2026-09-18 the draws were keyed on the decision id, which is
+ * content-addressed — `dec_` and the first sixteen characters of the chain
+ * hash. So any change to what a decision records moved every id and re-rolled
+ * the whole outcome history: realised value swung 40% in ADR-022's measurement
+ * for a reason that had nothing to do with any decision. ADR-019, ADR-020,
+ * ADR-021 §9 and ADR-022 each move every id, and four re-rolls would have left
+ * no figure in the reseed attributable to the ADR that moved it.
+ *
+ * The seed index is the identity that does not move: one customer per seeded
+ * decision, `cust_` and `880000 + index * 137` in base 36, decoded by
+ * `decisionIndexOf`. Keyed on it, an outcome moves only when its decision's
+ * winner does. Re-keyed once, as the reseed's stage 0, by the product owner's
+ * decision (ADR-019 §7, amended 2026-09-18).
+ *
+ * A record the seed did not make has no seed index, and keeps the id.
+ */
+function drawKey(d: DecisionRecord, index: number | null): string {
+  return index === null ? d.id : `seed:${index}`;
 }
 
 function at(base: string, ms: number): string {
@@ -195,7 +226,13 @@ function at(base: string, ms: number): string {
 }
 
 /**
- * Outcomes for one seeded decision. Empty for a decision that offered nothing.
+ * Outcomes for one seeded decision: a stream per offer it showed — ADR-020 §5.
+ * Empty for a decision that offered nothing.
+ *
+ * Per rendered slate entry, not per winner: a two-offer email is two chances
+ * to be clicked, and a click on the second is about the second. In today's
+ * corpus this changes no figure, because no multi-slot placement dispatches;
+ * it is the line that would be wrong the day an email adapter lands.
  *
  * Pure and total: the same decision always produces the same events, on any
  * machine, with no clock and no `Math.random`. That is what lets the report be
@@ -203,13 +240,24 @@ function at(base: string, ms: number): string {
  * monotone across all 10,400 rather than on a sample.
  */
 export function outcomesFor(d: DecisionRecord, gate: { dispatched: boolean }): OutcomeEvent[] {
-  if (!d.winner) return [];
-  // An offer won; a creative fills the slot. With nothing to render on the
-  // channel that won, nothing reached the customer and there is no funnel to
-  // start. 2,122 of the 3,425 offered decisions in this corpus are in this
-  // state, which is a finding about the catalogue rather than about the
-  // outcomes — registered as G-041's second half.
-  if (!couldRender(d)) return [];
+  const shown = shownBy(d);
+  // An outcome names its entry where the decision showed more than one, which
+  // is the rule `recordOutcome` holds a caller to (ADR-020 §4).
+  return shown.flatMap((entry) => outcomesForEntry(d, entry, gate, shown.length > 1));
+}
+
+function outcomesForEntry(
+  d: DecisionRecord,
+  entry: { rank: number; action: string; offerId: string | undefined },
+  gate: { dispatched: boolean },
+  named: boolean
+): OutcomeEvent[] {
+  // An offer was shown; a creative fills the slot. With nothing to render on
+  // the channel, nothing reached the customer and there is no funnel to start.
+  // 2,122 of the 3,425 offered decisions in this corpus were in this state
+  // when it was measured, which is a finding about the catalogue rather than
+  // about the outcomes — registered as G-041's second half.
+  if (!couldRender(entry.offerId, d.channel)) return [];
   // And something to carry it. A decision on a channel with no deliverer
   // reached nobody however good the creative was, so there is no funnel to
   // start — the same reasoning as the line above, one step further out.
@@ -218,10 +266,14 @@ export function outcomesFor(d: DecisionRecord, gate: { dispatched: boolean }): O
   // own placement recorded, the projection passes the channel rule.
   if (!gate.dispatched) return [];
 
-  const coverage = COVERAGE[d.channel] ?? 0.5;
-  if (r('impression', d.id) >= coverage) return [];
-
   const index = decisionIndexOf(d.customerId);
+  // Slot 1 keeps the decision's key, so a single-offer decision draws exactly
+  // what it drew before slates were recorded; a later slot draws its own.
+  const key = entry.rank === 1 ? drawKey(d, index) : `${drawKey(d, index)}:${entry.rank}`;
+
+  const coverage = COVERAGE[d.channel] ?? 0.5;
+  if (r('impression', key) >= coverage) return [];
+
   const churning = index !== null && inChurnCohort(index);
   const penalty = churning ? CHURN_PENALTY : 1;
 
@@ -235,31 +287,32 @@ export function outcomesFor(d: DecisionRecord, gate: { dispatched: boolean }): O
       // rule the decision follows, and what lets an outcome be read beside it.
       occurredAt: at(d.timestamp, ms),
       valueMinor,
+      ...(named ? { action: entry.action } : {}),
     });
 
-  push('impression', 2 * MIN + Math.floor(r('impression-lag', d.id) * 8 * MIN));
-  if (r('click', d.id) >= CLICK_GIVEN_IMPRESSION * penalty) return events;
+  push('impression', 2 * MIN + Math.floor(r('impression-lag', key) * 8 * MIN));
+  if (r('click', key) >= CLICK_GIVEN_IMPRESSION * penalty) return events;
 
-  push('click', 12 * MIN + Math.floor(r('click-lag', d.id) * 40 * MIN));
+  push('click', 12 * MIN + Math.floor(r('click-lag', key) * 40 * MIN));
 
   const acceptRate =
-    d.winner === POOR_PERFORMER ? POOR_PERFORMER_ACCEPT : ACCEPT_GIVEN_CLICK * penalty;
-  if (r('acceptance', d.id) >= acceptRate) {
+    entry.action === POOR_PERFORMER ? POOR_PERFORMER_ACCEPT : ACCEPT_GIVEN_CLICK * penalty;
+  if (r('acceptance', key) >= acceptRate) {
     // A click that went nowhere is a rejection, and recording it is the
     // difference between "nobody said" and "they said no". Without this the
     // corpus would have no rejections at all, and the reason code exists.
-    if (r('rejection', d.id) < 0.34) push('rejection', 3 * HOUR);
+    if (r('rejection', key) < 0.34) push('rejection', 3 * HOUR);
     return events;
   }
 
-  push('acceptance', 2 * HOUR + Math.floor(r('accept-lag', d.id) * 30 * HOUR));
-  if (r('conversion', d.id) >= CONVERT_GIVEN_ACCEPT * penalty) return events;
+  push('acceptance', 2 * HOUR + Math.floor(r('accept-lag', key) * 30 * HOUR));
+  if (r('conversion', key) >= CONVERT_GIVEN_ACCEPT * penalty) return events;
 
   // Realised, not expected: ±35% around the offer's own margin, so the two
   // columns on /performance disagree the way they do in life.
-  const expected = marginByKey.get(d.winner) ?? 0;
-  const realised = Math.round(expected * (0.65 + r('value', d.id) * 0.7));
-  push('conversion', 2 * DAY + Math.floor(r('convert-lag', d.id) * 12 * DAY), realised);
+  const expected = marginByKey.get(entry.action) ?? 0;
+  const realised = Math.round(expected * (0.65 + r('value', key) * 0.7));
+  push('conversion', 2 * DAY + Math.floor(r('convert-lag', key) * 12 * DAY), realised);
 
   return events;
 }

@@ -44,7 +44,7 @@ const TRACE = {
   candidateCount: 3,
   eliminations: [],
   timings: {},
-  sourceBindings: [],
+  fieldOrigins: [],
   sourceCalls: [],
 } as unknown as TraceDto;
 

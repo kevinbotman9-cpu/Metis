@@ -40,8 +40,9 @@ async function recordOutcomes(page: Page): Promise<string[]> {
   await page.route(OUTCOMES, async (route: Route) => {
     const url = new URL(route.request().url());
     const decisionId = url.pathname.split('/').pop() ?? '';
-    const body = route.request().postDataJSON() as { type?: string } | null;
-    seen.push(`${body?.type ?? '?'}:${decisionId}`);
+    const body = route.request().postDataJSON() as { type?: string; action?: string } | null;
+    // The action too, since ADR-020 §4: which offer on the slate it was about.
+    seen.push(`${body?.type ?? '?'}:${decisionId}${body?.action ? `:${body.action}` : ''}`);
     // Fulfilled rather than continued, so a test asserting on reporting does
     // not also append to the ledger the next test reads.
     await route.fulfill({ status: 201, contentType: 'application/json', body: '{}' });
@@ -111,6 +112,58 @@ test.describe('the storefront reports an impression of an offer, not of a win', 
         timeout: 10_000,
       })
       .toBeGreaterThan(0);
+  });
+});
+
+test.describe('an outcome names the offer on the slate it was about (ADR-020 §4)', () => {
+  test('a click on the second card of the grid is reported as the second card’s', async ({ page }) => {
+    // Until the reseed a click anywhere in the grid reported against the
+    // decision alone, and the performance report credited it to slot 1.
+    const reported = await recordOutcomes(page);
+    await page.goto(storefrontOn(340));
+    const cards = page.locator('#slot-homepage_grid article.card[data-action]');
+    await expect(cards.nth(1)).toBeVisible({ timeout: 20_000 });
+
+    const second = await cards.nth(1).getAttribute('data-action');
+    const first = await cards.nth(0).getAttribute('data-action');
+    expect(second, 'the grid rendered two different offers').not.toBe(first);
+
+    await cards.nth(1).locator('.cta').click();
+    await expect
+      .poll(() => reported.filter((r) => r.startsWith('click:')), { timeout: 10_000 })
+      .toEqual([expect.stringMatching(new RegExp(`^click:dec_[0-9a-f]+:${second}$`))]);
+    // And an impression per rendered card of the grid's decision, each naming
+    // its own. Scoped to that decision: the hero is another decision, and can
+    // show the same offer.
+    // Polled: an impression is reported when half the card is on screen, which
+    // the click has just made true, not at render (2026-09-18).
+    const grid = await page.locator('#slot-homepage_grid').getAttribute('data-decision-id');
+    const ofGrid = () => reported.filter((r) => r.startsWith(`impression:${grid}:`));
+    const count = await cards.count();
+    await expect.poll(() => ofGrid().length, { timeout: 10_000 }).toBe(count);
+    expect(ofGrid().filter((r) => r.endsWith(`:${first}`))).toHaveLength(1);
+    expect(ofGrid().filter((r) => r.endsWith(`:${second}`))).toHaveLength(1);
+  });
+});
+
+test.describe('an impression is of a card someone could see, not of one rendered below the fold', () => {
+  test('the grid below the fold reports nothing until it is scrolled to', async ({ page }) => {
+    // Every rendered card reported an impression at render until 2026-09-18, so
+    // "seen" on the loop was 100% of delivered by construction.
+    const reported = await recordOutcomes(page);
+    await page.setViewportSize({ width: 1280, height: 360 });
+    await page.goto(storefrontOn(350));
+    const grid = page.locator('#slot-homepage_grid');
+    await expect(grid.locator('article.card[data-action]').first()).toBeAttached({ timeout: 20_000 });
+    const decision = await grid.getAttribute('data-decision-id');
+    const ofGrid = () => reported.filter((r) => r.startsWith(`impression:${decision}:`));
+
+    // Given time to arrive if it were going to.
+    await page.waitForTimeout(1500);
+    expect(ofGrid(), 'the grid reported impressions nobody could have seen').toEqual([]);
+
+    await grid.scrollIntoViewIfNeeded();
+    await expect.poll(() => ofGrid().length, { timeout: 10_000 }).toBeGreaterThan(0);
   });
 });
 

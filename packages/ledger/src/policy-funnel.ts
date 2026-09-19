@@ -71,6 +71,12 @@ export interface FunnelDecision {
   /** Candidates the flow was allowed to consider. */
   candidates: number;
   winner: string | null;
+  /**
+   * How many offers the decision showed: its slate's length (ADR-020 §3). A
+   * shown offer is a survivor, not a removal, so the accounting counts it
+   * beside the winner rather than expecting a NOT_RANKED for it.
+   */
+  shown: number;
   removals: readonly FunnelRemoval[];
 }
 
@@ -132,6 +138,7 @@ export function funnelDecisionOf(entry: LedgerEntry): FunnelDecision {
     occurredAt: entry.occurredAt,
     candidates: d.candidateKeys.length,
     winner: d.winner,
+    shown: d.slate.length,
     removals: d.eliminations.flatMap((step) =>
       step.denials.map((denial) => ({ code: denial.code, ruleId: denial.ruleId ?? null }))
     ),
@@ -205,7 +212,9 @@ export function buildPolicyFunnel(
       }
     }
 
-    if (unknown || counted + (decision.winner ? 1 : 0) !== decision.candidates) unaccounted += 1;
+    // Every candidate is removed at a stage or shown in a slot. It was
+    // `counted + (winner ? 1 : 0)` until ADR-020, when only a winner was shown.
+    if (unknown || counted + decision.shown !== decision.candidates) unaccounted += 1;
   }
 
   let survivors = entered;

@@ -102,6 +102,14 @@ class DecisionConformanceTest {
 
     private fun catalogue(n: JsonNode) = CatalogueSnapshot(
         offers = n["offers"].map { offer(it) },
+        actions = n["actions"].map { a ->
+            Action(
+                id = a["id"].asText(),
+                key = a["key"].asText(),
+                offerId = a["offerId"].asText(),
+                active = a["active"].asBoolean(),
+            )
+        },
         targetingPolicies = n["targetingPolicies"].map { p ->
             TargetingPolicy(
                 id = p["id"].asText(),
@@ -224,6 +232,15 @@ class DecisionConformanceTest {
                 },
             )
         },
+        // ADR-022 §3. Set by a resolving service in production, never by a
+        // caller; a corpus case carries it so both engines are held to what they
+        // record from it and what they refuse.
+        resolved = n["resolved"]?.takeIf { !it.isNull }?.map {
+            ResolvedField(it["field"].asText(), it["nodeId"].asText(), it["connectorId"].asText(), it["origin"].asText())
+        },
+        // ADR-020 §2: a case with more than one slot is what holds both engines
+        // to the same slate.
+        slotCount = n["slotCount"]?.takeIf { !it.isNull }?.asInt(),
     )
 
     // --- The test -------------------------------------------------------------
@@ -282,6 +299,33 @@ class DecisionConformanceTest {
             catalogueSnapshotHash = Canonical.hash(toValue(case["catalogue"])),
             inputSnapshotHash = Canonical.hash(toValue(case["request"]["input"])),
         ).decision
+    }
+
+    /**
+     * What an engine must refuse, in the reference engine's words. A refusal is
+     * part of the contract: an engine that decided where the other refused would
+     * record a provenance line one of them cannot stand behind (ADR-022 §3).
+     */
+    @Test
+    fun `every refusal is refused in the reference engine's words`() {
+        val refusals = corpus["refusals"]
+        assertTrue(refusals != null && refusals.size() > 0, "the corpus holds no refusals")
+        for (r in refusals) {
+            val name = r["name"].asText()
+            val message = try {
+                Engine.execute(
+                    artifact(r["artifact"]),
+                    catalogue(r["catalogue"]),
+                    request(r["request"]),
+                    catalogueSnapshotHash = Canonical.hash(toValue(r["catalogue"])),
+                    inputSnapshotHash = Canonical.hash(toValue(r["request"]["input"])),
+                )
+                fail("$name: was decided, and the reference engine refused it")
+            } catch (e: IllegalArgumentException) {
+                e.message
+            }
+            assertEquals(r["expectedRefusal"].asText(), message, name)
+        }
     }
 
     @Test

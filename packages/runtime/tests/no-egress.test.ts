@@ -10,6 +10,7 @@ import type {
   ExecArtifact,
 } from '../src/deterministic/types';
 import type { Offer } from '@metis/core/domain';
+import { withGeneratedActions } from '@metis/core/domain';
 
 /**
  * The decision path reaches no network.
@@ -60,7 +61,7 @@ const offer = (over: Partial<Offer> & { id: string; key: string }): Offer =>
     ...over,
   }) as Offer;
 
-const catalogue: CatalogueSnapshot = {
+const catalogue: CatalogueSnapshot = withGeneratedActions({
   offers: [
     offer({ id: 'p1', key: 'upsell_5g' }),
     offer({ id: 'p2', key: 'upsell_data', boost: 1.4 }),
@@ -78,7 +79,7 @@ const catalogue: CatalogueSnapshot = {
   },
   boosts: [],
   connectors: [],
-} as unknown as CatalogueSnapshot;
+}) as unknown as CatalogueSnapshot;
 
 const artifact: ExecArtifact = {
   id: 'next-best-action',

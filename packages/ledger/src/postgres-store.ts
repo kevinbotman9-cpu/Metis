@@ -3,6 +3,7 @@ import type { DecisionQuery, LedgerStore } from './ledger';
 import {
   CONTACT_STATES,
   CONTACT_WINDOW_MS,
+  predatesReseed,
   type ContactCounts,
   type ContactQuery,
   type DeliveryAttempt,
@@ -63,6 +64,7 @@ interface OutcomeRow {
   occurred_at: Date | string;
   value_minor: string | number | null;
   detail: unknown;
+  action_key: string | null;
 }
 
 /**
@@ -117,11 +119,57 @@ class PostgresIdempotencyStore implements IdempotencyStore {
   }
 }
 
+/** A connection that can hold a transaction, for the subject lock alone. */
+export interface LockClient extends Queryable {
+  release(): void;
+}
+
 export class PostgresLedgerStore implements LedgerStore {
   readonly idempotency: IdempotencyStore;
 
-  constructor(private readonly db: Queryable) {
+  /**
+   * `locks` is where `withSubject` takes a connection to hold a customer's
+   * lock on: a pool of its own, never `db`. A decision holding the lock does
+   * its reads and writes through `db`; if the lock came from the same pool, as
+   * many customers deciding at once as the pool has connections would each hold
+   * one and wait for another, and nothing would move.
+   */
+  constructor(
+    private readonly db: Queryable,
+    private readonly locks?: { connect(): Promise<LockClient> }
+  ) {
     this.idempotency = new PostgresIdempotencyStore(db);
+  }
+
+  /**
+   * One customer at a time, across every instance on this database (G-160).
+   *
+   * A transaction-scoped advisory lock keyed on the subject: taken before the
+   * contact read, released when the contact is written and the transaction
+   * ends, and by PostgreSQL itself if the process dies holding it. The key is
+   * the subject hash folded to 64 bits, so two customers share a lock only by a
+   * hash collision, which costs a wait and never a wrong count.
+   *
+   * Without a lock pool this store cannot lock, and says so rather than
+   * pretending: `DecisionLedger.withSubject` still orders one process.
+   */
+  async withSubject<T>(subjectHash: string, fn: () => Promise<T>): Promise<T> {
+    if (!this.locks) return fn();
+    const client = await this.locks.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [subjectHash]);
+      try {
+        return await fn();
+      } finally {
+        await client.query('COMMIT');
+      }
+    } catch (e) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 
   async get(tenantId: string, decisionId: string): Promise<LedgerEntry | undefined> {
@@ -225,8 +273,8 @@ export class PostgresLedgerStore implements LedgerStore {
 
   async appendOutcome(event: OutcomeEvent): Promise<void> {
     await this.db.query(
-      `INSERT INTO outcome_events (tenant_id, decision_id, type, occurred_at, value_minor, detail)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
+      `INSERT INTO outcome_events (tenant_id, decision_id, type, occurred_at, value_minor, detail, action_key)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)`,
       [
         event.tenantId,
         event.decisionId,
@@ -234,6 +282,8 @@ export class PostgresLedgerStore implements LedgerStore {
         event.occurredAt,
         event.valueMinor,
         event.detail ? JSON.stringify(event.detail) : null,
+        // The slate entry this outcome is about (ADR-020 §4, `004_outcome_action.sql`).
+        event.action ?? null,
       ]
     );
   }
@@ -268,6 +318,21 @@ export class PostgresLedgerStore implements LedgerStore {
    * migrated (ADR-019 §7, ADR-021 §1).
    */
   async countContacts(q: ContactQuery): Promise<ContactCounts> {
+    // A scoped count reads the slate, and a decision recorded before slates
+    // has none: read as "showed nothing" it would under-count a cap, which is a
+    // customer protection failing open. Refused instead (ADR-021 §3, §4).
+    if (q.offerIds || q.actionKeys) {
+      const { rows: stale } = await this.db.query<{ decision_id: string }>(
+        `SELECT a.decision_id
+           FROM delivery_attempts a
+           JOIN decision_records r ON r.tenant_id = a.tenant_id AND r.decision_id = a.decision_id
+          WHERE a.tenant_id = $1 AND a.subject_hash = $2 AND a.channel = $3
+            AND NOT (r.record->'decision' ? 'slate')
+          LIMIT 1`,
+        [q.tenantId, q.subjectHash, q.channel]
+      );
+      if (stale.length > 0) throw predatesReseed(stale[0].decision_id, q.tenantId);
+    }
     const until = Date.parse(q.until);
     const since = (period: keyof ContactCounts) => new Date(until - CONTACT_WINDOW_MS[period]).toISOString();
     const { rows } = await this.db.query<{ day: string; week: string; month: string }>(
@@ -285,7 +350,14 @@ export class PostgresLedgerStore implements LedgerStore {
               AND a.state = ANY($8::text[])
               AND a.at <= $4
               AND (r.record->'decision'->>'winner') IS NOT NULL
-              AND ($9::text[] IS NULL OR (r.record->'decision'->>'winnerOfferId') = ANY($9::text[]))
+              -- Any offer the decision showed, not only its winner (ADR-020 §4).
+              AND ($9::text[] IS NULL OR EXISTS (
+                    SELECT 1 FROM jsonb_array_elements(r.record->'decision'->'slate') e
+                     WHERE e->>'offerId' = ANY($9::text[])))
+              -- Any action it showed, for a cap scoped to one (ADR-019 §4).
+              AND ($10::text[] IS NULL OR EXISTS (
+                    SELECT 1 FROM jsonb_array_elements(r.record->'decision'->'slate') e
+                     WHERE e->>'action' = ANY($10::text[])))
             GROUP BY a.decision_id
          ) contacts`,
       [
@@ -298,6 +370,7 @@ export class PostgresLedgerStore implements LedgerStore {
         since('month'),
         [...CONTACT_STATES],
         q.offerIds ? [...q.offerIds] : null,
+        q.actionKeys ? [...q.actionKeys] : null,
       ]
     );
     const r = rows[0];
@@ -327,7 +400,7 @@ export class PostgresLedgerStore implements LedgerStore {
 
   async outcomesFor(tenantId: string, decisionId: string): Promise<OutcomeEvent[]> {
     const { rows } = await this.db.query<OutcomeRow>(
-      `SELECT tenant_id, decision_id, type, occurred_at, value_minor, detail
+      `SELECT tenant_id, decision_id, type, occurred_at, value_minor, detail, action_key
          FROM outcome_events
         WHERE tenant_id = $1 AND decision_id = $2
         ORDER BY seq ASC`,
@@ -342,6 +415,7 @@ export class PostgresLedgerStore implements LedgerStore {
       // number in general. These are minor units and do fit, but the parse has
       // to be explicit rather than accidental.
       valueMinor: r.value_minor === null ? null : Number(r.value_minor),
+      ...(r.action_key ? { action: r.action_key } : {}),
       ...(r.detail ? { detail: r.detail as Record<string, unknown> } : {}),
     }));
   }

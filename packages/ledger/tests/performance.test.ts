@@ -24,6 +24,8 @@ const entry = (
     channel?: string;
     candidateKeys?: string[];
     steps?: Step[];
+    /** What was shown, best first; the winner alone when not given (ADR-020 §1). */
+    slate?: string[];
   }
 ): LedgerEntry =>
   ({
@@ -37,6 +39,13 @@ const entry = (
     record: {
       decision: {
         winner: over.winner,
+        slotCount: Math.max(1, (over.slate ?? []).length),
+        slate: (over.slate ?? (over.winner ? [over.winner] : [])).map((action, i) => ({
+          rank: i + 1,
+          action,
+          offerId: `p_${action}`,
+          priority: 1 - i / 10,
+        })),
         channel: over.channel ?? 'web',
         candidateKeys: over.candidateKeys ?? ['a', 'b'],
         eliminations: (over.steps ?? []).map((s, i) => ({
@@ -82,6 +91,27 @@ describe('counting', () => {
     expect(report.rows).toHaveLength(2);
     expect(report.rows[0]).toMatchObject({ action: 'acq_fibre_900', offered: 2 });
     expect(report.rows[1]).toMatchObject({ action: 'acq_sim_30', offered: 1 });
+  });
+
+  it('counts every offer a decision showed, and credits an outcome to the one it names (ADR-020 §4)', () => {
+    // A two-offer email offered both; its second offer's row counted only the
+    // decisions where it came first until the reseed. And a click on the
+    // second card is about the second card.
+    const two = { id: 'd1', winner: 'acq_fibre_900', slate: ['acq_fibre_900', 'acq_sim_30'] };
+    const click = { ...outcome('d1', 'click'), action: 'acq_sim_30' };
+    const report = buildPerformance([entry(two), entry({ id: 'd2', winner: 'acq_sim_30' })], map([click]));
+
+    const row = (action: string) => report.rows.find((r) => r.action === action)!;
+    expect(row('acq_fibre_900')).toMatchObject({ offered: 1, measured: 0, clicks: 0 });
+    expect(row('acq_sim_30')).toMatchObject({ offered: 2, measured: 1, clicks: 1 });
+    // The loop's counts are decisions, not offers: two decisions, both offered.
+    expect(report).toMatchObject({ decisions: 2, offered: 2 });
+
+    // An outcome that names no action is slot 1's — a single-offer decision,
+    // or one recorded before outcomes named their action.
+    const unnamed = buildPerformance([entry(two)], map([outcome('d1', 'click')]));
+    expect(unnamed.rows.find((r) => r.action === 'acq_fibre_900')).toMatchObject({ clicks: 1 });
+    expect(unnamed.rows.find((r) => r.action === 'acq_sim_30')).toMatchObject({ clicks: 0 });
   });
 
   it('counts distinct decisions, not events', () => {

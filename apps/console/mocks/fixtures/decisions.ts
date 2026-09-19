@@ -19,7 +19,7 @@
 
 import { creatives, connectors } from './catalogue';
 import { executeAt, DECISION_COUNT, type GeneratedDecision } from './engine';
-import type { SourceBinding, SourceCall } from '@metis/core/domain';
+import type { FieldOrigin, SourceCall } from '@metis/core/domain';
 
 export interface Denial {
   key: string;
@@ -46,6 +46,10 @@ export interface DecisionRecord {
   placement: string;
   winner: string | null;
   winnerOfferId: string | null;
+  /** Slots the placement had when this was decided (ADR-020 §2). */
+  slotCount: number;
+  /** What was shown, best first (ADR-020 §1). */
+  slate: import('@metis/runtime').SlateRecordEntry[];
   candidateCount: number;
 }
 
@@ -78,8 +82,8 @@ export interface TraceRecord extends DecisionRecord {
   /** Absent when the platform did not read its ledger — not the same as a read of zero (ADR-021 §5). */
   contactsRead?: import('@metis/runtime').ContactsRead;
   creativeId: string | null;
-  /** Which connector supplied which field. Reproducible. */
-  sourceBindings: SourceBinding[];
+  /** Where each connector-provided value came from (ADR-022 §2). Reproducible. */
+  fieldOrigins: FieldOrigin[];
   /**
    * What the integrations did on the wire.
    *
@@ -135,18 +139,23 @@ function fraction(seed: string): number {
  * asked, and the cache reports when it stored what it returned (G-056).
  */
 function sourceCallsFor(
-  bindings: SourceBinding[],
+  origins: FieldOrigin[],
   decisionId: string,
   occurredAt: string
 ): SourceCall[] {
-  const byConnector = new Map<string, string[]>();
-  for (const b of bindings) {
-    byConnector.set(b.connectorId, [...(byConnector.get(b.connectorId) ?? []), b.field]);
+  // A connector is called if it supplied a value or answered one the request
+  // overrode; what it contributed and what it was overridden on are kept apart
+  // (ADR-022 §5). Until 2026-09-18 every binding was rebuilt as a contribution.
+  const byConnector = new Map<string, { fields: string[]; overridden: string[] }>();
+  for (const o of origins) {
+    const c = byConnector.get(o.connectorId) ?? { fields: [], overridden: [] };
+    (o.origin === 'request' ? c.overridden : c.fields).push(o.field);
+    byConnector.set(o.connectorId, c);
   }
   const askedAt = Date.parse(occurredAt);
   return [...byConnector.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([connectorId, fields]) => {
+    .map(([connectorId, { fields, overridden }]) => {
       const connector = connectors.find((c) => c.id === connectorId);
       const ttl = connector?.cacheTtlSeconds ?? 0;
       const cacheHit = ttl > 0;
@@ -160,10 +169,7 @@ function sourceCallsFor(
         cacheHit,
         outcome: 'ok' as const,
         fields: fields.sort(),
-        // The seed writes every connector value over its request, so no
-        // connector answer is ever discarded here (ADR-022 §6 removes the two
-        // request values it overwrote; §8 holds the seed to the live path).
-        overridden: [],
+        overridden: overridden.sort(),
         fetchedAt: new Date(askedAt).toISOString(),
         observedAt: new Date(askedAt - ageSeconds * 1000).toISOString(),
       };
@@ -202,6 +208,9 @@ function toTrace({ trace }: GeneratedDecision): TraceRecord {
     placement: d.placement,
     winner: d.winner,
     winnerOfferId: d.winnerOfferId,
+    // What was shown, and in how many slots (ADR-020 §1, §2).
+    slotCount: d.slotCount,
+    slate: d.slate,
     // The set, and the count derived from it. Until 2026-09-12 only the count
     // was served: `candidateKeys` was right here and reduced to its length, so
     // the cascade rail could say "12 candidates entered" and never name one,
@@ -219,8 +228,10 @@ function toTrace({ trace }: GeneratedDecision): TraceRecord {
     // the platform did not read, and serving `null` would blur it.
     ...(d.contactsRead ? { contactsRead: d.contactsRead } : {}),
     creativeId: resolveCreative(d.winnerOfferId, d.channel),
-    sourceBindings: d.sourceBindings,
-    sourceCalls: sourceCallsFor(d.sourceBindings, trace.id, d.occurredAt),
+    fieldOrigins: d.fieldOrigins,
+    // Measured where the decision measured them — the live path records its
+    // calls — and reconstructed from the origins only where it did not.
+    sourceCalls: trace.measured.sourceCalls ?? sourceCallsFor(d.fieldOrigins, trace.id, d.occurredAt),
     chainHash: trace.chainHash,
     inputSnapshotHash: d.inputSnapshotHash,
     // `chainHash` covers all three of these. Serving two of them handed a

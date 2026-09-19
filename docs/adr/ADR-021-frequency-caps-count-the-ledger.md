@@ -233,15 +233,88 @@ slate). No fixture had a scoped cap, so nothing could show the disagreement.
   catalogue changes `catalogueSnapshotHash` and so every seeded decision's id. It
   lands in that commit, with its own delta table, rather than moving every id
   once now and again there.
+- **The fixture is `cpol_disney_web_weekly`: Disney+, at most one a week on the
+  web** (chosen by the product owner on 2026-09-19; this clause named no cap).
+  It shows a scoped cap biting and the slots it frees going to other offers, and
+  it leaves realised value where the earlier stages put it, so every money figure
+  in the reseed stays attributable to the stage that moved it. Three candidates
+  were measured against the seeded corpus the same day:
+
+  | Candidate | Winners changed | Seeded figures |
+  |---|---|---|
+  | Disney+, at most 1 a week on the web — **chosen** | 97 | web Disney+ offers 284 → 187, Netflix 69 → 127; offered −39; realised value unchanged |
+  | Fios, at most 2 a week on the web | 113 | web Fios offers 793 → 680; offered −67; realised value −$214.44 |
+  | Disney+, at most 4 a month on any channel | 0 | none |
+
+  All three move every seeded decision's id and `catalogueSnapshotHash`; none
+  moves `inputSnapshotHash`; only the first two move a figure. The seeded
+  requests carry the caller's per-channel counts, which name no offer and count
+  toward every scoped cap (above), so on seeded history an offer cap bites
+  wherever the channel's count reaches its limit. The narrowing to the capped
+  offer's own contacts is what the platform's ledger read does, on live
+  placement decisions.
+
+### 10. Reading and writing a customer's contacts is one decision at a time
+
+*Added 2026-09-18, by the product owner, closing G-160.*
+
+A cap read is only a protection if the contact the decision makes is written
+before the next decision for the same customer reads. Without that, two
+decisions made at once each read the count before either writes, and both take
+the last slot. The storefront decides its hero and grid together, and in two
+weeks of visits by nine customers on 2026-09-18 it went over `cpol_web_daily`'s
+three a day on **41 of 64 customer-days**.
+
+**So everything from the contact read to the delivery write runs inside
+`DecisionLedger.withSubject`** — the console's placement route wraps
+`decideAndRecord` and `recordDeliveryFor` in it:
+
+- **In one process,** decisions for a customer queue behind each other.
+  Different customers never wait for each other, and a decision that fails does
+  not hold up the next.
+- **Across processes,** the PostgreSQL store takes a transaction-scoped advisory
+  lock on the subject hash (`pg_advisory_xact_lock(hashtextextended(…))`),
+  released when the transaction ends or the connection dies. It is taken on a
+  pool of its own, never the one decisions read and write through: from the same
+  pool, as many customers deciding at once as it has connections would each hold
+  one and wait for another. This is what makes the decision service, which
+  ADR-016 scales horizontally, safe to run as more than one instance once it
+  reads (§7).
+
+**Measured against §6, 2026-09-18,** on the test database, fresh subject per
+iteration, interleaved, 300 runs: the PostgreSQL read p50 0.64ms, p95 0.86ms;
+read under the lock p50 1.12ms, p95 1.68ms — **the lock adds about 0.8ms at p95,
+two round trips**, which puts §6's measured 4.50ms at about 5.3ms. In memory the
+queue costs nothing measurable (p95 0.03ms beside 0.05ms), and §6's gated 5ms is
+untouched. What it does cost is by design: a customer's second decision waits
+for the first to finish, so a page deciding two placements at once for one
+customer takes the two one after the other.
+
+**Held by** the ledger suite, on both stores: six decisions at once against a cap
+of three make exactly three; and on PostgreSQL, eight across four instances
+sharing the store make exactly three. Removing the PostgreSQL lock turns the
+four-instance test red, three runs in three; removing the queue as well turns
+the in-memory test red. The four-instance test was two instances until it was
+seen passing without the lock — two instances overlap one decision at a time and
+could land on three by luck.
 
 ## Consequences
 
 - **The storefront suppresses sooner than a person expects.** `cpol_web_daily`
   allows three decisioned web slots a day, and a home-page load decides the hero
-  and the grid for the selected preset's customer, the grid's read already
-  counting the hero. So a day holds one full decide per customer: on the second,
-  the hero is offered and the grid is `FREQUENCY_CAP_BREACHED`, and from the third
-  nothing is, for 24 hours or until an in-memory console restarts. (The three
+  and the grid for the selected preset's customer. So a day holds one full decide
+  per customer; on the second, whichever of the two reaches the platform first is
+  offered and the other is `FREQUENCY_CAP_BREACHED`, and from the third nothing
+  is, for 24 hours or until an in-memory console restarts. The order is the
+  arrival order, not the page's: the hero on one day, the grid on another.
+  *(Corrected twice on 2026-09-18. First: this said the grid's read "already
+  count[ed] the hero" and that the second load always offered the hero and capped
+  the grid; the page decides the two at once, so neither read saw the other, and
+  when both read before either recorded, both were offered and the cap was
+  exceeded — G-160. Second: §10 now makes the two decisions for one customer run
+  one after the other, so the second reads the first's contact and the cap
+  holds; what this bullet describes is again true, with the order left to
+  arrival.)* (The three
   presets are one customer, `cust_eva`, so switching preset does not start
   another count. When this ADR was accepted each preset sent its own id and this
   clause said so; the ids were joined later the same day, because the demo's

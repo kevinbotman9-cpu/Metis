@@ -79,6 +79,36 @@ describe('reading a customer’s contacts', () => {
     });
   });
 
+  it('reads a cap scoped to an action as the contacts about that action alone (ADR-019 §4)', async () => {
+    const catalogue = {
+      offers: [{ id: 'off_disney_plus', objectiveId: 'iss_crosssell', categoryId: 'grp_entertainment' }],
+      actions: [
+        { id: 'act_off_disney_plus', key: 'disney_plus', offerId: 'off_disney_plus', name: 'Disney+', active: true },
+        { id: 'act_disney_retain', key: 'disney_plus_retain', offerId: 'off_disney_plus', name: 'Disney+ retention', active: true },
+      ],
+      frequencyPolicies: [
+        { id: 'cpol_disney', active: true, channel: 'web', scope: { level: 'offer', targetId: 'off_disney_plus' } },
+        { id: 'cpol_retain', active: true, channel: 'web', scope: { level: 'action', targetId: 'act_disney_retain' } },
+      ],
+    } as never;
+    const asked: { offerIds?: readonly string[]; actionKeys?: readonly string[] }[] = [];
+    await readContacts(
+      {
+        contactsFor: async (query) => {
+          asked.push(query);
+          return { day: 0, week: 0, month: 0 };
+        },
+      },
+      { ...q, catalogue }
+    );
+    // The offer's cap counts by offer, covering both actions; the action's by
+    // its key, and by nothing else.
+    expect(asked.slice(1).map((a) => ({ offerIds: a.offerIds ?? null, actionKeys: a.actionKeys ?? null }))).toEqual([
+      { offerIds: ['off_disney_plus'], actionKeys: null },
+      { offerIds: null, actionKeys: ['disney_plus_retain'] },
+    ]);
+  });
+
   it('is unavailable, never zero, when the ledger cannot be read, and says why to the caller only', async () => {
     const reported: unknown[] = [];
     const read = await readContacts(

@@ -10,7 +10,8 @@ import { login, ACCOUNTS, expectFunnelShows } from './helpers';
  *   (`METIS_CONSOLE_SPEC.md` §4.7). Sarah is a marketer as well as an architect,
  *   so she lands there.
  * - The decision architect's is the change pipeline, as panels (§4.5). Marcus is
- *   an administrator and an architect, so he lands there.
+ *   an administrator and an architect; he lands on the loop, as everyone who can
+ *   see it does since 2026-09-18, and reaches the pipeline through the switch.
  * - An account that can see both chooses with the switch in the chrome, and the
  *   choice survives a reload. An account with neither persona gets the loop and
  *   no switch.
@@ -157,6 +158,9 @@ test.describe("the architect's Overview is the change pipeline @screen-only", ()
   test.beforeEach(async ({ page }) => {
     await login(page, ACCOUNTS.marcus);
     await page.goto('/');
+    // He lands on the loop, and asks for the pipeline.
+    await expect(page.getByRole('heading', { level: 1, name: 'The loop', exact: true })).toBeVisible();
+    await personaSwitch(page).getByRole('button', { name: 'Architect' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'The change pipeline', exact: true })).toBeVisible();
   });
 
@@ -283,6 +287,45 @@ test.describe("the architect's Overview is the change pipeline @screen-only", ()
     await expect(card.getByText('The conformance corpus matches the reference', { exact: true })).toBeVisible();
     // This screen cannot run either check, so a claim that they passed would be invented.
     await expect(card.getByText(/\b(passed|agree[sd]?|byte-identical)\b/i)).toHaveCount(0);
+  });
+});
+
+test.describe('the realised-value line at the width where it is tightest @screen-only', () => {
+  test('renders under the figure and stays inside its card at 1280px', async ({ page }) => {
+    // Six cards across from 1280px, each a sixth of the width. The line that
+    // said "from 24 valued outcomes, of 278 acted on — too few to read as a
+    // return: a count this small swings about 20%" took nine lines there. It
+    // may wrap (ADR-023 §2, amended 2026-09-18); it may not overflow its card.
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await login(page, ACCOUNTS.marcus);
+    await page.goto('/');
+    const card = page.getByText('Realised value', { exact: true }).locator('..');
+    const line = card.locator('p').nth(2);
+    await expect(line).toHaveText(/^[\d,]+ valued( — too few to read)?$/, { timeout: 20_000 });
+    const fits = await line.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const within = el.parentElement!.getBoundingClientRect();
+      return {
+        overflowX: el.scrollWidth > el.clientWidth + 1,
+        outside: box.left < within.left - 1 || box.right > within.right + 1,
+      };
+    });
+    expect(fits, 'the line overflows its card').toEqual({ overflowX: false, outside: false });
+  });
+});
+
+test.describe('the rail is as wide as its nav @screen-only', () => {
+  test('the ledger line in its footer wraps rather than widening it', async ({ page }) => {
+    // The footer's ledger line, added 2026-09-18, widened the rail to fit it on
+    // one line: "unnaturally wide", in the product owner's words, the same day.
+    await login(page, ACCOUNTS.marcus);
+    await page.goto('/');
+    const footer = page.locator('aside[data-rail] p').filter({ hasText: /ledger|decisions|PostgreSQL|In memory/ });
+    await expect(footer).toBeVisible();
+    await expect(footer).not.toHaveText(/Reading the ledger/);
+    const rail = await page.locator('aside[data-rail]').boundingBox();
+    const nav = await page.getByRole('navigation', { name: 'Main', exact: true }).boundingBox();
+    expect(rail!.width, 'the rail is wider than its nav').toBeLessThanOrEqual(nav!.width + 1);
   });
 });
 

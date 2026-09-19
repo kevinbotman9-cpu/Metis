@@ -113,6 +113,14 @@ export interface Loop {
    * data supports: a decision record carries no propensity to weight it by.
    */
   expectedDelivered: number;
+  /**
+   * How many offers `expectedDelivered` is over: every offer shown on a channel
+   * that delivers, which since ADR-020 is every slate entry, not one per
+   * decision. The sentence under the ceiling quoted `deliverable` — a count of
+   * decisions — until 2026-09-18, and said "41 delivered offers" over a figure
+   * summed across 67.
+   */
+  deliveredOffers: number;
   /** The same ceiling, over the offers nothing sent. */
   expectedUndelivered: number;
   /**
@@ -205,13 +213,12 @@ function realisedLineOf(data: LoopReport, realised: number | null, format: Forma
     return data.acted > 0 ? `${acted} acted on, none carrying a value` : 'nothing acted on yet';
   }
   const valued = data.valued ?? 0;
-  const head = `from ${format.number(valued)} valued ${valued === 1 ? 'outcome' : 'outcomes'}, of ${acted} acted on`;
-  if (valued >= REALISED_FLOOR) return head;
-  // Computed, not written: a count this small moves by about 1/√n on its own.
-  // Two clauses, not three — the third ("with no change in behaviour") took the
-  // card to five wrapped lines on the Overview, which is 18px of the page's fit.
-  const spread = format.number(1 / Math.sqrt(Math.max(1, valued)), { style: 'percent', maximumFractionDigits: 0 });
-  return `${head} — too few to read as a return: a count this small swings about ${spread}`;
+  // Two facts: the count the figure rests on, and, below the floor, that it is
+  // too few to read. ADR-023 §2, amended 2026-09-18: the acted-on count and the
+  // computed spread were dropped, because on the Overview the card is a sixth
+  // of the width and the line ran to five lines at 1680px and nine at 1280px.
+  const head = `${format.number(valued)} valued`;
+  return valued >= REALISED_FLOOR ? head : `${head} — too few to read`;
 }
 
 export type LosesMost =
@@ -429,6 +436,7 @@ export function buildLoop(
     realised,
     realisedLine: realisedLineOf(data, realised, format),
     expectedDelivered: ceiling(data.rows.filter(delivers)),
+    deliveredOffers: data.rows.filter(delivers).reduce((sum, r) => sum + r.offered, 0),
     expectedUndelivered: ceiling(data.rows.filter((r) => !delivers(r))),
     inversions,
     losesMost: losesMostOf(data, deliverable, format),

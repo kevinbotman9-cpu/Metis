@@ -30,6 +30,7 @@ import { categories, objectives, placements } from '../apps/console/mocks/fixtur
 import { experiments } from '../apps/console/mocks/fixtures/experiments.ts';
 import { profileSchema } from '../apps/console/mocks/fixtures/profile-schema.ts';
 import { requestHash } from '../packages/runtime/src/idempotency/index.ts';
+import { execute } from '../packages/runtime/src/deterministic/engine.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'docs/conformance');
@@ -95,7 +96,20 @@ const sample = [
   ...spread(suppressed, Math.floor(SAMPLE / 2)),
 ].sort((a, b) => a.trace.id.localeCompare(b.trace.id));
 
-const cases = sample.map(({ trace, request, artifact }) => ({
+/**
+ * The request a caller sends, and the decision a service makes from it.
+ *
+ * A seeded request carries `resolved` — what the seed's resolution wrote —
+ * and that is the platform's to set after resolving, never a caller's: both
+ * services drop it at the boundary (ADR-022 §3). Neither service resolves
+ * (G-008), so every connector-provided field a case carries is recorded as the
+ * request's, and the expected record is the one a service makes from what it
+ * is sent, not the seeded one (ADR-022 §7: all 60 become `request`).
+ */
+const cases = sample.map(({ request: seeded, artifact }) => {
+  const { resolved: _resolved, ...request } = seeded;
+  const trace = execute(artifact, catalogueSnapshot, request);
+  return {
   artifactId: artifact.id,
   request,
   expected: {
@@ -110,7 +124,8 @@ const cases = sample.map(({ trace, request, artifact }) => ({
     // place, and could drift without a single decision hash changing.
     requestHash: requestHash(request),
   },
-}));
+  };
+});
 
 const distinct = new Set(cases.map((c) => c.expected.chainHash));
 if (distinct.size !== cases.length) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { shownBy } from '@/lib/shown';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { RequireAuth } from '@/components/require-auth';
@@ -153,12 +154,20 @@ function DecisionsView() {
       key: 'winner',
       header: 'Outcome',
       sortValue: (d) => d.winner ?? 'zzz',
-      cell: (d) =>
-        d.winner ? (
-          <Badge tone="pass">{d.winner}</Badge>
-        ) : (
-          <Badge tone="block">no offer</Badge>
-        ),
+      // What was shown, not only slot 1 (ADR-020 §1): a grid decision that
+      // showed three offers read as one here until 2026-09-18.
+      cell: (d) => {
+        const shown = shownBy(d);
+        if (shown.length === 0) return <Badge tone="block">no offer</Badge>;
+        if (shown.length === 1) return <Badge tone="pass">{shown[0].action}</Badge>;
+        return (
+          <span className="flex flex-wrap gap-1" aria-label={`${shown.length} offers shown`}>
+            {shown.map((e) => (
+              <Badge key={e.action} tone="pass">{`${e.rank}. ${e.action}`}</Badge>
+            ))}
+          </span>
+        );
+      },
     },
     {
       key: 'candidateCount',

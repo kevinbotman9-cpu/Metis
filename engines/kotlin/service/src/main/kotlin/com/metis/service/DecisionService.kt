@@ -198,6 +198,14 @@ class DecisionService(private val store: Store, port: Int = 0) {
                 contactHistory = stored.contactHistory,
                 // Absent stays unstated, so the replay records it as absent again.
                 consent = d.consentState.asAssertion(),
+                // What resolution wrote, from the record, never resolved again
+                // (ADR-022 §4). This service does not resolve, so its records
+                // hold only `request` origins and this is empty; it is passed
+                // anyway, so a record from a resolving service replays here too.
+                resolved = d.fieldOrigins.filter { it.origin != "request" }
+                    .map { ResolvedField(it.field, it.nodeId, it.connectorId, it.origin) },
+                // The count the decision had, not a placement's today (ADR-020 §2).
+                slotCount = d.slotCount,
             ),
             catalogueSnapshotHash = d.catalogueSnapshotHash,
             inputSnapshotHash = d.inputSnapshotHash,

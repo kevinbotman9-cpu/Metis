@@ -9,6 +9,7 @@ import {
 import type { DecisionRequest } from '@metis/runtime';
 import {
   LedgerError,
+  predatesReseed,
   type ContactCounts,
   type ContactQuery,
   type DeliveryAttempt,
@@ -78,6 +79,12 @@ export interface LedgerStore {
    */
   countContacts(q: ContactQuery): Promise<ContactCounts>;
   idempotency: IdempotencyStore;
+  /**
+   * Run `fn` holding this subject's lock across every process that shares the
+   * store (G-160). Optional: a store that runs in one process has nothing to
+   * add to the in-process order `DecisionLedger.withSubject` already keeps.
+   */
+  withSubject?<T>(subjectHash: string, fn: () => Promise<T>): Promise<T>;
 }
 
 /**
@@ -93,6 +100,45 @@ export function subjectHash(tenantId: string, customerRef: string): string {
 
 export class DecisionLedger {
   constructor(private readonly store: LedgerStore) {}
+
+  /** The tail of each subject's queue in this process. */
+  private readonly subjectQueues = new Map<string, Promise<unknown>>();
+
+  /**
+   * Run `fn` as the only decision for this customer in flight — G-160, ADR-021 §10.
+   *
+   * A frequency cap reads the customer's contacts before the engine runs, and
+   * the contact is written after it. Two decisions for one customer made at once
+   * both read the count before either writes, and both get the last slot: the
+   * storefront, deciding its hero and grid together, went over a three-a-day cap
+   * on 41 of 64 customer-days in two weeks of visits on 2026-09-18. Whatever
+   * reads contacts and writes the contact it makes runs inside this, so the
+   * second decision reads the first one's contact.
+   *
+   * In order within the process, always; and across processes where the store
+   * can lock (PostgreSQL, an advisory lock per subject). Different customers
+   * never wait for each other. A failure in `fn` is the caller's, and does not
+   * stop the next decision for the same customer from running.
+   */
+  async withSubject<T>(tenantId: string, customerRef: string, fn: () => Promise<T>): Promise<T> {
+    const key = subjectHash(tenantId, customerRef);
+    const before = this.subjectQueues.get(key) ?? Promise.resolve();
+    const run = before.then(
+      () => (this.store.withSubject ? this.store.withSubject(key, fn) : fn()),
+      () => (this.store.withSubject ? this.store.withSubject(key, fn) : fn())
+    );
+    const settled = run.then(
+      () => undefined,
+      () => undefined
+    );
+    this.subjectQueues.set(key, settled);
+    try {
+      return await run;
+    } finally {
+      // The last one out clears the entry, so a customer seen once holds nothing.
+      if (this.subjectQueues.get(key) === settled) this.subjectQueues.delete(key);
+    }
+  }
 
   /**
    * Record a decision.
@@ -131,12 +177,13 @@ export class DecisionLedger {
     };
   }
 
-  get(tenantId: string, decisionId: string): Promise<LedgerEntry | undefined> {
-    return this.store.get(tenantId, decisionId);
+  async get(tenantId: string, decisionId: string): Promise<LedgerEntry | undefined> {
+    const entry = await this.store.get(tenantId, decisionId);
+    return entry ? currentShape(entry) : undefined;
   }
 
-  query(q: DecisionQuery): Promise<LedgerEntry[]> {
-    return this.store.query(q);
+  async query(q: DecisionQuery): Promise<LedgerEntry[]> {
+    return (await this.store.query(q)).map(currentShape);
   }
 
   /**
@@ -159,12 +206,32 @@ export class DecisionLedger {
    * discovered years later when someone tries to measure uplift.
    */
   async recordOutcome(event: OutcomeEvent): Promise<void> {
-    const decision = await this.store.get(event.tenantId, event.decisionId);
+    const decision = await this.get(event.tenantId, event.decisionId);
     if (!decision) {
       throw new LedgerError(
         'OUTCOME_WITHOUT_DECISION',
         `No decision ${event.decisionId} for tenant ${event.tenantId}. ` +
           'An outcome that cannot be joined to a decision measures nothing.'
+      );
+    }
+    // Which offer it was about, checked against what the decision recorded it
+    // showed — never the catalogue, which may have moved on (ADR-020 §4). On a
+    // decision that showed one offer, an outcome that names none means that
+    // one; on one that showed several it must say which, or a click on the
+    // second card is credited to the first.
+    const slate = decision.record.decision.slate;
+    if (event.action === undefined && slate.length > 1) {
+      throw new LedgerError(
+        'OUTCOME_ACTION_REQUIRED',
+        `Decision ${event.decisionId} showed ${slate.length} offers (${slate.map((e) => e.action).join(', ')}). ` +
+          'An outcome about it has to name the action it was about.'
+      );
+    }
+    if (event.action !== undefined && !slate.some((e) => e.action === event.action)) {
+      throw new LedgerError(
+        'OUTCOME_ACTION_NOT_SHOWN',
+        `Decision ${event.decisionId} did not show ${event.action}; it showed ${slate.map((e) => e.action).join(', ') || 'nothing'}. ` +
+          'An outcome about something the decision did not show is not an outcome of that decision.'
       );
     }
     await this.store.appendOutcome(event);
@@ -260,4 +327,23 @@ export class DecisionLedger {
   claim(record: IdempotencyRecord): Promise<IdempotencyRecord> {
     return this.store.idempotency.put(record);
   }
+}
+
+/**
+ * A ledger entry this code can read faithfully, or a refusal that says why.
+ *
+ * The reseed of ADR-019, ADR-020 and ADR-022 changed what a decision records:
+ * a recorded slate and slot count, and `fieldOrigins` where there was
+ * `sourceBindings`. A ledger written before it — a development database
+ * somebody clicked into — holds records without them, and every reader here
+ * would otherwise throw on a missing slate, or worse, read a missing slate as
+ * "showed nothing". Refused instead, naming the record and the way out, which
+ * is a reset: a record of the old shape cannot be migrated, because nothing
+ * rewrites the append-only table (ADR-019 §7). Asked for by the product owner
+ * on 2026-09-18, as the smallest version of the reseed's guard.
+ */
+export function currentShape(entry: LedgerEntry): LedgerEntry {
+  const d = entry.record.decision as unknown as Record<string, unknown>;
+  if (Array.isArray(d.slate) && typeof d.slotCount === 'number' && Array.isArray(d.fieldOrigins)) return entry;
+  throw predatesReseed(entry.decisionId, entry.tenantId);
 }

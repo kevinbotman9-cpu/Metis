@@ -38,10 +38,14 @@ test.describe.serial('a loop made by hand @screen-only', () => {
     const hero = page.locator('#slot-homepage_hero');
     const accept = hero.getByRole('button', { name: 'Accept', exact: true });
     await expect(accept).toBeVisible({ timeout: 20_000 });
-    // The grid holds three offers from one decision, and an outcome cannot say
-    // which card it was for (ADR-020 §4), so it offers no Accept.
-    await expect(page.locator('#slot-homepage_grid').getByRole('button', { name: 'Email this offer' }).first()).toBeVisible();
-    await expect(page.locator('#slot-homepage_grid').getByRole('button', { name: 'Accept', exact: true })).toHaveCount(0);
+    // The grid holds three offers from one decision, and since ADR-020 §4 an
+    // outcome says which card it was about, so every card offers Accept. It
+    // offered none until 2026-09-18, rather than one that credited slot 1.
+    const cards = page.locator('#slot-homepage_grid article.card[data-action]');
+    await expect(cards.first().getByRole('button', { name: 'Email this offer' })).toBeVisible();
+    await expect(page.locator('#slot-homepage_grid').getByRole('button', { name: 'Accept', exact: true })).toHaveCount(
+      await cards.count()
+    );
 
     await openPanel(page);
     await page.getByLabel('Value of an acceptance (USD)').fill('75');
@@ -54,8 +58,7 @@ test.describe.serial('a loop made by hand @screen-only', () => {
     await expect(realised).toContainText('$75.00');
     // One acceptance is one valued decision: drawn, counted, and said to be thin
     // (ADR-023). The click before it is acted on and carries no value.
-    await expect(realised).toContainText('from 1 valued outcome, of 1 acted on');
-    await expect(realised).toContainText('too few to read as a return');
+    await expect(realised).toContainText('1 valued — too few to read');
 
     // Web delivers and nothing else offered, so Deliverable cannot drop: a
     // pass-through that says why, not a full bar.

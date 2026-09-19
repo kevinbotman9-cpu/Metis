@@ -196,6 +196,55 @@ test.describe('the decision ledger', () => {
       expect(res.status()).toBe(404);
     });
 
+    test('name the offer on a decision that showed several, and only one it showed (ADR-020 §4)', async ({ request }) => {
+      // An input every offer on the email send qualifies for, so the slate
+      // fills: an active broadband customer on DSL, in their allowance, with no
+      // move planned. The body's default input qualifies for nothing.
+      const made = await decide(
+        request,
+        body({
+          // Fixed, not timestamped: the recorded gateway answers each customer
+          // differently, and this one's answers leave three offers qualifying
+          // (found by probing the route, 2026-09-18). A timestamped id showed
+          // one offer on one run and three on another.
+          customerId: 'cust_probe_1',
+          slotCount: 3,
+          input: {
+            customer: {
+              age: 41,
+              account_status: 'active',
+              credit_status: 'pass',
+              moving_within_days: 999,
+              broadband: { status: 'active', product: 'dsl' },
+              ott: { disney: false, netflix: false },
+              usage: { pct_of_allowance_3mo_avg: 0.9, months_of_history: 12 },
+            },
+            context: {},
+          },
+          consent: { marketing: true, profiling: true, thirdParty: true },
+        } as never)
+      );
+      expect(made.json.decision.slotCount).toBe(3);
+      const shown = (made.json.decision.slate as { action: string }[]).map((e) => e.action);
+      // Asserted, not skipped: a skip here would let this check stop running
+      // the day the request stops showing two, and nobody would see it go.
+      expect(shown.length, 'the request must show at least two offers for this check to mean anything').toBeGreaterThanOrEqual(2);
+
+      const post = (data: Record<string, unknown>) =>
+        request.post(`/api/outcomes/${TENANT}/${made.json.id}`, {
+          data: { type: 'click', occurredAt: '2026-06-01T12:00:09.000Z', ...data } as never,
+        });
+      const unnamed = await post({});
+      expect(unnamed.status()).toBe(422);
+      expect((await unnamed.json()).code).toBe('OUTCOME_ACTION_REQUIRED');
+      const elsewhere = await post({ action: 'not_an_action_it_showed' });
+      expect(elsewhere.status()).toBe(422);
+      expect((await elsewhere.json()).code).toBe('OUTCOME_ACTION_NOT_SHOWN');
+      const second = await post({ action: shown[1] });
+      expect(second.status()).toBe(201);
+      expect((await second.json()).action).toBe(shown[1]);
+    });
+
     test('require an explicit occurredAt, never the clock', async ({ request }) => {
       const made = await decide(request, body({ customerId: `c-clock-${Date.now()}` }));
       const res = await request.post(`/api/outcomes/${TENANT}/${made.json.id}`, {
