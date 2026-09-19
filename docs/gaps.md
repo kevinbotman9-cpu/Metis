@@ -44,6 +44,34 @@ reproduced here, because a count in two places is a count that will disagree.
 
 ## Open
 
+### G-166 — The Kotlin engine rebuilds its candidate map on every decision, and no check would notice
+
+**Registered:** 2026-09-19 · **Status:** Open · **Work item:** none · **Decision:** the product owner, 2026-09-19: register, do not fix in the reseed
+
+`Engine.execute` builds its candidates from the catalogue snapshot's actions on
+every call (`candidatesByKey`,
+`engines/kotlin/engine/src/main/kotlin/com/metis/engine/Engine.kt:189`, called at
+line 328): a map of every offer, then a copy of each offer per action. That is
+work in proportion to the catalogue, on the hot path of every decision.
+
+The TypeScript engine did the same until the reseed, and CI caught it: its
+`hot path cost` guard (`packages/runtime/tests/determinism.test.ts`) asserts
+that per-decision cost does not grow with catalogue size, and measured a
+large-to-small ratio of 6.1 against a ceiling of 5. It now builds the map once
+per snapshot, in a `WeakMap` beside the catalogue hash's: measured locally,
+4.5–5.9 without that and 0.6 with it.
+
+**The Kotlin engine has no such guard.** Its tests are conformance — the right
+answer — and nothing measures what an answer costs, so the same regression
+there is invisible. Today that costs nothing a customer sees: ADR-016 §1 makes
+the Kotlin service *"not a deployable unit"* but the conformance witness. It
+matters the day a JVM deployment is decided, which ADR-016 leaves to a later
+decision — and by then the regression will have had as long as it likes to grow.
+
+**Done when:** the Kotlin engine builds the candidate map once per snapshot, a
+Kotlin test asserts per-decision cost does not grow with catalogue size, as
+`hot path cost` does, and that test goes red with the memo removed.
+
 ### G-165 — Realised value adds an acceptance and a conversion of the same sale
 
 **Registered:** 2026-09-18 · **Status:** Open · **Work item:** none · **Decision:** [ADR-024](adr/ADR-024-an-acceptance-and-a-conversion-are-stages-of-one-sale.md), accepted 2026-09-18
