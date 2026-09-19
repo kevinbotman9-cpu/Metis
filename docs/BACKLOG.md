@@ -247,7 +247,7 @@ stale references at the capability map while there.
 ### W-001 — Fix the holes in the checks themselves
 
 **Registered:** 2026-09-06 · **Stage:** 0 · **Status:** DONE 2026-09-06
-**Check:** `tests/api-paths.test.ts`; `apps/console/tests/bundle/bundle-size.spec.ts`; `apps/console/tests/e2e/accessibility.spec.ts`; `npm run typecheck` over `tsconfig.typecheck.json`
+**Check:** `tests/api-paths.test.ts`; `apps/console/tests/bundle/check-budgets.ts` (a browser measurement, `bundle-size.spec.ts`, until 2026-09-19); `apps/console/tests/e2e/accessibility.spec.ts`; `npm run typecheck` over `tsconfig.typecheck.json`
 
 Gate 1 · Depends: none
 
@@ -1568,7 +1568,7 @@ removes that offer and no other.
 ### W-081 — Route budgets measure what a route renders, not what it links to
 
 **Registered:** 2026-09-13 · **Stage:** 14 · **Status:** PARTIAL
-**Check:** `apps/console/tests/bundle/bundle-size.spec.ts` (prefetch not counted, and how much is reported); `apps/console/scripts/measure-route-payload.mjs --prefetch both` reports the difference
+**Check:** `apps/console/tests/bundle/route-chunks.ts`, run by `npm run test:bundle`; `apps/console/tests/unit/route-chunks.test.ts` › `does not count a screen a route links to, so making that screen heavier moves nothing`
 
 Gate 1 · Gap [G-112](gaps.md)
 
@@ -1582,6 +1582,13 @@ from the same commit.
 build measure every route identically, and the budgets were reset from that
 measurement. **Not yet:** the test in *Done when* that proves a heavier linked
 screen does not fail the route linking to it.
+
+**Landed 2026-09-19:** the check reads each route's chunks from the build's
+manifests instead of a browser (G-112), so prefetch is not in the measurement
+at all rather than aborted out of it; the budgets were reset against it; and
+`route-chunks.test.ts` makes a linked screen 400 kB heavier and proves the route
+linking to it measures the same. Every clause of *Done when* now has a check.
+The status is the product owner's to move.
 
 **Done when:** the budget check measures a route with router prefetch excluded,
 the budgets are reset against that measurement, and a test proves that making a

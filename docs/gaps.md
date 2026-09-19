@@ -1185,91 +1185,6 @@ against #90's; if shard 3 stays slow, the restore cost per reset is measured and
 either the threshold covers it or the seed moves to a PostgreSQL service in CI,
 which is the alternative ADR-018 already names.
 
-### G-132 — A bundle-budget test can hang inside the measurement, and a retry is what turns it green
-
-**Registered:** 2026-09-14 · **Status:** Open · **Work item:** none — a harness defect; measured to the test body on 2026-09-16, with the wait that held it still unnamed. W-081 owns the budget check's measurement
-
-The title said teardown until 2026-09-16, and the reading below with it. Both
-are kept, with what disproved them, because a wrong diagnosis that was acted on
-twice is part of the record.
-
-**The observation.** #62's `verify` job at `1e9c499` (run 34891321276) failed
-`bundle-size.spec.ts` › *`/creatives` is within budget*:
-
-```
-/creatives: 692.4 kB of 780 kB (11 prefetch requests not counted)
-✘ … › /creatives is within budget (1.0m)
-Test timeout of 60000ms exceeded.
-```
-
-The route was measured and was inside its budget. The only statement after the
-line that printed it is a synchronous `expect`, so the sixty seconds went
-somewhere after the measurement — most plausibly in teardown: the spec leaves a
-`page.route('**/*')` handler installed and pushes a `res.body()` promise for
-every `/_next/static/*.js` response, including any that arrive after
-`Promise.all(pending)` has returned, and nothing awaits or removes either before
-the page closes. That is a reading of the code, not a demonstration.
-
-**Why it is not the change.** #62 touched one e2e spec and register prose,
-nothing that ships in a route bundle. The same application code measured
-`/creatives` identically (692.4 kB, 11 prefetch requests aborted) in 1.2s on
-#61's run and 1.1s on main's push run at `34c7d7f`.
-
-**Measured on 2026-09-16, and the reading above is wrong.** Four measurements,
-in the order they were taken.
-
-*The sixty seconds are inside the test body, not after it.* The failing job's
-own timestamps: `/offers` printed its measurement at 20:14:31.7 and
-`/creatives` printed its at 20:15:31.8 — sixty seconds later — and the five
-tests after it printed at 20:15:33.4, :34.4, :35.6, :36.6 and :37.6, a second
-apart. The only thing after that line is a synchronous assertion, so the sixty seconds
-were spent before it printed. Teardown, which comes after both, cannot be what
-took the time.
-
-*The page had loaded and every byte had been read.* The failing run's artifact
-is still on the run (`bundle-budget-report`, one `error-context.md`). Its page
-snapshot shows `/creatives` fully rendered — the level-one heading, the ten
-creatives, the nav — and the total the test printed, 692.4 kB, is the passing
-re-run's number to the tenth of a kilobyte. Whatever the wait was, it was not
-waiting for the page to draw or for a chunk to go uncounted.
-
-*A route handler running at teardown does not hold the page.* The reading above
-was tested directly: a probe installed `page.route('**/*')` with a handler that
-sleeps twenty seconds, ended the body while it slept, and the test finished in
-1.6s. Playwright closed the page without waiting for it.
-
-*It does not reproduce here.* Fifty-four runs — every route six times against
-one production build, 2026-09-16 — produced no run over 3.5s, and the time
-outside each body was a steady ~110ms.
-
-**What is left.** Two waits in the body had no ceiling: the quiet window
-(`waitUntil: 'networkidle'`) and the `Promise.all` over one body read per chunk.
-Both are consistent with the evidence and the run cannot distinguish them,
-because a bare `Test timeout of 60000ms exceeded.` names neither. They are now
-bounded at twenty seconds each, with messages naming the route, the wait and
-what was outstanding (`tests/bundle/settle.ts`, checked in
-`tests/unit/bundle-settle.test.ts`). The quiet window closes in 560–910ms per
-route on a development machine and in 553–705ms on the runner that gates this
-repository (#92's `verify`), so the ceiling has around thirty times the cost on
-the machine the failure happened on. The measurement is unchanged: all nine
-routes report the same kilobytes as before the change, on both machines, to the
-tenth.
-
-**What was done instead of a fix.** The failed job was re-run and #62 merged on
-the result, by the product owner's decision. The re-run passed: `/creatives`
-measured 692.4 kB in 1.1s — with **7** prefetch requests aborted where the failed
-run aborted **11**, from the same build. The byte count matched; what the page
-was doing on the network when the measurement ended did not, which is worth
-knowing when this is diagnosed. The Playwright config's own comment
-says a test that passes only on retry "is a defect to investigate, not a result
-to accept"; this entry is that defect, recorded so the retry is not silent.
-
-**Done when:** a recurrence names the wait that held it — which the ceilings now
-do, in the run's own output — and that wait is fixed, or a season of runs passes
-without one and this is closed as unreproducible. The spec releases its route
-handler before the page closes as of 2026-09-16, which is worth doing and was
-not the cause.
-
 ### G-131 — Every screen is titled "METIS Console", so nothing outside the page can tell two apart
 
 **Registered:** 2026-09-14 · **Status:** Open · **Work item:** [W-083](BACKLOG.md)
@@ -1698,73 +1613,6 @@ What is missing is the scope in the form: a level, and a target chosen from the
 records at that level, with a policy created at an offer's scope applying to
 that offer only. It needs no new field type: `scope.level` is a closed select,
 and `scope.targetId` a select over a named source filtered by the level chosen.
-
-### G-112 — A route's bundle budget counts the screens it links to, so a link can fail an unrelated route
-
-**Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-081](BACKLOG.md)
-
-`tests/bundle/bundle-size.spec.ts` sums every JavaScript chunk a route loads
-before the network goes idle. That includes what Next's router prefetches for
-the links visible on the page, so a route's number is its own code plus the
-screens it links to.
-
-Measured on 2026-09-13 at `f371c7f` with
-`apps/console/scripts/measure-route-payload.mjs --prefetch both`, aborting router
-prefetch requests in the second run:
-
-| Route | Prefetch on | Prefetch off | Prefetch adds |
-|---|---|---|---|
-| `/` | 811.5 kB | 664.7 kB | 146.8 kB |
-| `/offers` | 871.5 kB | 712.7 kB | 158.8 kB |
-| `/creatives` | 847.5 kB | 671.9 kB | 175.6 kB |
-| `/decisions` | 682.7 kB | 581.1 kB | 101.6 kB |
-| `/decision-flows` | 833.3 kB | 582.8 kB | 250.5 kB |
-| `/decision-flows/next-best-action` | 1018.4 kB | 790.2 kB | 228.2 kB |
-| `/audit` | 682.7 kB | 576.2 kB | 106.5 kB |
-| `/settings` | 756.6 kB | 661.6 kB | 95.0 kB |
-
-Every signed-in route pays a flat 95 kB for change sets it links to from the
-header — the `/approvals/cr_…` links present on every page — which the budget
-file had described as the shell. `/decision-flows` itself is 13 kB of route
-code; 155 kB of its number is `/arbitration` and `/placements`, prefetched from
-its links, and it failed its budget on 2026-09-13 because slice three made
-those two screens heavier. Nothing on `/decision-flows` changed.
-
-So a budget does not say what a route costs. Adding a link to a heavy screen,
-or making a linked screen heavier, fails routes that did not change — and the
-failure message tells whoever reads it to trim a page they did not touch.
-
-**A second effect: the number was not repeatable.** Which links have
-prefetched by the time the network goes idle varies between runs, so one
-build gives different numbers. On 2026-09-13 the same commit measured
-`/offers` at 871.5 kB locally and 885.2 kB on CI, and failed CI's run against
-a budget the local run passed. Every other route matched to the decimal. A
-budget that cannot measure one build twice the same way is not a budget: it
-fails at random, and the failure names a route that may not have changed.
-
-**What landed on 2026-09-13.** `bundle-size.spec.ts` aborts router prefetch
-requests and reports how many it did not count. Two runs of one build then
-measured every route to the same byte, although the prefetch requests aborted
-differed between them — 3 against 11 on `/decisions` — which is the variance
-this entry describes, now outside the number. The budgets were reset from
-that measurement in the same change.
-
-What is still missing is the check that would have caught this: a test that
-makes a linked screen heavier and proves the route linking to it does not
-fail.
-
-**Seen again with prefetch aborted, 2026-09-19.** `/` measured **813.7 kB**
-against its 770 kB budget on #124's `verify` — a documentation-only change —
-where the same code measured **679 kB** on #123, #125 and #126 in CI, and six
-times in six locally from one build. Every other route was byte-identical
-between the runs, the request count for `/` was the same (25), and the page
-measured was the same (the loop over an empty ledger, Marketer pressed). So one
-chunk counted heavier with nothing marking it as a prefetch: a load the
-prefetch abort does not recognise is the likeliest reading, and not confirmed.
-A re-run of the job measured 679 kB again. A budget that can fail a change which
-touched no code is a budget that will be raised to make a red go away; the
-product owner has asked for it to be fixed or taken out of the required checks
-rather than re-run.
 
 ### G-111 — The descriptor registry and the panel registry load whole on every route that touches either
 
@@ -3762,6 +3610,190 @@ names, or deleted. Wiring it changes which caps apply at a node, and so what
 decisions do; that makes it a decision rather than a cleanup.
 
 ## Resolved
+
+### G-112 — A route's bundle budget counts the screens it links to, so a link can fail an unrelated route
+
+**Registered:** 2026-09-13 · **Resolved:** 2026-09-19 · **Status:** Resolved · **Work item:** [W-081](BACKLOG.md)
+
+`tests/bundle/bundle-size.spec.ts` sums every JavaScript chunk a route loads
+before the network goes idle. That includes what Next's router prefetches for
+the links visible on the page, so a route's number is its own code plus the
+screens it links to.
+
+Measured on 2026-09-13 at `f371c7f` with
+`apps/console/scripts/measure-route-payload.mjs --prefetch both`, aborting router
+prefetch requests in the second run:
+
+| Route | Prefetch on | Prefetch off | Prefetch adds |
+|---|---|---|---|
+| `/` | 811.5 kB | 664.7 kB | 146.8 kB |
+| `/offers` | 871.5 kB | 712.7 kB | 158.8 kB |
+| `/creatives` | 847.5 kB | 671.9 kB | 175.6 kB |
+| `/decisions` | 682.7 kB | 581.1 kB | 101.6 kB |
+| `/decision-flows` | 833.3 kB | 582.8 kB | 250.5 kB |
+| `/decision-flows/next-best-action` | 1018.4 kB | 790.2 kB | 228.2 kB |
+| `/audit` | 682.7 kB | 576.2 kB | 106.5 kB |
+| `/settings` | 756.6 kB | 661.6 kB | 95.0 kB |
+
+Every signed-in route pays a flat 95 kB for change sets it links to from the
+header — the `/approvals/cr_…` links present on every page — which the budget
+file had described as the shell. `/decision-flows` itself is 13 kB of route
+code; 155 kB of its number is `/arbitration` and `/placements`, prefetched from
+its links, and it failed its budget on 2026-09-13 because slice three made
+those two screens heavier. Nothing on `/decision-flows` changed.
+
+So a budget does not say what a route costs. Adding a link to a heavy screen,
+or making a linked screen heavier, fails routes that did not change — and the
+failure message tells whoever reads it to trim a page they did not touch.
+
+**A second effect: the number was not repeatable.** Which links have
+prefetched by the time the network goes idle varies between runs, so one
+build gives different numbers. On 2026-09-13 the same commit measured
+`/offers` at 871.5 kB locally and 885.2 kB on CI, and failed CI's run against
+a budget the local run passed. Every other route matched to the decimal. A
+budget that cannot measure one build twice the same way is not a budget: it
+fails at random, and the failure names a route that may not have changed.
+
+**What landed on 2026-09-13.** `bundle-size.spec.ts` aborts router prefetch
+requests and reports how many it did not count. Two runs of one build then
+measured every route to the same byte, although the prefetch requests aborted
+differed between them — 3 against 11 on `/decisions` — which is the variance
+this entry describes, now outside the number. The budgets were reset from
+that measurement in the same change.
+
+What is still missing is the check that would have caught this: a test that
+makes a linked screen heavier and proves the route linking to it does not
+fail.
+
+**Seen again with prefetch aborted, 2026-09-19.** `/` measured **813.7 kB**
+against its 770 kB budget on #124's `verify` — a documentation-only change —
+where the same code measured **679 kB** on #123, #125 and #126 in CI, and six
+times in six locally from one build. Every other route was byte-identical
+between the runs, the request count for `/` was the same (25), and the page
+measured was the same (the loop over an empty ledger, Marketer pressed). So one
+chunk counted heavier with nothing marking it as a prefetch: a load the
+prefetch abort does not recognise is the likeliest reading, and not confirmed.
+A re-run of the job measured 679 kB again. A budget that can fail a change which
+touched no code is a budget that will be raised to make a red go away; the
+product owner has asked for it to be fixed or taken out of the required checks
+rather than re-run.
+
+**Resolved 2026-09-19: the budget no longer uses a browser.** The product owner
+chose the fix. `npm run test:bundle` builds the console and reads what each
+route loads from the build's own manifests — the runtime in
+`build-manifest.json`, the route's `entryJSFiles` in its client reference
+manifest, and its `react-loadable-manifest.json` — in
+`apps/console/tests/bundle/route-chunks.ts`. There is no prefetch to abort
+and no network to wait for, so the variance this entry describes has nowhere
+to come from: two builds of one commit printed identical figures for every
+route. The two methods agreed on all nine budgeted routes to a tenth of a
+kilobyte, which says the 813.7 kB reading was the browser's, not the build's.
+A manifest has no notion of a link, so a heavier linked screen cannot move a
+route's number: `tests/unit/route-chunks.test.ts` › *does not count a screen a
+route links to*. The budgets were reset against the new measurement in the same
+change, and every route is now measured, not only the nine with budgets.
+
+**What it gives up:** code a route loads at runtime that none of those manifests
+names — a bare `import()` in a client component, a chunk fetched for a client
+component that arrives only in a later RSC payload. The one such load today is
+the opt-in MSW worker, off in a production build. And the manifests are Next's
+internals, which move between versions, so every read refuses rather than
+defaults: a moved format fails the check naming what it expected.
+`scripts/measure-route-payload.mjs` still measures in a browser, for when the
+question is whether a route loads more than its manifests say.
+
+### G-132 — A bundle-budget test can hang inside the measurement, and a retry is what turns it green
+
+**Registered:** 2026-09-14 · **Resolved:** 2026-09-19 · **Status:** Resolved · **Work item:** none — a harness defect; measured to the test body on 2026-09-16, with the wait that held it still unnamed. W-081 owns the budget check's measurement
+
+**Resolved 2026-09-19, by removal, not by diagnosis.** The budget check no
+longer loads a page (G-112): it reads the build's manifests, so there is no wait
+in it to hang. `bundle-size.spec.ts` and `settle.ts`, the bounded waits written
+for this entry, were deleted with it. Which wait held `/creatives` was never
+named. `scripts/measure-route-payload.mjs`, the browser measurement kept for
+diagnosis, still waits on `networkidle` with no ceiling of its own; it is not a
+gate, and a stall there costs whoever is running it by hand.
+
+The title said teardown until 2026-09-16, and the reading below with it. Both
+are kept, with what disproved them, because a wrong diagnosis that was acted on
+twice is part of the record.
+
+**The observation.** #62's `verify` job at `1e9c499` (run 34891321276) failed
+`bundle-size.spec.ts` › *`/creatives` is within budget*:
+
+```
+/creatives: 692.4 kB of 780 kB (11 prefetch requests not counted)
+✘ … › /creatives is within budget (1.0m)
+Test timeout of 60000ms exceeded.
+```
+
+The route was measured and was inside its budget. The only statement after the
+line that printed it is a synchronous `expect`, so the sixty seconds went
+somewhere after the measurement — most plausibly in teardown: the spec leaves a
+`page.route('**/*')` handler installed and pushes a `res.body()` promise for
+every `/_next/static/*.js` response, including any that arrive after
+`Promise.all(pending)` has returned, and nothing awaits or removes either before
+the page closes. That is a reading of the code, not a demonstration.
+
+**Why it is not the change.** #62 touched one e2e spec and register prose,
+nothing that ships in a route bundle. The same application code measured
+`/creatives` identically (692.4 kB, 11 prefetch requests aborted) in 1.2s on
+#61's run and 1.1s on main's push run at `34c7d7f`.
+
+**Measured on 2026-09-16, and the reading above is wrong.** Four measurements,
+in the order they were taken.
+
+*The sixty seconds are inside the test body, not after it.* The failing job's
+own timestamps: `/offers` printed its measurement at 20:14:31.7 and
+`/creatives` printed its at 20:15:31.8 — sixty seconds later — and the five
+tests after it printed at 20:15:33.4, :34.4, :35.6, :36.6 and :37.6, a second
+apart. The only thing after that line is a synchronous assertion, so the sixty seconds
+were spent before it printed. Teardown, which comes after both, cannot be what
+took the time.
+
+*The page had loaded and every byte had been read.* The failing run's artifact
+is still on the run (`bundle-budget-report`, one `error-context.md`). Its page
+snapshot shows `/creatives` fully rendered — the level-one heading, the ten
+creatives, the nav — and the total the test printed, 692.4 kB, is the passing
+re-run's number to the tenth of a kilobyte. Whatever the wait was, it was not
+waiting for the page to draw or for a chunk to go uncounted.
+
+*A route handler running at teardown does not hold the page.* The reading above
+was tested directly: a probe installed `page.route('**/*')` with a handler that
+sleeps twenty seconds, ended the body while it slept, and the test finished in
+1.6s. Playwright closed the page without waiting for it.
+
+*It does not reproduce here.* Fifty-four runs — every route six times against
+one production build, 2026-09-16 — produced no run over 3.5s, and the time
+outside each body was a steady ~110ms.
+
+**What is left.** Two waits in the body had no ceiling: the quiet window
+(`waitUntil: 'networkidle'`) and the `Promise.all` over one body read per chunk.
+Both are consistent with the evidence and the run cannot distinguish them,
+because a bare `Test timeout of 60000ms exceeded.` names neither. They are now
+bounded at twenty seconds each, with messages naming the route, the wait and
+what was outstanding (`tests/bundle/settle.ts`, checked in
+`tests/unit/bundle-settle.test.ts`). The quiet window closes in 560–910ms per
+route on a development machine and in 553–705ms on the runner that gates this
+repository (#92's `verify`), so the ceiling has around thirty times the cost on
+the machine the failure happened on. The measurement is unchanged: all nine
+routes report the same kilobytes as before the change, on both machines, to the
+tenth.
+
+**What was done instead of a fix.** The failed job was re-run and #62 merged on
+the result, by the product owner's decision. The re-run passed: `/creatives`
+measured 692.4 kB in 1.1s — with **7** prefetch requests aborted where the failed
+run aborted **11**, from the same build. The byte count matched; what the page
+was doing on the network when the measurement ended did not, which is worth
+knowing when this is diagnosed. The Playwright config's own comment
+says a test that passes only on retry "is a defect to investigate, not a result
+to accept"; this entry is that defect, recorded so the retry is not silent.
+
+**Done when:** a recurrence names the wait that held it — which the ceilings now
+do, in the run's own output — and that wait is fixed, or a season of runs passes
+without one and this is closed as unreproducible. The spec releases its route
+handler before the page closes as of 2026-09-16, which is worth doing and was
+not the cause.
 
 ### G-151 — A delivery was timed by the wall clock while its decision was timed by `occurredAt`
 

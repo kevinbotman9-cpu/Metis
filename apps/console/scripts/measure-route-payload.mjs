@@ -15,9 +15,11 @@
  * - With prefetch **off**, requests Next marks as a router prefetch are aborted,
  *   so a route is measured without the screens it links to.
  *
- * Measures the same way `tests/bundle/bundle-size.spec.ts` does — a production
- * build served standalone, a signed-in cold load, bodies not headers — using the
- * bundle config's own server. The spec it runs is generated for the run and
+ * Measures in a browser — a production build served standalone, a signed-in
+ * cold load, bodies not headers — using the bundle config's own server. The
+ * budget check itself reads the build's manifests instead
+ * (`tests/bundle/route-chunks.ts`) and cannot see code a route loads at runtime
+ * that no manifest names; this is how to look for it. The spec it runs is generated for the run and
  * deleted afterwards, so `npm run test:bundle` never picks it up.
  *
  * Usage (from apps/console):
@@ -62,11 +64,15 @@ const PREFETCH = process.env.ROUTE_PAYLOAD_PREFETCH !== 'off';
 const budgets = JSON.parse(readFileSync(resolve(__dirname, '../../bundle-budgets.json'), 'utf8'));
 const result: Record<string, { chunks: Record<string, number>; prefetches: string[] }> = {};
 const isPrefetch = (headers: Record<string, string>) => Object.keys(headers).some((k) => k.toLowerCase().includes('prefetch'));
+// Budgets are keyed by route pattern since 2026-09-19; a browser needs a URL.
+const EXAMPLE_URL: Record<string, string> = { '/decision-flows/[id]': '/decision-flows/next-best-action' };
 
 test.describe.serial('route payload', () => {
   test.skip(!OUT, 'run by scripts/measure-route-payload.mjs only');
   for (const route of Object.keys(budgets.routes)) {
     test(route, async ({ page }) => {
+      const url = EXAMPLE_URL[route] ?? route;
+      test.skip(url.includes('['), 'no example URL for ' + route + '; add one to EXAMPLE_URL');
       const chunks: Record<string, number> = {};
       const prefetches: string[] = [];
       const pending: Promise<void>[] = [];
@@ -81,7 +87,7 @@ test.describe.serial('route payload', () => {
         if (!url.pathname.includes('/_next/static/') || !url.pathname.endsWith('.js')) return;
         pending.push(res.body().then((b) => { chunks[url.pathname] = b.length; }).catch(() => {}));
       });
-      await page.goto(route, { waitUntil: 'networkidle' });
+      await page.goto(url, { waitUntil: 'networkidle' });
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await Promise.all(pending);
       result[route] = { chunks, prefetches: [...new Set(prefetches)] };
