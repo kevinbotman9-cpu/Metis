@@ -15,6 +15,9 @@ constraint taken as binding: **no deployment may write the ledger to PostgreSQL
 with real customer references** until per-subject encryption of the whole
 record, a per-subject-keyed subject column, and a rule for free-form columns all
 exist. The conformance corpora are unaffected — their references are synthetic.
+**Corrected:** 2026-09-19 — two statements that the decision path does not read
+the ledger, false since ADR-021 (2026-09-17). Marked in place; the p99
+consequence is measured in [ADR-025](ADR-025-the-key-store.md).
 
 ## Context
 
@@ -104,8 +107,14 @@ their name is attached.
   losing it destroys data as effectively as deleting it. It needs its own
   backup, its own restore drill, and its own place in the DR work (W-050).
 - Encryption sits between the ledger and its own contents, so every read pays
-  for it. The decision path does not read the ledger, so the p99 gate is
-  unaffected; replay and search are.
+  for it. ~~The decision path does not read the ledger, so the p99 gate is
+  unaffected; replay and search are.~~ *(Corrected 2026-09-19. False since
+  2026-09-17: ADR-021's frequency caps read the customer's contacts from the
+  ledger on every capped placement decision, and its §9 reads the slate inside
+  the record. The p99 reasoning here rested on the decision path not reading
+  the ledger, so it no longer holds; the read path is measured in ADR-025, where
+  a capped decision gains one key fetch, about 0.5 ms at p95, and the scoped
+  count's cost depends on what the ledger keeps in clear — ADR-025 §5.)*
 - The conformance corpora contain no personal data and are unaffected. This is
   worth stating because it would be easy to assume otherwise.
 
@@ -261,8 +270,11 @@ and adds nothing to it.
 - **Replay** (clause 3). A replay of an erased subject still fails explicitly;
   the record it would have read is now ciphertext it cannot open, which is the
   same failure, arrived at for a reason that is actually true.
-- **The p99 gate, as this ADR scoped it.** The decision path does not read the
-  ledger. ADR-014 proposes that it should, and records that consequence there.
+- ~~**The p99 gate, as this ADR scoped it.** The decision path does not read the
+  ledger. ADR-014 proposes that it should, and records that consequence there.~~
+  *(Corrected 2026-09-19: it does read it, on every capped decision, since
+  ADR-021 (2026-09-17). The p99 gate is affected; see the Consequences
+  correction above and ADR-025.)*
 
 ### How it was missed
 

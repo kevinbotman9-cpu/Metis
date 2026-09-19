@@ -1,139 +1,78 @@
 # Current directive
 
-**Issued:** Tuesday 15 September 2026, by the product owner, superseding the demo-week directive issued the same morning.
-**Why:** the internal demo on Friday 18 September 2026 is no longer the priority. No more work is aimed at it. The platform's data layer is: which operations run against a real store, what each remaining one needs, and what has to land before it.
+**Issued:** Saturday 19 September 2026, by the product owner, replacing the framing of the data-layer order issued on 15 September.
+**Why:** the data layer needed an aim, not a list. The order below had become a queue of slices with no statement of what they add up to.
 **Expires:** not set. It stays in force until the product owner replaces it.
 
-This file exists so these constraints live in the repository rather than in a chat message.
+This file exists so the aim and its constraints live in the repository rather than in a chat message.
 
-## In scope
+## The aim: held, provenanced, erasable
 
-1. This amendment.
-2. A read-only survey of the data layer, before any code. It answers five questions:
-   1. Which operations the decision service (`planes/execution`) serves against PostgreSQL today, and which still run through the console's development API over `apps/console/mocks/store.ts`.
-   2. For each remaining operation, what a real implementation needs: schema, store, migration, service route and generated client method.
-   3. Which screens show figures that are fixture values with no real source, and what each would have to be computed from.
-   4. What has to land first. The product owner's assumption is tenant provisioning and authentication; the survey confirms or corrects it.
-   5. The order, in slices, with an honest estimate and the parts that cannot be sized yet.
-3. Then stop. The product owner picks the first slice from the survey.
+**Metis holds the customer data a decision needs, knows where every value came
+from and how fresh it is, and can destroy it provably.**
 
-## The data-layer order
+- **Held.** A decision reads what it needs from Metis's own store at decision
+  time, not from a caller's request body and not from a synchronous call to
+  somebody else's system. What is held is a **decisioning-shaped extract** — the
+  declared fields a decision reads, ADR-014 §3's projection — and never a
+  master customer record. The vision's non-goals stand (*"Not building a CRM,
+  CDP, campaign execution engine or content management system. Integrate."*,
+  `METIS_Vision_and_Build_Plan.md` §12): identity resolution, the profile of
+  record and the consent of record stay with the systems that own them
+  (ADR-014 §1).
+- **Provenanced.** Every value a decision used can say where it came from and
+  when it was true: the source, the connector or the request, and its age at the
+  moment of the decision. ADR-022 records the origin of every field today;
+  freshness (`asOf`, `maxAge`) arrives with the profile store.
+- **Erasable.** Every value that identifies or describes a customer is held under
+  that customer's key, and erasure is **the destruction of that key**, with a
+  record that it happened and a check anyone can run — cryptographic, not a
+  deletion job. The rows stay where they are, the chain hashes stay valid, and
+  the append-only triggers are never bypassed (ADR-004). A backup restored later
+  re-applies every erasure before it serves.
 
-Delivered on 2026-09-15 by the survey, amended the same day, and **re-ordered on 2026-09-16** after slices 1 to 3 landed. Each slice is its own pull request. The product owner picks the next; estimates are in working days, and "unsized" means the slice waits on a decision that fixes its size.
+**This is not new architecture.** ADR-004 decided crypto-shredding with a
+per-subject key; ADR-014 decided the projection, the origins and the boundary;
+the schema's `origin` on every field and the ledger's subject column were built
+for it. It has never been built. Every step below is a step toward it.
 
-Completed slices keep their original numbers. Everything after slice 3 was
-renumbered by the re-order; nothing outside this file referred to those numbers.
+## The steps
 
-### ADR-019 is accepted and mostly unbuilt
+Each step lands whole or not at all, as `CLAUDE.md`'s slices do. The **Order**
+column says, for each constraint on a step's position, whether a dependency
+**forces** it — the step cannot be built without the other — or whether it was
+**chosen**, and so is open to being changed.
 
-Parked on 2026-09-16, deliberately, so that a part-built state does not read as
-a finished one later.
+| Step | Toward | What | After | Order | State |
+|---|---|---|---|---|---|
+| A | Erasable | **The key store**: decided by ADR — store, cipher, lifecycle, what ADR-004 left open — then built: a per-tenant key provider, per-subject keys, erasure with a record and a check | — | **Chosen** to go first: nothing forces it ahead of C or F, but B, D and G cannot start without it, so it unblocks the most | [ADR-025](adr/ADR-025-the-key-store.md) proposed 2026-09-19, with one choice left open (§5) |
+| B | Erasable | **The subject protected in the ledger**: the record under the subject key, the keyed subject column, `outcome_events.detail` under the key, and every ledger reset once (was slice 13, G-068) | A | **Forced** after A: there is no key without it. **Chosen** before C: a synthetic tenant's key can be a file (ADR-025 §1), so B does not need provisioning; a `real` tenant does | |
+| C | Held | **Tenant provisioning** (ADR-016 §2): `metis tenant create`, recording the tenant's data class and key provider (was slice 10) | A | **Chosen** after A: provisioning could land first and add the two fields later; doing it after A means recording them once | |
+| D | Held, provenanced | **The profile store and durable intake** (ADR-014 §3, §5): one encrypted row per subject, each value stamped with source and `asOf`, read once per decision (was slice 14) | A; B; C | **Forced** after A: ADR-004 forbids a store of subject data outside the key. **Chosen** after B and C: the profile store needs keys, not the protected ledger or provisioning — but putting it after B means the ledger's subject column and the profile's are built the same way once | |
+| E | Provenanced | **Freshness in the decision**: `maxAge` per field, a stale value treated as absent and recorded as stale, hashed (ADR-014 §3, G-056) | D | **Forced** after D for profile fields, whose `asOf` the profile store supplies. **Chosen** for connector fields, which carry `observedAt` today (ADR-022 §5) and could have freshness earlier | |
+| F | Held | **The decision service reads the ledger** (G-150), and the console decides and reads through it (was slice 9) | the identity ADR (was slice 8); B | **Forced** after the identity ADR, as the data-layer order recorded: who may call the service decides what it may read. **Chosen** after B: the service's cap read would otherwise be written for a plaintext ledger and rewritten for an encrypted one | |
+| G | Erasable | **Replay of live decisions** (G-009): the input snapshot kept, under the subject key, so a live decision replays and an erased one fails legibly (ADR-004 §3) | A; B | **Forced** after A and B: the snapshot is subject data and may only be stored under the key, in the protected ledger | |
+| H | Provenanced | **Simulation and the bias metric** over held, keyed history (was slice 15) | D; an ADR for the metric | **Forced** after D: a bias metric compares outcomes across attributes Metis does not hold until the profile store does. **Forced** after its ADR: the metric is undecided | |
+| — | | The identity ADR (was slice 8), users and sessions (was 11), autonomy settings (was 12), the connector call log (was 16) | | Not steps toward the aim. The identity ADR is taken when F needs it; the rest when a step needs them | |
 
-**What is built.** Clause 8 only: the tie-break is the artifact's declared order
-rather than the candidate's name, in both engines, and a scored candidate the
-artifact never declared is a refusal rather than a silent first place (#98). It
-went first because it makes the rename in the rest of the split unable to move
-a decision, and because it was provably free — measured over all 10,400 seeded
-decisions, no decision turns on the tie-break, and the diff after the change
-showed 0 ids moved, 0 winners, and every figure identical.
+### Outside the order
 
-**What is accepted and not built.** Clauses 1 to 6 — the model. One offer to
-many actions; what an action carries and what it inherits; the record storing
-both the action key and the offer id; `PolicyScope` gaining an action level and
-what "cap this offer" then means; creatives hanging off the action; experiment
-arms attaching to actions. Nothing in the tree implements any of it: an offer
-still carries the `key` used as the action, and `docs/CAPABILITIES.md` still
-reads PARTIAL for that row, which is the honest state.
+Decided by the product owner on 2026-09-19. Neither is a step toward the aim.
 
-**Why it paused.** The surface was measured before starting rather than
-discovered during: 28 files reference `CatalogueSnapshot`, 91 reference
-creatives or `offerId`, `catalogue_creatives` carries an `offer_id` foreign key
-that needs an expand-only migration, and the spec, the generated client, the
-Kotlin domain and the console screens all move together. That is the 2–4 days
-the estimate says, and it is more than one sitting — so it stopped at the clause
-that stands alone rather than leaving the model half-applied, which is the state
-this note exists to prevent.
-
-**What clause 7 costs when it resumes.** Every decision id moves, because the id
-is the chain hash: 10,400 ids and every foreign key with them, the outcome model
-re-rolling because its draws are keyed on the id, and every pinned figure
-re-pinned deliberately with the old and new both recorded. Clause 9's control
-group — `canonical-corpus.json` byte-identical and `inputSnapshotHash`
-unchanged on all 40 cases — is what says the change went where it was meant to.
-
-### Why the order changed
-
-Four findings from slices 2b and 3, each checked against the tree rather than
-remembered:
-
-1. **Slice 4 as it stood would have split the decision history again.** The
-   `e2e` job has no PostgreSQL service — `verify` and `execution-image` have
-   one, that job does not — and the decision service falls back to memory stores
-   without `METIS_DATABASE_URL`. "The console calls the service" would give the
-   console its seeded in-memory ledger and the service an empty one, so a
-   decision made in the console would land in a history `/decisions` never
-   reads. That is what slice 3 deleted, reappearing at a process boundary. The
-   console's decisions and its reads therefore move together, over a store both
-   processes share.
-2. **The aggregates ADR does not need writing; the slice was missing.**
-   [ADR-014](adr/ADR-014-the-data-spine.md) §10 is Accepted and already decides
-   it: *"W-011 is a per-subject read over the ledger, not a new store"*, rollups
-   declared with `origin: interaction`, windows relative to
-   `request.occurredAt`, contacts counting deliveries rather than attempts,
-   read in the resolution phase and hashed into the snapshot, with
-   `request.contactHistory` becoming additive. §9 settles features the same
-   way. The order covered §3 and §5 and never named §10, which is the slice that
-   makes the frequency & suppression policy read the platform's own counts
-   instead of the caller's — `docs/review/INBOUND_VS_CDH.md` finding I-3's linchpin.
-3. **The `offer`/`action` split goes before anything is keyed per action.**
-   [W-014](BACKLOG.md) says every chain hash moves when it lands. Rollups are
-   keyed per action — contacts per action, last outcome per action — and so are
-   suppression caps and experiment arms. Doing §10 first means keying all of it
-   on a conflated identity and doing it twice. The cost is lowest now: the
-   corpus is regenerated by a seed job, `npm run seed:ledger -- --reset` exists
-   for a database that holds one, and the figures it moves are pinned in one
-   file.
-4. **G-068 sits where it sat, but for two reasons rather than three.** Keying
-   the subject unblocks the profile store and, through it, the bias metric. It
-   does **not** change a provenance label: a synthetic demo ledger stays
-   synthetic after keying, and what keying buys is that `real` becomes
-   possible at all. The dependency on tenant provisioning is real —
-   [ADR-016](adr/ADR-016-deployment-operations-and-scale.md) §2 has
-   `metis tenant create` create the key namespace and the tenant row reference
-   it — so it stays behind provisioning unless the profile store is pulled
-   forward with it.
-
-Accepted by the product owner on 2026-09-16, with one change to what was
-proposed: the simulation figures go first and take the removal rather than a
-label, because a fabricated fairness verdict beside `ran: true` when nothing
-ran is worse than an empty screen.
-
-| # | Slice | Estimate | State |
-|---|---|---|---|
-| 1 | ADR-018: the seeded corpus becomes ledger rows, and screens read only the ledger | 0.5 | Accepted 2026-09-15 |
-| 2a | The seed job; the in-memory seed for development and e2e, restored on reset; the 45-second warm-up threshold; the per-decision tests for decisions, the delivery gate and outcomes; the outcome reads corrected so the ledger's events are not counted twice (ADR-018 §2, §3, §5, §6) | 1–1.5 | Merged, #90 |
-| 2b | Ledger query fields and their index migration; decision search on the ledger, customer by subject hash; `npm run seed:ledger` over PostgreSQL with `--reset`, refused unless the ledger is synthetic and `--tenant` names the tenant | 1–1.5 | Merged, #91 |
-| 3 | Performance, the policy funnel, flow volume and outcomes read the ledger alone; the committed index and the projection's read path deleted | 1–2 | Merged, #93 |
-| 4 | A change set carries a simulation only when one has run: `simulation` optional in the contract, the authored `passed`, `populationSize`, `projectedMarginDelta` and `biasRatio` removed from the fixtures and the three screens that render them, and `/simulations` saying plainly that none has run (ADR-018 §7) | 0.5–1.5 | Merged, #95 |
-| 5 | The `offer`/`action` split ([W-014](BACKLOG.md)), decided by [ADR-019](adr/ADR-019-an-action-is-an-offer-made-decidable.md). **Clause 8 shipped in #98; clauses 1–6 are accepted and unbuilt — see the note below.** Its reseed also carries [ADR-020](adr/ADR-020-a-slate-is-recorded-as-shown.md) clauses 1–5, the slate recorded as shown, so every decision id moves once rather than twice (clause 6 shipped in #110) | 2–4, plus ADR-020 | Part built |
-| 6 | Interaction rollups read per subject (ADR-014 §10): declared with `origin: interaction`, windows relative to `request.occurredAt`, contacts counting deliveries, read in resolution and hashed into the snapshot; `request.contactHistory` becomes additive | 2–3 | Landed with 7 as #114, narrowed by [ADR-021](adr/ADR-021-frequency-caps-count-the-ledger.md): one query for contacts per channel rather than declared rollups, recorded as `contactsRead`. Taken ahead of 5 because channel counts do not depend on the action identity 5 changes |
-| 7 | Frequency and suppression caps over those rollups ([W-012](BACKLOG.md)): the platform's own counts, a stable reason code per suppression, both engines agreeing | 1–2 | Landed with 6 as #114. Placement decisions only: `POST /api/decisions` and both services stay on caller counts until slice 9 ([G-150](gaps.md)) |
-| 8 | ADR: identity, closing G-115 — who may call the decision service, and for which tenant | 0.5–1 to write | |
-| 9 | The console decides **and** reads through the decision service (ADR-016 §1), over a store both processes share, with the e2e harness starting the service against it. Paired: either half alone leaves two histories. **Cannot land with [G-150](gaps.md) open**: the service must read contacts, and the JVM service needs a delivery store to keep agreeing with it | 2–4, plus G-150 | |
-| 10 | Tenant provisioning (ADR-016 §2): control-plane store, `tenants`, `metis tenant create`, tenant settings moved, refusals | 2–3 | |
-| 11 | Users and sessions, as the identity ADR decides | unsized | |
-| 12 | Autonomy settings into the governance store, audited | 0.5–1 | |
-| 13 | Protect the subject in the ledger: a keyed subject hash and per-subject encryption (G-068, ADR-004 clauses 1–3), after the key store is chosen. It follows tenant provisioning, because keys live in the tenant's namespace, and precedes the profile store, which ADR-004's protection has to cover | unsized until the key store is chosen | |
-| 14 | The profile store and durable intake (ADR-014 §3 and §5) | 3–5 | |
-| 15 | Simulation over ledger history, with a bias metric decided by ADR — the figures slice 4 removed, computed | unsized | |
-| 16 | A durable connector call log | 0.5–1 | |
-| 17 | Agent activity | out until an agent runtime exists | |
+- **[G-164](gaps.md) first**: the ledger refuses a repeated outcome. A duplicate
+  doubles realised value while every count stays right, so nothing on the page
+  contradicts it — and the refusal is small.
+- **[G-159](gaps.md) after the key store**: the grid excludes what the page
+  already shows. It changes the engine, and would collide with step B's changes
+  to the ledger's reads.
 
 ## Do not touch
 
-Nothing, except what the survey shows has to come first. Those items go here, named, once the survey is delivered.
-
-New ADRs are allowed again. This work needs them.
+- **No `real` tenant, anywhere, until steps A and B are built.** The ledger
+  already refuses to start with `METIS_DATA_CLASS=real` and a database
+  (ADR-016 §4). That refusal is lifted by step B and by nothing else.
+- **No store for customer data outside the key** (ADR-004): no cache, no Redis,
+  no export, and no log line carrying a value a decision read.
 
 ## Ceilings
 
@@ -142,9 +81,39 @@ New ADRs are allowed again. This work needs them.
 ## How work proceeds under it
 
 - One branch per work item, `npm run gates:quick` before every push, and no direct commits to `main`.
+- An ADR goes Proposed and stops; the product owner decides.
 - Stop and ask rather than expanding scope.
 - Every session reports the conformance count.
 
+## The data-layer order, as it stood
+
+Issued on 15 September 2026 and re-ordered on 16 September; replaced as a
+framing on 19 September. Its completed slices are the record of what was
+built. The rest are re-stated above as steps toward the aim, or set aside.
+
+| # | Slice | State |
+|---|---|---|
+| 1 | ADR-018: the seeded corpus becomes ledger rows, and screens read only the ledger | Accepted 2026-09-15 |
+| 2a | The seed job; the in-memory seed; the per-decision seed checks | Merged, #90 |
+| 2b | Ledger query fields; decision search on the ledger; `npm run seed:ledger` over PostgreSQL | Merged, #91 |
+| 3 | The reports read the ledger alone; the committed index deleted | Merged, #93 |
+| 4 | A change set carries a simulation only when one has run | Merged, #95 |
+| 5 | The `offer`/`action` split (ADR-019) and the recorded slate (ADR-020), in one reseed with ADR-022 and ADR-021 §9's fixture | Clause 8 in #98; the rest in the reseed, #123 |
+| 6–7 | Frequency caps count the platform's own contacts (ADR-021) | #114; placement decisions only, until step F |
+| 8 | ADR: identity, closing G-115 | Set aside; taken when step F needs it |
+| 9 | The console decides and reads through the decision service | Step F |
+| 10 | Tenant provisioning | Step C |
+| 11 | Users and sessions | Set aside |
+| 12 | Autonomy settings into the governance store | Set aside |
+| 13 | Protect the subject in the ledger | Step B |
+| 14 | The profile store and durable intake | Step D |
+| 15 | Simulation over ledger history, with a bias metric | Step H |
+| 16 | A durable connector call log | Set aside |
+| 17 | Agent activity | Out until an agent runtime exists |
+
 ## What this replaces
 
-The demo-week directive, issued and amended on 15 September 2026, pointed every change at Friday's demo. Everything it put in scope was merged that day, from #74 to #86: the decision trace fixes; the Architect home fixes and UX pass; the trace UX pass; the approvals badge; the sign-in page; `/decisions` opening on "Offer made"; G-133; and the regenerated `docs/DEMO_CLAIMS.md`. Its freeze, rehearsal and regression pass on Thursday 17 September are withdrawn with it. Its record of the environment label stands as a fact about any demo build: `NEXT_PUBLIC_ENV_LABEL=Demo` is set on the machine before the build and is not committed.
+The data-layer directive of 15 September 2026 and its order, whose record is
+kept above. Before it, the demo-week directive of the same morning, whose record
+of the environment label still stands: `NEXT_PUBLIC_ENV_LABEL=Demo` is set on the
+machine before a demo build and is not committed.
