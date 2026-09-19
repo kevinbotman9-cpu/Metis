@@ -127,6 +127,15 @@ jobs:
         env:
           METIS_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/metis_registry_test
 
+      # Per-tenant keys above per-subject keys, and erasure by destroying them
+      # (ADR-025): the lifecycle against memory and a real PostgreSQL, whose
+      # erasure record is append-only by trigger.
+      - name: Key store
+        run: npm run test:keys
+        working-directory: .
+        env:
+          METIS_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/metis_registry_test
+
       - name: Portability
         run: npm run test:portability
         working-directory: .

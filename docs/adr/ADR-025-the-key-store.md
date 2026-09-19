@@ -9,6 +9,10 @@
 The reasons are the product owner's and are recorded in §5. Added on
 acceptance: §3's cache bound makes erasure take up to 60 seconds, and the product
 says so wherever it says erasure is provable.
+**Amended on building (step A, 2026-09-19):** §1 — the tenant pseudonym has a
+key of its own, wrapped under the tenant key; §3 — what an erasure record holds,
+and that it is written before the key is destroyed; Consequences — the record's
+pseudonym is a residual disclosure, named; and no key leaves in an export.
 **Decision needed by:** — decided. Built as step A of `docs/DIRECTIVE.md`, before
 step B (protecting the subject in the ledger).
 **Constrains:** a new `packages/keys`; `packages/ledger` (the record, the subject
@@ -151,10 +155,18 @@ cost would be assumed to be.
   - `kms`: a reference to a key in a managed KMS; the provider asks the KMS to
     unwrap. Required for a `real` tenant. Which KMS is a deployment choice, made
     behind one interface, as the ledger's stores are.
+- **A tenant pseudonym key** is 256 random bits per tenant, stored in
+  `key_tenants` **wrapped** under the tenant key and unwrapped once per process.
+  It is what tenant pseudonyms are computed under — not the tenant key itself. A
+  tenant key held in a KMS cannot compute an HMAC locally, and asking the KMS for
+  one would put a network call on every decision, which the cost table in the
+  Context rules out. *(Amended on building, 2026-09-19: this clause first said
+  `HMAC(tenantKey, customerRef)`.)*
 - **A subject key** is 256 random bits, created on the subject's first write. It
   is stored in a `subject_keys` table **wrapped** under the tenant key, and keyed
-  by the **tenant pseudonym** `HMAC(tenantKey, customerRef)`. It is the one
-  mutable table in the ledger's database (ADR-004), and it is not append-only.
+  by the **tenant pseudonym** `HMAC(tenant pseudonym key, customerRef)`. It is
+  the one mutable table in the ledger's database (ADR-004), and it is not
+  append-only.
 - **What the ledger stores:**
   - `record` as ciphertext under the subject key;
   - the subject column `HMAC(subjectKey, customerRef)` on `decision_records` and
@@ -197,8 +209,15 @@ cost would be assumed to be.
   - the subject key row and the tenant-pseudonym row are deleted;
   - the unwrapped cache entry is evicted;
   - an **erasure record** is appended to `erasures`, which is append-only:
-    tenant, the ledger subject column, when, who, and under what request. It
-    carries no identifier and no key.
+    tenant, **the tenant pseudonym**, the ledger subject column, when, who, and
+    under what request. It carries no identifier and no key. The tenant
+    pseudonym is there because a restore must find the key row to destroy it
+    again, and only the pseudonym finds it — see Consequences for what that
+    discloses.
+  - **The record is written before the key is destroyed.** A crash between the
+    two leaves a record whose check reports the key still present, and which
+    re-applying erasures completes. The other order could leave a destroyed key
+    with no record that it was destroyed on purpose.
 - **Re-applied on restore.** A restored database is not served until every
   erasure recorded since the backup was taken has been re-applied. `erasures` is
   backed up apart from the data, so a restore of the data does not roll it back.
@@ -282,6 +301,21 @@ exact count), and **a per-tenant search index held under a key**.
   acceptable and is said at creation.
 - **The conformance corpora are unaffected.** Encryption is at rest, below the
   record, so no chain hash moves (ADR-004 amendment, point 2).
+- **A residual disclosure: an erasure record can confirm that a person was
+  erased.** The record keeps the tenant pseudonym, so that a restore can
+  re-apply the erasure (§3). Someone who can use the tenant key — directly, or
+  through its KMS — and who holds a candidate identifier can compute that
+  person's pseudonym and find it in `erasures`: they learn *that* the person
+  was erased, and when, and nothing about them. Access to the database alone is
+  not enough: the pseudonym key is wrapped under the tenant key, which is never
+  in the database. It cannot be removed while restores re-apply erasures, and
+  it is named here rather than left to be found. *(Found on building,
+  2026-09-19.)*
+- **No key leaves the platform in an export.** `subject_keys`, `key_tenants`
+  and `erasures` are excluded from a tenant's export bundle, each with its
+  reason (`packages/portability/src/entities.ts`): an exported key is a key no
+  erasure can reach. How an encrypted history moves between instances is
+  decided with step B.
 - **What this does not reach:** model weights trained on an erased subject
   (ADR-004's own caveat), and anything a caller or partner holds.
 

@@ -1753,6 +1753,19 @@ What is still missing is the check that would have caught this: a test that
 makes a linked screen heavier and proves the route linking to it does not
 fail.
 
+**Seen again with prefetch aborted, 2026-09-19.** `/` measured **813.7 kB**
+against its 770 kB budget on #124's `verify` — a documentation-only change —
+where the same code measured **679 kB** on #123, #125 and #126 in CI, and six
+times in six locally from one build. Every other route was byte-identical
+between the runs, the request count for `/` was the same (25), and the page
+measured was the same (the loop over an empty ledger, Marketer pressed). So one
+chunk counted heavier with nothing marking it as a prefetch: a load the
+prefetch abort does not recognise is the likeliest reading, and not confirmed.
+A re-run of the job measured 679 kB again. A budget that can fail a change which
+touched no code is a budget that will be raised to make a red go away; the
+product owner has asked for it to be fixed or taken out of the required checks
+rather than re-run.
+
 ### G-111 — The descriptor registry and the panel registry load whole on every route that touches either
 
 **Registered:** 2026-09-13 · **Status:** Open · **Work item:** [W-080](BACKLOG.md)

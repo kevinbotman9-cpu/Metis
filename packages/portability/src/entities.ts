@@ -128,6 +128,40 @@ export const ENTITIES: EntityDeclaration[] = [
       'instance answer a genuinely new request with an old decision, which is ' +
       'the exact failure idempotency exists to prevent.',
   },
+
+  // The key store (ADR-025). None of it travels, and each for a reason that is
+  // about erasure: a key outside the platform is a key no erasure can destroy.
+  // How an encrypted history moves — re-wrapped under the destination's keys on
+  // import — is decided with step B of docs/DIRECTIVE.md, when the ledger is
+  // first held under these keys. Until then these exclusions are what keep an
+  // export from carrying the one thing erasure depends on removing.
+  {
+    table: 'subject_keys',
+    included: false,
+    reason:
+      'A subject key is what erasure destroys. A copy in an export is a copy no ' +
+      'erasure can reach: whoever held the bundle and the tenant key could open an ' +
+      'erased subject again, and "can destroy it provably" would stop being true ' +
+      'the moment a bundle was written.',
+  },
+  {
+    table: 'key_tenants',
+    included: false,
+    reason:
+      'The key tenant pseudonyms are computed under, wrapped under a tenant key ' +
+      'the platform never holds. Without that tenant key it means nothing; with ' +
+      'it, every subject\'s pseudonym could be recomputed away from the platform. ' +
+      'A tenant moved elsewhere gets a new one under its new tenant key.',
+  },
+  {
+    table: 'erasures',
+    included: false,
+    reason:
+      'What this key store destroyed, named by pseudonyms under this platform\'s ' +
+      'keys, which name nothing on another instance. What an erasure protects — ' +
+      'the subject key — is already absent from every export, so there is ' +
+      'nothing on the far side for the record to re-apply to.',
+  },
 ];
 
 export const EXPORTED_ENTITIES = ENTITIES.filter((e) => e.included).map(

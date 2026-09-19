@@ -125,7 +125,14 @@ describe('the export knows about everything that is persisted', () => {
 
     // The exclusions travel with the bundle. Someone importing it elsewhere
     // should not have to read our source to learn what they did not receive.
-    expect(bundle.manifest.excluded.map((e) => e.entity)).toEqual(['idempotency_keys']);
-    expect(bundle.manifest.excluded[0].reason.length).toBeGreaterThan(40);
+    // The key store's three tables since ADR-025: a key outside the platform is
+    // a key no erasure can destroy, so none of them travels.
+    expect(bundle.manifest.excluded.map((e) => e.entity)).toEqual([
+      'idempotency_keys',
+      'subject_keys',
+      'key_tenants',
+      'erasures',
+    ]);
+    for (const e of bundle.manifest.excluded) expect(e.reason.length, e.entity).toBeGreaterThan(40);
   });
 });

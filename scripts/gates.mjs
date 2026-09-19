@@ -86,6 +86,7 @@ export const GATES = [
   { id: 'test-core', label: 'Core', cwd: '.', command: 'npm run test:core' },
   { id: 'test-catalogue', label: 'Catalogue', cwd: '.', command: 'npm run test:catalogue' },
   { id: 'test-governance', label: 'Governance', cwd: '.', command: 'npm run test:governance' },
+  { id: 'test-keys', label: 'Key store', cwd: '.', command: 'npm run test:keys' },
   { id: 'test-portability', label: 'Portability', cwd: '.', command: 'npm run test:portability' },
   { id: 'test-ledger', label: 'Ledger', cwd: '.', command: 'npm run test:ledger' },
   { id: 'test-registry', label: 'Registry', cwd: '.', command: 'npm run test:registry' },
