@@ -8,6 +8,7 @@ import type { PlaywrightTestConfig } from '@playwright/test';
 import seeded from '../../playwright.config';
 import empty from '../../playwright.empty.config';
 import bundle from '../../playwright.bundle.config';
+import { BUILD_ENV } from '../bundle/route-chunks';
 
 /**
  * The suites' servers keep their stores in memory, whatever `.env.local` says.
@@ -86,9 +87,14 @@ describe('a harness server does not open the database a person configured', () =
   it.each([
     ['the seeded suite', seeded, 'development'],
     ['the empty-ledger suite', empty, 'development'],
-    ['the bundle budget', bundle, 'production'],
+    ['the browser payload measurement', bundle, 'production'],
   ] as const)('%s runs its stores in memory', (_name, config, mode) => {
     // Falsy is what every store factory reads as "no database".
     expect(resolvedDatabaseUrl(serverOf(config).env, mode)).toBeFalsy();
+  });
+
+  it('the bundle budget builds without opening it', () => {
+    // `next build` loads `.env.local` too, and prerenders pages that read stores.
+    expect(resolvedDatabaseUrl({ ...BUILD_ENV }, 'production')).toBeFalsy();
   });
 });

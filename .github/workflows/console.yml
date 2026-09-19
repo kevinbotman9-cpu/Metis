@@ -193,18 +193,15 @@ jobs:
       - name: Storybook builds
         run: npm run build-storybook
 
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-
       # The end-to-end suite moved to the sharded `e2e` job below. It was ~13
       # minutes of a serial job that gates every push, and it is the only step
       # here that parallelises cleanly: every other step is a suite small enough
       # that a runner's startup would cost more than it saved.
 
-      # Builds and serves the standalone output, then measures what a browser
-      # actually downloads per route. Separate from the E2E step because that
-      # one runs `next dev`, whose unminified modules make a size budget
-      # meaningless.
+      # Builds the console, then reads what every route loads from the build's
+      # manifests and holds it to bundle-budgets.json. No browser, so this job
+      # no longer installs one: the check measured in a browser until
+      # 2026-09-19 and could not measure one build twice the same way (G-112).
       - name: Route bundle budgets
         run: npm run test:bundle
 
@@ -220,18 +217,6 @@ jobs:
       # produces — running it per shard would print four partial summaries and
       # none of them would be the answer.
 
-      # What the bundle-budget run leaves behind. This said
-      # `apps/console/playwright-report` and pointed at the html reporter's
-      # directory, which nothing in this repo writes — the same mistake the
-      # flake hunt made, in the job next door.
-      - name: Upload bundle-budget report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bundle-budget-report
-          path: apps/console/test-results
-          retention-days: 7
-          if-no-files-found: ignore
 
   # The end-to-end suite, split four ways.
   #

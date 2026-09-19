@@ -21,7 +21,7 @@
     "test:all": "npm run test && npm run test:e2e",
     "build-storybook": "storybook build -c ./.storybook -o ./storybook-static --disable-telemetry",
     "typecheck": "next typegen && tsc --noEmit",
-    "test:bundle": "playwright test --config playwright.bundle.config.ts"
+    "test:bundle": "node --import tsx tests/bundle/check-budgets.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.1",
