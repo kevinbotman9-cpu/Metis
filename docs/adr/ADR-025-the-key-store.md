@@ -1,15 +1,16 @@
 # ADR-025: The key store — envelope keys under a per-tenant key, AES-256-GCM, and erasure as destruction with a record
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-09-19 (proposed)
+**Decided:** 2026-09-19
 **Deciders:** Product owner
 **Owner:** Product owner
-**Decision needed by:** before step B of `docs/DIRECTIVE.md` (protecting the
-subject in the ledger), and so before the profile store, replay of live
-decisions (G-009), the bias metric, and any tenant whose data class is `real`.
-**One choice is the product owner's, not this ADR's:** §5 sets out two versions
-of what the ledger keeps in clear, one inside ADR-004 and one amending it, side
-by side. Everything else here stands whichever is chosen.
+**Accepted with §5's Version A**, the encrypted projection: ADR-004 stays whole.
+The reasons are the product owner's and are recorded in §5. Added on
+acceptance: §3's cache bound makes erasure take up to 60 seconds, and the product
+says so wherever it says erasure is provable.
+**Decision needed by:** — decided. Built as step A of `docs/DIRECTIVE.md`, before
+step B (protecting the subject in the ledger).
 **Constrains:** a new `packages/keys`; `packages/ledger` (the record, the subject
 column, the cap read, the report and search reads); the profile store (ADR-014
 §3, unbuilt); tenant provisioning (ADR-016 §2, unbuilt); `planes/execution` and
@@ -182,6 +183,13 @@ cost would be assumed to be.
   unwrapped, for at most **60 seconds**. That bound is part of the erasure claim:
   an erased subject's data is unreadable everywhere within 60 seconds of the
   destruction.
+- **So erasure is provable, and it is not instant.** For up to 60 seconds after
+  the key is destroyed, a process that had already unwrapped it can still read
+  the subject's data. **Wherever the product says erasure is provable — a
+  screen, the API's description of the erasure operation, the erasure record
+  itself, a document — it says "within 60 seconds"** in the same place. A claim
+  of instant erasure would be false, and the difference is exactly the kind a
+  regulator asks about. (Added on acceptance, 2026-09-19.)
 - **Rotated at the tenant level only.** A new tenant key re-wraps every subject
   key row; no ledger row is touched. Subject keys are never rotated: the rows
   they encrypt are immutable, so a new subject key would protect nothing new.
@@ -237,15 +245,31 @@ under keys the migration would have to open — which it can only do for
 subjects not yet erased. B → A cannot remove what was written in clear: those
 rows are append-only.
 
-**This ADR does not choose between them.** A keeps ADR-004's rule whole and
-pays for it on search. B keeps search and pays by holding a contact pattern in
-clear. Which cost the product accepts is the product owner's decision, and the
-reason it is set out here rather than assumed either way.
+**Decided: Version A** (the product owner, 2026-09-19). ADR-004 stays whole.
+Two reasons:
+
+1. **A → B is additive; B → A is impossible.** Clear columns written to
+   append-only rows can never be taken back, so choosing B is permanent — and it
+   would be a permanent choice made on measurements from a development laptop.
+   Choosing A leaves B available if search ever demands it.
+2. **B leaves a contact pattern in clear that survives erasure.** That
+   contradicts the aim this ADR serves — *can destroy it provably* — and
+   provable erasure is the claim the incumbent has no answer to. Keeping a
+   pattern that outlives the key would give the claim up for search speed.
+
+**What A costs is taken as work, not left to be found.** Decision search that
+does not degrade with tenant size is its own step in `docs/DIRECTIVE.md`,
+landing with or straight after step B, because `/decisions` is the screen an
+auditor uses to find a decision. Its three options are the ones above:
+**backward paging** (walk back through time until a page of matches is found),
+**estimated totals** (say "at least N", or estimate, rather than scan for an
+exact count), and **a per-tenant search index held under a key**.
 
 ## Consequences
 
-Whichever version §5 settles on:
-
+- **Search degrades with tenant history until its own step lands** (§5,
+  Version A): 309 ms per `/decisions` page at 10,400 decisions, measured, and
+  growing linearly. That step lands with or straight after step B.
 - **A capped decision gains one key fetch**, about 0.5 ms at p95, before its cap
   count.
 - **The reports gain a decryption per record** and one batched key fetch per
